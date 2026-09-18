@@ -1,57 +1,58 @@
 # USER STORIES — SAKIP LLDIKTI WILAYAH XVI
+> **Status dokumen:** Revisi lengkap berdasarkan baseline branch `development` yang dianalisis pada 18 September 2026. Dokumen ini menyelaraskan PRD, Workflow, Data Model, Plan Pengembangan, Keputusan Penyelarasan, dan Design System.
+## 1. Tujuan Dokumen
+Dokumen ini mendefinisikan kebutuhan fungsional dan penerimaan (*acceptance*) SAKIP LLDIKTI Wilayah XVI dalam bentuk User Story yang dapat dipakai sebagai acuan UAT, refinement, pembuatan development issue, dan implementasi vertical slice.
+### Hierarki sumber
+- **PRD** menetapkan perilaku dan ruang lingkup produk.
+- **Data Model** menetapkan struktur, constraint, versioning, provenance, dan integritas historis.
+- **Workflow** menetapkan alur end-to-end dan transisi status.
+- **Plan Pengembangan** menetapkan task, dependency, dan Definition of Done teknis.
+- **Keputusan Penyelarasan** menetapkan keputusan terbaru yang mengoreksi/menegaskan baseline.
+- **Design System** mengikat implementasi frontend React/Inertia.
+Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunakan keputusan penyelarasan terbaru lalu sinkronkan dokumen terdampak.
+## 2. Aturan Global yang Mengikat Seluruh Story
+- **Otorisasi server-side.** React hanya menerima hasil `can.*`; tidak ada keputusan permission yang dipercaya dari klien.
+- **Fail closed.** Kode permission yang tidak dikenal selalu ditolak.
+- **Deny menang.** `user_permission_denied` yang cocok selalu mengalahkan allow dari role/grant.
+- **Permission role bersifat global.** Scope unit hidup pada grant/deny individual; permission unit-scoped untuk PIC tetap membutuhkan guard bisnis (unit target, PIC efektif, waktu).
+- **Grant tidak mengganti PIC.** Untuk RA/Pengukuran jalur PIC, grant unit dan PIC indikator efektif harus sama-sama valid.
+- **F1/F2 memakai pengaju versi.** Pemisahan tugas selalu membandingkan aktor review dengan `*_versi.diajukan_by` dan `jalur_pengajuan`, bukan `created_by` dan bukan role terkini.
+- **Versioning resmi.** Setiap submit RA/Pengukuran membuat baris baru `rencana_aksi_versi`/`pengukuran_versi`; payload/provenance versi immutable.
+- **Laporan resmi membaca versi disahkan.** Master/live data tidak boleh mengubah laporan historis diam-diam.
+- **Koreksi append-only/versioned.** Data/bukti yang telah menjadi dasar versi resmi tidak dihapus untuk 'memperbaiki' sejarah.
+- **Jadwal dibuka kembali ≠ PIC otomatis terbuka.** Pasca-penutupan, `jadwal:buka_kembali` membuka sesi koreksi Perencanaan; PIC perlu jendela resmi terpisah melalui `jadwal:update`.
+- **0 berbeda dari NULL.** `0` adalah angka sah; NULL dapat berarti belum diisi atau tidak dapat dihitung sesuai status eksplisit.
+- **Audit sensitif.** Aksi atas permission `sensitif=true` wajib merekam `dasar_izin`; percobaan penting yang ditolak harus dapat diaudit.
+- **Design System wajib.** Halaman/komponen React harus memakai token, komponen reusable, pola form Inertia, state loading/error/disabled, responsivitas, dan larangan kelas warna arbitrary sesuai `design-system.md`.
+- **Anggaran kegiatan di luar MVP.** Field anggaran tidak diinput, ditampilkan, atau divalidasi pada UI/API MVP walaupun kolom database boleh disiapkan nullable untuk fase lanjutan.
+- **Pimpinan read-only pada alur approval MVP.** Permission approval Pimpinan boleh tersedia untuk fase lanjutan tetapi tidak dipakai sebagai langkah aktif fase awal.
 
-Dokumen ini mendefinisikan seluruh **User Stories (Cerita Pengguna)** sistem SAKIP (Sistem Akuntabilitas Kinerja Instansi Pemerintah) LLDIKTI Wilayah XVI secara komprehensif, terstruktur, dan dapat dilacak dari awal hingga akhir (*end-to-end*).
+## 3. Persona
+- **Superadmin:** Memegang seluruh permission melalui role sistem untuk kebutuhan teknis/break-glass, tetapi **tidak** melewati invariant bisnis, deny, F1/F2, versioning, waktu, atau audit.
+- **Admin:** Mengelola pengguna, unit, akses, setelan, audit/dashboard/laporan baca sesuai role. Tidak memiliki hak substantif data kinerja secara bawaan, namun dapat menerima grant eksplisit beralasan.
+- **Perencanaan:** Pemilik proses substantif global: Renstra, target, PK, jadwal, PIC, RA, kegiatan, pengukuran, review, pengesahan, status, rekomendasi, laporan.
+- **Pegawai/PIC:** Pengguna operasional unit. Untuk RA/Pengukuran membutuhkan grant unit + PIC efektif; kegiatan dapat kolaboratif dalam unit sesuai grant.
+- **Pimpinan:** Pemantauan dan laporan read-only pada MVP.
+- **Sistem/Scheduler:** Queue, cron/scheduler, perhitungan, snapshot, dan notifikasi otomatis; tidak diperlakukan sebagai pengguna yang dapat melewati aturan domain.
 
-Seluruh cerita pengguna disusun berdasarkan konsolidasi dokumen resmi:
-- [SAKIP - PRD.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20PRD.md)
-- [SAKIP - Workflow.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Workflow.md)
-- [SAKIP - Plan Pengembangan.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Plan%20Pengembangan.md)
-- [SAKIP - Data Model.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Data%20Model.md)
-- [SAKIP - Keputusan Penyelarasan.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Keputusan%20Penyelarasan.md)
-- [design-system.md](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/design-system.md)
-
----
-
-## 📑 Struktur & Format Standar Cerita Pengguna
-
-Setiap cerita pengguna dirumuskan dengan format:
-- **ID & Judul Cerita**: Kode unik bertahap (`US-XX.YY`).
-- **Pernyataan Cerita**: `Sebagai [Persona/Peran], Saya ingin [Kemampuan/Aksi], Sehingga [Tujuan/Manfaat Bisnis]`.
-- **Prasyarat (*Pre-conditions*)**: Keadaan data dan sistem sebelum cerita dimulai.
-- **Kriteria Penerimaan (*Acceptance Criteria - Given/When/Then*)**: Pengujian skenario normal (*happy path*) maupun kondisi gagal/penolakan (*unhappy path*).
-- **Gerbang & Validasi Bisnis (*Business Rules & Gates*)**: Aturan integritas data, validasi batas waktu, atau pemisahan tugas.
-- **Otorisasi & Otoritas**: Permission granular yang dibutuhkan (`entitas:aksi`), batasan *scope* (`global` vs `unit`), serta presedens *deny*.
-- **Jejak Audit & Dampak Data**: Entitas basis data yang bermutasi dan pencatatan pada `audit_log`.
-
----
-
-## 👥 Persona & Peran Pengguna (RBAC)
-
-1. **Superadmin (`superadmin`)**: Pengelola teknis tertinggi instansi; memegang seluruh permission tanpa batasan (*bypass check*), termasuk perbaikan darurat data historis.
-2. **Admin (`admin`)**: Pengelola administratif murni; mengelola akun pengguna, unit organisasi, penetapan hak akses/pengecualian, dan setelan teknis aplikasi (termasuk kebijakan unggahan berkas); **tidak memiliki hak substantif** atas data kinerja.
-3. **Perencanaan (`perencanaan`)**: Tim Kerja Perencanaan dan Penganggaran; menyusun Renstra, IKU, Target, PK, Jadwal Triwulanan, memverifikasi dan mengesahkan Rencana Aksi & Pengukuran, menginput Rekomendasi Pimpinan, serta menerbitkan Laporan Resmi; wewenang substantif bersifat **global lintas unit**.
-4. **Pegawai / Penanggung Jawab (`pegawai`)**: Pejabat/Staf PIC Unit Kerja pemilik indikator; menginput rencana aksi, mencatat pelaksanaan kegiatan, melengkapi bukti dukung, dan mengisi realisasi triwulan; wewenang substantif **wajib melalui grant bertipe unit** (`user_permission_granted`) dan dibatasi jendela waktu aktif.
-5. **Pimpinan (`pimpinan`)**: Kepala LLDIKTI / Tim Eksekutif; memantau capaian kinerja organisasi, grafik capaian IKU, ringkasan capaian triwulan, dan mengekspor laporan eksekutif (**read-only** pada Fase Awal).
-6. **Sistem / Scheduler (`system`)**: Proses otomatis latar belakang (cron jobs, triggers, queues) untuk pembekuan snapshot, evaluasi gerbang, pemicu notifikasi in-app, dan scheduler EWS.
-
----
-
-# DAFTAR ISI CERITA PENGGUNA
-
-1. [Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC](#bagian-1--fondasi-autentikasi-unit-organisasi-dan-model-akses-rbac)
-2. [Bagian 2 — Pengelolaan Dokumen Dasar Hukum & Master Renstra](#bagian-2--pengelolaan-dokumen-dasar-hukum--master-renstra)
-3. [Bagian 3 — Periode, Penjadwalan, dan Pembekuan Konteks Snapshot](#bagian-3--periode-penjadwalan-dan-pembekuan-konteks-snapshot)
-4. [Bagian 4 — Penugasan PIC Indikator Kinerja](#bagian-4--penugasan-pic-indikator-kinerja)
-5. [Bagian 5 — Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi](#bagian-5--penyusunan-verifikasi-dan-pengesahan-rencana-aksi)
-6. [Bagian 6 — Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak](#bagian-6--pengelolaan-kegiatan-bukti-spj-dan-klaim-dampak)
-7. [Bagian 7 — Pengisian Pengukuran Realisasi Kinerja Triwulanan](#bagian-7--pengisian-pengukuran-realisasi-kinerja-triwulanan)
-8. [Bagian 8 — Reviu, Verifikasi, dan Pengesahan Pengukuran](#bagian-8--reviu-verifikasi-dan-pengesahan-pengukuran)
-9. [Bagian 9 — Rekomendasi Pimpinan & Penilaian Status Capaian](#bagian-9--rekomendasi-pimpinan--penilaian-status-capaian)
-10. [Bagian 10 — Pemantauan Dashboard Eksekutif & Laporan Kinerja](#bagian-10--pemantauan-dashboard-eksekutif--laporan-kinerja)
-11. [Bagian 11 — Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage](#bagian-11--pengelolaan-bukti-dukung-multi-mode--kebijakan-storage)
-12. [Bagian 12 — Alert Kontekstual & Notifikasi (In-App & Eksternal)](#bagian-12--alert-kontekstual--notifikasi-in-app--eksternal)
-13. [Bagian 13 — Setelan Aplikasi, Kebijakan Operasional, dan Audit Trail](#bagian-13--setelan-aplikasi-kebijakan-operasional-dan-audit-trail)
-14. [Bagian 14 — Penutupan Jadwal & Pembukaan Kembali (Koreksi Pasca-Penutupan)](#bagian-14--penutupan-jadwal--pembukaan-kembali-koreksi-pasca-penutupan)
+## 4. Daftar Isi
+1. [Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC](#bagian-1-fondasi-autentikasi-unit-organisasi-dan-model-akses-rbac)
+2. [Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK](#bagian-2-dokumen-dasar-hukum-renstra-sasaran-indikator-target-dan-pk)
+3. [Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill](#bagian-3-periode-jadwal-snapshot-efektivitas-dan-backfill)
+4. [Bagian 4 — Penugasan Penanggung Jawab (PIC)](#bagian-4-penugasan-penanggung-jawab-pic)
+5. [Bagian 5 — Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi](#bagian-5-penyusunan-pengajuan-verifikasi-dan-pengesahan-rencana-aksi)
+6. [Bagian 6 — Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan](#bagian-6-kegiatan-klaim-dampak-dan-bukti-pelaksanaan)
+7. [Bagian 7 — Pengisian Pengukuran Kinerja](#bagian-7-pengisian-pengukuran-kinerja)
+8. [Bagian 8 — Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran](#bagian-8-reviu-verifikasi-pengesahan-dan-koreksi-pengukuran)
+9. [Bagian 9 — Rekomendasi Pimpinan & Status Capaian](#bagian-9-rekomendasi-pimpinan-status-capaian)
+10. [Bagian 10 — Dashboard, Rekapitulasi, dan Ekspor](#bagian-10-dashboard-rekapitulasi-dan-ekspor)
+11. [Bagian 11 — Bukti Dukung Multi-Mode & Integritas Lampiran](#bagian-11-bukti-dukung-multi-mode-integritas-lampiran)
+12. [Bagian 12 — Alert Kontekstual & Notifikasi](#bagian-12-alert-kontekstual-notifikasi)
+13. [Bagian 13 — Setelan Aplikasi, Audit, dan Kebijakan Operasional](#bagian-13-setelan-aplikasi-audit-dan-kebijakan-operasional)
+14. [Bagian 14 — Penutupan Tahunan & Koreksi Pasca-Penutupan](#bagian-14-penutupan-tahunan-koreksi-pasca-penutupan)
+15. [Bagian 15 — Kesiapan Operasional, UAT, dan Penggunaan Pertama](#bagian-15-kesiapan-operasional-uat-dan-penggunaan-pertama)
+16. [Matriks Ketertelusuran](#matriks-ketertelusuran)
+17. [Definition of Done Global](#definition-of-done-global)
 
 ---
 
@@ -60,1150 +61,1949 @@ Setiap cerita pengguna dirumuskan dengan format:
 ### US-01.01 · Login Terpusat Menggunakan Single Sign-On (SSO) Keycloak
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.01 |
+|---|---|
+| **ID** | `US-01.01` |
 | **Prioritas** | 🔴 P0 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Realm Keycloak LLDIKTI XVI aktif, client SAKIP terdaftar, rute SSO tersedia. |<br>| Otorisasi: Rute publik (tanpa middleware auth). |<br>| Dampak Data: Mutasi tabel `users` (`keycloak_id`, `nama`, `email`). |
+| **Dependensi** | Realm Keycloak LLDIKTI XVI aktif, client SAKIP terdaftar, callback URL tersedia. |
+| **Otorisasi** | Rute login/callback publik; halaman aplikasi setelah callback memerlukan sesi autentikasi. |
+| **Dampak Data** | `users`, sesi autentikasi; audit kegagalan/kejadian penting sesuai kebijakan. |
 
-> **Sebagai** seluruh Pengguna SAKIP (Pimpinan, Perencanaan, PIC, Admin),
-> **Saya ingin** melakukan autentikasi menggunakan akun resmi institusi melalui Keycloak OIDC,
-> **Sehingga** saya tidak perlu mengelola password lokal terpisah dan akses saya terotentikasi secara aman dan terpusat.
+> **Sebagai** seluruh Pengguna SAKIP,  
+> **Saya ingin** melakukan autentikasi menggunakan akun resmi institusi melalui Keycloak OIDC,  
+> **Sehingga** pengguna tidak mengelola password lokal dan identitas aplikasi tetap terpusat.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Pengguna belum login mengakses halaman sistem SAKIP, *When* Pengguna menekan tombol "Login SSO", *Then* Sistem mengarahkan Pengguna ke laman otentikasi Keycloak via *OIDC Authorization Code Flow*.
-- [ ] AC-2: *Given* Pengguna memasukkan kredensial valid di Keycloak, *When* Keycloak mengalihkan kembali ke rute callback SAKIP, *Then* Sistem mencocokkan `keycloak_id` pada tabel `users`, menyinkronkan nama serta email, membentuk sesi Laravel, dan mengarahkan pengguna ke Dashboard.
-- [ ] AC-3: *Given* Pengguna baru pertama kali login, *When* Token Keycloak valid diterima, *Then* Sistem secara otomatis menjalankan `firstOrCreate` pada tabel `users` dengan `status = aktif`.
-- [ ] AC-4: *Given* Login gagal di sisi Keycloak, *When* Callback mengembalikan galat, *Then* Sistem menampilkan pesan kesalahan dan tidak membuat sesi lokal.
+- [ ] **AC-1:** Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
+- [ ] **AC-2:** Given callback membawa token yang valid, When callback diproses, Then sistem mencocokkan `keycloak_id`, menyinkronkan nama/email yang diizinkan, membentuk sesi Laravel, dan mengarahkan pengguna ke dashboard.
+- [ ] **AC-3:** Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
+- [ ] **AC-4:** Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
+- [ ] **AC-5:** Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
+
+**Business Rules / Catatan**
+
+- Tidak ada password lokal SAKIP.
+- Token/secret Keycloak tidak boleh masuk log, audit, atau props React.
 
 ### US-01.02 · Pengelolaan Master Unit Organisasi
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.02 |
+|---|---|
+| **ID** | `US-01.02` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna memegang permission `unit:*`. |<br>| Otorisasi: `unit:create`, `unit:read`, `unit:update`, `unit:delete`. |<br>| Dampak Data: Tabel `unit`, entri `audit_log` (`objek_tipe = unit`). |
+| **Dependensi** | Pengguna telah login; katalog permission dan audit log tersedia. |
+| **Otorisasi** | `unit:create`, `unit:read`, `unit:update`, `unit:delete`. |
+| **Dampak Data** | `unit`, `audit_log`. |
 
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** menambah, mengubah, menonaktifkan, dan menghapus unit organisasi,
-> **Sehingga** struktur kepemilikan indikator dan ruang lingkup hak akses pegawai selalu sesuai dengan nomenklatur organisasi LLDIKTI XVI terkini.
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** menambah, membaca, mengubah, menonaktifkan, dan menghapus unit organisasi yang benar-benar kosong,  
+> **Sehingga** struktur pemilik indikator dan scope akses selalu mengikuti organisasi resmi.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Admin mengisi form pembuatan unit dengan nama valid, *When* Tombol simpan ditekan, *Then* Baris baru terbentuk di tabel `unit` dengan status default `aktif` dan tercatat di `audit_log`.
-- [ ] AC-2: *Given* Suatu unit telah memiliki keterkaitan dengan minimal 1 indikator kinerja (`indikator.unit_id`), *When* Admin mencoba menghapus unit tersebut, *Then* Sistem menolak penghapusan dengan pesan validasi tegas bahwa unit yang memiliki indikator aktif tidak dapat dihapus.
-- [ ] AC-3: *Given* Suatu unit tidak memiliki riwayat indikator sama sekali, *When* Superadmin menghapus unit, *Then* Baris unit dihapus dan peristiwa tercatat di `audit_log`.
+- [ ] **AC-1:** Given pengguna memiliki permission yang sesuai, When membuat unit dengan data valid, Then unit tersimpan dengan status default `aktif` dan perubahan tercatat di audit.
+- [ ] **AC-2:** Given unit masih memiliki keterkaitan dengan **indikator, rencana aksi, atau kegiatan**, When penghapusan dicoba, Then penghapusan ditolak terlepas dari role aktor.
+- [ ] **AC-3:** Given unit tidak memiliki keterkaitan historis yang dilindungi, When **Superadmin** menghapus unit, Then unit dapat dihapus dan alasan/peristiwa tercatat di audit.
+- [ ] **AC-4:** Given Admin memiliki `unit:update`, When menonaktifkan unit, Then status berubah tanpa menghapus histori.
+- [ ] **AC-5:** Given pengguna tanpa permission `unit:*`, When mengakses endpoint secara langsung, Then server mengembalikan 403.
 
-### US-01.03 · Penetapan Peran Pengguna (Form 1 — Assign Peran)
+**Business Rules / Catatan**
+
+- Unit adalah master global, bukan hierarki organisasi bertingkat.
+- Delete unit kosong hanya oleh Superadmin; Admin tetap dapat create/read/update sesuai katalog role.
+
+### US-01.03 · Penetapan Peran Utama Pengguna (Assign Peran)
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.03 |
+|---|---|
+| **ID** | `US-01.03` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna target telah terdaftar di tabel `users`. |<br>| Otorisasi: `akses:update`, `pengguna:read`. |<br>| Dampak Data: Tabel `user_roles`, entri `audit_log` (`tindakan = user_roles.tambah/ubah`). |
+| **Dependensi** | Pengguna target telah ada pada `users`; lima role sistem tersedia. |
+| **Otorisasi** | `akses:update` dan `pengguna:read`. |
+| **Dampak Data** | `user_roles`, `audit_log`. |
 
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** menetapkan satu peran utama kepada pengguna (Superadmin, Admin, Perencanaan, Pimpinan, Pegawai) disertai alasan penetapan,
-> **Sehingga** pengguna memperoleh paket permission bawaan sesuai tanggung jawab formalnya.
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** menetapkan satu peran utama kepada pengguna dengan alasan yang dapat diaudit,  
+> **Sehingga** paket permission bawaan pengguna mengikuti tanggung jawab formalnya.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Admin membuka form penetapan peran, *When* Memilih pengguna X, memilih peran Y, dan mengisi alasan wajib, *Then* Sistem melakukan insert/update pada `user_roles` dengan `diberikan_oleh = auth()->id()`.
-- [ ] AC-2: *Given* Pengguna X telah memiliki peran lama, *When* Peran diganti ke peran baru, *Then* Sistem memperbarui baris `user_roles` (karena batas unik 1 user = 1 peran di MVP) dan mencatat perubahan di `audit_log` dengan `nilai_lama` (peran asal) dan `nilai_baru` (peran baru).
-- [ ] AC-3: *Given* Admin mengosongkan kolom alasan, *When* Menekan tombol simpan, *Then* Sistem menolak penyimpanan dan mewajibkan alasan diisi.
-- [ ] AC-4: *Given* Pengguna dengan peran Perencanaan, Pimpinan, atau Pegawai mencoba mengakses form ini, *When* Membuka URL endpoint, *Then* Sistem mengembalikan respons 403 Forbidden.
+- [ ] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
+- [ ] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
+- [ ] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
+- [ ] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
 
-### US-01.04 · Pemberian Grant Izin Tambahan per Unit (Form 2 — Grant Izin Unit)
+### US-01.04 · Pemberian Grant Izin Tambahan per Unit
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.04 |
+|---|---|
+| **ID** | `US-01.04` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna target memiliki peran Pegawai; unit kerja target berstatus aktif. |<br>| Otorisasi: `akses:update`. |<br>| Dampak Data: Tabel `user_permission_granted`, `audit_log`. |
+| **Dependensi** | Pengguna target aktif; unit target aktif; permission ada pada katalog. |
+| **Otorisasi** | `akses:update`. |
+| **Dampak Data** | `user_permission_granted`, `audit_log`. |
 
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** memberikan izin operasional khusus dengan batasan unit kerja tertentu kepada Pegawai (PIC),
-> **Sehingga** PIC tersebut berwenang menyusun rencana aksi, mencatat kegiatan, dan mengisi pengukuran hanya untuk indikator milik unit kerjanya.
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** memberikan grant eksplisit beralasan untuk permission berscope unit kepada pengguna tertentu,  
+> **Sehingga** pengecualian akses dapat diberikan secara presisi tanpa mengubah role utama.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Admin memilih pengguna X, memilih permission bertipe `butuh_scope = unit` (mis. `pengukuran:create`), memilih unit U, dan mengisi alasan, *When* Form disimpan, *Then* Baris baru terbentuk di `user_permission_granted` dengan `unit_id = U`.
-- [ ] AC-2: *Given* Admin mencoba memberikan grant atas permission bertipe `butuh_scope = global` (mis. `pengaturan:update` atau `jadwal:aktivasi`), *When* Validasi dijalankan, *Then* Sistem menolak karena permission global tidak boleh dibatasi unit.
-- [ ] AC-3: *Given* Admin mencoba menyimpan grant tanpa memilih unit untuk permission berjenis unit, *When* Validasi dijalankan, *Then* Sistem menolak dengan pesan bahwa unit wajib dipilih.
-- [ ] AC-4: *Given* Pengguna telah memiliki grant identik (user, permission, unit sama), *When* Disimpan ulang, *Then* Sistem menolak duplikasi (constraint unik).
+- [ ] **AC-1:** Given permission berkatalog `butuh_scope = unit`, When grant dibuat dengan user, unit, dan alasan valid, Then baris `user_permission_granted` terbentuk dengan `unit_id` terisi.
+- [ ] **AC-2:** Given permission bertipe global, When dicoba diberikan melalui Form Grant Unit, Then validasi menolak karena form ini khusus permission unit-scoped.
+- [ ] **AC-3:** Given permission unit-scoped tanpa unit, When submit dilakukan, Then validasi menolak.
+- [ ] **AC-4:** Given kombinasi user-permission-unit identik sudah ada, When disimpan ulang, Then duplikasi ditolak.
+- [ ] **AC-5:** Given pengguna bukan role Pegawai sekalipun, When Admin memberi grant eksplisit yang valid, Then grant dapat tersimpan; namun seluruh guard bisnis lain seperti PIC efektif, waktu, F1/F2 dan deny tetap berlaku.
+- [ ] **AC-6:** Given grant dicabut, When pencabutan selesai, Then audit mencatat aktor, alasan, dan grant yang dicabut.
 
-### US-01.05 · Pencabutan Izin Eksplisit (Form 3 — Deny Izin)
+**Business Rules / Catatan**
+
+- Grant unit bukan pengganti penugasan PIC.
+- Permission dari role tetap global; grant unit dipakai untuk pengecualian operasional yang memerlukan scope.
+
+### US-01.05 · Pencabutan Izin Eksplisit (Deny)
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.05 |
+|---|---|
+| **ID** | `US-01.05` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna target terdaftar. |<br>| Otorisasi: `akses:update`. |<br>| Dampak Data: Tabel `user_permission_denied`, `audit_log`. |
+| **Dependensi** | Pengguna target dan permission tersedia. |
+| **Otorisasi** | `akses:update`. |
+| **Dampak Data** | `user_permission_denied`, `audit_log`. |
 
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** menetapkan larangan izin (*deny*) terhadap pengguna tertentu baik secara global maupun terbatas unit,
-> **Sehingga** akses berisiko dapat segera dimatikan secara presisi tanpa harus menghapus peran utama pengguna.
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** membuat deny global atau deny pada unit tertentu,  
+> **Sehingga** akses berisiko dapat dihentikan presisi tanpa merusak konfigurasi role/grant lain.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Admin memilih pengguna X, permission P, opsi unit (bisa NULL untuk global atau terisi unit U), dan mengisi alasan wajib, *When* Form disimpan, *Then* Baris baru terbentuk di `user_permission_denied`.
-- [ ] AC-2: *Given* Pengguna X memiliki izin P dari peran bawaan (`role_permissions`), *When* Baris deny disimpan untuk P, *Then* Pada saat pengguna X melakukan aksi P, service evaluasi izin menolak akses (aturan: **DENY MENANG** atas allow).
-- [ ] AC-3: *Given* Admin mencabut baris deny yang ada, *When* Konfirmasi dilakukan, *Then* Baris deny dihapus dan hak akses pengguna kembali normal sesuai peran/grant yang sah.
+- [ ] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denied` terbentuk.
+- [ ] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [ ] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [ ] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [ ] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
 
-### US-01.06 · Transparansi Izin Pengguna (Halaman "Jelaskan Izin Pengguna")
+### US-01.06 · Transparansi Izin Pengguna — Jelaskan Izin
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-01.06 |
+|---|---|
+| **ID** | `US-01.06` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
 | **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna memiliki permission `pengguna:read`. |<br>| Otorisasi: `pengguna:read`. |<br>| Dampak Data: Tidak ada (Read-Only). |
+| **Dependensi** | Service resolver izin tersedia. |
+| **Otorisasi** | `pengguna:read`. |
+| **Dampak Data** | Read-only terhadap `roles`, `role_permissions`, grant, deny, permission. |
 
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** melihat ringkasan visual seluruh izin efektif seorang pengguna beserta asal-usul perolehannya,
-> **Sehingga** saya dapat mengaudit dan menjelaskan secara transparan mengapa seorang pengguna diizinkan atau dilarang mengeksekusi suatu fungsi di SAKIP.
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** melihat seluruh izin efektif pengguna per unit beserta sumber allow dan deny,  
+> **Sehingga** keputusan akses dapat dijelaskan saat audit dan troubleshooting.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Admin membuka halaman transparansi izin dan memilih Pengguna X, *When* Data dimuat, *Then* Sistem menampilkan daftar izin efektif per unit, menampilkan label asal izin ("Peran: Perencanaan", "Grant: Unit Fasilitasi Mutu", dst.), dan menampilkan baris deny yang sedang aktif beserta alasannya.
-- [ ] AC-2: *Given* Halaman ini bersifat murni pemantauan (*read-only*), *When* Pengguna berinteraksi, *Then* Tidak ada tombol mutasi langsung di halaman ini; modifikasi diarahkan ke Form 1, Form 2, atau Form 3.
+- [ ] **AC-1:** Given pengguna dipilih, When halaman dimuat, Then sistem menampilkan permission efektif, scope, asal peran/grant, dan deny yang berlaku.
+- [ ] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
+- [ ] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
+- [ ] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
 
-## Bagian 2 — Pengelolaan Dokumen Dasar Hukum & Master Renstra
+### US-01.07 · Perubahan Isi Role Permissions Secara Terkendali
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-01.07` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 5 |
+| **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
+| **Dependensi** | Role sistem dan katalog permission telah tersedia; audit log aktif. |
+| **Otorisasi** | Mekanisme administratif terproteksi untuk perubahan `role_permissions` dengan alasan wajib. |
+| **Dampak Data** | `role_permissions`, `audit_log`. |
+
+> **Sebagai** Superadmin / pengelola teknis berwenang,  
+> **Saya ingin** menambah atau mencabut permission dari role sistem secara terkontrol,  
+> **Sehingga** perubahan hak seluruh pemegang role dapat dilakukan tanpa query SQL manual dan tetap dapat diaudit.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given role dan permission valid, When permission ditambahkan dengan alasan, Then `role_permissions` berubah dan audit menyimpan daftar sebelum/sesudah.
+- [ ] **AC-2:** Given permission dicabut dari role, When perubahan disimpan, Then seluruh pemegang role langsung kehilangan allow tersebut pada request berikutnya tanpa re-assign individual.
+- [ ] **AC-3:** Given alasan kosong, When perubahan dicoba, Then ditolak.
+- [ ] **AC-4:** Given role memiliki dua pengguna berbeda, When isi role berubah, Then resolver menunjukkan perubahan efektif pada keduanya.
+- [ ] **AC-5:** Given deny individual masih ada, When permission baru ditambahkan ke role, Then deny yang cocok tetap menang.
+
+---
+
+## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 
 ### US-02.01 · Pencatatan Dokumen Dasar Regulasi
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.01 |
+|---|---|
+| **ID** | `US-02.01` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Dokumen produk hukum resmi tersedia. |<br>| Otorisasi: `regulasi:create`, `regulasi:read`, `regulasi:update`, `regulasi:delete`. |<br>| Dampak Data: Tabel `regulasi`, tabel `berkas`, `audit_log`. |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Dokumen/metadata regulasi tersedia. |
+| **Otorisasi** | `regulasi:create`, `regulasi:read`, `regulasi:update`, `regulasi:delete`. |
+| **Dampak Data** | `regulasi`, `berkas`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** mencatat katalog dasar hukum (Kepmen, Permen, Perpres, atau Keputusan Lainnya) lengkap dengan metadata dan bukti fisik lampiran,
-> **Sehingga** seluruh sasaran dan indikator memiliki payung hukum formal yang dapat ditelusuri kapan saja.
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** mencatat katalog dasar hukum lengkap dengan metadata dan lampiran,  
+> **Sehingga** Renstra dan indikator memiliki rujukan hukum yang dapat ditelusuri.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan memasukkan jenis regulasi, nomor dokumen, tahun penetapan, judul pokok ("tentang"), tanggal, dan tautan sumber resmi, *When* Disimpan, *Then* Data tersimpan di tabel `regulasi` dan tercatat di `audit_log`.
-- [ ] AC-2: *Given* Perencanaan melampirkan salinan naskah fisik produk hukum (bisa via unggah file PDF, tautan JDIH kementerian, atau ringkasan teks pasal), *When* Berkas dikirim, *Then* Baris polimorfik `berkas` terbentuk dengan `berkasable_type = regulasi` dan `jenis_berkas_id = NULL` (lampiran bebas dokumen dasar).
-- [ ] AC-3: *Given* Regulasi dengan jenis, nomor, dan tahun yang identik sudah ada, *When* Dicoba input ulang, *Then* Sistem menolak penyimpanan (constraint unik database).
+- [ ] **AC-1:** Given metadata regulasi valid, When disimpan, Then regulasi terbentuk dan audit dicatat.
+- [ ] **AC-2:** Given lampiran berupa file/tautan/teks, When disimpan, Then `berkas` terbentuk sebagai lampiran bebas dokumen dasar (`jenis_berkas_id = NULL`).
+- [ ] **AC-3:** Given kombinasi jenis-nomor-tahun yang sama telah ada, When dibuat lagi, Then duplikasi ditolak.
+- [ ] **AC-4:** Given regulasi masih dirujuk Renstra/Indikator aktif, When delete dicoba, Then penghapusan ditolak.
+- [ ] **AC-5:** Given aksi update/delete adalah sensitif, When berhasil atau ditolak oleh deny, Then `audit_log.dasar_izin` merekam sumber keputusan izin.
 
-### US-02.02 · Penyusunan Renstra & Keterkaitan Regulasi
+### US-02.02 · Penyusunan Master Renstra & Rujukan Regulasi
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.02 |
+|---|---|
+| **ID** | `US-02.02` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Master regulasi terkait sudah dicatat (opsional). |<br>| Otorisasi: `renstra:create`, `renstra:update`, `renstra:read`. |<br>| Dampak Data: Tabel `renstra`, `berkas`, `audit_log`. |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Master regulasi tersedia bila digunakan. |
+| **Otorisasi** | `renstra:create`, `renstra:read`, `renstra:update`, `renstra:delete`. |
+| **Dampak Data** | `renstra`, `berkas`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menyusun master Rencana Strategis (Renstra) baru dengan rentang tahun, ringkasan dasar hukum, tautan rujukan regulasi, dan lampiran dokumen,
-> **Sehingga** acuan arah kebijakan instansi 5 tahunan terdokumentasi rapi di sistem.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menyusun Renstra dengan rentang tahun, dasar hukum, dan lampiran resmi,  
+> **Sehingga** arah strategis multi-tahun menjadi sumber utama struktur kinerja.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan menginput nama Renstra, rentang tahun (mis. 2025–2029), teks ringkasan dasar hukum, dan memilih `regulasi_id`, *When* Form disubmit, *Then* Baris `renstra` terbentuk dengan status default `draft`.
-- [ ] AC-2: *Given* Perencanaan melampirkan naskah resmi Renstra (mode file/tautan/teks), *When* Diunggah, *Then* Terbentuk baris `berkas` terkait `renstra` tersebut.
-- [ ] AC-3: *Given* Sudah ada Renstra lain yang berstatus `aktif` dengan rentang tahun beririsan (mis. 2024–2028), *When* Perencanaan mencoba mengaktifkan Renstra baru tersebut, *Then* Sistem menolak aktivasi (validasi rentang tahun non-overlapping & exclusion constraint PostgreSQL).
+- [ ] **AC-1:** Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
+- [ ] **AC-2:** Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
+- [ ] **AC-3:** Given rentang tahun tidak valid, When submit, Then validasi menolak.
+- [ ] **AC-4:** Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
 
-### US-02.03 · Penyusunan Sasaran Strategis & Indikator Kinerja Utama (IKU)
+### US-02.03 · Aktivasi, Arsip, dan Revisi Renstra karena Perubahan Kebijakan
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.03 |
+|---|---|
+| **ID** | `US-02.03` |
 | **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Master Renstra tersedia; master Unit tersedia. |<br>| Otorisasi: `sasaran:create/update`, `indikator:create/update`, `indikator:read`. |<br>| Dampak Data: Tabel `sasaran`, tabel `indikator`, `audit_log`. |
+| **Story Points** | 8 |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Renstra draft beserta struktur minimum telah tersedia; keputusan revisi resmi tersedia bila mengubah Renstra aktif. |
+| **Otorisasi** | `renstra:update` dan permission terkait entitas turunannya. |
+| **Dampak Data** | `renstra`, `sasaran`, `indikator`, `jadwal_snapshot`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menyusun Sasaran Program dan Indikator Kinerja Utama (IKU) di bawah Renstra aktif, menetapkan unit pemilik, arah penilaian, tipe perhitungan, dan rujukan regulasi per indikator,
-> **Sehingga** setiap tolak ukur keberhasilan instansi memiliki penanggung jawab unit dan logika ukur yang tegas.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengaktifkan, mengarsipkan, atau merevisi Renstra secara terkendali ketika dasar kebijakan/IKU berubah,  
+> **Sehingga** perubahan kebijakan dapat diterapkan tanpa menghapus histori tahun/periode yang sudah berjalan.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan membuat sasaran strategis, *When* Berhasil disimpan, *Then* Baris baru terbentuk di tabel `sasaran`.
-- [ ] AC-2: *Given* Perencanaan menambahkan indikator di bawah sasaran, memilih unit pemilik (`unit_id`), memilih arah (`naik_baik` / `turun_baik`), memilih tipe perhitungan (`manual` / `rasio_persen` / `penjumlahan`), serta mengisi presisi dan desimal tampilan, *When* Disimpan, *Then* Baris `indikator` terbentuk valid.
-- [ ] AC-3: *Given* Indikator memiliki rujukan hukum teknis spesifik, *When* Perencanaan memilih `regulasi_id` pada indikator, *Then* Keterkaitan tersimpan dan dapat dilacak langsung dari ringkasan indikator.
+- [ ] **AC-1:** Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
+- [ ] **AC-2:** Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
+- [ ] **AC-3:** Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
+- [ ] **AC-4:** Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
+- [ ] **AC-5:** Given perubahan substansial dilakukan, Then audit menyimpan alasan, aktor, nilai lama, dan nilai baru.
 
-### US-02.04 · Konfigurasi Komponen Angka Indikator (Data-Driven)
+### US-02.04 · Penyusunan Sasaran Strategis & Indikator Kinerja
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.04 |
+|---|---|
+| **ID** | `US-02.04` |
 | **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Indikator bertipe `rasio_persen` atau `penjumlahan`. |<br>| Otorisasi: `komponen:create`, `komponen:update`, `komponen:delete`. |<br>| Dampak Data: Tabel `indikator_komponen`, `audit_log`. |
+| **Story Points** | 8 |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Renstra tersedia; unit tersedia. |
+| **Otorisasi** | `sasaran:create`, `sasaran:update`, `sasaran:delete`, `indikator:create`, `indikator:read`, `indikator:update`, `indikator:delete`. |
+| **Dampak Data** | `sasaran`, `indikator`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** mendefinisikan komponen-komponen pembentuk indikator rasio persen atau penjumlahan (pembilang, penyebut, penjumlah, bobot, urutan),
-> **Sehingga** mesin perhitungan sistem dapat melakukan kalkulasi capaian secara otomatis, transparan, dan dapat disesuaikan tanpa merilis kode baru.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menyusun Sasaran dan Indikator lengkap dengan unit pemilik, arah, satuan, formula, dan regulasi,  
+> **Sehingga** setiap ukuran kinerja memiliki definisi dan kepemilikan yang tegas.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Indikator bertipe `rasio_persen`, *When* Perencanaan mendefinisikan komponen, *Then* Sistem mewajibkan minimal 1 komponen berstatus `peran = pembilang` dan tepat 1 komponen berstatus `peran = penyebut`.
-- [ ] AC-2: *Given* Indikator bertipe `penjumlahan`, *When* Perencanaan mendefinisikan komponen, *Then* Sistem mewajibkan minimal 1 komponen berstatus `peran = penjumlah`.
-- [ ] AC-3: *Given* IKU 3 (Indeks Kinerja LLDIKTI) dikonfigurasi berdasarkan Keputusan Q5, *When* Komponen didaftarkan, *Then* Terdapat 5 komponen penjumlah (`perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi`) masing-masing berbobot `0.5`, dan subtotal SAKIP ditampilkan sebagai nilai turunan.
-- [ ] AC-4: *Given* Komponen didaftarkan dengan kode duplikat pada indikator yang sama, *When* Disimpan, *Then* Sistem menolak (constraint unik `indikator_id, kode`).
+- [ ] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
+- [ ] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
+- [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
+- [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
-### US-02.05 · Penetapan Baseline & Target Tahunan Indikator
+### US-02.05 · Perpindahan Unit dan Pengarsipan Indikator
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.05 |
+|---|---|
+| **ID** | `US-02.05` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Indikator aktif telah terdaftar; tahun target berada dalam rentang tahun Renstra. |<br>| Otorisasi: `target:create`, `target:update`. |<br>| Dampak Data: Tabel `target_tahunan`, `audit_log`. |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Indikator telah ada; unit tujuan valid. |
+| **Otorisasi** | `indikator:update` / `indikator:delete` sesuai tindakan. |
+| **Dampak Data** | `indikator`, snapshot terkait, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menginput nilai capaian tahun lalu (*baseline*) dan target kinerja tahunan untuk setiap indikator aktif,
-> **Sehingga** penetapan target kinerja tahunan memiliki dasar pembanding yang valid sebelum perjanjian kinerja ditandatangani.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** memindahkan kepemilikan indikator atau mengarsipkan indikator dengan jejak historis utuh,  
+> **Sehingga** perubahan struktur organisasi tidak mengubah laporan historis secara diam-diam.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan membuka form target indikator untuk tahun Y, *When* Memasukkan angka baseline dan angka target tahunan, *Then* Data tersimpan pada tabel `target_tahunan`.
-- [ ] AC-2: *Given* Sudah ada target tahunan untuk kombinasi indikator dan tahun yang sama, *When* Disimpan ulang, *Then* Sistem memperbarui nilai atau menolak duplikasi (constraint unik `indikator_id, tahun`).
+- [ ] **AC-1:** Given indikator dipindahkan ke unit lain, When perubahan disimpan, Then `indikator.unit_id` berubah untuk konteks master ke depan dan audit merekam unit lama/baru.
+- [ ] **AC-2:** Given snapshot lama telah dipakai RA/Pengukuran, When unit master berubah, Then snapshot/laporan versi lama tetap memakai unit historis yang dibekukan.
+- [ ] **AC-3:** Given indikator diarsipkan, When periode baru dihitung, Then indikator arsip tidak menjadi kewajiban baru.
+- [ ] **AC-4:** Given ada histori pengukuran/RA, When hard delete indikator dicoba, Then sistem menolak penghapusan permanen yang merusak histori.
 
-### US-02.06 · Pencatatan Perjanjian Kinerja (PK) & Lampiran Berkas Legal
+### US-02.06 · Konfigurasi Komponen Angka Indikator (Data-Driven)
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-02.06 |
+|---|---|
+| **ID** | `US-02.06` |
 | **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Dokumen Dasar Hukum & Master Renstra |
-| **Dependensi** | Renstra berstatus aktif. |<br>| Otorisasi: `pk:create`, `pk:update`, `berkas:upload`. |<br>| Dampak Data: Tabel `renstra_pk`, tabel `berkas`, `audit_log`. |
+| **Story Points** | 8 |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Indikator bertipe nonmanual tersedia. |
+| **Otorisasi** | `komponen:create`, `komponen:read`, `komponen:update`, `komponen:delete`. |
+| **Dampak Data** | `indikator_komponen`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** mencatat Perjanjian Kinerja (PK) tahun berjalan beserta nomor PK, tanggal penandatanganan, dan salinan dokumen fisiknya,
-> **Sehingga** terdapat dasar hukum dan komitmen resmi pimpinan sebelum jadwal pelaksanaan kinerja diaktifkan.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mendefinisikan komponen pembilang, penyebut, penjumlah, bobot, urutan, dan kode,  
+> **Sehingga** perhitungan dapat dikonfigurasi dari data tanpa menaruh formula per indikator di UI.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan menginput nomor PK dan tanggal PK untuk tahun Y di bawah Renstra aktif, *When* Disimpan, *Then* Baris terbentuk di tabel `renstra_pk`.
-- [ ] AC-2: *Given* Perencanaan melampirkan naskah fisik dokumen PK (mode file, tautan, atau teks), *When* Berkas dikirim, *Then* Baris polimorfik `berkas` terbentuk menginduk ke `renstra_pk`.
-- [ ] AC-3: *Given* Renstra PK tahun Y sudah terdaftar di Renstra yang sama, *When* Diinput ulang, *Then* Sistem menolak duplikasi (constraint unik `renstra_id, tahun`).
+- [ ] **AC-1:** Given indikator `rasio_persen`, When definisi disimpan, Then sistem mensyaratkan minimal satu pembilang dan tepat satu penyebut efektif.
+- [ ] **AC-2:** Given indikator `penjumlahan`, When definisi disimpan, Then minimal satu komponen penjumlah tersedia.
+- [ ] **AC-3:** Given IKU 3 memakai keputusan Q5, Then tersedia lima komponen datar `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi`, masing-masing koefisien 0,5; subtotal SAKIP hanya nilai turunan tampilan.
+- [ ] **AC-4:** Given kode komponen sama pada indikator yang sama, When submit, Then constraint unik menolak.
+- [ ] **AC-5:** Given definisi komponen diubah setelah snapshot historis dirujuk, Then snapshot lama tidak berubah.
 
-## Bagian 3 — Periode, Penjadwalan, dan Pembekuan Konteks Snapshot
-
-### US-03.01 · Penyusunan Jadwal Tahunan & Periode Triwulan
+### US-02.07 · Penetapan Baseline & Target Tahunan
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-03.01 |
+|---|---|
+| **ID** | `US-02.07` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Periode, Penjadwalan, dan Pembekuan Konteks Snapshot |
-| **Dependensi** | Renstra PK tahun Y sudah tercatat. |<br>| Otorisasi: `jadwal:create`, `jadwal:update`. |<br>| Dampak Data: Tabel `jadwal_tahunan`, `jadwal_periode`, `audit_log`. |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Indikator valid dan tahun berada dalam rentang Renstra. |
+| **Otorisasi** | `target:update`. |
+| **Dampak Data** | `target_tahunan`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menyusun Jadwal Tahunan tahun Y, menetapkan jendela rencana aksi tahunan, serta menyusun periode triwulanan beserta jendela pengisian dan reviu masing-masing,
-> **Sehingga** siklus pelaporan berkala instansi memiliki batas waktu pelaksanaan yang terstruktur bagi seluruh unit kerja.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menetapkan baseline dan target tahunan indikator,  
+> **Sehingga** target PK memiliki pembanding resmi sebelum siklus tahunan diaktifkan.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan membuat draft jadwal tahunan untuk tahun Y, mengisi tanggal `rencana_aksi_mulai` dan `rencana_aksi_selesai`, serta tanggal batas akhir `penutupan`, *When* Disimpan, *Then* Baris `jadwal_tahunan` berstatus `draft` terbentuk.
-- [ ] AC-2: *Given* Perencanaan menambahkan daftar periode (Triwulan I, II, III, IV) pada `jadwal_periode`, *When* Masing-masing periode diisi tanggal `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, dan `reviu_selesai`, *Then* Periode tersusun urut dan valid.
+- [ ] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
+- [ ] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
+- [ ] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
+- [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 
-### US-03.02 · Aktivasi Jadwal Tahunan Melalui Empat Gerbang Validasi Keras
+**Business Rules / Catatan**
+
+- Katalog permission baseline hanya memakai `target:update`; tidak ada `target:create` terpisah pada baseline PRD.
+
+### US-02.08 · Pencatatan Perjanjian Kinerja (PK) & Lampiran Legal
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-03.02 |
+|---|---|
+| **ID** | `US-02.08` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Periode, Penjadwalan, dan Pembekuan Konteks Snapshot |
-| **Dependensi** | Seluruh data master tahun berjalan telah disiapkan. |<br>| Otorisasi: `jadwal:aktivasi` (permission bertipe sensitif). |<br>| Dampak Data: `jadwal_tahunan.status`, `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log` (dengan kolom `dasar_izin`). |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | Renstra valid. |
+| **Otorisasi** | `pk:create`, `pk:update`, serta capability berkas melalui kewenangan induk. |
+| **Dampak Data** | `renstra_pk`, `berkas`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** mengaktifkan Jadwal Tahunan tahun berjalan,
-> **Sehingga** sistem secara otomatis mengunci konteks indikator historis ke dalam snapshot dan membuka tahapan kerja bagi PIC.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mencatat PK tahun berjalan beserta metadata dan dokumen resmi,  
+> **Sehingga** jadwal hanya dapat diaktifkan dengan dasar komitmen formal yang dapat dibuktikan.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan menekan tombol "Aktifkan Jadwal", *When* Sistem mengevaluasi 4 gerbang aktivasi: 1. Gerbang 1: `renstra_pk` tahun berjalan harus sudah tercatat. 2. Gerbang 2: Seluruh indikator aktif harus sudah memiliki `target_tahunan` pada tahun berjalan. 3. Gerbang 3: Tahun jadwal harus berada dalam rentang tahun Renstra induk. 4. Gerbang 4: `renstra_pk` tahun berjalan harus memiliki minimal satu lampiran dokumen fisik (file/tautan/teks) atau berstatus `tidak_dapat_dipenuhi` saat saklar berkas mati.
-- [ ] AC-2: *Then* Jika salah satu gerbang gagal, aktivasi **DITOLAK** dan sistem menampilkan pesan gerbang mana yang belum terpenuhi.
-- [ ] AC-3: *Given* Seluruh 4 gerbang lolos validasi, *When* Transaksi dieksekusi, *Then*:
-- [ ] AC-4: Status `jadwal_tahunan` berubah menjadi `aktif`.
-- [ ] AC-5: Sistem secara otomatis membuat salinan idempoten ke `jadwal_snapshot` untuk setiap indikator aktif (menyalin nama, arah, tipe perhitungan, presisi, target, dan baseline).
-- [ ] AC-6: Sistem membuat salinan ke `jadwal_snapshot_komponen` untuk setiap komponen aktif.
-- [ ] AC-7: Status jadwal tercatat di `audit_log`.
+- [ ] **AC-1:** Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
+- [ ] **AC-2:** Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
+- [ ] **AC-3:** Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [ ] **AC-4:** Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
 
-## Bagian 4 — Penugasan PIC Indikator Kinerja
-
-### US-04.01 · Penugasan Penanggung Jawab (PIC) Indikator Kinerja
+### US-02.09 · Koreksi Perjanjian Kinerja Secara Teraudit
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-04.01 |
+|---|---|
+| **ID** | `US-02.09` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Penugasan PIC Indikator Kinerja |
-| **Dependensi** | Indikator berstatus aktif; pengguna berstatus aktif dan memiliki akun pegawai. |<br>| Otorisasi: `penanggung_jawab:update` (permission sensitif). |<br>| Dampak Data: Tabel `penanggung_jawab`, `audit_log`. |
+| **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
+| **Dependensi** | PK telah ada; sumber koreksi resmi tersedia. |
+| **Otorisasi** | `pk:update`. |
+| **Dampak Data** | `renstra_pk`, snapshot terdampak bila ada, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** menetapkan pegawai tertentu sebagai Penanggung Jawab (PIC) atas suatu indikator kinerja terhitung mulai tanggal tertentu,
-> **Sehingga** akuntabilitas penginputan dan pelaporan indikator tersebut melekat secara formal kepada individu penanggung jawab.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengoreksi salah input metadata/target PK dengan alasan dan rujukan resmi,  
+> **Sehingga** kesalahan administratif dapat diperbaiki tanpa menghapus konteks historis.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan memilih indikator, memilih pengguna pegawai, menentukan `tanggal_mulai_berlaku`, dan mengisi alasan penetapan, *When* Disimpan, *Then* Baris baru terbentuk di tabel `penanggung_jawab` (pola riwayat/append-only, tidak ada mutasi in-place).
-- [ ] AC-2: *Given* Suatu indikator telah memiliki beberapa baris penugasan di masa lalu, *When* Sistem mencari PIC aktif hari ini, *Then* Sistem mengambil baris terbaru dengan `tanggal_mulai_berlaku <= hari ini`.
-- [ ] AC-3: *Given* PIC indikator berganti di tengah tahun, *When* Baris penugasan baru diinput, *Then* Hak pengisian rencana aksi dan pengukuran otomatis beralih ke PIC yang baru berlaku, sementara riwayat penugasan lama tetap abadi.
+- [ ] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
+- [ ] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
+- [ ] **AC-3:** Given snapshot belum dirujuk, When koreksi diperbolehkan, Then snapshot dapat dikoreksi sesuai aturan.
+- [ ] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
+- [ ] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
-## Bagian 5 — Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi
+---
 
-### US-05.01 · Penyusunan Target Rencana Aksi per Periode per Komponen
+## Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill
+
+### US-03.01 · Penyusunan Master Periode, Jadwal Tahunan, dan Jendela Periode
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-05.01 |
+|---|---|
+| **ID** | `US-03.01` |
 | **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Jadwal Tahunan aktif; hari ini berada dalam jendela `[rencana_aksi_mulai, rencana_aksi_selesai]`; PIC memiliki grant izin unit yang sesuai. |<br>| Otorisasi: `rencana_aksi:create`, `rencana_aksi:update` (scope unit bagi PIC, global bagi Perencanaan). |<br>| Dampak Data: Tabel `rencana_aksi`, `rencana_aksi_target`, `audit_log`. |
+| **Story Points** | 8 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Renstra/PK tersedia untuk tahun yang disiapkan. |
+| **Otorisasi** | `periode:create`, `periode:update`, `jadwal:create`, `jadwal:update`. |
+| **Dampak Data** | `periode`, `jadwal_tahunan`, `jadwal_periode`, `audit_log`. |
 
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menginput target kinerja kumulatif triwulanan pada tingkat komponen di bawah rencana aksi indikator saya,
-> **Sehingga** target tahunan dapat dipecah menjadi target operasional bertahap yang terukur sepanjang tahun.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menyusun periode yang diharapkan, jendela Rencana Aksi, pengisian, reviu, dan penutupan,  
+> **Sehingga** siklus kerja tahunan memiliki kalender resmi dan sumber kebenaran tunggal.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* PIC membuka layar Rencana Aksi untuk indikator miliknya, *When* Mengisi target periode per komponen (kumulatif), *Then* Sistem menyimpan baris `rencana_aksi_target` berstatus `draft`.
-- [ ] AC-2: *Given* Nilai target suatu triwulan lebih kecil dari triwulan sebelumnya pada komponen yang sama, *When* PIC menginput angka, *Then* Sistem menampilkan indikator peringatan (*warning*) bahwa target bersifat kumulatif, tanpa memblokir input.
-- [ ] AC-3: *Given* Batas akhir `rencana_aksi_selesai` telah terlewat, *When* PIC mencoba menambah atau mengubah target, *Then* Sistem menolak akses karena deadline PIC bersifat mutlak.
-- [ ] AC-4: *Given* Tim Perencanaan mengakses rencana aksi di luar jendela waktu, *When* Menginput/mengubah data, *Then* Sistem mengizinkan (Perencanaan memiliki permission global dan dikecualikan dari batas jendela hingga penutupan tahunan).
+- [ ] **AC-1:** Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
+- [ ] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
+- [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
+- [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
+- [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
 
-### US-05.02 · Pemenuhan Bukti Dukung Tahap Rencana Aksi
+### US-03.02 · Aktivasi Jadwal Tahunan melalui Empat Gerbang & Pembentukan Snapshot
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-05.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Rencana aksi masih berstatus `draft` atau `dikembalikan`. |<br>| Otorisasi: `berkas:upload`. |<br>| Dampak Data: Tabel `berkas`, `audit_log`. |
+|---|---|
+| **ID** | `US-03.02` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Jadwal draft; data master tahun berjalan siap. |
+| **Otorisasi** | `jadwal:aktivasi` (sensitif). |
+| **Dampak Data** | `jadwal_tahunan`, `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
 
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** melampirkan dokumen bukti dukung pendukung rencana aksi sesuai katalog persyaratan yang ditetapkan,
-> **Sehingga** rencana aksi yang saya susun didukung oleh dokumen perencanaan kerja yang valid.
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** mengaktifkan jadwal setelah seluruh gerbang wajib terpenuhi,  
+> **Sehingga** konteks indikator dan formula tahun berjalan dibekukan secara aman sebelum pekerjaan PIC dimulai.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Persyaratan jenis berkas mewajibkan dokumen bertahap `rencana_aksi`, *When* PIC mengirim bukti berupa unggah file, tautan dokumen cloud, atau keterangan teks, *Then* Baris polimorfik `berkas` terbentuk dengan `berkasable_type = rencana_aksi`.
-- [ ] AC-2: *Given* Persyaratan hanya mengizinkan mode tautan, *When* PIC mencoba mengunggah file, *Then* Sistem menolak pengiriman mode yang tidak diizinkan.
+- [ ] **AC-1:** Given aktivasi diminta, When server mengevaluasi, Then empat gerbang diperiksa: PK tersedia; target tahunan semua indikator aktif tersedia; tahun berada dalam rentang Renstra; lampiran PK tersedia atau pengecualian file yang sah tercatat.
+- [ ] **AC-2:** Given salah satu gerbang wajib gagal, When aktivasi diproses, Then seluruh transaksi ditolak atomik dan pesan menjelaskan gerbang yang gagal.
+- [ ] **AC-3:** Given semua gerbang lolos, When commit berhasil, Then jadwal menjadi `aktif` dan `activated_at` terisi.
+- [ ] **AC-4:** Given indikator aktif belum memiliki snapshot pada jadwal, When aktivasi sukses, Then `jadwal_snapshot` dibuat idempoten beserta `jadwal_snapshot_komponen`.
+- [ ] **AC-5:** Given snapshot pasangan indikator-jadwal sudah ada, When proses diulang, Then baris lama tidak ditimpa/duplikasi.
+- [ ] **AC-6:** Given permission sensitif digunakan, Then audit menyimpan `dasar_izin` dan aktor sebenarnya.
 
-### US-05.03 · Pengajuan Rencana Aksi & Gerbang Kelengkapan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-05.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Rencana aksi berstatus `draft` atau `dikembalikan`; berada dalam jendela waktu. |<br>| Otorisasi: `rencana_aksi:ajukan` (scope unit). |<br>| Dampak Data: `rencana_aksi.status_alur = diajukan`, `rencana_aksi.versi`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** mengajukan rencana aksi yang telah selesai disusun kepada Tim Perencanaan,
-> **Sehingga** rencana aksi tersebut dapat ditinjau dan disahkan secara resmi.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Ada komponen aktif yang target triwulannya masih bernilai `null`, *When* PIC menekan tombol ajukan, *Then* Sistem menolak pengajuan dengan pesan kesalahan bahwa seluruh komponen wajib memiliki target per periode.
-- [ ] AC-2: *Given* Ada persyaratan bukti dukung bertahap `rencana_aksi` yang bertanda `wajib = true` dan belum terpenuhi, *When* PIC mengajukan, *Then* Sistem menolak pengajuan.
-- [ ] AC-3: *Given* Total target komponen pada periode akhir tidak setara dengan target PK tahunan, *When* PIC mengajukan, *Then* Sistem menampilkan peringatan dan **mewajibkan kolom alasan diisi** sebelum pengajuan dapat diproses.
-- [ ] AC-4: *Given* Seluruh validasi terpenuhi, *When* Pengajuan berhasil, *Then* Status rencana aksi berubah menjadi `diajukan`, versi bertambah, dan notifikasi in-app terkirim ke antrean tugas Tim Perencanaan.
-
-### US-05.04 · Verifikasi & Pengembalian Rencana Aksi
+### US-03.03 · Koreksi Snapshot Terkendali dan Versioning Konteks
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-05.04 |
+|---|---|
+| **ID** | `US-03.03` |
 | **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Rencana aksi berstatus `diajukan`. |<br>| Otorisasi: `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`. |<br>| Dampak Data: `rencana_aksi.status_alur`, `rencana_aksi.alasan_revisi`, `audit_log`. |
+| **Story Points** | 8 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi. |
+| **Otorisasi** | `target:update` / permission substantif terkait serta guard jadwal. |
+| **Dampak Data** | `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** memeriksa rencana aksi yang diajukan oleh PIC, serta menyetujui secara teknis atau mengembalikannya untuk direvisi,
-> **Sehingga** kualitas substansi rencana aksi terjamin sebelum disahkan.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengoreksi konteks snapshot yang salah tanpa mengubah versi yang telah dipakai histori,  
+> **Sehingga** target, formula, dan identitas laporan historis tetap dapat dipertanggungjawabkan.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Perencanaan menilai substansi rencana aksi telah baik, *When* Menekan tombol verifikasi, *Then* Status alur berubah menjadi `diverifikasi`.
-- [ ] AC-2: *Given* Perencanaan menemukan target atau berkas yang tidak sesuai, *When* Menekan tombol kembalikan dan mengisi catatan alasan pengembalian wajib, *Then* Status berubah menjadi `dikembalikan`, dan notifikasi in-app instan dikirimkan ke PIC terkait berisi ringkasan catatan revisi.
-- [ ] AC-3: *Given* Perencanaan mencoba mengembalikan tanpa mengisi alasan, *When* Disubmit, *Then* Sistem menolak pengembalian.
+- [ ] **AC-1:** Given snapshot belum pernah dirujuk RA/Pengukuran/versi pengajuan, When koreksi sah dilakukan pada jadwal aktif, Then snapshot dapat dikoreksi dan audit menyimpan before/after.
+- [ ] **AC-2:** Given snapshot sudah dirujuk, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
+- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
+- [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
+- [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
 
-### US-05.05 · Pengesahan Rencana Aksi & Penegakan Pemisahan Tugas (F1/F2)
+### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-05.05 |
+|---|---|
+| **ID** | `US-03.04` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Jadwal aktif; indikator baru telah ditetapkan resmi. |
+| **Otorisasi** | `jadwal:buka_kembali` untuk penambahan snapshot beralasan pada jadwal aktif; permission indikator terkait. |
+| **Dampak Data** | `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menambahkan indikator resmi yang baru berlaku mulai periode tertentu,  
+> **Sehingga** periode sebelumnya tidak salah dianggap belum mengisi atau bernilai nol.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+
+### US-03.05 · Aktivasi Retroaktif dan Backfill Tahun Historis
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-03.05` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 8 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Sumber data historis resmi tersedia; Perencanaan menetapkan periode dan indikator yang dibackfill. |
+| **Otorisasi** | Permission Perencanaan global + mekanisme jadwal/backfill yang teraudit. |
+| **Dampak Data** | `jadwal_tahunan`, snapshot, pengukuran historis, versi, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** membentuk konteks jadwal historis dan memasukkan data final masa lalu secara eksplisit,  
+> **Sehingga** data tahun lampau dapat dimigrasikan tanpa memalsukan waktu aktivasi atau membuat komponen rekaan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given jadwal tahun lampau diaktifkan, When aktivasi retroaktif dilakukan, Then `activated_at` mencatat waktu aktivasi sebenarnya, bukan tanggal palsu tahun lampau.
+- [ ] **AC-2:** Given skor final historis resmi tidak memiliki rincian komponen, When jalur backfill digunakan, Then nilai disimpan dengan `sumber_nilai = historis`, sumber dan alasan wajib.
+- [ ] **AC-3:** Given jalur historis digunakan, Then tipe indikator master/snapshot tidak diubah menjadi manual dan tidak dibuat komponen dummy.
+- [ ] **AC-4:** Given backfill tanpa RA digunakan sebagai pengecualian, Then alasan/sumber dan pengecualian gerbang dibekukan ke `pengukuran_versi` dan audit.
+- [ ] **AC-5:** Given data historis tidak memiliki sumber yang dapat dibuktikan, When backfill dicoba, Then ditolak.
+
+### US-03.06 · Revisi Resmi Jendela PIC
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-03.06` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Rencana aksi berstatus `diverifikasi`. |<br>| Otorisasi: `rencana_aksi:sahkan` (permission sensitif). |<br>| Dampak Data: `rencana_aksi.status_alur = disahkan`, `disahkan_at`, `disahkan_by`, `audit_log`. |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
+| **Dependensi** | Jadwal ada; perubahan deadline memiliki alasan dan batas baru. |
+| **Otorisasi** | `jadwal:update`. |
+| **Dampak Data** | `jadwal_tahunan`/`jadwal_periode`, `audit_log`. |
 
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** mengesahkan rencana aksi yang telah berstatus diverifikasi,
-> **Sehingga** rencana aksi tersebut menjadi dokumen operasional yang sah dan membuka izin pengajuan pengukuran kinerja.
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** memperpanjang atau membuka ulang jendela kerja PIC secara resmi,  
+> **Sehingga** pengecualian tenggat tidak dilakukan diam-diam dan tetap terbatas waktu.
 
-**Acceptance Criteria:**
+**Acceptance Criteria**
 
-- [ ] AC-1: *Given* Aktor yang melakukan pengesahan adalah PIC yang sama dengan pembuat pengajuan (`rencana_aksi.created_by`) melalui jalur unit kerja, *When* Transaksi pengesahan dicoba, *Then* Sistem menolak keras sesuai **Aturan F1 Pemisahan Tugas** (*Segregation of Duties*).
-- [ ] AC-2: *Given* Aktor pengesahan adalah anggota Tim Perencanaan (jalur global) dan bukan pengaju unit, *When* Pengesahan disubmit, *Then* Status berubah menjadi `disahkan`, kolom `disahkan_at` dan `disahkan_by` terisi.
-- [ ] AC-3: *Given* Rencana aksi disusun oleh Tim Perencanaan sendiri atas nama unit yang terlambat, *When* Anggota Perencanaan tersebut mengesahkan, *Then* Sistem mengizinkan sesuai **Aturan F2**, dan memberi penanda `self_approval = true` pada entri `audit_log`.
-- [ ] AC-4: *Given* Rencana aksi telah berstatus `disahkan`, *When* PIC mencoba menghapus berkas bukti dukung yang menempel padanya, *Then* Sistem menolak karena batas imutabilitas telah tercapai.
+- [ ] **AC-1:** Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
+- [ ] **AC-2:** Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
+- [ ] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan.
+- [ ] **AC-4:** Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
+- [ ] **AC-5:** Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
+
+---
+
+## Bagian 4 — Penugasan Penanggung Jawab (PIC)
+
+### US-04.01 · Penetapan, Pergantian, dan Resolusi PIC Efektif
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-04.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Penugasan Penanggung Jawab (PIC) |
+| **Dependensi** | Indikator dan pengguna aktif. |
+| **Otorisasi** | `penanggung_jawab:update` (sensitif). |
+| **Dampak Data** | `penanggung_jawab`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** menetapkan dan mengganti PIC indikator secara append-only dengan tanggal mulai berlaku,  
+> **Sehingga** hak kerja mengikuti penanggung jawab efektif tanpa menghapus sejarah penugasan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
+- [ ] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
+- [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
+- [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
+- [ ] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
+
+---
+
+## Bagian 5 — Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi
+
+### US-05.01 · Penyusunan Target Rencana Aksi per Periode
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-05.01` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | Jadwal aktif; daftar periode tersedia; snapshot indikator tersedia; PIC memenuhi grant unit + PIC efektif atau Perencanaan memiliki izin global. |
+| **Otorisasi** | `rencana_aksi:create`, `rencana_aksi:update`. |
+| **Dampak Data** | `rencana_aksi`, `rencana_aksi_target`, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengisi target kumulatif per periode secara manual atau per komponen sesuai snapshot,  
+> **Sehingga** target tahunan dapat diturunkan menjadi target operasional tanpa kehilangan konsistensi formula.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
+- [ ] **AC-2:** Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
+- [ ] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
+- [ ] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
+- [ ] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
+- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
+
+### US-05.02 · Pemenuhan Bukti Dukung Rencana Aksi
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-05.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | RA berstatus dapat diedit; persyaratan bukti tersedia. |
+| **Otorisasi** | Capability berkas mengikuti kewenangan induk RA; deny berkas tetap berlaku. |
+| **Dampak Data** | `berkas`, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** memenuhi persyaratan bukti RA dengan mode file, tautan, atau teks yang diizinkan,  
+> **Sehingga** rencana aksi memiliki dasar dokumen yang dapat diverifikasi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [ ] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [ ] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [ ] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+
+### US-05.03 · Pengajuan Rencana Aksi & Pembekuan Versi
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-05.03` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | RA draft/dikembalikan; target dan bukti memenuhi aturan; jendela aktor sah. |
+| **Otorisasi** | `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan). |
+| **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`, notifikasi in-app. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengajukan RA sebagai versi substansi yang immutable,  
+> **Sehingga** review dan laporan selalu menilai data persis seperti saat diajukan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
+- [ ] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
+- [ ] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
+- [ ] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
+- [ ] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
+- [ ] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
+- [ ] **AC-7:** Given submit berhasil, Then notifikasi in-app untuk antrean Perencanaan dibuat setelah transaksi berhasil.
+
+### US-05.04 · Verifikasi & Pengembalian Rencana Aksi dengan F1
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-05.04` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | RA berstatus `diajukan` dan versi terbaru tersedia. |
+| **Otorisasi** | `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`. |
+| **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, notifikasi. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** memverifikasi versi RA atau mengembalikannya dengan alasan,  
+> **Sehingga** substansi RA diperiksa tanpa membuka celah self-review jalur PIC.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
+- [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`, audit mencatat alasan, dan PIC menerima notifikasi.
+- [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
+- [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+
+### US-05.05 · Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-05.05` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | RA berstatus `diverifikasi`; versi yang direviu adalah versi terbaru dan tidak stale. |
+| **Otorisasi** | `rencana_aksi:sahkan` (sensitif). |
+| **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengesahkan versi RA yang telah diverifikasi,  
+> **Sehingga** RA menjadi dokumen operasional resmi dengan provenance yang dapat diaudit.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
+- [ ] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
+- [ ] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
+- [ ] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
+- [ ] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
+- [ ] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
 
 ### US-05.06 · Buka-Kembali Rencana Aksi yang Telah Disahkan
 
 | Field | Detail |
-|-------|--------|
-| **ID** | US-05.06 |
+|---|---|
+| **ID** | `US-05.06` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Penyusunan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | Rencana aksi berstatus `disahkan`; jadwal tahunan belum mencapai tanggal penutupan. |<br>| Otorisasi: `rencana_aksi:buka_kembali` (permission sensitif). |<br>| Dampak Data: `rencana_aksi.status_alur = dikembalikan`, `audit_log` (mencatat alasan wajib dan dasar izin). |
-
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** membuka kembali rencana aksi yang telah disahkan menjadi berstatus dikembalikan,
-> **Sehingga** perbaikan mendasar dapat dilakukan apabila terdapat perubahan target resmi sebelum jadwal tahunan ditutup.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan memasukkan alasan pembukaan kembali yang sah, *When* Aksi dieksekusi, *Then* Status rencana aksi kembali menjadi `dikembalikan`, dan PIC dapat mengedit kembali targetnya.
-- [ ] AC-2: *Given* Jadwal tahunan telah berstatus ditutup (*closed*), *When* Buka kembali dicoba, *Then* Sistem menolak aksi.
-
-## Bagian 6 — Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak
-
-### US-06.01 · Pencatatan Rencana Kegiatan Unit Kerja
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-06.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak |
-| **Dependensi** | Unit kerja aktif; periode pelaksanaan triwulan valid. |<br>| Otorisasi: `kegiatan:create`, `kegiatan:update` (scope unit bagi PIC). |<br>| Dampak Data: Tabel `kegiatan`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja) atau Tim Perencanaan,
-> **Saya ingin** mencatat rencana kegiatan nyata yang akan dilaksanakan oleh unit kerja pada suatu triwulan,
-> **Sehingga** aktivitas operasional pendukung pencapaian target kinerja terdokumentasi terstruktur sejak awal periode.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna mengisi nama kegiatan, tujuan, target sasaran peserta, keterangan peserta, lokasi, dan tanggal rencana pelaksanaan, *When* Disimpan, *Then* Baris kegiatan terbentuk di tabel `kegiatan` dengan status default `rencana`.
-- [ ] AC-2: *Given* Pengguna mengosongkan kolom anggaran, *When* Disimpan, *Then* Sistem mengizinkan (pada MVP kolom `anggaran` bersifat opsional/nullable dan tidak divalidasi).
-
-### US-06.02 · Klaim Keterkaitan Kegiatan Terhadap Rencana Aksi & Komponen
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-06.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak |
-| **Dependensi** | Kegiatan telah dicatat; rencana aksi indikator tersedia pada tahun yang sama. |<br>| Otorisasi: `kegiatan:create/update`, `rencana_aksi:update`. |<br>| Dampak Data: Tabel `klaim_kegiatan`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC) atau Tim Perencanaan,
-> **Saya ingin** mengklaim bahwa suatu kegiatan mendukung rencana aksi indikator tertentu dan berdampak pada komponen tertentu,
-> **Sehingga** rekapitulasi capaian indikator secara otomatis menampilkan narasi kegiatan dan justifikasi pergerakan angka komponen.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* PIC memilih kegiatan K, memilih rencana aksi RA, memilih komponen C (opsional), menentukan arah dampak (`menambah` / `mengurangi`), dan mengisi catatan, *When* Klaim disimpan, *Then* Baris baru terbentuk di tabel `klaim_kegiatan`.
-- [ ] AC-2: *Given* Unit pemilik kegiatan K berbeda dengan unit pemilik rencana aksi RA, *When* Klaim diajukan, *Then* Sistem menolak klaim lintas unit.
-- [ ] AC-3: *Given* PIC mencoba mengklaim kegiatan yang sama pada rencana aksi dan komponen yang sama berulang kali, *When* Disimpan, *Then* Sistem menolak duplikasi (constraint unik dengan penanganan sentinel COALESCE).
-- [ ] AC-4: *Given* Klaim berhasil disimpan, *When* Sistem memproses nilai komponen, *Then* **Nilai komponen TIDAK berubah otomatis** (klaim murni dokumentasi dukungan untuk mencegah *double counting*).
-
-### US-06.03 · Pelaksanaan Kegiatan & Gerbang Kelengkapan Bukti SPJ
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-06.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak |
-| **Dependensi** | Kegiatan berstatus `rencana`. |<br>| Otorisasi: `kegiatan:update`, `berkas:upload`. |<br>| Dampak Data: `kegiatan.status = terlaksana`, `berkas`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** memperbarui status kegiatan menjadi "terlaksana", mengisi realisasi peserta dan narasi pelaksanaan, serta melampirkan bukti pertanggungjawaban fisik (SPJ),
-> **Sehingga** kegiatan diakui secara sah telah berkontribusi pada pencapaian kinerja organisasi.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* PIC mengisi tanggal realisasi, jumlah peserta riil, narasi pelaksanaan, kendala, dan strategi tindak lanjut, *When* Memilih status `terlaksana`, *Then* Sistem mengevaluasi gerbang bukti dukung tahap `kegiatan`.
-- [ ] AC-2: *Given* Terdapat persyaratan bukti dukung wajib bertahap kegiatan yang belum dipenuhi (mis. daftar hadir atau laporan kegiatan), *When* PIC submit status `terlaksana`, *Then* Sistem **MENOLAK** perubahan status.
-- [ ] AC-3: *Given* Seluruh bukti dukung wajib bertahap kegiatan telah lengkap terunggah/terisi, *When* Status disubmit, *Then* Status kegiatan berubah menjadi `terlaksana`, dan seluruh berkas yang menempel padanya menjadi imutabel (tidak dapat dihapus lagi).
-
-### US-06.04 · Penanganan Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-06.04 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak |
-| **Dependensi** | Kegiatan berstatus `rencana`. |<br>| Otorisasi: `kegiatan:update`. |<br>| Dampak Data: `kegiatan.status`, `kegiatan.justifikasi`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** mencatat bahwa suatu kegiatan tidak terlaksana, ditunda, atau dibatalkan beserta alasan justifikasinya tanpa menghapus data kegiatan,
-> **Sehingga** kegagalan atau penundaan kegiatan tetap terekam sebagai bahan audit dan analisis kendala pada evaluasi triwulanan.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Suatu kegiatan batal dilaksanakan, *When* PIC mengubah status menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, *Then* Sistem **MEWAJIBKAN** pengisian kolom `justifikasi`.
-- [ ] AC-2: *Given* PIC mencoba mengubah status tersebut tanpa mengisi justifikasi, *When* Disubmit, *Then* Sistem menolak perubahan status.
-- [ ] AC-3: *Given* Kegiatan diubah statusnya menjadi tidak terlaksana/batal/ditunda, *When* Sistem mengevaluasi bukti dukung, *Then* Sistem **TIDAK MENUNTUT** bukti dukung SPJ pelaksanaan.
-- [ ] AC-4: *Given* Kegiatan yang tidak terlaksana telah diklaim pada rencana aksi, *When* Rekapitulasi laporan dibuat, *Then* Kegiatan tetap tampil pada rekapitulasi sebagai penjelasan mengapa komponen tidak bergerak.
-
-### US-06.05 · Pergeseran Kegiatan ke Periode Triwulan Berikutnya (*Roll-Over*)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-06.05 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Kegiatan, Bukti SPJ, dan Klaim Dampak |
-| **Dependensi** | Kegiatan asal berstatus `ditunda`. |<br>| Otorisasi: `kegiatan:create`. |<br>| Dampak Data: Baris baru tabel `kegiatan` (`kegiatan_asal_id` terisi), `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menggeser kegiatan yang ditunda ke periode triwulan berikutnya dengan tetap mempertahankan keterkaitan ke kegiatan asal,
-> **Sehingga** kesinambungan rencana kerja terpelihara dan jejak penundaan antar-triwulan dapat ditelusuri.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* PIC memilih aksi "Geser ke Triwulan Berikutnya", *When* Memilih periode triwulan tujuan, *Then* Sistem membuat baris baru di tabel `kegiatan` pada periode tujuan dengan kolom `kegiatan_asal_id` menunjuk ke ID kegiatan asal.
-- [ ] AC-2: *Given* Kegiatan baru terbentuk, *When* Diperiksa di daftar kegiatan, *Then* Kegiatan asal di periode lama tetap berstatus `ditunda` (tidak dihapus), dan kegiatan baru di periode tujuan berstatus `rencana`.
-
-## Bagian 7 — Pengisian Pengukuran Realisasi Kinerja Triwulanan
-
-### US-07.01 · Pengisian Nilai Realisasi Komponen Pengukuran Triwulan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-07.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengisian Pengukuran Realisasi Kinerja Triwulanan |
-| **Dependensi** | Tanggal saat ini berada dalam rentang `[pengisian_mulai, pengisian_selesai]` periode triwulan terkait; PIC memiliki grant izin unit yang sesuai. |<br>| Otorisasi: `pengukuran:create`, `pengukuran:update` (scope unit bagi PIC). |<br>| Dampak Data: Tabel `pengukuran`, `pengukuran_komponen`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menginput nilai realisasi mentah per komponen pada triwulan berjalan,
-> **Sehingga** sistem dapat menghitung nilai capaian indikator secara presisi berdasarkan formula perhitungan yang telah dibekukan di snapshot.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* PIC membuka form pengukuran untuk indikator miliknya pada triwulan aktif, *When* Mengisi angka realisasi pada setiap komponen aktif, *Then* Sistem menyimpan baris `pengukuran` berstatus `draft` dan baris `pengukuran_komponen`.
-- [ ] AC-2: *Given* Indikator bertipe `rasio_persen` atau `penjumlahan`, *When* Komponen diisi, *Then* Sistem menghitung nilai indikator secara otomatis (*server-side calculation*) dan mengunci kolom nilai indikator (*read-only* dari sisi klien).
-- [ ] AC-3: *Given* Pada indikator `rasio_persen`, nilai komponen penyebut bernilai `0`, *When* Dihitung, *Then* Sistem tidak memicu error matematika (division by zero), melainkan menyimpan nilai `null` dan menampilkan status **"tidak dapat dihitung"**.
-- [ ] AC-4: *Given* Indikator bertipe `manual`, *When* PIC mengisi, *Then* Angka realisasi diketik langsung ke kolom `pengukuran.nilai`.
-
-### US-07.02 · Pemenuhan Bukti Dukung Wajib Tahap Pengukuran
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-07.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengisian Pengukuran Realisasi Kinerja Triwulanan |
-| **Dependensi** | Pengukuran berstatus `draft` atau `dikembalikan`. |<br>| Otorisasi: `berkas:upload`. |<br>| Dampak Data: Tabel `berkas`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** melampirkan berkas bukti fisik, tautan sumber data eksternal, atau narasi teks pendukung atas angka realisasi yang saya laporkan,
-> **Sehingga** angka capaian kinerja triwulanan memiliki akuntabilitas dan bukti dukung yang dapat diverifikasi oleh auditor.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Terdapat persyaratan jenis berkas bertahap `pengukuran` yang aktif untuk indikator tersebut, *When* PIC mengirim berkas sesuai mode yang diizinkan (file/tautan/teks), *Then* Terbentuk baris polimorfik `berkas` dengan `berkasable_type = pengukuran`.
-- [ ] AC-2: *Given* Persyaratan menetapkan `semua_mode_wajib = true` untuk mode file dan tautan, *When* PIC baru mengunggah file tanpa mengisi tautan, *Then* Persyaratan tersebut berstatus belum terpenuhi.
-- [ ] AC-3: *Given* Saklar unggahan file dimatikan pada setelan aplikasi (`berkas.unggahan_aktif = false`) sementara persyaratan hanya mengizinkan file, *When* Sistem mengevaluasi pemenuhan, *Then* Persyaratan secara otomatis ditandai **`tidak_dapat_dipenuhi`** dan tidak memblokir alur pengajuan.
-
-### US-07.03 · Pengajuan Pengukuran Triwulanan & Tiga Gerbang Kelengkapan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-07.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengisian Pengukuran Realisasi Kinerja Triwulanan |
-| **Dependensi** | Pengukuran berstatus `draft` atau `dikembalikan`; hari ini `<= pengisian_selesai`. |<br>| Otorisasi: `pengukuran:update` (scope unit). |<br>| Dampak Data: `pengukuran.status_alur = diajukan`, `pengukuran.versi`, `audit_log`. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** mengajukan data pengukuran triwulan kepada Tim Perencanaan sebelum batas akhir pengisian berakhir,
-> **Sehingga** data capaian unit saya dapat diverifikasi dan disahkan dalam laporan kinerja instansi.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* PIC menekan tombol "Ajukan Pengukuran", *When* Sistem mengevaluasi **Tiga Gerbang Kelengkapan Pengukuran**: 1. Gerbang 1: Rencana aksi untuk kombinasi (indikator × tahun) harus sudah berstatus **`disahkan`**. 2. Gerbang 2: Seluruh komponen aktif pada indikator tersebut harus telah memiliki nilai (tidak boleh `null`). 3. Gerbang 3: Seluruh persyaratan bukti dukung wajib bertahap pengukuran harus telah terpenuhi (kecuali ditandai `tidak_dapat_dipenuhi`).
-- [ ] AC-2: *Then* Jika salah satu gerbang gagal, pengajuan **DITOLAK** dan sistem menampilkan rincian kekurangan yang harus dilengkapi.
-- [ ] AC-3: *Given* Nilai capaian periode ini memburuk dibandingkan pengukuran disahkan terakhir atau indikator bertanda `wajib_catatan = true`, *When* PIC mengajukan, *Then* Sistem **MEWAJIBKAN** pengisian kolom `catatan`.
-- [ ] AC-4: *Given* Seluruh validasi gerbang lolos, *When* Pengajuan sukses, *Then* Status pengukuran berubah menjadi `diajukan`, versi bertambah, dan notifikasi in-app masuk ke antrean tugas Tim Perencanaan.
-
-### US-07.04 · Pengisian Pengukuran oleh Tim Perencanaan (Pengecualian Batas Waktu)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-07.04 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengisian Pengukuran Realisasi Kinerja Triwulanan |
-| **Dependensi** | Jadwal tahunan belum mencapai batas penutupan (`penutupan`). |<br>| Otorisasi: `pengukuran:create`, `pengukuran:update` (permission global peran Perencanaan). |<br>| Dampak Data: Tabel `pengukuran`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** membuat atau mengubah data pengukuran atas nama unit kerja yang telah melewati batas waktu pengisian,
-> **Sehingga** pelaporan kinerja instansi tidak terhambat oleh keterlambatan penginputan PIC unit kerja.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Tanggal hari ini telah melewati `pengisian_selesai` pada `jadwal_periode`, *When* PIC mencoba menginput/mengajukan, *Then* Sistem menolak akses PIC karena batas waktu bersifat mutlak.
-- [ ] AC-2: *Given* Tanggal hari ini telah melewati `pengisian_selesai`, *When* Tim Perencanaan menginput dan mengajukan pengukuran atas nama unit tersebut, *Then* Sistem mengizinkan aksi karena permission Perencanaan bersifat global dan bebas batas jendela periode.
-- [ ] AC-3: *Given* Tim Perencanaan mengisi pengukuran, *When* Menekan ajukan, *Then* Sistem **TETAP MENEGAKKAN TIGA GERBANG KELENGKAPAN** (pengecualian Perencanaan hanya pada waktu, bukan pada kelengkapan data).
-
-## Bagian 8 — Reviu, Verifikasi, dan Pengesahan Pengukuran
-
-### US-08.01 · Verifikasi & Pengembalian Berkas Pengukuran
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-08.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Reviu, Verifikasi, dan Pengesahan Pengukuran |
-| **Dependensi** | Pengukuran berstatus `diajukan`. |<br>| Otorisasi: `pengukuran:verifikasi`, `pengukuran:kembalikan`. |<br>| Dampak Data: `pengukuran.status_alur`, `pengukuran.catatan`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** memeriksa data realisasi komponen dan keabsahan bukti dukung yang diajukan PIC, lalu memverifikasi atau mengembalikannya jika perlu perbaikan,
-> **Sehingga** data kinerja yang dilaporkan akurat dan dapat dipertanggungjawabkan secara hukum.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan menilai angka dan bukti dukung telah sesuai, *When* Menekan tombol "Verifikasi", *Then* Status pengukuran berubah menjadi `diverifikasi`.
-- [ ] AC-2: *Given* Perencanaan menemukan angka perhitungan keliru atau berkas bukti tidak sah, *When* Menekan tombol "Kembalikan" dan mengisi alasan catatan perbaikan wajib, *Then* Status berubah menjadi `dikembalikan`, dan notifikasi in-app instan dikirim ke PIC terkait.
-- [ ] AC-3: *Given* Pengukuran yang telah berstatus `diverifikasi` belakangan ditemukan memiliki kekurangan sebelum disahkan, *When* Perencanaan menekan tombol kembalikan beralasan, *Then* Status dapat kembali menjadi `dikembalikan`.
-
-### US-08.02 · Pengesahan Pengukuran & Penegakan Pemisahan Tugas (F1/F2)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-08.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Reviu, Verifikasi, dan Pengesahan Pengukuran |
-| **Dependensi** | Pengukuran berstatus `diverifikasi`. |<br>| Otorisasi: `pengukuran:sahkan` (permission bertipe sensitif). |<br>| Dampak Data: `pengukuran.status_alur = disahkan`, `audit_log` (mencatat kolom `dasar_izin`). |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** mengesahkan pengukuran yang telah berstatus diverifikasi,
-> **Sehingga** nilai realisasi triwulan tersebut menjadi angka capaian resmi organisasi yang siap dipublikasikan pada dashboard dan laporan.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Aktor yang hendak mengesahkan adalah pengguna yang sama dengan pembuat pengajuan (`pengukuran.created_by`) melalui jalur izin unit PIC, *When* Transaksi pengesahan dicoba, *Then* Sistem menolak transaksi sesuai **Aturan F1 Pemisahan Tugas** (*Segregation of Duties*).
-- [ ] AC-2: *Given* Aktor pengesahan adalah staf Perencanaan dan pengukuran diajukan oleh PIC unit kerja, *When* Pengesahan disetujui, *Then* Status berubah menjadi `disahkan`, dan berkas bukti dukung yang menempel padanya terkunci permanen (imutabel).
-- [ ] AC-3: *Given* Pengukuran diisi sendiri oleh Tim Perencanaan atas nama unit yang terlambat, *When* Anggota Perencanaan tersebut melakukan pengesahan, *Then* Sistem mengizinkan sesuai **Aturan F2**, mencatat penanda `self_approval = true` pada `audit_log`, dan menampilkan indikator self-approval pada laporan internal.
-
-### US-08.03 · Buka-Kembali Pengukuran yang Disahkan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-08.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Reviu, Verifikasi, dan Pengesahan Pengukuran |
-| **Dependensi** | Pengukuran berstatus `disahkan`; jadwal tahunan belum ditutup (`penutupan`). |<br>| Otorisasi: `pengukuran:buka_kembali` (permission sensitif). |<br>| Dampak Data: `pengukuran.status_alur = dikembalikan`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** membuka kembali pengukuran yang telah berstatus disahkan menjadi berstatus dikembalikan,
-> **Sehingga** kesalahan fatal yang teridentifikasi pasca-rapat evaluasi dapat diperbaiki secara sah dan terkontrol.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan memasukkan alasan pembukaan kembali yang komprehensif, *When* Tombol buka kembali dieksekusi, *Then* Status pengukuran berubah kembali menjadi `dikembalikan`, dan status capaian terkait dinonaktifkan/direset.
-- [ ] AC-2: *Given* Jadwal tahunan telah berstatus ditutup, *When* Buka kembali pengukuran dicoba, *Then* Sistem menolak aksi secara mutlak (koreksi pasca-penutupan hanya lewat pembukaan kembali jadwal tahunan).
-
-## Bagian 9 — Rekomendasi Pimpinan & Penilaian Status Capaian
-
-### US-09.01 · Penetapan Catatan Rekomendasi Pimpinan oleh Tim Perencanaan
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-09.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Rekomendasi Pimpinan & Penilaian Status Capaian |
-| **Dependensi** | Periode triwulan valid. |<br>| Otorisasi: `rekomendasi:tetapkan` (permission sensitif). |<br>| Dampak Data: Tabel `rekomendasi_pimpinan`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menginput catatan arahan dan Rekomendasi Pimpinan untuk indikator tertentu pada triwulan berjalan,
-> **Sehingga** arahan tindak lanjut pimpinan hasil rapat evaluasi triwulanan terdokumentasi dan dapat ditindaklanjuti oleh unit kerja.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan menginput teks arahan rekomendasi untuk indikator X pada triwulan T, *When* Disimpan, *Then* Baris baru terbentuk di tabel `rekomendasi_pimpinan` dengan `ditetapkan_oleh = auth()->id()`.
-- [ ] AC-2: *Given* Pengukuran periode T untuk indikator X belum berstatus `disahkan`, *When* Rekomendasi diinput, *Then* Sistem mengizinkan penyimpanan (rekomendasi independen dari status pengukuran, dapat diisi segera setelah rapat evaluasi triwulan).
-- [ ] AC-3: *Given* Terdapat rekomendasi lama pada indikator dan triwulan yang sama, *When* Rekomendasi baru diinput, *Then* Baris baru disimpan sebagai riwayat aktif terkini (soft replace, tidak menimpa data lama).
-
-### US-09.02 · Penetapan Status Capaian Akhir Indikator
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-09.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Rekomendasi Pimpinan & Penilaian Status Capaian |
-| **Dependensi** | Pengukuran terkait telah berstatus `disahkan`. |<br>| Otorisasi: `status_capaian:update` (permission sensitif). |<br>| Dampak Data: Tabel `status_capaian`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** menetapkan status penilaian akhir indikator ("Tercapai" atau "Belum Tercapai") secara manual atas pengukuran yang telah disahkan,
-> **Sehingga** status keberhasilan kinerja instansi memiliki ketetapan formal dari tim evaluator.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengukuran telah berstatus `disahkan`, *When* Perencanaan memilih status `tercapai` atau `belum_tercapai`, *Then* Baris baru terbentuk di tabel `status_capaian` dengan `sumber = manual` dan `ditetapkan_oleh = auth()->id()`.
-- [ ] AC-2: *Given* Pengukuran masih berstatus `draft`, `diajukan`, atau `diverifikasi`, *When* Penetapan status dicoba, *Then* Sistem menolak aksi.
-
-## Bagian 10 — Pemantauan Dashboard Eksekutif & Laporan Kinerja
-
-### US-10.01 · Pemantauan Kinerja Eksekutif pada Dashboard
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-10.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pemantauan Dashboard Eksekutif & Laporan Kinerja |
-| **Dependensi** | Pengguna memiliki permission `dashboard:read`. |<br>| Otorisasi: `dashboard:read`. |<br>| Dampak Data: Tidak ada (Read-Only). |
-
-> **Sebagai** Pimpinan (Kepala LLDIKTI / Tim Eksekutif),
-> **Saya ingin** memantau visualisasi capaian IKU, progres rencana aksi, status kegiatan unit, dan rekapitulasi triwulanan secara interaktif pada Dashboard,
-> **Sehingga** saya dapat mengambil keputusan manajerial berbasis data kinerja yang mutakhir dan akurat.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pimpinan membuka dashboard, *When* Halaman dimuat, *Then* Sistem menampilkan kartu metrik capaian total IKU, grafik tren capaian per triwulan (ApexCharts), panel progres Rencana Aksi, dan panel ringkasan status Kegiatan (terlaksana vs tidak terlaksana).
-- [ ] AC-2: *Given* Status capaian ditampilkan, *When* Sistem membaca data, *Then* Sistem menghitung status per kombinasi indikator × periode triwulan yang diharapkan (bukan agregasi tahunan semu).
-- [ ] AC-3: *Given* Indikator berstatus `arsip`, *When* Dashboard menghitung kewajiban pengisian, *Then* Indikator arsip tidak dihitung sebagai beban pengisian.
-
-### US-10.02 · Penyajian Matriks Rekapitulasi Laporan Indikator × Periode
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-10.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pemantauan Dashboard Eksekutif & Laporan Kinerja |
-| **Dependensi** | Pengguna memiliki permission `laporan:read`. |<br>| Otorisasi: `laporan:read`. |<br>| Dampak Data: Tidak ada (Read-Only). |
-
-> **Sebagai** Tim Perencanaan atau Pimpinan,
-> **Saya ingin** melihat laporan matriks lengkap per indikator × periode yang memuat baseline, target kumulatif, nilai realisasi komponen, narasi progres kegiatan, rekomendasi pimpinan, dan status bukti dukung,
-> **Sehingga** seluruh riwayat akuntabilitas tersaji dalam satu dokumen rekapitulasi komprehensif yang setara dengan format kerja dinas.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna membuka halaman Rekapitulasi Laporan, *When* Memilih tahun dan triwulan, *Then* Sistem merender tabel dengan struktur:
-- [ ] AC-2: Kolom identitas: Sasaran, Indikator, Satuan, Unit Pemilik, PIC.
-- [ ] AC-3: Kolom target: Baseline, Target Tahunan PK, Target Triwulan Kumulatif.
-- [ ] AC-4: Kolom realisasi: Rincian Angka Riil per Komponen, Nilai Akhir Indikator, Persentase Capaian.
-- [ ] AC-5: Kolom narasi: Gabungan otomatis uraian pelaksanaan, kendala, dan strategi tindak lanjut dari seluruh kegiatan yang diklaim pada indikator tersebut.
-- [ ] AC-6: Kolom evaluasi: Catatan Rekomendasi Pimpinan dan Status Capaian.
-- [ ] AC-7: Kolom bukti: Status kelengkapan berkas fisik beserta penanda `tidak_dapat_dipenuhi` jika ada.
-
-### US-10.03 · Ekspor Laporan Kinerja ke Format Excel
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-10.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pemantauan Dashboard Eksekutif & Laporan Kinerja |
-| **Dependensi** | Pengguna memegang permission `laporan:ekspor`. |<br>| Otorisasi: `laporan:ekspor`. |<br>| Dampak Data: Unduhan stream file Excel, pencatatan di `audit_log`. |
-
-> **Sebagai** Tim Perencanaan atau Pimpinan,
-> **Saya ingin** mengekspor matriks rekapitulasi kinerja ke file format Microsoft Excel (`.xlsx`),
-> **Sehingga** laporan dapat dilampirkan dalam pelaporan formal kementerian dan Laporan Kinerja Instansi Pemerintah (LKjIP).
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna menekan tombol "Ekspor Excel", *When* Sistem memproses data, *Then* Terbentuk file Excel resmi yang memisahkan baseline, target kumulatif, realisasi komponen, narasi kegiatan, dan rekomendasi secara rapi tanpa merusak tata letak sel.
-- [ ] AC-2: *Given* Pengguna peran Admin mencoba menekan URL ekspor laporan, *When* Request dikirim ke backend, *Then* Sistem mengembalikan 403 Forbidden (Admin tidak memiliki hak `laporan:ekspor`).
-
-## Bagian 11 — Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage
-
-### US-11.01 · Konfigurasi Persyaratan Jenis Berkas Bergerbang
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-11.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage |
-| **Dependensi** | Master unit dan indikator tersedia. |<br>| Otorisasi: `jenis_berkas:create`, `jenis_berkas:update`, `jenis_berkas:delete`. |<br>| Dampak Data: Tabel `jenis_berkas`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menetapkan katalog persyaratan bukti dukung (`jenis_berkas`) per tahapan (rencana aksi, kegiatan, pengukuran), menentukan mode yang diizinkan (file, tautan, teks), sifat wajib, dan aturan `semua_mode_wajib`,
-> **Sehingga** standar kepatuhan bukti dukung instansi terdefinisi jelas bagi seluruh unit kerja.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan membuat jenis berkas baru, memilih tahap, mencentang mode yang diizinkan, menentukan status `wajib`, dan menyetel batasan format/ukuran, *When* Disimpan, *Then* Data tersimpan pada tabel `jenis_berkas`.
-- [ ] AC-2: *Given* Perencanaan mencoba menyimpan jenis berkas tanpa mencentang satu pun mode yang diizinkan (ketiga opsi false), *When* Validasi dijalankan, *Then* Sistem menolak penyimpanan.
-- [ ] AC-3: *Given* `semua_mode_wajib` disetel `true`, *When* Pengguna mengisi bukti dukung nantinya, *Then* Sistem mewajibkan seluruh mode yang diizinkan pada persyaratan tersebut terpenuhi.
-
-### US-11.02 · Pengunggahan File Bukti Fisik Secara Aman (Streamed Download)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-11.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage |
-| **Dependensi** | Saklar `berkas.unggahan_aktif = true`; file berformat dan berukuran valid. |<br>| Otorisasi: `berkas:upload`, `berkas:read`. |<br>| Dampak Data: Disk privat, tabel `berkas`, `audit_log`. |
-
-> **Sebagai** Pengguna (PIC / Perencanaan),
-> **Saya ingin** mengunggah file bukti fisik (PDF, dokumen, gambar) yang tersimpan secara privat di server,
-> **Sehingga** dokumen rahasia instansi aman dari akses publik terbuka dan hanya dapat diunduh oleh pengguna berhak.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna mengunggah berkas PDF 5MB, *When* Diproses server, *Then* File fisik disimpan pada path privat `storage/app/berkas/...` (bukan public storage), dan metadata dicatat di tabel `berkas` (`mode = file`, nama asli, mime, ukuran bytes).
-- [ ] AC-2: *Given* File melebihi batas `ukuran_maks_kb` atau format tidak sesuai `format_diizinkan`, *When* Diunggah, *Then* Sistem menolak file sebelum disimpan ke disk.
-- [ ] AC-3: *Given* Seseorang mencoba mengakses URL path fisik berkas secara langsung di browser tanpa login, *When* Request diterima web server, *Then* Akses ditolak (berkas hanya dapat diunduh melalui streamed response route yang dilindungi middleware permission `berkas:read`).
-
-### US-11.03 · Penyerahan Bukti Berupa Tautan Eksternal atau Keterangan Teks
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-11.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage |
-| **Dependensi** | Persyaratan bukti dukung mengizinkan mode tautan atau teks. |<br>| Otorisasi: `berkas:upload`. |<br>| Dampak Data: Tabel `berkas`, `audit_log`. |
-
-> **Sebagai** Pengguna (PIC / Perencanaan),
-> **Saya ingin** menyertakan bukti dukung berupa tautan resmi (Google Drive/Cloud Kemendikbud) atau menuliskan teks penjelasan langsung,
-> **Sehingga** pemenuhan bukti dukung dapat terlaksana secara fleksibel tanpa membebani kuota penyimpanan VPS institusi.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna memilih mode `tautan` dan memasukkan URL valid berskema `http://` atau `https://`, *When* Disimpan, *Then* URL tersimpan pada kolom `berkas.tautan` tanpa memakai kuota disk fisik.
-- [ ] AC-2: *Given* Pengguna memilih mode `teks` dan mengetikkan keterangan narasi atau nomor surat keputusan, *When* Disimpan, *Then* Keterangan tersimpan pada `berkas.isi_teks`, dan audit log hanya mencatat panjang karakter teks (bukan menyalin seluruh teks).
-
-### US-11.04 · Penegakan Imutabilitas Berkas per Induk
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-11.04 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Pengelolaan Bukti Dukung Multi-Mode & Kebijakan Storage |
-| **Dependensi** | Berkas terhubung ke salah satu dari enam induk polimorfik. |<br>| Otorisasi: `berkas:delete` (permission sensitif). |<br>| Dampak Data: `berkas.dihapus_pada`, `berkas.dihapus_oleh`, `audit_log`. |
-
-> **Sebagai** Sistem Integritas SAKIP,
-> **Saya ingin** mengunci berkas bukti dukung secara permanen begitu status induknya mencapai batas legal akhir,
-> **Sehingga** tidak ada pihak yang dapat mengubah, memanipulasi, atau menghapus bukti pertanggungjawaban yang telah disahkan.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Berkas menginduk ke `rencana_aksi` atau `pengukuran`, *When* Induk telah berstatus `disahkan`, *Then* Percobaan penghapusan berkas **DITOLAK KERAS**.
-- [ ] AC-2: *Given* Berkas menginduk ke `kegiatan`, *When* Kegiatan telah berstatus `terlaksana`, *Then* Percobaan penghapusan berkas **DITOLAK KERAS**.
-- [ ] AC-3: *Given* Berkas menginduk ke `renstra`, *When* Renstra telah berstatus `aktif`, *Then* Berkas naskah Renstra tidak dapat dihapus.
-- [ ] AC-4: *Given* Berkas menginduk ke `renstra_pk`, *When* Jadwal tahunan tahun tersebut telah `aktif`, *Then* Berkas naskah PK tidak dapat dihapus.
-- [ ] AC-5: *Given* Berkas menginduk ke `regulasi`, *When* Regulasi tersebut masih dirujuk oleh Renstra atau Indikator aktif, *Then* Berkas produk hukum tidak dapat dihapus.
-- [ ] AC-6: *Given* Batas imutabilitas belum tercapai, *When* Pemilik berkas atau Perencanaan menghapus berkas, *Then* Penghapusan dilakukan secara *soft delete* (`dihapus_pada`, `dihapus_oleh`) dan tercatat lengkap di `audit_log`.
-
-## Bagian 12 — Alert Kontekstual & Notifikasi (In-App & Eksternal)
-
-### US-12.01 · Banner Pengingat Kontekstual di Dashboard (Baseline Scope MVP)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Pengguna telah login ke aplikasi. |<br>| Otorisasi: Diwarisi dari akses dashboard/halaman kerja. |<br>| Dampak Data: Tidak ada (Read-Only). |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** melihat banner peringatan tenggat waktu dan status kewajiban pengisian langsung di halaman kerja saya,
-> **Sehingga** saya selalu terinformasi mengenai sisa waktu pengisian tanpa khawatir terlewat batas waktu.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Jendela penyusunan Rencana Aksi sedang aktif, *When* PIC membuka aplikasi, *Then* Tampil banner kontekstual yang menginformasikan batas akhir `rencana_aksi_selesai`.
-- [ ] AC-2: *Given* Periode pengisian triwulan sedang aktif, *When* PIC membuka dashboard, *Then* Tampil banner hitung mundur (*countdown*) hari tersisa menuju penutupan pengisian (`pengisian_selesai`).
-- [ ] AC-3: *Given* Unit kerja PIC memiliki indikator yang belum diisi nilainya pada triwulan aktif, *When* Dashboard dimuat, *Then* Tampil kartu daftar indikator dengan badge peringatan "Belum Mengisi".
-- [ ] AC-4: *Given* Seluruh evaluasi alert ini berjalan, *When* Data dikirim ke klien, *Then* Seluruh logika dihitung di sisi server dan dikirimkan via shared props Inertia (komponen React tidak menghitung sendiri).
-
-### US-12.02 · Indikator Lonceng Notifikasi & Antrean Tugas (Baseline Scope MVP)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Pengguna telah login ke aplikasi. |<br>| Otorisasi: Seluruh pengguna terautentikasi. |<br>| Dampak Data: Penyimpanan status notifikasi pengguna. |
-
-> **Sebagai** Pengguna (PIC / Perencanaan),
-> **Saya ingin** melihat lonceng notifikasi pada navbar header dengan counter badge angka yang belum dibaca (*unread count*),
-> **Sehingga** saya mengetahui secara langsung peristiwa penting yang memerlukan tindakan perbaikan atau verifikasi dari saya.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan mengembalikan pengukuran atau rencana aksi milik PIC, *When* PIC membuka aplikasi, *Then* Badge lonceng notifikasi bertambah angka, dan saat diklik menampilkan cuplikan alasan pengembalian serta tautan langsung ke halaman perbaikan.
-- [ ] AC-2: *Given* PIC mengajukan rencana aksi atau pengukuran baru, *When* Tim Perencanaan membuka aplikasi, *Then* Lonceng notifikasi Perencanaan menampilkan item tugas baru yang siap diverifikasi.
-- [ ] AC-3: *Given* Pengguna mengklik salah satu notifikasi, *When* Halaman target terbuka, *Then* Status notifikasi ditandai telah dibaca (*read*), dan counter badge berkurang.
-
-### US-12.03 · Siaran Broadcast Pembukaan Jadwal Pengisian (Target Sebelum 9 Nov)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Modul integrasi eksternal aktif; nomor telepon dan email PIC tersimpan valid. |<br>| Otorisasi: Dieksekusi otomatis oleh sistem/scheduler. |<br>| Dampak Data: Antrean pesan, catatan log pengiriman. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menerima notifikasi siaran pembukaan jadwal melalui WhatsApp dan Email saat triwulan pengisian resmi dibuka,
-> **Sehingga** saya dapat segera merencanakan penginputan data kinerja meskipun sedang berada di luar kantor.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Jadwal periode triwulan resmi dibuka oleh Perencanaan (`pengisian_mulai`), *When* Pemicu aktivasi berjalan, *Then* Sistem mendispatch queued background job untuk mengirimkan pesan pengumuman pembukaan pengisian ke nomor WhatsApp dan email seluruh PIC unit kerja terkait.
-- [ ] AC-2: *Given* Gateway eksternal mengalami kendala koneksi, *When* Pengiriman gagal, *Then* Sistem mencatat error di log dan tidak menggagalkan transaksi pembukaan jadwal di basis data.
-
-### US-12.04 · Early Warning System (EWS) Harian Menjelang Tenggat Pengisian (Target Sebelum 9 Nov)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.04 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Jadwal periode pengisian sedang aktif; PIC belum mengajukan pengukuran. |<br>| Otorisasi: Eksekusi cron job sistem. |<br>| Dampak Data: Catatan log pengiriman pesan EWS. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menerima pesan pengingat berkala ke WhatsApp dan Email pada H-7, H-3, dan H-1 menjelang penutupan pengisian,
-> **Sehingga** saya tidak terlambat menyelesaikan pengisian pengukuran kinerja unit saya.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Scheduler cron SAKIP berjalan harian pada pukul 08.00 pagi, *When* Hari ini tepat berada di rentang H-7, H-3, atau H-1 batas `pengisian_selesai`, *Then* Sistem mendata seluruh PIC yang indikatornya masih berstatus "Draft" atau "Belum Mengisi", lalu mengirimkan pesan pengingat WhatsApp dan Email otomatis.
-- [ ] AC-2: *Given* PIC telah berhasil mengajukan pengukuran sebelum H-3, *When* Scheduler H-3 berjalan, *Then* Sistem mengecualikan PIC tersebut dari daftar penerima pengingat.
-
-### US-12.05 · Notifikasi Rekapitulasi untuk Tim Perencanaan (Target Sebelum 9 Nov)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.05 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Periode pengisian aktif; kunci `notifikasi.wa_aktif = true`. |<br>| Otorisasi: Eksekusi cron job sistem. |<br>| Dampak Data: Log antrean pesan rekapitulasi. |
-
-> **Sebagai** Tim Perencanaan,
-> **Saya ingin** menerima rekapitulasi progres pengisian ke WhatsApp dan Email pada H-3 dan H-1 batas pengisian,
-> **Sehingga** Tim Perencanaan dapat proaktif melakukan koordinasi atau peneguran terhadap unit kerja yang belum mengisi menjelang batas akhir.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Waktu mencapai H-3 dan H-1 penutupan triwulan, *When* Scheduled job berjalan, *Then* Sistem mengirimkan ringkasan persentase kepatuhan (daftar unit sudah submit vs belum submit) ke nomor WhatsApp dan email anggota Tim Perencanaan.
-
-### US-12.06 · Notifikasi Instan Pengembalian Berkas ke WhatsApp PIC (Target Sebelum 9 Nov)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-12.06 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Alert Kontekstual & Notifikasi (In-App & Eksternal) |
-| **Dependensi** | Verifikasi pengukuran atau rencana aksi dikembalikan dengan alasan terisi. |<br>| Otorisasi: Terpicu dari aksi `pengukuran:kembalikan` / `rencana_aksi:kembalikan`. |<br>| Dampak Data: Antrean notifikasi eksternal. |
-
-> **Sebagai** Penanggung Jawab (PIC Unit Kerja),
-> **Saya ingin** menerima pemberitahuan instan via WhatsApp saat pengajuan saya dikembalikan oleh Perencanaan,
-> **Sehingga** saya dapat segera membaca catatan alasan penolakan dan segera memperbaikinya sebelum tenggat berakhir.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan menekan tombol "Kembalikan" pada verifikasi, *When* Transaksi commit berhasil di database, *Then* Sistem secara asinkron mendispatch notifikasi WhatsApp ke nomor telepon PIC yang bersangkutan, memuat ringkasan catatan perbaikan dan link langsung ke aplikasi.
-
-## Bagian 13 — Setelan Aplikasi, Kebijakan Operasional, dan Audit Trail
-
-### US-13.01 · Pengelolaan Setelan Identitas & Preferensi Tampilan Aplikasi
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-13.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Setelan Aplikasi, Kebijakan Operasional, dan Audit Trail |
-| **Dependensi** | Pengguna memegang permission `pengaturan:update`. |<br>| Otorisasi: `pengaturan:update`. |<br>| Dampak Data: Tabel `pengaturan`, `audit_log`. |
-
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** mengubah teks identitas instansi, label sebutan unit, zona waktu, format tanggal/angka, dan header/footer laporan pada tabel pengaturan,
-> **Sehingga** preferensi presentasional aplikasi dapat diperbarui secara dinamis tanpa memerlukan deployment ulang kode program.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Admin membuka halaman Setelan Aplikasi, *When* Memperbarui nama instansi atau format tanggal, *Then* Nilai pada tabel `pengaturan` terupdate dan langsung berlaku pada tampilan pengguna lain melalui mekanisme caching.
-- [ ] AC-2: *Given* Setiap perubahan setelan disimpan, *When* Transaksi selesai, *Then* Perubahan tercatat di `audit_log` dengan `nilai_lama` dan `nilai_baru`.
-- [ ] AC-3: *Given* Pengguna selain Admin/Superadmin mencoba mengakses rute ini, *When* Endpoint dibuka, *Then* Sistem menolak akses (403 Forbidden).
-
-### US-13.02 · Pengaturan Kebijakan Teknis Penyimpanan Berkas & Saklar Unggah
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-13.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Setelan Aplikasi, Kebijakan Operasional, dan Audit Trail |
-| **Dependensi** | Pengguna memegang permission `pengaturan:update`. |<br>| Otorisasi: `pengaturan:update`. |<br>| Dampak Data: Tabel `pengaturan` (grup `berkas`), `audit_log`. |
-
-> **Sebagai** Admin atau Superadmin,
-> **Saya ingin** mengatur saklar aktivasi unggahan file (`berkas.unggahan_aktif`), batas ukuran default, format yang diizinkan, serta memantau panel kapasitas penyimpanan disk fisik,
-> **Sehingga** konsumsi ruang penyimpanan pada VPS dapat dikendalikan secara operasional tanpa menghentikan proses pelaporan kinerja.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Kapasitas disk VPS mendekati batas maksimal, *When* Admin mengubah setelan `berkas.unggahan_aktif = false`, *Then* Sistem secara global menonaktifkan pengiriman bukti dukung bermode file, sementara mode tautan dan teks tetap berfungsi normal.
-- [ ] AC-2: *Given* Halaman setelan dibuka, *When* Panel "Penggunaan Penyimpanan Bukti Dukung" dimuat, *Then* Sistem menampilkan metrik riil: jumlah berkas mode file, total ukuran bytes di disk, dan jumlah bukti mode tautan/teks.
-
-### US-13.03 · Penelusuran Rekam Jejak Audit Sistem (*Audit Trail*)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-13.03 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Setelan Aplikasi, Kebijakan Operasional, dan Audit Trail |
-| **Dependensi** | Pengguna memegang permission `audit:read`. |<br>| Otorisasi: `audit:read`. |<br>| Dampak Data: Tidak ada (Read-Only). |
-
-> **Sebagai** Admin, Superadmin, atau Tim Perencanaan,
-> **Saya ingin** menelusuri rekam jejak audit (*audit log*) seluruh peristiwa mutasi data, tindakan administratif, dan percobaan aksi yang ditolak sistem,
-> **Sehingga** seluruh aktivitas akuntabilitas sistem dapat diaudit secara objektif, forensik, dan transparan.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Pengguna membuka layar Audit Log, *When* Melakukan pencarian berdasarkan rentang waktu, aktor, jenis tindakan, atau objek entitas, *Then* Sistem menyajikan riwayat log secara *append-only* (tidak ada tombol ubah/hapus log).
-- [ ] AC-2: *Given* Suatu peristiwa melibatkan permission bertanda sensitif (mis. aktivasi jadwal, buka kembali, pengesahan), *When* Detail log dibuka, *Then* Log wajib menyajikan data JSON `dasar_izin` yang menjelaskan mengapa aktor tersebut diizinkan (peran mana atau grant mana yang berlaku).
-- [ ] AC-3: *Given* Suatu aksi ditolak oleh sistem karena pelanggaran gerbang atau presedens deny, *When* Log diperiksa, *Then* Peristiwa penolakan tercatat jelas beserta alasannya.
-
-## Bagian 14 — Penutupan Jadwal & Pembukaan Kembali (Koreksi Pasca-Penutupan)
-
-### US-14.01 · Penutupan Resmi Siklus Kinerja Tahunan (*Jadwal Penutupan*)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-14.01 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penutupan Jadwal & Pembukaan Kembali (Koreksi Pasca-Penutupan) |
-| **Dependensi** | Tanggal hari ini `>= penutupan` pada `jadwal_tahunan`. |<br>| Otorisasi: `jadwal:tutup` (permission sensitif). |<br>| Dampak Data: `jadwal_tahunan.status = ditutup`, `closed_at`, `audit_log`. |
-
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** menutup secara resmi Jadwal Tahunan setelah seluruh tahapan evaluasi dan pelaporan tahunan tuntas,
-> **Sehingga** seluruh data kinerja tahun tersebut terkunci permanen (*freeze mutlak*) dan tidak dapat dimutasi lagi oleh siapapun.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan mengeksekusi aksi penutupan jadwal, *When* Dikonfirmasi, *Then* Status `jadwal_tahunan` berubah menjadi `ditutup`, dan kolom `closed_at` terisi timestamp terkini.
-- [ ] AC-2: *Given* Jadwal telah berstatus `ditutup`, *When* PIC maupun Tim Perencanaan mencoba membuat atau mengubah Rencana Aksi, Kegiatan, Klaim, Berkas, atau Pengukuran pada tahun tersebut, *Then* Seluruh permintaan **DITOLAK KERAS** oleh sistem.
-
-### US-14.02 · Pembukaan Kembali Jadwal Tahunan Pasca-Penutupan (`jadwal:buka_kembali`)
-
-| Field | Detail |
-|-------|--------|
-| **ID** | US-14.02 |
-| **Prioritas** | 🟡 P1 |
-| **Story Points** | 5 |
-| **Modul** | Penutupan Jadwal & Pembukaan Kembali (Koreksi Pasca-Penutupan) |
-| **Dependensi** | Jadwal tahunan berstatus `ditutup`. |<br>| Otorisasi: `jadwal:buka_kembali` (permission sensitif). |<br>| Dampak Data: `jadwal_tahunan.status = aktif`, `audit_log` (mencatat alasan wajib dan dasar izin). |
-
-> **Sebagai** Tim Perencanaan atau Superadmin,
-> **Saya ingin** membuka kembali Jadwal Tahunan yang telah berstatus ditutup untuk keperluan perbaikan resmi pasca-audit,
-> **Sehingga** koreksi data historis dapat dilakukan secara legal, terkendali, berbatas waktu, dan tercatat penuh dalam riwayat audit.
-
-**Acceptance Criteria:**
-
-- [ ] AC-1: *Given* Perencanaan memasukkan alasan pembukaan kembali, memilih unit yang diizinkan melakukan koreksi, serta menetapkan tanggal batas akhir sesi koreksi baru, *When* Aksi dieksekusi, *Then* Status `jadwal_tahunan` kembali menjadi `aktif`, tanggal penutupan asli tetap dipertahankan, dan peristiwa tercatat di `audit_log`.
-- [ ] AC-2: *Given* Sesi koreksi aktif, *When* PIC unit terkait melakukan perbaikan, *Then* Perbaikan hanya diizinkan dalam rentang waktu sesi koreksi yang telah ditetapkan.
-- [ ] AC-3: *Given* Sesi koreksi telah berakhir, *When* Perencanaan menutup kembali jadwal, *Then* Status kembali menjadi `ditutup`.
-
-## 📊 Matriks Ketertelusuran Cerita Pengguna (*Traceability Matrix*)
-
-| ID Cerita | Modul Rujukan (Plan) | Bab PRD | Bab Workflow | Entitas Utama (Data Model) |
-|---|---|---|---|---|
-| **US-01.01** | Modul 1 (1.2, 1.3) | §6 | §1.1 (1-2) | `users` |
-| **US-01.02** | Modul 1 (1.4, 1.18) | §7 | §21 | `unit` |
-| **US-01.03** | Modul 1 (1.7, 1.13) | §7.5 | §21 (Form 1) | `roles`, `user_roles` |
-| **US-01.04** | Modul 1 (1.8, 1.14) | §7.5 | §21 (Form 2) | `user_permission_granted` |
-| **US-01.05** | Modul 1 (1.9, 1.15) | §7.5 | §21 (Form 3) | `user_permission_denied` |
-| **US-01.06** | Modul 1 (1.16) | §7.5 | §21 (Hal. Jelaskan) | `permissions`, Gate Resolusi |
-| **US-02.01** | Modul 2 (2.16-2.18) | §8 | §3 | `regulasi`, `berkas` |
-| **US-02.02** | Modul 2 (2.1-2.4) | §9 | §4 | `renstra`, `berkas` |
-| **US-02.03** | Modul 2 (2.5-2.8) | §10 | §4 | `sasaran`, `indikator` |
-| **US-02.04** | Modul 2 (2.9-2.11) | §17 | §7 | `indikator_komponen` |
-| **US-02.05** | Modul 2 (2.12-2.13) | §11 | §4 | `target_tahunan` |
-| **US-02.06** | Modul 2 (2.14, 2.20) | §10.3 | §3, §5 | `renstra_pk`, `berkas` |
-| **US-03.01** | Modul 3 (3.1-3.4) | §12 | §5 | `jadwal_tahunan`, `jadwal_periode` |
-| **US-03.02** | Modul 3 (3.5-3.8) | §12.4 | §5 | `jadwal_snapshot`, `jadwal_snapshot_komponen` |
-| **US-04.01** | Modul 4 (4.1-4.3) | §13 | §6 | `penanggung_jawab` |
-| **US-05.01** | Modul 11 (11.1) | §14 | §7 | `rencana_aksi`, `rencana_aksi_target` |
-| **US-05.02** | Modul 11, 13 (13.4) | §18 | §10 | `berkas` (tahap rencana_aksi) |
-| **US-05.03** | Modul 11 (11.3) | §14.5 | §7 | `rencana_aksi` (status diajukan) |
-| **US-05.04** | Modul 11 (11.4) | §14.5 | §7 | `rencana_aksi` (verifikasi/kembalikan) |
-| **US-05.05** | Modul 11 (11.5) | §14.5, §7.6 | §7, §20 | `rencana_aksi` (disahkan, F1/F2) |
-| **US-05.06** | Modul 11 (11.6) | §14.5 | §7 | `rencana_aksi` (buka kembali) |
-| **US-06.01** | Modul 12 (12.1-12.3) | §15 | §8 | `kegiatan` |
-| **US-06.02** | Modul 12 (12.6-12.8) | §16 | §9 | `klaim_kegiatan` |
-| **US-06.03** | Modul 12, 13 (13.4) | §15.5 | §8, §10 | `kegiatan` (status terlaksana) |
-| **US-06.04** | Modul 12 (12.4) | §15.4 | §8 | `kegiatan` (tidak terlaksana, batal) |
-| **US-06.05** | Modul 12 (12.5) | §15.4 | §8 | `kegiatan` (`kegiatan_asal_id`) |
-| **US-07.01** | Modul 5 (5.1-5.6) | §17 | §11 | `pengukuran`, `pengukuran_komponen` |
-| **US-07.02** | Modul 5, 13 (13.4) | §18 | §10 | `berkas` (tahap pengukuran) |
-| **US-07.03** | Modul 5 (5.7-5.9) | §19 | §11, §12 | `pengukuran` (status diajukan) |
-| **US-07.04** | Modul 5 (5.10) | §19.3 | §11 | `pengukuran` (bypass waktu Perencanaan) |
-| **US-08.01** | Modul 6 (6.1-6.3) | §20 | §12 | `pengukuran` (verifikasi/kembalikan) |
-| **US-08.02** | Modul 6 (6.4) | §20, §7.6 | §12, §20 | `pengukuran` (disahkan, F1/F2) |
-| **US-08.03** | Modul 6 (6.5) | §20.3 | §12, §13 | `pengukuran` (buka kembali) |
-| **US-09.01** | Modul 6 (6.6-6.7) | §21 | §17 | `rekomendasi_pimpinan` |
-| **US-09.02** | Modul 5 (5.11-5.12) | §21 | §16 | `status_capaian` |
-| **US-10.01** | Modul 7 (7.1-7.5) | §23 | §14 | Dashboard, ApexCharts |
-| **US-10.02** | Modul 8 (8.1-8.3) | §22 | §15 | Matriks Rekapitulasi Laporan |
-| **US-10.03** | Modul 8 (8.4-8.5) | §24 | §15 | Ekspor Excel (`laporan:ekspor`) |
-| **US-11.01** | Modul 13 (13.1-13.3) | §18 | §10 | `jenis_berkas` |
-| **US-11.02** | Modul 13 (13.5) | §18.3 | §10 | `berkas` (mode file privat) |
-| **US-11.03** | Modul 13 (13.5) | §18.3 | §10 | `berkas` (mode tautan/teks) |
-| **US-11.04** | Modul 13 (13.6) | §18.4 | §10 | Imutabilitas berkas 6 induk |
-| **US-12.01** | Modul 14 (14.1) | §28.1 | §22.1 | Banner Kontekstual In-App |
-| **US-12.02** | Modul 14 (14.1) | §28.1 | §22.1 | Lonceng Header & Task List |
-| **US-12.03** | Modul 14 (14.2) | §28.2 | §22.2 | Broadcast WhatsApp/Email |
-| **US-12.04** | Modul 14 (14.2) | §28.2 | §22.2 | EWS Harian H-7 s/d H-1 |
-| **US-12.05** | Modul 14 (14.2) | §28.2 | §22.2 | Rekap Tim Perencanaan WA/Email |
-| **US-12.06** | Modul 14 (14.2) | §28.2 | §22.2 | Notifikasi Instan Pengembalian WA |
-| **US-13.01** | Modul 9 (9.1-9.5) | §26 | §18 | `pengaturan` (identitas, tampilan) |
-| **US-13.02** | Modul 9 (9.6-9.8) | §26.4 | §18 | `pengaturan` (grup berkas), disk VPS |
-| **US-13.03** | Modul 10 (10.1-10.6) | §25 | §19, §20 | `audit_log` (append-only) |
-| **US-14.01** | Modul 3 (3.9) | §12.5 | §5 | `jadwal_tahunan.status = ditutup` |
-| **US-14.02** | Modul 3 (3.10) | §12.6 | §13 | `jadwal:buka_kembali` |
+| **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
+| **Dependensi** | RA disahkan; sebelum penutupan atau di dalam sesi koreksi yang sah. |
+| **Otorisasi** | `rencana_aksi:buka_kembali` (sensitif). |
+| **Dampak Data** | `rencana_aksi`, versi historis, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** membuka RA disahkan kembali ke jalur revisi dengan alasan wajib,  
+> **Sehingga** koreksi resmi dapat dilakukan tanpa menghapus versi yang sudah pernah disahkan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [ ] **AC-3:** Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
+- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 
 ---
-*Dokumen ini menjadi acuan spesifikasi fungsional pengujian Acceptance Criteria (UAT) dan panduan pengkodean fitur SAKIP LLDIKTI Wilayah XVI.*
+
+## Bagian 6 — Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan
+
+### US-06.01 · Pencatatan Rencana Kegiatan Unit
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Unit aktif dan periode valid. |
+| **Otorisasi** | `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant). |
+| **Dampak Data** | `kegiatan`, `audit_log`. |
+
+> **Sebagai** PIC/petugas unit berizin atau Tim Perencanaan,  
+> **Saya ingin** mencatat kegiatan yang mendukung pencapaian kinerja,  
+> **Sehingga** aktivitas operasional dapat ditelusuri per unit dan periode.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
+- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
+- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+
+### US-06.02 · Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Kegiatan dan RA tersedia pada konteks tahun/unit yang konsisten. |
+| **Otorisasi** | `kegiatan:update`/capability sumber dan kewenangan RA sesuai alur. |
+| **Dampak Data** | `klaim_kegiatan`, `audit_log`. |
+
+> **Sebagai** PIC/petugas unit berizin atau Tim Perencanaan,  
+> **Saya ingin** menghubungkan kegiatan ke RA dan opsional ke komponen indikator,  
+> **Sehingga** laporan dapat menjelaskan kontribusi kegiatan tanpa mengubah angka capaian secara otomatis.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
+- [ ] **AC-2:** Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
+- [ ] **AC-3:** Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [ ] **AC-4:** Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
+- [ ] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
+
+### US-06.03 · Pelaksanaan Kegiatan & Gerbang Bukti Gabungan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Kegiatan berstatus `rencana`; persyaratan global dan indikator klaim dapat dihitung. |
+| **Otorisasi** | `kegiatan:update` + capability bukti induk. |
+| **Dampak Data** | `kegiatan`, `klaim_kegiatan`, `jenis_berkas`, `berkas`, `audit_log`. |
+
+> **Sebagai** PIC/petugas unit berizin,  
+> **Saya ingin** menyelesaikan kegiatan setelah seluruh bukti wajib yang relevan terpenuhi,  
+> **Sehingga** status terlaksana hanya diberikan pada kegiatan yang dapat dipertanggungjawabkan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim**.
+- [ ] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
+- [ ] **AC-3:** Given tanggal realisasi, peserta riil, uraian pelaksanaan, kendala, strategi tindak lanjut, dan bukti lengkap, When commit, Then status menjadi `terlaksana`.
+- [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
+- [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
+
+### US-06.04 · Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.04` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Kegiatan masih dapat ditransisikan. |
+| **Otorisasi** | `kegiatan:update`. |
+| **Dampak Data** | `kegiatan`, `audit_log`. |
+
+> **Sebagai** PIC/petugas unit berizin,  
+> **Saya ingin** mencatat kegagalan/penundaan kegiatan beserta justifikasi,  
+> **Sehingga** kendala operasional tetap terlihat tanpa menghapus kegiatan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
+- [ ] **AC-2:** Given justifikasi kosong, When submit, Then ditolak.
+- [ ] **AC-3:** Given status bukan `terlaksana`, Then bukti SPJ pelaksanaan tidak diwajibkan semata-mata untuk transisi tersebut.
+- [ ] **AC-4:** Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tetap dapat muncul sebagai konteks.
+- [ ] **AC-5:** Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
+
+### US-06.05 · Roll-Over Kegiatan ke Periode Berikutnya
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.05` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Kegiatan asal berstatus `ditunda`; periode tujuan valid. |
+| **Otorisasi** | `kegiatan:create`. |
+| **Dampak Data** | `kegiatan`, `audit_log`. |
+
+> **Sebagai** PIC/petugas unit berizin,  
+> **Saya ingin** menggeser kegiatan ditunda ke periode berikutnya tanpa menghapus kegiatan asal,  
+> **Sehingga** jejak penundaan antarperiode dapat ditelusuri.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
+- [ ] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
+- [ ] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
+- [ ] **AC-4:** Given roll-over selesai, Then audit menyimpan hubungan asal-tujuan.
+
+### US-06.06 · Koreksi Klaim Kegiatan Berdasarkan Sumber Versi
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.06` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Klaim telah digunakan dalam proses RA/Pengukuran. |
+| **Otorisasi** | Kewenangan mengikuti sumber yang sedang dikoreksi. |
+| **Dampak Data** | `klaim_kegiatan`, versi RA/Pengukuran, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan/PIC sesuai sumber klaim,  
+> **Saya ingin** mengoreksi klaim tanpa mengubah versi historis yang sudah diajukan/disahkan,  
+> **Sehingga** laporan lama tetap merepresentasikan klaim yang dahulu diperiksa.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
+- [ ] **AC-2:** Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
+- [ ] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
+- [ ] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
+
+### US-06.07 · Koreksi Bukti Kegiatan secara Append-Only
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-06.07` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
+| **Dependensi** | Kegiatan telah memiliki bukti yang sudah digunakan/terkunci. |
+| **Otorisasi** | Capability bukti induk + aturan koreksi. |
+| **Dampak Data** | `berkas`, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan yang berwenang,  
+> **Saya ingin** mengganti bukti kegiatan melalui bukti baru tanpa menghapus bukti lama,  
+> **Sehingga** auditor dapat melihat bukti awal dan bukti koreksi beserta alasannya.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given bukti kegiatan perlu dikoreksi setelah mencapai batas imutabilitas, When koreksi sah dilakukan, Then bukti baru ditambahkan dengan alasan dan hubungan pengganti; bukti lama tetap utuh.
+- [ ] **AC-2:** Given bukti lama telah dirujuk versi resmi, Then tidak tersedia rollback status untuk menghapusnya.
+- [ ] **AC-3:** Given koreksi belum disahkan dalam versi baru, Then laporan resmi tetap membaca bukti versi lama.
+- [ ] **AC-4:** Given koreksi menjadi dasar pengajuan baru, Then metadata bukti baru dibekukan pada versi pengajuan baru.
+
+---
+
+## Bagian 7 — Pengisian Pengukuran Kinerja
+
+### US-07.01 · Pengisian Nilai Realisasi Komponen/Manual
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.01` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Periode berlaku dan jendela pengisian sah; snapshot indikator tersedia; PIC grant + PIC efektif valid atau Perencanaan global. |
+| **Otorisasi** | `pengukuran:create`, `pengukuran:update`. |
+| **Dampak Data** | `pengukuran`, `pengukuran_komponen`, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengisi realisasi sesuai tipe perhitungan snapshot,  
+> **Sehingga** nilai capaian dihitung konsisten dengan definisi yang dibekukan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
+- [ ] **AC-2:** Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
+- [ ] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
+- [ ] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
+- [ ] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
+- [ ] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
+
+### US-07.02 · Pemenuhan Bukti Dukung Pengukuran
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Pengukuran dapat diedit; persyaratan bukti aktif. |
+| **Otorisasi** | Capability berkas mengikuti induk Pengukuran; deny tetap berlaku. |
+| **Dampak Data** | `berkas`, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** melampirkan file, tautan, atau teks sesuai persyaratan pengukuran,  
+> **Sehingga** angka capaian memiliki sumber bukti yang dapat diverifikasi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given mode diizinkan, When bukti disimpan, Then `berkas` terkait Pengukuran dan jenis persyaratan.
+- [ ] **AC-2:** Given `semua_mode_wajib = true`, Then seluruh mode yang disyaratkan wajib terpenuhi.
+- [ ] **AC-3:** Given file upload dimatikan dan persyaratan mengandung kewajiban file, Then hanya kewajiban **mode file** yang dapat dikecualikan sesuai kebijakan; mode tautan/teks lain tetap wajib bila dipersyaratkan.
+- [ ] **AC-4:** Given bukti telah masuk versi submit, Then perubahan live tidak mengubah versi lama.
+
+### US-07.03 · Pengajuan Pengukuran & Pembekuan Versi
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.03` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Pengukuran draft/dikembalikan; jendela aktor sah; RA resmi tersedia pada jalur normal. |
+| **Otorisasi** | `pengukuran:update` untuk submit sesuai scope. |
+| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengajukan pengukuran sebagai versi immutable untuk direviu,  
+> **Sehingga** angka, target pembanding, bukti, dan provenance tidak berubah selama proses review.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
+- [ ] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan.
+- [ ] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
+- [ ] **AC-4:** Given nilai memburuk menurut arah dibanding versi disahkan terakhir atau indikator `wajib_catatan`, When catatan kosong, Then submit ditolak.
+- [ ] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
+- [ ] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
+- [ ] **AC-7:** Given submit berhasil, Then notifikasi antrean Perencanaan dibuat setelah commit.
+
+### US-07.04 · Pengisian oleh Perencanaan di Luar Deadline PIC
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.04` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Jadwal belum ditutup atau berada pada sesi koreksi yang sah. |
+| **Otorisasi** | `pengukuran:create`, `pengukuran:update` global melalui role Perencanaan. |
+| **Dampak Data** | `pengukuran`, versi, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengisi atau mengoreksi pengukuran setelah deadline PIC,  
+> **Sehingga** pelaporan tidak macet ketika unit terlambat, tanpa melemahkan gerbang kualitas.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given tanggal melewati `pengisian_selesai`, When PIC mencoba mengubah/submit, Then ditolak kecuali jendela PIC resmi dibuka ulang.
+- [ ] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
+- [ ] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit.
+- [ ] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
+- [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat.
+
+### US-07.05 · Backfill Nilai Historis Final
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.05` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 8 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Data historis final memiliki sumber resmi dan alasan; dijalankan oleh Perencanaan pada jalur backfill. |
+| **Otorisasi** | Permission global Perencanaan + guard backfill. |
+| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** memasukkan nilai final historis tanpa memalsukan komponen yang tidak tersedia,  
+> **Sehingga** arsip capaian lama dapat dimuat secara jujur dan dapat diaudit.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given nilai historis final tersedia tetapi rincian komponen tidak ada, When backfill dilakukan, Then `sumber_nilai = historis` dengan nilai non-NULL, `alasan_historis`, dan `sumber_historis` wajib.
+- [ ] **AC-2:** Given backfill memakai nilai final, Then tipe perhitungan master/snapshot tidak diubah.
+- [ ] **AC-3:** Given RA historis tidak tersedia, When pengecualian backfill digunakan, Then alasan dan jenis pengecualian dibekukan dalam `pengukuran_versi` dan audit.
+- [ ] **AC-4:** Given sumber resmi tidak tersedia, When submit backfill, Then ditolak.
+- [ ] **AC-5:** Given backfill disahkan, Then laporan menandai sumber historis dan tetap menggunakan versi resmi.
+
+### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-07.06` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Pengisian Pengukuran Kinerja |
+| **Dependensi** | Indikator rasio; semua komponen terisi; penyebut efektif = 0. |
+| **Otorisasi** | `pengukuran:update` sesuai scope. |
+| **Dampak Data** | `pengukuran`, `pengukuran_komponen`, versi, `audit_log`. |
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengajukan kondisi penyebut nol tanpa menyamakan dengan belum diisi atau nilai nol,  
+> **Sehingga** laporan membedakan data tidak terhitung secara matematis dari ketidaklengkapan input.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
+- [ ] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
+- [ ] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
+- [ ] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
+- [ ] **AC-5:** Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+
+---
+
+## Bagian 8 — Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran
+
+### US-08.01 · Verifikasi & Pengembalian Pengukuran dengan F1
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-08.01` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran |
+| **Dependensi** | Pengukuran berstatus `diajukan`; versi terbaru tersedia. |
+| **Otorisasi** | `pengukuran:verifikasi`, `pengukuran:kembalikan`. |
+| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** memeriksa nilai dan bukti lalu memverifikasi atau mengembalikan,  
+> **Sehingga** angka resmi melewati review independen pada jalur PIC.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
+- [ ] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
+- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan` dan notifikasi dikirim setelah commit.
+- [ ] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
+- [ ] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+
+### US-08.02 · Pengesahan Pengukuran & F1/F2
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-08.02` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran |
+| **Dependensi** | Pengukuran `diverifikasi`; versi yang sama masih menjadi versi aktif untuk review. |
+| **Otorisasi** | `pengukuran:sahkan` (sensitif). |
+| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mengesahkan versi pengukuran,  
+> **Sehingga** nilai realisasi menjadi angka resmi organisasi dengan provenance yang tidak dapat ditulis ulang.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given jalur pengajuan PIC, When aktor sama dengan `diajukan_by` mencoba sahkan, Then F1 menolak.
+- [ ] **AC-2:** Given aktor lain berizin, When sahkan, Then status menjadi `disahkan` dan `disahkan_by/disahkan_at` versi terisi atomik.
+- [ ] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
+- [ ] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
+- [ ] **AC-5:** Given versi stale, When sahkan, Then ditolak.
+- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+
+### US-08.03 · Buka-Kembali Pengukuran Disahkan & Histori Status Capaian
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-08.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran |
+| **Dependensi** | Pengukuran disahkan; waktu koreksi sah. |
+| **Otorisasi** | `pengukuran:buka_kembali` (sensitif). |
+| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** membuka pengukuran resmi untuk koreksi tanpa menghapus hasil lama,  
+> **Sehingga** kesalahan pasca-pengesahan dapat diperbaiki sementara histori keputusan tetap utuh.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+
+---
+
+## Bagian 9 — Rekomendasi Pimpinan & Status Capaian
+
+### US-09.01 · Pencatatan Rekomendasi Pimpinan oleh Perencanaan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-09.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Rekomendasi Pimpinan & Status Capaian |
+| **Dependensi** | Indikator, tahun, dan periode valid. |
+| **Otorisasi** | `rekomendasi:tetapkan` (sensitif). |
+| **Dampak Data** | `rekomendasi_pimpinan`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** mencatat arahan/rekomendasi pimpinan hasil evaluasi per indikator-periode,  
+> **Sehingga** tindak lanjut pimpinan terdokumentasi walaupun approval aktif Pimpinan belum masuk MVP.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given rekomendasi valid, When disimpan, Then baris baru dibuat dengan `ditetapkan_oleh` dan waktu.
+- [ ] **AC-2:** Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi independen dari status pengukuran.
+- [ ] **AC-3:** Given rekomendasi lama ada, When rekomendasi baru dibuat, Then baris baru menjadi yang aktif dan histori lama tidak dihapus.
+- [ ] **AC-4:** Given role Pimpinan pada MVP, When membaca rekomendasi, Then bersifat read-only.
+
+### US-09.02 · Penetapan Status Capaian per Versi Pengukuran Disahkan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-09.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Rekomendasi Pimpinan & Status Capaian |
+| **Dependensi** | Terdapat `pengukuran_versi` yang telah disahkan. |
+| **Otorisasi** | `status_capaian:update` (sensitif). |
+| **Dampak Data** | `status_capaian`, `pengukuran_versi`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** menetapkan status `tercapai`/`belum_tercapai` pada versi resmi tertentu,  
+> **Sehingga** penilaian akhir selalu terikat pada angka yang benar-benar disahkan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
+- [ ] **AC-2:** Given pengukuran belum disahkan, When status dicoba, Then ditolak.
+- [ ] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
+- [ ] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
+
+---
+
+## Bagian 10 — Dashboard, Rekapitulasi, dan Ekspor
+
+### US-10.01 · Dashboard Kinerja Eksekutif
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-10.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Dashboard, Rekapitulasi, dan Ekspor |
+| **Dependensi** | Pengguna memiliki akses dashboard; data resmi/draft tersedia sesuai hak. |
+| **Otorisasi** | `dashboard:read`. |
+| **Dampak Data** | Read-only query terhadap snapshot/versi resmi dan data kerja sesuai konteks. |
+
+> **Sebagai** Pimpinan, Perencanaan, Admin, atau pengguna lain yang memiliki izin,  
+> **Saya ingin** memantau status indikator, target-vs-realisasi, progres RA, dan kegiatan,  
+> **Sehingga** pengambilan keputusan didukung tampilan ringkas yang konsisten dengan status data.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
+- [ ] **AC-2:** Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
+- [ ] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
+- [ ] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
+- [ ] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
+
+### US-10.02 · Matriks Rekapitulasi Indikator × Periode
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-10.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Dashboard, Rekapitulasi, dan Ekspor |
+| **Dependensi** | Pengguna memiliki akses laporan. |
+| **Otorisasi** | `laporan:read`. |
+| **Dampak Data** | Read-only atas versi resmi, snapshot, rekomendasi, status capaian, kegiatan/klaim/bukti yang dibekukan. |
+
+> **Sebagai** Tim Perencanaan atau Pimpinan,  
+> **Saya ingin** melihat matriks lengkap per indikator dan periode,  
+> **Sehingga** seluruh rantai akuntabilitas dapat ditinjau dalam satu tampilan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
+- [ ] **AC-2:** Then kolom target memisahkan baseline, target PK, dan target periode.
+- [ ] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
+- [ ] **AC-4:** Then narasi kegiatan/kendala/tindak lanjut berasal dari versi resmi yang dinilai, bukan live data yang telah berubah.
+- [ ] **AC-5:** Then rekomendasi pimpinan, status capaian, dan status bukti ditampilkan sesuai versi/konteks.
+- [ ] **AC-6:** Given `tidak_dapat_dihitung` atau `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol.
+
+### US-10.03 · Ekspor Laporan Kinerja ke Excel
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-10.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Dashboard, Rekapitulasi, dan Ekspor |
+| **Dependensi** | Pengguna memiliki akses ekspor; matriks laporan dapat dibentuk. |
+| **Otorisasi** | `laporan:ekspor`. |
+| **Dampak Data** | Stream `.xlsx`; audit event ekspor bila disepakati baseline. |
+
+> **Sebagai** Tim Perencanaan atau Pimpinan,  
+> **Saya ingin** mengekspor rekap kinerja ke Excel,  
+> **Sehingga** laporan dapat digunakan pada proses formal tanpa mengubah makna data.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given filter laporan dipilih, When ekspor dijalankan, Then `.xlsx` memisahkan baseline, target, realisasi, persentase, narasi, rekomendasi, dan status bukti.
+- [ ] **AC-2:** Given Pimpinan memiliki `laporan:ekspor`, When ekspor dilakukan, Then berhasil sesuai scope baca.
+- [ ] **AC-3:** Given Admin bawaan tidak memiliki `laporan:ekspor`, When endpoint dipanggil, Then 403 kecuali Admin menerima grant eksplisit yang sah.
+- [ ] **AC-4:** Given data resmi historis diekspor, Then file membaca versi disahkan dan konteks beku.
+- [ ] **AC-5:** Given nilai tidak dapat dihitung, Then ekspor menandainya secara eksplisit dan tidak mengubah menjadi 0.
+
+### US-10.04 · Penerimaan Contoh Keluaran Excel untuk UAT
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-10.04` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 3 |
+| **Modul** | Dashboard, Rekapitulasi, dan Ekspor |
+| **Dependensi** | Fitur ekspor tersedia; Tim Perencanaan menyediakan/menyetujui contoh penerimaan. |
+| **Otorisasi** | Proses UAT/acceptance, bukan permission aplikasi baru. |
+| **Dampak Data** | Artefak UAT/keputusan baseline; tidak menambah tabel domain. |
+
+> **Sebagai** Tim Perencanaan / pemilik UAT,  
+> **Saya ingin** mengesahkan satu contoh keluaran Excel sebagai acuan penerimaan,  
+> **Sehingga** developer dan tester memiliki target format/informasi yang tidak ambigu.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given build ekspor siap UAT, When contoh dibandingkan, Then baseline/target/realisasi/persentase dan informasi wajib dinilai kesetaraannya.
+- [ ] **AC-2:** Given sumber lama memiliki susunan sel ambigu, Then UAT menilai kesetaraan informasi; aplikasi tidak wajib menyalin layout ambigu secara literal.
+- [ ] **AC-3:** Given contoh belum disetujui, Then dokumen tidak mengklaim format final telah diterima.
+- [ ] **AC-4:** Given perubahan format setelah persetujuan, Then perubahan harus masuk catatan keputusan/UAT baru.
+
+---
+
+## Bagian 11 — Bukti Dukung Multi-Mode & Integritas Lampiran
+
+### US-11.01 · Konfigurasi Persyaratan Jenis Berkas
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | Indikator/unit tersedia bila persyaratan bersifat spesifik. |
+| **Otorisasi** | `jenis_berkas:create`, `jenis_berkas:read`, `jenis_berkas:update`, `jenis_berkas:delete`. |
+| **Dampak Data** | `jenis_berkas`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menetapkan persyaratan bukti per tahap, mode, wajib/tidak, dan batas file,  
+> **Sehingga** standar bukti dapat dikonfigurasi tanpa deployment kode.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given persyaratan baru, When tahap, mode, wajib, batas ukuran/format disimpan, Then data valid tersimpan.
+- [ ] **AC-2:** Given tidak ada mode yang diizinkan, When submit, Then ditolak.
+- [ ] **AC-3:** Given `semua_mode_wajib = true`, Then seluruh mode yang diizinkan harus dipenuhi.
+- [ ] **AC-4:** Given perubahan substansi persyaratan dilakukan, Then audit menyimpan before/after dan alasan bila diwajibkan.
+- [ ] **AC-5:** Given persyaratan sudah dibekukan pada versi submit lama, Then perubahan master hanya berlaku untuk pengajuan berikutnya.
+
+### US-11.02 · Unggah File Privat & Streamed Download
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | `berkas.unggahan_aktif = true`; capability induk valid. |
+| **Otorisasi** | Capability berkas mengikuti induk; `berkas:read`/deny tetap dievaluasi sesuai kontrak akses. |
+| **Dampak Data** | `berkas`, private filesystem, `audit_log`. |
+
+> **Sebagai** Pengguna berwenang,  
+> **Saya ingin** mengunggah dan mengunduh file bukti melalui storage privat,  
+> **Sehingga** dokumen tidak terekspos sebagai URL publik.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given file valid, When upload, Then file disimpan pada disk privat dan metadata nama asli, MIME, ukuran, path aman disimpan.
+- [ ] **AC-2:** Given ukuran/format melanggar batas persyaratan/fallback, When upload, Then ditolak sebelum file final tersimpan.
+- [ ] **AC-3:** Given path fisik ditebak tanpa autentikasi, When diakses, Then tidak tersedia sebagai public URL.
+- [ ] **AC-4:** Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
+- [ ] **AC-5:** Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
+
+### US-11.03 · Bukti Mode Tautan atau Teks
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | Persyaratan mengizinkan tautan/teks. |
+| **Otorisasi** | Capability bukti induk. |
+| **Dampak Data** | `berkas`, `audit_log`. |
+
+> **Sebagai** Pengguna berwenang,  
+> **Saya ingin** memenuhi bukti melalui URL resmi atau keterangan teks,  
+> **Sehingga** proses tetap berjalan saat file fisik tidak diperlukan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given mode tautan dipilih, When URL `http/https` valid disimpan, Then URL tersimpan tanpa memakai kuota disk file.
+- [ ] **AC-2:** Given mode teks dipilih, When isi valid disimpan, Then teks tersimpan pada kolom yang tepat.
+- [ ] **AC-3:** Given mode tidak diizinkan oleh jenis persyaratan, Then ditolak.
+- [ ] **AC-4:** Given audit untuk teks, Then audit tidak harus menyalin isi sensitif penuh; cukup metadata yang diperlukan sesuai kebijakan.
+
+### US-11.04 · Imutabilitas Berkas Berdasarkan Induk
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.04` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | Berkas terkait salah satu induk yang didukung. |
+| **Otorisasi** | `berkas:delete` (sensitif) + guard status induk. |
+| **Dampak Data** | `berkas`, `audit_log`. |
+
+> **Sebagai** Sistem Integritas SAKIP,  
+> **Saya ingin** mencegah penghapusan bukti setelah mencapai batas legal/versi resmi,  
+> **Sehingga** bukti yang telah menjadi dasar keputusan tidak dapat dimanipulasi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given berkas RA/Pengukuran telah dirujuk versi resmi/disahkan, When delete dicoba, Then ditolak.
+- [ ] **AC-2:** Given kegiatan telah terlaksana dan bukti menjadi dasar gerbang, When delete dicoba, Then ditolak; koreksi append-only.
+- [ ] **AC-3:** Given Renstra aktif, When lampiran resmi Renstra dihapus, Then ditolak.
+- [ ] **AC-4:** Given PK sudah menjadi dasar jadwal aktif, When lampiran PK dihapus, Then ditolak.
+- [ ] **AC-5:** Given regulasi masih dirujuk Renstra/Indikator aktif, When lampiran regulasi dihapus, Then ditolak.
+- [ ] **AC-6:** Given batas imutabilitas belum tercapai dan aktor berwenang, Then soft delete dapat dilakukan dengan `dihapus_pada/dihapus_oleh` serta audit.
+
+### US-11.05 · Pembekuan Persyaratan Bukti Saat Pengajuan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.05` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 5 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | RA/Pengukuran siap submit. |
+| **Otorisasi** | Mengikuti permission submit induk. |
+| **Dampak Data** | `rencana_aksi_versi` / `pengukuran_versi` snapshot, `jenis_berkas`, `berkas`. |
+
+> **Sebagai** Sistem,  
+> **Saya ingin** membekukan persyaratan dan bukti yang digunakan pada setiap versi pengajuan,  
+> **Sehingga** perubahan persyaratan di tengah proses tidak mengubah standar review yang sudah berlaku diam-diam.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given submit terjadi, Then versi menyimpan jenis/mode/wajib persyaratan serta bukti/pengecualian yang dipakai.
+- [ ] **AC-2:** Given master `jenis_berkas` berubah setelah submit, Then versi yang sedang direviu tidak ikut berubah.
+- [ ] **AC-3:** Given ketentuan baru harus diterapkan pada proses berjalan, Then proses harus dikembalikan beralasan dan diajukan ulang sebagai versi baru.
+- [ ] **AC-4:** Given hasil sudah disahkan, Then perubahan persyaratan baru tidak otomatis membatalkan hasil lama.
+
+### US-11.06 · Pengecualian Mode File Saat Unggah Dinonaktifkan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-11.06` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
+| **Dependensi** | Setelan global unggah file mati dan persyaratan tertentu memerlukan file. |
+| **Otorisasi** | Evaluasi sistem; pengaturan dikelola `pengaturan:update`. |
+| **Dampak Data** | `jenis_berkas`, `berkas`, penanda/audit pengecualian. |
+
+> **Sebagai** Sistem / Tim Perencanaan,  
+> **Saya ingin** menerapkan pengecualian hanya pada mode file yang tidak dapat dipenuhi,  
+> **Sehingga** pelaporan tidak macet tanpa mengabaikan mode bukti lain.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given `berkas.unggahan_aktif = false`, When persyaratan membutuhkan file, Then kewajiban mode file dapat ditandai `tidak_dapat_dipenuhi` sesuai kontrak dan audit.
+- [ ] **AC-2:** Given persyaratan juga mewajibkan tautan/teks, Then mode non-file tersebut tetap wajib.
+- [ ] **AC-3:** Given gerbang PK tidak punya file namun unggah mati, Then tautan/teks tetap dapat memenuhi; jika tidak ada mode alternatif, pengecualian khusus PK dicatat tanpa menyamarkannya sebagai bukti nyata.
+- [ ] **AC-4:** Given upload kembali aktif, Then persyaratan pengajuan berikutnya kembali mengikuti mode master saat itu; versi lama tetap menyimpan keputusan pengecualian yang dahulu berlaku.
+
+---
+
+## Bagian 12 — Alert Kontekstual & Notifikasi
+
+### US-12.01 · Banner Pengingat Kontekstual
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Pengguna autentikasi; data jadwal/status tersedia. |
+| **Otorisasi** | Mengikuti akses dashboard/halaman kerja. |
+| **Dampak Data** | Read-only hasil evaluasi server. |
+
+> **Sebagai** PIC dan pengguna terkait,  
+> **Saya ingin** melihat banner tenggat dan masalah kelengkapan yang relevan,  
+> **Sehingga** pengguna mengetahui kewajiban tanpa menghitung status sendiri di klien.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given jendela RA aktif/mendekati batas, When halaman dibuka, Then banner menampilkan `rencana_aksi_selesai` sesuai konteks.
+- [ ] **AC-2:** Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
+- [ ] **AC-3:** Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
+- [ ] **AC-4:** Given bukti `tidak_dapat_dipenuhi` atau PK belum lengkap, Then Perencanaan mendapat penanda yang relevan.
+- [ ] **AC-5:** Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
+
+### US-12.02 · Lonceng Notifikasi & Antrean Tugas In-App
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 8 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Pengguna autentikasi. |
+| **Otorisasi** | Seluruh pengguna autentikasi sesuai event yang berhak dilihat. |
+| **Dampak Data** | Penyimpanan notifikasi/read-state sesuai implementasi. |
+
+> **Sebagai** PIC, Perencanaan, Admin,  
+> **Saya ingin** melihat unread counter dan daftar tugas yang memerlukan tindakan,  
+> **Sehingga** event penting tidak hanya bergantung pada pengecekan halaman manual.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given RA/Pengukuran dikembalikan, Then PIC menerima item berisi ringkasan alasan dan tautan aman.
+- [ ] **AC-2:** Given PIC mengajukan RA/Pengukuran, Then Perencanaan menerima item antrean review.
+- [ ] **AC-3:** Given jadwal pengisian dibuka, Then PIC terkait dapat menerima notifikasi in-app.
+- [ ] **AC-4:** Given Admin memiliki event akses/audit yang ditetapkan, Then hanya event yang sesuai haknya yang tampil.
+- [ ] **AC-5:** Given notifikasi dibuka, Then read-state berubah dan unread counter berkurang.
+
+### US-12.03 · Broadcast Pembukaan Jadwal Pengisian via WhatsApp & Email
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Integrasi eksternal aktif; sumber kontak dan template telah ditetapkan pemilik layanan. |
+| **Otorisasi** | Event sistem setelah waktu `pengisian_mulai`/pembukaan resmi. |
+| **Dampak Data** | Queue/job dan log status pengiriman tanpa secret. |
+
+> **Sebagai** PIC terkait,  
+> **Saya ingin** menerima pemberitahuan pembukaan pengisian melalui WhatsApp dan Email,  
+> **Sehingga** PIC mengetahui dimulainya jendela walau sedang tidak membuka aplikasi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given tanggal/waktu pembukaan resmi tercapai, When pemicu berjalan, Then job WA dan Email didispatch ke PIC yang relevan.
+- [ ] **AC-2:** Given jadwal diaktifkan jauh sebelum `pengisian_mulai`, Then broadcast pembukaan tidak dikirim terlalu awal.
+- [ ] **AC-3:** Given provider gagal, Then transaksi bisnis pembukaan jadwal tidak dirollback.
+- [ ] **AC-4:** Given job diulang, Then idempotency mencegah pesan ganda untuk event-penerima-periode-channel yang sama.
+
+### US-12.04 · EWS H-7, H-3, H-1 Menjelang Tenggat Pengisian
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.04` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Periode aktif; konfigurasi notifikasi tersedia; jam kirim/zona waktu ditetapkan pemilik layanan sebelum aktivasi nyata. |
+| **Otorisasi** | Scheduler sistem. |
+| **Dampak Data** | Queue/log pengiriman. |
+
+> **Sebagai** PIC yang belum menyelesaikan pengajuan,  
+> **Saya ingin** menerima pengingat hanya pada H-7, H-3, dan H-1,  
+> **Sehingga** risiko keterlambatan berkurang tanpa spam harian.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given scheduler mengevaluasi harian, When tanggal tepat H-7/H-3/H-1 dari `pengisian_selesai`, Then PIC yang belum selesai menjadi kandidat penerima.
+- [ ] **AC-2:** Given tanggal H-6/H-5/H-4/H-2, Then scheduler tidak mendispatch pengingat PIC meskipun tetap melakukan pengecekan.
+- [ ] **AC-3:** Given pengukuran sudah diajukan dan tidak sedang dikembalikan untuk revisi, Then PIC dikeluarkan dari daftar pengingat.
+- [ ] **AC-4:** Given pengukuran dikembalikan dan belum diajukan ulang, Then tetap dianggap pekerjaan belum selesai.
+- [ ] **AC-5:** Given jam operasional belum ditetapkan, Then dokumen tidak menghardcode pukul 08.00 sebagai requirement final.
+
+### US-12.05 · Rekap Progres untuk Tim Perencanaan H-3 & H-1
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.05` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Periode aktif; kanal eksternal aktif. |
+| **Otorisasi** | Scheduler sistem. |
+| **Dampak Data** | Queue/log pengiriman. |
+
+> **Sebagai** Tim Perencanaan yang menjadi penerima efektif,  
+> **Saya ingin** menerima rekap unit/indikator belum selesai pada H-3 dan H-1,  
+> **Sehingga** koordinasi menjelang deadline dapat dilakukan proaktif.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
+- [ ] **AC-2:** Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
+- [ ] **AC-3:** Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
+- [ ] **AC-4:** Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
+
+### US-12.06 · Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.06` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Aksi `rencana_aksi:kembalikan` atau `pengukuran:kembalikan` berhasil commit dan memiliki alasan. |
+| **Otorisasi** | Dipicu event bisnis setelah commit. |
+| **Dampak Data** | Queue WA/Email dan log status. |
+
+> **Sebagai** PIC/pengaju terkait,  
+> **Saya ingin** menerima notifikasi eksternal ketika pengajuannya dikembalikan,  
+> **Sehingga** perbaikan dapat segera dilakukan sebelum jendela berakhir.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit.
+- [ ] **AC-2:** Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim.
+- [ ] **AC-3:** Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi.
+- [ ] **AC-4:** Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol.
+- [ ] **AC-5:** Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka.
+
+### US-12.07 · Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-12.07` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 5 |
+| **Modul** | Alert Kontekstual & Notifikasi |
+| **Dependensi** | Job notification channel tersedia. |
+| **Otorisasi** | Proses sistem. |
+| **Dampak Data** | Log/idempotency key pengiriman. |
+
+> **Sebagai** Pengelola operasional sistem,  
+> **Saya ingin** memastikan pengiriman dapat diretry tanpa menggandakan pesan dan tanpa mengklaim delivery yang tidak terbukti,  
+> **Sehingga** integrasi notifikasi stabil dan dapat diaudit.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
+- [ ] **AC-2:** Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
+- [ ] **AC-3:** Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
+- [ ] **AC-4:** Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
+
+---
+
+## Bagian 13 — Setelan Aplikasi, Audit, dan Kebijakan Operasional
+
+### US-13.01 · Setelan Identitas & Preferensi Presentasional
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-13.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Setelan Aplikasi, Audit, dan Kebijakan Operasional |
+| **Dependensi** | Pengaturan tersedia. |
+| **Otorisasi** | `pengaturan:update` (Admin/Superadmin bawaan). |
+| **Dampak Data** | `pengaturan`, `audit_log`. |
+
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** mengubah identitas instansi/aplikasi, label unit, zona waktu, format tanggal/angka, dan header/footer laporan,  
+> **Sehingga** preferensi tampilan dapat berubah tanpa deployment kode.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given kunci yang termasuk whitelist presentasional, When diperbarui, Then nilai tersimpan dan cache diperbarui.
+- [ ] **AC-2:** Given perubahan disimpan, Then audit merekam nilai lama/baru.
+- [ ] **AC-3:** Given pengguna tanpa permission, Then 403.
+- [ ] **AC-4:** Given pengguna mencoba mengubah enum/status/permission/aturan bisnis lewat tabel pengaturan, Then sistem menolak karena di luar cakupan.
+
+### US-13.02 · Kebijakan Storage & Saklar Unggah File
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-13.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Setelan Aplikasi, Audit, dan Kebijakan Operasional |
+| **Dependensi** | Admin/Superadmin autentikasi. |
+| **Otorisasi** | `pengaturan:update`. |
+| **Dampak Data** | `pengaturan`, metrik storage read-only, `audit_log`. |
+
+> **Sebagai** Admin atau Superadmin,  
+> **Saya ingin** mengatur kebijakan teknis upload dan memantau penggunaan storage,  
+> **Sehingga** kapasitas VPS dapat dikendalikan tanpa mengubah persyaratan substantif milik Perencanaan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given `berkas.unggahan_aktif = false`, Then mode file dinonaktifkan global sedangkan tautan/teks tetap dapat dipakai.
+- [ ] **AC-2:** Given panel storage dibuka, Then menampilkan jumlah file, total bytes, serta jumlah bukti tautan/teks.
+- [ ] **AC-3:** Given batas default format/ukuran diubah, Then perubahan hanya berfungsi sebagai fallback/kebijakan teknis; persyaratan spesifik tetap milik `jenis_berkas`.
+- [ ] **AC-4:** Given perubahan dilakukan, Then audit mencatat before/after.
+
+### US-13.03 · Penelusuran Audit Trail Append-Only
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-13.03` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Setelan Aplikasi, Audit, dan Kebijakan Operasional |
+| **Dependensi** | Audit log tersedia. |
+| **Otorisasi** | `audit:read`. |
+| **Dampak Data** | Read-only `audit_log`. |
+
+> **Sebagai** Admin, Superadmin, Tim Perencanaan, atau role lain yang memiliki izin,  
+> **Saya ingin** mencari dan membaca seluruh peristiwa penting serta percobaan yang ditolak,  
+> **Sehingga** alasan suatu perubahan/penolakan dapat direkonstruksi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [ ] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [ ] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
+- [ ] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [ ] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+
+### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-13.04` |
+| **Prioritas** | 🟠 P2 |
+| **Story Points** | 5 |
+| **Modul** | Setelan Aplikasi, Audit, dan Kebijakan Operasional |
+| **Dependensi** | Pemilik layanan/provider telah dipilih. |
+| **Otorisasi** | `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management. |
+| **Dampak Data** | `pengaturan` grup notifikasi + konfigurasi environment. |
+
+> **Sebagai** Admin/Superadmin bersama pengelola infrastruktur,  
+> **Saya ingin** mengaktifkan kanal, template, daftar H-minus, dan parameter non-rahasia,  
+> **Sehingga** integrasi WA/Email dapat dikelola tanpa menaruh credential di database biasa atau UI.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
+- [ ] **AC-2:** Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
+- [ ] **AC-3:** Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
+- [ ] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+
+---
+
+## Bagian 14 — Penutupan Tahunan & Koreksi Pasca-Penutupan
+
+### US-14.01 · Penutupan Resmi Jadwal Tahunan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-14.01` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 5 |
+| **Modul** | Penutupan Tahunan & Koreksi Pasca-Penutupan |
+| **Dependensi** | Jadwal aktif; tanggal/otoritas penutupan memenuhi kebijakan. |
+| **Otorisasi** | `jadwal:tutup` (sensitif). |
+| **Dampak Data** | `jadwal_tahunan`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** menutup siklus tahunan secara resmi,  
+> **Sehingga** data tahun tersebut terkunci dari mutasi normal dan hanya dapat dikoreksi melalui jalur pembukaan resmi.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
+- [ ] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
+- [ ] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
+- [ ] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+
+**Business Rules / Catatan**
+
+- Istilah yang benar adalah terkunci selama status ditutup; bukan 'tidak dapat dimutasi selamanya', karena jalur koreksi resmi tetap ada.
+
+### US-14.02 · Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-14.02` |
+| **Prioritas** | 🔴 P0 |
+| **Story Points** | 8 |
+| **Modul** | Penutupan Tahunan & Koreksi Pasca-Penutupan |
+| **Dependensi** | Jadwal berstatus `ditutup`; lingkup, alasan, dan durasi koreksi ditetapkan. |
+| **Otorisasi** | `jadwal:buka_kembali` (sensitif). |
+| **Dampak Data** | `jadwal_tahunan.koreksi_*`, `lingkup_koreksi`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan atau Superadmin,  
+> **Saya ingin** membuka sesi koreksi pasca-penutupan dengan lingkup dan deadline eksplisit,  
+> **Sehingga** koreksi historis dapat dilakukan terkendali tanpa menghapus tanggal penutupan asli.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
+- [ ] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
+- [ ] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
+- [ ] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
+- [ ] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
+
+### US-14.03 · Pembukaan Jendela PIC di Dalam Sesi Koreksi
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-14.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Penutupan Tahunan & Koreksi Pasca-Penutupan |
+| **Dependensi** | Sesi koreksi tahun aktif; objek/unit berada dalam lingkup koreksi. |
+| **Otorisasi** | `jadwal:update` untuk revisi jendela PIC resmi. |
+| **Dampak Data** | `jadwal_tahunan`/`jadwal_periode`, `audit_log`. |
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** membuka jendela kerja PIC secara terpisah di dalam sesi koreksi,  
+> **Sehingga** PIC hanya dapat berpartisipasi pada koreksi yang memang diizinkan.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
+- [ ] **AC-2:** Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
+- [ ] **AC-3:** Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
+- [ ] **AC-4:** Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
+
+---
+
+## Bagian 15 — Kesiapan Operasional, UAT, dan Penggunaan Pertama
+
+### US-15.01 · Verifikasi Data Awal sebelum Penggunaan Pertama
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-15.01` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kesiapan Operasional, UAT, dan Penggunaan Pertama |
+| **Dependensi** | Tahun/periode penggunaan pertama telah ditetapkan PM/Perencanaan. |
+| **Otorisasi** | Akses administratif/substantif sesuai data yang diverifikasi. |
+| **Dampak Data** | Seed/config awal, master Renstra/indikator/unit/PIC, data historis wajib. |
+
+> **Sebagai** Tim Perencanaan bersama PM,  
+> **Saya ingin** memverifikasi daftar data awal sebelum jadwal pertama diaktifkan,  
+> **Sehingga** sistem tidak go-live dengan master atau histori wajib yang belum jelas.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
+- [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
+- [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
+- [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
+
+### US-15.02 · Kesiapan Infrastruktur dan Layanan Eksternal
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-15.02` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Kesiapan Operasional, UAT, dan Penggunaan Pertama |
+| **Dependensi** | Owner infrastruktur/layanan telah ditetapkan. |
+| **Otorisasi** | Proses operasional, bukan permission aplikasi tunggal. |
+| **Dampak Data** | Konfigurasi Keycloak, domain/HTTPS, storage, backup/restore, queue/worker/scheduler, WA/Email. |
+
+> **Sebagai** PM/pengelola infrastruktur,  
+> **Saya ingin** memastikan seluruh layanan pendukung siap sebelum penerimaan produksi,  
+> **Sehingga** fitur yang lulus kode tidak dianggap siap produksi tanpa dependency operasional.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
+- [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
+- [ ] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+
+### US-15.03 · Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-15.03` |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 3 |
+| **Modul** | Kesiapan Operasional, UAT, dan Penggunaan Pertama |
+| **Dependensi** | Build tersedia untuk pengujian. |
+| **Otorisasi** | Governance proyek. |
+| **Dampak Data** | Catatan hasil uji, keputusan penerimaan, daftar perbaikan. |
+
+> **Sebagai** PM dan Tim Perencanaan,  
+> **Saya ingin** memisahkan status siap diuji, dievaluasi, diterima, dan diproduksikan,  
+> **Sehingga** target tanggal pengembangan tidak disalahartikan sebagai persetujuan go-live.
+
+**Acceptance Criteria**
+
+- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
+- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+
+---
+
+## Matriks Ketertelusuran
+
+| User Story | Plan Pengembangan | PRD | Workflow | Entitas/Objek Utama |
+|---|---|---|---|---|
+| **US-01.01** | Modul 1: 1.2–1.3 | §6–7 | §1, §19 | `users` |
+| **US-01.02** | Modul 1: 1.4, 1.18 | §7.7 | §21 | `unit` |
+| **US-01.03** | Modul 1: 1.7, 1.13 | §7.1–7.5 | §21 | `user_roles` |
+| **US-01.04** | Modul 1: 1.8, 1.14 | §7.1–7.5 | §19, §21 | `user_permission_granted` |
+| **US-01.05** | Modul 1: 1.9, 1.15 | §7.1–7.5 | §19, §21 | `user_permission_denied` |
+| **US-01.06** | Modul 1: 1.16 | §7.4–7.5 | §19, §21 | resolver izin |
+| **US-01.07** | Modul 1: 1.22 | §7.3–7.5, §25 | §19, §21 | `role_permissions` |
+| **US-02.01** | Modul 2: 2.16–2.19 | §9 | §3 | `regulasi`, `berkas` |
+| **US-02.02** | Modul 2: 2.1–2.2, 2.18 | §10 | §2–3 | `renstra`, `berkas` |
+| **US-02.03** | Modul 2: 2.3–2.4, 2.13 | §10.2–10.5 | §2, §14 | `renstra`, snapshot |
+| **US-02.04** | Modul 2: 2.5–2.7 | §11 | §2 | `sasaran`, `indikator` |
+| **US-02.05** | Modul 2: 2.8–2.9 | §11, §25 | §14 | `indikator`, snapshot |
+| **US-02.06** | Modul 2: 2.14–2.15 | §17 | §6 | `indikator_komponen` |
+| **US-02.07** | Modul 2: 2.10 | §11–12, §17 | §5–6 | `target_tahunan`, snapshot |
+| **US-02.08** | Modul 2: 2.11, 2.20 | §10.6, §14.10 | §3, §5 | `renstra_pk`, `berkas` |
+| **US-02.09** | Modul 2: 2.12 | §12.5–12.7 | §13–14 | PK + snapshot version |
+| **US-03.01** | Modul 3: 3.1–3.4 | §12.1–12.3 | §4 | `periode`, `jadwal_*` |
+| **US-03.02** | Modul 3: 3.5–3.7 | §12.4–12.5 | §5 | `jadwal_snapshot*` |
+| **US-03.03** | Modul 3: 3.8 | §12.5–12.7 | §13–14 | `jadwal_snapshot*` |
+| **US-03.04** | Modul 3: 3.7–3.8 | §10.5, §12.5 | §14 | snapshot `periode_mulai_id` |
+| **US-03.05** | Modul 3: 3.11; Modul 5: 5.17 | §12.6, §17.6 | §15 | historical backfill |
+| **US-03.06** | Modul 3: 3.12 | §12.3, §12.6 | §13 | jadwal windows |
+| **US-04.01** | Modul 4: 4.1–4.4 | §13 | §6 | `penanggung_jawab` |
+| **US-05.01** | Modul 11: 11.1–11.2, 11.5–11.6 | §14 | §7 | `rencana_aksi_target` |
+| **US-05.02** | Modul 13: 13.3–13.5 | §18 | §10 | `berkas` |
+| **US-05.03** | Modul 11: 11.1, 11.3 | §14.6–14.9, §18.11 | §7, §20 | `rencana_aksi_versi` |
+| **US-05.04** | Modul 11: 11.3 | §7.6, §14.6 | §7, §20 | RA + versi |
+| **US-05.05** | Modul 11: 11.3 | §7.6, §14.6 | §7, §20 | RA + versi |
+| **US-05.06** | Modul 11: 11.7 | §14.6 | §7, §13 | RA + versi |
+| **US-06.01** | Modul 12: 12.1–12.2 | §15.1–15.4 | §8 | `kegiatan` |
+| **US-06.02** | Modul 12: 12.6–12.9 | §16 | §9 | `klaim_kegiatan` |
+| **US-06.03** | Modul 12: 12.11; Modul 13 | §15.6, §18 | §8–10 | kegiatan + bukti |
+| **US-06.04** | Modul 12: 12.3 | §15.2–15.5 | §8 | `kegiatan` |
+| **US-06.05** | Modul 12: 12.4 | §15.4 | §8 | `kegiatan_asal_id` |
+| **US-06.06** | Modul 12: 12.10 | §16.5 | §9, §13 | klaim + versi |
+| **US-06.07** | Modul 13: 13.6 | §18.8 | §10 | `berkas` append-only |
+| **US-07.01** | Modul 5: 5.2–5.4, 5.13–5.15 | §17, §19–20 | §11 | pengukuran + komponen |
+| **US-07.02** | Modul 13: 13.3–13.5 | §18 | §10–11 | `berkas` |
+| **US-07.03** | Modul 5: 5.5, 5.16 | §18.11, §19.4 | §11–12, §20 | `pengukuran_versi` |
+| **US-07.04** | Modul 5: 5.4–5.8 | §19.3 | §11–12 | pengukuran |
+| **US-07.05** | Modul 3: 3.11; Modul 5: 5.17 | §12.6, §17.6, §19 | §15 | historical measurement |
+| **US-07.06** | Modul 5: 5.13–5.16 | §17.4, §19.4 | §11 | status perhitungan |
+| **US-08.01** | Modul 5: 5.6–5.8; Modul 6: 6.1 | §7.6, §19 | §12, §20 | pengukuran + versi |
+| **US-08.02** | Modul 5: 5.9; Modul 6: 6.2 | §7.6, §19 | §12, §20 | pengukuran + versi |
+| **US-08.03** | Modul 5: 5.10; Modul 6: 6.3–6.6 | §19.5, §21 | §13, §16 | versi + status capaian |
+| **US-09.01** | Modul 8: 8.5 | §22 | §17 | `rekomendasi_pimpinan` |
+| **US-09.02** | Modul 6: 6.4–6.6 | §21 | §16 | `status_capaian` |
+| **US-10.01** | Modul 7: 7.1–7.8 | §23 | §1, §14 | dashboard queries |
+| **US-10.02** | Modul 8: 8.1, 8.3 | §22.4, §24 | §17 | report matrix |
+| **US-10.03** | Modul 8: 8.2, 8.4 | §24 | §17 | Excel export |
+| **US-10.04** | Modul 8: 8.4; P.4 | §24, §32 | §17 | UAT artifact |
+| **US-11.01** | Modul 13: 13.1 | §18.2–18.7 | §10 | `jenis_berkas` |
+| **US-11.02** | Modul 13: 13.2, 13.5 | §18.4–18.9 | §10 | `berkas`, private disk |
+| **US-11.03** | Modul 13: 13.2–13.5 | §18.4–18.6 | §10 | `berkas` |
+| **US-11.04** | Modul 13: 13.6 | §18.8 | §10 | `berkas` |
+| **US-11.05** | Modul 13: 13.4 | §18.11 | §10 | versi + persyaratan |
+| **US-11.06** | Modul 13: 13.7 | §18.5–18.7 | §10 | pengecualian file |
+| **US-12.01** | Modul 14: 14.1 | §28.1 | §22.1 | alert server-side |
+| **US-12.02** | Modul 14: 14.1 | §28.1 | §22.1 | in-app notifications |
+| **US-12.03** | Modul 14: 14.2 | §28.2 | §22.2 | WA/Email queue |
+| **US-12.04** | Modul 14: 14.2 | §28.2 | §22.2 | EWS |
+| **US-12.05** | Modul 14: 14.2 | §28.2 | §22.2 | recap notification |
+| **US-12.06** | Modul 14: 14.2 | §28.2 | §22.2 | return notification |
+| **US-12.07** | Modul 14: 14.2 | §28.2 | §22.2 | delivery/idempotency |
+| **US-13.01** | Modul 9: 9.1–9.6 | §26 | §18 | `pengaturan` |
+| **US-13.02** | Modul 9: 9.7–9.9 | §18.9, §26 | §18 | storage policy |
+| **US-13.03** | Modul 10: 10.1–10.6 | §25 | §19–20 | `audit_log` |
+| **US-13.04** | Modul 14: 14.2; Modul 9 | §28.2 | §22.2 | notification config |
+| **US-14.01** | Modul 3: 3.9 | §12.6 | §13 | `jadwal_tahunan` |
+| **US-14.02** | Modul 3: 3.9 | §12.6 | §13 | correction session |
+| **US-14.03** | Modul 3: 3.12 | §12.3, §12.6 | §13 | PIC windows |
+| **US-15.01** | S.1, P.4 | Pembuka, §12.6, §32 | §15 | initial data |
+| **US-15.02** | P.1–P.4 | §6, §28, §34 | §22 | operational dependencies |
+| **US-15.03** | P.4 | Pembuka, §32 | — | UAT/acceptance records |
+
+## Definition of Done Global
+
+- [ ] Acceptance Criteria story yang dikerjakan memiliki automated test yang sesuai risiko: Pest/Feature untuk aturan server, dan test frontend bila logika presentasi kritis.
+- [ ] Semua endpoint mutasi menegakkan resolver permission di server dan tidak hanya menyembunyikan tombol.
+- [ ] Semua invariant Data Model (constraint unik, FK, versioning, provenance, scope, status) dipenuhi.
+- [ ] Aksi sensitif merekam `audit_log.dasar_izin`; alasan wajib benar-benar divalidasi server.
+- [ ] RA/Pengukuran yang disubmit membuat versi immutable dan mencegah pengesahan versi stale.
+- [ ] Query dashboard/laporan resmi membaca snapshot/versi yang benar dan tidak mengandalkan live master untuk histori.
+- [ ] Komponen React/Inertia mematuhi `design-system.md`: token, reusable components, typography, layout, form pattern, disabled/loading/error state, dan responsivitas.
+- [ ] File bukti berada di private storage dan download selalu melewati otorisasi induk.
+- [ ] Queue/scheduler bersifat idempotent; kegagalan provider eksternal tidak merollback transaksi domain.
+- [ ] Secret/token tidak pernah masuk git, props React, flash message, audit log, atau log aplikasi biasa.
+- [ ] Migration/seeder bersifat repeatable sesuai strategi proyek; fixture testing dipisahkan dari data/config produksi.
+- [ ] Dokumentasi User Issue yang diturunkan dari story harus menyebut endpoint/service, data mutation, audit, test, dan dependency nyata—bukan template Backend/Frontend generik semata.
+- [ ] Story dianggap selesai hanya jika implementasi, test, dan dokumentasi relevan telah sinkron dengan baseline terbaru.
+
+## Batas Fase Lanjutan
+
+- Approval aktif oleh Pimpinan (`pengukuran:setujui`) belum menjadi langkah workflow MVP.
+- Anggaran kegiatan belum masuk UI/API MVP.
+- Formula bertingkat generik di luar mesin satu tingkat yang telah disepakati ditunda.
+- Multi-role per user ditunda; MVP mempertahankan satu role utama per pengguna.
+- Integrasi sumber data otomatis untuk `status_capaian.sumber = data_sumber` ditunda.
+- Fitur yang dependency operasionalnya belum ditetapkan (provider, credential, owner, waktu kirim, tanggal go-live) tidak boleh diasumsikan siap hanya karena kode tersedia.
+
+---
+
+**Catatan baseline:** Keputusan yang masih membutuhkan penetapan manusia—misalnya definisi IKU yang belum disahkan, tanggal penerimaan/go-live, provider notifikasi, jam kirim, owner infrastruktur, dan contoh keluaran Excel final—tetap dinyatakan sebagai dependency terbuka dan tidak diisi dengan asumsi developer.
