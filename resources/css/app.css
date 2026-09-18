@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@source '../views/**/*.blade.php';
+@source '../js/**/*.{js,ts,jsx,tsx}';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    
+    /* Institutional Color Palette */
+    --color-brand-blue-50: #eff4ff;
+    --color-brand-blue-100: #dbe6fe;
+    --color-brand-blue-200: #bfd3fe;
+    --color-brand-blue-300: #93b5fd;
+    --color-brand-blue-400: #608efb;
+    --color-brand-blue-500: #3b6bf6;
+    --color-brand-blue-600: #254ee9;
+    --color-brand-blue-700: #1d3dc8;
+    --color-brand-blue-800: #1e33a2;
+    --color-brand-blue-900: #122E92; /* Institutional Primary */
+    --color-brand-blue-950: #0a1b5c;
+
+    --color-gold-50: #fbf9ed;
+    --color-gold-100: #f5f0d2;
+    --color-gold-200: #ece0a7;
+    --color-gold-300: #e0ca73;
+    --color-gold-400: #D6AC48; /* Secondary Accent */
+    --color-gold-500: #be9031;
+    --color-gold-600: #a27427;
+    --color-gold-700: #815722;
+    --color-gold-800: #6c4621;
+    --color-gold-900: #59391e;
+
+    /* Semantic Status Palette */
+    --color-status-draft: #64748b;
+    --color-status-diajukan: #2563eb;
+    --color-status-dikembalikan: #e11d48;
+    --color-status-diverifikasi: #d97706;
+    --color-status-disahkan: #059669;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: #f8fafc;
+    color: #0f172a;
+}

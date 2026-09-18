@@ -1,0 +1,337 @@
+RAPAT PEMANTAPAN KONSEP PENGEMBANGAN SAKIP
+==========================================
+
+
+Ini sudah lengkap dari Kelabat ya?
+
+Ee sudah, Pak.
+
+Oke. Kenalan dulu yang Kelabat. Kenalan dulu sebelum mulai, Sidik ya.
+
+Oke, yang teman-teman yang dari Kelabat mungkin bisa sekalian open kamera biar bisa kenalan masing-masing.
+
+Oke, jadi teman-teman Kelabat ya, ini kalau kemarin kita berjibakunya dengan para dari kepegawaian, dan kali ini proyeknya itu dengan tim perencanaan. Di sini yang hadir ada tiga dari tim perencanaan karena kaitannya ini kita akan menyusun aplikasi terkait pengukuran kinerja ya, Bu SAKIP ya.
+
+Nah, jadi sebelum kita mulai mungkin kita bisa awali dulu dengan pembacaan doa menurut keyakinan masing-masing. Berdoa dimulai.
+
+Selesai.
+
+Baik, jadi terima kasih sudah hadir baik dari tim perencanaan dan tim Kelabat ya. Tanpa perlu berlama-lama, jadi izinkan saya paparkan dulu kurang lebih garis besar yang akan dikembangkan oleh adik-adik magang dari Kelabat, dan juga kurang lebih seperti apa gambaran yang sudah kami rancang terkait SAKIP itu sendiri. Jadi kalau misalnya ada masukan kita bisa brainstorming bareng. Kita bahas di sini. Barangkali dari usulan yang saya buat itu ada yang kurang.
+
+Oke. Apa sudah terlihat?
+
+Ee sudah, Pak. Sudah.
+
+Oke, jadi ini rancangannya untuk SAKIP itu sendiri memang definisinya itu untuk sistem akuntabilitas ya. Jadi segala kegiatan yang ada di LLDT itu akan kita dokumentasikan. Tapi karena memang skop SAKIP itu lumayan besar, jadinya kita fokusnya di pengukurannya saja. Karena pengukuran itu yang paling berperan penting dalam pengumpulan rata-rata dokumen pemenuhan SAKIP gitu. Jadi lebih ke scoring-nya.
+
+Kenapa? Karena saat ini memang untuk SAKIP itu kita memang sudah pakai sistem tapi masih berbasis Excel, yang mana itu agak susah dan terlebih untuk bukti dukungnya juga kan masih sporadis disimpannya. Selain itu tidak ada data historis juga, setiap perubahan itu pasti sering hilang. Terus tenggat waktunya juga karena memang SAKIP ini dia butuh keterlibatan dari tiap unit atau tim kerja itu tidak ada yang bisa memantau tenggat waktunya. Jadinya saat ini itu tim perencanaan, kalaupun untuk kebutuhan pengisian itu masih suka menagih secara face to face gitu.
+
+Harapannya dengan adanya SAKIP ini itu semua datanya itu bisa terpusat. Terus kita bisa ngelihat data riwayat historisnya. Dan tentunya yang diharapkan itu bisa lihat ya diagram, grafik, infografis lah dari kira-kira kinerja kita tiap triwulan atau tiap tahun itu seperti apa gitu.
+
+Dan selain itu ada tenggat waktu. Jadi nanti sistemnya di masing-masing unit atau tiap tim kerja yang berkaitan dengan pemenuhan skor indikator kinerja utamanya LLDT itu akan diberikan deadline untuk pengisian. Karena memang untuk pengisian di sistem Kementerian jadi sebenarnya di pusat juga itu ada sistem SAKIP, Bu Yusna ya. Nah, itu dari pusat itu ada penerapannya. Dan itu ada deadline di sana. Makanya untuk sekarang itu tim perencana itu agak kewalahan karena dari pusat itu memberikan deadline, sementara kalau dari kita itu harus mengejar-ngejar lagi ke unit atau tim kerja.
+
+Nah, ini untuk dasar aturannya itu barangkali ada yang keliru, kurang lebih yang saya tangkap itu ya. Jadi dasar utamanya dari SAKIP kita itu diturunkan dari indikator kinerja utama LLDT yang diatur oleh Keputusan Menteri Nomor 358 Tahun 2025. Nah, dari Keputusan Menteri ini itu diturunkan lagi menjadi Renstra dan sasaran. Itu Renstra dan sasaran itu sudah di tingkat LLD. Jadi ibaratnya dari kementerian itu sudah menetapkan LDT itu punya target apa-apa gitu. Sudah dituangkan ke dalam delapan indikator, misalnya ada delapan indikator, itu kita tentunya perlu untuk disusun yang namanya Renstra. Renstra ini sifatnya tiap 5 tahunan, kira-kira strategi apa yang akan kita lakukan untuk bisa mencapai indikator-indikator yang sudah ditetapkan di kementerian.
+
+Nah, makanya diturunkan lagi. Jadi, indikator-indikator itu butir-butir yang perlu kita capai yang diturunkan dari Renstra tadi. Nah, tiap indikator karena ini indikator itu diturunkan dari Renstra 5 tahunan itu diturunkan lagi menjadi Perjanjian Kinerja. Ini otomatis menjadi target tahunan. Jadi selama 5 tahun itu Pak Kepala itu akan menandatangani yang namanya Perjanjian Kinerja, itu menetapkan kira-kira target misalnya dari 2025 sampai 2029 itu 2025 mencapai targetnya berapa, 2026 capaian targetnya berapa dan seterusnya sampai di 2029.
+
+Nah, untuk mencapai perjanjian kinerja ini itu diturunkan lagi menjadi jadwal dan pengukuran. Jadwalnya itu kalau untuk sekarang ya itu sifatnya per triwulan. Jadi selama 1 tahun itu kan sudah ditetapkan, ibaratnya kontrak kinerjanya dengan Pak Kepala itu satu kantor ini harus mencapai targetnya sekian. Nah, itu diturunkan lagi jadi jadwal dan pengukuran. Jadi per triwulan itu diturunkan lagi capaiannya itu berapa untuk bisa memenuhi target yang ada di perjanjian kinerja.
+
+Nanti di akhir dari tim perencanaan itu akan mengecek dan mengakumulasi kira-kira target kita tercapai atau belum gitu. Nah, ini sebenarnya status capaian ini dia dihitungnya per triwulan. Jadi kita bisa sekalian evaluasi, kalau misalnya di triwulan pertamanya misalnya itu belum tercapai, itu kira-kira apa yang akan kita lakukan di triwulan selanjutnya.
+
+Oke, kalau ini dia agak teknis jadi saya skip aja.
+
+Nah, ini jadi kurang lebih untuk hak akses yang akan kalian buat itu ada super admin yang tentu bisa mengelola semua ya. Lalu ada admin, lalu dari tim perencanaan, pimpinan, dan pegawai. Pegawai di sini tidak semua pegawai, hanya PIC saja, tapi bisa juga semua pegawai cuma sifatnya itu lebih ke melihat saja. Jadi cuma baca laporan. Sementara di sini kalau untuk PIC itu sifatnya melakukan penginputan realisasi target gitu per triwulan.
+
+Jadi kalau untuk admin itu dia cuma untuk mengelola sistem saja ya. Jadi settingan-settingan dasar sekaligus hanya melihat-lihat. Kalau perencanaan itu kurang lebih dia bisa mengelola data kinerja, bisa juga melakukan input realisasi, lalu melakukan verifikasi, dan terakhir bisa lihat juga. Jadi verifikasi ini nanti apa yang diinput oleh PIC dari pegawai yang ditunjuk oleh tim perencanaan itu nanti tentunya akan diverifikasi terlebih dahulu oleh tim perencanaan sebelum benar-benar diklaim angkanya. Takutnya kan kayak mungkin angka yang diisi itu keliru atau mengada-ngada gitu.
+
+Nah, untuk tenggat waktu di sini, maaf, untuk tenggat waktu sendiri ini nanti kita buat fleksibel ya, di aplikasinya itu nanti akan ditentukan oleh tim perencanaan. Nah, tapi untuk deadline itu berlakunya untuk PIC yang ditunjuk. Sementara dari perencanaan itu dia tidak terpengaruh oleh deadline-nya ya. Karena kan kalau misalnya dihajar pukul rata semuanya dengan PIC ada deadline-nya, nanti khawatirnya kalau ada kolom yang tidak terisi itu kan akan selamanya tidak terisi gitu. Makanya di sini dari tim perencanaan itu setidaknya bisa menganulirlah, kalau misalnya ada yang belum terisi itu nanti dari tim perencanaan masih bisa buat otak-atik untuk angka realisasinya.
+
+Oh ya, ini validasinya. Jadi sebelum menginput data itu, karena di atas sebelumnya tadi itu kan kita sifatnya berjenjang ya. Jadi ini memang harus terisi dulu dari Renstra-nya. Kalau enggak ada Renstra-nya enggak bisa diisi indikator. Indikator tidak ada, perjanjian kinerjanya juga enggak bisa terisi. Apalagi sampai di targetnya. Makanya ini ada berlapis ya. Jadi perjanjian kinerja itu harus terinput dulu baru kita bisa isi targetnya, karena memang target-targetnya itu sudah ditentukan oleh perjanjian kinerja yang diturunkan dari yang ditandatangani oleh Pak Kepala ya.
+
+Nanti kalau target tahunannya sudah terisi baru kita bisa mengisi indikator-indikator yang statusnya aktif. Kenapa dia ada status aktif? Itu menjaga sewaktu-waktu barangkali mungkin ada perubahan regulasi di tengah-tengah. Jadinya kita misalnya dia sudah terisi di triwulan satu dan kedua, tapi sayangnya di bulan Agustus atau September itu ada perubahan aturan yang berakibat nanti di triwulan 3 dan 4 itu otomatis sudah beda regulasi. Nah, otomatis kalau misalnya kita langsung pindah, nanti penilaian di triwulan 1 dan 2 kan jadi tidak valid ya di sistem. Makanya di sini kita pakai sistem indikator yang berstatus aktif. Jadi supaya indikator yang lama yang sebelumnya itu tetap terhitung, tetap masuk dalam perhitungan. Begitu juga dengan triwulan 3 dan 4 yang sudah pakai indikator yang baru.
+
+Selain itu di sini juga tahun untuk tahun pengisiannya juga itu dibatasi oleh rentang ya. Jadinya pengisian perjanjian kinerja itu tentunya tahunnya itu tidak bisa melebihi dari rentang range yang sudah ditentukan. Jadi kalau misalnya saat pengisian itu ada keliru, jadi kemungkinannya itu di antara tiga ini.
+
+Kemudian ini ada istilahnya snapshot ya. Jadinya snapshot itu kalau di sistem itu kan kita pakai data referensi ya. Data referensi itu yang kemudian diturunkan misalnya dari IKU 1, misalnya dia sudah melakukan penginputan. Nah, kemudian dia mungkin ada perubahan regulasi, IKU satu indikatornya berbeda, otomatis nilainya juga berbeda. Nah, kalau misalnya kita cuma pakai satu tabel referensi yang langsung mengacu ke situ, saat tabel referensinya kita ubah berarti nanti akan mengacaukan data-data yang sudah terinput sebelumnya. Mungkin dari tahun sebelumnya yang masih pakai indikator yang lama gitu. Nah, makanya di sini kita pakai sistem snapshot. Jadi tiap indikator itu saat jadwalnya diaktifkan dia akan mengunci. Jadinya yang akan diinput ya sesuai yang dikunci tersebut. Kalau misalnya nanti ada perubahan ke depannya, dia akan buat data snapshot yang baru yang akan merujuk ke snapshot tersebut. Jadinya tidak akan mengganggu data yang lama. Makanya dia bisa lebih mudah untuk mendapatkan data historis.
+
+Untuk pengusulannya, untuk penginputannya itu ini pertama diawali dari draf dulu ya. Ini yang dibuat langsung bisa dari PIC-nya atau perencanaan. Nanti dari PIC itu akan mengusulkan nilai-nilai target realisasi. Nanti selanjutnya diverifikasi oleh tim perencanaan. Nanti kalau misalnya ada yang mungkin masih kurang selama di tenggat waktu yang ditentukan, tim perencanaan itu akan dikembalikan lagi ke PIC-nya untuk direvisi pengisian angkanya. Kalau sudah final itu nanti masuk langsung disahkan dan yang disahkan ini ibaratnya ditetapkan yang sudah siap gitu untuk diinput ke sistemnya kementerian.
+
+Nah, untuk input nilai capaian ini sendiri ada dikasih pembobotannya, itu ada yang bersifatnya makin tinggi makin baik, makin turun itu makin baik gitu. Itu kalau enggak salah di indikator sekarang itu ada Bu ya atau cuman naik semua, Bu? Ya, Bu Yusna.
+
+Jadi kayak indikator naik baik itu lebih ke kalau dia proporsinya semakin banyak berarti nilainya semakin tinggi. Kalau misalnya dia indikatornya turun baik berarti semakin rendah dia semakin bagus nilainya. Tapi kalau untuk kita sekarang kayaknya kalau makin tinggi makin baik, Bu ya.
+
+Ada satu IKU ya. Ada satu IKU. IKU delapan.
+
+Heeh.
+
+Yang semakin rendah semakin baik.
+
+Oh iya.
+
+Ada satu berarti. Heeh. Berarti udah tercakup di sini. Jadi dia kalau misalnya dipukul rata semakin tinggi semakin baik kan, itu jadi ada salah satu IKU yang makin dikit makin baik, itu kan pasti dapat nilai buruk nanti kan. Makanya di sini nanti akan di-setting oleh tim perencanaan, indikator mana yang kira-kira makin banyak itu dia makin tinggi skornya. Sementara ada juga yang mana makin rendah berarti itu skornya makin baik gitu.
+
+Nanti itu dilakukan penginputan dan nanti bisa di-cross check kalau misalnya dia kinerjanya buruk dari capaian sebelumnya, mungkin triwulan sebelumnya itu harus ada justifikasinya apa kenapa gitu, harus dijelaskan kenapa dia bisa tidak tercapai targetnya gitu. Dan semua ini hanya bisa dilakukan saat jendela pengajuannya itu terbuka, jendela pengisiannya terbuka.
+
+Nah, tetapi nanti itu ini sebenarnya fitur yang kita tetap sediakan ya, kita tidak tahu ke depannya. Jadi ada istilahnya "buka kembali". Jadi kan tadi dijelaskan bahwa dari tim perencanaan itu sudah mengeset jadwal gitu kan, mengeset jadwal biar tiap PIC itu bisa menginput sesuai jadwal yang sudah ditentukan di perencanaan. Jadi kalau sudah melewati jadwal tersebut itu dari PIC tidak bisa lagi menginputkan. Nah, akan tetapi untuk jaga-jaga ini ada fitur namanya buka kembali periode gitu.
+
+Karena barangkali ada kasus di mana mungkin sebagai contoh, triwulan bulan pertama itu kan dari bulan Januari sampai Maret. Nah, itu kalau untuk sekarang itu biasanya di-set deadline-nya itu di tanggal 1 sampai 10 April misalnya kan. Barangkali dari kementerian juga disetnya paling maksimal pengisian April. Nah, bisa jadi kan dari tim perencanaan itu mengeset deadline-nya itu di tanggal 27 sampai 30 misalnya. Berarti kan masih ada waktu 10 hari lagi nih buat memenuhi deadline dari kementerian. Nah, ini bisa jadi meskipun di tanggal 30 itu penginputannya sudah dikunci, itu dari tim perencanaan ada hak untuk bisa membuka kembali periode bila diperlukan gitu, biar dari PIC-nya itu masih bisa melakukan pengisian kembali. Dan tiap pembukaan itu nanti akan ada track record, ada log record-nya ya. Jadinya bisa ketahuan siapa yang melakukan pembukaan dan lain-lain.
+
+Nah, ini juga tiap perubahan itu nanti akan dicatat. Jadi kalau ada tiap perubahan di angka itu siapa yang mengubah dan nilai lama dan nilai barunya itu apa, itu semua akan otomatis tercatat beserta juga justifikasinya kenapa bisa ada perubahan. Jadi kita bisa ngecek dan dari PIC-nya pun tidak bisa sembarang untuk menginput nilai. Kalaupun mereka sembarang menginput nilai itu akan tercatat oleh sistem secara otomatis.
+
+Nah, ini untuk memang dari sisi pimpinan itu hanya melihat diagram saja semuanya. Kira-kira dari tiap indikator itu capaiannya sudah berapa, per tahunnya gimana, per triwulannya seperti apa? Jadinya kalau misalnya ada yang mungkin di indikator ada yang belum bisa memenuhi di triwulan tertentu itu dari pimpinan itu bisa mengetuk langsung ya buat bisa dirapatkan, kira-kira kendala apa, tindak lanjutnya seperti apa nanti.
+
+Ini mungkin fitur ini settingan saja, jadinya logo, nama, organisasi dan lainnya itu tidak ditanam langsung ke kodenya biar bisa lebih fleksibel untuk diganti-ganti lewat settingan.
+
+Oke, kurang lebih seperti itu untuk paparan soal alur SAKIP yang akan dikembangkan. Untuk oleh karena itu mungkin barangkali ada tanggapan baik dari pihak anak magang dan juga dari tim perencanaan, saya persilakan.
+
+Baik, terima kasih, Pak.
+
+Barangkali ada satu yang saya minta tambahkan, selain PK ini kan PK-nya kan di angka. Nah, di masing-masing PK itu rencana aksinya di masing-masing IKU. Rencana aksi di masing-masing IKU. Sehingga itu yang nanti teman-teman menginput atau mengklaim itu tinggal klaim gitu loh, tinggal klaim di realisasi.
+
+Ee rencana aksinya itu dia ditentukan oleh masing-masing ya, Bu ya, tiap indikator.
+
+Iya. Iya. Iya. Benar.
+
+Jadi pada saat pengukuran ya, maksudnya pada saat klaim realisasi, mereka tinggal klaim realisasi itu sehingga kita bisa langsung kelihatan angkanya berapa.
+
+Tapi itu terpisah terpisah dari PK-nya, Bu ya? Diturunkan dari PK lagi ya?
+
+Iya, diturunkan dari PK.
+
+Hm. Oke.
+
+Sehingga kita bisa melakukan pemantauan, umpamanya masing-masing IKU itu, ini juga untuk menghindari ini ya, Pak Sidik, menghindari biasnya kegiatan yang dilaksanakan oleh tim kerja apabila itu tidak mendukung IKU itu.
+
+Ya kan harus menyelesaikan itu. Jadi setelah perjanjian kinerja jangan langsung jadwal pengukuran. Ada satu item yang semua PIC itu menginput ya, menginput kegiatan, program dan kegiatan mereka ya yang mendukung itu, sehingga itu yang bisa kita ukur di setiap triwulan.
+
+Oh, bisa jadi ukuran juga.
+
+Berarti rencana aksi itu lebih ke kegiatan apa yang akan dilaksanakan gitu ya.
+
+Iya, di masing-masing itu. Iya. Jadi ada peran PIC itu bukan nanti di pengukuran realisasi, tapi sebelum juga, mereka jadi mereka harus patuh terhadap apa yang mereka lakukan atau mereka sudah rencanakan kerjakan di awal, rencana aksi ya.
+
+Habis perjanjian, rencana aksi.
+
+Oke, oke, oke. Jadi teman-teman Kelabat ya, ini kan di perjanjian kinerja itu dia sudah ditetapkan target tapi ini targetnya dari Pak Kepala gitu ya. Kira-kira untuk satu kantor itu apa yang akan mau dicapai? Ini sebenarnya ada satu turunan lagi yang namanya rencana aksi. Nah, ini kan di sini alurnya kan langsung ke jadwalan pengukuran ya. Memang make sense juga, saat ada rencana aksi itu berarti dari PIC-nya itu nanti akan menafsirkan dari perjanjian kinerjanya yang diturunkan tadi indikatornya dari Pak Kepala itu kira-kira apa yang akan dilaksanakan tiap tim kerja gitu. Jadi ada turunannya rencana aksi.
+
+Nanti dari PIC itu yang akan menentukan kira-kira dari rencana aksinya itu target yang bisa dicapai berapa gitu. Nanti dari target-target yang ditentukan oleh tiap PIC itu akan diukur. Jadi mereka mengekspektasikan kalau misalnya bikin kegiatan A itu akan mencapai target berapa. Nanti setelah pelaksanaan kegiatan kan baru bisa diinput realisasinya yang tercapai kira-kira berapa gitu. Begitu Bu Yusna ya.
+
+Iya. Oke. Iya. Iya. Benar-benar. Heeh.
+
+Sehingga yang diukur itu di jadwal pengukuran ada yang diukur gitu, bukan cuman angka doang tapi ada rencana aksinya.
+
+Iya.
+
+Oke. Siap. Siap. Betul. Betul. Betul.
+
+Jadi di sini nanti ada satu modul lagi khusus rencana aksi. Jadi nanti yang diinput itu dari PIC yang menginput langsung, Bu ya. Jadi kegiatan apa, targetnya, harapannya apa gitu. Latar belakangnya segala macam itu diinput di rencana aksinya itu, Bu ya.
+
+Oke.
+
+Iya, iya, iya. Benar. Oke.
+
+Dari teman-teman Kelabat mungkin barangkali alurnya masih penuh tanda tanya gitu. Silakan. Enggak usah malu-malu.
+
+Jadi ini intinya semua cascading ya sampai titik terakhirnya itu di bagian penilaian akhir.
+
+Oh iya, Pak. Untuk yang di bagian PK ini.
+
+Heeh.
+
+Apakah yang untuk perjanjian kinerja ini hanya dicatat nomor dan tanggalnya saja, atau PK-nya juga harus menyimpan atau mengikat daftar indikator beserta dengan target yang sudah disahkan?
+
+Ya. Jadi untuk PK itu dia sekalian ya, jadi tetap diinput juga per indikatornya.
+
+Di Renstra ini dia input tiap masing-masing indikatornya. Terus nanti karena di tiap indikator sebenarnya di indikator itu kan merujuk ke Renstra. Renstra itu nanti di-upload nama file-nya, Renstra periodenya kapan, file-nya apa gitu. Nanti dari Renstra itu kan ada butir-butir itu diturunkan jadi indikator. Nah, tiap indikator ini itu diturunkan jadi perjanjian kinerja, itu di tiap butirnya itu tetap akan dilakukan penginputan karena nanti di bagian pengukuran itu yang diukur itu kan nanti per indikatornya.
+
+Nanti saya coba perlihatkan contoh perjanjian kinerjanya.
+
+Nah, ini misalnya modelan isi perjanjian kinerjanya.
+
+Nah, ini kan ada masing-masing kan ada indikator. Ini ada sasaran dan indikator.
+
+Ini masing-masing tetap harus diinput karena di sini sudah ada targetnya kan. Misalnya target di indikator pertama itu pun ada bercabang gitu, ada keunggulan LDT itu berapa persen targetnya, dan ini dia tahunan, tiap tahun itu ada targetnya gitu. Makanya target yang akan ditentukan tiap tahun itu sudah sudah digambarkan dari sejak penyusunan Renstra-nya, karena Renstra itu kan tiap 5 tahun sementara perjanjian kinerja itu tiap tahun.
+
+Nah, masing-masing dari IKU misalnya keunggulan layanan LDT ini yang akan diturunkan lagi ke tiap IKU itu jadi rencana aksi gitu. Rencana aksi itu kira-kira dalam setahun. Setahun itu kan penilaiannya itu ada empat kali per triwulan kan. Nah, di triwulan pertama itu kegiatan apa saja akan dilakukan dan targetnya berapa. Ini kalau di PK ini target di akhir tahunnya. Jadi target keseluruhan di tahun tersebut. Jadi kalau target yang diturunkan ke rencana aksi itu bisa mungkin tercapainya kalau baseline-nya di tahun 2026 awal itu 99,0 dan di akhir tahun ekspektasinya 99,6, berarti tiap triwulannya itu akan di-set target dari tiap PIC mungkin naiknya 99,1, 99,3, dan seterusnya sampai triwulan keempat, jadi dipecah lagi.
+
+Jadi kalau indikator di perjanjian kinerja ini dari Pak Kepala ada, nanti dia PIC ada juga indikatornya gitu tapi dalam bentuk kegiatan untuk mencapai apa yang sudah ditentukan di perjanjian kinerja gitu. Jadi tiap indikator jelas pasti harus didatakan juga tapi tidak sampai ke penganggarannya, cukup indikatornya saja dulu gitu.
+
+Ada yang masih kurang jelas mungkin.
+
+Aman ya.
+
+Kalau yang ini sama juga yang di bagian status capaian itu, untuk status yang tercapai dan belum tercapai itu dia diberikan pada setiap periode atau hanya ada pada nilai akhir di akhir tahun gitu, Pak?
+
+Dia tiap periode. Jadi triwulan 1 itu kan ini kan dia makin mengerucut kan, mengerucut ke apa yang ditentukan oleh PIC kan. Pengukurannya yang diukur di sini itu lebih ke apa per apanya, Bu Yusna? Mengacu ke perjanjian kinerjanya atau capaian triwulan yang ditentukan oleh PIC, Bu ya.
+
+Jadi gini, di rencana aksi itu ada rencana mereka juga capaian triwulan, itu target triwulan ada ya.
+
+Nah, ini ada target triwulan. Heeh. Nah, ya ini rencana aksi. Jadi ada target triwulan juga. Kalau ini memang kita kasih kosong. Tapi kalau dari masing-masing penanggung jawab itu ada target per triwulan itu dibolehkan, itu dimungkinkan untuk bisa mengisi itu, untuk mengisi target per triwulan.
+
+Heeh. Jadi ini sesuai apa yang diinput PIC-nya ya, Bu ya. Jadi dia tercapai atau tidak, itu nanti diukurnya, ya tanggung jawab dari masing-masing gitu, dari perencanaan yang menentukan dia tercapai atau tidak gitu, Bu ya.
+
+Iya. Heeh. Iya.
+
+Jadi gitu ya, Dion ya. Ini kan kalau PK kan isinya begini. Jadi indikatornya apa, targetnya apa. Nah, ini kan target di akhir tahun. Sementara kalau misalnya rencana aksi itu dia ada target per triwulannya tuh.
+
+Itu yang nanti akan diukur nanti dari perencanaan, karena skopnya PK itu kan dia dilihatnya itu kan dari tingkat kementerian, Bu ya, itu kan dari sistem pusat. Jadi kalau misalnya dari sistem pusat itu yang kita untuk sekarang itu yang diinput tinggal langsung capaian akhirnya berapa gitu kan.
+
+Nah ini kan untuk pemantauan internalnya gitu. Jadi bisa dicek perencanaannya, spesifiknya itu per masing-masing IKU. Ini kan ada PIC. Kalau misalnya IKU-nya ini totalnya ada delapan, berarti ada total 8 PIC yang akan mengisi ini, gitu. Jadi di awal tahun itu PIC akan langsung menentukan kira-kira bulan 1 sampai 4 itu untuk mencapai target yang ada di perjanjian kinerja itu berapa saja di tiap triwulan gitu.
+
+Nanti itu tiap triwulannya akan dievaluasi oleh tim perencanaan, ini mencapai atau tidak. Kalau tidak tercapai kenapa gitu, pasti dari perencana akan mempertanyakan kan kenapa ini targetnya di-set begini tapi kok tidak tercapai gitu, apa ketinggian atau gimana?
+
+Iya nanti ya, Sidik, jadi teman-teman itu dari tim kerja, PIC di masing-masing IKU itu, pada saat mengisi realisasi jadi mereka harus mengklaim rencana aksi ya.
+
+Heeh. Artinya umpamanya untuk apa, rencana aksi mereka di TW1 itu kan 1, 2, 3, 4 kegiatan, mereka klaim 1, 2 ini sudah selesai. Setelah mereka klaim itu mereka harus memberikan masalah dan kendala apa yang akan mereka lakukan dan strategi tindak lanjutnya apa. Umpamanya strategi itu bisa muncul, apa yang akan mereka lakukan, perbaikan apa atau tindak lanjut apa yang akan mereka lakukan di triwulan dua, di triwulan selanjutnya gitu. Jadi yang diinput oleh PIC bukan hanya angka target tapi dengan narasi, klaim dulu, klaim kegiatan, klaim ya, terus masalah dan kendala apa, dan selanjutnya rencana tindak lanjut mereka apa untuk mengatasi masalah itu.
+
+Iya. Jadi di rencana aksi ini ada turunan per kegiatannya ya. Jadi tiap misalnya di triwulan 1 mereka itu kan menginput mungkin targetnya karena ini target akhirnya 99,6 di sini 99,1. Nah itu pasti ada dukungannya tuh, kegiatannya apa aja diturunin lagi, kegiatannya apa aja ini, mencapainya kira-kira berapa dari tiap kegiatan ini gitu.
+
+Iya, di PIC-nya yang menginput nanti.
+
+Heeh.
+
+Jadi memang sejak awal itu dari tiap IKU itu sudah merencanakan selama setahun ke depan itu mereka kegiatan apa yang akan dilakukan gitu untuk mencapai target akhir yang sudah ditetapkan oleh Pak Kepala.
+
+Jadi cascading-nya memang lumayan panjang. Jadi di sini sebelum ke pengukuran itu diturunkan jadi rencana aksi. Rencana aksi itu turunannya lagi itu kegiatan.
+
+Jadi pas pengukuran itu mereka mengacunya bukan langsung ke indikator di PK-nya tapi ke rencana aksi, atau lebih ke per kegiatannya gitu. Nanti di kegiatannya kan sudah ada acuannya ke rencana aksi gitu kan.
+
+Nah pertanyaan saya juga, Bu, ini kan kalau mau diturunkan kan per tingkat kegiatan, Bu kan.
+
+Jadi misalnya di sini di-set 99,3. Nah, itu kan ada turunannya dia per kegiatannya itu apa-apa. Nah, itu per kegiatannya itu apakah mau ditentukan pembobotnya lagi, Bu? Begitu atau gimana?
+
+Tidak, tidak, tidak perlu.
+
+Tidak perlu ya. Cuma yang penting dia ada bukti dukung kegiatannya apa saja yang tercapai, gitu ya.
+
+Iya. He.
+
+Nah, dan untuk per kegiatannya ini apakah dibutuhkan dokumentasi juga, apa-apa saja yang mereka akan upload gitu, atau cukup menginputkan nama kegiatan saja?
+
+Sebenarnya, Sidik, kalau melihat definisi operasional harusnya ada dengan dokumen ya, ada dokumen daftar hadir, bukti, itu sih sebenarnya.
+
+Oh iya ya. Heeh, iya. Jadi nanti di triwulan 1 mereka kan sudah menjabarkan nih kegiatan apa aja, nanti di situ pas menginput kegiatan upload bukti dukung aja.
+
+Heeh. Sekalian bukti dukung itu nanti upload bukti dukungnya itu masuknya di pengukuran aja, Bu ya, pas di akhir sebelum pas mereka mau input nilai gitu.
+
+Iya.
+
+Jadi pas di akhir itu, di setiap triwulan. Iya, heeh. Di tiap triwulan, jadi pas pengisiannya itu di jadwal yang sudah dibuka perencanaan, mereka kan sudah menginputkan kan kegiatannya apa aja. Nah, nanti pas di akhir-akhir itu mereka sebelum melakukan penginput nilai itu diwajibkan untuk upload dokumentasi, berkas-berkas dokumentasi semuanya. Itu nanti persyaratannya itu akan ditentukan oleh tim perencanaan nanti, Bu ya, kira-kira persyaratan umumnya itu apa saja. Karena kalau misalnya ditentukan langsung by aplikasi, takutnya kalau ada penambahan persyaratan kan ribet lagi, Bu. Jadinya persyaratannya itu nanti ditambahkan oleh perencanaan, kayak mungkin butuhnya daftar hadir dan segala macam gitu.
+
+Gitu Dion ya. Teman-teman lain mungkin ada pertanyaan atau ada yang kurang jelas mungkin dari alurnya.
+
+Karena sebelumnya kan di SIMEK juga sudah ini kan sudah implementasi notifikasi juga kan, dua-duanya udah work kan. Terus untuk soal pengaturan hak akses juga kan sudahlah, jadi tinggal dipakai saja yang dari Simpact diterapkan di sini. Cuman bedanya di sini kan ada per unit kerja.
+
+Jadi nanti pas untuk notifikasi itu bisa kita atur belakangannya, kita atur itu. Cuman paling normalnya saat jadwal pengisiannya terbuka itu tiap PIC nanti otomatis akan dapat notifikasi by WhatsApp atau by email nanti.
+
+Dan kalau kemarin kan early warning system-nya itu kan dia di-set-nya misalnya ada yang mau naik pangkat dan segala macam itu kan masih ditujukan ke kepegawaian ya. Nah, kali ini itu akan ditujukan ke tiap PIC. Jadi misalnya dia belum mengisi triwulan 1 itu, mungkin dari H-7 sampai H-1 itu tiap hari akan ada notifikasi ke mereka gitu, pengingat mengingat terus gitu.
+
+Begitu juga nanti dari tim perencanaan nanti akan ada pengingat juga, kira-kira dari semua IKU ini mana yang belum terinput gitu. Jadinya di saat akhir deadline itu harapannya semuanya itu sudah terinput biar nanti tim perencanaan bisa evaluasi. Nanti dari hasil evaluasi pengukuran ini akan dijadikan dasar tim perencanaan untuk lakukan rapat evaluasi, Bu ya. Tiap triwulannya.
+
+Ada yang belum jelas mungkin? Dia ini harusnya sudah mencakup di plan yang udah saya kasih tadi pagi. Cuman mungkin ada penambahannya itu di bagian sini. Di antara perjanjian kinerja dengan jadwal dan pengukuran itu ada dua step lagi yang mau diturunkan.
+
+Jadi kalau misalnya ada pertanyaan atau butuh petunjuk bisa dikabarkan ke saya saja biar nanti kita diskusi lagi. Tapi kurang lebih outline-nya sudah jelas ya, dan dari tim perencanaan juga sudah sepakat ya, alurnya seperti ini ya.
+
+Mungkin ada pertanyaan lagi?
+
+Sudah cukup ya.
+
+Kalau dari saya sudah, mungkin ada teman-teman lain yang mau tanya.
+
+Oh ya, untuk yang SIMP kemarin itu kalian pakai ini ya, kalian kan pakai ini ya, Laravel ya. Yang front end-nya itu pakai apa?
+
+Kalau yang kemarin itu untuk front end kami pakai Blade, Pak. PHP Blade.
+
+Oh, Blade ya. Blade JavaScript atau dia pakai Livewire?
+
+Pakai Livewire.
+
+Pakai Livewire, Pak.
+
+Oh iya. Karena nanti ini ya tetap basis datanya tetap sama. Nanti untuk front-end-nya juga sama biar biar cepat karena kalian kan sudah pakai base yang sama kan. Jadi nanti untuk awalnya itu kalian bikinnya ini dulu, bagusnya ini dulu sih, bikin mockup tampilannya aja dulu biar bisa dicek. Jadinya takutnya kalau misalnya udah langsung full fitur kan barangkali ada yang kurang gitu kan.
+
+Jadi dari sini dulu fokusnya, terus bikin tiap masing-masing halamannya, baru manajemen jadwal. Iya, ini penting. Nanti kalau ini bisa belakangan, di plannya itu memang sudah masuk kayak ada approval pimpinan dan lain-lain, cuman memang dikesampingkan dulu karena semua aksesnya itu nanti diserahkan ke tim perencanaan dulu untuk sekarang, jadi tidak sampai ke penetapan. Jadi flow-nya itu cuman sebatas perencanaan meng-upload semua Renstra-nya tadi, di alurnya ini dia rencana itu mengupload dasar aturannya dulu, Renstra-nya apa beserta file Renstra-nya, terus indikator utamanya apa sampai ke perjanjian kinerja. Nanti di setelahnya itu dilempar aksesnya ke PIC per pegawai yang mengisi rencana aksi sampai kegiatan, kan baru lanjut ke pengukuran.
+
+Kurang lebih seperti itu.
+
+Oh iya, Pak. Yang untuk proyek SIMP kemarin kan kami untuk front-end-nya pakai Blade dan juga Livewire. Nah, untuk yang SAKIP ini rencananya kami ingin pakai React untuk front end-nya.
+
+React.
+
+Iya.
+
+Boleh ya?
+
+Oh, itu bisa.
+
+Iya. Menyesuaikan kalian aja. Yang penting dia enggak terlalu menghambat prosesnya kalian. Kalau memang cocoknya pakai React atau JavaScript yang lain, enggak apa-apa juga.
+
+Kurang lebih untuk gambaran awalnya udah clear ya, sudah aman ya.
+
+Awalnya untuk sekarang masih aman, sudah. Nanti paling saya akan susun dulu.
+
+He.
+
+Kemudian nanti mau diverifikasi kembali.
+
+Oke, jadi nanti kira-kira kapan kita bisa zoom lagi? Karena kemungkinan terakhir kalian itu di Desember akhir ya, paling di mentoknya.
+
+Ini tanggal 17, waktu kalian kurang lebih cuman sampai di tanggal 9 November lah, karena dari tanggal 16 sampai 30 itu kan kita proses evaluasi buat ini kan revisi-revisi sampai matang kayak kemarin kan. Takutnya kan ada revisi yang memang besar, jadinya saya tidak berpatokan mungkin di 30 November, jadi paling mentok di 9 November. Sabar.
+
+Kalau di hari Senin sama, Pak.
+
+Senin minggu ini ya? Eh minggu depan.
+
+Iya, minggu depan.
+
+Boleh. Boleh. Jadi nanti kabari saja apa yang kira-kira mau dibahas biar nanti saya bisa kabari juga dari, kalau memang dari tim perencanaan juga dibutuhkan gitu. Barangkali ada alur yang tidak jelas itu nanti bisa beritahukan ke saya saja.
+
+Karena tim perencanaan dan tim perencanaan keuangan juga ini kan memang cukup sibuk ya, apalagi sudah mau penutupan periode triwulan ketiga ini sudah September.
+
+Jadinya nanti kalau memang dibutuhkan bersama tim perencanaan itu menyesuaikan dengan jadwal mereka gitu.
+
+Tapi harusnya kalau memang tidak perlu kehadiran dari tim perencanaan, atau memang cuman tim kami, bisa-bisa saja, nanti diinfokan saja.
+
+Oke, sudah aman ya, bisa clear berarti ya.
+
+Oke, Pak.
+
+Oke, terima kasih. Jadi kurang lebih itu paparan untuk sesi brainstorming kita ya, untuk persiapan awal sebelum kita mulai eksekusi aplikasinya. Setidaknya kita sudah dapat outline-nya, kurang lebih garis besarnya aplikasi apa yang akan kita bangun, alurnya seperti apa, dan karena di sini juga tim perencanaan hadir kita sudah sepakat ya alurnya seperti apa. Jadinya kita bisa langsung lanjut ke pembuatan, apa perancangan awal dan mapping jadwal ya, kira-kira apa yang akan mau dilakukan terlebih dahulu.
+
+Jadi terima kasih buat teman-teman ini ya, anak magang Kelabat ya, Dion, Adit, Adril, Jordan, Grenle ya yang sudah hadir. Dan mohon maaf juga sebelumnya kemarin memang kita jadwalkannya di jam tertentu, ya, tapi memang ada banyak jadwal dadakan dan itu pun tidak bisa ditinggalkan. Makanya kita geser ke pagi ini. Dan terima kasih juga kepada tim perencanaan sudah bersedia meluangkan waktu bersama kami untuk membahas ya, untuk mematangkan proses perancangan awal.
+
+Untuk itu sesi pertemuan kali ini saya izin akhiri. Tapi sebelum itu mungkin bisa kita foto dokumentasi dulu, mungkin bisa on kamera dulu.
+
+Oke, sip.
+
+Iya. Mau kenalan dengan orang sih.
+
+Kan sampai muka sama, Dion. Dion ini yang tertua ya? Dion yang tertua.
+
+Iya. Jadi, Bu Yusna, ini mereka ini ada berlima, Bu. Jadi ini Dion itu ibaratnya yang memanage empat orang. Jadi berhubung mereka ini angkanya ganjil, Dion-nya itu jadi ketuanya dan masing-masing dua itu ada bidang, ada bagian masing-masing, ada peran masing-masing gitu.
+
+Iya. Ada yang fokus di bagian tampilan, ada yang fokus memang menyusun bagian dapurnya lah.
+
+Kenapa ya bagian.
+
+Heeh, bagian yang paling rumit lah.
+
+Ini setelah mereka magang begini mereka dapat surat pengakuan dari LLD Dikti ya, kayak surat keterangan bahwa mereka apa-apa yang pernah mereka kerjakan di sini.
+
+Nah, itu nanti mau dibahas dengan ini juga sih, Bu, dengan pembimbingnya, nanti kira-kira output-nya seperti apa gitu, dari nanti apakah dikeluarkan.
+
+Iya, karena itu bisa mereka pakai untuk cari kerja nanti.
+
+Iya, karena memang tujuan magangnya juga kan ini produk-produknya. Iya, produk-produknya mereka kan bagus. Iya.
+
+Oke ya. Makasih ya, Dek. Adik-adik, sukses, kita ketemu lagi. Iya, makasih juga, Bu.
+
+Iya. Heh, semangat ya. Nanti komunikasi aja langsung sama Sidik atau sama saya juga bisa kalau ada yang mau ditanyakan ya.
+
+Baik, terima kasih sudah hadir teman-teman semua.
+
+Saya tutup. Selamat pagi dan selamat beraktivitas kembali.
+
+Makasih, Pak.
+
+Terima kasih.

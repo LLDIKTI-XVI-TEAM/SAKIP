@@ -1,0 +1,59 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: sakip_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: sakip
+      DB_USERNAME: sakip_user
+      DB_PASSWORD: sakip_secret_password
+    depends_on:
+      - db
+    networks:
+      - sakip_net
+
+  db:
+    image: postgres:17-alpine
+    container_name: sakip_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sakip
+      POSTGRES_USER: sakip_user
+      POSTGRES_PASSWORD: sakip_secret_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - sakip_pgdata:/var/lib/postgresql/data
+    networks:
+      - sakip_net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: sakip_keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    networks:
+      - sakip_net
+
+networks:
+  sakip_net:
+    driver: bridge
+
+volumes:
+  sakip_pgdata:
+    driver: local
