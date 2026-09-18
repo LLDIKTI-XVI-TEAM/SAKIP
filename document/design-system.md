@@ -18,7 +18,7 @@ Design system dan panduan implementasi UI untuk aplikasi **SAKIP LLDIKTI Wilayah
 | **Frontend** | **React** + **TypeScript** (Inertia Pages & Components) |
 | **Styling** | **Tailwind CSS v4** (`@theme` token-based) |
 | **Bundler & Build** | **Vite** (`@vitejs/plugin-react`) |
-| **Database** | **PostgreSQL 17** (Database relasional utama) |
+| **Database** | **PostgreSQL 18** (Database relasional utama) |
 | **Visualisasi / Chart** | **ApexCharts** (`react-apexcharts`) |
 | **Autentikasi / SSO** | **Keycloak** (OIDC Authorization Code Flow via Socialite) |
 
