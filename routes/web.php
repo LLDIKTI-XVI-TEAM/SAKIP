@@ -1,10 +1,17 @@
 <?php
 
-use App\Http\Controllers\Auth\DevAuthController;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PengukuranController;
-use App\Http\Controllers\VerifikasiController;
+use App\Http\Controllers\Auth\ProcessLogin;
+use App\Http\Controllers\Auth\ProcessLogout;
+use App\Http\Controllers\Auth\ShowLoginPage;
+use App\Http\Controllers\Auth\SwitchRole;
+use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\Pengukuran\EditPengukuran;
+use App\Http\Controllers\Pengukuran\IndexPengukuran;
+use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Verifikasi\IndexVerifikasi;
+use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
+use App\Http\Controllers\Verifikasi\SahkanPengukuran;
+use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use Illuminate\Support\Facades\Route;
 
 // Redirect root to dashboard or login
@@ -13,27 +20,27 @@ Route::get('/', function () {
 });
 
 // Authentication Routes
-Route::get('/login', [LoginController::class, 'show'])->name('login');
-Route::post('/login', [LoginController::class, 'store'])->name('login.store');
-Route::post('/logout', [DevAuthController::class, 'logout'])->name('logout');
+Route::get('/login', ShowLoginPage::class)->name('login');
+Route::post('/login', ProcessLogin::class)->name('login.store');
+Route::post('/logout', ProcessLogout::class)->name('logout');
 
 // Quick Switcher Route for Local Development
 if (app()->environment('local')) {
-    Route::post('/dev/switch-role/{id}', [DevAuthController::class, 'switchRole'])->name('dev.switch-role');
+    Route::post('/dev/switch-role/{id}', SwitchRole::class)->name('dev.switch-role');
 }
 
 // Protected Application Routes
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
 
     // Pengukuran Kinerja (Alur PIC)
-    Route::get('/pengukuran', [PengukuranController::class, 'index'])->name('pengukuran.index');
-    Route::get('/pengukuran/{id}/edit', [PengukuranController::class, 'edit'])->name('pengukuran.edit');
-    Route::post('/pengukuran/{id}', [PengukuranController::class, 'update'])->name('pengukuran.update');
+    Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
+    Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->name('pengukuran.edit');
+    Route::post('/pengukuran/{id}', UpdatePengukuran::class)->name('pengukuran.update');
 
     // Verifikasi & Pengesahan Kinerja (Alur Tim Perencanaan)
-    Route::get('/verifikasi', [VerifikasiController::class, 'index'])->name('verifikasi.index');
-    Route::get('/verifikasi/{id}', [VerifikasiController::class, 'show'])->name('verifikasi.show');
-    Route::post('/verifikasi/{id}/kembalikan', [VerifikasiController::class, 'kembalikan'])->name('verifikasi.kembalikan');
-    Route::post('/verifikasi/{id}/sahkan', [VerifikasiController::class, 'sahkan'])->name('verifikasi.sahkan');
+    Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
+    Route::get('/verifikasi/{id}', ShowVerifikasi::class)->name('verifikasi.show');
+    Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->name('verifikasi.kembalikan');
+    Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->name('verifikasi.sahkan');
 });

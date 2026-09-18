@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Verifikasi;
 
+use App\Http\Controllers\Controller;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\RiwayatPengukuran;
@@ -10,82 +11,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Inertia\Inertia;
-use Inertia\Response;
 
-class VerifikasiController extends Controller
+class SahkanPengukuran extends Controller
 {
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
-            abort(403, 'Akses terbatas untuk Tim Perencanaan.');
-        }
-
-        $pengukurans = PengukuranKinerja::with([
-            'penugasanIndikator.indikatorKinerja.sasaranStrategis',
-            'penugasanIndikator.unitKerja',
-            'penugasanIndikator.pic',
-            'periodeJadwal',
-            'buktiDukungs',
-        ])
-        ->whereIn('status', ['diajukan', 'diverifikasi'])
-        ->orderByDesc('diajukan_pada')
-        ->get();
-
-        return Inertia::render('Verifikasi/Index', [
-            'pengukurans' => $pengukurans,
-        ]);
-    }
-
-    public function show(Request $request, int $id): Response
-    {
-        $pengukuran = PengukuranKinerja::with([
-            'penugasanIndikator.indikatorKinerja.sasaranStrategis',
-            'penugasanIndikator.unitKerja',
-            'penugasanIndikator.pic',
-            'periodeJadwal',
-            'buktiDukungs',
-            'riwayats.user',
-            'snapshot',
-        ])->findOrFail($id);
-
-        Gate::authorize('verify', $pengukuran);
-
-        return Inertia::render('Verifikasi/Show', [
-            'pengukuran' => $pengukuran,
-        ]);
-    }
-
-    public function kembalikan(Request $request, int $id): RedirectResponse
-    {
-        $pengukuran = PengukuranKinerja::findOrFail($id);
-        Gate::authorize('verify', $pengukuran);
-
-        $validated = $request->validate([
-            'catatan' => ['required', 'string', 'min:10'],
-        ]);
-
-        DB::transaction(function () use ($request, $pengukuran, $validated) {
-            $statusSebelum = $pengukuran->status;
-
-            $pengukuran->update([
-                'status' => 'dikembalikan',
-            ]);
-
-            RiwayatPengukuran::create([
-                'pengukuran_kinerja_id' => $pengukuran->id,
-                'user_id' => $request->user()->id,
-                'status_dari' => $statusSebelum,
-                'status_ke' => 'dikembalikan',
-                'catatan' => $validated['catatan'],
-            ]);
-        });
-
-        return redirect()->route('verifikasi.index')->with('success', 'Kinerja berhasil dikembalikan ke PIC untuk perbaikan.');
-    }
-
-    public function sahkan(Request $request, int $id): RedirectResponse
+    public function __invoke(Request $request, int $id): RedirectResponse
     {
         $pengukuran = PengukuranKinerja::with([
             'penugasanIndikator.indikatorKinerja.sasaranStrategis',
