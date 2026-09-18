@@ -1,58 +1,56 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SAKIP LLDIKTI Wilayah XVI
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem Akuntabilitas Kinerja Instansi Pemerintah (SAKIP) untuk Lembaga Layanan Pendidikan Tinggi Wilayah XVI (Gorontalo, Sulawesi Utara, Sulawesi Tengah).
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📚 Dokumen Spesifikasi & Perencanaan
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document/`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document):
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Dokumen | Lokasi | Deskripsi |
+|---|---|---|
+| **PRD (Product Requirements Document)** | [`document/SAKIP - PRD.md`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20PRD.md) | Spesifikasi produk lengkap, stakeholder, persona, FR/NFR, acceptance criteria |
+| **Rencana Pengembangan (Plan)** | [`document/SAKIP - Plan Pengembangan.md`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Plan%20Pengembangan.md) | Rencana teknis modular & granular dengan scope, dependency, dan DoD |
+| **Workflow Detail & State Machine** | [`document/SAKIP - Workflow.md`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/SAKIP%20-%20Workflow.md) | Alur kerja, diagram alir bisnis, aturan batas waktu, dan protokol buka kembali |
+| **Design System SAKIP** | [`document/design-system.md`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/design-system.md) | Sistem token warna institusi (`#122E92`, `#D6AC48`), font Poppins, aturan komponen |
+| **Hasil Rapat Pemantapan Konsep** | [`document/Rapat Pemantapan Konsep Pengembangan SAKIP - Hasil Rapi.txt`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/Rapat%20Pemantapan%20Konsep%20Pengembangan%20SAKIP%20-%20Hasil%20Rapi.txt) | Transkrip dan intisari rapat pembahasan SAKIP bersama pimpinan/tim |
+| **Data Referensi Riil 2026** | [`document/Pengukuran Kinerja  Triwulan 2026.xlsx`](file:///c:/MY%20FOLDER/LLDIKIT-MAGANG/SAKIP/document/Pengukuran%20Kinerja%20%20Triwulan%202026.xlsx) | Data riil IKU, target tahunan/triwulanan LLDIKTI XVI Tahun 2026 |
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🚀 Tech Stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Backend**: Laravel 13 (PHP 8.3)
+- **Frontend**: React 19 + TypeScript (via Vite)
+- **Adapter**: Inertia.js (`@inertiajs/react`)
+- **Database**: PostgreSQL 18
+- **Styling**: Tailwind CSS v4 (Token `@theme`)
+- **Containerization**: Podman 5.8 & Podman-compose 1.6
+- **Testing**: Pest / PHPUnit (Backend) + Vitest (Frontend)
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 🛠️ Menjalankan Aplikasi Secara Lokal
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+1. **Jalankan Backend**:
+   ```powershell
+   php artisan serve
+   ```
+2. **Jalankan Frontend (HMR Dev Server)**:
+   ```powershell
+   npm run dev
+   ```
+3. Akses melalui browser di `http://localhost:8000`.
 
-```bash
-composer require laravel/boost --dev
+---
 
-php artisan boost:install
+## 🧪 Pengujian Otomatis (DoD)
+
+```powershell
+# Backend Feature Tests
+php artisan test
+
+# Frontend Unit Tests
+npm run test
 ```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
