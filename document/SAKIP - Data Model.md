@@ -2,9 +2,9 @@
 
 **Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 33 entitas, skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
 
-**Basis data target:** PostgreSQL — dipilih secara sadar karena beberapa kapabilitas yang dipakai langsung oleh skema ini: tipe kolom `jsonb` untuk `audit_log` (menampung struktur nilai lama/baru yang berbeda-beda per entitas tanpa memerlukan tabel audit terpisah per entitas), **exclusion constraint** (`EXCLUDE USING gist` dengan ekstensi `btree_gist`) sebagai lapisan pertahanan kedua untuk menegakkan rentang tahun Renstra yang tidak boleh beririsan, **partial unique index** untuk menjamin tepat satu `jadwal_tahunan` berstatus aktif per kombinasi Renstra-tahun, dan penanganan **NULL pada index unik** lewat `COALESCE` untuk constraint yang melibatkan kolom nullable — dipakai pada `klaim_kegiatan.komponen_id` maupun pada `user_permission_granted.unit_id`/`user_permission_denials.unit_id`, karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris pada unique index standar.
+**Basis data target:** PostgreSQL — dipilih secara sadar karena beberapa kapabilitas yang dipakai langsung oleh skema ini: tipe kolom `jsonb` untuk `audit_log` (menampung struktur nilai lama/baru yang berbeda-beda per entitas tanpa memerlukan tabel audit terpisah per entitas), **exclusion constraint** (`EXCLUDE USING gist` dengan ekstensi `btree_gist`) sebagai lapisan pertahanan kedua untuk menegakkan rentang tahun Renstra yang tidak boleh beririsan, **partial unique index** untuk menjamin tepat satu `jadwal_tahunan` berstatus aktif per kombinasi Renstra-tahun, dan penanganan **NULL pada index unik** lewat `COALESCE` untuk constraint yang melibatkan kolom nullable — dipakai pada `klaim_kegiatan.komponen_id` maupun pada `user_permission_granted.unit_id`/`user_permission_denied.unit_id`, karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris pada unique index standar.
 
-**Catatan cakupan:** Seluruh tabel dan kolom pada dokumen ini dibuat pada migrasi Laravel sejak Fase Awal, termasuk keenam tabel model hak akses (`permissions`, `roles`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`). Yang ditunda ke Fase Lanjutan hanya jalur pemakaian/UI atas kolom-kolom tertentu; kolom itu sendiri tetap ada di skema agar tidak perlu migrasi besar/berisiko di kemudian hari, dan diberi anotasi eksplisit `-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)`.
+**Catatan cakupan:** Seluruh tabel dan kolom pada dokumen ini dibuat pada migrasi Laravel sejak Fase Awal, termasuk keenam tabel model hak akses (`permissions`, `roles`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denied`). Yang ditunda ke Fase Lanjutan hanya jalur pemakaian/UI atas kolom-kolom tertentu; kolom itu sendiri tetap ada di skema agar tidak perlu migrasi besar/berisiko di kemudian hari, dan diberi anotasi eksplisit `-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)`.
 
 ---
 
@@ -14,7 +14,7 @@
 erDiagram
     USERS ||--o{ USER_ROLES : "memiliki"
     USERS ||--o{ USER_PERMISSION_GRANTED : "menerima grant"
-    USERS ||--o{ USER_PERMISSION_DENIALS : "menerima deny"
+    USERS ||--o{ user_permission_denied : "menerima deny"
     USERS ||--o{ PENANGGUNG_JAWAB : "ditugaskan sebagai"
     USERS ||--o{ PENGUKURAN : "membuat/mengubah"
     USERS ||--o{ STATUS_CAPAIAN : "menetapkan"
@@ -35,11 +35,11 @@ erDiagram
     ROLES ||--o{ ROLE_PERMISSIONS : "berisi"
     PERMISSIONS ||--o{ ROLE_PERMISSIONS : "menjadi isi peran"
     PERMISSIONS ||--o{ USER_PERMISSION_GRANTED : "diberikan"
-    PERMISSIONS ||--o{ USER_PERMISSION_DENIALS : "dicabut"
+    PERMISSIONS ||--o{ user_permission_denied : "dicabut"
 
     UNIT ||--o{ INDIKATOR : "memiliki"
     UNIT ||--o{ USER_PERMISSION_GRANTED : "menjadi scope (nullable)"
-    UNIT ||--o{ USER_PERMISSION_DENIALS : "menjadi scope (nullable)"
+    UNIT ||--o{ user_permission_denied : "menjadi scope (nullable)"
     UNIT ||--o{ JADWAL_SNAPSHOT : "salinan konteks"
     UNIT ||--o{ KEGIATAN : "memiliki"
 
@@ -160,7 +160,7 @@ erDiagram
         timestamp created_at
     }
 
-    USER_PERMISSION_DENIALS {
+    user_permission_denied {
         uuid id PK
         uuid user_id FK
         uuid permission_id FK
@@ -526,7 +526,7 @@ Representasi lokal pengguna yang terautentikasi via Keycloak. Tabel ini tidak me
 
 ### 2.2 `unit`
 
-Master global unit organisasi, tanpa tabel keanggotaan eksplisit — keterkaitan pengguna dilakukan melalui scope pada `user_permission_granted.unit_id`/`user_permission_denials.unit_id` (lihat §2.7–§2.8).
+Master global unit organisasi, tanpa tabel keanggotaan eksplisit — keterkaitan pengguna dilakukan melalui scope pada `user_permission_granted.unit_id`/`user_permission_denied.unit_id` (lihat §2.7–§2.8).
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -536,7 +536,7 @@ Master global unit organisasi, tanpa tabel keanggotaan eksplisit — keterkaitan
 | `created_by` | uuid | FK → users.id | |
 | `created_at` | timestamp | not null | |
 
-**Catatan definisi (wajib dipahami sebelum membaca entitas lain):** `unit` merepresentasikan kelompok organisasi pemilik indikator, sekaligus scope permission (lihat `user_permission_granted.unit_id`, `user_permission_denials.unit_id`, `indikator.unit_id`, `jadwal_snapshot.unit_id`, `kegiatan.unit_id`, `rencana_aksi.unit_id`) — **bukan** satuan ukur; peran itu dipegang oleh kolom `indikator.satuan` yang sepenuhnya independen. Istilah "unit" dipilih dengan sengaja, bukan "unit kerja", agar tidak bertabrakan dengan kosakata evaluasi ZI/SAKIP yang sudah memakai istilah "unit kerja" untuk konsep lain. Nama tabel dan kolom pada skema tetap `unit`/`unit_id` secara permanen; label yang tampil di antarmuka dapat disetel lewat kunci `aplikasi.label_unit` pada modul setelan (`pengaturan`, lihat §2.22) tanpa memerlukan migrasi ulang.
+**Catatan definisi (wajib dipahami sebelum membaca entitas lain):** `unit` merepresentasikan kelompok organisasi pemilik indikator, sekaligus scope permission (lihat `user_permission_granted.unit_id`, `user_permission_denied.unit_id`, `indikator.unit_id`, `jadwal_snapshot.unit_id`, `kegiatan.unit_id`, `rencana_aksi.unit_id`) — **bukan** satuan ukur; peran itu dipegang oleh kolom `indikator.satuan` yang sepenuhnya independen. Istilah "unit" dipilih dengan sengaja, bukan "unit kerja", agar tidak bertabrakan dengan kosakata evaluasi ZI/SAKIP yang sudah memakai istilah "unit kerja" untuk konsep lain. Nama tabel dan kolom pada skema tetap `unit`/`unit_id` secara permanen; label yang tampil di antarmuka dapat disetel lewat kunci `aplikasi.label_unit` pada modul setelan (`pengaturan`, lihat §2.22) tanpa memerlukan migrasi ulang.
 
 **Aturan integritas (level aplikasi):**
 - Unit yang memiliki ≥1 `indikator` terkait tidak dapat dihapus.
@@ -658,7 +658,7 @@ Pemberian izin tambahan di luar peran — mekanisme satu-satunya untuk memberi c
 
 ---
 
-### 2.8 `user_permission_denials`
+### 2.8 `user_permission_denied`
 
 Pencabutan izin — satu-satunya mekanisme untuk menyatakan "sengaja dicabut", berbeda dari "tidak pernah diberi".
 
@@ -1380,12 +1380,12 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 | `id` | uuid | PK | |
 | `actor_id` | uuid | FK → users.id | Pengguna yang melakukan tindakan |
 | `waktu` | timestamp | not null | |
-| `tindakan` | varchar | not null | mis. `renstra.aktivasi`, `pengukuran.kembalikan`, `indikator.pindah_unit`, `unit.hapus`, `jadwal.aktivasi`, `jadwal.buka_kembali`, `pengaturan.ubah`, `rencana_aksi.ajukan`, `rencana_aksi.verifikasi`, `rencana_aksi.kembalikan`, `rencana_aksi.sahkan`, `rencana_aksi.buka_kembali`, `kegiatan.buat`, `kegiatan.ubah_status`, `kegiatan.geser_periode`, `klaim_kegiatan.tambah`, `klaim_kegiatan.hapus`, `indikator_komponen.ubah`, `indikator.ubah_tipe_perhitungan`, `jenis_berkas.ubah`, `berkas.unggah`, `berkas.hapus`, **`berkas.tandai_tidak_dapat_dipenuhi`** (penandaan otomatis saat mode `file` satu-satunya yang diizinkan sementara unggahan dinonaktifkan, termasuk pada gerbang lampiran PK §2.15), `rekomendasi_pimpinan.tetapkan`, **`regulasi.buat`/`regulasi.ubah`/`regulasi.hapus`** (perubahan katalog dasar aturan, §2.33), **`renstra.ubah_regulasi`/`indikator.ubah_regulasi`** (perubahan rujukan `regulasi_id`), **`role_permissions.ubah`** (isi peran ditambah/dikurangi), **`user_roles.tambah`/`user_roles.ubah`/`user_roles.hapus`** (penetapan/pergantian/pencabutan peran pengguna), **`user_permission_granted.tambah`/`user_permission_granted.hapus`** (grant izin), **`user_permission_denials.tambah`/`user_permission_denials.hapus`** (deny izin), serta peristiwa **percobaan tindakan yang ditolak** (mis. gerbang rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap, gerbang kegiatan `rencana → terlaksana` belum lengkap, gerbang lampiran PK belum lengkap, permintaan izin yang berakhir tolak pada resolusi §3) |
-| `objek_tipe` | varchar | not null | Nama entitas terkait, mis. `renstra`, `pengukuran`, `indikator`, `jadwal_snapshot`, `pengaturan`, `rencana_aksi`, `kegiatan`, `klaim_kegiatan`, `indikator_komponen`, `jenis_berkas`, `berkas`, `rekomendasi_pimpinan`, **`regulasi`**, **`role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`** |
+| `tindakan` | varchar | not null | mis. `renstra.aktivasi`, `pengukuran.kembalikan`, `indikator.pindah_unit`, `unit.hapus`, `jadwal.aktivasi`, `jadwal.buka_kembali`, `pengaturan.ubah`, `rencana_aksi.ajukan`, `rencana_aksi.verifikasi`, `rencana_aksi.kembalikan`, `rencana_aksi.sahkan`, `rencana_aksi.buka_kembali`, `kegiatan.buat`, `kegiatan.ubah_status`, `kegiatan.geser_periode`, `klaim_kegiatan.tambah`, `klaim_kegiatan.hapus`, `indikator_komponen.ubah`, `indikator.ubah_tipe_perhitungan`, `jenis_berkas.ubah`, `berkas.unggah`, `berkas.hapus`, **`berkas.tandai_tidak_dapat_dipenuhi`** (penandaan otomatis saat mode `file` satu-satunya yang diizinkan sementara unggahan dinonaktifkan, termasuk pada gerbang lampiran PK §2.15), `rekomendasi_pimpinan.tetapkan`, **`regulasi.buat`/`regulasi.ubah`/`regulasi.hapus`** (perubahan katalog dasar aturan, §2.33), **`renstra.ubah_regulasi`/`indikator.ubah_regulasi`** (perubahan rujukan `regulasi_id`), **`role_permissions.ubah`** (isi peran ditambah/dikurangi), **`user_roles.tambah`/`user_roles.ubah`/`user_roles.hapus`** (penetapan/pergantian/pencabutan peran pengguna), **`user_permission_granted.tambah`/`user_permission_granted.hapus`** (grant izin), **`user_permission_denied.tambah`/`user_permission_denied.hapus`** (deny izin), serta peristiwa **percobaan tindakan yang ditolak** (mis. gerbang rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap, gerbang kegiatan `rencana → terlaksana` belum lengkap, gerbang lampiran PK belum lengkap, permintaan izin yang berakhir tolak pada resolusi §3) |
+| `objek_tipe` | varchar | not null | Nama entitas terkait, mis. `renstra`, `pengukuran`, `indikator`, `jadwal_snapshot`, `pengaturan`, `rencana_aksi`, `kegiatan`, `klaim_kegiatan`, `indikator_komponen`, `jenis_berkas`, `berkas`, `rekomendasi_pimpinan`, **`regulasi`**, **`role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denied`** |
 | `objek_id` | uuid | not null | ID baris entitas terkait |
 | `nilai_lama` | jsonb | nullable | Snapshot kondisi sebelum perubahan |
 | `nilai_baru` | jsonb | nullable | Snapshot kondisi sesudah perubahan |
-| `alasan` | text | nullable | Wajib diisi (validasi aplikasi) untuk tindakan tertentu: koreksi PK, pengembalian pengukuran, pergantian penanggung jawab, penghapusan unit, `jadwal:buka_kembali`, `rencana_aksi:buka_kembali`, penandaan kegiatan `tidak_terlaksana`/`ditunda`/`batal`, **perubahan/penghapusan `regulasi` (`regulasi:update`/`regulasi:delete`)**, **perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), setiap grant (`user_permission_granted`) dan setiap deny (`user_permission_denials`)**, dan tindakan sensitif lain yang ditetapkan PRD |
+| `alasan` | text | nullable | Wajib diisi (validasi aplikasi) untuk tindakan tertentu: koreksi PK, pengembalian pengukuran, pergantian penanggung jawab, penghapusan unit, `jadwal:buka_kembali`, `rencana_aksi:buka_kembali`, penandaan kegiatan `tidak_terlaksana`/`ditunda`/`batal`, **perubahan/penghapusan `regulasi` (`regulasi:update`/`regulasi:delete`)**, **perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), setiap grant (`user_permission_granted`) dan setiap deny (`user_permission_denied`)**, dan tindakan sensitif lain yang ditetapkan PRD |
 | `dasar_izin` | jsonb | **nullable** | **Wajib diisi** untuk aksi atas permission bertanda `permissions.sensitif = true` (lihat §2.3, §3.5): daftar sumber izin yang membuat aksi diizinkan (peran mana / grant mana yang cocok), atau deny mana yang memicu penolakan. `null` untuk tindakan yang tidak melalui gerbang permission sensitif |
 
 **Sifat:** tabel ini tidak memiliki endpoint update/delete di aplikasi — hanya `INSERT`. Tidak ada `updated_at`/`deleted_at` karena baris bersifat final begitu ditulis.
@@ -1394,7 +1394,7 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 
 **Jejak perubahan definisi berbasis komponen:** perubahan pada `indikator_komponen` dan `jenis_berkas` dicatat dengan `nilai_lama`/`nilai_baru` dan `alasan` — inilah jejak yang menjaga data historis tetap dapat dipertanggungjawabkan meski formula perhitungan dan katalog persyaratan berkas dapat diubah dari layar aplikasi, tanpa memerlukan deployment kode baru.
 
-**Jejak perubahan model akses:** karena izin dievaluasi hidup saat request (§3) dan tidak lagi disalin ke baris statis per pengguna, jejak "kenapa orang ini boleh melakukan sesuatu" tidak bisa lagi dibaca langsung dari satu baris izin. Kolom `dasar_izin` di atas, ditambah pencatatan wajib pada `role_permissions`, `user_roles`, `user_permission_granted`, dan `user_permission_denials`, adalah pengganti fungsi tersebut. Halaman **"Jelaskan izin pengguna"** (permission `pengguna:read`, dipegang Admin/Superadmin — tidak ada permission baru untuk halaman ini) membaca gabungan sumber-sumber ini untuk menampilkan izin efektif seorang pengguna per unit, lengkap dengan asal tiap izin (peran/grant) dan deny yang berlaku.
+**Jejak perubahan model akses:** karena izin dievaluasi hidup saat request (§3) dan tidak lagi disalin ke baris statis per pengguna, jejak "kenapa orang ini boleh melakukan sesuatu" tidak bisa lagi dibaca langsung dari satu baris izin. Kolom `dasar_izin` di atas, ditambah pencatatan wajib pada `role_permissions`, `user_roles`, `user_permission_granted`, dan `user_permission_denied`, adalah pengganti fungsi tersebut. Halaman **"Jelaskan izin pengguna"** (permission `pengguna:read`, dipegang Admin/Superadmin — tidak ada permission baru untuk halaman ini) membaca gabungan sumber-sumber ini untuk menampilkan izin efektif seorang pengguna per unit, lengkap dengan asal tiap izin (peran/grant) dan deny yang berlaku.
 
 ### 2.33 `regulasi`
 
@@ -1474,7 +1474,7 @@ Setiap pemeriksaan otorisasi berbentuk `boleh(kode_permission, unit_target?)`. P
 2. **Susun himpunan allow.** Allow terdiri dari:
    - seluruh permission yang berasal dari peran pengguna (`user_roles` → `role_permissions`, §2.6→§2.5), yang selalu diperlakukan **global**; dan
    - baris `user_permission_granted` milik pengguna yang cocok dengan permission yang ditanyakan (§2.7).
-3. **Susun himpunan deny.** Deny terdiri dari baris `user_permission_denials` milik pengguna yang cocok dengan permission yang ditanyakan (§2.8).
+3. **Susun himpunan deny.** Deny terdiri dari baris `user_permission_denied` milik pengguna yang cocok dengan permission yang ditanyakan (§2.8).
 4. **Pencocokan scope.**
    - Untuk pertanyaan dengan `unit_target = U`: deny cocok bila `unit_id IS NULL` **atau** `unit_id = U`; grant cocok bila `unit_id = U` (grant global, `unit_id IS NULL`, hanya cocok untuk permission bertipe `global`).
    - Untuk pertanyaan **tanpa** `unit_target`: deny ber-`unit_id` tertentu **tidak** menghalangi (izin untuk unit lain tetap berlaku secara terpisah); deny dengan `unit_id IS NULL` selalu menghalangi.
@@ -1488,7 +1488,7 @@ Setiap pemeriksaan otorisasi berbentuk `boleh(kode_permission, unit_target?)`. P
 ### 3.3 Lokasi scope unit
 
 - Permission hasil peran (`role_permissions`, §2.5) **selalu global** — tabel ini sengaja tidak memiliki kolom `unit_id`.
-- Scope unit hidup **hanya** pada `user_permission_granted` (§2.7), dan dapat dicabut per unit lewat `user_permission_denials` (§2.8).
+- Scope unit hidup **hanya** pada `user_permission_granted` (§2.7), dan dapat dicabut per unit lewat `user_permission_denied` (§2.8).
 - Konsekuensi pola pemakaian:
   - **"PIC unit A"** = peran `pegawai` (izin baca dasar, global) **+** grant `pengukuran:create`/`update`, `rencana_aksi:create`/`update`/`ajukan`, `kegiatan:create`/`update` dengan `unit_id = A`.
   - **"Perencanaan global"** = peran `perencanaan` (izin `create`/`update`/`ajukan` sudah global lewat isi peran, tanpa perlu grant tambahan).
@@ -1538,7 +1538,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `role_permissions` | unique(`role_id`, `permission_id`) |
 | `user_roles` | unique(`user_id`) — satu pengguna, tepat satu peran, pada Fase Awal |
 | `user_permission_granted` | unique(`user_id`, `permission_id`, `unit_id`) — implementasi index memakai `COALESCE(unit_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
-| `user_permission_denials` | unique(`user_id`, `permission_id`, `unit_id`) — pola `COALESCE` yang sama dengan `user_permission_granted` |
+| `user_permission_denied` | unique(`user_id`, `permission_id`, `unit_id`) — pola `COALESCE` yang sama dengan `user_permission_granted` |
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`) |
@@ -1585,7 +1585,7 @@ Daftar eksplisit kolom/entitas yang ada di skema sejak migrasi pertama namun jal
 | `berkas` | `jenis_berkas_id` | **Nullable secara permanen**, bukan sementara — dipakai penuh sejak Fase Awal untuk membedakan lampiran wajib (mengacu `jenis_berkas`) dari lampiran bebas (`null`); dicantumkan di sini semata agar tidak disangka kolom yang seharusnya selalu terisi |
 | `berkas` | `nama_asli`/`path`/`mime`/`ukuran_bytes` | **Nullable secara permanen sejak diperkenalkannya mode bukti dukung** — bukan kolom yang "lupa diisi": ketiganya wajib hanya pada baris `mode = file`, dan bernilai `NULL` pada baris `mode = tautan`/`teks` sebagai konsekuensi normal desain multi-mode |
 | `user_roles` | constraint `unique(user_id)` | **Batas Fase Awal yang disadari, bukan celah desain.** Struktur tabel sudah berbentuk pivot; multi-peran per pengguna (satu pengguna memegang lebih dari satu peran sekaligus) dapat dibuka di Fase Lanjutan hanya dengan melepas constraint ini — tidak memerlukan migrasi struktural baru |
-| UI pengelolaan akses | matrix permission penuh | Fase Awal menyediakan **3 form**: (1) assign peran (`user_roles`), (2) kelola grant izin per unit (`user_permission_granted`), (3) kelola deny izin (`user_permission_denials`), ditambah halaman "Jelaskan izin pengguna" (§2.32). UI matrix permission penuh (menampilkan/mengubah seluruh kombinasi peran × permission dalam satu tampilan tabel) ditunda ke Fase Lanjutan |
+| UI pengelolaan akses | matrix permission penuh | Fase Awal menyediakan **3 form**: (1) assign peran (`user_roles`), (2) kelola grant izin per unit (`user_permission_granted`), (3) kelola deny izin (`user_permission_denied`), ditambah halaman "Jelaskan izin pengguna" (§2.32). UI matrix permission penuh (menampilkan/mengubah seluruh kombinasi peran × permission dalam satu tampilan tabel) ditunda ke Fase Lanjutan |
 | `user_permission_granted` | masa berlaku grant (`berlaku_sampai`) | **Belum berupa kolom skema pada Fase Awal** — dicatat di sini sebagai kebutuhan yang mungkin muncul di Fase Lanjutan (grant yang otomatis kedaluwarsa pada tanggal tertentu, mis. penugasan sementara). Bila dibutuhkan, penambahannya adalah migrasi kolom baru bertipe `date, nullable` pada `user_permission_granted`, bukan perubahan struktural |
 
 Catatan tambahan: permission `pengukuran:setujui` dan peran approval Pimpinan juga "tersedia tapi belum dipakai" secara fungsional (bukan kolom skema, melainkan kode alur) — didefinisikan penuh di katalog permission (`permissions`, §2.3), tapi belum ada state machine/UI yang memanggilnya pada Fase Awal. Kolom `rekomendasi_pimpinan.ditetapkan_oleh` secara skema menerima id pengguna mana pun, tetapi pada Fase Awal secara operasional selalu diisi pengguna Perencanaan (§2.31) — pengisian oleh Pimpinan sendiri adalah perluasan Fase Lanjutan yang tidak memerlukan migrasi baru.
@@ -1604,7 +1604,7 @@ Catatan tambahan: permission `pengukuran:setujui` dan peran approval Pimpinan ju
 8. Penamaan entitas disesuaikan agar tidak bertabrakan dengan kosakata evaluasi eksternal — `unit` dipilih dan bukan "unit kerja" — sekaligus tetap mencerminkan makna aslinya sebagai kelompok organisasi pemilik indikator dan scope permission, bukan satuan ukur.
 9. Perhitungan berbasis komponen bersifat data-driven dan satu tingkat — definisi cara hitung (`indikator.tipe_perhitungan`, `indikator_komponen`) hidup di data, dapat diubah lewat aplikasi tanpa deployment kode baru, tetapi sengaja dibatasi pada satu tingkat rasio/penjumlahan agar tetap dapat diverifikasi dan dibekukan penuh ke snapshot; formula bertingkat yang lebih kompleks diserahkan ke tipe `manual` alih-alih dipaksakan ke dalam mesin perhitungan yang belum tentu dapat memodelkannya dengan benar.
 10. Klaim (dokumentasi keterkaitan) dan pengukuran (nilai capaian) dipisahkan tegas sebagai dua tabel berbeda dengan tanggung jawab berbeda — `klaim_kegiatan` murni mendokumentasikan dukungan dan arah dampak, sama sekali tidak menulis ke `pengukuran_komponen`/`rencana_aksi_target`, untuk mencegah penghitungan ganda yang sulit dideteksi bila kedua tanggung jawab itu digabung dalam satu mekanisme otomatis.
-11. Model hak akses dipisah tegas menjadi **data yang dapat dipelihara** (peran dan isinya, `roles`/`role_permissions`) dan **pengecualian eksplisit per pengguna** (`user_permission_granted`/`user_permission_denials`), dievaluasi hidup saat request lewat satu service resolusi terpusat (§3) — bukan disalin ke baris statis per pengguna. Pemisahan ini membuat perubahan katalog/isi peran otomatis berlaku bagi seluruh pemegangnya, sekaligus memungkinkan sistem membedakan "tidak diberi" dari "sengaja dicabut", pembedaan yang dibutuhkan saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
+11. Model hak akses dipisah tegas menjadi **data yang dapat dipelihara** (peran dan isinya, `roles`/`role_permissions`) dan **pengecualian eksplisit per pengguna** (`user_permission_granted`/`user_permission_denied`), dievaluasi hidup saat request lewat satu service resolusi terpusat (§3) — bukan disalin ke baris statis per pengguna. Pemisahan ini membuat perubahan katalog/isi peran otomatis berlaku bagi seluruh pemegangnya, sekaligus memungkinkan sistem membedakan "tidak diberi" dari "sengaja dicabut", pembedaan yang dibutuhkan saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
 12. Pemisahan tugas (§4) sengaja ditempatkan sebagai validasi bisnis tetap di service layer, terpisah dari mekanisme deny yang dapat dikonfigurasi (§2.8) — supaya aturan "pengaju tidak boleh menyetujui pekerjaannya sendiri" tidak dapat dinonaktifkan lewat pemberian grant apa pun, termasuk oleh Superadmin.
 
 ---

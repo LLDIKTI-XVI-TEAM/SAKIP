@@ -92,7 +92,7 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 1. Dashboard hanya menghitung data yang sudah **Disahkan** sebagai capaian resmi. Data berstatus Draft, Diajukan, Diverifikasi, atau Dikembalikan — baik pada Pengukuran maupun Rencana Aksi — tetap terlihat dalam konteks kerja (mis. daftar tugas verifikator), tapi tidak masuk ke ringkasan kinerja.
 2. Pengukuran, Rencana Aksi, dan Kegiatan yang sudah memiliki nilai atau catatan tidak dihapus permanen. Perubahan status — termasuk pembatalan — direkam sebagai transisi status di audit log, bukan sebagai penghapusan baris. Kegiatan yang tidak terlaksana diberi status dan justifikasi, bukan dihapus (§15.2).
 3. Snapshot membekukan konteks pengukuran, bukan menghapus fleksibilitas master data. Indikator, target, dan definisi komponen boleh terus dikembangkan dari tahun ke tahun; snapshot hanya memastikan pengukuran tahun berjalan tetap merujuk definisi, target, arah penilaian, dan cara hitung yang berlaku saat periode itu diaktifkan. Baris snapshot yang telah dirujuk oleh pengukuran bersifat abadi — tidak ada restatement data historis.
-4. Hak akses memakai model RBAC hidup: peran (`roles`) memuat permission sebagai data (`role_permissions`) yang dievaluasi setiap permintaan, dilengkapi pemberian izin tambahan per unit (`user_permission_granted`) dan pencabutan izin eksplisit (`user_permission_denials`) yang menang atas segala pemberian izin — bukan role yang di-hardcode maupun salinan baris izin statis per pengguna. Mekanisme ini menjadi gate akses backend sejak awal, dievaluasi penuh di server (bukan di klien), meski UI pengelolaannya masih disederhanakan pada Fase Awal (§7). Pengecualian yang disengaja: permission pengisian pengukuran dan rencana aksi milik peran Perencanaan bersifat global (tanpa scope unit) karena bersumber dari isi peran yang selalu global, sebab Perencanaan bertindak sebagai penjaga integritas data lintas unit, bukan pemilik satu unit tertentu.
+4. Hak akses memakai model RBAC hidup: peran (`roles`) memuat permission sebagai data (`role_permissions`) yang dievaluasi setiap permintaan, dilengkapi pemberian izin tambahan per unit (`user_permission_granted`) dan pencabutan izin eksplisit (`user_permission_denied`) yang menang atas segala pemberian izin — bukan role yang di-hardcode maupun salinan baris izin statis per pengguna. Mekanisme ini menjadi gate akses backend sejak awal, dievaluasi penuh di server (bukan di klien), meski UI pengelolaannya masih disederhanakan pada Fase Awal (§7). Pengecualian yang disengaja: permission pengisian pengukuran dan rencana aksi milik peran Perencanaan bersifat global (tanpa scope unit) karena bersumber dari isi peran yang selalu global, sebab Perencanaan bertindak sebagai penjaga integritas data lintas unit, bukan pemilik satu unit tertentu.
 5. Beberapa alur — misalnya approval Pimpinan atas pengukuran — sengaja disederhanakan pada Fase Awal, tapi skema data tetap dirancang penuh dari awal supaya penambahan alur lanjutan nanti tidak membutuhkan migrasi data besar atau berisiko. Rekomendasi Pimpinan (§22) tetap diisi pada Fase Awal, tetapi oleh Perencanaan — bukan oleh Pimpinan sendiri — karena Pimpinan belum masuk ke alur kerja aplikasi.
 6. Tindakan sensitif seperti koreksi PK, pengembalian pengukuran atau rencana aksi (termasuk pengembalian setelah pengesahan), penggantian penanggung jawab, revisi Renstra, perubahan definisi komponen indikator, perubahan persyaratan berkas, penghapusan berkas/klaim, perubahan setelan aplikasi, dan penghapusan unit/indikator wajib menyertakan alasan tertulis (bila relevan) dan tercatat di audit log.
 7. Deadline pengisian bersifat mutlak bagi penanggung jawab (PIC) di unit — baik untuk jendela penyusunan rencana aksi maupun jendela pengisian pengukuran per periode. Perencanaan dikecualikan dari kedua batas ini karena berperan menjaga kelengkapan dan kebenaran data sampai tahun ditutup.
@@ -178,7 +178,7 @@ Hak akses SAKIP memakai **RBAC (Role-Based Access Control) dengan grant dan deny
 3. **`role_permissions`** — isi tiap peran sebagai data (§7.3): daftar permission yang melekat pada suatu peran. Permission yang berasal dari peran **selalu bersifat global** — tabel ini tidak memiliki kolom `unit_id`.
 4. **`user_roles`** — peran yang dipegang tiap pengguna. Pada Fase Awal, satu pengguna memegang **tepat satu** peran (`unique(user_id)`); struktur pivot ini disiapkan agar multi-peran dapat dibuka di Fase Lanjutan hanya dengan melepas constraint tersebut.
 5. **`user_permission_granted`** — pemberian izin tambahan di luar isi peran, opsional di-scope ke satu `unit_id` (`NULL` = global). Ini satu-satunya tempat scope unit hidup dalam model ini — mis. hak isi pengukuran/rencana aksi/kegiatan milik PIC diberikan di sini, bukan lewat isi peran.
-6. **`user_permission_denials`** — pencabutan izin eksplisit, opsional di-scope ke satu `unit_id` (`NULL` = pencabutan menyeluruh). Dapat mencabut permission yang berasal dari peran maupun dari grant.
+6. **`user_permission_denied`** — pencabutan izin eksplisit, opsional di-scope ke satu `unit_id` (`NULL` = pencabutan menyeluruh). Dapat mencabut permission yang berasal dari peran maupun dari grant.
 
 Permintaan otorisasi dijawab lewat algoritma resolusi izin (§7.4): himpunan izin dari peran + grant dibandingkan terhadap himpunan pencabutan, dengan **presedens deny menang** — bila ada pencabutan yang cocok, permintaan ditolak terlepas dari peran atau grant apa pun yang dimiliki pengguna. Pembedaan "tidak pernah diberi" dari "sengaja dicabut" ini dibutuhkan saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
 
@@ -246,7 +246,7 @@ Setiap permintaan otorisasi menjawab pertanyaan **"boleh(kode_permission, unit_t
 
 1. **Fail closed.** Bila tidak ada baris `permissions` aktif dengan `kode` tersebut, jawabannya langsung **tolak** — kode permission yang tidak dikenal tidak pernah dianggap "diizinkan secara default".
 2. **Susun himpunan allow**: (a) seluruh permission dari peran pengguna (`user_roles` → `role_permissions`), diperlakukan **global**; (b) baris `user_permission_granted` milik pengguna yang cocok.
-3. **Susun himpunan deny**: baris `user_permission_denials` milik pengguna yang cocok.
+3. **Susun himpunan deny**: baris `user_permission_denied` milik pengguna yang cocok.
 4. **Pencocokan scope.** Untuk pertanyaan dengan `unit_target = U`: deny cocok bila `unit_id IS NULL` **atau** `unit_id = U`; grant cocok bila `unit_id = U`. Untuk pertanyaan tanpa `unit_target`: deny ber-`unit_id` **tidak** menghalangi (izin untuk unit lain tetap berlaku); deny dengan `unit_id IS NULL` selalu menghalangi.
 5. **Presedens: deny menang.** Ada deny yang cocok → **tolak**. Tidak ada deny yang cocok tetapi ada allow yang cocok → **izinkan**. Tidak ada allow yang cocok → **tolak**.
 6. **Terpisah dari validasi bisnis.** Jendela waktu (periode, rencana aksi) dan kepemilikan unit adalah validasi bisnis yang berjalan **setelah** izin dinyatakan "boleh" — bukan bagian dari resolusi izin. Izin menjawab "apakah boleh"; validasi bisnis menjawab "apakah masih dalam waktunya, untuk record yang benar, dan lewat gerbang kelengkapan yang benar" (§12.3, §14.7, §19.4).
@@ -260,7 +260,7 @@ Pada Fase Awal, UI pengelolaan akses disederhanakan menjadi tiga form dan satu h
 
 1. **Assign Peran** — Superadmin/Admin memilih pengguna dan menetapkan satu peran (Superadmin/Admin/Perencanaan/Pimpinan/Pegawai). Menyimpan baris di `user_roles` (constraint `unique(user_id)` pada Fase Awal).
 2. **Kelola Grant Izin per Unit** — Superadmin/Admin memilih pengguna, permission bertipe `unit` (`pengukuran:create`/`update`, `rencana_aksi:create`/`update`/`ajukan`, `kegiatan:create`/`update`), unit target, dan alasan (wajib), lalu menyimpan baris `user_permission_granted`. Form ini adalah satu-satunya jalur baku pemberian hak isi pengukuran, rencana aksi, dan kegiatan bagi Pegawai/PIC — konsisten dengan pola bahwa seluruh hak isi data kinerja tingkat unit diberikan lewat satu form grant, bukan form terpisah per entitas. `berkas:read`/`upload`/`delete` mengikuti otomatis lewat kepemilikan induk (rencana aksi/pengukuran/kegiatan) yang menjadi hak akses PIC unit tersebut, tanpa baris grant tersendiri.
-3. **Kelola Deny Izin** — Superadmin/Admin memilih pengguna, permission (global atau ber-unit), unit target (opsional — kosong berarti pencabutan menyeluruh), dan alasan (wajib), lalu menyimpan baris `user_permission_denials`.
+3. **Kelola Deny Izin** — Superadmin/Admin memilih pengguna, permission (global atau ber-unit), unit target (opsional — kosong berarti pencabutan menyeluruh), dan alasan (wajib), lalu menyimpan baris `user_permission_denied`.
 4. **"Jelaskan izin pengguna"** — pilih pengguna, sistem menampilkan daftar izin efektif per unit lengkap dengan **asal tiap izin** (peran/grant) dan deny yang berlaku. Halaman ini digerbangi permission `pengguna:read` (Admin/Superadmin) — tidak ada permission baru yang dibuat untuk halaman ini.
 
 Ketiga form digerbangi permission `akses:update`, yang hanya dimiliki Superadmin dan Admin — konsisten dengan segregasi tugas pada §7.3: pengelolaan akun/akses terpisah dari kewenangan atas data kinerja yang dipegang Perencanaan.
@@ -278,11 +278,11 @@ Kedua aturan ini tidak menggantikan resolusi izin (§7.4): aktor tetap harus mem
 
 ### 7.7 Unit
 
-`unit` menggantikan istilah "tim kerja" pada seluruh lapisan sistem — nama tabel, kolom FK (`unit_id` pada `indikator`, `jadwal_snapshot`, `user_permission_granted`, `user_permission_denials`, `rencana_aksi`, `kegiatan`), permission (`unit:create/read/update/delete`), audit event (`unit.hapus`, dst.), dan seluruh teks aplikasi.
+`unit` menggantikan istilah "tim kerja" pada seluruh lapisan sistem — nama tabel, kolom FK (`unit_id` pada `indikator`, `jadwal_snapshot`, `user_permission_granted`, `user_permission_denied`, `rencana_aksi`, `kegiatan`), permission (`unit:create/read/update/delete`), audit event (`unit.hapus`, dst.), dan seluruh teks aplikasi.
 
 Definisi baku: `unit` adalah kelompok organisasi pemilik indikator dan penentu scope grant/deny permission pengukuran/rencana aksi/kegiatan — **bukan** satuan ukur (itu `indikator.satuan`). Penamaan sengaja tidak memakai "unit kerja" agar tidak bertabrakan dengan kosakata evaluasi ZI/SAKIP yang sudah punya makna berbeda. Label tampilan di UI (mis. jika institusi ingin menyebutnya "Bagian"/"Bidang") dapat disetel lewat modul Setelan Aplikasi (§7.7, §26.3) tanpa mengubah struktur data.
 
-- `unit` adalah master global (bukan sub-organisasi bertingkat), tanpa tabel keanggotaan eksplisit — keterkaitan pengguna ke unit terjadi melalui scope pada `user_permission_granted.unit_id` (dan pencabutannya pada `user_permission_denials.unit_id`), dan keterkaitan indikator/kegiatan/rencana aksi ke unit melalui kolom `unit_id` masing-masing.
+- `unit` adalah master global (bukan sub-organisasi bertingkat), tanpa tabel keanggotaan eksplisit — keterkaitan pengguna ke unit terjadi melalui scope pada `user_permission_granted.unit_id` (dan pencabutannya pada `user_permission_denied.unit_id`), dan keterkaitan indikator/kegiatan/rencana aksi ke unit melalui kolom `unit_id` masing-masing.
 - Unit berstatus `aktif` atau `nonaktif`.
 - Unit yang masih memiliki indikator, rencana aksi, atau kegiatan terkait tidak dapat dihapus.
 - Unit kosong (tanpa keterkaitan) dapat dihapus, hanya oleh Superadmin.
@@ -1025,7 +1025,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 
 Audit log tidak dipersempit pada Fase Awal — seluruh peristiwa berikut dicatat sejak hari pertama:
 
-- Perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), pemberian izin (`user_permission_granted`), dan pencabutan izin (`user_permission_denials`) — seluruhnya lewat permission `akses:update`.
+- Perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), pemberian izin (`user_permission_granted`), dan pencabutan izin (`user_permission_denied`) — seluruhnya lewat permission `akses:update`.
 - Pembuatan/perubahan/penghapusan `regulasi` (`nilai_lama`/`nilai_baru` dan `alasan` untuk `update`/`delete`), perubahan `renstra.regulasi_id`/`indikator.regulasi_id`, dan pengiriman/penghapusan lampiran dokumen dasar aturan (§9.8).
 - CRUD dan perubahan status Renstra, termasuk revisi in-place akibat Kepmen IKU baru (`dasar_hukum`, `regulasi_id`, atau atribut lain, dengan `alasan` memuat rujukan Kepmen — §10.5), serta pengiriman/penghapusan lampiran dokumen Renstra (§10.6).
 - CRUD Sasaran dan Indikator, termasuk perpindahan indikator antar unit, perubahan `tipe_perhitungan` indikator, perubahan `regulasi_id`, dan pengarsipan indikator akibat IKU dihapus dari Kepmen.
@@ -1131,7 +1131,7 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks, preferensi pres
   - `role_permissions`: unique(`role_id`, `permission_id`).
   - `user_roles`: unique(`user_id`) — satu peran per pengguna pada Fase Awal.
   - `user_permission_granted`: unique(`user_id`, `permission_id`, `unit_id`) — implementasi index unik memakai `COALESCE(unit_id, ...)` karena PostgreSQL memperlakukan NULL sebagai nilai berbeda.
-  - `user_permission_denials`: unique(`user_id`, `permission_id`, `unit_id`) dengan pola `COALESCE` yang sama.
+  - `user_permission_denied`: unique(`user_id`, `permission_id`, `unit_id`) dengan pola `COALESCE` yang sama.
   - `users.keycloak_id`: unique — satu identitas Keycloak terhubung ke satu akun SAKIP.
   - `pengaturan.kunci`: unique.
 - Anjuran PostgreSQL exclusion constraint (`EXCLUDE USING gist` + `btree_gist`) untuk rentang tahun Renstra yang beririsan tetap berlaku sebagai lapisan pertahanan kedua (§12.4); validasi utama ditegakkan di service layer.
@@ -1159,7 +1159,7 @@ Pada Fase Awal, alert kontekstual mencakup notifikasi/tampilan dalam aplikasi (b
 
 Model data lengkap (ERD dan detail kolom) didokumentasikan secara terpisah pada **SAKIP - Data Model.md**. Ringkasan kelompok entitas pada Fase Awal:
 
-- **Identitas & Akses**: `users`, `unit`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`.
+- **Identitas & Akses**: `users`, `unit`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denied`.
 - **Dasar Aturan**: `regulasi`.
 - **Strategi & Kinerja**: `renstra`, `renstra_pk`, `sasaran`, `indikator`, `target_tahunan`.
 - **Periode & Jadwal**: `periode`, `jadwal_tahunan`, `jadwal_periode`, `jadwal_snapshot`, `jadwal_snapshot_komponen`.
@@ -1246,7 +1246,7 @@ Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 23. **UI akses terbatas**: Hanya tiga form pengelolaan akses (assign peran, kelola grant izin per unit, kelola deny izin) beserta halaman "Jelaskan izin pengguna" yang tersedia di UI; tidak ada UI matrix permission penuh.
 24. **Setelan aplikasi terbatas dan teraudit**: Hanya Superadmin dan Admin yang dapat mengubah `pengaturan` (termasuk kunci grup `berkas`) dan mengubah `format_diizinkan`/`ukuran_maks_kb` lewat halaman "Batas unggahan berkas"; setiap perubahan menghasilkan baris `audit_log` dengan nilai lama/baru; tidak ada kunci `pengaturan` maupun halaman "Batas unggahan berkas" yang mengendalikan enum/status/permission/aturan bisnis maupun kolom substantif persyaratan bukti dukung.
 25. **Seed data**: Skrip seeder Laravel dapat dijalankan pada lingkungan pengembangan/testing dan menghasilkan minimal 1 Renstra, Sasaran, beberapa Indikator (termasuk minimal satu indikator berkomponen), Target, 1 PK, 1 Jadwal Tahunan beserta Jadwal Periode-nya, Rencana Aksi yang disahkan, dan Kegiatan yang valid untuk pengujian alur end-to-end.
-26. **Presedens deny**: Sistem menolak permintaan otorisasi bila ditemukan baris `user_permission_denials` yang cocok (unit maupun global), terlepas dari peran atau grant apa pun yang dimiliki pengguna.
+26. **Presedens deny**: Sistem menolak permintaan otorisasi bila ditemukan baris `user_permission_denied` yang cocok (unit maupun global), terlepas dari peran atau grant apa pun yang dimiliki pengguna.
 27. **Fail closed**: Sistem menolak permintaan otorisasi untuk kode permission yang tidak terdaftar aktif di tabel `permissions`.
 28. **Dasar izin tercatat**: Setiap aksi dengan `permissions.sensitif = true` menghasilkan baris `audit_log` yang memuat `dasar_izin` (sumber allow yang mengizinkan, atau deny yang menolak).
 29. **Pemisahan tugas F1/F2**: Sistem menolak transisi verifikasi/pengesahan Pengukuran oleh aktor yang sama dengan `pengukuran.created_by` pada jalur PIC; transisi yang sama oleh Perencanaan atas pengisiannya sendiri berhasil namun tercatat dengan penanda `self_approval`.

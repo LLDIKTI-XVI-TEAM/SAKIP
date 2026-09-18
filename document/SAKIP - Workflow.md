@@ -1528,7 +1528,7 @@ flowchart TD
 
 ## 19. Alur Evaluasi Permission Saat Request
 
-Model akses SAKIP adalah **RBAC hidup dengan pengecualian eksplisit**: peran (`roles`) memuat daftar permission sebagai data (`role_permissions`), dievaluasi **saat request** — bukan disalin ke baris per pengguna. Di atas peran, dua mekanisme tambahan memberi fleksibilitas terkendali: **grant** (`user_permission_granted`) memberi izin tambahan bersifat scope-unit, dan **deny** (`user_permission_denials`) mencabut izin — baik yang berasal dari peran maupun dari grant — secara eksplisit dan beralasan. Pembedaan ini penting karena sistem harus bisa membedakan **"tidak diberi"** dari **"sengaja dicabut"**, terutama saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
+Model akses SAKIP adalah **RBAC hidup dengan pengecualian eksplisit**: peran (`roles`) memuat daftar permission sebagai data (`role_permissions`), dievaluasi **saat request** — bukan disalin ke baris per pengguna. Di atas peran, dua mekanisme tambahan memberi fleksibilitas terkendali: **grant** (`user_permission_granted`) memberi izin tambahan bersifat scope-unit, dan **deny** (`user_permission_denied`) mencabut izin — baik yang berasal dari peran maupun dari grant — secara eksplisit dan beralasan. Pembedaan ini penting karena sistem harus bisa membedakan **"tidak diberi"** dari **"sengaja dicabut"**, terutama saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
 
 Pertanyaan yang dijawab sistem pada setiap request: **"boleh(kode_permission, unit_target?)"** untuk aktor yang sedang login. Pertanyaan tanpa `unit_target` hanya sah untuk permission bertipe `global` (`permissions.butuh_scope = global`).
 
@@ -1544,7 +1544,7 @@ Pertanyaan yang dijawab sistem pada setiap request: **"boleh(kode_permission, un
      a. Seluruh permission dari peran pengguna (user_roles → role_permissions) — diperlakukan
         SELALU GLOBAL, tabel role_permissions tidak memiliki kolom unit_id
      b. Baris user_permission_granted milik pengguna untuk permission yang diminta
-  4. Menyusun himpunan DENY: baris user_permission_denials milik pengguna untuk permission
+  4. Menyusun himpunan DENY: baris user_permission_denied milik pengguna untuk permission
      yang diminta
   5. PENCOCOKAN SCOPE terhadap unit_target U (bila pertanyaan menyasar unit tertentu):
      → deny cocok bila unit_id IS NULL (deny global) ATAU unit_id = U
@@ -1580,7 +1580,7 @@ flowchart TD
     A[Request masuk: user melakukan aksi\nentitas:aksi, opsional unit_target U] --> B{permissions aktif dengan\nkode entitas:aksi ada?}
     B -- Tidak --> Z1[TOLAK - fail closed]
     B -- Ya --> C[Susun ALLOW:\nrole_permissions milik peran user - selalu global\n+ user_permission_granted yang cocok]
-    C --> D[Susun DENY:\nuser_permission_denials yang cocok]
+    C --> D[Susun DENY:\nuser_permission_denied yang cocok]
     D --> E{Ada unit_target U?}
     E -- Ya --> F[deny cocok: unit_id IS NULL atau unit_id = U\ngrant cocok: unit_id = U]
     E -- Tidak --> G[deny unit_id IS NULL selalu menghalangi\ndeny ber-unit TIDAK menghalangi]
@@ -1668,7 +1668,7 @@ Pengelolaan akses pada Fase Awal disediakan lewat **tiga form** terpisah, ditamb
 
 1. **Form Assign Peran** — menetapkan peran (`user_roles`) seorang pengguna.
 2. **Form Kelola Grant Izin per Unit** — memberikan izin tambahan bersifat scope-unit (`user_permission_granted`).
-3. **Form Kelola Deny Izin** — mencabut izin, baik global maupun ber-unit (`user_permission_denials`).
+3. **Form Kelola Deny Izin** — mencabut izin, baik global maupun ber-unit (`user_permission_denied`).
 4. **Halaman "Jelaskan izin pengguna"** — transparansi izin efektif, bukan form pengeditan.
 
 UI matrix permission penuh (pencentangan bebas seluruh permission katalog per pengguna) **ditunda ke Fase Lanjutan** — pada Fase Awal, seluruh pengecualian ditangani lewat kombinasi ketiga form di atas.
@@ -1700,7 +1700,7 @@ UI matrix permission penuh (pencentangan bebas seluruh permission katalog per pe
         menyeluruh/global)
      b. Mengisi alasan (wajib — inilah yang membedakan "sengaja dicabut" dari "belum pernah
         diberi")
-     c. Menyimpan → INSERT user_permission_denials (ditetapkan_oleh = Admin/Superadmin yang
+     c. Menyimpan → INSERT user_permission_denied (ditetapkan_oleh = Admin/Superadmin yang
         login); deny dapat mencabut permission yang berasal dari peran MAUPUN dari grant
      d. Dapat mencabut baris deny yang sudah ada — pencabutan tercatat audit_log
 
@@ -1730,7 +1730,7 @@ UI matrix permission penuh (pencentangan bebas seluruh permission katalog per pe
         tersebut, sehingga wajib ter-audit meski dilakukan lewat rilis kode + seeder
      b. Penambahan/pergantian/penghapusan user_roles — alasan wajib
      c. Penambahan/penghapusan user_permission_granted — alasan wajib
-     d. Penambahan/penghapusan user_permission_denials — alasan wajib
+     d. Penambahan/penghapusan user_permission_denied — alasan wajib
 ```
 
 ```mermaid
@@ -1739,7 +1739,7 @@ flowchart TD
     B -- Kelola Unit --> C[unit:create/read/update/delete\ndiizinkan]
     B -- Form 1: Assign Peran --> D1[akses:update -\nINSERT/UPDATE user_roles\naudit nilai_lama/nilai_baru peran]
     B -- Form 2: Grant per Unit --> D2[akses:update -\nINSERT user_permission_granted\nalasan wajib, hanya permission butuh_scope=unit]
-    B -- Form 3: Deny Izin --> D3[akses:update -\nINSERT user_permission_denials\nalasan wajib, global atau ber-unit]
+    B -- Form 3: Deny Izin --> D3[akses:update -\nINSERT user_permission_denied\nalasan wajib, global atau ber-unit]
     B -- Halaman Jelaskan Izin --> D4[pengguna:read -\ntampilkan izin efektif + asal + deny\nread-only]
     B -- Ubah Setelan Aplikasi\ntermasuk grup berkas --> E[pengaturan:update\ndiizinkan - lihat §18]
     B -- Baca Audit/Dashboard/Laporan --> F[audit:read, dashboard:read,\nlaporan:read diizinkan\ntanpa laporan:ekspor]
