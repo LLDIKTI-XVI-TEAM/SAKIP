@@ -18,7 +18,9 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
   4. Menyusun Sasaran dan Indikator di bawah Renstra tersebut — tiap indikator diberi unit pemilik
      dan arah penilaian (naik_baik/turun_baik)
   5. Mengisi Target Tahunan untuk tiap indikator
-  6. Mencatat Perjanjian Kinerja (renstra_pk) untuk tahun berjalan
+  6. Mencatat Perjanjian Kinerja (renstra_pk) tahun berjalan: ditandatangani resmi oleh Kepala Lembaga,
+     unggah berkas fisik PDF dokumen PK (`file_pk_path`), dan otomatis mengunci target tahunan indikator
+     (`target_terkunci = true`)
   7. Mengaktifkan Renstra
      → Validasi gagal (dasar_hukum kosong atau beririsan dengan Renstra aktif lain): kembali ke langkah 3
      → Validasi lolos: Renstra berstatus AKTIF
@@ -26,19 +28,24 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
   9. Menyusun daftar Periode yang diharapkan tahun ini (jadwal_periode) beserta jendela
      pengisian dan reviu masing-masing periode (mis. Triwulan I–IV)
   10. Mengaktifkan Jadwal Tahunan
-     → Gerbang 1 gagal (renstra_pk tahun Y belum tercatat): kembali ke langkah 6
+     → Gerbang 1 gagal (renstra_pk tahun Y belum tercatat & target belum terkunci): kembali ke langkah 6
      → Gerbang 2 gagal (ada indikator aktif tanpa target_tahunan tahun Y): kembali ke langkah 5
      → Gerbang 3 gagal (tahun Y di luar rentang tahun Renstra): kembali ke langkah 8
      → Seluruh gerbang lolos: Jadwal AKTIF, sistem membuat jadwal_snapshot untuk setiap pasangan
-       (jadwal, indikator) yang belum punya baris
+       (jadwal, indikator) yang belum punya baris.
+     Catatan reversibilitas: Bila jadwal telah aktif namun BELUM ADA pengukuran yang dibuat/disubmit
+     oleh PIC, status dapat dikembalikan ke draft. Bila sudah ada pengukuran, terkunci penuh dan memerlukan
+     jalur jadwal:buka_kembali (§7).
 
 📋 Perencanaan / ⚙️ Superadmin
-  11. Menugaskan Penanggung Jawab per indikator
+  11. Menugaskan Penanggung Jawab per unit kerja dengan menetapkan 1 PIC Utama (Primary PIC) yang berhak
+      mengajukan pengukuran; anggota lain di unit yang sama memiliki hak akses kolaboratif/view
 
-🎯 Penanggung Jawab (PIC, di-scope per unit)
-  12. Mengisi nilai dan catatan pengukuran, dalam jendela pengisian periode berjalan
-      (dari jadwal_periode) → Status: Draft
-  13. Mengajukan pengukuran sebelum jendela pengisian periode itu berakhir → Status: Diajukan
+🎯 Penanggung Jawab (PIC Utama & Rekan Unit)
+  12. Mengisi nilai realisasi dan catatan/analisis kendala dalam jendela pengisian periode berjalan
+      (dari jadwal_periode) → Status: Draft. Sistem menerapkan Optimistic Locking UX (jika ada konflik
+      penyimpanan bersamaan, menampilkan pesan informatif & angka terbaru tanpa menghapus draft teks analisis)
+  13. PIC Utama mengajukan pengukuran sebelum jendela pengisian periode itu berakhir → Status: Diajukan
       (notifikasi terkirim ke Perencanaan)
       → Jendela pengisian sudah lewat: PIC tidak dapat lagi membuat/mengubah/mengajukan;
         hanya Perencanaan yang masih dapat mengisi (lihat §5)
@@ -49,15 +56,17 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
         Jawab (langkah 12)
       → Disetujui teknis: Status: Diverifikasi
   15. Mengesahkan pengukuran (Fase Awal: langsung, tanpa approval Pimpinan) → Status: Disahkan
-
-📋 Perencanaan / ⚙️ Superadmin
-  16. Menetapkan Status Capaian secara manual (Tercapai / Belum Tercapai) untuk pengukuran yang
-      sudah Disahkan
-  17. Dashboard dan Laporan otomatis menampilkan capaian terbaru
+  16. Penetapan Status Capaian:
+      → Sistem otomatis menetapkan status capaian awal by formula: Capaian ≥ 100% = 'Tercapai',
+        Capaian < 100% = 'Belum Tercapai' (sumber: formula)
+      → Perencanaan/Superadmin dapat melakukan override manual bila diperlukan, mencatat alasan & audit log
+  17. Dashboard dan Laporan otomatis menampilkan capaian terbaru dengan kebijakan capping maksimal 100%
+      pada agregasi indeks kinerja institusi/sasaran (standar KemenPAN-RB), sementara persentase riil (uncapped)
+      tetap terpelihara di detail IKU
 
 ✍️ Pimpinan
-  18. Memantau capaian lewat dashboard/laporan, bisa ekspor Excel — sifatnya read-only, tanpa
-      aksi approval pada Fase Awal
+  18. Memantau capaian lewat dashboard visual (ApexCharts dengan fitur unduh gambar PNG/SVG) dan laporan
+      matriks hierarkis resmi LLDIKTI XVI (ekspor Excel .xlsx) — sifatnya read-only, tanpa aksi approval pada Fase Awal
 ```
 
 ```mermaid
@@ -545,43 +554,42 @@ sequenceDiagram
 
 ---
 
-## 10. Alur Penetapan Status Capaian
+## 10. Alur Penetapan Status Capaian (Auto-Default Formula + Manual Override)
 
 ```
-📋 Perencanaan / ⚙️ Superadmin
-  1. Membuka daftar pengukuran berstatus Disahkan yang belum punya status_capaian aktif
-  2. Memilih status: Tercapai atau Belum Tercapai untuk tiap pengukuran
-  3. Sistem menyimpan baris status_capaian baru dengan sumber=manual, ditetapkan_oleh=user
-     yang login
-  4. Status capaian itu langsung aktif untuk pengukuran tsb dan tampil di dashboard
-  5. Kalau suatu saat perlu direvisi, pilih status baru
-     → sistem menyimpan baris status_capaian baru sebagai status aktif, baris lama tetap
-       tersimpan sebagai riwayat (soft replace, bukan update/hapus)
-  6. Kalau tidak ada revisi, proses selesai — status capaian tetap tampil di dashboard
+⚙️ Sistem (Kalkulasi Otomatis saat Pengukuran Disahkan)
+  1. Begitu pengukuran mencapai status 'Disahkan', sistem mengeksekusi formula kalkulasi:
+     - Arah naik_baik: Capaian (%) = (Realisasi / Target) * 100%
+     - Arah turun_baik: Capaian (%) = (Target / Realisasi) * 100%
+  2. Sistem secara otomatis membuat baris status_capaian awal (default):
+     - Jika Capaian (%) ≥ 100% → status: 'Tercapai'
+     - Jika Capaian (%) < 100% → status: 'Belum Tercapai'
+     - Kolom sumber: 'formula', ditetapkan_oleh: NULL
+  3. Status capaian otomatis ini langsung aktif dan terefleksi di dashboard/laporan
 
-(Fase Lanjutan, belum dibangun: jalur ini digambar sebagai referensi desain, di mana sistem
-eksternal/job terjadwal menghitung status_capaian otomatis dengan sumber=data_sumber,
-ditetapkan_oleh=NULL — belum ada job yang menjalankan jalur ini di Fase Awal)
+📋 Perencanaan / ⚙️ Superadmin (Kewenangan Manual Override)
+  4. Bila terdapat evaluasi kualitatif khusus atau kebijakan pimpinan:
+     Perencanaan/Superadmin dapat melakukan override manual atas status capaian tersebut
+  5. Sistem menyimpan baris status_capaian baru sebagai status aktif (sumber: 'manual',
+     ditetapkan_oleh: user_id yang login), baris lama tetap tersimpan sebagai riwayat audit (soft replace)
+  6. Wajib mencatat alasan override pada audit_log
 ```
 
 ```mermaid
 flowchart TD
-    A[Pengukuran berstatus Disahkan] --> B{Fase pemrosesan status capaian}
-    B -->|FASE AWAL - aktif| C[Perencanaan/Superadmin membuka\ndaftar pengukuran Disahkan\ntanpa status_capaian aktif]
-    C --> D[Pilih status: Tercapai / Belum Tercapai]
-    D --> E[INSERT status_capaian\nsumber = manual, ditetapkan_oleh = user]
-    E --> F[Status capaian aktif untuk\npengukuran ini]
-    F --> G{Perlu revisi status?}
-    G -- Ya --> H[INSERT baris status_capaian baru\nbaris lama tetap sbg riwayat - soft replace]
+    A[Pengukuran disahkan oleh Perencanaan] --> B[Sistem hitung Capaian % via Formula]
+    B --> C{Capaian % >= 100%?}
+    C -- Ya --> D[INSERT status_capaian\nstatus = Tercapai\nsumber = formula]
+    C -- Tidak --> E[INSERT status_capaian\nstatus = Belum Tercapai\nsumber = formula]
+    D --> F[Status capaian aktif - tampil di dashboard]
+    E --> F
+    F --> G{Perencanaan lakukan\nManual Override?}
+    G -- Ya --> H[Input status baru + alasan wajib\nINSERT status_capaian baru\nsumber = manual, ditetapkan_oleh = user\nsoft replace & catat audit_log]
     H --> F
-    G -- Tidak --> I([Selesai - tampil di dashboard])
-
-    B -.->|FASE LANJUTAN - belum dibangun| J[["Sistem eksternal / job terjadwal\nmenghitung status_capaian otomatis"]]
-    J -.-> K[["INSERT status_capaian\nsumber = data_sumber,\nditetapkan_oleh = NULL"]]
-    K -.-> F
+    G -- Tidak --> I([Selesai - evaluasi kinerja valid])
 ```
 
-Garis putus-putus menandai jalur `data_sumber` sebagai referensi desain masa depan, bukan sesuatu yang aktif pada Fase Awal — tidak ada job/integrasi yang mengeksekusi cabang tersebut saat ini. Status capaian tetap ditetapkan manual dan terpisah dari transisi status alur `Disahkan` — keduanya adalah dua momen berbeda.
+Penetapan awal status capaian berjalan secara instan dan bebas repot berkat kalkulasi formula otomatis. Namun integritas manajerial tetap terjaga karena Tim Perencanaan memegang kendali untuk melakukan intervensi (override) manual berlandaskan alasan formal yang tercatat di audit log.
 
 ---
 
@@ -751,4 +759,18 @@ Legenda: ✅ = memiliki akses via role preset default; ❌ = tidak termasuk pres
 
 ---
 
-*Seluruh diagram di atas menggambarkan perilaku sistem pada rilis Fase Awal (MVP). Elemen bertanda "Fase Lanjutan" hadir sebagai peta jalan, bukan bagian dari cakupan implementasi saat ini.*
+## 15. Alur Pelaporan Matriks Hierarkis Resmi & Capping Dashboard
+
+### 15.1 Kebijakan Kalkulasi Capping Maksimal 100% pada Dashboard
+- **Level IKU (Detail):** Persentase capaian riil (misal: 125%) tetap disimpan utuh di database dan ditampilkan pada tabel detail pengukuran untuk menjaga transparansi dan mengapresiasi kinerja unggul unit.
+- **Level Agregasi Komposit (Sasaran & Dashboard Eksekutif):** Sistem menerapkan *capping* maksimal 100% pada capaian setiap indikator sebelum menghitung nilai rata-rata Sasaran Strategis maupun Indeks Kinerja Institusi (sesuai standar evaluasi akuntabilitas kinerja KemenPAN-RB). Hal ini memastikan kelebihan capaian satu IKU tidak menutupi kelemahan IKU lain.
+
+### 15.2 Ekspor Excel Format Matriks Hierarkis Resmi LLDIKTI XVI
+- Laporan diekspor ke file Excel (.xlsx) mengikuti layout matriks kanonis dari `document/Pengukuran Kinerja  Triwulan 2026.xlsx`:
+  1. **Kop/Header Formal:** Judul laporan kinerja triwulanan dan identitas LLDIKTI Wilayah XVI.
+  2. **Struktur Matriks Baris:** Sasaran Strategis sebagai baris induk (parent), memayungi Indikator Kinerja Utama (IKU) di bawahnya.
+  3. **Kolom Data:** Nomor, Sasaran Strategis, IKU, Target Tahunan, Target Triwulan, Realisasi TW I s.d. TW IV, Realisasi Tahunan, Persentase Capaian (%), Analisis Faktor Pendorong / Kendala, dan Rencana Tindak Lanjut.
+
+---
+
+*Workflow v1.1 — SAKIP LLDIKTI Wilayah XVI — Fase Awal (MVP) — September 2026 (Finalized post Grill-Me)*
