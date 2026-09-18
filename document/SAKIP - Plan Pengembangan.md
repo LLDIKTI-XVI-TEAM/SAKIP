@@ -11,7 +11,7 @@ React + TypeScript (Inertia Pages & Components via Vite)
        ↕ (Inertia Protocol / Automatic XHR Props / Web Session & CSRF)
 Laravel (Controller, Service, Policy/Gate, Middleware HandleInertiaRequests)
        ↓
-PostgreSQL 17 (Database Relasional)
+PostgreSQL 18 (Database Relasional)
 ```
 
 | Komponen | Teknologi | Peran & Tanggung Jawab |
@@ -20,7 +20,7 @@ PostgreSQL 17 (Database Relasional)
 | **Adapter / Bridge** | **Inertia.js** (`@inertiajs/react` & `inertiajs/inertia-laravel`) | Protokol komunikasi data antara Laravel dan React, passing data sebagai props otomatis, navigasi SPA tanpa full page reload via `<Link>`, form handling via `useForm` hook |
 | **Frontend** | React + TypeScript + Vite | **Presentation & Interaction Layer**: Halaman Inertia (`resources/js/Pages`), komponen UI reaktif, form input, dan visual feedback |
 | **Styling** | Tailwind CSS v4 | Sistem token desain institusi (institutional blue `#122E92` + gold `#D6AC48`) |
-| **Database** | PostgreSQL 17 | Penyimpanan data relasional, integritas constraint, snapshot beku, audit log append-only |
+| **Database** | PostgreSQL 18 | Penyimpanan data relasional, integritas constraint, snapshot beku, audit log append-only |
 | **Autentikasi / SSO** | Keycloak via Socialite (OIDC Authorization Code Flow) | Single Sign-On institusi, session terproteksi cookie/CSRF, user dan permission di-share via middleware `HandleInertiaRequests` |
 | **Visualisasi / Chart** | ApexCharts (`react-apexcharts`) | Grafik interaktif target vs realisasi, ringkasan capaian IKU |
 | **Containerization** | Podman & Podman-compose | Standardisasi container rootless OCI untuk deployment, isolated testing, dan orchestration service (termasuk Keycloak SSO) |
