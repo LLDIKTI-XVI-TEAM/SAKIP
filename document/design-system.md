@@ -1,9 +1,9 @@
 # SAKIP Design System — Implementation Guide
 
 > Panduan implementasi antarmuka dan design system aplikasi **SAKIP** (Sistem Akuntabilitas Kinerja Instansi Pemerintah) LLDIKTI Wilayah XVI.
-> Dokumen ini adalah panduan kanonis untuk pengembangan UI SAKIP berbasis arsitektur **Laravel + Inertia.js + React + TypeScript + Tailwind CSS v4**.
+> Dokumen ini adalah panduan kanonis untuk pengembangan UI SAKIP berbasis arsitektur **Laravel 13 + Inertia 3 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui**, dengan toolchain **Bun**.
 >
-> Gunakan panduan ini saat membuat atau memodifikasi komponen antarmuka React (`resources/js/Components/`, `Pages/`, `Layouts/`). Jangan menggunakan kelas ad-hoc atau raw hex apabila token dan komponen reusable yang sesuai sudah tersedia.
+> Gunakan panduan ini saat membuat atau memodifikasi komponen antarmuka React (`resources/js/pages/`, `resources/js/components/`, `resources/js/layouts/`). Jangan menggunakan kelas ad-hoc atau raw hex apabila token dan komponen reusable yang sesuai sudah tersedia.
 
 ---
 
@@ -13,14 +13,16 @@ Design system dan panduan implementasi UI untuk aplikasi **SAKIP LLDIKTI Wilayah
 
 | Teknologi | Versi / Keterangan |
 |-----------|--------------------|
-| **Backend** | Laravel (v12 / v13) |
-| **Adapter / Bridge** | **Inertia.js** (`@inertiajs/react` v2 & `inertiajs/inertia-laravel`) |
-| **Frontend** | **React** + **TypeScript** (Inertia Pages & Components) |
+| **Backend** | **Laravel 13** — MVC monolith, routing & controller di sisi server |
+| **Adapter / Bridge** | **Inertia 3** (`@inertiajs/react` v3 & `inertiajs/inertia-laravel`) |
+| **Frontend** | **React 19** + **TypeScript** (Inertia Pages & Components) |
+| **Komponen UI** | **shadcn/ui** — komponen primitif yang dikustomisasi via design tokens |
 | **Styling** | **Tailwind CSS v4** (`@theme` token-based) |
-| **Bundler & Build** | **Vite** (`@vitejs/plugin-react`) |
-| **Database** | **PostgreSQL 18** (Database relasional utama) |
+| **Toolchain Frontend** | **Bun** (package manager & runner) — `bun install`, `bun run dev`, `bun run build`; Vite dijalankan lewat Bun |
+| **Database** | **PostgreSQL** (Database relasional utama) |
+| **Testing** | **Pest** (backend unit & feature) + **Vitest** + **React Testing Library** (komponen React) |
 | **Visualisasi / Chart** | **ApexCharts** (`react-apexcharts`) |
-| **Autentikasi / SSO** | **Keycloak** (OIDC Authorization Code Flow via Socialite) |
+| **Autentikasi / SSO** | **Keycloak** (OIDC Authorization Code Flow via Socialite, session-based) |
 
 ---
 
@@ -131,7 +133,9 @@ text-gray-500     border-gray-300     text-slate-600
 
 ## 🏗️ Struktur Layout Inertia & React
 
-Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia + React, dengan komponen layout React modular di `resources/js/Layouts/`.
+Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia 3 + React 19, dengan komponen layout React modular di `resources/js/layouts/`.
+
+> **Catatan Toolchain:** Tidak ada `package-lock.json` atau referensi `npm`/`node_modules` yang dihasilkan npm di repositori. Lockfile yang sah adalah `bun.lock`/`bun.lockb`. Gunakan `bun install` untuk install dependensi dan `bun run dev`/`bun run build` untuk menjalankan Vite.
 
 ### 1. Root Template: `resources/views/app.blade.php`
 
@@ -152,14 +156,14 @@ Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia + 
 </html>
 ```
 
-### 2. Layout Utama: `resources/js/Layouts/AppLayout.tsx`
+### 2. Layout Utama: `resources/js/layouts/AppLayout.tsx`
 
 ```tsx
 import React, { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import Sidebar from '@/Components/Layouts/Sidebar';
-import Navbar from '@/Components/Layouts/Navbar';
-import FlashMessages from '@/Components/UI/FlashMessages';
+import Sidebar from '@/components/layouts/Sidebar';
+import Navbar from '@/components/layouts/Navbar';
+import FlashMessages from '@/components/ui/FlashMessages';
 import { PageProps } from '@/types';
 
 interface AppLayoutProps {
@@ -207,7 +211,9 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
 
 ## 🧩 Komponen Reusable React (TypeScript)
 
-### 1. Button Component (`resources/js/Components/UI/Button.tsx`)
+### 1. Button Component (`resources/js/components/ui/Button.tsx`)
+
+> **Catatan:** Jika menggunakan komponen button dari shadcn/ui, sesuaikan varian dan token warna agar cocok dengan design system ini. Komponen di bawah adalah contoh implementasi kustom sebagai fallback.
 
 ```tsx
 import React from 'react';
@@ -287,7 +293,7 @@ export default function Button({
 
 ---
 
-### 2. Badge Component (`resources/js/Components/UI/Badge.tsx`)
+### 2. Badge Component (`resources/js/components/ui/Badge.tsx`)
 
 ```tsx
 import React from 'react';
@@ -321,7 +327,8 @@ export default function Badge({ variant = 'muted', children, className = '' }: B
 #### Static Mapping untuk Status SAKIP:
 
 ```tsx
-// Status Alur Pengukuran: draft, diajukan, diverifikasi, disahkan, dikembalikan
+// Status Alur — dipakai pada Pengukuran dan Rencana Aksi:
+// draft → diajukan → diverifikasi → disahkan (dengan dikembalikan sebagai jalur revisi)
 export const alurBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
     draft: { variant: 'muted', label: 'Draft' },
     diajukan: { variant: 'warning', label: 'Diajukan' },
@@ -336,13 +343,20 @@ export const capaianBadgeMap: Record<string, { variant: BadgeVariant; label: str
     belum_tercapai: { variant: 'danger', label: 'Belum Tercapai' },
     belum_ditetapkan: { variant: 'muted', label: 'Belum Ditetapkan' },
 };
+
+// Status Kegiatan
+export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
+    direncanakan: { variant: 'muted', label: 'Direncanakan' },
+    terlaksana: { variant: 'success', label: 'Terlaksana' },
+    tidak_terlaksana: { variant: 'danger', label: 'Tidak Terlaksana' },
+};
 ```
 
 ---
 
-### 3. Modal Alasan Wajib (`resources/js/Components/UI/ModalAlasan.tsx`)
+### 3. Modal Alasan Wajib (`resources/js/components/ui/ModalAlasan.tsx`)
 
-Digunakan pada setiap aksi audit sensitif (pengembalian pengukuran, koreksi PK, buka kembali jadwal/pengukuran):
+Digunakan pada setiap aksi audit sensitif — termasuk pengembalian pengukuran/rencana aksi, koreksi PK, buka kembali jadwal/pengukuran, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan setelan aplikasi:
 
 ```tsx
 import React, { useState } from 'react';
@@ -420,16 +434,16 @@ export default function ModalAlasan({
 
 ---
 
-## 📝 Pola Form Inertia (`useForm`)
+## 📝 Pola Form Inertia 3 (`useForm`)
 
-Contoh pengisian form pengukuran realisasi dengan hook `useForm`:
+Contoh pengisian form pengukuran realisasi dengan hook `useForm` dari `@inertiajs/react` v3:
 
 ```tsx
-// resources/js/Pages/Pengukuran/Edit.tsx
+// resources/js/pages/Pengukuran/Edit.tsx
 import React from 'react';
 import { useForm } from '@inertiajs/react';
-import AppLayout from '@/Layouts/AppLayout';
-import Button from '@/Components/UI/Button';
+import AppLayout from '@/layouts/AppLayout';
+import Button from '@/components/ui/Button';
 
 interface Props {
     pengukuran: {
@@ -515,14 +529,21 @@ import { Link, usePage } from '@inertiajs/react';
 export default function SidebarNav() {
     const { url } = usePage();
 
+    // Menu disusun mengikuti rantai kinerja:
+    // Regulasi/Renstra → Indikator → PK → Jadwal → Rencana Aksi → Kegiatan → Pengukuran → Dashboard/Laporan
+    // Visibilitas item disesuaikan oleh server via props `can.*`
     const navItems = [
         { label: 'Dashboard', href: '/dashboard', active: url.startsWith('/dashboard') },
-        { label: 'Master Renstra', href: '/renstra', active: url.startsWith('/renstra') },
-        { label: 'Periode & Jadwal', href: '/jadwal', active: url.startsWith('/jadwal') },
-        { label: 'Penugasan PIC', href: '/penugasan', active: url.startsWith('/penugasan') },
+        { label: 'Regulasi', href: '/regulasi', active: url.startsWith('/regulasi') },
+        { label: 'Renstra & Indikator', href: '/renstra', active: url.startsWith('/renstra') },
+        { label: 'Perjanjian Kinerja', href: '/pk', active: url.startsWith('/pk') },
+        { label: 'Jadwal Tahunan', href: '/jadwal', active: url.startsWith('/jadwal') },
+        { label: 'Rencana Aksi', href: '/rencana-aksi', active: url.startsWith('/rencana-aksi') },
+        { label: 'Kegiatan', href: '/kegiatan', active: url.startsWith('/kegiatan') },
         { label: 'Pengukuran Kinerja', href: '/pengukuran', active: url.startsWith('/pengukuran') },
-        { label: 'Reviu & Pengesahan', href: '/reviu', active: url.startsWith('/reviu') },
         { label: 'Laporan & Ekspor', href: '/laporan', active: url.startsWith('/laporan') },
+        { label: 'Kelola Akses', href: '/akses', active: url.startsWith('/akses') },
+        { label: 'Pengaturan', href: '/pengaturan', active: url.startsWith('/pengaturan') },
     ];
 
     return (
@@ -547,7 +568,7 @@ export default function SidebarNav() {
 
 ---
 
-## ✅ Review Checklist Pengembangan UI SAKIP (Inertia + React)
+## ✅ Review Checklist Pengembangan UI SAKIP (Inertia 3 + React 19)
 
 Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut terverifikasi:
 
@@ -557,10 +578,13 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
-- [ ] **Modal Alasan Audit**: Aksi sensitif memicu modal input alasan sebelum request dikirim
+- [ ] **Modal Alasan Audit**: Aksi sensitif (permission `sensitif=true`) memicu modal input alasan sebelum request dikirim
+- [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
+- [ ] **Toolchain Bun**: Tidak ada `package-lock.json` atau referensi npm; lockfile yang sah adalah `bun.lock`/`bun.lockb`
+- [ ] **shadcn/ui Konsisten**: Komponen shadcn/ui dikustomisasi menggunakan token design system ini, bukan warna default-nya
 - [ ] **Aksesibilitas & Kontras**: Kontras teks body terhadap background ≥ 4.5:1
 - [ ] **Mobile Responsive**: Sidebar off-canvas rapi di mobile, tidak ada horizontal overflow pada viewport
 
 ---
 
-*Versi 3.1 — SAKIP LLDIKTI Wilayah XVI — September 2026 — Canonical Implementation Guide for Laravel + Inertia.js + React + TypeScript*
+*Versi 4.0 — SAKIP LLDIKTI Wilayah XVI — September 2026 — Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
