@@ -109,7 +109,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
   26. Melengkapi bukti dukung wajib bertahap pengukuran (jenis_berkas.tahap = pengukuran),
       memilih mode yang diizinkan
   27. Mengajukan pengukuran sebelum jendela pengisian periode itu berakhir → Status: Diajukan
-      (notifikasi terkirim ke Perencanaan)
+      (notifikasi in-app terkirim ke Perencanaan: banner/counter badge lonceng & masuk antrean tugas verifikasi; integrasi pengiriman WhatsApp & Email dijadwalkan sebelum 9 November 2026)
      → GERBANG: rencana_aksi (indikator × tahun) belum berstatus disahkan → pengajuan DITOLAK
      → GERBANG: ada komponen aktif bernilai null → pengajuan DITOLAK
      → GERBANG: bukti dukung wajib tahap pengukuran belum lengkap → pengajuan DITOLAK
@@ -120,7 +120,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
 📋 Perencanaan
   28. Memverifikasi pengukuran yang diajukan
       → Ditolak, perlu revisi: Status: Dikembalikan + alasan wajib diisi, kembali ke Penanggung
-        Jawab (langkah 24)
+        Jawab (notifikasi in-app pengembalian beserta alasan instan diterima Penanggung Jawab; pengiriman instan WhatsApp & Email menyusul sebelum 9 November 2026) (langkah 24)
       → Disetujui teknis: Status: Diverifikasi
       → GERBANG PEMISAHAN TUGAS (§21): bila aktor yang memverifikasi/mengesahkan adalah PIC yang
         sama dengan pengukuran.created_by melalui jalur scope unit, aksi DITOLAK — tidak berlaku
@@ -1038,7 +1038,7 @@ flowchart TD
      batas jendela periode (hanya dibatasi jadwal.penutupan)
   2. Mengedit nilai komponen/catatan selama masih Draft (bisa berkali-kali); untuk indikator
      bertipe rasio_persen/penjumlahan, nilai indikator terhitung otomatis sebagai turunan (§6)
-  3. Mengajukan pengukuran → Status: Diajukan
+  3. Mengajukan pengukuran → Status: Diajukan (memicu notifikasi in-app ke Perencanaan; saluran WhatsApp/Email aktif sebelum 9 November 2026)
      GERBANG (§11): rencana_aksi disahkan, komponen aktif lengkap, bukti dukung wajib tahap
      pengukuran lengkap — dikecualikan untuk jadwal retroaktif
      Catatan wajib diisi jika:
@@ -1051,7 +1051,7 @@ flowchart TD
 📋 Perencanaan
   4. Memverifikasi pengukuran yang Diajukan
      → Setuju: Status: Diverifikasi
-     → Perlu revisi: Status: Dikembalikan + alasan wajib diisi
+     → Perlu revisi: Status: Dikembalikan + alasan wajib diisi (notifikasi in-app pengembalian beserta catatan revisi instan diterima PIC; pengiriman instan WhatsApp & Email menyusul sebelum 9 November 2026)
      GERBANG PEMISAHAN TUGAS (§20, aturan F1): ditolak bila aktor yang memverifikasi adalah PIC
      yang sama dengan pengukuran.created_by lewat jalur scope unit — tidak berlaku bagi
      Perencanaan yang mengisi atas nama unit (F2)
@@ -1756,7 +1756,71 @@ flowchart TD
 
 ---
 
-## 22. Tabel Peran vs Aksi (Ringkas — Fase Awal)
+## 22. Alur Notifikasi & Pengingat (In-App & Eksternal WhatsApp/Email)
+
+Merujuk pada keputusan penyelarasan ruang lingkup (Keputusan Q4 — PRD §28, transkrip koordinasi baris 225–229):
+- **Baseline Scope MVP (Tertulis)**: Notifikasi berbasis antarmuka aplikasi (*in-app notification*: banner kontekstual, indikator/badge lonceng pada navbar, dan daftar tugas aksi) merupakan dasar kriteria penerimaan fungsional utama.
+- **Penyempurnaan Saluran Eksternal (WhatsApp & Email)**: Dikonfigurasi dan diintegrasikan di bagian akhir sebelum batas waktu **9 November 2026** (sebelum memasuki periode evaluasi dan revisi final 16–30 November 2026).
+
+```mermaid
+flowchart TD
+    subgraph INAPP["Baseline Scope MVP: In-App Notification"]
+        A1[Event Pemicu Sistem] --> B1{Jenis Pengguna / Penerima}
+        B1 -- PIC Unit Kerja --> C1[Banner Pengingat Dashboard\n- Jendela Rencana Aksi berjalan/tenggat\n- Periode Pengisian aktif & hitung mundur\n- Status Belum/Tidak Mengisi]
+        B1 -- PIC Unit Kerja --> C2[Lonceng Notifikasi Navbar\n- Berkas Dikembalikan + cuplikan alasan\n- Jadwal baru dibuka]
+        B1 -- PIC Unit Kerja --> C3[Daftar Tugas Aksi / Task List\n- Perlu Pengisian\n- Perlu Revisi / Perbaikan]
+        B1 -- Perencanaan --> D1[Lonceng & Task List Verifikasi\n- Pengajuan Rencana Aksi baru\n- Pengajuan Pengukuran baru]
+        B1 -- Perencanaan --> D2[Banner Penanda Masalah\n- Persyaratan tidak_dapat_dipenuhi\n- Peringatan PK belum ada lampiran]
+        B1 -- Admin / Superadmin --> E1[Notifikasi Status Akses & Anomali]
+    end
+
+    subgraph EKSTERNAL["Konfigurasi Akhir: Sebelum 9 November 2026"]
+        A2[Pemicu Jadwal / Cron Scheduler / Action] --> B2{Event Eksternal}
+        B2 -- Pembukaan Jadwal Pengisian --> F1[Broadcast WhatsApp & Email ke seluruh PIC Unit]
+        B2 -- EWS Harian H-7 s/d H-1 Pengisian --> F2[Scheduler Harian kirim pengingat berjenjang ke WA/Email PIC Belum Mengisi]
+        B2 -- Rekapitulasi Berkala --> F3[Pesan Rekap Status Pengisian ke WA/Email Tim Perencanaan H-3 & H-1]
+        B2 -- Pengembalian Berkas --> F4[Notifikasi Instan WA/Email ke PIC terkait + tautan & catatan revisi]
+    end
+```
+
+### 22.1 Notifikasi Dalam Aplikasi (In-App) — Baseline Scope MVP
+
+Seluruh pengguna menerima alert kontekstual dan notifikasi secara langsung saat membuka dan beraktivitas di aplikasi:
+
+1. **Banner Kontekstual Beranda & Halaman Kerja**:
+   - Menampilkan peringatan jendela penyusunan Rencana Aksi yang sedang berjalan atau mendekati batas akhir (`rencana_aksi_selesai`).
+   - Menampilkan countdown/hitung mundur hari tersisa menuju batas akhir pengisian triwulan berjalan (`pengisian_selesai`).
+   - Menampilkan daftar indikator yang masih berstatus "Belum Mengisi" atau "Tidak Mengisi" pada unit kerja terkait.
+   - Menampilkan penanda `tidak_dapat_dipenuhi` bagi Perencanaan jika ada persyaratan bukti dukung terkendala saklar unggahan file (§10.5).
+
+2. **Indikator Lonceng Notifikasi (Navbar Header)**:
+   - Komponen lonceng di navbar header dengan badge angka yang belum dibaca (*unread counter*).
+   - Menampilkan daftar notifikasi:
+     - **Bagi PIC**: Notifikasi saat Rencana Aksi atau Pengukuran **dikembalikan** oleh Perencanaan (lengkap dengan catatan perbaikan), dan notifikasi saat jadwal pengisian periode baru dibuka.
+     - **Bagi Perencanaan**: Notifikasi saat ada Rencana Aksi atau Pengukuran yang **diajukan** oleh PIC unit kerja dan siap diverifikasi.
+     - **Bagi Admin**: Notifikasi log audit penting atau perubahan akses.
+
+3. **Daftar Tugas & Aksi Tertunda (*Action Items / Task List*)**:
+   - Dashboard PIC menyajikan daftar prioritas: "Perlu Pengisian", "Perlu Revisi (Dikembalikan)", dan "Menunggu Verifikasi".
+   - Dashboard Perencanaan menyajikan antrean verifikasi aktif.
+
+### 22.2 Integrasi Saluran Eksternal (WhatsApp & Email Gateway) — Target Sebelum 9 November 2026
+
+Saluran komunikasi eksternal melengkapi alert in-app untuk menjamin responsivitas operasional di luar aplikasi:
+
+1. **Siaran Pembukaan Jadwal (Broadcast)**:
+   - Begitu jadwal pengisian triwulan aktif (`jadwal_periode.pengisian_mulai`), sistem mengeksekusi background job untuk mengirimkan notifikasi via WhatsApp dan Email ke seluruh PIC unit kerja terkait.
+2. **Early Warning System (EWS) Harian (H-7 s/d H-1)**:
+   - Scheduled task harian mengecek seluruh indikator aktif pada periode berjalan.
+   - PIC yang belum menyelesaikan pengisian (masih draft atau belum mengisi) otomatis menerima pesan pengingat harian ke WhatsApp dan Email (terutama H-7, H-3, dan H-1 batas `pengisian_selesai`).
+3. **Rekapitulasi Pemantauan Tim Perencanaan**:
+   - Menjelang tenggat waktu (H-3 dan H-1), sistem mengirimkan ringkasan rekapitulasi progres pengisian unit kerja ke WhatsApp/Email Tim Perencanaan untuk keperluan koordinasi pimpinan.
+4. **Notifikasi Instan Pengembalian Berkas**:
+   - Saat Perencanaan mengembalikan pengajuan (Rencana Aksi / Pengukuran) untuk direvisi, sistem secara otomatis mengirimkan notifikasi instan ke nomor WhatsApp dan Email PIC terkait, berisi tautan langsung ke halaman perbaikan serta catatan revisi wajib.
+
+---
+
+## 23. Tabel Peran vs Aksi (Ringkas — Fase Awal)
 
 | Aksi / Modul | Superadmin | Admin | Perencanaan | Pimpinan | Pegawai (Penanggung Jawab) |
 |---|:---:|:---:|:---:|:---:|:---:|

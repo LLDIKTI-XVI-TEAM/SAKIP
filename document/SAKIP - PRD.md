@@ -127,7 +127,7 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 - Laporan tabular dengan ekspor ke Excel.
 - Audit log penuh atas seluruh peristiwa yang disebutkan di §25, sejak hari pertama.
 - Model hak akses RBAC (peran, katalog permission, isi peran, pemberian izin per unit, pencabutan izin) sebagai gate akses backend yang dievaluasi saat request dengan presedens deny menang, dengan UI pengelolaan yang disederhanakan (lihat §7.5).
-- Alert kontekstual dasar (tenggat penyusunan rencana aksi, tenggat pengisian per periode, pengukuran/rencana aksi dikembalikan, kelengkapan berkas, dsb).
+- Alert kontekstual dasar & notifikasi dalam aplikasi (*in-app notification* sebagai baseline penerimaan MVP; saluran eksternal WhatsApp dan Email dijadwalkan di bagian akhir sebelum batas waktu 9 November 2026).
 - Modul Setelan Aplikasi (§26): identitas instansi/aplikasi, label unit, preferensi tampilan/laporan — dikelola lewat tabel `pengaturan` key-value, terbatas hanya pada teks & preferensi presentasional — beserta halaman **"Batas unggahan berkas"** untuk mengubah `format_diizinkan`/`ukuran_maks_kb` per persyaratan bukti dukung (§26.4).
 - Seed data pengembangan/testing (bukan data produksi) via seeder Laravel.
 
@@ -1140,18 +1140,29 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks, preferensi pres
 
 ---
 
-## 28. Alert Kontekstual
+## 28. Alert Kontekstual & Strategi Notifikasi
 
-Pada Fase Awal, alert kontekstual mencakup notifikasi/tampilan dalam aplikasi (bukan email/push eksternal, kecuali diputuskan lain kemudian) untuk:
+Berdasarkan keputusan resmi penyelarasan ruang lingkup (Keputusan Q4, merujuk transkrip koordinasi baris 225–229):
 
-- Tenggat penyusunan Rencana Aksi (`rencana_aksi_mulai/selesai` pada `jadwal_tahunan`, §12.2) yang mendekat/terlewati bagi PIC yang belum menyusun.
-- Tenggat `pengisian_selesai` per periode (`jadwal_periode`, §12.3) yang mendekat/terlewati bagi PIC yang belum mengisi (status "Belum mengisi"/"Tidak mengisi", lihat §23).
-- Rencana Aksi atau Pengukuran yang dikembalikan — notifikasi ke penanggung jawab terkait beserta alasan pengembalian, baik jalur normal maupun buka kembali setelah pengesahan.
-- Rencana Aksi atau Pengukuran yang telah diajukan dan menunggu verifikasi — notifikasi/daftar tugas untuk Perencanaan.
-- Kelengkapan bukti dukung wajib (rencana aksi/pengukuran/kegiatan) yang belum terpenuhi menjelang batas waktu pengajuan/perubahan status.
-- Persyaratan bukti dukung yang ditandai `tidak_dapat_dipenuhi` (§18.7), agar Perencanaan segera menambahkan mode alternatif atau meninjau kebijakan unggahan.
-- Kegiatan berstatus `tidak_terlaksana`/`ditunda`/`batal` yang belum diisi justifikasinya.
-- PK tahun berjalan yang belum tercatat menjelang jendela aktivasi jadwal — pengingat bagi Perencanaan agar tidak terhambat validasi aktivasi (§10.3, §12.4).
+### 28.1 Notifikasi Dalam Aplikasi (In-App) — Baseline Scope MVP
+Pada Fase Awal (MVP), seluruh mekanisme alert kontekstual dan notifikasi diwujudkan melalui antarmuka aplikasi (*in-app banner, badges, counter* pada lonceng notifikasi, dan daftar tugas aksi) sebagai **kriteria penerimaan utama (*baseline scope*)**:
+
+- **Tenggat penyusunan Rencana Aksi** (`rencana_aksi_mulai/selesai` pada `jadwal_tahunan`, §12.2) yang mendekat/terlewati bagi PIC yang belum menyusun.
+- **Tenggat pengisian periode** (`pengisian_selesai` pada `jadwal_periode`, §12.3) yang mendekat/terlewati bagi PIC yang belum mengisi (status "Belum mengisi"/"Tidak mengisi", lihat §23).
+- **Pengembalian Rencana Aksi atau Pengukuran** — notifikasi ke penanggung jawab terkait beserta alasan pengembalian, baik jalur normal maupun buka kembali setelah pengesahan.
+- **Pengajuan Menunggu Tindakan** — notifikasi/daftar tugas untuk Perencanaan saat Rencana Aksi atau Pengukuran diajukan oleh PIC.
+- **Kelengkapan bukti dukung wajib** (rencana aksi/pengukuran/kegiatan) yang belum terpenuhi menjelang batas waktu pengajuan/perubahan status.
+- **Persyaratan bukti dukung bertanda `tidak_dapat_dipenuhi`** (§18.7), agar Perencanaan segera menambahkan mode alternatif atau meninjau kebijakan unggahan.
+- **Justifikasi kegiatan** yang berstatus `tidak_terlaksana`/`ditunda`/`batal` yang belum diisi alasannya.
+- **Kelengkapan PK tahun berjalan** menjelang jendela aktivasi jadwal — pengingat bagi Perencanaan agar tidak terhambat validasi aktivasi (§10.3, §12.4).
+
+### 28.2 Integrasi Saluran Eksternal (WhatsApp & Email) — Konfigurasi Akhir Sebelum 9 November
+Saluran notifikasi dan pengingat eksternal (WhatsApp & Email) ditetapkan sebagai penyempurnaan operasional yang **dikonfigurasi dan diintegrasikan di bagian akhir sebelum batas waktu 9 November 2026** (sebelum memasuki fase evaluasi dan revisi final 16–30 November 2026):
+
+1. **Notifikasi Pembukaan Jadwal Pengisian**: Saat jadwal pengisian triwulan resmi dibuka oleh Perencanaan/sistem, notifikasi otomatis dikirim ke WhatsApp dan Email seluruh PIC unit kerja terkait.
+2. **Early Warning System (EWS) Tenggat Triwulan**: Notifikasi pengingat berkala dari H-7 hingga H-1 batas penutupan pengisian (`pengisian_selesai`) yang dikirim setiap hari ke nomor WhatsApp/Email PIC yang belum menyelesaikan dan mengajukan pengukuran.
+3. **Pengingat Rekapitulasi Tim Perencanaan**: Notifikasi berkala ke WhatsApp/Email Tim Perencanaan mengenai daftar unit kerja dan IKU yang belum terisi menjelang tenggat waktu, sebagai bahan evaluasi berkala triwulanan.
+4. **Notifikasi Instan Pengembalian Berkas**: Notifikasi instan ke WhatsApp/Email PIC saat pengajuan pengukuran atau rencana aksi dikembalikan oleh Perencanaan untuk diperbaiki, memuat ringkasan catatan/alasan pengembalian.
 
 ---
 

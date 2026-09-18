@@ -102,6 +102,7 @@ erDiagram
         string keycloak_id UK
         string nama
         string email
+        string nomor_telepon "nullable"
     }
 
     UNIT {
@@ -521,6 +522,7 @@ Representasi lokal pengguna yang terautentikasi via Keycloak. Tabel ini tidak me
 | `keycloak_id` | string | **unique**, not null | Subject ID dari token OIDC Keycloak; kunci pemetaan identitas |
 | `nama` | string | not null | Nama tampil, disinkronkan dari klaim profil Keycloak saat login |
 | `email` | string | not null | Disinkronkan dari klaim email Keycloak |
+| `nomor_telepon` | string | nullable | **-- (kolom tersedia, integrasi WhatsApp menyusul sebelum 9 November 2026)**. Nomor kontak telepon/WhatsApp pengguna untuk pengiriman notifikasi/pengingat eksternal |
 
 ---
 
@@ -1020,10 +1022,10 @@ Modul setelan aplikasi bergaya key-value, menampung nilai identitas dan preferen
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
-| `kunci` | string | **unique**, not null | Mis. `instansi.nama`, `instansi.alamat`, `instansi.telepon`, `instansi.surel`, `instansi.laman`, `instansi.logo`, `aplikasi.nama`, `aplikasi.label_unit`, `tampilan.zona_waktu`, `tampilan.format_tanggal`, `tampilan.format_angka`, `laporan.header`, `laporan.footer`, dan grup **`berkas`**: `berkas.unggahan_aktif`, `berkas.ukuran_maks_kb`, `berkas.format_diizinkan`, `berkas.tautan_selalu_diizinkan` |
+| `kunci` | string | **unique**, not null | Mis. `instansi.nama`, `instansi.alamat`, `instansi.telepon`, `instansi.surel`, `instansi.laman`, `instansi.logo`, `aplikasi.nama`, `aplikasi.label_unit`, `tampilan.zona_waktu`, `tampilan.format_tanggal`, `tampilan.format_angka`, `laporan.header`, `laporan.footer`, grup **`berkas`**: `berkas.unggahan_aktif`, `berkas.ukuran_maks_kb`, `berkas.format_diizinkan`, `berkas.tautan_selalu_diizinkan`, serta grup **`notifikasi`**: `notifikasi.wa_aktif`, `notifikasi.email_aktif`, `notifikasi.wa_gateway_url`, `notifikasi.wa_api_key`, `notifikasi.ews_h_minus` |
 | `nilai` | text | nullable | Nilai tersimpan sebagai string; ditafsirkan sesuai `tipe` saat dibaca |
 | `tipe` | string | not null | mis. `string`, `text`, `number`, `boolean`, `url`, `file` — menentukan cara parsing dan tampilan form setelan |
-| `grup` | string | not null | Pengelompokan tampilan pada halaman setelan, mis. `identitas`, `aplikasi`, `tampilan`, `laporan`, `berkas` |
+| `grup` | string | not null | Pengelompokan tampilan pada halaman setelan, mis. `identitas`, `aplikasi`, `tampilan`, `laporan`, `berkas`, `notifikasi` |
 | `updated_by` | uuid | FK → users.id, nullable | Diisi saat setelan pertama kali diubah dari nilai default hasil seed |
 | `updated_at` | timestamp | not null | |
 
@@ -1037,6 +1039,16 @@ Modul setelan aplikasi bergaya key-value, menampung nilai identitas dan preferen
 | `berkas.ukuran_maks_kb` | integer | `10240` | Batas ukuran default dipakai bila `jenis_berkas.ukuran_maks_kb` kosong |
 | `berkas.format_diizinkan` | teks | `pdf,docx,xlsx,jpg,jpeg,png` | Daftar format default dipakai bila `jenis_berkas.format_diizinkan` kosong |
 | `berkas.tautan_selalu_diizinkan` | boolean | `true` | Menandai bahwa mode `tautan` dan `teks` selalu tersedia sebagai jalur alternatif tanpa memakai storage |
+
+**Kunci grup `notifikasi` (integrasi pengingat eksternal sebelum 9 November 2026):**
+
+| Kunci | Tipe | Default | Keterangan |
+|---|---|---|---|
+| `notifikasi.wa_aktif` | boolean | `false` | Saklar aktivasi pengiriman notifikasi pengingat via WhatsApp Gateway |
+| `notifikasi.email_aktif` | boolean | `false` | Saklar aktivasi pengiriman notifikasi pengingat via Email |
+| `notifikasi.wa_gateway_url` | url | `""` | Endpoint API WhatsApp Gateway |
+| `notifikasi.wa_api_key` | string | `""` | Kunci otentikasi / API token WhatsApp Gateway |
+| `notifikasi.ews_h_minus` | string | `7,3,1` | Daftar H-minus hari pengiriman Early Warning System (EWS) sebelum tenggat pengisian |
 
 **Aturan integritas dan cakupan:**
 - Nilai default di-seed saat instalasi (migrasi/seeder) untuk seluruh kunci awal di atas; aplikasi membaca nilai lewat accessor yang di-cache, bukan query langsung berulang pada tiap render.
@@ -1587,6 +1599,7 @@ Daftar eksplisit kolom/entitas yang ada di skema sejak migrasi pertama namun jal
 | `user_roles` | constraint `unique(user_id)` | **Batas Fase Awal yang disadari, bukan celah desain.** Struktur tabel sudah berbentuk pivot; multi-peran per pengguna (satu pengguna memegang lebih dari satu peran sekaligus) dapat dibuka di Fase Lanjutan hanya dengan melepas constraint ini — tidak memerlukan migrasi struktural baru |
 | UI pengelolaan akses | matrix permission penuh | Fase Awal menyediakan **3 form**: (1) assign peran (`user_roles`), (2) kelola grant izin per unit (`user_permission_granted`), (3) kelola deny izin (`user_permission_denied`), ditambah halaman "Jelaskan izin pengguna" (§2.32). UI matrix permission penuh (menampilkan/mengubah seluruh kombinasi peran × permission dalam satu tampilan tabel) ditunda ke Fase Lanjutan |
 | `user_permission_granted` | masa berlaku grant (`berlaku_sampai`) | **Belum berupa kolom skema pada Fase Awal** — dicatat di sini sebagai kebutuhan yang mungkin muncul di Fase Lanjutan (grant yang otomatis kedaluwarsa pada tanggal tertentu, mis. penugasan sementara). Bila dibutuhkan, penambahannya adalah migrasi kolom baru bertipe `date, nullable` pada `user_permission_granted`, bukan perubahan struktural |
+| `users` | `nomor_telepon` | Kolom tersedia di skema sejak migrasi awal; pengisian dan integrasi aktif untuk pengiriman notifikasi WhatsApp dikonfigurasi di bagian akhir sebelum batas waktu 9 November 2026 |
 
 Catatan tambahan: permission `pengukuran:setujui` dan peran approval Pimpinan juga "tersedia tapi belum dipakai" secara fungsional (bukan kolom skema, melainkan kode alur) — didefinisikan penuh di katalog permission (`permissions`, §2.3), tapi belum ada state machine/UI yang memanggilnya pada Fase Awal. Kolom `rekomendasi_pimpinan.ditetapkan_oleh` secara skema menerima id pengguna mana pun, tetapi pada Fase Awal secara operasional selalu diisi pengguna Perencanaan (§2.31) — pengisian oleh Pimpinan sendiri adalah perluasan Fase Lanjutan yang tidak memerlukan migrasi baru.
 
