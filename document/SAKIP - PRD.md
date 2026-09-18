@@ -3,7 +3,7 @@
 **Nama Produk:** SAKIP — Sistem Akuntabilitas Kinerja Instansi Pemerintah  
 **Instansi:** LLDIKTI Wilayah XVI  
 **Fase:** Fase Awal (MVP)  
-**Versi Dokumen:** 1.0  
+**Versi Dokumen:** 1.1 (Finalized post Grill-Me)  
 **Tanggal:** September 2026
 
 ---
@@ -67,7 +67,9 @@ Keputusan Menteri Nomor 358 Tahun 2025
                                       └── Status Capaian
 ```
 
-Sewaktu-waktu dapat terbit **Keputusan Menteri (Kepmen) IKU baru** yang merevisi indikator. Sistem harus mampu mengakomodasi perubahan tersebut tanpa kehilangan data historis.
+Sewaktu-waktu dapat terbit **Keputusan Menteri (Kepmen) IKU baru** yang merevisi indikator di tengah periode Renstra berjalan. Sistem mengakomodasi hal ini melalui **siklus hidup status indikator (`aktif` ↔ `diarsipkan`)**:
+- Indikator lama yang dicabut/diganti diberi status `diarsipkan` dengan batas tahun/triwulan berlaku, sehingga seluruh data pelaporan triwulan/tahun lampau tetap utuh, valid, dan dapat diaudit kapan saja.
+- Indikator baru dari Kepmen revisi diinput dengan tahun mulai berlaku yang baru dan dikaitkan pada jadwal berjalan tanpa merusak snapshot historis.
 
 ---
 
@@ -124,17 +126,16 @@ Aplikasi memiliki **5 role preset** dengan pemisahan tugas yang tegas:
 | 4 | **Penugasan** | Penetapan dan pergantian Penanggung Jawab per indikator |
 | 5 | **Pengukuran** | Input realisasi (draft → diajukan), deadline jendela periode, optimistic locking |
 | 6 | **Reviu & Pengesahan** | Antrean verifikasi, pengesahan langsung oleh Perencanaan (tanpa approval Pimpinan), buka-kembali 2 lapis, status capaian manual |
-| 7 | **Dashboard & Visualisasi** | Stat cards ringkasan, grafik ApexCharts target vs realisasi, filter reaktif |
-| 8 | **Laporan & Ekspor** | Tabel laporan terfilter, ekspor ke Excel (.xlsx) |
-| 9 | **Setelan Aplikasi** | Identitas instansi, preferensi tampilan/laporan — hanya teks & presentasional |
-| 10 | **Audit & Histori** | Pencatatan append-only, alasan wajib pada aksi sensitif, halaman pencarian audit log |
+| 7 | **Dashboard & Visualisasi** | Stat cards ringkasan, grafik ApexCharts target vs realisasi, filter reaktif, toolbar unduh gambar (PNG/SVG) untuk paparan pimpinan |
+| 8 | **Laporan & Ekspor** | Tabel laporan terfilter, ekspor ke Excel (.xlsx) dengan Format Matriks Resmi LLDIKTI XVI |
+| 9 | **Setelan Aplikasi** | Identitas instansi (teks), preferensi tampilan/laporan — hanya teks & presentasional |
+| 10 | **Audit & Histori** | Pencatatan append-only, alasan wajib pada aksi sensitif, Sentral Audit Log Viewer + In-line History Drawer |
 
 ### 3.2 Tidak Termasuk dalam MVP (Fase Lanjutan)
 
 - Approval Pimpinan dalam alur pengesahan pengukuran
-- Ekspor PDF untuk rekap laporan formal
-- Ekspor gambar grafik dashboard (PNG/SVG)
-- Integrasi status capaian otomatis dari sistem sumber data eksternal
+- Ekspor PDF cetak buku LkjIP formal
+- Integrasi status capaian otomatis dari sistem sumber data eksternal (API pusat)
 - UI matrix permission penuh (centang bebas per pengguna)
 - Impor data massal dari Excel/sistem lain
 - Revisi target di tengah tahun (yang snapshot-nya sudah terbentuk)
@@ -152,7 +153,7 @@ React + TypeScript (Inertia Pages & Components via Vite)
        ↕ (Inertia Protocol / Automatic XHR Props / Web Session & CSRF)
 Laravel (Controller, Service, Policy/Gate, Middleware HandleInertiaRequests)
        ↓
-PostgreSQL 17 (Database Relasional)
+PostgreSQL 18 (Database Relasional)
 ```
 
 ### 4.2 Komponen Teknologi
@@ -163,11 +164,12 @@ PostgreSQL 17 (Database Relasional)
 | **Adapter/Bridge** | Inertia.js (`@inertiajs/react` & `inertiajs/inertia-laravel`) | Protokol komunikasi data Laravel↔React, passing data sebagai props otomatis, navigasi SPA via `<Link>`, form handling via `useForm` |
 | **Frontend** | React + TypeScript + Vite | Presentation & Interaction Layer: halaman Inertia (`resources/js/Pages`), komponen UI reaktif |
 | **Styling** | Tailwind CSS v4 | Token desain institusi (blue `#122E92` + gold `#D6AC48`) via `@theme {}` |
-| **Database** | PostgreSQL 17 | Data relasional, integritas constraint, snapshot beku, audit log append-only |
-| **Autentikasi/SSO** | Keycloak via Socialite (OIDC Authorization Code Flow) | Single Sign-On institusi, session cookie/CSRF |
-| **Visualisasi** | ApexCharts (`react-apexcharts`) | Grafik interaktif target vs realisasi |
-| **Backend Testing** | Pest (Inertia Testing) | Pengujian fungsional controller via `$response->assertInertia(...)` |
-| **Frontend Testing** | Vitest + React Testing Library | Pengujian render komponen React, interaksi pengguna |
+| **Database** | PostgreSQL 18 | Data relasional, integritas constraint, snapshot beku JSONB, audit log append-only |
+| **Containerization** | Podman 5.8 & Podman-compose 1.6 | Standardisasi container OCI rootless untuk isolasi runtime, deployment, dan Keycloak SSO orchestration |
+| **Autentikasi/SSO** | Keycloak via Socialite (OIDC Authorization Code Flow) | Single Sign-On institusi, session cookie/CSRF, dual-mode switcher saat dev |
+| **Visualisasi** | ApexCharts (`react-apexcharts`) | Grafik interaktif target vs realisasi dengan toolbar download bawaan |
+| **Backend Testing** | Pest (Inertia Testing) | Pengujian fungsional controller via `$response->assertInertia(...)`, Policy, database assertions |
+| **Frontend Testing** | Vitest + React Testing Library | Pengujian render komponen React, kalkulator formula, mock props testing |
 
 ### 4.3 Struktur Folder Utama
 
@@ -295,10 +297,12 @@ sakip/
 - Constraint unique `(indikator_id, tahun)` — update baris, bukan duplikat
 - Nilai `0` adalah sah dan dibedakan dari belum diisi (`null`)
 
-#### FR-2.9: Perjanjian Kinerja (PK)
-- Input nomor_pk, tanggal_pk per tahun per Renstra
+#### FR-2.9: Perjanjian Kinerja (PK) & Penguncian Target
+- Input nomor_pk, tanggal_pk per tahun per Renstra (ditandatangani resmi oleh Kepala LLDIKTI Wilayah XVI)
 - Constraint unique `(renstra_id, tahun)`
-- Fitur koreksi PK: mewajibkan alasan, mencatat audit log
+- **Penguncian Target Tahunan:** Pengesahan PK secara otomatis mengunci seluruh target tahunan indikator pada tahun bersangkutan (`target_terkunci = true`). Target tidak dapat diubah secara bebas setelah PK disahkan.
+- **Upload Berkas Fisik PK:** Fasilitas upload berkas digital PDF dokumen Perjanjian Kinerja yang telah ditandatangani basah/elektronik oleh Kepala Lembaga (`file_pk_path`) untuk kepatuhan audit formal.
+- **Fitur koreksi PK:** Mengubah nomor/tanggal/dokumen PK mewajibkan input alasan eksplisit dan mencatat jejak audit log lengkap.
 
 ---
 
@@ -322,18 +326,18 @@ sakip/
 - Satu jadwal dapat memiliki beberapa baris (mis. 4 baris untuk Triwulan I–IV)
 
 #### FR-3.4: Aktivasi Jadwal — Tiga Gerbang Validasi
-- **Gerbang 1:** Perjanjian Kinerja untuk `(renstra_id, tahun)` sudah tercatat
+- **Gerbang 1:** Perjanjian Kinerja untuk `(renstra_id, tahun)` sudah tercatat dan target telah terkunci
 - **Gerbang 2:** Seluruh indikator aktif milik Renstra tersebut memiliki `target_tahunan` untuk tahun jadwal
 - **Gerbang 3:** Tahun jadwal berada dalam rentang `[tahun_mulai, tahun_akhir]` Renstra
 - Jika seluruh gerbang lolos: status → `aktif`, `renstra_pk_id` terisi, `activated_at` tercatat
 - Setiap penolakan tercatat sebagai audit log percobaan gagal
 
-#### FR-3.5: Jadwal Snapshot (Pembekuan Data)
+#### FR-3.5: Jadwal Snapshot (Pembekuan Data) & Reversibilitas Aktivasi
 - Saat jadwal diaktifkan, sistem membuat salinan (snapshot) untuk setiap pasangan `(jadwal_id, indikator_id)`
 - Data yang disalin: nama, definisi, satuan, presisi, desimal_tampilan, unit_id, arah, target
 - **Idempoten:** baris yang sudah ada dilewati, tidak ditimpa
-- **Imutabilitas:** baris snapshot yang sudah dirujuk pengukuran tidak dapat diubah
-- Baris yang belum dirujuk boleh dikoreksi hanya selama jadwal berstatus `aktif`, dengan audit log
+- **Reversibilitas Aktivasi (Belum Ada Pengukuran):** Jika jadwal telah berstatus `aktif` namun **belum ada satupun pengukuran** yang dibuat atau disubmit oleh PIC, Tim Perencanaan dapat mengembalikan status jadwal kembali ke `draft` untuk perbaikan parameter tanpa prosedur pembukaan formal.
+- **Imutabilitas (Sudah Ada Pengukuran):** Begitu ada baris pengukuran yang merujuk snapshot jadwal tersebut, status jadwal terkunci penuh. Koreksi target atau data jadwal hanya dapat dilakukan melalui protokol audit formal `jadwal:buka_kembali`.
 
 #### FR-3.6: Tutup & Buka Kembali Jadwal
 - Tutup: `aktif → ditutup` (mengisi `closed_at`)
@@ -356,19 +360,22 @@ sakip/
 
 ### Modul 4 — Penugasan (Penanggung Jawab)
 
-#### FR-4.1: Penugasan Awal Penanggung Jawab
-- Perencanaan/Superadmin menetapkan PIC per indikator
-- Field: `user_id`, `tanggal_mulai_berlaku`
-- Alasan tidak wajib untuk penugasan pertama
+#### FR-4.1: Penugasan Penanggung Jawab (PIC Unit & PIC Utama)
+- Perencanaan/Superadmin menetapkan Penanggung Jawab per indikator berdasarkan Unit Kerja pemilik.
+- Setiap unit kerja memiliki **1 PIC Utama (Primary PIC)** (`is_primary = true`) yang memegang tanggung jawab formal atas pengajuan (submission) pengukuran ke Tim Perencanaan.
+- Pengguna lain dalam unit kerja yang sama (`unit_id` identik) memiliki akses kolaboratif/view untuk memantau data indikator unit mereka.
+- Field penugasan: `user_id`, `indikator_id`, `is_primary`, `tanggal_mulai_berlaku`.
+- Alasan tidak wajib untuk penugasan pertama.
 
 #### FR-4.2: Pergantian Penanggung Jawab
-- Menambah baris penugasan baru (baris lama tidak dihapus/dimodifikasi — riwayat lengkap)
-- Alasan wajib diisi
-- Tercatat di audit log
+- Menambah baris penugasan baru (baris lama tidak dihapus/dimodifikasi — riwayat penugasan lengkap).
+- Jika ada penugasan PIC Utama baru, baris aktif lama otomatis menjadi non-primary.
+- Alasan pergantian wajib diisi.
+- Tercatat di audit log.
 
 #### FR-4.3: Resolusi Penanggung Jawab Efektif
-- PJ efektif = baris dengan `tanggal_mulai_berlaku` maksimum yang ≤ tanggal acuan
-- Digunakan untuk menentukan siapa PIC saat pengisian pengukuran
+- PJ efektif = baris dengan `tanggal_mulai_berlaku` maksimum yang ≤ tanggal acuan.
+- Digunakan untuk menentukan siapa PIC saat pengisian pengukuran dan notifikasi reminder.
 
 ---
 
@@ -381,10 +388,13 @@ sakip/
 - Constraint unique `(indikator_id, tahun, periode_id)`
 - `pengukuran:create` untuk indikator arsip ditolak untuk siapa pun
 
-#### FR-5.2: Edit Draft (Optimistic Locking)
+#### FR-5.2: Edit Draft & Penanganan Konflik Konkurensi (Optimistic Locking UX)
 - Edit nilai dan catatan pada pengukuran berstatus draft
-- Setiap simpan menaikkan kolom `versi`
-- Submit dengan `versi` tidak sesuai → HTTP 409 Conflict
+- Setiap kali data disimpan, kolom `versi` dinaikkan secara otomatis
+- **Pengalaman Pengguna Saat Terjadi Konflik:** Jika pengguna menyimpan dengan `versi` usang (telah diubah pengguna lain lebih dulu):
+  - Sistem menampilkan banner peringatan informatif: *"Data telah diperbarui oleh rekan lain saat Anda sedang mengedit"*.
+  - Menampilkan angka realisasi terbaru dari database.
+  - Memberikan opsi **"Muat Ulang Data Terbaru"** tanpa menghapus draft teks analisis/kendala yang sedang diketik pengguna di form.
 
 #### FR-5.3: Guard Deadline Jendela Pengisian
 - **PIC:** ditolak create/update/ajukan begitu tanggal hari ini melewati `jadwal_periode.pengisian_selesai`
@@ -443,6 +453,15 @@ sakip/
 
 5 status: **Draft**, **Diajukan**, **Diverifikasi**, **Disahkan**, **Dikembalikan**
 
+#### FR-5.12: Formula Kalkulasi Capaian & Kebijakan Capping 100%
+- Persentase Capaian Kinerja per indikator dihitung otomatis:
+  - Untuk arah `naik_baik`: `Capaian (%) = (Realisasi / Target) * 100%`
+  - Untuk arah `turun_baik`: `Capaian (%) = (Target / Realisasi) * 100%` (jika Realisasi > 0; jika Realisasi = 0, dihitung 100% jika Target = 0, atau formula batas disesuaikan)
+- **Kebijakan Capping Agregat Institusi (Standar KemenPAN-RB):**
+  - Pada perhitungan rata-rata indeks capaian tingkat Sasaran Strategis, Renstra, dan Dashboard Eksekutif Pimpinan, nilai capaian per IKU **dibatasi (capped) maksimal 100%**. Hal ini mencegah IKU over-performed mengaburkan IKU yang belum tercapai pada indeks komposit institusi.
+- **Pelestarian Nilai Capaian Riil:**
+  - Nilai capaian riil (uncapped, misal: 125%) **tetap disimpan utuh di database** dan ditampilkan secara transparan pada tabel detail indikator/laporan untuk apresiasi kinerja riil unit kerja.
+
 ---
 
 ### Modul 6 — Reviu & Pengesahan
@@ -453,10 +472,14 @@ sakip/
 - **Antrean Disahkan:** Daftar pengukuran berstatus `disahkan` (jadwal belum penutupan) dengan aksi buka-kembali
 - Filter per Renstra/Tahun/Periode/Unit
 
-#### FR-6.2: Status Capaian Manual
-- Perencanaan/Superadmin menetapkan status capaian (`tercapai`/`belum_tercapai`) pada pengukuran berstatus `disahkan`
-- Sumber: `manual`, ditetapkan_oleh: user yang login
-- Revisi status capaian: menambah baris baru (soft replace), baris lama tetap sebagai riwayat
+#### FR-6.2: Penetapan Status Capaian (Auto-Default Formula + Manual Override)
+- Saat pengukuran berstatus `disahkan`, sistem secara otomatis menetapkan status capaian awal berdasarkan formula matematika:
+  - Capaian ≥ 100% → default status: `tercapai`
+  - Capaian < 100% → default status: `belum_tercapai`
+  - Sumber awal tercatat sebagai `formula`.
+- **Manual Override oleh Tim Perencanaan:** Tim Perencanaan/Superadmin memiliki kewenangan untuk mengubah (override) status capaian tersebut secara manual bila terdapat pertimbangan kualitatif resmi.
+- Tindakan override mencatat `sumber = manual`, `ditetapkan_oleh: user_id`, dan alasan override ke audit log.
+- Revisi status capaian menggunakan mekanisme penambahan baris baru (soft replace), sehingga baris lama tetap tersimpan sebagai riwayat.
 
 ---
 
@@ -468,9 +491,9 @@ sakip/
 - Dihitung per kombinasi `indikator × periode` (dari `jadwal_periode`), bukan per tahun
 - Indikator berstatus `arsip` dikecualikan dari perhitungan
 
-#### FR-7.2: Grafik ApexCharts Target vs Realisasi
+#### FR-7.2: Grafik ApexCharts Target vs Realisasi & Toolbar Unduh
 - Grafik interaktif: deret target (dari snapshot) vs realisasi (nilai pengukuran disahkan) per indikator/periode
-- Menggunakan `react-apexcharts`
+- Menggunakan `react-apexcharts` dengan toolbar unduh gambar bawaan (PNG/SVG) yang tetap aktif sebagai kemudahan bagi Pimpinan dan Tim Perencanaan menyiapkan slide paparan dinas.
 
 #### FR-7.3: Filter Dashboard Reaktif
 - Filter: Renstra, Tahun, Periode, Sasaran, Unit
@@ -490,21 +513,26 @@ sakip/
 - Kolom: nama indikator, unit, tahun, periode, nilai, status_alur, status_capaian
 - Permission: `laporan:read`
 
-#### FR-8.2: Ekspor ke Excel
-- Ekspor hasil laporan terfilter ke `.xlsx` via `maatwebsite/excel`
-- Berkas diunduh melalui link browser
+#### FR-8.2: Ekspor ke Excel (Format Matriks Hierarkis Resmi LLDIKTI XVI)
+- Ekspor hasil laporan kinerja ke format `.xlsx` via `maatwebsite/excel`
+- **Struktur Matriks Resmi Sesuai Template LLDIKTI XVI:**
+  - Header resmi instansi dan judul periode laporan
+  - Pengelompokan baris hierarkis berdasarkan Sasaran Strategis
+  - Kolom lengkap: Nomor, Sasaran Strategis, Indikator Kinerja Utama (IKU), Target Tahunan/Triwulan, Realisasi Triwulan I, Realisasi Triwulan II, Realisasi Triwulan III, Realisasi Triwulan IV, Capaian Tahunan (%), Analisis Faktor Pendorong/Kendala, dan Tindak Lanjut
+- Berkas diunduh langsung melalui browser
 - Permission: `laporan:ekspor` (terpisah dari `laporan:read`)
 
 ---
 
 ### Modul 9 — Setelan Aplikasi
 
-#### FR-9.1: Tabel Key-Value Pengaturan
+#### FR-9.1: Tabel Key-Value Pengaturan (Murni Teks Form Fields)
 - Kunci unik, nilai, tipe, grup, updated_by, updated_at
-- Kunci awal (whitelist):
-  - **Identitas instansi:** nama, alamat, telepon, surel, laman, logo
-  - **Identitas aplikasi:** nama aplikasi, label unit
-  - **Preferensi tampilan/laporan:** zona waktu, format tanggal, format angka, header/footer ekspor
+- Form input murni berupa field teks dan numerik untuk metadata resmi:
+  - **Identitas instansi:** Nama Instansi ("LLDIKTI Wilayah XVI"), Nama Kepala Lembaga, NIP Kepala Lembaga, Alamat Kantor, Telepon, Surel Dinas, Website Resmi
+  - **Identitas aplikasi:** Nama Aplikasi ("SAKIP"), Label Unit Kerja
+  - **Preferensi tampilan/laporan:** Zona waktu (WITA), Format Tanggal, Format Angka, Header/Footer teks pada ekspor laporan
+- **Aset Logo:** Gambar logo resmi LLDIKTI XVI dan logo Tut Wuri Handayani dikelola secara statis di dalam aset aplikasi (`resources/images`), tidak memerlukan form upload file dinamis pada MVP.
 
 #### FR-9.2: Accessor dengan Cache
 - Service/helper `Pengaturan::get('kunci', $default)` dengan layer cache Laravel
@@ -542,10 +570,15 @@ sakip/
 #### FR-10.3: Audit untuk Percobaan yang Ditolak
 - Setiap penolakan eksplisit (percobaan hapus data bermakna, aktivasi gagal gerbang, create pengukuran indikator arsip) menghasilkan baris audit log bertindakan "ditolak"/"percobaan"
 
-#### FR-10.4: Halaman Pencarian Audit Log
-- Filter: actor, tindakan, objek_tipe, rentang waktu
-- Permission: `audit:read`
-- Dialog/drawer detail: perbandingan `nilai_lama` vs `nilai_baru` secara human-readable
+#### FR-10.4: Antarmuka Audit Log (Sentral Viewer & In-Line Drawer)
+- **Sentral Audit Log Viewer (Menu Khusus):**
+  - Tersedia bagi Superadmin dan Admin untuk memantau seluruh aktivitas sistem secara makro.
+  - Filter: aktor/user, jenis tindakan, tipe objek, rentang tanggal.
+  - Tampilan diff nilai_lama vs nilai_baru secara human-readable.
+  - Permission: `audit:read`.
+- **In-Line History Drawer (Halaman Pengukuran & Verifikasi):**
+  - Panel riwayat kronologis tersemat langsung di halaman detail pengisian pengukuran (PIC) dan antrean verifikasi (Tim Perencanaan).
+  - Menampilkan rekam jejak revisi angka, catatan pengembalian, dan alasan perubahan secara kontekstual tanpa mengharuskan pengguna berpindah halaman.
 
 ---
 
@@ -664,6 +697,8 @@ erDiagram
         int tahun
         string nomor_pk
         date tanggal_pk
+        string file_pk_path "nullable"
+        boolean target_terkunci "default false"
     }
 
     periode {
@@ -710,6 +745,7 @@ erDiagram
         int id PK
         int indikator_id FK
         uuid user_id FK
+        boolean is_primary "default true"
         date tanggal_mulai_berlaku
         text alasan "nullable"
     }
@@ -730,7 +766,7 @@ erDiagram
         int id PK
         int pengukuran_id FK
         enum status "tercapai | belum_tercapai"
-        enum sumber "manual | data_sumber"
+        enum sumber "formula | manual"
         uuid ditetapkan_oleh FK "nullable"
     }
 
@@ -828,47 +864,70 @@ Renstra harus ada dan aktif
   └── Sasaran harus ada di bawah Renstra
         └── Indikator harus ada di bawah Sasaran (dengan unit_id & arah)
               └── Target Tahunan harus ada per indikator per tahun
-                    └── Perjanjian Kinerja harus ada per Renstra per tahun
+                    └── Perjanjian Kinerja (PK) disahkan & mengunci target tahunan
                           └── Jadwal Tahunan baru bisa diaktifkan (3 gerbang)
                                 └── Snapshot terbentuk (beku)
                                       └── Pengukuran bisa dibuat (draft)
 ```
 
-### 9.2 Aturan Deadline Dua Lapis
+### 9.2 Aturan Penguncian Target Tahunan oleh Perjanjian Kinerja (PK)
+
+- Pengesahan Perjanjian Kinerja tahunan yang ditandatangani Kepala Lembaga secara otomatis **mengunci target tahunan** seluruh indikator aktif (`target_terkunci = true`).
+- Dokumen fisik/PDF bertandatangan diunggah sebagai bukti kepatuhan audit.
+- Target tahunan yang telah terkunci tidak dapat dimodifikasi secara bebas tanpa prosedur koreksi PK formal yang mewajibkan input alasan dan mencatat jejak audit log.
+
+### 9.3 Aturan Deadline Dua Lapis
 
 | Lapis | Berlaku untuk | Batas waktu | Setelah lewat |
 |-------|--------------|-------------|---------------|
 | **Jendela Periode** | PIC (scope unit) | `jadwal_periode.pengisian_selesai` | PIC tidak bisa create/update/ajukan |
 | **Penutupan Jadwal** | Perencanaan (global) | `jadwal_tahunan.penutupan` | Perencanaan tidak bisa create/update/ajukan; harus `jadwal:buka_kembali` |
 
-### 9.3 Aturan Buka-Kembali Dua Lapis
+### 9.4 Aturan Buka-Kembali Dua Lapis & Reversibilitas Aktivasi
 
-| Lapis | Permission | Transisi | Kapan tersedia |
-|-------|-----------|----------|----------------|
-| 1 — Pengukuran | `pengukuran:buka_kembali` | `Disahkan → Dikembalikan` | Sebelum `jadwal.penutupan` |
-| 2 — Jadwal | `jadwal:buka_kembali` | `ditutup → aktif` | Setelah `jadwal.penutupan` / kapan pun jadwal `ditutup` |
+| Lapis | Permission | Transisi | Syarat & Kondisi |
+|-------|-----------|----------|------------------|
+| **Reversibilitas Draft** | `jadwal:update` | `aktif → draft` | Diizinkan **hanya jika belum ada pengukuran** yang dibuat/disubmit oleh PIC pada jadwal tersebut |
+| **Lapis 1 — Pengukuran** | `pengukuran:buka_kembali` | `Disahkan → Dikembalikan` | Sebelum `jadwal.penutupan`; mewajibkan alasan |
+| **Lapis 2 — Jadwal** | `jadwal:buka_kembali` | `ditutup → aktif` | Setelah `jadwal.penutupan` / jadwal `ditutup`; memicu snapshot ulang idempoten; mewajibkan alasan |
 
-### 9.4 Aturan Snapshot
+### 9.5 Aturan Snapshot (Pembekuan Data)
 
 - Snapshot bersifat **idempoten**: baris yang sudah ada tidak ditimpa saat trigger dijalankan ulang
 - Snapshot yang **sudah dirujuk** pengukuran bersifat **abadi** — tidak dapat diubah
 - Snapshot yang **belum dirujuk** boleh dikoreksi selama jadwal berstatus `aktif`, dengan audit log
-- Mengubah data master (mis. `indikator.nama`) setelah snapshot terbentuk **tidak** mengubah snapshot
+- Mengubah data master (mis. `indikator.nama`) setelah snapshot terbentuk **tidak** mengubah snapshot yang sudah dibekukan
 
-### 9.5 Aturan Catatan Wajib
+### 9.6 Kebijakan Capping Capaian 100% (Standar KemenPAN-RB)
+
+- Formula kalkulasi capaian kinerja per indikator:
+  - Arah `naik_baik`: `(Realisasi / Target) * 100%`
+  - Arah `turun_baik`: `(Target / Realisasi) * 100%`
+- **Capping Maksimal 100% untuk Nilai Komposit:**
+  - Pada perhitungan agregasi/rata-rata capaian pada tingkat Sasaran Strategis, Renstra, dan Indeks Kinerja Institusi di Dashboard Eksekutif, capaian setiap IKU **dibatasi maksimal 100%**. Kebijakan ini mengikuti pedoman evaluasi akuntabilitas kinerja KemenPAN-RB agar indikator yang melampaui target tidak mengaburkan indikator yang kinerjanya masih di bawah target.
+- **Pelestarian Nilai Riil (Uncapped):**
+  - Nilai capaian riil (misal 125%) **tetap dipreservasi dan ditampilkan pada detail tabel IKU** untuk transparansi dan apresiasi pencapaian riil unit kerja.
+
+### 9.7 Aturan Catatan Wajib
 
 Catatan wajib diisi saat mengajukan pengukuran jika:
 1. Nilai memburuk menurut arah indikator dibanding Disahkan terakhir (stagnan dikecualikan), **ATAU**
 2. `indikator.wajib_catatan = true`
 
-### 9.6 Aturan Integritas Data
+### 9.8 Aturan Integritas Data
 
 - Unit dengan indikator terkait tidak dapat dihapus
 - Sasaran dengan indikator terkait tidak dapat dihapus
 - Pengukuran dengan `nilai`/`catatan` terisi tidak dapat dihapus permanen
 - `pengukuran:create` untuk indikator arsip ditolak untuk siapa pun
 
-### 9.7 Aturan Perubahan Regulasi (Kepmen IKU)
+### 9.9 Aturan Penugasan PIC & Akses Kolaboratif Unit
+
+- Penugasan indikator berbasis Unit Kerja dengan menetapkan **1 PIC Utama (Primary PIC)**.
+- Hanya PIC Utama yang memiliki hak formal untuk menekan tombol **"Ajukan Pengukuran"** ke Tim Perencanaan.
+- Anggota lain dalam unit kerja yang sama diberikan izin akses kolaboratif/view untuk membantu penyusunan draf angka dan berkas bukti dukung.
+
+### 9.10 Aturan Perubahan Regulasi (Kepmen IKU)
 
 | Jenis Perubahan | Penanganan |
 |-----------------|-----------|
@@ -876,7 +935,7 @@ Catatan wajib diisi saat mengajukan pengukuran jika:
 | Indikator dihapus dari Kepmen | Arsipkan indikator (aktif → arsip), data lama tetap utuh |
 | Indikator baru ditambahkan | Buat indikator baru → isi target → `jadwal:buka_kembali` → snapshot baru terbentuk |
 
-### 9.8 Aturan Nilai Periode Akhir
+### 9.11 Aturan Nilai Periode Akhir
 
 Nilai periode dengan `is_nilai_akhir = true` (mis. Tahunan) diisi **manual** — tidak ada perhitungan agregasi otomatis dari periode-periode di bawahnya.
 
@@ -992,7 +1051,7 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 | AC-2.6 | Indikator tanpa `unit_id` ditolak; default `arah = naik_baik` | Test Pest |
 | AC-2.7 | Pindah unit indikator → audit log `nilai_lama.unit_id` / `nilai_baru.unit_id` | Test Pest |
 | AC-2.8 | Target `0` sah, dibedakan dari `null`; unique constraint `(indikator_id, tahun)` | Test Pest |
-| AC-2.9 | Koreksi PK tanpa alasan ditolak | Test Pest |
+| AC-2.9 | Koreksi PK tanpa alasan ditolak; pengesahan PK mengunci target tahunan; upload berkas fisik PDF PK tersimpan | Test Pest |
 
 ### Modul 3 — Periode & Jadwal
 
@@ -1002,7 +1061,7 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 | AC-3.2 | Validasi urutan tanggal `jadwal_periode` di backend | Test Pest |
 | AC-3.3 | Aktivasi gagal masing-masing 3 gerbang → pesan spesifik + audit log percobaan gagal | Test Pest terpisah per gerbang |
 | AC-3.4 | Aktivasi lolos → N baris snapshot, trigger ulang (idempoten) tidak menambah baris | Test Pest |
-| AC-3.5 | Snapshot dirujuk pengukuran → tidak bisa diubah | Test Pest |
+| AC-3.5 | Jadwal aktif tanpa pengukuran dapat dikembalikan ke draft; jadwal aktif dengan pengukuran terkunci & hanya bisa dibuka via jadwal:buka_kembali | Test Pest |
 | AC-3.6 | Buka kembali jadwal tanpa alasan ditolak; snapshot baru terbentuk untuk indikator baru | Test Pest |
 | AC-3.7 | Jadwal retroaktif: PIC ditolak (jendela lewat), Perencanaan berhasil | Test Pest |
 
@@ -1010,7 +1069,7 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 
 | ID | Kriteria | Metode Verifikasi |
 |----|---------|-------------------|
-| AC-4.1 | Penugasan pertama tanpa alasan berhasil; pergantian tanpa alasan ditolak | Test Pest |
+| AC-4.1 | Penugasan PIC Utama per unit kerja; hanya PIC Utama yang bisa mengajukan pengukuran; rekan seunit memiliki hak akses kolaboratif | Test Pest |
 | AC-4.2 | Resolusi PJ efektif mengembalikan baris benar untuk berbagai tanggal acuan | Test Pest |
 
 ### Modul 5 — Pengukuran
@@ -1020,26 +1079,27 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 | AC-5.1 | PIC scope unit A → buat pengukuran unit A berhasil, unit B ditolak 403 | Test Pest |
 | AC-5.2 | Perencanaan global → buat pengukuran unit mana pun berhasil | Test Pest |
 | AC-5.3 | Create pengukuran indikator arsip ditolak (PIC dan Perencanaan) | Test Pest |
-| AC-5.4 | Edit versi usang → HTTP 409 Conflict | Test Pest |
+| AC-5.4 | Edit versi usang memicu peringatan konflik & muat data terbaru tanpa menghapus draft teks analisis | Test Pest + Vitest |
 | AC-5.5 | PIC setelah `pengisian_selesai` → ditolak; Perencanaan → berhasil (sebelum penutupan) | Test Pest `Carbon::setTestNow()` |
 | AC-5.6 | Ajukan: nilai turun (naik_baik) tanpa catatan ditolak; stagnan tanpa catatan diterima | Test Pest per arah |
 | AC-5.7 | Verifikasi/kembalikan/sahkan → status berubah + audit log | Test Pest |
 | AC-5.8 | Buka-kembali pengukuran setelah penutupan jadwal ditolak | Test Pest |
 | AC-5.9 | Delete pengukuran dengan nilai terisi ditolak | Test Pest |
+| AC-5.10 | Capping 100% pada rata-rata agregat komposit institusi di dashboard, nilai capaian riil tersimpan utuh di level IKU | Test Pest + kalkulator |
 
 ### Modul 6 — Reviu & Pengesahan
 
 | ID | Kriteria | Metode Verifikasi |
 |----|---------|-------------------|
 | AC-6.1 | Antrean menampilkan hanya baris dengan status yang sesuai; filter berfungsi | Test Pest `assertInertia` + Vitest |
-| AC-6.2 | Status capaian tersimpan dengan `sumber = manual`; revisi = soft replace | Test Pest |
+| AC-6.2 | Status capaian otomatis terisi oleh formula (tercapai ≥ 100%, belum < 100%); override manual oleh Perencanaan mencatat audit log | Test Pest |
 
 ### Modul 7 — Dashboard & Visualisasi
 
 | ID | Kriteria | Metode Verifikasi |
 |----|---------|-------------------|
 | AC-7.1 | Props ringkasan stat cards akurat (5 kategori, arsip dikecualikan) | Test Pest `assertInertia` |
-| AC-7.2 | Grafik ApexCharts render tanpa error | Test Vitest + manual |
+| AC-7.2 | Grafik ApexCharts render tanpa error dengan toolbar unduh aktif | Test Vitest + manual |
 | AC-7.3 | Filter query string menghasilkan props yang sesuai | Test Pest |
 | AC-7.4 | Pegawai dan Admin dapat mengakses dashboard (200 OK) | Test Pest |
 
@@ -1048,7 +1108,7 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 | ID | Kriteria | Metode Verifikasi |
 |----|---------|-------------------|
 | AC-8.1 | Tabel laporan terfilter menampilkan kolom yang diperlukan | Test Pest + Vitest |
-| AC-8.2 | Ekspor `.xlsx` berisi jumlah baris sesuai filter; user tanpa `laporan:ekspor` → 403 | Test Pest (PHPSpreadsheet reader) |
+| AC-8.2 | Ekspor `.xlsx` mereplikasi format matriks hierarkis resmi LLDIKTI XVI (Header, Sasaran, IKU, Target, TW I-IV, Realisasi, Analisis, Tindak Lanjut); tanpa permission → 403 | Test Pest (PHPSpreadsheet reader) |
 
 ### Modul 9 — Setelan Aplikasi
 
@@ -1066,7 +1126,7 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 | AC-10.1 | `AuditLogger::catat(...)` menghasilkan baris dengan kolom wajib terisi; tidak ada rute update/delete | Test Pest |
 | AC-10.2 | Aksi sensitif tanpa alasan → ditolak/exception | Test Pest |
 | AC-10.3 | Penolakan eksplisit (5 skenario: hapus data bermakna, 3 gerbang aktivasi, create indikator arsip) → baris audit log | Test Pest lintas modul |
-| AC-10.4 | Filter audit log berfungsi; Pegawai → 403 | Test Pest + Vitest |
+| AC-10.4 | Sentral Audit Viewer (filter lengkap) dan In-line History Drawer berfungsi; Pegawai tanpa hak → 403 | Test Pest + Vitest |
 
 ### Seed Data
 
@@ -1081,11 +1141,12 @@ Fitur berikut secara sengaja **tidak dibangun** pada Fase Awal (MVP). Dicantumka
 
 | Dokumen | Lokasi |
 |---------|--------|
-| Rencana Pengembangan (Plan Teknis) | `SAKIP - Plan Pengembangan.md` |
-| Workflow Detail | `SAKIP - Workflow.md` |
-| Design System | `design-system.md` |
-| Transkrip Rapat Pemantapan Konsep | `Rapat Pemantapan Konsep Pengembangan SAKIP - Hasil Rapi.txt` |
+| Rencana Pengembangan (Plan Teknis) | `document/SAKIP - Plan Pengembangan.md` |
+| Workflow Detail | `document/SAKIP - Workflow.md` |
+| Design System | `document/design-system.md` |
+| Transkrip Rapat Pemantapan Konsep | `document/Rapat Pemantapan Konsep Pengembangan SAKIP - Hasil Rapi.txt` |
+| Matriks Resmi Kinerja Triwulan | `document/Pengukuran Kinerja  Triwulan 2026.xlsx` |
 
 ---
 
-*PRD v1.0 — SAKIP LLDIKTI Wilayah XVI — Fase Awal (MVP) — September 2026*
+*PRD v1.1 — SAKIP LLDIKTI Wilayah XVI — Fase Awal (MVP) — September 2026 (Finalized post Grill-Me)*
