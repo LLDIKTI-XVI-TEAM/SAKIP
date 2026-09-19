@@ -24,10 +24,10 @@ Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document
 - **Backend**: Laravel 13 (PHP 8.3)
 - **Frontend**: React 19 + TypeScript (via Vite)
 - **Adapter**: Inertia.js (`@inertiajs/react`)
-- **Database**: PostgreSQL 18
+- **Database development/CI**: PostgreSQL 17 (sesuai `compose.yaml`)
 - **Styling**: Tailwind CSS v4 (Token `@theme`)
 - **Containerization**: Podman 5.8 & Podman-compose 1.6
-- **Testing**: Pest / PHPUnit (Backend) + Vitest (Frontend)
+- **Testing**: PHPUnit (Backend) + Vitest / React Testing Library (Frontend)
 
 ---
 
@@ -39,18 +39,54 @@ Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document
    ```
 2. **Jalankan Frontend (HMR Dev Server)**:
    ```powershell
-   npm run dev
+   bun run dev
    ```
 3. Akses melalui browser di `http://localhost:8000`.
 
 ---
 
-## 🧪 Pengujian Otomatis (DoD)
+## 🧪 CI dan quality gate
+
+Workflow `.github/workflows/ci.yml` berjalan pada PR menuju `development`/`main`, push ke kedua branch tersebut, dan pemicu manual. Enam job berjalan independen sehingga setiap pemeriksaan memiliki hasil sendiri di GitHub:
+
+| Check | Command | Cakupan |
+| --- | --- | --- |
+| PHP Formatting | `composer lint` | Pint seluruh proyek, mode `--test` tanpa menulis ulang source |
+| PHP Static Analysis | `composer analyse` | Larastan/PHPStan level 3, `app/`, `routes/`, dan `database/` |
+| Backend Tests | `composer test` | Unit dan feature tests dengan PostgreSQL disposable |
+| TypeScript | `bun run typecheck` | Typecheck source frontend dan frontend tests |
+| Frontend Tests | `bun run test` | Vitest + React Testing Library pada komponen aplikasi |
+| Production Build | `bun run build` | Build asset Vite menggunakan runtime Bun |
+
+CI memakai PHP 8.3, PostgreSQL 17, dan Bun 1.3.11. Instalasi frontend memakai `bun install --frozen-lockfile`; `bun.lock` menjadi lockfile tunggal. Gunakan versi runtime yang sama ketika mereproduksi kegagalan.
+
+**Pengecualian runtime test:** Vitest/jsdom dijalankan dengan Node 24.19.0 melalui script `bun run test`. Pada verifikasi awal, runtime Bun 1.3.11 tidak kompatibel dengan EventTarget jsdom 30. Node dipakai khusus untuk tool test ini; instalasi dependency, typecheck, dev server, dan build tetap menggunakan Bun. Pastikan Node tersebut tersedia di PATH sebelum menjalankan test frontend.
 
 ```powershell
-# Backend Feature Tests
-php artisan test
-
-# Frontend Unit Tests
-npm run test
+bun install --frozen-lockfile
+bun run typecheck
+bun run test
+bun run build
 ```
+
+### Backend test dan isolasi database
+
+Jalankan bukti PHP melalui Podman dengan PHP 8.3 serta ekstensi `pdo_pgsql`, `mbstring`, dan `bcmath`. `composer qa` menggabungkan Pint, static analysis, dan backend tests untuk verifikasi lokal; CI menjalankan ketiganya pada job terpisah agar tidak mengulang seluruh pemeriksaan.
+
+Job Backend Tests membuat service PostgreSQL baru untuk setiap run, tidak memakai database development atau credential deployment. Feature tests membuat fixture sintetis sendiri melalui `RefreshDatabase`, tanpa menjalankan seeder development. Sebelum menjalankan suite lokal, siapkan container/database disposable terpisah dan verifikasi:
+
+- `APP_ENV=testing`, tanpa config cache, serta `APP_KEY` khusus testing.
+- Koneksi `pgsql` menunjuk host/port container testing, database dan username **`sakip_test`**; tidak menggunakan koneksi read/write terpisah atau DB_URL development.
+- `SAKIP_TEST_ALLOW_DATABASE_RESET=1` hanya pada proses yang memang diizinkan mereset database disposable tersebut.
+- Cache, session, dan mail memakai driver `array`; queue memakai `sync`.
+
+`tests/TestCase.php` memeriksa opt-in serta identitas database/koneksi tulis sebelum trait `RefreshDatabase` dapat menjalankan reset. Nama database dan opt-in merupakan guard tambahan, bukan pengganti verifikasi isolasi container. Jangan menjalankan suite pada database aplikasi atau menggunakan container `sakip_db` development sebagai target reset.
+
+Di dalam container PHP testing yang telah dikonfigurasi dan diverifikasi tersebut:
+
+```sh
+composer install --no-interaction --prefer-dist
+composer qa
+```
+
+Laporan JUnit backend/frontend disimpan sebagai artifact GitHub selama tujuh hari, termasuk ketika test gagal. CI hijau membuktikan pemeriksaan dan coverage yang tersedia: test alur pengukuran existing, karakterisasi kalkulasi server, serta interaksi komponen Button. Hasil ini belum membuktikan seluruh requirement PRD, integrasi Keycloak, seluruh aturan authorization, atau seluruh invariant snapshot selesai.

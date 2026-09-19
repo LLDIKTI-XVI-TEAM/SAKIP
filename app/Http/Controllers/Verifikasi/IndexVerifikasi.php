@@ -13,7 +13,7 @@ class IndexVerifikasi extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
+        if (! $user->hasRole('perencanaan') && ! $user->hasRole('superadmin')) {
             abort(403, 'Akses terbatas untuk Tim Perencanaan.');
         }
 
@@ -24,9 +24,9 @@ class IndexVerifikasi extends Controller
             'periodeJadwal',
             'buktiDukungs',
         ])
-        ->whereIn('status', ['diajukan', 'diverifikasi'])
-        ->orderByDesc('diajukan_pada')
-        ->get();
+            ->whereIn('status', ['diajukan', 'diverifikasi'])
+            ->orderByDesc('diajukan_pada')
+            ->get();
 
         return Inertia::render('Verifikasi/Index', [
             'pengukurans' => $pengukurans,

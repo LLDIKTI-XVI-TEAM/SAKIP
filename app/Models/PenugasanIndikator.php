@@ -26,21 +26,25 @@ class PenugasanIndikator extends Model
         'is_active' => 'boolean',
     ];
 
+    /** @return BelongsTo<IndikatorKinerja, $this> */
     public function indikatorKinerja(): BelongsTo
     {
         return $this->belongsTo(IndikatorKinerja::class, 'indikator_kinerja_id');
     }
 
+    /** @return BelongsTo<UnitKerja, $this> */
     public function unitKerja(): BelongsTo
     {
         return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function pic(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /** @return HasMany<PengukuranKinerja, $this> */
     public function pengukurans(): HasMany
     {
         return $this->hasMany(PengukuranKinerja::class, 'penugasan_indikator_id');

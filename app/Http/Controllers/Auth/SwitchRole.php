@@ -16,7 +16,7 @@ class SwitchRole extends Controller
 {
     public function __invoke(Request $request, int $id): RedirectResponse
     {
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             abort(403, 'Aksi ini hanya tersedia di lingkungan development.');
         }
 

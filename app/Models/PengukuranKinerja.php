@@ -40,36 +40,43 @@ class PengukuranKinerja extends Model
         'disahkan_pada' => 'datetime',
     ];
 
+    /** @return BelongsTo<PenugasanIndikator, $this> */
     public function penugasanIndikator(): BelongsTo
     {
         return $this->belongsTo(PenugasanIndikator::class, 'penugasan_indikator_id');
     }
 
+    /** @return BelongsTo<PeriodeJadwal, $this> */
     public function periodeJadwal(): BelongsTo
     {
         return $this->belongsTo(PeriodeJadwal::class, 'periode_jadwal_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function verifikator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'diverifikasi_oleh');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function pengesah(): BelongsTo
     {
         return $this->belongsTo(User::class, 'disahkan_oleh');
     }
 
+    /** @return HasMany<BuktiDukung, $this> */
     public function buktiDukungs(): HasMany
     {
         return $this->hasMany(BuktiDukung::class, 'pengukuran_kinerja_id');
     }
 
+    /** @return HasMany<RiwayatPengukuran, $this> */
     public function riwayats(): HasMany
     {
         return $this->hasMany(RiwayatPengukuran::class, 'pengukuran_kinerja_id')->latest();
     }
 
+    /** @return HasOne<KinerjaSnapshot, $this> */
     public function snapshot(): HasOne
     {
         return $this->hasOne(KinerjaSnapshot::class, 'pengukuran_kinerja_id');

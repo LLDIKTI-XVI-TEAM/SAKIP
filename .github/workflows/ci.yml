@@ -1,0 +1,191 @@
+name: SAKIP CI
+
+on:
+  pull_request:
+    branches: [development, main]
+  push:
+    branches: [development, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  BUN_VERSION: '1.3.11'
+  COMPOSER_NO_INTERACTION: 1
+
+jobs:
+  php-formatting:
+    name: PHP Formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-php83-${{ hashFiles('composer.lock') }}
+      - run: composer install --prefer-dist --no-progress
+      - run: composer lint
+
+  php-static-analysis:
+    name: PHP Static Analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      APP_ENV: testing
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-php83-${{ hashFiles('composer.lock') }}
+      - run: composer install --prefer-dist --no-progress
+      - run: composer analyse
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: sakip_test
+      DB_USERNAME: sakip_test
+      DB_PASSWORD: sakip_test
+      SAKIP_TEST_ALLOW_DATABASE_RESET: 1
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: sakip_test
+          POSTGRES_USER: sakip_test
+          POSTGRES_PASSWORD: sakip_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sakip_test -d sakip_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-php83-${{ hashFiles('composer.lock') }}
+      - run: composer install --prefer-dist --no-progress
+      - run: composer test -- --log-junit="${{ runner.temp }}/backend-tests.xml"
+      - name: Simpan laporan test
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: backend-test-results
+          path: ${{ runner.temp }}/backend-tests.xml
+          retention-days: 7
+          if-no-files-found: warn
+
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      # Vitest/jsdom memakai Node; dependency dan build tetap memakai Bun.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - run: bun run test --reporter=default --reporter=junit --outputFile="${{ runner.temp }}/frontend-tests.xml"
+      - name: Simpan laporan test
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-test-results
+          path: ${{ runner.temp }}/frontend-tests.xml
+          retention-days: 7
+          if-no-files-found: warn
+
+  production-build:
+    name: Production Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run build

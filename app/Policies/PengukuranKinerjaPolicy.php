@@ -46,7 +46,7 @@ class PengukuranKinerjaPolicy
         }
 
         // Cek status alur
-        if (!in_array($pengukuran->status, ['draft', 'dikembalikan'])) {
+        if (! in_array($pengukuran->status, ['draft', 'dikembalikan'])) {
             return Response::deny('Kinerja yang sudah diajukan atau disahkan tidak dapat diedit tanpa persetujuan buka kembali.');
         }
 
@@ -56,7 +56,7 @@ class PengukuranKinerjaPolicy
         }
 
         // Cek deadline jadwal periode
-        if (!$pengukuran->periodeJadwal->isAktifBuka()) {
+        if (! $pengukuran->periodeJadwal->isAktifBuka()) {
             return Response::deny('Batas waktu pengisian untuk periode ini telah ditutup.');
         }
 
@@ -70,11 +70,11 @@ class PengukuranKinerjaPolicy
 
     public function verify(User $user, PengukuranKinerja $pengukuran): Response
     {
-        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
+        if (! $user->hasRole('perencanaan') && ! $user->hasRole('superadmin')) {
             return Response::deny('Hanya Tim Perencanaan yang berwenang memverifikasi capaian kinerja.');
         }
 
-        if (!in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
+        if (! in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
             return Response::deny('Hanya pengukuran dengan status Diajukan yang dapat diverifikasi.');
         }
 
@@ -83,11 +83,11 @@ class PengukuranKinerjaPolicy
 
     public function ratify(User $user, PengukuranKinerja $pengukuran): Response
     {
-        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
+        if (! $user->hasRole('perencanaan') && ! $user->hasRole('superadmin')) {
             return Response::deny('Hanya Tim Perencanaan yang berwenang mengesahkan capaian kinerja.');
         }
 
-        if (!in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
+        if (! in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
             return Response::deny('Hanya pengukuran yang telah diajukan/diverifikasi yang dapat disahkan.');
         }
 

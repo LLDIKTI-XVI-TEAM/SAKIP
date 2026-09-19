@@ -8,47 +8,106 @@ use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
-use App\Models\RiwayatPengukuran;
 use App\Models\SasaranStrategis;
-use App\Models\TargetKinerja;
 use App\Models\UnitKerja;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class VerticalSlice1Test extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
-    protected User $superadmin;
     protected User $admin;
+
     protected User $perencanaan;
+
     protected User $picKelembagaan;
-    protected User $picAkademik;
+
     protected PengukuranKinerja $pengukuran;
-    protected PeriodeJadwal $periode;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->superadmin = User::where('email', 'superadmin@lldikti16.kemdikbud.go.id')->first();
-        $this->admin = User::where('email', 'admin@lldikti16.kemdikbud.go.id')->first();
-        $this->perencanaan = User::where('email', 'perencanaan@lldikti16.kemdikbud.go.id')->first();
-        $this->picKelembagaan = User::where('email', 'pic.kelembagaan@lldikti16.kemdikbud.go.id')->first();
-        $this->picAkademik = User::where('email', 'pic.akademik@lldikti16.kemdikbud.go.id')->first();
+        // Waktu dan semua relasi dibuat sendiri agar suite tidak bergantung seed development.
+        $this->travelTo(Carbon::parse('2026-03-15 09:00:00'));
 
-        $this->periode = PeriodeJadwal::where('triwulan', 1)->where('tahun', 2026)->first();
-        $this->pengukuran = PengukuranKinerja::first();
+        $unit = UnitKerja::create([
+            'kode' => 'UNIT-UJI',
+            'nama' => 'Unit Pengujian',
+            'singkatan' => 'UJI',
+        ]);
+
+        foreach (['admin', 'perencanaan', 'pegawai'] as $role) {
+            Role::create(['name' => $role, 'guard_name' => 'web']);
+        }
+
+        $this->admin = $this->createUser('admin', $unit);
+        $this->perencanaan = $this->createUser('perencanaan', $unit);
+        $this->picKelembagaan = $this->createUser('pegawai', $unit);
+
+        $renstra = Renstra::create([
+            'kode' => 'RENSTRA-UJI',
+            'nama' => 'Renstra Pengujian',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'SS-UJI',
+            'deskripsi' => 'Sasaran sintetis untuk pengujian alur existing',
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IND-UJI',
+            'nama' => 'Indikator Pengujian',
+            'satuan' => '%',
+            'tipe_perhitungan' => 'naik_baik',
+        ]);
+        $penugasan = PenugasanIndikator::create([
+            'indikator_kinerja_id' => $indikator->id,
+            'unit_kerja_id' => $unit->id,
+            'user_id' => $this->picKelembagaan->id,
+            'tahun' => 2026,
+        ]);
+        $periode = PeriodeJadwal::create([
+            'tahun' => 2026,
+            'triwulan' => 1,
+            'nama_periode' => 'Periode Pengujian',
+            'tanggal_mulai' => '2026-03-01 00:00:00',
+            'tanggal_selesai' => '2026-03-31 23:59:59',
+            'status' => 'buka',
+        ]);
+        $this->pengukuran = PengukuranKinerja::create([
+            'penugasan_indikator_id' => $penugasan->id,
+            'periode_jadwal_id' => $periode->id,
+            'target' => 70.0,
+            'status' => 'draft',
+        ]);
+    }
+
+    private function createUser(string $role, UnitKerja $unit): User
+    {
+        $user = User::create([
+            'name' => 'Pengguna Uji '.$role,
+            'email' => $role.'@example.test',
+            'password' => 'password-pengujian',
+            'unit_kerja_id' => $unit->id,
+        ]);
+        $user->assignRole($role);
+
+        return $user;
     }
 
     /**
      * Uji Pemisahan Tugas (Separation of Duties):
-     * Admin TI DILARANG memanipulasi atau mengesahkan data kinerja substansi SAKIP.
+     * Admin tanpa grant substantif ditolak; kasus ini tidak menetapkan larangan permanen berdasarkan role.
      */
-    public function test_admin_is_strictly_forbidden_from_manipulating_performance_data(): void
+    public function test_admin_without_substantive_grants_cannot_mutate_performance_data(): void
     {
         $response = $this->actingAs($this->admin)->post("/pengukuran/{$this->pengukuran->id}", [
             'realisasi' => 75.0,
@@ -93,8 +152,8 @@ class VerticalSlice1Test extends TestCase
         $response = $this->actingAs($this->picKelembagaan)->post("/pengukuran/{$this->pengukuran->id}", [
             'realisasi' => 85.0,
             'action' => 'ajukan',
-            'url_bukti' => 'https://drive.google.com/lldikti16/bukti-tw1.pdf',
-            'keterangan_bukti' => 'Laporan Hasil Akreditasi BAN-PT Triwulan 1',
+            'url_bukti' => 'https://example.test/bukti-tw1.pdf',
+            'keterangan_bukti' => 'Laporan Pengujian Triwulan 1',
         ]);
 
         $response->assertRedirect('/pengukuran');
@@ -108,7 +167,7 @@ class VerticalSlice1Test extends TestCase
         // Bukti dukung tersimpan
         $this->assertDatabaseHas('bukti_dukungs', [
             'pengukuran_kinerja_id' => $this->pengukuran->id,
-            'url_tautan' => 'https://drive.google.com/lldikti16/bukti-tw1.pdf',
+            'url_tautan' => 'https://example.test/bukti-tw1.pdf',
         ]);
 
         // Riwayat status tercatat
@@ -146,10 +205,10 @@ class VerticalSlice1Test extends TestCase
     }
 
     /**
-     * Uji Alur Pengesahan Resmi & Immutability Snapshot:
+     * Uji pengesahan dan pencatatan payload snapshot existing:
      * Tim Perencanaan mengesahkan kinerja dan sistem membekukan data ke format JSONB snapshot dengan SHA256.
      */
-    public function test_perencanaan_can_ratify_and_create_immutable_snapshot(): void
+    public function test_perencanaan_can_ratify_and_record_snapshot_payload(): void
     {
         // Siapkan pengukuran dalam status diajukan dengan realisasi
         $this->pengukuran->update([
@@ -174,7 +233,7 @@ class VerticalSlice1Test extends TestCase
         $this->assertNotEmpty($snapshot->snapshot_hash);
         $this->assertEquals(64, strlen($snapshot->snapshot_hash)); // SHA256 length
 
-        // Verifikasi isi data snapshot imutabel
+        // Verifikasi isi data yang tercatat saat pengesahan
         $data = $snapshot->snapshot_data;
         $this->assertEquals(75.0, $data['realisasi']);
         $this->assertEquals(107.14, $data['capaian_persen']);

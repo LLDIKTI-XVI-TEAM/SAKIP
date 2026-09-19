@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - SAKIP LLDIKTI XVI` : 'SAKIP LLDIKTI XVI'),
     resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.tsx', { eager: true });
+        const pages = import.meta.glob<{ default: ResolvedComponent }>('./Pages/**/*.tsx', { eager: true });
         const page = pages[`./Pages/${name}.tsx`];
         if (!page) {
             throw new Error(`Page component not found: ./Pages/${name}.tsx`);

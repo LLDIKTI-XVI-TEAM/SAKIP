@@ -46,6 +46,7 @@ class PeriodeJadwal extends Model
         }
 
         $now = Carbon::now();
+
         return $now->between($this->tanggal_mulai, $this->tanggal_selesai);
     }
 }

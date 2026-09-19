@@ -28,7 +28,7 @@ class IndexPengukuran extends Controller
             $query->where('periode_jadwal_id', $periode->id);
         }
 
-        if ($user && $user->hasRole('pegawai') && !$user->hasRole('superadmin')) {
+        if ($user && $user->hasRole('pegawai') && ! $user->hasRole('superadmin')) {
             $query->whereHas('penugasanIndikator', function ($q) use ($user) {
                 $q->where('unit_kerja_id', $user->unit_kerja_id);
             });

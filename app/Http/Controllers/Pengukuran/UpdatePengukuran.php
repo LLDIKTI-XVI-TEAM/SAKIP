@@ -75,7 +75,7 @@ class UpdatePengukuran extends Controller
             }
 
             // Handle URL Link Bukti Eksternal
-            if (!empty($validated['url_bukti'])) {
+            if (! empty($validated['url_bukti'])) {
                 BuktiDukung::create([
                     'pengukuran_kinerja_id' => $pengukuran->id,
                     'nama_file' => $validated['keterangan_bukti'] ?: 'Tautan Google Drive / Cloud Eksternal',

@@ -2,16 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Model role mengikuti config/permission.php; trait vendor belum menyatakan tipe koleksinya.
+ *
+ * @property-read Collection<int, Role> $roles
+ */
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
         'name',
@@ -39,11 +46,13 @@ class User extends Authenticatable
         ];
     }
 
+    /** @return BelongsTo<UnitKerja, $this> */
     public function unitKerja(): BelongsTo
     {
         return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 
+    /** @return HasMany<PenugasanIndikator, $this> */
     public function penugasanIndikators(): HasMany
     {
         return $this->hasMany(PenugasanIndikator::class, 'user_id');

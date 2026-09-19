@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -61,7 +62,7 @@ class HandleInertiaRequests extends Middleware
                 'message' => fn () => $request->session()->get('message'),
             ],
             'is_dev' => app()->environment('local'),
-            'demo_users' => app()->environment('local') ? \App\Models\User::with('unitKerja', 'roles')->get()->map(function ($u) {
+            'demo_users' => app()->environment('local') ? User::with('unitKerja', 'roles')->get()->map(function ($u) {
                 return [
                     'id' => $u->id,
                     'name' => $u->name,

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Models\IndikatorKinerja;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
@@ -33,7 +32,7 @@ class IndexDashboard extends Controller
         }
 
         // Jika user adalah PIC (pegawai biasa), fokuskan data unit kerjanya
-        if ($user && $user->hasRole('pegawai') && !$user->hasRole('superadmin')) {
+        if ($user && $user->hasRole('pegawai') && ! $user->hasRole('superadmin')) {
             $query->whereHas('penugasanIndikator', function ($q) use ($user) {
                 $q->where('unit_kerja_id', $user->unit_kerja_id);
             });
