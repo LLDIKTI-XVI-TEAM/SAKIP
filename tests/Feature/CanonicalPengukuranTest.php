@@ -22,6 +22,15 @@ class CanonicalPengukuranTest extends TestCase
 {
     use CreatesPengukuranFixture,RefreshDatabase;
 
+    public function test_review_preserves_operational_definition_from_the_submission_snapshot(): void
+    {
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
+        $this->pengukuran->indikator->update(['definisi_operasional' => 'Definisi master terbaru.']);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukuran.penugasan_indikator.indikator_kinerja.definisi_operasional', 'Definisi operasional beku.'));
+    }
+
     private function ratioContext(): array
     {
         $context = JadwalSnapshot::create([...$this->context->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'target']),

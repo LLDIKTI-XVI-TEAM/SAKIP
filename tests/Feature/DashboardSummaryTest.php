@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Actions\Pengukuran\PresentPengukuran;
+use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -16,6 +19,19 @@ use Tests\TestCase;
 class DashboardSummaryTest extends TestCase
 {
     use CreatesPengukuranFixture, RefreshDatabase;
+
+    public function test_index_excludes_another_schedule_in_the_same_year_and_period(): void
+    {
+        $oldSchedule = JadwalTahunan::create([...$this->jadwal->only(['renstra_id', 'tahun', 'renstra_pk_id', 'penutupan']), 'status' => 'ditutup']);
+        $oldIndicator = IndikatorKinerja::create([...$this->pengukuran->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'tipe_perhitungan']), 'kode' => 'I-LAMA']);
+        $oldContext = JadwalSnapshot::create([...$this->context->only(['periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan']),
+            'jadwal_id' => $oldSchedule->id, 'indikator_id' => $oldIndicator->id]);
+        PengukuranKinerja::create([...$this->pengukuran->only(['tahun', 'periode_id', 'sumber_nilai', 'created_by']),
+            'indikator_id' => $oldIndicator->id, 'jadwal_snapshot_id' => $oldContext->id]);
+
+        $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
+            ->has('pengukurans', 1)->where('pengukurans.0.id', $this->pengukuran->id)->where('pagination.total', 1));
+    }
 
     public function test_measurement_index_is_empty_before_the_first_schedule_window(): void
     {

@@ -61,7 +61,6 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
                             ) : (
                                 pengukurans.map((p) => {
                                     const iku = p.penugasan_indikator?.indikator_kinerja;
-                                    const canEdit = p.can.update;
 
                                     return (
                                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -100,7 +99,7 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
                                                 {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                {p.can.view && <Link href={`/pengukuran/${p.id}/edit`} className={`inline-flex rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary ${canEdit ? 'bg-primary text-white' : 'border border-border bg-surface text-ink'}`}>{canEdit ? 'Isi / Edit' : 'Lihat Detail'}</Link>}
+                                                {p.can.view && <Link href={`/pengukuran/${p.id}/edit`} className="inline-flex rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">Buka pengukuran</Link>}
                                             </td>
                                         </tr>
                                     );

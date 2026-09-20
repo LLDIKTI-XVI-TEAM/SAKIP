@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import PengukuranEdit from '@/Pages/Pengukuran/Edit';
+import PengukuranIndex from '@/Pages/Pengukuran/Index';
 import VerifikasiShow from '@/Pages/Verifikasi/Show';
 import type { Pengukuran } from '@/Pages/Pengukuran/types';
 
@@ -42,6 +43,11 @@ beforeEach(() => { vi.spyOn(router, 'post').mockImplementation(() => undefined);
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('membuka pengukuran dari ringkasan tanpa menyimpulkan izin edit dari placeholder capability', () => {
+        render(<PengukuranIndex periode={null} pengukurans={[{ ...measurement, can: { ...measurement.can, update: false } }]}
+            pagination={{ current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null }} />);
+        expect(screen.getByRole('link', { name: 'Buka pengukuran' }).getAttribute('href')).toBe(`/pengukuran/${measurement.id}/edit`);
+    });
     it('mengirim bukti pengganti beralasan dan mempertahankan koreksi ketika server menolak', async () => {
         const user = userEvent.setup();
         render(<PengukuranEdit pengukuran={{ ...measurement, status: 'dikembalikan', bukti_dukungs: [{

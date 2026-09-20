@@ -63,7 +63,7 @@ class PresentPengukuran
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,
             'alasan_tidak_dapat_dihitung' => $frozen ? $frozen['alasan_tidak_dapat_dihitung'] : $p->alasan_tidak_dapat_dihitung,
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
-            'penugasan_indikator' => ['indikator_kinerja' => $frozen ? $frozen['indikator'] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
+            'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
                 'unit_kerja' => $frozen ? $frozen['unit_kerja'] : $context->unit->only(['id', 'nama']), 'pic' => $frozen ? $frozen['pic'] : ($detail ? $p->effectivePic()?->pic?->only(['id', 'nama']) : $p->getAttribute('summary_pic'))],
             'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
