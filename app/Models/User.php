@@ -2,54 +2,36 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Traits\HasRoles;
 
-/**
- * Model role mengikuti config/permission.php; trait vendor belum menyatakan tipe koleksinya.
- *
- * @property-read Collection<int, Role> $roles
- */
 class User extends Authenticatable
 {
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasUuids;
 
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'nip',
-        'jabatan',
-        'unit_kerja_id',
-        'keycloak_id',
-        'avatar_url',
-        'is_active',
-    ];
+    protected $fillable = ['keycloak_id', 'nama', 'email', 'nomor_telepon', 'is_active'];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['keycloak_id'];
 
     protected function casts(): array
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
-        ];
+        return ['is_active' => 'boolean'];
     }
 
-    /** @return BelongsTo<UnitKerja, $this> */
-    public function unitKerja(): BelongsTo
+    /** @return BelongsToMany<Role, $this> */
+    public function roles(): BelongsToMany
     {
-        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
+        return $this->belongsToMany(Role::class, 'user_roles')
+            ->withPivot(['id', 'sumber_pemberian', 'diberikan_oleh', 'audit_id', 'created_at']);
+    }
+
+    /** Pemeriksaan label peran bukan pengganti resolver permission. */
+    public function hasRole(string $kode): bool
+    {
+        return $this->roles()->where('kode', $kode)->exists();
     }
 
     /** @return HasMany<PenugasanIndikator, $this> */

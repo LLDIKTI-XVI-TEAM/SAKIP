@@ -2,44 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class BuktiDukung extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
-    protected $table = 'bukti_dukungs';
+    protected $table = 'berkas';
 
-    protected $fillable = [
-        'pengukuran_kinerja_id',
-        'nama_file',
-        'file_path',
-        'tipe_file',
-        'file_size',
-        'url_tautan',
-        'keterangan',
-    ];
+    public $timestamps = false;
 
-    protected $appends = ['download_url'];
+    protected $fillable = ['jenis_berkas_id', 'berkasable_type', 'berkasable_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks', 'uploaded_by', 'created_at', 'dihapus_pada', 'dihapus_oleh'];
 
-    public function pengukuranKinerja(): BelongsTo
-    {
-        return $this->belongsTo(PengukuranKinerja::class, 'pengukuran_kinerja_id');
-    }
-
-    public function getDownloadUrlAttribute(): ?string
-    {
-        if ($this->url_tautan) {
-            return $this->url_tautan;
-        }
-
-        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
-            return Storage::disk('public')->url($this->file_path);
-        }
-
-        return null;
-    }
+    protected $casts = ['ukuran_bytes' => 'integer', 'created_at' => 'datetime', 'dihapus_pada' => 'datetime'];
 }

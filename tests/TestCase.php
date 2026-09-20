@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ abstract class TestCase extends BaseTestCase
         $app = parent::createApplication();
 
         // Jalankan sebelum setup trait; hook bawaan RefreshDatabase dapat menutupi method parent.
-        if (in_array(RefreshDatabase::class, class_uses_recursive(static::class), true)) {
+        if (array_intersect([RefreshDatabase::class, DatabaseMigrations::class], class_uses_recursive(static::class))) {
             $this->assertDisposableDatabase($app);
         }
 
