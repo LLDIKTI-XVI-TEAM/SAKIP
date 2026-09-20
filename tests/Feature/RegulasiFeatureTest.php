@@ -9,11 +9,15 @@ use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Models\UserPermissionDenial;
+use App\Services\RegulasiService;
 use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -121,6 +125,100 @@ test('kombinasi jenis nomor tahun duplikat ditolak', function (): void {
 
     $response->assertSessionHasErrors('nomor');
     $this->assertDatabaseCount('regulasi', 1);
+});
+
+test('konflik unique dari service diterjemahkan menjadi error validasi nomor', function (): void {
+    $data = [
+        'jenis' => 'perpres',
+        'nomor' => 'RACE-UNIQUE-2026',
+        'tahun' => 2026,
+        'tentang' => 'Dokumen awal untuk menguji konflik unique di database.',
+        'aktif' => true,
+    ];
+    $service = app(RegulasiService::class);
+
+    $service->create($data, $this->perencanaan);
+
+    $exception = null;
+
+    try {
+        $service->create([
+            ...$data,
+            'tentang' => 'Dokumen kedua yang tiba setelah validasi awal berhasil.',
+        ], $this->perencanaan);
+    } catch (ValidationException $caught) {
+        $exception = $caught;
+    }
+
+    expect($exception)->toBeInstanceOf(ValidationException::class)
+        ->and($exception->errors())->toHaveKey('nomor');
+    $this->assertDatabaseCount('regulasi', 1);
+});
+
+test('service menghentikan semua mutasi saat resolver izin menolak', function (): void {
+    $service = app(RegulasiService::class);
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create([
+        'jenis_berkas_id' => null,
+        'mode' => 'teks',
+        'isi_teks' => 'Lampiran yang tidak boleh berubah setelah izin dicabut.',
+        'uploaded_by' => $this->perencanaan->id,
+    ]);
+
+    tolakIzin($this->perencanaan, PermissionCodes::REGULASI_UPDATE);
+    expect(fn () => $service->update($regulasi, [
+        'jenis' => $regulasi->jenis,
+        'nomor' => $regulasi->nomor,
+        'tahun' => $regulasi->tahun,
+        'tentang' => 'Perubahan yang tidak boleh tersimpan.',
+        'aktif' => true,
+        'versi' => $regulasi->versi,
+        'alasan' => 'Izin dicabut tepat sebelum service memulai perubahan.',
+    ], $this->perencanaan))->toThrow(AuthorizationException::class);
+    $this->assertDatabaseMissing('regulasi', [
+        'id' => $regulasi->id,
+        'tentang' => 'Perubahan yang tidak boleh tersimpan.',
+    ]);
+
+    tolakIzin($this->perencanaan, PermissionCodes::REGULASI_DELETE);
+    expect(fn () => $service->delete(
+        $regulasi,
+        'Izin penghapusan dicabut sebelum service memulai transaksi.',
+        $this->perencanaan,
+    ))->toThrow(AuthorizationException::class);
+    $this->assertDatabaseHas('regulasi', ['id' => $regulasi->id]);
+
+    tolakIzin($this->perencanaan, PermissionCodes::BERKAS_DELETE);
+    expect(fn () => $service->deleteAttachment(
+        $regulasi,
+        $berkas,
+        'Izin penghapusan lampiran dicabut sebelum service memulai transaksi.',
+        $this->perencanaan,
+    ))->toThrow(AuthorizationException::class);
+    expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeFalse();
+
+    tolakIzin($this->perencanaan, PermissionCodes::REGULASI_CREATE);
+    expect(fn () => $service->create([
+        'jenis' => 'keputusan_lainnya',
+        'nomor' => 'CREATE-DENIED-2026',
+        'tahun' => 2026,
+        'tentang' => 'Regulasi ini tidak boleh dibuat setelah izin dicabut.',
+        'aktif' => true,
+    ], $this->perencanaan))->toThrow(AuthorizationException::class);
+    $this->assertDatabaseMissing('regulasi', ['nomor' => 'CREATE-DENIED-2026']);
+
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'regulasi.ubah_ditolak',
+        'objek_id' => $regulasi->id,
+    ]);
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'regulasi.hapus_ditolak',
+        'objek_id' => $regulasi->id,
+    ]);
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'berkas.hapus_ditolak',
+        'objek_id' => $berkas->id,
+    ]);
 });
 
 test('update regulasi mencatat nilai dan dasar izin audit', function (): void {
@@ -253,6 +351,8 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'is_aktif' => true,
     ]);
 
+    DB::enableQueryLog();
+
     $response = $this->actingAs($this->perencanaan)->delete("/regulasi/{$regulasi->id}", [
         'alasan' => 'Menghapus regulasi yang sudah tidak digunakan.',
     ]);
@@ -263,6 +363,13 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'tindakan' => 'regulasi.hapus_ditolak',
         'objek_id' => $regulasi->id,
     ]);
+
+    $lockQueries = collect(DB::getQueryLog())
+        ->pluck('query')
+        ->filter(fn (string $query): bool => str_contains(strtolower($query), 'for update'));
+
+    expect($lockQueries)->not->toBeEmpty();
+    DB::disableQueryLog();
 });
 
 test('explicit deny menang dan dasar izin penolakan diaudit', function (): void {
@@ -510,5 +617,18 @@ function buatRegulasi(User $pembuat): Regulasi
         'tentang' => 'Indikator Kinerja Utama',
         'aktif' => true,
         'created_by' => $pembuat->id,
+    ]);
+}
+
+function tolakIzin(User $user, string $permissionCode): void
+{
+    $permission = Permission::findByName($permissionCode, 'web');
+
+    UserPermissionDenial::query()->create([
+        'user_id' => $user->id,
+        'permission_id' => $permission->id,
+        'unit_id' => null,
+        'alasan' => 'Izin dicabut untuk memastikan service gagal tertutup.',
+        'ditetapkan_oleh' => $user->id,
     ]);
 }

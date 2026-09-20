@@ -7,6 +7,8 @@ use App\Models\Regulasi;
 use App\Models\User;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,7 @@ class RegulasiService
     {
         $storedPaths = [];
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::REGULASI_CREATE);
+        $this->pastikanIzinDiizinkan($decision);
 
         try {
             return DB::transaction(function () use ($data, $actor, $decision, &$storedPaths): Regulasi {
@@ -58,6 +61,16 @@ class RegulasiService
 
                 return $regulasi;
             });
+        } catch (QueryException $exception) {
+            $this->hapusFile($storedPaths);
+
+            if ($this->adalahDuplikasiRegulasi($exception)) {
+                throw ValidationException::withMessages([
+                    'nomor' => 'Kombinasi jenis, nomor, dan tahun regulasi sudah terdaftar.',
+                ]);
+            }
+
+            throw $exception;
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);
 
@@ -72,6 +85,21 @@ class RegulasiService
     {
         $storedPaths = [];
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::REGULASI_UPDATE);
+
+        if (! $decision->allowed) {
+            $regulasi->load('berkas');
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'regulasi.ubah_ditolak',
+                objekTipe: 'regulasi',
+                objekId: $regulasi->id,
+                nilaiLama: $this->snapshot($regulasi),
+                alasan: $data['alasan'],
+                dasarIzin: $decision->toAuditBasis(),
+            );
+
+            $this->pastikanIzinDiizinkan($decision);
+        }
 
         try {
             return DB::transaction(function () use ($regulasi, $data, $actor, $decision, &$storedPaths): Regulasi {
@@ -136,6 +164,16 @@ class RegulasiService
             );
 
             throw $exception;
+        } catch (QueryException $exception) {
+            $this->hapusFile($storedPaths);
+
+            if ($this->adalahDuplikasiRegulasi($exception)) {
+                throw ValidationException::withMessages([
+                    'nomor' => 'Kombinasi jenis, nomor, dan tahun regulasi sudah terdaftar.',
+                ]);
+            }
+
+            throw $exception;
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);
 
@@ -146,42 +184,53 @@ class RegulasiService
     public function delete(Regulasi $regulasi, string $alasan, User $actor): void
     {
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::REGULASI_DELETE);
-        $referensiAktif = $this->referensiAktif($regulasi);
-        $jumlahRenstraAktif = $referensiAktif['jumlah_renstra_aktif'];
-        $jumlahIndikatorAktif = $referensiAktif['jumlah_indikator_aktif'];
 
-        if ($jumlahRenstraAktif > 0 || $jumlahIndikatorAktif > 0) {
+        if (! $decision->allowed) {
             $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'regulasi.hapus_ditolak',
                 objekTipe: 'regulasi',
                 objekId: $regulasi->id,
                 nilaiLama: $regulasi->withoutRelations()->toArray(),
-                nilaiBaru: [
-                    'alasan_penolakan' => 'masih_dirujuk_data_aktif',
-                    'jumlah_renstra_aktif' => $jumlahRenstraAktif,
-                    'jumlah_indikator_aktif' => $jumlahIndikatorAktif,
-                ],
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );
 
-            throw ValidationException::withMessages([
-                'regulasi' => 'Regulasi tidak dapat dihapus karena masih dirujuk oleh Renstra atau Indikator aktif.',
-            ]);
+            $this->pastikanIzinDiizinkan($decision);
         }
 
-        DB::transaction(function () use ($regulasi, $alasan, $actor, $decision): void {
-            $regulasi->load('berkas');
-            $nilaiLama = $this->snapshot($regulasi);
-            $paths = $regulasi->berkas
+        $referensiAktif = DB::transaction(function () use ($regulasi, $alasan, $actor, $decision): ?array {
+            $regulasiTerkini = Regulasi::query()->lockForUpdate()->findOrFail($regulasi->id);
+            $referensiAktif = $this->referensiAktifTerkunci($regulasiTerkini);
+
+            if ($referensiAktif['jumlah_renstra_aktif'] > 0 || $referensiAktif['jumlah_indikator_aktif'] > 0) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'regulasi.hapus_ditolak',
+                    objekTipe: 'regulasi',
+                    objekId: $regulasiTerkini->id,
+                    nilaiLama: $regulasiTerkini->withoutRelations()->toArray(),
+                    nilaiBaru: [
+                        'alasan_penolakan' => 'masih_dirujuk_data_aktif',
+                        ...$referensiAktif,
+                    ],
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                return $referensiAktif;
+            }
+
+            $regulasiTerkini->load('berkas');
+            $nilaiLama = $this->snapshot($regulasiTerkini);
+            $paths = $regulasiTerkini->berkas
                 ->where('mode', 'file')
                 ->pluck('path')
                 ->filter(fn ($path) => is_string($path) && $path !== '')
                 ->values()
                 ->all();
 
-            foreach ($regulasi->berkas as $berkas) {
+            foreach ($regulasiTerkini->berkas as $berkas) {
                 $nilaiLamaBerkas = $this->metadataBerkasUntukAudit($berkas);
                 $berkas->dihapus_oleh = $actor->id;
                 $berkas->save();
@@ -202,56 +251,79 @@ class RegulasiService
                 actor: $actor,
                 tindakan: 'regulasi.hapus',
                 objekTipe: 'regulasi',
-                objekId: $regulasi->id,
+                objekId: $regulasiTerkini->id,
                 nilaiLama: $nilaiLama,
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );
 
-            $regulasi->delete();
+            $regulasiTerkini->delete();
 
             DB::afterCommit(fn () => $this->hapusFile($paths));
+
+            return null;
         });
+
+        if ($referensiAktif !== null) {
+            throw ValidationException::withMessages([
+                'regulasi' => 'Regulasi tidak dapat dihapus karena masih dirujuk oleh Renstra atau Indikator aktif.',
+            ]);
+        }
     }
 
     public function deleteAttachment(Regulasi $regulasi, Berkas $berkas, string $alasan, User $actor): void
     {
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
-        $referensiAktif = $this->referensiAktif($regulasi);
 
-        if ($referensiAktif['jumlah_renstra_aktif'] > 0 || $referensiAktif['jumlah_indikator_aktif'] > 0) {
+        if (! $decision->allowed) {
             $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'berkas.hapus_ditolak',
                 objekTipe: 'berkas',
                 objekId: $berkas->id,
                 nilaiLama: $this->metadataBerkasUntukAudit($berkas),
-                nilaiBaru: [
-                    'alasan_penolakan' => 'regulasi_masih_dirujuk_data_aktif',
-                    ...$referensiAktif,
-                ],
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );
 
-            throw ValidationException::withMessages([
-                'berkas' => 'Lampiran tidak dapat dihapus karena regulasi masih dirujuk oleh Renstra atau Indikator aktif.',
-            ]);
+            $this->pastikanIzinDiizinkan($decision);
         }
 
-        DB::transaction(function () use ($berkas, $alasan, $actor, $decision): void {
-            $path = $berkas->mode === 'file' && is_string($berkas->path) ? $berkas->path : null;
-            $nilaiLama = $this->metadataBerkasUntukAudit($berkas);
+        $referensiAktif = DB::transaction(function () use ($regulasi, $berkas, $alasan, $actor, $decision): ?array {
+            $regulasiTerkini = Regulasi::query()->lockForUpdate()->findOrFail($regulasi->id);
+            $berkasTerkini = Berkas::query()->lockForUpdate()->findOrFail($berkas->id);
+            $referensiAktif = $this->referensiAktifTerkunci($regulasiTerkini);
 
-            $berkas->dihapus_oleh = $actor->id;
-            $berkas->save();
-            $berkas->delete();
+            if ($referensiAktif['jumlah_renstra_aktif'] > 0 || $referensiAktif['jumlah_indikator_aktif'] > 0) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'berkas.hapus_ditolak',
+                    objekTipe: 'berkas',
+                    objekId: $berkasTerkini->id,
+                    nilaiLama: $this->metadataBerkasUntukAudit($berkasTerkini),
+                    nilaiBaru: [
+                        'alasan_penolakan' => 'regulasi_masih_dirujuk_data_aktif',
+                        ...$referensiAktif,
+                    ],
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                return $referensiAktif;
+            }
+
+            $path = $berkasTerkini->mode === 'file' && is_string($berkasTerkini->path) ? $berkasTerkini->path : null;
+            $nilaiLama = $this->metadataBerkasUntukAudit($berkasTerkini);
+
+            $berkasTerkini->dihapus_oleh = $actor->id;
+            $berkasTerkini->save();
+            $berkasTerkini->delete();
 
             $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'berkas.hapus',
                 objekTipe: 'berkas',
-                objekId: $berkas->id,
+                objekId: $berkasTerkini->id,
                 nilaiLama: $nilaiLama,
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
@@ -260,7 +332,15 @@ class RegulasiService
             if ($path !== null) {
                 DB::afterCommit(fn () => $this->hapusFile([$path]));
             }
+
+            return null;
         });
+
+        if ($referensiAktif !== null) {
+            throw ValidationException::withMessages([
+                'berkas' => 'Lampiran tidak dapat dihapus karena regulasi masih dirujuk oleh Renstra atau Indikator aktif.',
+            ]);
+        }
     }
 
     /**
@@ -321,12 +401,38 @@ class RegulasiService
     }
 
     /** @return array{jumlah_renstra_aktif: int, jumlah_indikator_aktif: int} */
-    private function referensiAktif(Regulasi $regulasi): array
+    private function referensiAktifTerkunci(Regulasi $regulasi): array
     {
+        // Mengunci semua rujukan, bukan hanya yang aktif, agar status/rujukan tidak berubah
+        // setelah guard dievaluasi. Lock regulasi induk menahan insert rujukan baru via FK.
+        $renstras = $regulasi->renstras()
+            ->select(['id', 'is_aktif'])
+            ->lockForUpdate()
+            ->get();
+        $indikatorKinerjas = $regulasi->indikatorKinerjas()
+            ->select(['id', 'is_aktif'])
+            ->lockForUpdate()
+            ->get();
+
         return [
-            'jumlah_renstra_aktif' => $regulasi->renstras()->where('is_aktif', true)->count(),
-            'jumlah_indikator_aktif' => $regulasi->indikatorKinerjas()->where('is_aktif', true)->count(),
+            'jumlah_renstra_aktif' => $renstras->where('is_aktif', true)->count(),
+            'jumlah_indikator_aktif' => $indikatorKinerjas->where('is_aktif', true)->count(),
         ];
+    }
+
+    private function pastikanIzinDiizinkan(PermissionDecision $decision): void
+    {
+        if (! $decision->allowed) {
+            throw new AuthorizationException('Izin efektif Anda tidak mengizinkan tindakan ini.');
+        }
+    }
+
+    private function adalahDuplikasiRegulasi(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+
+        return $sqlState === '23505'
+            && str_contains($exception->getMessage(), 'regulasi_jenis_nomor_tahun_unique');
     }
 
     /** @param list<string> $paths */

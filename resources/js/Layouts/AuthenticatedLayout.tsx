@@ -48,6 +48,7 @@ export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
     const user = auth?.user;
     const currentRole = user?.roles?.[0] || 'pegawai';
     const canReadRegulasi = can['regulasi:read'] === true;
+    const canReadPengukuran = can['pengukuran:read'] === true;
 
     const handleLogout = (e: React.FormEvent) => {
         e.preventDefault();
@@ -116,17 +117,19 @@ export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
                             Dashboard Capaian
                         </Link>
 
-                        <Link
-                            href="/pengukuran"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/pengukuran')
-                                    ? 'bg-surface/15 text-surface font-semibold shadow-xs'
-                                    : 'text-surface/75 hover:bg-surface/10 hover:text-surface'
-                            }`}
-                        >
-                            <FileSpreadsheet className="h-4 w-4 text-secondary" />
-                            Pengukuran Kinerja
-                        </Link>
+                        {canReadPengukuran && (
+                            <Link
+                                href="/pengukuran"
+                                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                    window.location.pathname.startsWith('/pengukuran')
+                                        ? 'bg-surface/15 text-surface font-semibold shadow-xs'
+                                        : 'text-surface/75 hover:bg-surface/10 hover:text-surface'
+                                }`}
+                            >
+                                <FileSpreadsheet className="h-4 w-4 text-secondary" />
+                                Pengukuran Kinerja
+                            </Link>
+                        )}
 
                         {canReadRegulasi && (
                             <Link

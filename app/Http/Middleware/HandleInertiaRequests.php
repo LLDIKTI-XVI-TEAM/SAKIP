@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PengukuranKinerja;
 use App\Models\User;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
@@ -90,6 +91,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $capabilities['verifikasi:read'] = Gate::forUser($user)->allows('view-verifikasi');
+        $capabilities['pengukuran:read'] = Gate::forUser($user)->allows('viewAny', PengukuranKinerja::class);
         $capabilities['pengukuran:mutate'] = Gate::forUser($user)->allows('mutate-pengukuran');
 
         return $capabilities;

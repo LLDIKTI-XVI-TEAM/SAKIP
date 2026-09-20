@@ -13,6 +13,7 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -141,6 +142,23 @@ class VerticalSlice1Test extends TestCase
                 'action' => 'draft',
             ])
             ->assertForbidden();
+    }
+
+    public function test_capability_baca_pengukuran_mengikuti_akses_server(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.pengukuran:read', false)
+            );
+
+        $this->actingAs($this->picKelembagaan)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.pengukuran:read', true)
+            );
     }
 
     /**
