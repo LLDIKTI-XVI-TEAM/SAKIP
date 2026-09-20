@@ -73,10 +73,20 @@ class PresentPengukuran
             return $data;
         }
         $can = [];
-        foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence'] as $key => $ability) {
+        foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence', 'viewClaims' => 'viewClaims', 'claimEvidence' => 'viewClaimEvidence'] as $key => $ability) {
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
+        $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
+        $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
+            $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
+            $activity['bukti_dukungs'] = $can['claimEvidence'] ? array_map(fn ($b) => [
+                ...array_intersect_key($b, array_flip(['id', 'mode', 'nama_asli', 'tautan', 'isi_teks'])),
+                'download_url' => $b['mode'] === 'file' ? route('pengukuran.bukti-klaim', ['id' => $p->id, 'buktiId' => $b['id']]) : ($b['tautan'] ?? null),
+            ], $claim['kegiatan']['bukti_dukungs']) : [];
+
+            return [...array_intersect_key($claim, array_flip(['id', 'komponen_id', 'arah_dampak', 'catatan', 'sumber_klaim'])), 'kegiatan' => $activity];
+        }, $frozen['klaim']) : [];
         $data['unggahan_aktif'] = $this->evidence->settings()['unggahan_aktif'];
         $data['komponen'] = $frozen ? $frozen['komponen'] : $context->komponen->map(function ($c) use ($p) {
             $value = $p->komponen->firstWhere('komponen_id', $c->komponen_id)?->nilai;

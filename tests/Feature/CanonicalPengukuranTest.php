@@ -65,6 +65,8 @@ class CanonicalPengukuranTest extends TestCase
         $snapshot = KinerjaSnapshot::firstOrFail()->snapshot;
         $this->assertNull($snapshot['nilai']);
         $this->assertSame(80.0, (float) $snapshot['target']);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
+            ->where('pengukuran.target', 80)->where('pengukuran.target_pk', 70));
     }
 
     public function test_file_waiver_preserves_required_nonfile_modes_and_freezes_requirements(): void
@@ -105,12 +107,19 @@ class CanonicalPengukuranTest extends TestCase
         $activity = Kegiatan::create(['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
             'nama' => 'Kegiatan sintetis', 'tujuan' => 'Pengujian snapshot', 'uraian_pelaksanaan' => 'Narasi semula', 'created_by' => $this->actor->id]);
         KlaimKegiatan::create(['rencana_aksi_id' => $this->plan->id, 'kegiatan_id' => $activity->id, 'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->actor->id, 'created_at' => now()]);
-        BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $activity->id, 'mode' => 'teks', 'isi_teks' => 'Bukti semula', 'uploaded_by' => $this->actor->id, 'created_at' => now()]);
+        $old = BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $activity->id, 'mode' => 'teks', 'isi_teks' => 'Bukti salah', 'uploaded_by' => $this->actor->id, 'created_at' => now()]);
+        $replacement = BuktiDukung::create([...$old->only(['berkasable_type', 'berkasable_id', 'mode', 'uploaded_by']),
+            'menggantikan_id' => $old->id, 'alasan_koreksi' => 'Salah periode.', 'isi_teks' => 'Bukti koreksi', 'created_at' => now()]);
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
         $activity->update(['uraian_pelaksanaan' => 'Narasi berubah']);
         $snapshot = KinerjaSnapshot::firstOrFail()->snapshot;
         $this->assertSame('Narasi semula', $snapshot['klaim'][0]['kegiatan']['uraian_pelaksanaan']);
-        $this->assertSame('Bukti semula', $snapshot['klaim'][0]['kegiatan']['bukti_dukungs'][0]['isi_teks']);
+        $this->assertSame([$replacement->id], array_column($snapshot['klaim'][0]['kegiatan']['bukti_dukungs'], 'id'));
+        $this->assertNull($old->fresh()->dihapus_pada);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
+            ->where('pengukuran.klaim.0.kegiatan.uraian_pelaksanaan', 'Narasi semula')
+            ->where('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.isi_teks', 'Bukti koreksi')
+            ->missing('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.path'));
     }
 
     public function test_download_uses_the_file_frozen_at_submission(): void

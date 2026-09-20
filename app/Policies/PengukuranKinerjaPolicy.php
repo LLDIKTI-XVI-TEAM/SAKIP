@@ -43,6 +43,20 @@ class PengukuranKinerjaPolicy
         return $decision['allowed'] && $user->roles()->whereIn('roles.id', $decision['roles'])->whereIn('kode', ['perencanaan', 'superadmin'])->exists();
     }
 
+    public function viewClaims(User $user, PengukuranKinerja $p): bool
+    {
+        // Submit memastikan seluruh kegiatan klaim cocok dengan unit konteks pengukuran.
+        return $this->view($user, $p) && $this->resolver->allows($user, 'kegiatan:read', $p->targetUnitId());
+    }
+
+    public function viewClaimEvidence(User $user, PengukuranKinerja $p): bool
+    {
+        // Allow berkas mengikuti akses induk kegiatan; deny dan katalog nonaktif tetap menang.
+        return $this->viewClaims($user, $p)
+            && ! in_array($this->resolver->decide($user, 'berkas:read', $p->targetUnitId())['reason'],
+                ['explicit_deny', 'unknown_permission', 'inactive_user', 'invalid_scope'], true);
+    }
+
     public function update(User $user, PengukuranKinerja $p): Response
     {
         return $this->capability($user, $p, 'draft', 'pengukuran:update');

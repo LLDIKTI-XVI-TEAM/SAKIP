@@ -43,6 +43,28 @@ beforeEach(() => { vi.spyOn(router, 'post').mockImplementation(() => undefined);
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('menampilkan target PK, target periode, dan klaim beku dengan bukti sesuai capability', () => {
+        const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95,
+            can: { ...measurement.can, viewClaims: true, claimEvidence: true }, klaim: [{
+                id: 'claim', komponen_id: null, arah_dampak: 'menambah', catatan: 'Dukungan periode pertama', sumber_klaim: 'rencana_aksi',
+                kegiatan: { id: 'activity', nama: 'Pendampingan QA', tujuan: 'Peningkatan layanan', status: 'tidak_terlaksana',
+                    tanggal_rencana: null, tanggal_realisasi: null, sasaran_peserta: 20, realisasi_peserta: 0,
+                    justifikasi: 'Jadwal berubah', uraian_pelaksanaan: 'Narasi beku', kendala: 'Ruangan tidak tersedia', strategi_tindaklanjut: 'Jadwalkan kembali',
+                    bukti_dukungs: [{ id: 'text', mode: 'teks', nama_asli: null, tautan: null, isi_teks: 'Bukti koreksi beku', download_url: null },
+                        { id: 'file', mode: 'file', nama_asli: 'surat.pdf', tautan: null, isi_teks: null, download_url: '/pengukuran/qa/bukti-klaim/file' }],
+                },
+            }] };
+        const { rerender } = render(<VerifikasiShow pengukuran={review} />);
+        expect(screen.getByText('Target PK tahunan').parentElement?.textContent).toContain('95,00 %');
+        expect(screen.getByText('Target periode RA · Semester I').parentElement?.textContent).toContain('100,00 %');
+        expect(screen.getByText('Status: tidak terlaksana')).toBeTruthy();
+        expect(screen.getByText('Narasi beku')).toBeTruthy();
+        expect(screen.getByText('Bukti koreksi beku')).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Unduh bukti kegiatan' }).getAttribute('href')).toBe('/pengukuran/qa/bukti-klaim/file');
+        rerender(<VerifikasiShow pengukuran={{ ...review, can: { ...review.can, claimEvidence: false } }} />);
+        expect(screen.queryByText('Bukti koreksi beku')).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Unduh bukti kegiatan' })).toBeNull();
+    });
     it('membuka pengukuran dari ringkasan tanpa menyimpulkan izin edit dari placeholder capability', () => {
         render(<PengukuranIndex periode={null} pengukurans={[{ ...measurement, can: { ...measurement.can, update: false } }]}
             pagination={{ current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null }} />);

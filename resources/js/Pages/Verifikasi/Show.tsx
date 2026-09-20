@@ -8,6 +8,7 @@ import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
 import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 import DecisionDialog, { type ReviewDecision } from './DecisionDialog';
+import ClaimedActivities from './ClaimedActivities';
 
 export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran }) {
     const { can } = pengukuran;
@@ -32,8 +33,9 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                 <CardContent className="space-y-5">
                     <p className="text-sm text-muted">{pengukuran.penugasan_indikator.unit_kerja.nama} · PIC: {pengukuran.penugasan_indikator.pic?.nama || '—'}</p>
                     {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
-                    <dl className="grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                    <dl className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Target PK tahunan</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.target_pk == null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                        <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Target periode RA · {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Nilai pengukuran</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.nilai === null ? '—' : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Hasil perhitungan</dt><dd className="mt-1 font-semibold">{statusPerhitungan[pengukuran.status_perhitungan]}</dd><dd className="mt-1 text-xs text-muted">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd></div>
                     </dl>
@@ -42,6 +44,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
             </Card>
             <Card><CardHeader><CardTitle>Catatan pengukuran</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><p className="whitespace-pre-wrap">{pengukuran.catatan || 'Tidak ada catatan.'}</p>{pengukuran.alasan_tidak_dapat_dihitung && <div><h2 className="font-medium">Alasan hasil tidak dapat dihitung</h2><p className="mt-1 whitespace-pre-wrap text-muted">{pengukuran.alasan_tidak_dapat_dihitung}</p></div>}</CardContent></Card>
             <Card><CardHeader><CardTitle>Bukti dukung pengajuan</CardTitle></CardHeader><CardContent><EvidenceList pengukuran={pengukuran} /></CardContent></Card>
+            <ClaimedActivities pengukuran={pengukuran} />
             {(can.verify || can.ratify || can.return) && <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface p-5">
                 <div><h2 className="text-sm font-semibold">Keputusan pengukuran</h2><p className="mt-1 text-xs text-muted">Tindakan mengikuti status dan kewenangan Anda saat ini.</p></div>
                 <div className="flex flex-wrap gap-3">

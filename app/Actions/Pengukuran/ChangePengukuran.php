@@ -225,7 +225,7 @@ class ChangePengukuran
             ->where(fn ($q) => $q->where('sumber_klaim', 'rencana_aksi')->orWhere('pengukuran_id', $p->id))->lockForUpdate()->get();
         $activities = Kegiatan::whereIn('id', $claims->pluck('kegiatan_id'))->lockForUpdate()->get()->keyBy('id');
         $evidence = BuktiDukung::where('berkasable_type', 'kegiatan')->whereIn('berkasable_id', $activities->where('periode_id', $p->periode_id)->keys())
-            ->whereNull('dihapus_pada')->lockForUpdate()->get()->groupBy('berkasable_id');
+            ->current()->lockForUpdate()->get()->groupBy('berkasable_id');
         $components = $p->jadwalSnapshot->komponen->pluck('komponen_id')->all();
         $result = [];
         foreach ($claims as $claim) {

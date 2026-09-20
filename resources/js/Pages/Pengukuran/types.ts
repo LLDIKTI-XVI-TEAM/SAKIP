@@ -41,6 +41,8 @@ export interface Pengukuran {
     self_approval: boolean;
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: number | null;
+    target_pk?: number | null;
+    klaim?: KlaimPengukuran[];
     nilai: number | null;
     status_perhitungan: 'belum_diisi' | 'terhitung' | 'tidak_dapat_dihitung';
     sumber_nilai: 'manual' | 'komponen' | 'historis';
@@ -64,6 +66,8 @@ export interface Pengukuran {
 }
 
 export interface PengukuranCapabilities {
+    viewClaims?: boolean;
+    claimEvidence?: boolean;
     view: boolean;
     evidence: boolean;
     uploadEvidence: boolean;
@@ -72,6 +76,29 @@ export interface PengukuranCapabilities {
     verify: boolean;
     ratify: boolean;
     return: boolean;
+}
+
+export interface KlaimPengukuran {
+    id: string;
+    komponen_id: string | null;
+    arah_dampak: 'menambah' | 'mengurangi';
+    catatan: string | null;
+    sumber_klaim: 'rencana_aksi' | 'pengukuran';
+    kegiatan: {
+        id: string;
+        nama: string;
+        tujuan: string;
+        status: 'rencana' | 'terlaksana' | 'tidak_terlaksana' | 'ditunda' | 'batal';
+        tanggal_rencana: string | null;
+        tanggal_realisasi: string | null;
+        sasaran_peserta: number | null;
+        realisasi_peserta: number | null;
+        justifikasi: string | null;
+        uraian_pelaksanaan: string | null;
+        kendala: string | null;
+        strategi_tindaklanjut: string | null;
+        bukti_dukungs: Pick<BuktiPengukuran, 'id' | 'mode' | 'nama_asli' | 'tautan' | 'isi_teks' | 'download_url'>[];
+    };
 }
 
 export interface PengukuranPagination {
