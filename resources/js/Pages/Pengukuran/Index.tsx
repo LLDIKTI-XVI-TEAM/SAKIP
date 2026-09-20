@@ -4,17 +4,21 @@ import { FileEdit, CheckCircle, Clock, AlertTriangle, Paperclip } from 'lucide-r
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
-import { Button } from '@/Components/Button';
+import type { Pengukuran, PeriodePengukuran, PengukuranPagination } from './types';
+import { statusPerhitungan } from './types';
+import Pagination from './Pagination';
+import { formatNilai } from './formatNilai';
 
 interface PengukuranIndexProps {
-    periode: any;
-    pengukurans: any[];
+    periode: PeriodePengukuran | null;
+    pengukurans: Pengukuran[];
+    pagination: PengukuranPagination;
 }
 
-export default function PengukuranIndex({ periode, pengukurans = [] }: PengukuranIndexProps) {
+export default function PengukuranIndex({ periode, pengukurans = [], pagination }: PengukuranIndexProps) {
     return (
         <AuthenticatedLayout
-            title="Pengukuran Kinerja Triwulan"
+            title="Pengukuran Kinerja"
             breadcrumbs={[{ label: 'Pengukuran Kinerja' }]}
         >
             <Head title="Pengukuran Kinerja" />
@@ -41,7 +45,7 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                                 <th className="px-5 py-3.5">KODE & INDIKATOR</th>
                                 <th className="px-5 py-3.5 text-right">TARGET</th>
                                 <th className="px-5 py-3.5 text-right">REALISASI</th>
-                                <th className="px-5 py-3.5 text-right">CAPAIAN (%)</th>
+                                <th className="px-5 py-3.5 text-right">HASIL PERHITUNGAN</th>
                                 <th className="px-5 py-3.5 text-center">BUKTI DUKUNG</th>
                                 <th className="px-5 py-3.5 text-center">STATUS</th>
                                 <th className="px-5 py-3.5 text-center">AKSI</th>
@@ -57,7 +61,7 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                             ) : (
                                 pengukurans.map((p) => {
                                     const iku = p.penugasan_indikator?.indikator_kinerja;
-                                    const canEdit = p.status === 'draft' || p.status === 'dikembalikan';
+                                    const canEdit = p.can.update;
 
                                     return (
                                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -73,19 +77,19 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-medium">
-                                                {p.target} {iku?.satuan}
+                                                {p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-semibold">
-                                                {p.realisasi !== null ? `${p.realisasi} ${iku?.satuan}` : '-'}
+                                                {p.nilai !== null ? `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}` : '—'}
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-bold">
-                                                {p.capaian_persen !== null ? `${p.capaian_persen}%` : '-'}
+                                                {statusPerhitungan[p.status_perhitungan]}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                {p.bukti_dukungs && p.bukti_dukungs.length > 0 ? (
+                                                {p.bukti_count > 0 ? (
                                                     <span className="inline-flex items-center gap-1 text-xs text-[#122E92] font-semibold">
                                                         <Paperclip className="w-3.5 h-3.5" />
-                                                        {p.bukti_dukungs.length} Berkas
+                                                        {p.bukti_count} Berkas
                                                     </span>
                                                 ) : (
                                                     <span className="text-slate-400">-</span>
@@ -93,16 +97,10 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 <Badge status={p.status} />
+                                                {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                <Link href={`/pengukuran/${p.id}/edit`}>
-                                                    <Button
-                                                        variant={canEdit ? 'primary' : 'outline'}
-                                                        size="sm"
-                                                    >
-                                                        {canEdit ? 'Isi / Edit' : 'Lihat Detail'}
-                                                    </Button>
-                                                </Link>
+                                                {p.can.view && <Link href={`/pengukuran/${p.id}/edit`} className={`inline-flex rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary ${canEdit ? 'bg-primary text-white' : 'border border-border bg-surface text-ink'}`}>{canEdit ? 'Isi / Edit' : 'Lihat Detail'}</Link>}
                                             </td>
                                         </tr>
                                     );
@@ -111,6 +109,7 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                         </tbody>
                     </table>
                 </div>
+                <Pagination pagination={pagination} />
             </Card>
         </AuthenticatedLayout>
     );

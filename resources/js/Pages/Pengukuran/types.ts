@@ -1,0 +1,81 @@
+export interface PeriodePengukuran {
+    id: string;
+    nama_periode: string;
+    urutan: number;
+}
+
+export interface BuktiPengukuran {
+    id: string;
+    jenis_berkas_id: string | null;
+    mode: 'file' | 'tautan' | 'teks';
+    nama_asli: string | null;
+    mime: string | null;
+    ukuran_bytes: number | null;
+    tautan: string | null;
+    isi_teks: string | null;
+    download_url: string | null;
+}
+
+export interface PersyaratanBukti {
+    id: string;
+    nama: string;
+    wajib: boolean;
+    semua_mode_wajib: boolean;
+    izinkan_file: boolean;
+    izinkan_tautan: boolean;
+    izinkan_teks: boolean;
+    format_diizinkan: string;
+    ukuran_maks_kb: number;
+    pemenuhan: { terpenuhi: boolean; mode_terpenuhi: string[]; mode_kurang: string[]; mode_dikecualikan: string[]; alasan_pengecualian: string | null };
+}
+
+export const statusPerhitungan = { belum_diisi: 'Belum diisi', terhitung: 'Terhitung', tidak_dapat_dihitung: 'Tidak dapat dihitung' };
+
+export interface Pengukuran {
+    id: string;
+    versi: number;
+    nomor_pengajuan: number;
+    jalur_pengajuan: 'pic' | 'perencanaan' | null;
+    self_approval: boolean;
+    status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
+    target: number | null;
+    nilai: number | null;
+    status_perhitungan: 'belum_diisi' | 'terhitung' | 'tidak_dapat_dihitung';
+    sumber_nilai: 'manual' | 'komponen' | 'historis';
+    catatan: string | null;
+    alasan_tidak_dapat_dihitung: string | null;
+    komponen: { komponen_id: string; kode: string; label: string; peran: string; bobot: number | null; nilai: number | null }[];
+    prasyarat: { siap: boolean; alasan: string[] };
+    persyaratan_bukti: PersyaratanBukti[];
+    unggahan_aktif: boolean;
+    can: PengukuranCapabilities;
+    penugasan_indikator: {
+        indikator_kinerja: { kode: string; nama: string; definisi_operasional?: string | null; tipe_perhitungan: 'manual' | 'rasio_persen' | 'penjumlahan'; arah: 'naik_baik' | 'turun_baik'; presisi: number; desimal_tampilan: number; satuan: string };
+        unit_kerja: { id: string; nama: string };
+        pic: { id: string; nama: string } | null;
+    };
+    periode_jadwal: PeriodePengukuran;
+    bukti_dukungs: BuktiPengukuran[];
+    bukti_count: number;
+    riwayats?: { id: string; status_ke: string; catatan: string | null; created_at: string; user: { id: string; nama: string } | null }[];
+    snapshot?: { snapshot_hash: string; disahkan_pada: string; nomor_pengajuan: number } | null;
+}
+
+export interface PengukuranCapabilities {
+    view: boolean;
+    evidence: boolean;
+    uploadEvidence: boolean;
+    update: boolean;
+    submit: boolean;
+    verify: boolean;
+    ratify: boolean;
+    return: boolean;
+}
+
+export interface PengukuranPagination {
+    current_page: number;
+    last_page: number;
+    total: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+}
