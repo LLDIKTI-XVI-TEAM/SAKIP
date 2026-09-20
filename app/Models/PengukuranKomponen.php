@@ -15,5 +15,5 @@ class PengukuranKomponen extends Model
 
     protected $fillable = ['pengukuran_id', 'komponen_id', 'nilai', 'updated_by', 'updated_at'];
 
-    protected $casts = ['nilai' => 'float'];
+    protected $casts = ['nilai' => 'decimal:12'];
 }

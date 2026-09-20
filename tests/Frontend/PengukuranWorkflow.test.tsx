@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
+import { http } from '@inertiajs/core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import PengukuranEdit from '@/Pages/Pengukuran/Edit';
 import PengukuranIndex from '@/Pages/Pengukuran/Index';
@@ -39,10 +40,38 @@ afterAll(() => dialogMethods.forEach((name, index) => {
     if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
     else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
 }));
-beforeEach(() => { vi.spyOn(router, 'post').mockImplementation(() => undefined); });
+beforeEach(() => {
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify({ nilai: null, status_perhitungan: 'belum_diisi' }), headers: {} });
+});
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('memperbarui pratinjau dari input komponen tanpa menyimpan atau mengirim nilai turunan', async () => {
+        const user = userEvent.setup();
+        vi.mocked(http.getClient().request).mockResolvedValue({ status: 200, data: JSON.stringify({ nilai: '91.25', status_perhitungan: 'terhitung' }), headers: {} });
+        render(<PengukuranEdit pengukuran={{ ...measurement, sumber_nilai: 'komponen',
+            komponen: [{ komponen_id: 'a', kode: 'A', label: 'Komponen A', peran: 'penjumlah', bobot: '1.25', nilai: '0' }] }} />);
+        const input = screen.getByRole('spinbutton', { name: /Komponen A/ });
+        await user.clear(input);
+        await user.type(input, '73');
+        await screen.findByText('91,25 %');
+        const requests = vi.mocked(http.getClient().request).mock.calls;
+        expect(JSON.parse(String(requests[requests.length - 1][0].data))).toEqual({ komponen: [{ komponen_id: 'a', nilai: '73' }] });
+        expect(router.post).not.toHaveBeenCalled();
+        expect(screen.getByText('80,00 %')).toBeTruthy();
+    });
+
+    it('mempertahankan string angka besar ketika membuka dan menyimpan form manual', async () => {
+        const user = userEvent.setup();
+        render(<PengukuranEdit pengukuran={{ ...measurement, nilai: '9007199254740993.120000000000' }} />);
+        expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: /Nilai realisasi/ }).value).toBe('9007199254740993.120000000000');
+        expect(screen.getByText('9.007.199.254.740.993,12 %')).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'Simpan Sebagai Draft' }));
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ nilai: '9007199254740993.120000000000' });
+        expect(http.getClient().request).not.toHaveBeenCalled();
+    });
+
     it('menampilkan target PK, target periode, dan klaim beku dengan bukti sesuai capability', () => {
         const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95,
             can: { ...measurement.can, viewClaims: true, claimEvidence: true }, klaim: [{

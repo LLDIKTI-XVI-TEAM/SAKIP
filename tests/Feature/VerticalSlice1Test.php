@@ -143,7 +143,7 @@ class VerticalSlice1Test extends TestCase
         $url = '/pengukuran/'.$this->pengukuran->id;
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', 'nilai' => 75])->assertSessionHasNoErrors();
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', 'nilai' => 99])->assertSessionHasErrors('versi');
-        $this->assertSame(75.0, $this->pengukuran->fresh()->nilai);
+        $this->assertSame('75.000000000000', $this->pengukuran->fresh()->nilai);
         $this->assertDatabaseHas('audit_log', ['objek_id' => $this->pengukuran->id, 'tindakan' => 'pengukuran.ditolak']);
     }
 

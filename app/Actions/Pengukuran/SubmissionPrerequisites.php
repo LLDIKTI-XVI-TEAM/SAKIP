@@ -5,6 +5,8 @@ namespace App\Actions\Pengukuran;
 use App\Models\PengukuranKinerja;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\MathException;
 use Illuminate\Validation\ValidationException;
 
 class SubmissionPrerequisites
@@ -38,14 +40,17 @@ class SubmissionPrerequisites
                     try {
                         $values = collect($periodTarget['komponen'] ?? [])->pluck('nilai', 'komponen_id')->all();
                         $calculated = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $snapshot->komponen->toArray(), $values,
-                            $snapshot->tipe_perhitungan === 'manual' && $periodTarget['nilai'] !== null ? (float) $periodTarget['nilai'] : null);
+                            $snapshot->tipe_perhitungan === 'manual' ? $periodTarget['nilai'] : null);
+                        $sameValue = $calculated['nilai'] === null || $periodTarget['nilai'] === null
+                            ? $calculated['nilai'] === $periodTarget['nilai']
+                            : BigDecimal::of($calculated['nilai'])->isEqualTo((string) $periodTarget['nilai']);
                         if ($calculated['status_perhitungan'] === 'belum_diisi' || $calculated['status_perhitungan'] !== ($periodTarget['status_perhitungan'] ?? null)
-                            || $calculated['nilai'] !== ($periodTarget['nilai'] === null ? null : (float) $periodTarget['nilai'])) {
+                            || ! $sameValue) {
                             $errors[] = 'Target pada versi RA belum lengkap atau tidak konsisten dengan komponen snapshot.';
                         } else {
                             $target = $calculated['nilai'];
                         }
-                    } catch (\InvalidArgumentException|ValidationException $exception) {
+                    } catch (\InvalidArgumentException|ValidationException|MathException $exception) {
                         $errors[] = 'Target versi RA tidak dapat divalidasi: '.$exception->getMessage();
                     }
                 }
@@ -75,7 +80,8 @@ class SubmissionPrerequisites
             ->join('periode', 'periode.id', '=', 'pengukuran_kinerjas.periode_id')->orderByDesc('tahun')->orderByDesc('periode.urutan')->select('pengukuran_kinerjas.*')->first();
         $previousValue = $previous?->ratifiedVersion?->snapshot['nilai'] ?? null;
         if ($previousValue !== null && $pengukuran->nilai !== null && $snapshot) {
-            $worse = $snapshot->arah === 'naik_baik' ? $pengukuran->nilai < (float) $previousValue : $pengukuran->nilai > (float) $previousValue;
+            $value = BigDecimal::of($pengukuran->nilai);
+            $worse = $snapshot->arah === 'naik_baik' ? $value->isLessThan((string) $previousValue) : $value->isGreaterThan((string) $previousValue);
             if ($worse && trim((string) $pengukuran->catatan) === '') {
                 $errors[] = 'Nilai memburuk dibanding periode sah sebelumnya; catatan wajib diisi.';
             }

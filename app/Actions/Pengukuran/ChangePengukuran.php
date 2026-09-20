@@ -80,7 +80,7 @@ class ChangePengukuran
                         $values[$value['komponen_id']] = $value['nilai'];
                     }
                     try {
-                        $result = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $definitions, $values, isset($data['nilai']) ? (float) $data['nilai'] : null);
+                        $result = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $definitions, $values, $data['nilai'] ?? null);
                     } catch (\InvalidArgumentException $exception) {
                         throw ValidationException::withMessages(['nilai' => $exception->getMessage()]);
                     }

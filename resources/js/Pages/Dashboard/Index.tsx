@@ -22,7 +22,7 @@ interface DashboardProps {
         id: string;
         status: Pengukuran['status'];
         self_approval: boolean;
-        nilai: number | null;
+        nilai: Pengukuran['nilai'];
         status_perhitungan: Pengukuran['status_perhitungan'];
         satuan: string;
         desimal_tampilan: number;

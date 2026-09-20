@@ -22,6 +22,32 @@ class CanonicalPengukuranTest extends TestCase
 {
     use CreatesPengukuranFixture,RefreshDatabase;
 
+    public function test_large_manual_decimal_survives_storage_snapshot_audit_and_page_props(): void
+    {
+        $expected = '9007199254740993.000000000000';
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            ['versi' => 1, 'action' => 'ajukan', 'nilai' => '9007199254740993'])->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame($expected, $measurement->getRawOriginal('nilai'));
+        $this->assertSame($expected, $measurement->nilai);
+        $this->assertSame($expected, $measurement->latestVersion->snapshot['nilai']);
+        $this->assertSame($expected, AuditLog::where('tindakan', 'pengukuran.ajukan')->sole()->nilai_baru['nilai']);
+        $this->get('/verifikasi/'.$measurement->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukuran.nilai', $expected));
+    }
+
+    public function test_large_component_decimal_survives_calculation_and_submission_snapshot(): void
+    {
+        [$numerator, $denominator] = $this->ratioContext();
+        $expected = '9007199254740993.000000000000';
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan',
+            'komponen' => [['komponen_id' => $numerator, 'nilai' => '9007199254740993'], ['komponen_id' => $denominator, 'nilai' => '100']]])->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame($expected, $measurement->nilai);
+        $this->assertSame($expected, $measurement->komponen->firstWhere('komponen_id', $numerator)->nilai);
+        $this->assertSame($expected, collect($measurement->latestVersion->snapshot['komponen'])->firstWhere('komponen_id', $numerator)['nilai']);
+    }
+
     public function test_review_preserves_operational_definition_from_the_submission_snapshot(): void
     {
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
@@ -64,9 +90,9 @@ class CanonicalPengukuranTest extends TestCase
         $this->assertSame('tidak_dapat_dihitung', $this->pengukuran->fresh()->status_perhitungan);
         $snapshot = KinerjaSnapshot::firstOrFail()->snapshot;
         $this->assertNull($snapshot['nilai']);
-        $this->assertSame(80.0, (float) $snapshot['target']);
+        $this->assertSame('80.00', $snapshot['target']);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
-            ->where('pengukuran.target', 80)->where('pengukuran.target_pk', 70));
+            ->where('pengukuran.target', '80.00')->where('pengukuran.target_pk', '70.000000000000'));
     }
 
     public function test_file_waiver_preserves_required_nonfile_modes_and_freezes_requirements(): void

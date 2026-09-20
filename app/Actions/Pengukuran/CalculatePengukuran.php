@@ -2,23 +2,30 @@
 
 namespace App\Actions\Pengukuran;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\MathException;
+use Brick\Math\RoundingMode;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class CalculatePengukuran
 {
     /** Nilai dihitung dari definisi snapshot; nol faktual berbeda dari input hilang. */
-    public function handle(string $type, int $precision, array $definitions, array $values, ?float $manual): array
+    public function handle(string $type, int $precision, array $definitions, array $values, string|int|float|null $manual): array
     {
+        if ($precision < 0 || $precision > 12) {
+            throw new InvalidArgumentException('Presisi snapshot melebihi kapasitas penyimpanan angka.');
+        }
         $source = $type === 'manual' ? 'manual' : 'komponen';
-        $result = function (?float $value, string $status) use ($source): array {
-            if ($value !== null && (! is_finite($value) || abs($value) >= 1e18)) {
-                throw new \InvalidArgumentException('Hasil perhitungan melebihi kapasitas penyimpanan angka.');
+        $result = function (?BigDecimal $value, string $status) use ($source): array {
+            if ($value !== null && $value->abs()->isGreaterThanOrEqualTo('1000000000000000000')) {
+                throw new InvalidArgumentException('Hasil perhitungan melebihi kapasitas penyimpanan angka.');
             }
 
-            return ['nilai' => $value, 'status_perhitungan' => $status, 'sumber_nilai' => $source];
+            return ['nilai' => $value === null ? null : (string) $value, 'status_perhitungan' => $status, 'sumber_nilai' => $source];
         };
         if ($type === 'manual') {
-            return $manual === null ? $result(null, 'belum_diisi') : $result(round($manual, $precision), 'terhitung');
+            return $manual === null ? $result(null, 'belum_diisi') : $result($this->decimal($manual)->toScale($precision, RoundingMode::HalfUp), 'terhitung');
         }
         if (! in_array($type, ['rasio_persen', 'penjumlahan'], true)) {
             throw ValidationException::withMessages(['nilai' => 'Tipe perhitungan snapshot tidak sah.']);
@@ -39,27 +46,51 @@ class CalculatePengukuran
 
                 continue;
             }
-            if (! is_numeric($values[$id]) || ! is_finite((float) $values[$id]) || abs((float) $values[$id]) >= 1e18) {
-                throw new \InvalidArgumentException('Nilai komponen tidak sah atau melebihi kapasitas penyimpanan.');
-            }
+            $values[$id] = $this->decimal($values[$id], true);
         }
         if (! $complete) {
             return $result(null, 'belum_diisi');
         }
-        $numerator = 0.0;
-        $denominator = 0.0;
+        $numerator = BigDecimal::of('0');
+        $denominator = BigDecimal::of('0');
         foreach ($definitions as $definition) {
-            $weighted = (float) $values[$definition['komponen_id']] * (float) $definition['bobot'];
+            $weighted = $values[$definition['komponen_id']]->multipliedBy($this->decimal($definition['bobot']));
             if ($definition['peran'] === 'penyebut') {
                 $denominator = $weighted;
             } else {
-                $numerator += $weighted;
+                $numerator = $numerator->plus($weighted);
             }
         }
-        if ($type === 'rasio_persen' && $denominator == 0.0) {
+        if ($type === 'rasio_persen' && $denominator->isZero()) {
             return $result(null, 'tidak_dapat_dihitung');
         }
 
-        return $result(round($type === 'rasio_persen' ? $numerator / $denominator * 100 : $numerator, $precision), 'terhitung');
+        // Bulatkan hanya hasil akhir; komponen dan pembobotan tetap desimal eksak.
+        $value = $type === 'rasio_persen'
+            ? $numerator->multipliedBy('100')->dividedBy($denominator, $precision, RoundingMode::HalfUp)
+            : $numerator->toScale($precision, RoundingMode::HalfUp);
+
+        return $result($value, 'terhitung');
+    }
+
+    private function decimal(mixed $value, bool $storedComponent = false): BigDecimal
+    {
+        if (! is_numeric($value)) {
+            throw new InvalidArgumentException('Nilai harus berupa angka desimal.');
+        }
+        try {
+            $decimal = BigDecimal::of((string) $value);
+            if ($storedComponent) {
+                // Komponen mentah harus tersimpan utuh agar snapshot dan perhitungan memakai input yang sama.
+                $decimal = $decimal->toScale(12);
+            }
+        } catch (MathException $exception) {
+            throw new InvalidArgumentException('Nilai tidak sah atau memiliki lebih dari 12 digit desimal.', previous: $exception);
+        }
+        if ($decimal->abs()->isGreaterThanOrEqualTo('1000000000000000000')) {
+            throw new InvalidArgumentException('Nilai melebihi kapasitas penyimpanan angka.');
+        }
+
+        return $decimal;
     }
 }

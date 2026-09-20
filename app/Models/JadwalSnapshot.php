@@ -17,7 +17,7 @@ class JadwalSnapshot extends Model
 
     protected $fillable = ['jadwal_id', 'indikator_id', 'nomor_versi', 'menggantikan_id', 'alasan_koreksi', 'rujukan_koreksi', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target', 'baseline'];
 
-    protected $casts = ['presisi' => 'integer', 'desimal_tampilan' => 'integer', 'target' => 'float', 'baseline' => 'float', 'nomor_versi' => 'integer'];
+    protected $casts = ['presisi' => 'integer', 'desimal_tampilan' => 'integer', 'target' => 'decimal:12', 'baseline' => 'decimal:12', 'nomor_versi' => 'integer'];
 
     /** @return BelongsTo<JadwalTahunan, $this> */
     public function jadwal(): BelongsTo

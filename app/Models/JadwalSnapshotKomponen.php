@@ -15,5 +15,5 @@ class JadwalSnapshotKomponen extends Model
 
     protected $fillable = ['jadwal_snapshot_id', 'komponen_id', 'kode', 'label', 'peran', 'bobot', 'urutan'];
 
-    protected $casts = ['bobot' => 'float', 'urutan' => 'integer'];
+    protected $casts = ['bobot' => 'decimal:12', 'urutan' => 'integer'];
 }
