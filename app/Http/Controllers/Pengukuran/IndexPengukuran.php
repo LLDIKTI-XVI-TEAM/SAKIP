@@ -25,9 +25,10 @@ class IndexPengukuran extends Controller
         $deniedUnits = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
             ->where('user_id', $actor->id)->where('permissions.kode', 'pengukuran:read')->whereNotNull('unit_id')->select('unit_id');
         $page = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
-            ->when($periode, fn ($query) => $query->where('periode_id', $periode->periode_id)->where('tahun', $jadwal->tahun))
+            ->when($periode, fn ($query) => $query->where('periode_id', $periode->periode_id)->where('tahun', $jadwal->tahun),
+                fn ($query) => $query->whereRaw('1 = 0'))
             ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $deniedUnits)
-            ->withCount('buktiDukungs')->orderBy('id')->paginate(20)->withQueryString();
+            ->withCount(['buktiDukungs' => fn ($query) => $query->current()])->orderBy('id')->paginate(20)->withQueryString();
 
         $present->prepareSummary($page->getCollection());
 

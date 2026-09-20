@@ -96,10 +96,19 @@ class ChangePengukuran
                         }
                         $pic = $p->effectivePic();
                         $provenance = [...$decision, 'unit_id' => $p->targetUnitId(), 'penugasan_id' => $pic?->id, 'pic_id' => $pic?->user_id];
-                        KinerjaSnapshot::create(['pengukuran_id' => $p->id, 'rencana_aksi_versi_id' => $prerequisite['rencana_aksi_versi']->id,
+                        $version = KinerjaSnapshot::create(['pengukuran_id' => $p->id, 'rencana_aksi_versi_id' => $prerequisite['rencana_aksi_versi']->id,
                             'jadwal_snapshot_id' => $snapshot->id, 'nomor' => (int) $p->versions()->max('nomor') + 1, 'diajukan_by' => $actor->id, 'diajukan_at' => now(),
                             'jalur_pengajuan' => $this->policy->usesPlanningPath($actor, $p) ? 'perencanaan' : 'pic', 'dasar_izin_pengajuan' => $provenance,
                             'snapshot' => $this->submissionPayload($p, $prerequisite)]);
+                        $waivers = collect($prerequisite['persyaratan_bukti'])
+                            ->filter(fn ($requirement) => $requirement['wajib'] && $requirement['pemenuhan']['mode_dikecualikan'] !== [])
+                            ->map(fn ($requirement) => ['jenis_berkas_id' => $requirement['id'], 'nama' => $requirement['nama'],
+                                'mode' => $requirement['pemenuhan']['mode_dikecualikan'], 'alasan' => $requirement['pemenuhan']['alasan_pengecualian']])->values()->all();
+                        if ($waivers !== []) {
+                            // Waiver dan versi harus berhasil bersama; kegagalan audit membatalkan pengajuan.
+                            $this->writeAudit($actor, $p->id, 'berkas.tandai_tidak_dapat_dipenuhi', 'Kewajiban mode file dikecualikan karena unggahan dinonaktifkan.', $decision, null,
+                                ['versi_pengajuan_id' => $version->id, 'nomor_pengajuan' => $version->nomor, 'pengecualian' => $waivers]);
+                        }
                         $p->status_alur = 'diajukan';
                     } else {
                         $p->status_alur = 'draft';
@@ -159,7 +168,22 @@ class ChangePengukuran
                 throw ValidationException::withMessages(['bukti.mode' => 'Mode atau persyaratan bukti tidak berlaku untuk pengukuran ini.']);
             }
         }
-        $attributes = ['berkasable_type' => 'pengukuran', 'berkasable_id' => $p->id, 'jenis_berkas_id' => $requirement?->id, 'mode' => $data['mode'], 'uploaded_by' => $actor->id, 'created_at' => now()];
+        $predecessor = null;
+        $correctionReason = null;
+        if (! empty($data['menggantikan_id'])) {
+            $predecessor = $p->buktiDukungs()->current()->whereKey($data['menggantikan_id'])->lockForUpdate()->first();
+            if (! $predecessor || $predecessor->jenis_berkas_id !== $requirement?->id) {
+                throw ValidationException::withMessages(['bukti.menggantikan_id' => 'Bukti yang diganti harus masih berlaku pada pengukuran dan persyaratan yang sama.']);
+            }
+            $correctionReason = trim((string) ($data['alasan_koreksi'] ?? ''));
+            if ($correctionReason === '') {
+                throw ValidationException::withMessages(['bukti.alasan_koreksi' => 'Alasan koreksi bukti wajib diisi.']);
+            }
+        }
+        // UUID baru dan pendahulu yang masih berlaku membentuk rantai tanpa siklus/fork di bawah lock header.
+        $attributes = ['berkasable_type' => 'pengukuran', 'berkasable_id' => $p->id, 'jenis_berkas_id' => $requirement?->id,
+            'menggantikan_id' => $predecessor?->id, 'alasan_koreksi' => $correctionReason,
+            'mode' => $data['mode'], 'uploaded_by' => $actor->id, 'created_at' => now()];
         if ($data['mode'] === 'file') {
             if (! $settings['unggahan_aktif']) {
                 throw ValidationException::withMessages(['bukti.file' => 'Unggahan file sedang dinonaktifkan. Mode tautan/teks tetap mengikuti persyaratannya.']);
@@ -191,7 +215,7 @@ class ChangePengukuran
             'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'target_pk' => $snapshot->target,
             'komponen' => $snapshot->komponen->map(fn ($c) => [...$c->only(['komponen_id', 'kode', 'label', 'peran', 'bobot']), 'nilai' => $p->komponen()->where('komponen_id', $c->komponen_id)->value('nilai')])->all(),
             'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_versi']->rencana_aksi_id),
-            'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];
+            'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];
     }
 
     /** Klaim dan narasi berasal dari kegiatan nyata pada periode ini, bukan salinan RA hidup. */
@@ -225,7 +249,7 @@ class ChangePengukuran
         return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung']),
             'versi_pengajuan' => $p->latestVersion?->only(['id', 'nomor', 'diajukan_by', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
             'komponen' => $p->komponen()->orderBy('komponen_id')->get(['komponen_id', 'nilai'])->toArray(),
-            'bukti_dukungs' => $p->buktiDukungs()->orderBy('id')->get()->map(fn ($b) => [...$b->only(['id', 'jenis_berkas_id', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan']), 'panjang_teks' => $b->isi_teks === null ? null : mb_strlen($b->isi_teks)])->all()];
+            'bukti_dukungs' => $p->buktiDukungs()->current()->orderBy('id')->get()->map(fn ($b) => [...$b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan']), 'panjang_teks' => $b->isi_teks === null ? null : mb_strlen($b->isi_teks)])->all()];
     }
 
     private function writeAudit(User $actor, string $id, string $event, string $reason, ?array $decision, ?array $before, ?array $after): void

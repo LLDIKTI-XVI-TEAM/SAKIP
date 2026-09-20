@@ -21,7 +21,7 @@ class EvaluateEvidence
     public function handle(PengukuranKinerja $pengukuran): array
     {
         $settings = $this->settings();
-        $evidence = $pengukuran->buktiDukungs()->get();
+        $evidence = $pengukuran->buktiDukungs()->current()->get();
 
         return JenisBerkas::where('aktif', true)->where('tahap', 'pengukuran')->where(fn ($q) => $q->whereNull('indikator_id')->orWhere('indikator_id', $pengukuran->indikator_id))
             ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence) {

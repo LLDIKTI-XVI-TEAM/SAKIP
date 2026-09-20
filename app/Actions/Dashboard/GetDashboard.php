@@ -20,15 +20,17 @@ class GetDashboard
     {
         abort_unless($this->permissions->allows($actor, 'dashboard:read'), 403);
         $renstra = Renstra::where('is_aktif', true)->first();
-        $jadwal = JadwalTahunan::when($renstra, fn ($q) => $q->where('renstra_id', $renstra->id))
-            ->orderByRaw("case when status = 'aktif' then 0 else 1 end")->orderByDesc('tahun')->orderBy('id')->first();
+        $jadwal = $renstra ? JadwalTahunan::where('renstra_id', $renstra->id)
+            ->orderByRaw("case when status = 'aktif' then 0 else 1 end")->orderByDesc('tahun')->orderBy('id')->first() : null;
         $windows = PeriodeJadwal::with('periode')->when($jadwal, fn ($q) => $q->where('jadwal_id', $jadwal->id));
         $window = $jadwal ? (clone $windows)->whereDate('pengisian_mulai', '<=', today())->whereDate('pengisian_selesai', '>=', today())->first() : null;
-        $window ??= $jadwal ? $windows->orderByDesc('pengisian_mulai')->orderBy('id')->first() : null;
+        $window ??= $jadwal ? $windows->whereDate('pengisian_mulai', '<=', today())->orderByDesc('pengisian_mulai')->orderBy('id')->first() : null;
         $deniedUnits = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'permission_id')
             ->where('user_id', $actor->id)->where('permissions.kode', 'dashboard:read')->whereNotNull('unit_id')->select('unit_id');
-        $query = PengukuranKinerja::query()->when($jadwal, fn ($q) => $q->where('tahun', $jadwal->tahun)->whereHas('jadwalSnapshot', fn ($snapshot) => $snapshot->where('jadwal_id', $jadwal->id)))
-            ->when($window, fn ($q) => $q->where('periode_id', $window->periode_id))
+        $query = PengukuranKinerja::query()->when($jadwal && $window,
+            fn ($q) => $q->where('tahun', $jadwal->tahun)->where('periode_id', $window->periode_id)
+                ->whereHas('jadwalSnapshot', fn ($snapshot) => $snapshot->where('jadwal_id', $jadwal->id)),
+            fn ($q) => $q->whereRaw('1 = 0'))
             ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $deniedUnits);
         $counts = (clone $query)->selectRaw('status_alur, count(*) as total')->groupBy('status_alur')->pluck('total', 'status_alur');
         $canRead = $this->permissions->allows($actor, 'pengukuran:read');

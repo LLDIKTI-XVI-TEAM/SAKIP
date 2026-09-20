@@ -42,6 +42,26 @@ beforeEach(() => { vi.spyOn(router, 'post').mockImplementation(() => undefined);
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('mengirim bukti pengganti beralasan dan mempertahankan koreksi ketika server menolak', async () => {
+        const user = userEvent.setup();
+        render(<PengukuranEdit pengukuran={{ ...measurement, status: 'dikembalikan', bukti_dukungs: [{
+            id: 'old-evidence', jenis_berkas_id: null, mode: 'teks', nama_asli: null, mime: null, ukuran_bytes: null,
+            tautan: null, isi_teks: 'Bukti semula', download_url: null, menggantikan_id: null, alasan_koreksi: null,
+        }] }} />);
+        await user.click(screen.getByRole('checkbox', { name: 'Tambahkan bukti dukung' }));
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Bukti yang diganti (opsional)' }), 'old-evidence');
+        await user.type(screen.getByRole('textbox', { name: /Alasan koreksi bukti/ }), 'Lampiran salah periode.');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Mode bukti' }), 'teks');
+        await user.type(screen.getByRole('textbox', { name: 'Isi bukti teks' }), 'Bukti periode yang benar');
+        await user.click(screen.getByRole('button', { name: 'Simpan Sebagai Draft' }));
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ bukti: {
+            menggantikan_id: 'old-evidence', alasan_koreksi: 'Lampiran salah periode.', mode: 'teks', isi_teks: 'Bukti periode yang benar',
+        } });
+        await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ 'bukti.menggantikan_id': 'Bukti telah dikoreksi.' }); });
+        expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Bukti yang diganti (opsional)' }).value).toBe('old-evidence');
+        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan koreksi bukti/ }).value).toBe('Lampiran salah periode.');
+    });
+
     it('mengirim intent tombol yang benar dan Enter kembali menyimpan draft setelah pengajuan gagal', async () => {
         const user = userEvent.setup();
         render(<PengukuranEdit pengukuran={measurement} />);

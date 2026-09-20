@@ -7,6 +7,8 @@ export interface PeriodePengukuran {
 export interface BuktiPengukuran {
     id: string;
     jenis_berkas_id: string | null;
+    menggantikan_id: string | null;
+    alasan_koreksi: string | null;
     mode: 'file' | 'tautan' | 'teks';
     nama_asli: string | null;
     mime: string | null;

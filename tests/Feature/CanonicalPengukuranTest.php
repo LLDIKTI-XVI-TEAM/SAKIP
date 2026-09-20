@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
@@ -63,9 +64,18 @@ class CanonicalPengukuranTest extends TestCase
         Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]);
         $url = '/pengukuran/'.$this->pengukuran->id;
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasErrors('pengajuan');
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85, 'bukti' => ['jenis_berkas_id' => $requirement->id, 'mode' => 'teks', 'isi_teks' => 'Bukti sintetis memenuhi persyaratan.']])->assertSessionHasNoErrors();
         $requirement->update(['izinkan_teks' => false, 'semua_mode_wajib' => false]);
         $version = KinerjaSnapshot::firstOrFail();
+        $waiver = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->sole();
+        $this->assertSame($this->actor->id, $waiver->actor_id);
+        $this->assertSame($this->pengukuran->id, $waiver->objek_id);
+        $this->assertSame($version->id, $waiver->nilai_baru['versi_pengajuan_id']);
+        $this->assertSame($requirement->id, $waiver->nilai_baru['pengecualian'][0]['jenis_berkas_id']);
+        $this->assertSame(['file'], $waiver->nilai_baru['pengecualian'][0]['mode']);
+        $this->assertNotEmpty($waiver->alasan);
+        $this->assertNotEmpty($waiver->dasar_izin);
         $this->assertSame(['file'], $version->snapshot['persyaratan_bukti'][0]['pemenuhan']['mode_dikecualikan']);
         $this->assertTrue($version->snapshot['persyaratan_bukti'][0]['izinkan_teks']);
         $this->actingAs($this->actor)->post('/verifikasi/'.$this->pengukuran->id.'/verifikasi', ['versi' => 2])->assertSessionHasNoErrors();

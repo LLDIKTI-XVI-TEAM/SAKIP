@@ -15,6 +15,7 @@ export default function EvidenceList({ pengukuran }: { pengukuran: Pengukuran })
             {pengukuran.bukti_dukungs.map((item) => <li key={item.id} className="space-y-2 p-3 text-sm">
                 <p className="font-medium text-ink">{item.nama_asli || pengukuran.persyaratan_bukti.find((requirement) => requirement.id === item.jenis_berkas_id)?.nama || 'Lampiran tambahan'} <span className="text-xs text-muted">({item.mode})</span></p>
                 {item.mode === 'teks' && <p className="whitespace-pre-wrap break-words text-muted">{item.isi_teks}</p>}
+                {item.menggantikan_id && <p className="text-xs text-muted">Bukti koreksi · {item.alasan_koreksi}</p>}
                 {item.download_url && <a href={item.download_url} target="_blank" rel="noreferrer" className="inline-flex rounded text-primary underline focus:outline-none focus:ring-2 focus:ring-primary">{item.mode === 'tautan' ? 'Buka tautan' : 'Unduh berkas'}</a>}
             </li>)}
         </ul>}

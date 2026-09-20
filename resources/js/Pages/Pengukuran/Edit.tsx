@@ -32,6 +32,8 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
         tambah_bukti: false,
         jenis_berkas_id: '',
+        menggantikan_id: '',
+        alasan_koreksi: '',
         mode: 'tautan' as BuktiPengukuran['mode'],
         file: null as File | null,
         tautan: '',
@@ -58,6 +60,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
             catatan: values.catatan, alasan_tidak_dapat_dihitung: values.alasan_tidak_dapat_dihitung,
             ...(values.tambah_bukti && can.uploadEvidence && modes.length > 0 ? { bukti: {
                 jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
+                ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),
                 ...(activeMode === 'file' ? { file: values.file } : activeMode === 'tautan' ? { tautan: values.tautan } : { isi_teks: values.isi_teks }),
             } } : {}),
         }));
@@ -116,8 +119,17 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                                 <div><label htmlFor="jenis-bukti" className="block text-sm font-medium">Persyaratan yang dipenuhi</label><select id="jenis-bukti" value={data.jenis_berkas_id} disabled={disabled} onChange={(event) => {
                                     const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
                                     const available = (['file', 'tautan', 'teks'] as const).filter((mode) => (!selected || selected[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
-                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
+                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '', mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
                                 }} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary"><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></div>
+                                {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <div>
+                                    <label htmlFor="bukti-pendahulu" className="block text-sm font-medium">Bukti yang diganti (opsional)</label>
+                                    <select id="bukti-pendahulu" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-koreksi-help'} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary">
+                                        <option value="">Tambahkan tanpa mengganti bukti</option>
+                                        {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({item.mode})</option>)}
+                                    </select>
+                                    <p id="bukti-koreksi-help" className="mt-1 text-xs text-muted">Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti.</p>
+                                </div>}
+                                {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
                                 {modes.length === 0 ? <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p> : <>
                                     <div><label htmlFor="mode-bukti" className="block text-sm font-medium">Mode bukti</label><select id="mode-bukti" value={activeMode ?? ''} disabled={disabled} onChange={(event) => setData('mode', event.target.value as BuktiPengukuran['mode'])} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary">{modes.map((mode) => <option key={mode} value={mode}>{mode === 'file' ? 'Unggahan file' : mode === 'tautan' ? 'Tautan' : 'Teks'}</option>)}</select></div>
                                     {activeMode === 'file' && <Input name="bukti-file" label="File bukti" type="file" disabled={disabled} onChange={(event) => setData('file', event.target.files?.[0] ?? null)} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')} helperText={requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : undefined} error={fieldErrors['bukti.file']} aria-describedby={fieldErrors['bukti.file'] ? 'measurement-errors' : undefined} />}
