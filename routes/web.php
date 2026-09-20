@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\ShowLoginPage;
 use App\Http\Controllers\Auth\SwitchRole;
 use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
@@ -43,4 +44,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->name('verifikasi.show');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->name('verifikasi.sahkan');
+
+    // Konfigurasi Persyaratan Jenis Berkas (Alur Tim Perencanaan)
+    Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');
+    Route::post('/jenis-berkas', [JenisBerkasController::class, 'store'])->name('jenis-berkas.store');
+    Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->name('jenis-berkas.update');
+    Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->name('jenis-berkas.destroy');
 });

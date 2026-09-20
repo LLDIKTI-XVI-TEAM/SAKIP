@@ -4,6 +4,7 @@ import {
     LayoutDashboard, 
     FileSpreadsheet, 
     CheckCircle2, 
+    FileText,
     LogOut, 
     Building2, 
     Calendar,
@@ -106,6 +107,21 @@ export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
                                 >
                                     <CheckCircle2 className="w-4 h-4 text-[#D6AC48]" />
                                     Verifikasi & Pengesahan
+                                </Link>
+
+                                <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                                    Konfigurasi
+                                </div>
+                                <Link
+                                    href="/jenis-berkas"
+                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                        window.location.pathname.startsWith('/jenis-berkas')
+                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
+                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <FileText className="w-4 h-4 text-[#D6AC48]" />
+                                    Persyaratan Berkas
                                 </Link>
                             </>
                         )}

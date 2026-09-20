@@ -14,6 +14,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
@@ -35,6 +36,29 @@ class DatabaseSeeder extends Seeder
         foreach ($roles as $name => $label) {
             Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
+
+        $jenisBerkasPermissions = [
+            'jenis_berkas:create',
+            'jenis_berkas:read',
+            'jenis_berkas:update',
+            'jenis_berkas:delete',
+        ];
+
+        foreach ($jenisBerkasPermissions as $permissionName) {
+            Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'web']);
+        }
+
+        $superadminRole = Role::findByName('superadmin', 'web');
+        $perencanaanRole = Role::findByName('perencanaan', 'web');
+        $adminRole = Role::findByName('admin', 'web');
+        $pimpinanRole = Role::findByName('pimpinan', 'web');
+        $pegawaiRole = Role::findByName('pegawai', 'web');
+
+        $superadminRole->givePermissionTo($jenisBerkasPermissions);
+        $perencanaanRole->givePermissionTo($jenisBerkasPermissions);
+        $adminRole->givePermissionTo('jenis_berkas:read');
+        $pimpinanRole->givePermissionTo('jenis_berkas:read');
+        $pegawaiRole->givePermissionTo('jenis_berkas:read');
 
         // 2. Seed Unit Kerja LLDIKTI XVI
         $lldikti = UnitKerja::create([
