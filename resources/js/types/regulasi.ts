@@ -44,6 +44,7 @@ export interface RegulasiDetail {
     tautan_sumber: string | null;
     aktif: boolean;
     catatan: string | null;
+    versi: number;
     berkas: BerkasRegulasi[];
 }
 
@@ -56,6 +57,7 @@ export interface RegulasiFormData {
     tautan_sumber: string;
     catatan: string;
     aktif: boolean;
+    versi?: number;
     alasan: string;
     lampiran: LampiranDraft[];
     _method?: 'put';

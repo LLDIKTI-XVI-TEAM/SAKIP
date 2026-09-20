@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $tautan_sumber
  * @property string|null $catatan
  * @property bool $aktif
+ * @property int $versi
  * @property int $created_by
  * @property-read User|null $pembuat
  * @property-read Collection<int, Berkas> $berkas
@@ -30,6 +31,10 @@ class Regulasi extends Model
 
     protected $table = 'regulasi';
 
+    protected $attributes = [
+        'versi' => 1,
+    ];
+
     protected $fillable = [
         'jenis',
         'nomor',
@@ -39,6 +44,7 @@ class Regulasi extends Model
         'tautan_sumber',
         'catatan',
         'aktif',
+        'versi',
         'created_by',
     ];
 
@@ -48,6 +54,7 @@ class Regulasi extends Model
             'tahun' => 'integer',
             'tanggal' => 'date',
             'aktif' => 'boolean',
+            'versi' => 'integer',
         ];
     }
 

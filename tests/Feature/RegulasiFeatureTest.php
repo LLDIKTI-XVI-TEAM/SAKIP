@@ -132,6 +132,7 @@ test('update regulasi mencatat nilai dan dasar izin audit', function (): void {
         'tahun' => $regulasi->tahun,
         'tentang' => 'Indikator Kinerja Utama hasil pemutakhiran',
         'aktif' => true,
+        'versi' => $regulasi->versi,
         'alasan' => 'Menyesuaikan judul dengan dokumen sumber terbaru.',
     ]);
 
@@ -153,8 +154,53 @@ test('update regulasi mencatat nilai dan dasar izin audit', function (): void {
         ->and($audit->dasar_izin['permission'])->toBe(PermissionCodes::REGULASI_UPDATE);
 });
 
+test('update regulasi menolak versi usang dan mengaudit kondisi terbaru', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $versiAwal = $regulasi->versi;
+
+    $this->actingAs($this->perencanaan)->put("/regulasi/{$regulasi->id}", [
+        'jenis' => $regulasi->jenis,
+        'nomor' => $regulasi->nomor,
+        'tahun' => $regulasi->tahun,
+        'tentang' => 'Perubahan pertama yang sah',
+        'aktif' => true,
+        'versi' => $versiAwal,
+        'alasan' => 'Menyelaraskan judul dengan naskah regulasi terbaru.',
+    ])->assertRedirect(route('regulasi.index'));
+
+    $this->actingAs($this->perencanaan)->put("/regulasi/{$regulasi->id}", [
+        'jenis' => $regulasi->jenis,
+        'nomor' => $regulasi->nomor,
+        'tahun' => $regulasi->tahun,
+        'tentang' => 'Perubahan kedua dengan data lama',
+        'aktif' => true,
+        'versi' => $versiAwal,
+        'alasan' => 'Mencoba menyimpan formulir yang dibuka sebelum perubahan pertama.',
+    ])->assertStatus(409);
+
+    $regulasi->refresh();
+    expect($regulasi->tentang)->toBe('Perubahan pertama yang sah')
+        ->and($regulasi->versi)->toBe($versiAwal + 1);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'regulasi.ubah_ditolak')
+        ->where('objek_id', $regulasi->id)
+        ->firstOrFail();
+
+    expect($audit->nilai_lama['tentang'])->toBe('Perubahan pertama yang sah')
+        ->and($audit->nilai_baru['alasan_penolakan'])->toBe('versi_usang')
+        ->and($audit->nilai_baru['versi_dikirim'])->toBe($versiAwal)
+        ->and($audit->nilai_baru['versi_saat_ini'])->toBe($versiAwal + 1);
+});
+
 test('delete regulasi tanpa rujukan aktif berhasil dan diaudit', function (): void {
     $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create([
+        'jenis_berkas_id' => null,
+        'mode' => 'teks',
+        'isi_teks' => 'Lampiran yang ikut dihapus bersama regulasi.',
+        'uploaded_by' => $this->perencanaan->id,
+    ]);
 
     $response = $this->actingAs($this->perencanaan)->delete("/regulasi/{$regulasi->id}", [
         'alasan' => 'Regulasi dinyatakan tidak berlaku dan tidak lagi dirujuk.',
@@ -171,6 +217,16 @@ test('delete regulasi tanpa rujukan aktif berhasil dan diaudit', function (): vo
     expect($audit->alasan)->toBe('Regulasi dinyatakan tidak berlaku dan tidak lagi dirujuk.')
         ->and($audit->dasar_izin['keputusan'])->toBe('diizinkan')
         ->and($audit->dasar_izin['permission'])->toBe(PermissionCodes::REGULASI_DELETE);
+
+    $auditBerkas = AuditLog::query()
+        ->where('tindakan', 'berkas.hapus')
+        ->where('objek_tipe', 'berkas')
+        ->where('objek_id', $berkas->id)
+        ->firstOrFail();
+
+    expect($auditBerkas->nilai_lama['id'])->toBe($berkas->id)
+        ->and($auditBerkas->alasan)->toBe('Regulasi dinyatakan tidak berlaku dan tidak lagi dirujuk.')
+        ->and($auditBerkas->dasar_izin['permission'])->toBe(PermissionCodes::REGULASI_DELETE);
 });
 
 test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
@@ -227,6 +283,7 @@ test('explicit deny menang dan dasar izin penolakan diaudit', function (): void 
         'tahun' => $regulasi->tahun,
         'tentang' => 'Perubahan yang harus ditolak',
         'aktif' => true,
+        'versi' => $regulasi->versi,
         'alasan' => 'Memperbarui judul berdasarkan dokumen terbaru.',
     ]);
 
@@ -264,6 +321,7 @@ test('pengguna read only mendapat 403 untuk create update dan delete', function 
             'tahun' => $regulasi->tahun,
             'tentang' => 'Perubahan tanpa izin',
             'aktif' => true,
+            'versi' => $regulasi->versi,
             'alasan' => 'Percobaan perubahan dari pengguna read only.',
         ])
         ->assertForbidden();

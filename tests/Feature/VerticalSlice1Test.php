@@ -41,7 +41,7 @@ class VerticalSlice1Test extends TestCase
             'singkatan' => 'UJI',
         ]);
 
-        foreach (['admin', 'perencanaan', 'pegawai'] as $role) {
+        foreach (['admin', 'perencanaan', 'pegawai', 'pic'] as $role) {
             Role::create(['name' => $role, 'guard_name' => 'web']);
         }
 
@@ -118,6 +118,29 @@ class VerticalSlice1Test extends TestCase
 
         $ratifyResponse = $this->actingAs($this->admin)->post("/verifikasi/{$this->pengukuran->id}/sahkan");
         $ratifyResponse->assertStatus(403);
+    }
+
+    public function test_pic_tanpa_penugasan_aktif_tidak_mendapatkan_akses_pengukuran(): void
+    {
+        $picTanpaPenugasan = $this->createUser(
+            'pic',
+            $this->pengukuran->penugasanIndikator->unitKerja,
+        );
+
+        $this->actingAs($picTanpaPenugasan)
+            ->get('/pengukuran')
+            ->assertForbidden();
+
+        $this->actingAs($picTanpaPenugasan)
+            ->get("/pengukuran/{$this->pengukuran->id}/edit")
+            ->assertForbidden();
+
+        $this->actingAs($picTanpaPenugasan)
+            ->post("/pengukuran/{$this->pengukuran->id}", [
+                'realisasi' => 85.0,
+                'action' => 'draft',
+            ])
+            ->assertForbidden();
     }
 
     /**

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Throwable;
 
 class RegulasiService
@@ -74,33 +75,67 @@ class RegulasiService
 
         try {
             return DB::transaction(function () use ($regulasi, $data, $actor, $decision, &$storedPaths): Regulasi {
-                $regulasi->load('berkas');
-                $nilaiLama = $this->snapshot($regulasi);
+                $regulasiTerkini = Regulasi::query()
+                    ->with('berkas')
+                    ->lockForUpdate()
+                    ->findOrFail($regulasi->id);
 
-                $regulasi->update(Arr::except($data, ['lampiran', 'alasan']));
+                $versiDikirim = (int) $data['versi'];
+
+                if ($regulasiTerkini->versi !== $versiDikirim) {
+                    throw new ConflictHttpException(
+                        'Dasar aturan telah diubah oleh pengguna lain. Muat ulang data terbaru sebelum menyimpan perubahan.',
+                    );
+                }
+
+                $nilaiLama = $this->snapshot($regulasiTerkini);
+
+                $regulasiTerkini->update([
+                    ...Arr::except($data, ['lampiran', 'alasan', 'versi']),
+                    'versi' => $regulasiTerkini->versi + 1,
+                ]);
 
                 $this->simpanLampiran(
-                    $regulasi,
+                    $regulasiTerkini,
                     $data['lampiran'] ?? [],
                     $actor,
                     $decision,
                     $storedPaths,
                 );
 
-                $regulasi->refresh()->load('berkas');
+                $regulasiTerkini->refresh()->load('berkas');
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'regulasi.ubah',
                     objekTipe: 'regulasi',
-                    objekId: $regulasi->id,
+                    objekId: $regulasiTerkini->id,
                     nilaiLama: $nilaiLama,
-                    nilaiBaru: $this->snapshot($regulasi),
+                    nilaiBaru: $this->snapshot($regulasiTerkini),
                     alasan: $data['alasan'],
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
-                return $regulasi;
+                return $regulasiTerkini;
             });
+        } catch (ConflictHttpException $exception) {
+            $regulasiTerkini = Regulasi::query()->with('berkas')->findOrFail($regulasi->id);
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'regulasi.ubah_ditolak',
+                objekTipe: 'regulasi',
+                objekId: $regulasiTerkini->id,
+                nilaiLama: $this->snapshot($regulasiTerkini),
+                nilaiBaru: [
+                    'alasan_penolakan' => 'versi_usang',
+                    'versi_dikirim' => (int) $data['versi'],
+                    'versi_saat_ini' => $regulasiTerkini->versi,
+                ],
+                alasan: $data['alasan'],
+                dasarIzin: $decision->toAuditBasis(),
+            );
+
+            throw $exception;
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);
 
@@ -147,9 +182,20 @@ class RegulasiService
                 ->all();
 
             foreach ($regulasi->berkas as $berkas) {
+                $nilaiLamaBerkas = $this->metadataBerkasUntukAudit($berkas);
                 $berkas->dihapus_oleh = $actor->id;
                 $berkas->save();
                 $berkas->delete();
+
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'berkas.hapus',
+                    objekTipe: 'berkas',
+                    objekId: $berkas->id,
+                    nilaiLama: $nilaiLamaBerkas,
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
             }
 
             $this->auditLogger->catat(

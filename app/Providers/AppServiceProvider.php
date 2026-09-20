@@ -32,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
             'perencanaan',
         ]));
 
-        Gate::define('mutate-pengukuran', fn (User $user): bool => $user->hasRole('pegawai'));
+        Gate::define('mutate-pengukuran', fn (User $user): bool => $user->hasAnyRole(['superadmin', 'perencanaan'])
+            || $user->penugasanIndikators()->where('is_active', true)->exists());
     }
 }

@@ -12,7 +12,7 @@ abstract class RegulasiMutationRequest extends FormRequest
     /**
      * @return array<string, mixed>
      */
-    protected function mutationRules(bool $requireReason = false): array
+    protected function mutationRules(bool $requireReason = false, bool $requireVersion = false): array
     {
         $routeRegulasi = $this->route('regulasi');
         $regulasiId = $routeRegulasi instanceof Regulasi ? $routeRegulasi->id : null;
@@ -35,6 +35,9 @@ abstract class RegulasiMutationRequest extends FormRequest
             'tautan_sumber' => ['nullable', 'string', 'url:http,https', 'max:2048'],
             'catatan' => ['nullable', 'string', 'max:5000'],
             'aktif' => ['required', 'boolean'],
+            'versi' => $requireVersion
+                ? ['required', 'integer', 'min:1']
+                : ['prohibited'],
             'alasan' => $requireReason
                 ? ['required', 'string', 'min:10', 'max:1000']
                 : ['nullable', 'string', 'max:1000'],

@@ -17,6 +17,6 @@ class UpdateRegulasiRequest extends RegulasiMutationRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return $this->mutationRules(requireReason: true);
+        return $this->mutationRules(requireReason: true, requireVersion: true);
     }
 }

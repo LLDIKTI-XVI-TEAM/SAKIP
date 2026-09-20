@@ -82,6 +82,7 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
         tautan_sumber: regulasi.tautan_sumber ?? '',
         catatan: regulasi.catatan ?? '',
         aktif: regulasi.aktif,
+        versi: regulasi.versi,
         alasan: '',
         lampiran: [],
         _method: 'put',

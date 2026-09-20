@@ -27,6 +27,7 @@ class EditRegulasi extends Controller
                 'tautan_sumber' => $regulasi->tautan_sumber,
                 'catatan' => $regulasi->catatan,
                 'aktif' => $regulasi->aktif,
+                'versi' => $regulasi->versi,
                 'berkas' => $regulasi->berkas->map(fn (Berkas $berkas) => [
                     'id' => $berkas->id,
                     'mode' => $berkas->mode,

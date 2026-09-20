@@ -26,7 +26,13 @@ class PengukuranKinerjaPolicy
 
     public function viewAny(User $user): bool
     {
-        return true;
+        if ($user->hasAnyRole(['perencanaan', 'pimpinan', 'superadmin'])) {
+            return true;
+        }
+
+        return $user->penugasanIndikators()
+            ->where('is_active', true)
+            ->exists();
     }
 
     public function view(User $user, PengukuranKinerja $pengukuran): bool
@@ -35,8 +41,7 @@ class PengukuranKinerjaPolicy
             return true;
         }
 
-        // PIC hanya bisa melihat indikator unit kerjanya
-        return $user->unit_kerja_id === $pengukuran->penugasanIndikator->unit_kerja_id;
+        return $this->isPenanggungJawabAktif($user, $pengukuran);
     }
 
     public function update(User $user, PengukuranKinerja $pengukuran): Response
@@ -45,14 +50,18 @@ class PengukuranKinerjaPolicy
             return Response::allow();
         }
 
+        if ($user->hasRole('pimpinan')) {
+            return Response::deny('Pimpinan hanya memiliki akses baca terhadap pengukuran kinerja.');
+        }
+
         // Cek status alur
         if (! in_array($pengukuran->status, ['draft', 'dikembalikan'])) {
             return Response::deny('Kinerja yang sudah diajukan atau disahkan tidak dapat diedit tanpa persetujuan buka kembali.');
         }
 
-        // Cek apakah user adalah PIC unit kerja terkait
-        if ($user->unit_kerja_id !== $pengukuran->penugasanIndikator->unit_kerja_id) {
-            return Response::deny('Anda bukan pegawai dari unit kerja penanggung jawab indikator ini.');
+        // Role PIC tidak cukup untuk memberi akses: penanggung jawab harus ditetapkan eksplisit.
+        if (! $this->isPenanggungJawabAktif($user, $pengukuran)) {
+            return Response::deny('Anda bukan penanggung jawab aktif untuk indikator ini.');
         }
 
         // Cek deadline jadwal periode
@@ -92,5 +101,13 @@ class PengukuranKinerjaPolicy
         }
 
         return Response::allow();
+    }
+
+    private function isPenanggungJawabAktif(User $user, PengukuranKinerja $pengukuran): bool
+    {
+        $penugasan = $pengukuran->penugasanIndikator;
+
+        return $penugasan->is_active
+            && $penugasan->user_id === $user->id;
     }
 }
