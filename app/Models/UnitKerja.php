@@ -57,9 +57,15 @@ class UnitKerja extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return HasMany<UserPermissionGranted, $this> */
+    public function permissionGrants(): HasMany
+    {
+        return $this->hasMany(UserPermissionGranted::class, 'unit_id');
+    }
+
     /**
      * Memeriksa apakah unit kerja dapat dihapus (delete guard).
-     * Unit yang memiliki keterkaitan dengan indikator, penugasan, bawahan, atau user tidak boleh dihapus.
+     * Unit yang memiliki keterkaitan dengan indikator, penugasan, bawahan, user, atau grant izin tidak boleh dihapus.
      */
     public function isDeletable(): bool
     {
@@ -72,6 +78,10 @@ class UnitKerja extends Model
         }
 
         if ($this->users()->exists()) {
+            return false;
+        }
+
+        if ($this->permissionGrants()->exists()) {
             return false;
         }
 

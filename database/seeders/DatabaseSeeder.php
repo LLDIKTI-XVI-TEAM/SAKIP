@@ -36,6 +36,8 @@ class DatabaseSeeder extends Seeder
             Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
+        $this->call(PermissionCatalogSeeder::class);
+
         // 2. Seed Unit Kerja LLDIKTI XVI
         $lldikti = UnitKerja::create([
             'kode' => 'LLDIKTI16',

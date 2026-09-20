@@ -9,7 +9,8 @@ import {
     Calendar,
     ChevronRight,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    ShieldCheck
 } from 'lucide-react';
 import { RoleSwitcher } from '@/Components/RoleSwitcher';
 
@@ -114,7 +115,7 @@ export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
                         {isAdminOrSuper && (
                             <>
                                 <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                                    Pengaturan Master
+                                    Pengaturan & Akses
                                 </div>
                                 <Link
                                     href="/unit"
@@ -126,6 +127,17 @@ export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
                                 >
                                     <Building2 className="w-4 h-4 text-[#D6AC48]" />
                                     Master Unit
+                                </Link>
+                                <Link
+                                    href="/akses/grant"
+                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                        window.location.pathname.startsWith('/akses/grant')
+                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
+                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <ShieldCheck className="w-4 h-4 text-[#D6AC48]" />
+                                    Izin Unit (Grant)
                                 </Link>
                             </>
                         )}

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Akses\IndexGrant;
+use App\Http\Controllers\Akses\RevokeGrant;
+use App\Http\Controllers\Akses\StoreGrant;
 use App\Http\Controllers\Auth\ProcessLogin;
 use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\ShowLoginPage;
@@ -53,4 +56,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/unit', StoreUnit::class)->name('unit.store');
     Route::post('/unit/{id}', UpdateUnit::class)->name('unit.update');
     Route::delete('/unit/{id}', DestroyUnit::class)->name('unit.destroy');
+
+    // Manajemen Hak Akses: Grant Izin per Unit (Admin & Superadmin)
+    Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
+    Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
+    Route::delete('/akses/grant/{id}', RevokeGrant::class)->name('akses.grant.destroy');
 });
