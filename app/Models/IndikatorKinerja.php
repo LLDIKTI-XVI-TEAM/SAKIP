@@ -48,4 +48,10 @@ class IndikatorKinerja extends Model
     {
         return $this->hasMany(PenugasanIndikator::class, 'indikator_kinerja_id');
     }
+
+    /** @return HasMany<RencanaAksi, $this> */
+    public function rencanaAksis(): HasMany
+    {
+        return $this->hasMany(RencanaAksi::class, 'indikator_kinerja_id');
+    }
 }

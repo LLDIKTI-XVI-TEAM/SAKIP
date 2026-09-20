@@ -11,6 +11,9 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Perencanaan\IndexIndikator;
+use App\Http\Controllers\Perencanaan\IndexRencanaAksi;
+use App\Http\Controllers\Perencanaan\IndexRenstra;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
@@ -39,6 +42,11 @@ if (app()->environment('local')) {
 // Protected Application Routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
+
+    // Perencanaan Kinerja (Renstra, IKU, Rencana Aksi)
+    Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
+    Route::get('/indikator', IndexIndikator::class)->name('indikator.index');
+    Route::get('/rencana-aksi', IndexRencanaAksi::class)->name('rencana-aksi.index');
 
     // Pengukuran Kinerja (Alur PIC)
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
