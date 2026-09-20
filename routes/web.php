@@ -8,6 +8,10 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Unit\DestroyUnit;
+use App\Http\Controllers\Unit\IndexUnit;
+use App\Http\Controllers\Unit\StoreUnit;
+use App\Http\Controllers\Unit\UpdateUnit;
 use App\Http\Controllers\Verifikasi\IndexVerifikasi;
 use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
@@ -43,4 +47,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->name('verifikasi.show');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->name('verifikasi.sahkan');
+
+    // Master Unit Organisasi (Admin & Superadmin)
+    Route::get('/unit', IndexUnit::class)->name('unit.index');
+    Route::post('/unit', StoreUnit::class)->name('unit.store');
+    Route::post('/unit/{id}', UpdateUnit::class)->name('unit.update');
+    Route::delete('/unit/{id}', DestroyUnit::class)->name('unit.destroy');
 });
