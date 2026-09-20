@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Regulasi;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +23,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Relation::morphMap([
+            'regulasi' => Regulasi::class,
+        ]);
+
+        Gate::define('view-verifikasi', fn (User $user): bool => $user->hasAnyRole([
+            'superadmin',
+            'perencanaan',
+        ]));
+
+        Gate::define('mutate-pengukuran', fn (User $user): bool => $user->hasRole('pegawai'));
     }
 }

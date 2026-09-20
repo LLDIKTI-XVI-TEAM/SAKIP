@@ -18,14 +18,14 @@ export const Button: React.FC<ButtonProps> = ({
     children,
     ...props
 }) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer';
+    const baseStyles = 'inline-flex items-center justify-center rounded-lg font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer';
 
     const variants = {
-        primary: 'bg-[#122E92] hover:bg-[#0d226b] text-white focus:ring-[#122E92]',
-        secondary: 'bg-[#D6AC48] hover:bg-[#be9031] text-slate-900 font-semibold focus:ring-[#D6AC48]',
-        danger: 'bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-500',
-        outline: 'border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 focus:ring-[#122E92]',
-        ghost: 'bg-transparent hover:bg-slate-100 text-slate-600 focus:ring-slate-300 shadow-none',
+        primary: 'bg-primary text-white hover:bg-primary/90 focus:ring-primary/30',
+        secondary: 'bg-secondary text-ink hover:bg-secondary/90 focus:ring-secondary/40',
+        danger: 'bg-danger text-white hover:bg-danger/90 focus:ring-danger/30',
+        outline: 'border border-border bg-surface text-ink hover:bg-soft focus:ring-primary/25',
+        ghost: 'bg-transparent text-muted hover:bg-soft hover:text-ink focus:ring-border',
     };
 
     const sizes = {

@@ -3,7 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -53,9 +56,9 @@ class HandleInertiaRequests extends Middleware
                         'singkatan' => $user->unitKerja->singkatan,
                     ] : null,
                     'roles' => $user->roles->pluck('name')->toArray(),
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
                 ] : null,
             ],
+            'can' => $user ? $this->capabilities($user) : [],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -72,5 +75,23 @@ class HandleInertiaRequests extends Middleware
                 ];
             }) : [],
         ];
+    }
+
+    /** @return array<string, bool> */
+    private function capabilities(User $user): array
+    {
+        /** @var PermissionResolver $permissionResolver */
+        $permissionResolver = app(PermissionResolver::class);
+
+        $capabilities = [];
+
+        foreach ([...PermissionCodes::regulasi(), ...PermissionCodes::berkas()] as $permissionCode) {
+            $capabilities[$permissionCode] = $permissionResolver->resolve($user, $permissionCode)->allowed;
+        }
+
+        $capabilities['verifikasi:read'] = Gate::forUser($user)->allows('view-verifikasi');
+        $capabilities['pengukuran:mutate'] = Gate::forUser($user)->allows('mutate-pengukuran');
+
+        return $capabilities;
     }
 }

@@ -69,7 +69,7 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                                                     {iku?.nama}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-0.5">
-                                                    Formula: <span className="font-medium text-[#122E92]">{iku?.tipe_perhitungan}</span> ({iku?.satuan})
+                                                    Formula: <span className="font-medium text-primary">{iku?.tipe_perhitungan}</span> ({iku?.satuan})
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-medium">
@@ -83,7 +83,7 @@ export default function PengukuranIndex({ periode, pengukurans = [] }: Pengukura
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 {p.bukti_dukungs && p.bukti_dukungs.length > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-[#122E92] font-semibold">
+                                                    <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold">
                                                         <Paperclip className="w-3.5 h-3.5" />
                                                         {p.bukti_dukungs.length} Berkas
                                                     </span>

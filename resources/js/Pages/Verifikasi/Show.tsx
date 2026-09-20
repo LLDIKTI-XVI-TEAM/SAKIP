@@ -103,7 +103,7 @@ export default function VerifikasiShow({ pengukuran }: VerifikasiShowProps) {
                 <Card>
                     <CardHeader>
                         <div>
-                            <span className="text-xs font-bold text-[#122E92] bg-blue-50 px-2.5 py-0.5 rounded mr-2">
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded mr-2">
                                 {iku?.kode}
                             </span>
                             <span className="text-xs text-slate-500">
@@ -149,7 +149,7 @@ export default function VerifikasiShow({ pengukuran }: VerifikasiShowProps) {
                                 <span className="text-xs text-blue-700 font-semibold block uppercase">
                                     Persentase Capaian
                                 </span>
-                                <span className="text-2xl font-extrabold text-[#122E92] mt-1 block">
+                                <span className="text-2xl font-extrabold text-primary mt-1 block">
                                     {pengukuran.capaian_persen !== null ? `${pengukuran.capaian_persen}%` : '-'}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -171,7 +171,7 @@ export default function VerifikasiShow({ pengukuran }: VerifikasiShowProps) {
                                 {pengukuran.bukti_dukungs.map((b: any) => (
                                     <div key={b.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
                                         <div className="flex items-center gap-2.5">
-                                            <FileText className="w-4 h-4 text-[#122E92]" />
+                                            <FileText className="w-4 h-4 text-primary" />
                                             <div>
                                                 <div className="font-semibold text-slate-800">{b.nama_file}</div>
                                                 <div className="text-[11px] text-slate-400">
@@ -184,7 +184,7 @@ export default function VerifikasiShow({ pengukuran }: VerifikasiShowProps) {
                                                 href={b.download_url}
                                                 target="_blank"
                                                 rel="noreferrer"
-                                                className="inline-flex items-center gap-1 px-3 py-1 bg-[#122E92]/10 hover:bg-[#122E92]/20 text-[#122E92] rounded font-semibold text-xs transition-colors"
+                                                className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded font-semibold text-xs transition-colors"
                                             >
                                                 Buka Berkas
                                                 <ExternalLink className="w-3.5 h-3.5" />

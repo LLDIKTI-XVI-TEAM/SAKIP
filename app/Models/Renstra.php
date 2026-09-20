@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Renstra extends Model
@@ -13,6 +14,7 @@ class Renstra extends Model
     protected $table = 'renstras';
 
     protected $fillable = [
+        'regulasi_id',
         'kode',
         'nama',
         'tahun_mulai',
@@ -26,6 +28,11 @@ class Renstra extends Model
         'tahun_selesai' => 'integer',
         'is_aktif' => 'boolean',
     ];
+
+    public function regulasi(): BelongsTo
+    {
+        return $this->belongsTo(Regulasi::class, 'regulasi_id');
+    }
 
     public function sasaranStrategis(): HasMany
     {

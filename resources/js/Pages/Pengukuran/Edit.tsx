@@ -132,7 +132,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Informasi Indikator Kinerja Utama</CardTitle>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-[#122E92]/10 text-[#122E92]">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-primary/10 text-primary">
                             {iku?.kode}
                         </span>
                     </CardHeader>
@@ -161,7 +161,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                                 <span className="text-slate-400 block text-[10px] uppercase font-semibold">
                                     Tipe Perhitungan Formula
                                 </span>
-                                <span className="font-semibold text-[#122E92] uppercase">
+                                <span className="font-semibold text-primary uppercase">
                                     {iku?.tipe_perhitungan}
                                 </span>
                                 <span className="text-slate-500 text-[10px] block">
@@ -188,7 +188,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <Calculator className="w-4 h-4 text-[#122E92]" />
+                                <Calculator className="w-4 h-4 text-primary" />
                                 Realisasi & Simulasi Capaian
                             </CardTitle>
                         </CardHeader>
@@ -259,7 +259,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <UploadCloud className="w-4 h-4 text-[#122E92]" />
+                                <UploadCloud className="w-4 h-4 text-primary" />
                                 Dokumen Bukti Dukung (Evidence)
                             </CardTitle>
                         </CardHeader>
@@ -274,7 +274,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                                         {pengukuran.bukti_dukungs.map((b: any) => (
                                             <div key={b.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
                                                 <div className="flex items-center gap-2">
-                                                    <FileText className="w-4 h-4 text-[#122E92]" />
+                                                    <FileText className="w-4 h-4 text-primary" />
                                                     <div>
                                                         <div className="font-semibold text-slate-800">{b.nama_file}</div>
                                                         <div className="text-[10px] text-slate-400">{b.keterangan || 'Dokumen Bukti'}</div>
@@ -285,7 +285,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                                                         href={b.download_url}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 text-[#122E92] hover:underline font-medium text-xs"
+                                                        className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
                                                     >
                                                         Lihat Dokumen
                                                         <ExternalLink className="w-3 h-3" />
@@ -313,7 +313,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                                                 type="file"
                                                 accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx"
                                                 onChange={(e) => setData('file_bukti', e.target.files?.[0] || null)}
-                                                className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#122E92] file:text-white hover:file:bg-[#0d226b] file:cursor-pointer cursor-pointer border border-slate-300 rounded-lg p-1.5 bg-white"
+                                                className="block w-full text-xs text-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 file:cursor-pointer cursor-pointer border border-border rounded-lg p-1.5 bg-surface"
                                             />
                                             {errors.file_bukti && (
                                                 <p className="mt-1 text-xs text-rose-600">{errors.file_bukti}</p>
@@ -351,7 +351,7 @@ export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
                     <Card className={isUnderperforming ? 'border-amber-300 ring-1 ring-amber-200' : ''}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-[#122E92]" />
+                                <FileText className="w-4 h-4 text-primary" />
                                 Analisis Kinerja & Tindak Lanjut
                             </CardTitle>
                             {isUnderperforming && (

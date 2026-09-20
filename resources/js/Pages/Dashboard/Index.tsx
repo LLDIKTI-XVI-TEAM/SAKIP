@@ -29,15 +29,26 @@ interface DashboardProps {
     pengukurans: any[];
 }
 
+interface DashboardPageProps {
+    [key: string]: unknown;
+    auth?: {
+        user?: {
+            name?: string;
+        } | null;
+    };
+    can?: Record<string, boolean>;
+}
+
 export default function DashboardIndex({
     activeRenstra,
     activePeriode,
     stats,
     pengukurans = [],
 }: DashboardProps) {
-    const { auth } = usePage<any>().props;
+    const { auth, can = {} } = usePage<DashboardPageProps>().props;
     const user = auth?.user;
-    const role = user?.roles?.[0] || 'pegawai';
+    const canMutatePengukuran = can['pengukuran:mutate'] === true;
+    const canReviewPengukuran = can['verifikasi:read'] === true;
 
     return (
         <AuthenticatedLayout title="Dashboard Capaian Kinerja">
@@ -45,13 +56,13 @@ export default function DashboardIndex({
 
             {/* Periode Banner */}
             {activePeriode && (
-                <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-[#122E92] to-[#0a1b5c] text-white shadow-md flex flex-wrap items-center justify-between gap-4 border border-[#D6AC48]/30">
+                <div className="mb-6 p-4 rounded-xl bg-primary text-white shadow-md flex flex-wrap items-center justify-between gap-4 border border-secondary/30">
                     <div className="flex items-center gap-3.5">
                         <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                            <Calendar className="w-6 h-6 text-[#D6AC48]" />
+                            <Calendar className="w-6 h-6 text-secondary" />
                         </div>
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-[#D6AC48]">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-secondary">
                                 Periode Pelaporan Aktif
                             </div>
                             <h2 className="text-lg font-bold">
@@ -67,7 +78,7 @@ export default function DashboardIndex({
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                             ● Status Jadwal Buka
                         </span>
-                        {role === 'pegawai' && (
+                        {canMutatePengukuran && (
                             <Link href="/pengukuran">
                                 <Button variant="secondary" size="sm">
                                     Isi Capaian Sekarang
@@ -86,14 +97,14 @@ export default function DashboardIndex({
                             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 Rata-rata Capaian
                             </p>
-                            <div className="text-2xl font-bold text-[#122E92] mt-1">
+                            <div className="text-2xl font-bold text-primary mt-1">
                                 {stats.rata_rata_capaian}%
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5">
                                 Seluruh IKU terverifikasi
                             </p>
                         </div>
-                        <div className="w-11 h-11 rounded-lg bg-blue-50 text-[#122E92] flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                             <TrendingUp className="w-5 h-5" />
                         </div>
                     </CardContent>
@@ -166,7 +177,7 @@ export default function DashboardIndex({
                             Status pemenuhan target kinerja pada periode berjalan
                         </p>
                     </div>
-                    {role === 'perencanaan' && stats.diajukan > 0 && (
+                    {canReviewPengukuran && stats.diajukan > 0 && (
                         <Link href="/verifikasi">
                             <Button variant="primary" size="sm">
                                 Reviu {stats.diajukan} Pengajuan
@@ -198,7 +209,7 @@ export default function DashboardIndex({
                                 pengukurans.map((p) => {
                                     const iku = p.penugasan_indikator?.indikator_kinerja;
                                     const unit = p.penugasan_indikator?.unit_kerja;
-                                    const isPic = role === 'pegawai';
+                                    const canOpenPengukuran = canMutatePengukuran;
 
                                     return (
                                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -210,7 +221,7 @@ export default function DashboardIndex({
                                                     {iku?.nama}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-0.5">
-                                                    Tipe: <span className="font-medium text-[#122E92]">{iku?.tipe_perhitungan}</span> ({iku?.satuan})
+                                                    Tipe: <span className="font-medium text-primary">{iku?.tipe_perhitungan}</span> ({iku?.satuan})
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5 text-slate-600">
@@ -244,18 +255,20 @@ export default function DashboardIndex({
                                                 <Badge status={p.status} />
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                {isPic ? (
+                                                {canOpenPengukuran ? (
                                                     <Link href={`/pengukuran/${p.id}/edit`}>
                                                         <Button variant="outline" size="sm">
                                                             {p.status === 'draft' || p.status === 'dikembalikan' ? 'Isi / Edit' : 'Detail'}
                                                         </Button>
                                                     </Link>
-                                                ) : (
+                                                ) : canReviewPengukuran ? (
                                                     <Link href={`/verifikasi/${p.id}`}>
                                                         <Button variant="outline" size="sm">
                                                             Reviu
                                                         </Button>
                                                     </Link>
+                                                ) : (
+                                                    <span className="text-muted">—</span>
                                                 )}
                                             </td>
                                         </tr>

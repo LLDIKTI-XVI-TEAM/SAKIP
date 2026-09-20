@@ -16,6 +16,7 @@ class IndikatorKinerja extends Model
 
     protected $fillable = [
         'sasaran_strategis_id',
+        'regulasi_id',
         'kode',
         'nama',
         'definisi_operasional',
@@ -28,6 +29,11 @@ class IndikatorKinerja extends Model
     protected $casts = [
         'is_aktif' => 'boolean',
     ];
+
+    public function regulasi(): BelongsTo
+    {
+        return $this->belongsTo(Regulasi::class, 'regulasi_id');
+    }
 
     public function sasaranStrategis(): BelongsTo
     {

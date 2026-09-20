@@ -28,13 +28,16 @@ class DatabaseSeeder extends Seeder
             'superadmin' => 'Superadmin',
             'admin' => 'Admin Pengelola Sistem',
             'perencanaan' => 'Tim Perencanaan Kinerja',
+            'pic' => 'PIC',
             'pimpinan' => 'Pimpinan LLDIKTI',
-            'pegawai' => 'Pegawai / PIC Indikator',
+            'pegawai' => 'Pegawai',
         ];
 
         foreach ($roles as $name => $label) {
             Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
+
+        $this->call(RegulasiPermissionSeeder::class);
 
         // 2. Seed Unit Kerja LLDIKTI XVI
         $lldikti = UnitKerja::create([
@@ -127,27 +130,38 @@ class DatabaseSeeder extends Seeder
         ]);
         $pimpinan->assignRole('pimpinan');
 
-        $picKelembagaan = User::create([
-            'name' => 'PIC Pokja Kelembagaan',
-            'email' => 'pic.kelembagaan@lldikti16.kemdikbud.go.id',
+        $picRole = User::create([
+            'name' => 'PIC SAKIP',
+            'email' => 'pic@lldikti16.kemdikbud.go.id',
+            'nip' => '199407072018011007',
+            'jabatan' => 'PIC SAKIP',
+            'unit_kerja_id' => $pokjaKelembagaan->id,
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $picRole->assignRole('pic');
+
+        $pegawaiKelembagaan = User::create([
+            'name' => 'Pegawai Pokja Kelembagaan',
+            'email' => 'pegawai.kelembagaan@lldikti16.kemdikbud.go.id',
             'nip' => '199005052014021005',
             'jabatan' => 'Staf Teknis Kelembagaan',
             'unit_kerja_id' => $pokjaKelembagaan->id,
             'password' => Hash::make('password'),
             'is_active' => true,
         ]);
-        $picKelembagaan->assignRole('pegawai');
+        $pegawaiKelembagaan->assignRole('pegawai');
 
-        $picAkademik = User::create([
-            'name' => 'PIC Pokja Akademik',
-            'email' => 'pic.akademik@lldikti16.kemdikbud.go.id',
+        $pegawaiAkademik = User::create([
+            'name' => 'Pegawai Pokja Akademik',
+            'email' => 'pegawai.akademik@lldikti16.kemdikbud.go.id',
             'nip' => '199206062015032006',
             'jabatan' => 'Staf Teknis Akademik',
             'unit_kerja_id' => $pokjaAkademik->id,
             'password' => Hash::make('password'),
             'is_active' => true,
         ]);
-        $picAkademik->assignRole('pegawai');
+        $pegawaiAkademik->assignRole('pegawai');
 
         // 4. Seed Renstra 2025-2029 (Aktif)
         $renstra = Renstra::create([
@@ -230,11 +244,11 @@ class DatabaseSeeder extends Seeder
             'is_tahun_ditutup' => false,
         ]);
 
-        // 8. Seed Penugasan Indikator ke Pokja Kelembagaan (PIC picKelembagaan)
+        // 8. Seed penanggung jawab indikator terpisah dari klasifikasi role utama.
         $penugasan1 = PenugasanIndikator::create([
             'indikator_kinerja_id' => $iku1->id,
             'unit_kerja_id' => $pokjaKelembagaan->id,
-            'user_id' => $picKelembagaan->id,
+            'user_id' => $pegawaiKelembagaan->id,
             'tahun' => 2026,
             'is_active' => true,
         ]);
@@ -242,7 +256,7 @@ class DatabaseSeeder extends Seeder
         $penugasan2 = PenugasanIndikator::create([
             'indikator_kinerja_id' => $iku2->id,
             'unit_kerja_id' => $pokjaKelembagaan->id,
-            'user_id' => $picKelembagaan->id,
+            'user_id' => $pegawaiKelembagaan->id,
             'tahun' => 2026,
             'is_active' => true,
         ]);

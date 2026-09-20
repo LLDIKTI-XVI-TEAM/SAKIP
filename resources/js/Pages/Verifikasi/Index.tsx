@@ -30,7 +30,7 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-[#122E92]" />
+                        <Clock className="w-4 h-4 text-primary" />
                         Daftar Pengajuan Masuk ({pengukurans.length})
                     </CardTitle>
                 </CardHeader>
@@ -100,7 +100,7 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 {p.bukti_dukungs?.length > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 font-semibold text-[#122E92]">
+                                                    <span className="inline-flex items-center gap-1 font-semibold text-primary">
                                                         <Paperclip className="w-3.5 h-3.5" />
                                                         {p.bukti_dukungs.length} Dokumen
                                                     </span>
