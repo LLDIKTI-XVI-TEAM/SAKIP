@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Edit3, ExternalLink, FileText, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Button } from '@/Components/Button';
@@ -172,6 +172,11 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     <div className="flex justify-end gap-1">
+                                                        {can['regulasi:read'] && (
+                                                            <Link href={`/regulasi/${item.id}`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Lihat regulasi ${item.nomor}`}>
+                                                                <Eye className="h-4 w-4" />
+                                                            </Link>
+                                                        )}
                                                         {can['regulasi:update'] && (
                                                             <Link href={`/regulasi/${item.id}/edit`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Edit regulasi ${item.nomor}`}>
                                                                 <Edit3 className="h-4 w-4" />
@@ -207,6 +212,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                     <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
                                         <span className="text-xs text-muted">{item.berkas_count} lampiran</span>
                                         <div className="flex gap-2">
+                                            {can['regulasi:read'] && <Link href={`/regulasi/${item.id}`} className="text-sm font-semibold text-primary">Lihat</Link>}
                                             {can['regulasi:update'] && <Link href={`/regulasi/${item.id}/edit`} className="text-sm font-semibold text-primary">Edit</Link>}
                                             {can['regulasi:delete'] && <button type="button" onClick={() => openDelete(item)} className="text-sm font-semibold text-danger">Hapus</button>}
                                         </div>

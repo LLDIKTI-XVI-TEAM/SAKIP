@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Berkas;
 use App\Models\Regulasi;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -54,12 +55,12 @@ class RegulasiPolicy
         return $this->response($decision);
     }
 
-    public function deleteAttachment(User $user, Regulasi $regulasi): Response
+    public function deleteAttachment(User $user, Regulasi $regulasi, Berkas $berkas): Response
     {
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
 
         if (! $decision->allowed) {
-            $this->catatPenolakan($user, $regulasi, 'berkas.hapus_ditolak', $decision);
+            $this->catatPenolakanLampiran($user, $berkas, $decision);
         }
 
         return $this->response($decision);
@@ -86,6 +87,42 @@ class RegulasiPolicy
             objekTipe: 'regulasi',
             objekId: $regulasi->id,
             nilaiLama: $regulasi->withoutRelations()->toArray(),
+            alasan: is_string($alasan) ? $alasan : null,
+            dasarIzin: $decision->toAuditBasis(),
+        );
+    }
+
+    private function catatPenolakanLampiran(
+        User $user,
+        Berkas $berkas,
+        PermissionDecision $decision,
+    ): void {
+        $alasan = request()->input('alasan');
+
+        $metadata = [
+            'id' => $berkas->id,
+            'mode' => $berkas->mode,
+            'jenis_berkas_id' => $berkas->jenis_berkas_id,
+        ];
+
+        if ($berkas->mode === 'file') {
+            $metadata += [
+                'nama_asli' => $berkas->nama_asli,
+                'mime' => $berkas->mime,
+                'ukuran_bytes' => $berkas->ukuran_bytes,
+            ];
+        } elseif ($berkas->mode === 'tautan') {
+            $metadata['tautan'] = $berkas->tautan;
+        } else {
+            $metadata['panjang_teks'] = mb_strlen((string) $berkas->isi_teks);
+        }
+
+        $this->auditLogger->catat(
+            actor: $user,
+            tindakan: 'berkas.hapus_ditolak',
+            objekTipe: 'berkas',
+            objekId: $berkas->id,
+            nilaiLama: $metadata,
             alasan: is_string($alasan) ? $alasan : null,
             dasarIzin: $decision->toAuditBasis(),
         );

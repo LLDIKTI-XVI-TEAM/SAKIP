@@ -14,6 +14,7 @@ use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -288,6 +289,53 @@ test('pengguna read only mendapat 403 untuk create update dan delete', function 
 
     $this->assertDatabaseHas('regulasi', ['id' => $regulasi->id]);
     expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeFalse();
+});
+
+test('pengguna read only dapat melihat detail regulasi beserta lampiran', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create([
+        'jenis_berkas_id' => null,
+        'mode' => 'teks',
+        'isi_teks' => 'Dokumen sumber tersedia pada arsip Tim Perencanaan.',
+        'uploaded_by' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->pembaca)
+        ->get("/regulasi/{$regulasi->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Regulasi/Show')
+            ->where('regulasi.id', $regulasi->id)
+            ->has('regulasi.berkas', 1)
+            ->where('regulasi.berkas.0.id', $berkas->id)
+            ->where('regulasi.berkas.0.isi_teks', 'Dokumen sumber tersedia pada arsip Tim Perencanaan.')
+        );
+});
+
+test('penolakan hapus lampiran diaudit terhadap lampiran yang dituju', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create([
+        'jenis_berkas_id' => null,
+        'mode' => 'teks',
+        'isi_teks' => 'Lampiran yang tidak boleh dihapus oleh pengguna read only.',
+        'uploaded_by' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->pembaca)
+        ->delete("/regulasi/{$regulasi->id}/berkas/{$berkas->id}", [
+            'alasan' => 'Percobaan penghapusan lampiran dari pengguna read only.',
+        ])
+        ->assertForbidden();
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'berkas.hapus_ditolak')
+        ->where('objek_tipe', 'berkas')
+        ->where('objek_id', $berkas->id)
+        ->firstOrFail();
+
+    expect($audit->nilai_lama['id'])->toBe($berkas->id)
+        ->and($audit->dasar_izin['keputusan'])->toBe('ditolak')
+        ->and($audit->dasar_izin['permission'])->toBe(PermissionCodes::BERKAS_DELETE);
 });
 
 test('pic tidak menerima permission regulasi sampai preset resmi ditetapkan', function (): void {

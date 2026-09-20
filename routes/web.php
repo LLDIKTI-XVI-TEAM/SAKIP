@@ -14,6 +14,7 @@ use App\Http\Controllers\Regulasi\DestroyRegulasi;
 use App\Http\Controllers\Regulasi\DownloadBerkasRegulasi;
 use App\Http\Controllers\Regulasi\EditRegulasi;
 use App\Http\Controllers\Regulasi\IndexRegulasi;
+use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
 use App\Http\Controllers\Verifikasi\IndexVerifikasi;
@@ -54,6 +55,7 @@ Route::middleware('auth')->group(function () {
         '/regulasi/{regulasi}/berkas/{berkas}/download',
         DownloadBerkasRegulasi::class,
     )->name('regulasi.berkas.download');
+    Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->name('regulasi.show');
 
     // Pengukuran Kinerja (Alur PIC)
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
