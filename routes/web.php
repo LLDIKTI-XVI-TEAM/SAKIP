@@ -22,9 +22,10 @@ use App\Http\Controllers\Verifikasi\IndexVerifikasi;
 use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
+use App\Http\Middleware\EnsureDevUserAuthenticated;
 use Illuminate\Support\Facades\Route;
 
-// Redirect root to dashboard or login
+// Redirect root to dashboard
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
@@ -39,8 +40,8 @@ if (app()->environment('local')) {
     Route::post('/dev/switch-role/{id}', SwitchRole::class)->name('dev.switch-role');
 }
 
-// Protected Application Routes
-Route::middleware('auth')->group(function () {
+// Application Routes (Akses Langsung Tanpa Auth / Private Page)
+Route::middleware(EnsureDevUserAuthenticated::class)->group(function () {
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
 
     // Perencanaan Kinerja (Renstra, IKU, Rencana Aksi)
