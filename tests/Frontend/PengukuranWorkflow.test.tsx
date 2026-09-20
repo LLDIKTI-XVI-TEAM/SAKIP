@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -74,6 +74,7 @@ describe('Alur pengukuran', () => {
         expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ versi: 4, action: 'ajukan', nilai: '90' });
         await act(async () => { vi.mocked(router.post).mock.calls[1][2]?.onError?.({ catatan: 'Lengkapi catatan.' }); });
         expect(value.value).toBe('90');
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('alert')));
         await user.click(value);
         await user.keyboard('{Enter}');
         expect(vi.mocked(router.post).mock.calls[2][1]).toMatchObject({ versi: 4, action: 'draft', nilai: '90' });
