@@ -15,6 +15,7 @@ use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -256,6 +257,61 @@ class VerticalSlice1Test extends TestCase
         $this->review($this->actor, 'sahkan')->assertSessionHasNoErrors();
         $this->expectException(QueryException::class);
         DB::table('pengukuran_versi')->delete();
+    }
+
+    public function test_database_rejects_truncation_of_submission_versions_and_audit(): void
+    {
+        $this->submit($this->actor);
+        $migration = require database_path('migrations/2026_09_20_000001_prevent_immutable_record_truncation.php');
+        $before = [];
+        foreach (['pengukuran_versi', 'rencana_aksi_versi', 'audit_log'] as $table) {
+            $before[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+        }
+        $migration->down();
+        $migration->up();
+        foreach (['pengukuran_versi', 'rencana_aksi_versi', 'audit_log'] as $table) {
+            $this->assertSame($before[$table], DB::table($table)->orderBy('id')->get()->toJson());
+            $ids = DB::table($table)->orderBy('id')->pluck('id')->all();
+            $this->assertNotEmpty($ids);
+            try {
+                DB::transaction(fn () => DB::statement("TRUNCATE TABLE {$table} CASCADE"));
+                $this->fail('Versi pengajuan dan audit tidak boleh dikosongkan.');
+            } catch (QueryException $exception) {
+                $this->assertSame('23514', (string) $exception->getCode());
+            }
+            $this->assertSame($ids, DB::table($table)->orderBy('id')->pluck('id')->all());
+        }
+    }
+
+    public function test_workflow_date_boundaries_follow_wita_at_real_utc_instants(): void
+    {
+        $pic = $this->preparePic();
+        $policy = app(PengukuranKinerjaPolicy::class);
+        foreach ([
+            ['2026-02-28 15:59:59', false],
+            ['2026-02-28 16:00:00', true],
+            ['2026-03-15 15:59:59', true],
+            ['2026-03-15 16:00:00', false],
+        ] as [$instant, $open]) {
+            $this->travelTo(Carbon::parse($instant, 'UTC'));
+            $this->assertSame($open, $policy->update($pic, $this->pengukuran->fresh())->allowed(), $instant);
+        }
+
+        $this->submit($this->actor);
+        $this->assertSame(now()->timestamp, $this->pengukuran->latestVersion->diajukan_at->timestamp);
+        $this->assertSame(now()->timestamp, AuditLog::where('tindakan', 'pengukuran.ajukan')->firstOrFail()->waktu->timestamp);
+
+        foreach ([['2026-03-14 15:59:59', false], ['2026-03-14 16:00:00', true]] as [$instant, $open]) {
+            $this->travelTo(Carbon::parse($instant, 'UTC'));
+            $errors = $policy->businessErrors($this->actor, $this->pengukuran->fresh(), 'verifikasi');
+            $this->assertSame($open, ! in_array('Jendela reviu periode ini belum dimulai.', $errors, true));
+        }
+
+        $this->pengukuran->update(['status_alur' => 'dikembalikan']);
+        foreach ([['2026-12-31 15:59:59', true], ['2026-12-31 16:00:00', false]] as [$instant, $open]) {
+            $this->travelTo(Carbon::parse($instant, 'UTC'));
+            $this->assertSame($open, $policy->update($this->actor, $this->pengukuran->fresh())->allowed(), $instant);
+        }
     }
 
     public function test_referenced_schedule_snapshot_rejects_new_component_definition(): void

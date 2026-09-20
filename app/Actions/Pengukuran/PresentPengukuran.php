@@ -24,7 +24,7 @@ class PresentPengukuran
     {
         $rows->loadMissing(['latestVersion', 'jadwalSnapshot']);
         $pics = PenugasanIndikator::with('pic:id,nama')->whereIn('indikator_id', $rows->pluck('indikator_id'))
-            ->whereDate('tanggal_mulai_berlaku', '<=', today())->distinct('indikator_id')->orderBy('indikator_id')
+            ->whereDate('tanggal_mulai_berlaku', '<=', today(config('app.business_timezone')))->distinct('indikator_id')->orderBy('indikator_id')
             ->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('created_at')->get()->keyBy('indikator_id');
         $versions = $rows->map(fn ($row) => $row->latestVersion?->id)->filter()->all();
         $ids = $versions === [] ? [] : DB::table('audit_log')->where('objek_tipe', 'pengukuran')->whereIn('objek_id', $rows->modelKeys())

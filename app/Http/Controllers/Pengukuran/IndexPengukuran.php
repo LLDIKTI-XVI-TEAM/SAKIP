@@ -20,8 +20,10 @@ class IndexPengukuran extends Controller
         Gate::authorize('viewAny', PengukuranKinerja::class);
         $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
         $actor = $request->user();
-        $jadwal = JadwalTahunan::where('status', 'aktif')->orderByDesc('tahun')->first() ?? JadwalTahunan::orderByDesc('tahun')->first();
-        $periode = $jadwal ? PeriodeJadwal::with('periode')->where('jadwal_id', $jadwal->id)->whereDate('pengisian_mulai', '<=', today())->orderByDesc('pengisian_mulai')->first() : null;
+        $today = today(config('app.business_timezone'));
+        $jadwal = JadwalTahunan::where('tahun', $today->year)
+            ->orderByRaw("case when status = 'aktif' then 0 else 1 end")->orderBy('id')->first();
+        $periode = $jadwal ? PeriodeJadwal::with('periode')->where('jadwal_id', $jadwal->id)->whereDate('pengisian_mulai', '<=', $today)->orderByDesc('pengisian_mulai')->first() : null;
         $deniedUnits = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
             ->where('user_id', $actor->id)->where('permissions.kode', 'pengukuran:read')->whereNotNull('unit_id')->select('unit_id');
         $page = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])

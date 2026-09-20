@@ -86,6 +86,6 @@ class PengukuranKinerja extends Model
     public function effectivePic(): ?PenugasanIndikator
     {
         return PenugasanIndikator::with('pic')->where('indikator_id', $this->indikator_id)
-            ->whereDate('tanggal_mulai_berlaku', '<=', today())->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('created_at')->first();
+            ->whereDate('tanggal_mulai_berlaku', '<=', today(config('app.business_timezone')))->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('created_at')->first();
     }
 }

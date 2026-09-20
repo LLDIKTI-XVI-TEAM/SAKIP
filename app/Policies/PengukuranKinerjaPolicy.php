@@ -112,6 +112,7 @@ class PengukuranKinerjaPolicy
             return ['Snapshot jadwal tidak cocok dengan pengukuran.'];
         }
         $schedule = $snapshot->jadwal;
+        $date = today(config('app.business_timezone'))->toDateString();
         if ($schedule->renstra_id !== $p->indikator->sasaranStrategis->renstra_id) {
             $errors[] = 'Renstra jadwal tidak cocok dengan indikator.';
         }
@@ -132,7 +133,7 @@ class PengukuranKinerjaPolicy
         $correction = $schedule->koreksi_mulai && $schedule->koreksi_sampai && now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
             && in_array($p->indikator_id, $scope['indikator_ids'] ?? [], true) && in_array($p->periode_id, $scope['periode_ids'] ?? [], true)
             && in_array('pengukuran', $scope['jenis_objek'] ?? [], true);
-        if (now()->gt($schedule->penutupan->endOfDay())) {
+        if ($date > $schedule->penutupan->toDateString()) {
             $scope = $schedule->lingkup_koreksi ?? [];
             if (! $schedule->koreksi_mulai || ! $schedule->koreksi_sampai || ! now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
                 || ! in_array($p->indikator_id, $scope['indikator_ids'] ?? [], true) || ! in_array($p->periode_id, $scope['periode_ids'] ?? [], true)
@@ -151,12 +152,12 @@ class PengukuranKinerjaPolicy
                 if ($p->effectivePic()?->user_id !== $user->id) {
                     $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
                 }
-                if (! $period || ! now()->betweenIncluded($period->pengisian_mulai->startOfDay(), $period->pengisian_selesai->endOfDay())) {
+                if (! $period || $date < $period->pengisian_mulai->toDateString() || $date > $period->pengisian_selesai->toDateString()) {
                     $errors[] = 'Jendela pengisian PIC periode ini sudah ditutup.';
                 }
             }
         } else {
-            if ($period && now()->lt($period->reviu_mulai->startOfDay()) && ! $correction) {
+            if ($period && $date < $period->reviu_mulai->toDateString() && ! $correction) {
                 $errors[] = 'Jendela reviu periode ini belum dimulai.';
             }
             $version = $p->latestVersion;
