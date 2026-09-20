@@ -46,6 +46,7 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
+            "@php artisan db:seed --class=AccessCatalogSeeder --force",
             "bun install --frozen-lockfile",
             "bun run build"
         ],
