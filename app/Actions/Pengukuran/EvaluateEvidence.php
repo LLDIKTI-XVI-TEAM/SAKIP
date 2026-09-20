@@ -30,7 +30,8 @@ class EvaluateEvidence
                 $waived = ! $settings['unggahan_aktif'] && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
                 $available = array_values(array_diff($modes, $waived));
                 $missing = array_values(array_diff($available, $fulfilled));
-                $complete = $requirement->semua_mode_wajib ? $missing === [] : ($available === [] || array_intersect($available, $fulfilled) !== []);
+                // Konfigurasi tanpa mode bukan waiver file-only yang memang diizinkan.
+                $complete = $modes !== [] && ($requirement->semua_mode_wajib ? $missing === [] : ($available === [] || array_intersect($available, $fulfilled) !== []));
 
                 return [...$requirement->only(['id', 'nama', 'wajib', 'semua_mode_wajib', 'izinkan_file', 'izinkan_tautan', 'izinkan_teks']),
                     'format_diizinkan' => $requirement->format_diizinkan ?: $settings['format_diizinkan'],

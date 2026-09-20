@@ -68,7 +68,9 @@ class SubmissionPrerequisites
         $requirements = $this->evidence->handle($pengukuran);
         foreach ($requirements as $requirement) {
             if ($requirement['wajib'] && ! $requirement['pemenuhan']['terpenuhi']) {
-                $errors[] = 'Bukti wajib belum lengkap: '.$requirement['nama'].'.';
+                $errors[] = ! $requirement['izinkan_file'] && ! $requirement['izinkan_tautan'] && ! $requirement['izinkan_teks']
+                    ? 'Persyaratan bukti '.$requirement['nama'].' tidak memiliki mode aktif. Hubungi Tim Perencanaan.'
+                    : 'Bukti wajib belum lengkap: '.$requirement['nama'].'.';
             }
         }
         if ($pengukuran->indikator->wajib_catatan && trim((string) $pengukuran->catatan) === '') {

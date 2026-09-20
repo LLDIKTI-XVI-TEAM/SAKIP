@@ -83,7 +83,7 @@ class CanonicalPengukuranTest extends TestCase
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()
             ->assertInertia(fn ($page) => $page->where('pengukurans.0.target', 80));
         $url = '/pengukuran/'.$this->pengukuran->id;
-        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'komponen' => [['komponen_id' => $n, 'nilai' => 5]]])->assertSessionHasErrors('pengajuan');
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'komponen' => [['komponen_id' => $n, 'nilai' => 5], ['komponen_id' => $t, 'nilai' => null]]])->assertSessionHasErrors('pengajuan');
         $this->assertDatabaseCount('pengukuran_versi', 0);
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'komponen' => [['komponen_id' => $n, 'nilai' => 5], ['komponen_id' => $t, 'nilai' => 0]], 'alasan_tidak_dapat_dihitung' => 'Tidak ada populasi faktual.'])->assertSessionHasNoErrors()->assertRedirect('/pengukuran');
         $this->assertNull($this->pengukuran->fresh()->nilai);
@@ -93,6 +93,66 @@ class CanonicalPengukuranTest extends TestCase
         $this->assertSame('80.00', $snapshot['target']);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
             ->where('pengukuran.target', '80.00')->where('pengukuran.target_pk', '70.000000000000'));
+        $version = KinerjaSnapshot::sole();
+        $this->post('/verifikasi/'.$this->pengukuran->id.'/kembalikan', ['versi' => 2, 'catatan' => 'Populasi diperbarui.'])->assertSessionHasNoErrors();
+        $this->post($url, ['versi' => 3, 'action' => 'ajukan', 'komponen' => [['komponen_id' => $n, 'nilai' => 5], ['komponen_id' => $t, 'nilai' => 10]],
+            'alasan_tidak_dapat_dihitung' => 'Tidak ada populasi faktual.'])->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame('terhitung', $measurement->status_perhitungan);
+        $this->assertNull($measurement->alasan_tidak_dapat_dihitung);
+        $this->assertNull($measurement->latestVersion->snapshot['alasan_tidak_dapat_dihitung']);
+        $this->assertSame($snapshot, $version->fresh()->snapshot);
+        $this->assertSame('Tidak ada populasi faktual.', $snapshot['alasan_tidak_dapat_dihitung']);
+        $audit = AuditLog::where('tindakan', 'pengukuran.ajukan')->orderByDesc('id')->firstOrFail();
+        $this->assertSame('Tidak ada populasi faktual.', $audit->nilai_lama['alasan_tidak_dapat_dihitung']);
+        $this->assertNull($audit->nilai_baru['alasan_tidak_dapat_dihitung']);
+        $this->get('/verifikasi/'.$measurement->id)->assertInertia(fn ($page) => $page
+            ->where('pengukuran.alasan_tidak_dapat_dihitung', null)->where('pengukuran.nilai', '50.000000000000'));
+    }
+
+    public function test_partial_component_payload_preserves_saved_values_and_explicit_null_can_clear_a_draft(): void
+    {
+        [$n, $t] = $this->ratioContext();
+        $url = '/pengukuran/'.$this->pengukuran->id;
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft',
+            'komponen' => [['komponen_id' => $n, 'nilai' => 8], ['komponen_id' => $t, 'nilai' => 10]]])->assertSessionHasNoErrors();
+        foreach ([[], ['komponen' => [['komponen_id' => $n, 'nilai' => 9]]]] as $payload) {
+            $this->post($url, ['versi' => 2, 'action' => 'draft', ...$payload])->assertSessionHasErrors('komponen');
+            $measurement = $this->pengukuran->fresh();
+            $this->assertSame(2, $measurement->versi);
+            $this->assertSame('8.000000000000', $measurement->komponen->firstWhere('komponen_id', $n)->nilai);
+            $this->assertSame('10.000000000000', $measurement->komponen->firstWhere('komponen_id', $t)->nilai);
+        }
+        $this->assertSame(2, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        $this->post($url, ['versi' => 2, 'action' => 'draft', 'alasan_tidak_dapat_dihitung' => 'Alasan lama.',
+            'komponen' => [['komponen_id' => $n, 'nilai' => 9], ['komponen_id' => $t, 'nilai' => null]]])->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame('draft', $measurement->status_alur);
+        $this->assertSame('belum_diisi', $measurement->status_perhitungan);
+        $this->assertNull($measurement->komponen->firstWhere('komponen_id', $t)->nilai);
+        $this->assertNull($measurement->alasan_tidak_dapat_dihitung);
+    }
+
+    public function test_required_evidence_without_modes_blocks_submission_but_file_only_waiver_remains_valid(): void
+    {
+        $requirement = JenisBerkas::create(['nama' => 'Bukti wajib', 'tahap' => 'pengukuran', 'wajib' => true,
+            'izinkan_file' => false, 'izinkan_tautan' => false, 'izinkan_teks' => false, 'created_by' => $this->actor->id]);
+        Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]);
+        $url = '/pengukuran/'.$this->pengukuran->id;
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', 'nilai' => 85])->assertSessionHasNoErrors();
+        foreach ([false, true] as $allModes) {
+            $requirement->update(['semua_mode_wajib' => $allModes]);
+            $this->post($url, ['versi' => 2, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasErrors([
+                'pengajuan' => 'Persyaratan bukti Bukti wajib tidak memiliki mode aktif. Hubungi Tim Perencanaan.',
+            ]);
+            $this->assertSame(2, $this->pengukuran->fresh()->versi);
+        }
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
+        $requirement->update(['izinkan_file' => true]);
+        $this->post($url, ['versi' => 2, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
+        $this->assertSame(['file'], KinerjaSnapshot::sole()->snapshot['persyaratan_bukti'][0]['pemenuhan']['mode_dikecualikan']);
+        $this->assertSame(['file'], AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->sole()->nilai_baru['pengecualian'][0]['mode']);
     }
 
     public function test_file_waiver_preserves_required_nonfile_modes_and_freezes_requirements(): void

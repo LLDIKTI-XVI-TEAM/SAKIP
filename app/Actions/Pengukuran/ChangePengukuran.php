@@ -79,6 +79,9 @@ class ChangePengukuran
                         }
                         $values[$value['komponen_id']] = $value['nilai'];
                     }
+                    if ($snapshot->tipe_perhitungan !== 'manual' && array_diff(array_column($definitions, 'komponen_id'), array_keys($values))) {
+                        throw ValidationException::withMessages(['komponen' => 'Seluruh komponen snapshot harus dikirim; gunakan nilai kosong untuk komponen yang belum diisi.']);
+                    }
                     try {
                         $result = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $definitions, $values, $data['nilai'] ?? null);
                     } catch (\InvalidArgumentException $exception) {
@@ -87,7 +90,8 @@ class ChangePengukuran
                     foreach ($definitions as $definition) {
                         PengukuranKomponen::updateOrCreate(['pengukuran_id' => $p->id, 'komponen_id' => $definition['komponen_id']], ['nilai' => $values[$definition['komponen_id']] ?? null, 'updated_by' => $actor->id, 'updated_at' => now()]);
                     }
-                    $p->fill([...$result, 'catatan' => $data['catatan'] ?? null, 'alasan_tidak_dapat_dihitung' => $data['alasan_tidak_dapat_dihitung'] ?? null]);
+                    $p->fill([...$result, 'catatan' => $data['catatan'] ?? null,
+                        'alasan_tidak_dapat_dihitung' => $result['status_perhitungan'] === 'tidak_dapat_dihitung' ? ($data['alasan_tidak_dapat_dihitung'] ?? null) : null]);
                     $this->appendEvidence($actor, $p, $data['bukti'] ?? null, $path, $decision);
                     if ($command === 'ajukan') {
                         $prerequisite = $this->prerequisites->handle($p, true);
