@@ -10,9 +10,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "firebase/php-jwt": "^7.1",
         "inertiajs/inertia-laravel": "^3.3",
         "laravel/framework": "^13.17",
+        "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
+        "socialiteproviders/keycloak": "^5.3",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {
