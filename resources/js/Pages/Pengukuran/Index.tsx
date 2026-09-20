@@ -97,6 +97,7 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
                                             <td className="px-5 py-3.5 text-center">
                                                 <Badge status={p.status} />
                                                 {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
+                                                {p.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 {p.can.view && <Link href={`/pengukuran/${p.id}/edit`} className="inline-flex rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">Buka pengukuran</Link>}

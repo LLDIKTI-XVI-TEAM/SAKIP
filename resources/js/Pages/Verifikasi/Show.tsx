@@ -27,6 +27,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                 <span>Pengajuan ke-{pengukuran.nomor_pengajuan}</span>
                 {pengukuran.jalur_pengajuan && <span>Jalur pengajuan: <strong className="capitalize text-ink">{pengukuran.jalur_pengajuan}</strong></span>}
                 {pengukuran.self_approval && <span className="font-medium text-info-dark">Tindakan oleh pengaju tercatat sesuai kewenangan Perencanaan</span>}
+                {pengukuran.reviu_terlambat && <span className="font-medium text-warning-dark">Reviu terlambat</span>}
             </div>
             <Card>
                 <CardHeader><CardTitle>{indikator.kode} · {indikator.nama}</CardTitle></CardHeader>

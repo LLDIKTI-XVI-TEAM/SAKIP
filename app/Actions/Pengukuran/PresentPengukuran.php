@@ -27,9 +27,13 @@ class PresentPengukuran
             ->whereDate('tanggal_mulai_berlaku', '<=', today(config('app.business_timezone')))->distinct('indikator_id')->orderBy('indikator_id')
             ->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('created_at')->get()->keyBy('indikator_id');
         $versions = $rows->map(fn ($row) => $row->latestVersion?->id)->filter()->all();
-        $ids = $versions === [] ? [] : DB::table('audit_log')->where('objek_tipe', 'pengukuran')->whereIn('objek_id', $rows->modelKeys())
-            ->where('tindakan', 'pengukuran.verifikasi')->where('nilai_baru->self_approval', true)
-            ->whereIn(DB::raw("nilai_baru->'versi_pengajuan'->>'id'"), $versions)->pluck('objek_id')->all();
+        $reviews = $versions === [] ? collect() : DB::table('audit_log')->where('objek_tipe', 'pengukuran')->whereIn('objek_id', $rows->modelKeys())
+            ->whereIn('tindakan', ['pengukuran.verifikasi', 'pengukuran.sahkan', 'pengukuran.kembalikan'])
+            ->where(fn ($query) => $query->where('nilai_baru->self_approval', true)->orWhere('nilai_baru->reviu_terlambat', true))
+            ->whereIn(DB::raw("nilai_baru->'versi_pengajuan'->>'id'"), $versions)
+            ->select(['objek_id', 'tindakan'])->selectRaw("nilai_baru->>'self_approval' as self_approval, nilai_baru->>'reviu_terlambat' as reviu_terlambat")->get();
+        $ids = $reviews->where('tindakan', 'pengukuran.verifikasi')->where('self_approval', 'true')->pluck('objek_id')->all();
+        $lateIds = $reviews->where('reviu_terlambat', 'true')->pluck('objek_id')->all();
         $plans = RencanaAksi::whereIn('indikator_id', $rows->pluck('indikator_id'))->whereIn('tahun', $rows->pluck('tahun'))
             ->where('status_alur', 'disahkan')->get()->keyBy(fn ($plan) => $plan->indikator_id.':'.$plan->tahun);
         $planVersions = RencanaAksiVersi::whereIn('rencana_aksi_id', $plans->modelKeys())
@@ -38,6 +42,7 @@ class PresentPengukuran
         foreach ($rows as $row) {
             $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
             $row->setAttribute('self_verified', in_array($row->id, $ids, true));
+            $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
             $plan = $plans->get($row->indikator_id.':'.$row->tahun);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
             $target = null;
@@ -58,6 +63,7 @@ class PresentPengukuran
         $frozen = in_array($p->status_alur, ['diajukan', 'diverifikasi', 'disahkan'], true) ? $version?->snapshot : null;
         $data = ['id' => $p->id, 'versi' => $p->versi, 'status' => $p->status_alur, 'nomor_pengajuan' => $version?->nomor ?? 0, 'jalur_pengajuan' => $version?->jalur_pengajuan,
             'self_approval' => (bool) $p->getAttribute('self_verified') || $version && $version->jalur_pengajuan === 'perencanaan' && $version->disahkan_by === $version->diajukan_by,
+            'reviu_terlambat' => (bool) $p->getAttribute('late_review'),
             'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
             'sumber_nilai' => $p->sumber_nilai === 'historis' ? 'historis' : ($context->tipe_perhitungan === 'manual' ? 'manual' : 'komponen'),
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,
@@ -82,6 +88,7 @@ class PresentPengukuran
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
             $activity['bukti_dukungs'] = $can['claimEvidence'] ? array_map(fn ($b) => [
                 ...array_intersect_key($b, array_flip(['id', 'mode', 'nama_asli', 'tautan', 'isi_teks'])),
+                'menggantikan_id' => $b['menggantikan_id'] ?? null, 'alasan_koreksi' => $b['alasan_koreksi'] ?? null,
                 'download_url' => $b['mode'] === 'file' ? route('pengukuran.bukti-klaim', ['id' => $p->id, 'buktiId' => $b['id']]) : ($b['tautan'] ?? null),
             ], $claim['kegiatan']['bukti_dukungs']) : [];
 
@@ -111,6 +118,7 @@ class PresentPengukuran
         $data['riwayats'] = $p->riwayats()->with('user:id,nama')->limit(50)->get()->map(fn ($r) => [...$r->only(['id', 'status_dari', 'status_ke', 'catatan']), 'created_at' => $r->created_at->toIso8601String(), 'user' => $r->user?->only(['id', 'nama'])])->all();
         $this->prepareSummary(new Collection([$p]));
         $data['self_approval'] = $data['self_approval'] || (bool) $p->getAttribute('self_verified');
+        $data['reviu_terlambat'] = (bool) $p->getAttribute('late_review');
         $ratified = $p->ratifiedVersion;
         $data['snapshot'] = $ratified ? ['snapshot_hash' => hash('sha256', json_encode($ratified->snapshot, JSON_THROW_ON_ERROR)), 'nomor_pengajuan' => $ratified->nomor, 'disahkan_pada' => $ratified->disahkan_at->toIso8601String()] : null;
 

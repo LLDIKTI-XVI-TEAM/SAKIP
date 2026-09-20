@@ -22,6 +22,7 @@ interface DashboardProps {
         id: string;
         status: Pengukuran['status'];
         self_approval: boolean;
+        reviu_terlambat: boolean;
         nilai: Pengukuran['nilai'];
         status_perhitungan: Pengukuran['status_perhitungan'];
         satuan: string;
@@ -122,6 +123,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                     <td className="px-5 py-3.5 text-center">
                                         <Badge status={item.status} />
                                         {item.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
+                                        {item.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
                                     </td>
                                     <td className="px-5 py-3.5 text-center">
                                         {item.action && <Link href={item.action.href} className="inline-flex rounded-lg border border-border bg-surface px-3 py-2 font-medium hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary">{item.action.label}</Link>}

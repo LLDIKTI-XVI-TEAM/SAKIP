@@ -107,6 +107,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                             <td className="px-5 py-3.5 text-center">
                                                 <Badge status={p.status} />
                                                 {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
+                                                {p.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 {p.can.view && <Link href={`/verifikasi/${p.id}`} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-primary"><Eye aria-hidden="true" className="h-3.5 w-3.5" />Lihat pengajuan</Link>}

@@ -141,10 +141,17 @@ class CanonicalPengukuranTest extends TestCase
         $snapshot = KinerjaSnapshot::firstOrFail()->snapshot;
         $this->assertSame('Narasi semula', $snapshot['klaim'][0]['kegiatan']['uraian_pelaksanaan']);
         $this->assertSame([$replacement->id], array_column($snapshot['klaim'][0]['kegiatan']['bukti_dukungs'], 'id'));
+        $this->assertSame($old->id, $snapshot['klaim'][0]['kegiatan']['bukti_dukungs'][0]['menggantikan_id'] ?? null);
+        $this->assertSame('Salah periode.', $snapshot['klaim'][0]['kegiatan']['bukti_dukungs'][0]['alasan_koreksi']);
+        BuktiDukung::create([...$replacement->only(['berkasable_type', 'berkasable_id', 'mode', 'uploaded_by']),
+            'menggantikan_id' => $replacement->id, 'alasan_koreksi' => 'Koreksi berikutnya.', 'isi_teks' => 'Bukti lebih baru', 'created_at' => now()]);
+        $this->assertSame($snapshot, KinerjaSnapshot::firstOrFail()->snapshot);
         $this->assertNull($old->fresh()->dihapus_pada);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
             ->where('pengukuran.klaim.0.kegiatan.uraian_pelaksanaan', 'Narasi semula')
             ->where('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.isi_teks', 'Bukti koreksi')
+            ->where('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.menggantikan_id', $old->id)
+            ->where('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.alasan_koreksi', 'Salah periode.')
             ->missing('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.path'));
     }
 

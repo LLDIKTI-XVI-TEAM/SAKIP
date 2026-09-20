@@ -17,7 +17,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ childr
 
 const measurement: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
-    jalur_pengajuan: 'pic', self_approval: false, status: 'draft', target: 100,
+    jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false, status: 'draft', target: 100,
     nilai: 80, status_perhitungan: 'terhitung', sumber_nilai: 'manual', catatan: '', alasan_tidak_dapat_dihitung: null,
     komponen: [], prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [], unggahan_aktif: true,
     can: { view: true, evidence: true, uploadEvidence: true, update: true, submit: true, verify: false, ratify: false, return: false },
@@ -73,14 +73,14 @@ describe('Alur pengukuran', () => {
     });
 
     it('menampilkan target PK, target periode, dan klaim beku dengan bukti sesuai capability', () => {
-        const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95,
+        const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95, reviu_terlambat: true,
             can: { ...measurement.can, viewClaims: true, claimEvidence: true }, klaim: [{
                 id: 'claim', komponen_id: null, arah_dampak: 'menambah', catatan: 'Dukungan periode pertama', sumber_klaim: 'rencana_aksi',
                 kegiatan: { id: 'activity', nama: 'Pendampingan QA', tujuan: 'Peningkatan layanan', status: 'tidak_terlaksana',
                     tanggal_rencana: null, tanggal_realisasi: null, sasaran_peserta: 20, realisasi_peserta: 0,
                     justifikasi: 'Jadwal berubah', uraian_pelaksanaan: 'Narasi beku', kendala: 'Ruangan tidak tersedia', strategi_tindaklanjut: 'Jadwalkan kembali',
-                    bukti_dukungs: [{ id: 'text', mode: 'teks', nama_asli: null, tautan: null, isi_teks: 'Bukti koreksi beku', download_url: null },
-                        { id: 'file', mode: 'file', nama_asli: 'surat.pdf', tautan: null, isi_teks: null, download_url: '/pengukuran/qa/bukti-klaim/file' }],
+                    bukti_dukungs: [{ id: 'text', mode: 'teks', nama_asli: null, tautan: null, isi_teks: 'Bukti koreksi beku', download_url: null, menggantikan_id: 'old', alasan_koreksi: 'Lampiran salah periode.' },
+                        { id: 'file', mode: 'file', nama_asli: 'surat.pdf', tautan: null, isi_teks: null, download_url: '/pengukuran/qa/bukti-klaim/file', menggantikan_id: null, alasan_koreksi: null }],
                 },
             }] };
         const { rerender } = render(<VerifikasiShow pengukuran={review} />);
@@ -89,9 +89,12 @@ describe('Alur pengukuran', () => {
         expect(screen.getByText('Status: tidak terlaksana')).toBeTruthy();
         expect(screen.getByText('Narasi beku')).toBeTruthy();
         expect(screen.getByText('Bukti koreksi beku')).toBeTruthy();
+        expect(screen.getByText('Reviu terlambat')).toBeTruthy();
+        expect(screen.getByText(/Bukti koreksi · Lampiran salah periode/)).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Unduh bukti kegiatan' }).getAttribute('href')).toBe('/pengukuran/qa/bukti-klaim/file');
         rerender(<VerifikasiShow pengukuran={{ ...review, can: { ...review.can, claimEvidence: false } }} />);
         expect(screen.queryByText('Bukti koreksi beku')).toBeNull();
+        expect(screen.queryByText(/Bukti koreksi · Lampiran salah periode/)).toBeNull();
         expect(screen.queryByRole('link', { name: 'Unduh bukti kegiatan' })).toBeNull();
     });
     it('membuka pengukuran dari ringkasan tanpa menyimpulkan izin edit dari placeholder capability', () => {

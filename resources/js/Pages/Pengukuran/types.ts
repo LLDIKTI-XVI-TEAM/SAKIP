@@ -39,6 +39,7 @@ export interface Pengukuran {
     nomor_pengajuan: number;
     jalur_pengajuan: 'pic' | 'perencanaan' | null;
     self_approval: boolean;
+    reviu_terlambat: boolean;
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: string | number | null;
     target_pk?: string | number | null;
@@ -97,7 +98,7 @@ export interface KlaimPengukuran {
         uraian_pelaksanaan: string | null;
         kendala: string | null;
         strategi_tindaklanjut: string | null;
-        bukti_dukungs: Pick<BuktiPengukuran, 'id' | 'mode' | 'nama_asli' | 'tautan' | 'isi_teks' | 'download_url'>[];
+        bukti_dukungs: Pick<BuktiPengukuran, 'id' | 'mode' | 'nama_asli' | 'tautan' | 'isi_teks' | 'download_url' | 'menggantikan_id' | 'alasan_koreksi'>[];
     };
 }
 

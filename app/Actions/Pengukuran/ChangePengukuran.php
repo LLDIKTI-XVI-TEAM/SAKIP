@@ -43,7 +43,7 @@ class ChangePengukuran
                 $p = PengukuranKinerja::lockForUpdate()->findOrFail($id);
                 $snapshot = JadwalSnapshot::lockForUpdate()->findOrFail($p->jadwal_snapshot_id);
                 $snapshot->setRelation('jadwal', JadwalTahunan::lockForUpdate()->findOrFail($snapshot->jadwal_id));
-                PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $p->periode_id)->lockForUpdate()->first();
+                $period = PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $p->periode_id)->lockForUpdate()->first();
                 $p->setRelation('jadwalSnapshot', $snapshot);
                 $decision = $this->resolver->decide($actor, $permission, $p->targetUnitId());
                 if (! $decision['allowed']) {
@@ -132,6 +132,12 @@ class ChangePengukuran
                     RiwayatPengukuran::create(['pengukuran_kinerja_id' => $p->id, 'user_id' => $actor->id, 'status_dari' => $before['status_alur'], 'status_ke' => $p->status_alur, 'catatan' => $reason]);
                 }
                 $after = [...$this->auditState($p), 'self_approval' => $selfApproval];
+                if (in_array($command, ['verifikasi', 'sahkan', 'kembalikan'], true)) {
+                    // Bekukan tenggat yang berlaku saat aksi; revisi jadwal tidak mengubah jejak reviu.
+                    $reviewDate = today(config('app.business_timezone'))->toDateString();
+                    $after += ['reviu_terlambat' => $reviewDate > $period->reviu_selesai->toDateString(),
+                        'reviu_selesai' => $period->reviu_selesai->toDateString(), 'tanggal_reviu' => $reviewDate];
+                }
                 $this->writeAudit($actor, $p->id, 'pengukuran.'.$command, $reason, $decision, $before, $after);
 
                 return $p;
@@ -238,7 +244,7 @@ class ChangePengukuran
             }
             $result[] = [...$claim->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan', 'sumber_klaim']),
                 'kegiatan' => [...$activity->only(['id', 'periode_id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']),
-                    'bukti_dukungs' => ($evidence->get($activity->id) ?? collect())->map(fn ($bukti) => $bukti->only(['id', 'jenis_berkas_id', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()]];
+                    'bukti_dukungs' => ($evidence->get($activity->id) ?? collect())->map(fn ($bukti) => $bukti->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()]];
         }
 
         return $result;

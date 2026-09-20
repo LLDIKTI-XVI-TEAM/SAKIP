@@ -48,6 +48,7 @@ class GetDashboard
 
             return [
                 'id' => $data['id'], 'status' => $data['status'], 'nilai' => $data['nilai'], 'status_perhitungan' => $data['status_perhitungan'], 'self_approval' => $data['self_approval'],
+                'reviu_terlambat' => $data['reviu_terlambat'],
                 'satuan' => $indicator['satuan'], 'desimal_tampilan' => $indicator['desimal_tampilan'],
                 'indikator' => ['kode' => $indicator['kode'], 'nama' => $indicator['nama']],
                 'unit' => ['nama' => $data['penugasan_indikator']['unit_kerja']['nama']],

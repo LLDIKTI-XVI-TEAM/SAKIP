@@ -28,6 +28,7 @@ export default function ClaimedActivities({ pengukuran }: { pengukuran: Pengukur
                             {!pengukuran.can.claimEvidence ? <p className="text-muted">Anda tidak memiliki akses untuk melihat bukti kegiatan ini.</p> : activity.bukti_dukungs.length === 0 ? <p className="text-muted">Tidak ada bukti kegiatan pada versi ini.</p> : <ul className="space-y-3" aria-label={`Bukti kegiatan ${activity.nama}`}>
                                 {activity.bukti_dukungs.map((item) => <li key={item.id} className="space-y-1 rounded-lg bg-soft p-3">
                                     <p>{item.nama_asli || `Bukti ${item.mode}`}</p>
+                                    {item.menggantikan_id && <p className="break-words text-xs text-muted">Bukti koreksi · {item.alasan_koreksi}</p>}
                                     {item.mode === 'teks' && <p className="whitespace-pre-wrap break-words text-muted">{item.isi_teks}</p>}
                                     {item.download_url && <a href={item.download_url} target="_blank" rel="noreferrer" className="inline-flex rounded text-primary underline focus:outline-none focus:ring-2 focus:ring-primary">{item.mode === 'tautan' ? 'Buka tautan kegiatan' : 'Unduh bukti kegiatan'}</a>}
                                 </li>)}

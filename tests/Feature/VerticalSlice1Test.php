@@ -37,6 +37,40 @@ class VerticalSlice1Test extends TestCase
         return $pic;
     }
 
+    public function test_review_lateness_is_frozen_at_each_transition_using_the_wita_deadline(): void
+    {
+        $this->submit($this->actor);
+        $this->travelTo(Carbon::parse('2026-04-15 15:59:59', 'UTC'));
+        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
+        $verification = AuditLog::where('tindakan', 'pengukuran.verifikasi')->sole();
+        $this->assertFalse($verification->nilai_baru['reviu_terlambat'] ?? null);
+        $this->travelTo(Carbon::parse('2026-04-15 16:00:00', 'UTC'));
+        $this->review($this->actor, 'sahkan')->assertSessionHasNoErrors();
+        $audit = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole();
+        $this->assertTrue($audit->nilai_baru['reviu_terlambat']);
+        $this->assertSame('2026-04-15', $audit->nilai_baru['reviu_selesai']);
+        $this->assertSame('2026-04-16', $audit->nilai_baru['tanggal_reviu']);
+        $this->assertSame($this->pengukuran->latestVersion->id, $audit->nilai_baru['versi_pengajuan']['id']);
+        PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->update(['reviu_selesai' => '2026-05-01']);
+        $this->assertSame($audit->nilai_baru, $audit->fresh()->nilai_baru);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
+        $this->get('/pengukuran')->assertInertia(fn ($page) => $page->where('pengukurans.0.reviu_terlambat', true));
+        $this->get('/dashboard')->assertInertia(fn ($page) => $page->where('pengukurans.0.reviu_terlambat', true));
+    }
+
+    public function test_new_submission_does_not_inherit_the_previous_late_review_marker(): void
+    {
+        $this->submit($this->actor);
+        $this->travelTo(Carbon::parse('2026-04-16 00:00:00', 'Asia/Makassar'));
+        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
+        $audit = AuditLog::where('tindakan', 'pengukuran.verifikasi')->sole();
+        $this->assertTrue($audit->nilai_baru['reviu_terlambat'] ?? null);
+        $this->post('/verifikasi/'.$this->pengukuran->id.'/kembalikan', ['versi' => $this->pengukuran->versi, 'catatan' => 'Perlu koreksi.'])->assertSessionHasNoErrors();
+        $this->submit($this->actor);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', false));
+        $this->assertTrue($audit->fresh()->nilai_baru['reviu_terlambat']);
+    }
+
     private function deny(User $user, string $code, ?string $unit = null): string
     {
         $id = (string) Str::uuid();
