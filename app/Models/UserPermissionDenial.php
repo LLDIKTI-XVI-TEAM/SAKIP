@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserPermissionDenial extends Model
 {
-    protected $table = 'user_permission_denials';
+    use HasUuids;
 
-    public $timestamps = false;
+    protected $table = 'user_permission_denied';
+
+    public const UPDATED_AT = null;
 
     protected $fillable = [
         'user_id',

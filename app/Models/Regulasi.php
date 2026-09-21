@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
 /**
- * @property int $id
+ * @property string $id
  * @property string $jenis
  * @property string $nomor
  * @property int $tahun
@@ -21,13 +22,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $catatan
  * @property bool $aktif
  * @property int $versi
- * @property int $created_by
+ * @property string $created_by
  * @property-read User|null $pembuat
  * @property-read Collection<int, Berkas> $berkas
  */
 class Regulasi extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     protected $table = 'regulasi';
 

@@ -23,7 +23,7 @@ class IndexRegulasi extends Controller
         $status = $filters['status'] ?? null;
 
         $regulasi = Regulasi::query()
-            ->with('pembuat:id,name')
+            ->with('pembuat:id,nama')
             ->withCount('berkas')
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
@@ -48,7 +48,7 @@ class IndexRegulasi extends Controller
                 'tautan_sumber' => $item->tautan_sumber,
                 'aktif' => $item->aktif,
                 'berkas_count' => $item->berkas_count,
-                'pembuat' => $item->pembuat?->name,
+                'pembuat' => $item->pembuat?->nama,
                 'updated_at' => $item->updated_at?->toIso8601String(),
             ]);
 

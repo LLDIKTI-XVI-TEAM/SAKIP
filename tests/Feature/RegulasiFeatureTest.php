@@ -6,7 +6,9 @@ use App\Models\IndikatorKinerja;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
+use App\Models\Role;
 use App\Models\SasaranStrategis;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDenial;
 use App\Services\RegulasiService;
@@ -17,9 +19,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RegulasiPestTestCase extends TestCase
@@ -70,18 +72,18 @@ test('create regulasi menyimpan tiga mode lampiran dan audit', function (): void
     $regulasi = Regulasi::query()->where('nomor', '358/M/KEP/2025')->firstOrFail();
     expect($regulasi->berkas)->toHaveCount(3);
     $this->assertDatabaseHas('berkas', [
-        'berkasable_type' => 'regulasi',
+        'berkasable_type' => $regulasi->getMorphClass(),
         'berkasable_id' => $regulasi->id,
         'jenis_berkas_id' => null,
         'mode' => 'file',
     ]);
     $this->assertDatabaseHas('berkas', [
-        'berkasable_type' => 'regulasi',
+        'berkasable_type' => $regulasi->getMorphClass(),
         'berkasable_id' => $regulasi->id,
         'mode' => 'tautan',
     ]);
     $this->assertDatabaseHas('berkas', [
-        'berkasable_type' => 'regulasi',
+        'berkasable_type' => $regulasi->getMorphClass(),
         'berkasable_id' => $regulasi->id,
         'mode' => 'teks',
     ]);
@@ -345,6 +347,10 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
     IndikatorKinerja::query()->create([
         'sasaran_strategis_id' => $sasaran->id,
         'regulasi_id' => $regulasi->id,
+        'unit_id' => Unit::query()->create([
+            'nama' => 'Unit regulasi pengujian',
+            'created_by' => $this->perencanaan->id,
+        ])->id,
         'kode' => 'IKU-REGULASI',
         'nama' => 'Indikator uji regulasi',
         'satuan' => '%',
@@ -374,7 +380,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
 
 test('explicit deny menang dan dasar izin penolakan diaudit', function (): void {
     $regulasi = buatRegulasi($this->perencanaan);
-    $permission = Permission::findByName(PermissionCodes::REGULASI_UPDATE, 'web');
+    $permission = Permission::query()->where('kode', PermissionCodes::REGULASI_UPDATE)->firstOrFail();
 
     UserPermissionDenial::query()->create([
         'user_id' => $this->perencanaan->id,
@@ -503,10 +509,10 @@ test('penolakan hapus lampiran diaudit terhadap lampiran yang dituju', function 
         ->and($audit->dasar_izin['permission'])->toBe(PermissionCodes::BERKAS_DELETE);
 });
 
-test('pic tidak menerima permission regulasi sampai preset resmi ditetapkan', function (): void {
-    $pic = userDenganRole('pic', 'pic-regulasi@example.test');
+test('pengguna tanpa peran tidak menerima permission regulasi', function (): void {
+    $tanpaPeran = User::factory()->create(['is_active' => true]);
 
-    $this->actingAs($pic)
+    $this->actingAs($tanpaPeran)
         ->get('/regulasi')
         ->assertForbidden();
 });
@@ -601,9 +607,14 @@ test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (): voi
 
 function userDenganRole(string $roleName, string $email): User
 {
-    $role = Role::findByName($roleName, 'web');
-    $user = User::factory()->create(['email' => $email]);
-    $user->assignRole($role);
+    $role = Role::query()->where('kode', $roleName)->firstOrFail();
+    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user->roles()->attach($role->id, [
+        'id' => (string) Str::uuid(),
+        'sumber_pemberian' => 'manual',
+        'diberikan_oleh' => $user->id,
+        'created_at' => now(),
+    ]);
 
     return $user;
 }
@@ -622,7 +633,7 @@ function buatRegulasi(User $pembuat): Regulasi
 
 function tolakIzin(User $user, string $permissionCode): void
 {
-    $permission = Permission::findByName($permissionCode, 'web');
+    $permission = Permission::query()->where('kode', $permissionCode)->firstOrFail();
 
     UserPermissionDenial::query()->create([
         'user_id' => $user->id,

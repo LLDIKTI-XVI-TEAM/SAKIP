@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int $id
- * @property int|null $jenis_berkas_id
+ * @property string $id
+ * @property string|null $jenis_berkas_id
  * @property string $berkasable_type
- * @property int $berkasable_id
+ * @property string $berkasable_id
  * @property string $mode
  * @property string|null $nama_asli
  * @property string|null $path
@@ -19,18 +20,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $ukuran_bytes
  * @property string|null $tautan
  * @property string|null $isi_teks
- * @property int $uploaded_by
- * @property int|null $dihapus_oleh
+ * @property string $uploaded_by
+ * @property string|null $dihapus_oleh
  */
 class Berkas extends Model
 {
-    use SoftDeletes;
+    use HasUuids, SoftDeletes;
 
     public const DELETED_AT = 'dihapus_pada';
 
-    protected $table = 'berkas';
+    public const UPDATED_AT = null;
 
-    public $timestamps = false;
+    protected $table = 'berkas';
 
     protected $fillable = [
         'jenis_berkas_id',
@@ -48,11 +49,7 @@ class Berkas extends Model
     protected function casts(): array
     {
         return [
-            'jenis_berkas_id' => 'integer',
-            'berkasable_id' => 'integer',
             'ukuran_bytes' => 'integer',
-            'uploaded_by' => 'integer',
-            'dihapus_oleh' => 'integer',
             'created_at' => 'datetime',
             'dihapus_pada' => 'datetime',
         ];
