@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Actions\Access\AssignRole;
+use App\Actions\Access\CreateDeny;
+use App\Actions\Access\RevokeDeny;
 use App\Models\AuditLog;
 use App\Models\IndikatorKomponen;
 use App\Models\PenugasanIndikator;
@@ -186,6 +188,34 @@ class VerticalSlice1Test extends TestCase
         DB::table('user_permission_denied')->where('user_id', $reviewer->id)->delete();
         $this->review($reviewer, 'sahkan')->assertSessionHasNoErrors()->assertRedirect();
         $this->assertTrue(AuditLog::where('tindakan', 'pengukuran.sahkan')->firstOrFail()->nilai_baru['self_approval']);
+    }
+
+    public function test_deny_create_and_revoke_preserve_access_assignment_and_submission_provenance(): void
+    {
+        $pic = $this->preparePic();
+        $this->submit($pic);
+        $otherDeny = $this->deny($pic, 'dashboard:read');
+        $tables = ['users', 'user_roles', 'user_permission_granted', 'role_permissions', 'penanggung_jawab', 'auth_bootstraps', 'rencana_aksi_versi', 'pengukuran_versi', 'pengukuran_kinerjas'];
+        $preserved = [];
+        foreach ($tables as $table) {
+            $preserved[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+        }
+        $auditIds = AuditLog::pluck('id');
+        $history = DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson();
+        $other = DB::table('user_permission_denied')->where('id', $otherDeny)->first();
+        $deny = app(CreateDeny::class)->handle($this->actor, $pic->id, Permission::where('kode', 'pengukuran:update')->value('id'), $this->unit->id, 'Evaluasi akses');
+        foreach (['created', 'revoked'] as $phase) {
+            if ($phase === 'revoked') {
+                app(RevokeDeny::class)->handle($this->actor, $deny->id, 'Evaluasi selesai');
+                $this->assertDatabaseMissing('user_permission_denied', ['id' => $deny->id]);
+            }
+            foreach ($tables as $table) {
+                $this->assertSame($preserved[$table], DB::table($table)->orderBy('id')->get()->toJson(), $phase.':'.$table);
+            }
+            $this->assertSame($history, DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson());
+            $this->assertEquals($other, DB::table('user_permission_denied')->where('id', $otherDeny)->first());
+            $this->assertSame($pic->id, $this->pengukuran->fresh()->latestVersion->diajukan_by);
+        }
     }
 
     public function test_stale_update_is_rejected_and_audited(): void

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Access\DenyManagement;
 use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\ProcessLogout;
@@ -46,6 +47,13 @@ Route::get('/auth/pending', function (Request $request) {
 })->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
+    Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
+    Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');
+    Route::get('/akses/deny/opsi/izin', [DenyManagement::class, 'permissions'])->name('deny.permissions');
+    Route::get('/akses/deny/hasil', [DenyManagement::class, 'result'])->name('deny.result');
+    Route::post('/akses/deny', [DenyManagement::class, 'store'])->name('deny.store');
+    Route::post('/akses/deny/{deny}/cabut', [DenyManagement::class, 'revoke'])->whereUuid('deny')->name('deny.revoke');
     Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
     Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');

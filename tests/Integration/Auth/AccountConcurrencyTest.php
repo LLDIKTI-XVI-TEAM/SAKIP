@@ -5,11 +5,13 @@ namespace Tests\Integration\Auth;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -65,6 +67,37 @@ class AccountConcurrencyTest extends TestCase
         $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.ditolak')->count());
     }
 
+    #[DataProvider('denyScopes')]
+    public function test_concurrent_deny_creates_and_revokes_have_one_winner(bool $scoped): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['is_active' => true]);
+        $target = User::factory()->create(['is_active' => true]);
+        $role = Role::where('kode', 'admin')->sole();
+        $actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $role->permissions()->attach(Permission::where('kode', 'akses:update')->value('id'), ['id' => Str::uuid(), 'created_at' => now()]);
+        $unitId = $scoped ? Unit::create(['nama' => 'Race unit', 'created_by' => $actor->id])->id : null;
+        $payload = ['actor_id' => $actor->id, 'target_id' => $target->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'), 'unit_id' => $unitId, 'alasan' => 'Race deny'];
+        $results = $this->race('create-deny', $target->id, '', [$payload, $payload]);
+        $this->assertEqualsCanonicalizing(['created', 'duplicate'], $results);
+        $deny = DB::table('user_permission_denied')->sole();
+        $this->assertSame('Race deny', $deny->alasan);
+        $this->assertSame($actor->id, $deny->ditetapkan_oleh);
+        $this->assertSame($unitId, $deny->unit_id);
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $deny->id)->where('tindakan', 'user_permission_denied.tambah')->count());
+        $payload = ['actor_id' => $actor->id, 'deny_id' => $deny->id, 'alasan' => 'Race revoke'];
+        $results = $this->race('revoke-deny', $target->id, '', [$payload, $payload]);
+        $this->assertEqualsCanonicalizing(['revoked', 'stale'], $results);
+        $this->assertDatabaseCount('user_permission_denied', 0);
+        $this->assertDatabaseCount('audit_log', 2);
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $deny->id)->where('tindakan', 'user_permission_denied.hapus')->count());
+    }
+
+    public static function denyScopes(): array
+    {
+        return [[false], [true]];
+    }
+
     /**
      * Kedua proses harus terbukti menunggu lock PostgreSQL yang sama sebelum dilepas.
      * Fixture sudah committed; ini tidak memakai transaksi luar RefreshDatabase.
@@ -89,7 +122,7 @@ class AccountConcurrencyTest extends TestCase
         $inputs = [];
         DB::beginTransaction();
         try {
-            if ($operation === 'assign-role') {
+            if (in_array($operation, ['assign-role', 'create-deny', 'revoke-deny'], true)) {
                 User::whereKey($subject)->lockForUpdate()->firstOrFail();
             } else {
                 DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
@@ -97,7 +130,7 @@ class AccountConcurrencyTest extends TestCase
             for ($index = 0; $index < 2; $index++) {
                 $input = new InputStream;
                 $arguments = [PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $operation, $subject];
-                if ($operation === 'assign-role') {
+                if ($assignments !== []) {
                     $arguments[] = json_encode($assignments[$index], JSON_THROW_ON_ERROR);
                 }
                 $process = new Process($arguments, base_path(), $environment, $input, 20);
