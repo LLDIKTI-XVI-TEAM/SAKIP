@@ -2,9 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Regulasi;
+use App\Models\Unit;
 use App\Models\User;
+use App\Policies\RegulasiPolicy;
+use App\Policies\UnitPolicy;
 use App\Services\Auth\KeycloakIdentityProvider;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,10 +28,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Gate::policy(\App\Models\Unit::class, \App\Policies\UnitPolicy::class);
-        Gate::policy(\App\Models\Regulasi::class, \App\Policies\RegulasiPolicy::class);
+        Gate::policy(Unit::class, UnitPolicy::class);
+        Gate::policy(Regulasi::class, RegulasiPolicy::class);
 
-        foreach (\App\Support\PermissionCodes::activeIssueCodes() as $code) {
+        foreach (PermissionCodes::activeIssueCodes() as $code) {
             Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {
                 return app(PermissionResolver::class)->allows($user, $code, $unitId);
             });

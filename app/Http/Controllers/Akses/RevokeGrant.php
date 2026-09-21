@@ -31,7 +31,7 @@ class RevokeGrant extends Controller
             'permission_id' => $grant->permission_id,
             'permission_kode' => $grant->permission?->kode,
             'unit_id' => $grant->unit_id,
-            'unit_kode' => $grant->unit?->kode,
+            'unit_nama' => $grant->unit?->nama,
             'alasan_pemberian' => $grant->alasan,
             'diberikan_oleh' => $grant->diberikan_oleh,
         ];

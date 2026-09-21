@@ -11,6 +11,7 @@ class Permission extends Model
     use HasUuids;
 
     public const SCOPE_GLOBAL = 'global';
+
     public const SCOPE_UNIT = 'unit';
 
     protected $fillable = ['kode', 'entitas', 'aksi', 'keterangan', 'butuh_scope', 'sensitif', 'aktif'];

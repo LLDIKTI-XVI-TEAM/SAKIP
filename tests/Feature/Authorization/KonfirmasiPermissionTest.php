@@ -6,7 +6,6 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleCatalog;
 use App\Services\Authorization\RolePermissionPresets;

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
 /**
@@ -14,6 +15,11 @@ use InvalidArgumentException;
  * @property string|null $unit_id
  * @property string $alasan
  * @property string $diberikan_oleh
+ * @property Carbon|null $created_at
+ * @property-read User|null $user
+ * @property-read Permission|null $permission
+ * @property-read Unit|null $unit
+ * @property-read User|null $diberikanOleh
  */
 class UserPermissionGrant extends Model
 {

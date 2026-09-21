@@ -52,6 +52,7 @@ class StoreGrant extends Controller
         }
 
         // Pastikan unit_id valid dan aktif
+        /** @var Unit $unit */
         $unit = Unit::findOrFail($validated['unit_id']);
 
         // AC-4: Cek duplikasi user-permission-unit
@@ -66,6 +67,7 @@ class StoreGrant extends Controller
             ]);
         }
 
+        /** @var User $targetUser */
         $targetUser = User::findOrFail($validated['user_id']);
 
         // AC-1 & AC-5: Simpan grant
@@ -90,7 +92,7 @@ class StoreGrant extends Controller
                 'permission_id' => $permission->id,
                 'permission_kode' => $permission->kode,
                 'unit_id' => $unit->id,
-                'unit_kode' => $unit->kode,
+                'unit_nama' => $unit->nama,
                 'alasan' => $grant->alasan,
                 'diberikan_oleh' => $request->user()->id,
             ],

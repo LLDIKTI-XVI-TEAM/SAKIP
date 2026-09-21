@@ -8,18 +8,25 @@ final class PermissionCodes
 
     // Pengguna & Hak Akses (ISS-01.03, ISS-01.04, ISS-01.05)
     public const PENGGUNA_READ = 'pengguna:read';
+
     public const AKSES_UPDATE = 'akses:update';
 
     // Master Unit Organisasi (ISS-01.02)
     public const UNIT_CREATE = 'unit:create';
+
     public const UNIT_READ = 'unit:read';
+
     public const UNIT_UPDATE = 'unit:update';
+
     public const UNIT_DELETE = 'unit:delete';
 
     // Dasar Aturan / Regulasi (ISS-02.01)
     public const REGULASI_CREATE = 'regulasi:create';
+
     public const REGULASI_READ = 'regulasi:read';
+
     public const REGULASI_UPDATE = 'regulasi:update';
+
     public const REGULASI_DELETE = 'regulasi:delete';
 
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
@@ -27,36 +34,51 @@ final class PermissionCodes
 
     // Persyaratan Jenis Berkas (ISS-11.01)
     public const JENIS_BERKAS_CREATE = 'jenis_berkas:create';
+
     public const JENIS_BERKAS_READ = 'jenis_berkas:read';
+
     public const JENIS_BERKAS_UPDATE = 'jenis_berkas:update';
+
     public const JENIS_BERKAS_DELETE = 'jenis_berkas:delete';
 
     // --- 9 Kode Permission Scope Unit untuk Form Grant (ISS-01.04, §6 Dokumen Konfirmasi Permission) ---
 
     public const RENCANA_AKSI_READ = 'rencana_aksi:read';
+
     public const RENCANA_AKSI_CREATE = 'rencana_aksi:create';
+
     public const RENCANA_AKSI_UPDATE = 'rencana_aksi:update';
+
     public const RENCANA_AKSI_AJUKAN = 'rencana_aksi:ajukan';
 
     public const KEGIATAN_READ = 'kegiatan:read';
+
     public const KEGIATAN_CREATE = 'kegiatan:create';
+
     public const KEGIATAN_UPDATE = 'kegiatan:update';
 
     public const PENGUKURAN_CREATE = 'pengukuran:create';
+
     public const PENGUKURAN_UPDATE = 'pengukuran:update';
 
     // --- Berkas / Lampiran Pendukung ---
 
     public const BERKAS_READ = 'berkas:read';
+
     public const BERKAS_UPLOAD = 'berkas:upload';
+
     public const BERKAS_DELETE = 'berkas:delete';
 
     // --- Izin Umum Tambahan Baseline ---
 
     public const DASHBOARD_READ = 'dashboard:read';
+
     public const AUDIT_READ = 'audit:read';
+
     public const KOMPONEN_READ = 'komponen:read';
+
     public const LAPORAN_READ = 'laporan:read';
+
     public const LAPORAN_EKSPOR = 'laporan:ekspor';
 
     /**
