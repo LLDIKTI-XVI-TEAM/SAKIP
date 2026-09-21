@@ -24,9 +24,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(\App\Models\Unit::class, \App\Policies\UnitPolicy::class);
+        Gate::policy(\App\Models\Regulasi::class, \App\Policies\RegulasiPolicy::class);
 
-        Gate::define('akses:update', function (User $user) {
-            return app(PermissionResolver::class)->allows($user, 'akses:update');
-        });
+        foreach (\App\Support\PermissionCodes::activeIssueCodes() as $code) {
+            Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {
+                return app(PermissionResolver::class)->allows($user, $code, $unitId);
+            });
+        }
     }
 }
