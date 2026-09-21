@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\Access\AssignRole;
+use App\Actions\Access\CreateDeny;
+use App\Actions\Access\RevokeDeny;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\User;
@@ -33,18 +35,35 @@ try {
     }
     $identity = $argv[2];
     try {
-        $assignment = $argv[1] === 'assign-role' ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
+        $assignment = isset($argv[3]) ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
         $result = match ($argv[1]) {
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment']),
+            'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
+            'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
             'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
             'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
+        $result = match ($argv[1]) {
+            'create-deny' => 'created',
+            'revoke-deny' => 'revoked',
+            default => $result,
+        };
     } catch (ValidationException $exception) {
-        if ($argv[1] !== 'assign-role' || ! isset($exception->errors()['expected_assignment'])) {
+        $expectedField = match ($argv[1]) {
+            'assign-role' => 'expected_assignment',
+            'create-deny' => 'permission_id',
+            'revoke-deny' => 'deny_id',
+            default => null,
+        };
+        if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
             throw $exception;
         }
-        $result = 'conflict';
+        $result = match ($argv[1]) {
+            'create-deny' => 'duplicate',
+            'revoke-deny' => 'stale',
+            default => 'conflict',
+        };
     }
     fwrite(STDOUT, 'RESULT:'.json_encode($result, JSON_THROW_ON_ERROR)."\n");
 } catch (Throwable $exception) {
