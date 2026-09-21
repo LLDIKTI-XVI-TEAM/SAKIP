@@ -42,12 +42,15 @@ class AuthHttpTest extends TestCase
 
     public function test_local_loopback_alias_redirects_before_creating_oidc_state(): void
     {
+        // Job backend CI tidak membangun aset; pastikan test juga mencakup versi aset kosong.
+        $this->app->usePublicPath(storage_path('framework/testing/no-built-assets'));
+        config(['app.asset_url' => null]);
         app()->instance('env', 'local');
         config(['services.keycloak.redirect' => 'http://localhost:8000/auth/keycloak/callback']);
         $this->get('http://127.0.0.1:8000/login?redirect_uri=https://attacker.test')
             ->assertRedirect('http://localhost:8000/login')
             ->assertSessionMissing('state')->assertSessionMissing('oidc_nonce')->assertSessionMissing('code_verifier');
-        $this->get('http://127.0.0.1:8000/login', ['X-Inertia' => 'true', 'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(Request::create('/login'))])
+        $this->get('http://127.0.0.1:8000/login', ['X-Inertia' => 'true', 'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(Request::create('/login'))])
             ->assertStatus(409)->assertHeader('X-Inertia-Location', 'http://localhost:8000/login');
         $this->get('http://localhost:8000/login')
             ->assertRedirectContains('https://sso.test/realms/sakip/protocol/openid-connect/auth')
