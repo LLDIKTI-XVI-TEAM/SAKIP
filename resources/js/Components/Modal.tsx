@@ -32,6 +32,8 @@ export const Modal: React.FC<ModalProps> = ({
     const modalId = useId();
     const modalRef = useRef<HTMLDivElement>(null);
     const previousFocusedElement = useRef<HTMLElement | null>(null);
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
 
     useEffect(() => {
         if (!isOpen) return;
@@ -40,9 +42,17 @@ export const Modal: React.FC<ModalProps> = ({
         modalStack.push(modalId);
         document.body.style.overflow = 'hidden';
 
-        // Focus the first focusable element or modal container
+        // Focus the first form field or focusable element once when modal opens
         const focusInitialElement = () => {
             if (!modalRef.current) return;
+            const primaryField = modalRef.current.querySelector<HTMLElement>(
+                'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+            );
+            if (primaryField) {
+                primaryField.focus();
+                return;
+            }
+
             const focusable = modalRef.current.querySelectorAll<HTMLElement>(
                 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
             );
@@ -60,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
                 // Only the topmost modal in the stack responds to Escape
                 if (modalStack[modalStack.length - 1] === modalId) {
                     e.stopPropagation();
-                    onClose();
+                    onCloseRef.current();
                 }
                 return;
             }
@@ -110,7 +120,7 @@ export const Modal: React.FC<ModalProps> = ({
                 previousFocusedElement.current.focus();
             }
         };
-    }, [isOpen, modalId, onClose]);
+    }, [isOpen, modalId]);
 
     if (!isOpen) return null;
 
