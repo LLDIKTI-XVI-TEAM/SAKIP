@@ -14,7 +14,14 @@ class AuditLogger
         'jenis_berkas.hapus',
     ];
 
-    public static function catat(
+    public function __construct(private readonly ?WriteAuditLog $writeAuditLog = null) {}
+
+    /**
+     * @param  array<string, mixed>|null  $nilaiLama
+     * @param  array<string, mixed>|null  $nilaiBaru
+     * @param  array<string, mixed>|null  $dasarIzin
+     */
+    public function catat(
         User $actor,
         string $tindakan,
         string $objekTipe,
@@ -22,7 +29,7 @@ class AuditLogger
         ?array $nilaiLama = null,
         ?array $nilaiBaru = null,
         ?string $alasan = null,
-        ?array $dasarIzin = null
+        ?array $dasarIzin = null,
     ): AuditLog {
         if (in_array($tindakan, self::SENSITIVE_ACTIONS, true)) {
             if (empty($alasan) || trim($alasan) === '') {
@@ -30,9 +37,13 @@ class AuditLogger
             }
         }
 
-        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '') ? $alasan : 'Tindakan '.$tindakan;
+        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '')
+            ? $alasan
+            : "Pencatatan audit untuk tindakan {$tindakan}.";
 
-        return app(WriteAuditLog::class)->handle([
+        $writer = $this->writeAuditLog ?? app(WriteAuditLog::class);
+
+        return $writer->handle([
             'actor_id' => $actor->id,
             'actor_type' => 'user',
             'sumber' => 'manual',
@@ -44,5 +55,13 @@ class AuditLogger
             'alasan' => $effectiveAlasan,
             'dasar_izin' => $dasarIzin,
         ]);
+    }
+
+    /**
+     * @param  array<int, mixed>  $arguments
+     */
+    public static function __callStatic(string $method, array $arguments): mixed
+    {
+        return app(self::class)->$method(...$arguments);
     }
 }

@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { LayoutDashboard, FileSpreadsheet, CheckCircle2, LogOut, ChevronRight, CheckCircle, AlertCircle, UserCheck, Menu, X, FileText } from 'lucide-react';
+import { LayoutDashboard, FileSpreadsheet, CheckCircle2, LogOut, ChevronRight, CheckCircle, AlertCircle, UserCheck, Menu, X, BookOpen, FileText } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
 interface AuthenticatedLayoutProps {
@@ -17,6 +17,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/dashboard', label: 'Dashboard Capaian', icon: LayoutDashboard, visible: auth.can.dashboard },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
+        { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth.can.assignRole },
