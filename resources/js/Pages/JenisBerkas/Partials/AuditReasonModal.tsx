@@ -11,6 +11,7 @@ interface AuditReasonModalProps {
     confirmText?: string;
     confirmVariant?: 'primary' | 'danger';
     isLoading?: boolean;
+    serverError?: string;
     onClose: () => void;
     onConfirm: (alasan: string) => void;
 }
@@ -22,16 +23,17 @@ export const AuditReasonModal: React.FC<AuditReasonModalProps> = ({
     confirmText = 'Simpan Perubahan',
     confirmVariant = 'primary',
     isLoading = false,
+    serverError,
     onClose,
     onConfirm,
 }) => {
     const [alasan, setAlasan] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const [clientError, setClientError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             setAlasan('');
-            setError(null);
+            setClientError(null);
         }
     }, [isOpen]);
 
@@ -39,12 +41,18 @@ export const AuditReasonModal: React.FC<AuditReasonModalProps> = ({
         e.preventDefault();
         const trimmed = alasan.trim();
         if (trimmed.length < 5) {
-            setError('Alasan perubahan wajib diisi minimal 5 karakter.');
+            setClientError('Alasan perubahan wajib diisi minimal 5 karakter.');
             return;
         }
-        setError(null);
+        if (trimmed.length > 1000) {
+            setClientError('Alasan perubahan maksimal 1.000 karakter.');
+            return;
+        }
+        setClientError(null);
         onConfirm(trimmed);
     };
+
+    const displayError = clientError || serverError;
 
     return (
         <Modal
@@ -63,21 +71,29 @@ export const AuditReasonModal: React.FC<AuditReasonModalProps> = ({
                     {description}
                 </p>
 
-                <Textarea
-                    id="audit-alasan-input"
-                    label="Alasan Perubahan"
-                    required
-                    rows={3}
-                    value={alasan}
-                    onChange={(e) => {
-                        setAlasan(e.target.value);
-                        if (error) setError(null);
-                    }}
-                    placeholder="Tuliskan justifikasi atau dasar perubahan katalog persyaratan..."
-                    disabled={isLoading}
-                    error={error || undefined}
-                    helperText="Pencatatan jejak audit bersifat permanen dan tidak dapat dihapus."
-                />
+                <div className="space-y-1">
+                    <Textarea
+                        id="audit-alasan-input"
+                        label="Alasan Perubahan"
+                        required
+                        rows={3}
+                        maxLength={1000}
+                        value={alasan}
+                        onChange={(e) => {
+                            setAlasan(e.target.value);
+                            if (clientError) setClientError(null);
+                        }}
+                        placeholder="Tuliskan justifikasi atau dasar perubahan katalog persyaratan..."
+                        disabled={isLoading}
+                        error={displayError || undefined}
+                        helperText="Pencatatan jejak audit bersifat permanen dan tidak dapat dihapus."
+                    />
+                    <div className="flex justify-end">
+                        <span className={`text-[11px] ${alasan.length > 900 ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                            {alasan.length}/1000 karakter
+                        </span>
+                    </div>
+                </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                     <Button

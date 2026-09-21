@@ -31,6 +31,7 @@ class UpdateJenisBerkasRequest extends FormRequest
             'format_diizinkan' => ['nullable', 'string', 'max:255'],
             'ukuran_maks_kb' => ['nullable', 'integer', 'min:100'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'expected_updated_at' => ['nullable', 'string'],
         ];
     }
 

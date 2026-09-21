@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,6 +15,9 @@ export interface ModalProps {
     className?: string;
 }
 
+// Global modal stack to ensure only the topmost modal handles Escape
+const modalStack: string[] = [];
+
 export const Modal: React.FC<ModalProps> = ({
     isOpen,
     onClose,
@@ -26,25 +29,88 @@ export const Modal: React.FC<ModalProps> = ({
     showCloseButton = true,
     className,
 }) => {
+    const modalId = useId();
     const modalRef = useRef<HTMLDivElement>(null);
+    const previousFocusedElement = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isOpen) {
-                onClose();
+        if (!isOpen) return;
+
+        previousFocusedElement.current = document.activeElement as HTMLElement | null;
+        modalStack.push(modalId);
+        document.body.style.overflow = 'hidden';
+
+        // Focus the first focusable element or modal container
+        const focusInitialElement = () => {
+            if (!modalRef.current) return;
+            const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusable.length > 0) {
+                focusable[0].focus();
+            } else {
+                modalRef.current.focus();
             }
         };
 
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-            window.addEventListener('keydown', handleKeyDown);
-        }
+        const timer = setTimeout(focusInitialElement, 50);
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                // Only the topmost modal in the stack responds to Escape
+                if (modalStack[modalStack.length - 1] === modalId) {
+                    e.stopPropagation();
+                    onClose();
+                }
+                return;
+            }
+
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusables = Array.from(
+                    modalRef.current.querySelectorAll<HTMLElement>(
+                        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                    )
+                ).filter((el) => el.offsetParent !== null);
+
+                if (focusables.length === 0) {
+                    e.preventDefault();
+                    return;
+                }
+
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+
+                if (e.shiftKey) {
+                    if (document.activeElement === first || !modalRef.current.contains(document.activeElement)) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last || !modalRef.current.contains(document.activeElement)) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
 
         return () => {
-            document.body.style.overflow = 'unset';
+            clearTimeout(timer);
+            const index = modalStack.indexOf(modalId);
+            if (index !== -1) {
+                modalStack.splice(index, 1);
+            }
+            if (modalStack.length === 0) {
+                document.body.style.overflow = 'unset';
+            }
             window.removeEventListener('keydown', handleKeyDown);
+            if (previousFocusedElement.current && typeof previousFocusedElement.current.focus === 'function') {
+                previousFocusedElement.current.focus();
+            }
         };
-    }, [isOpen, onClose]);
+    }, [isOpen, modalId, onClose]);
 
     if (!isOpen) return null;
 
@@ -68,9 +134,10 @@ export const Modal: React.FC<ModalProps> = ({
         >
             <div
                 ref={modalRef}
+                tabIndex={-1}
                 className={twMerge(
                     clsx(
-                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] transition-all transform duration-200',
+                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] transition-all transform duration-200 outline-none',
                         sizeClasses[size],
                         className
                     )

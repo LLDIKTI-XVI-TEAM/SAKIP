@@ -14,7 +14,7 @@ test.describe('Konfigurasi Persyaratan Jenis Berkas [ISS-11.01]', () => {
         await page.screenshot({ path: 'docs/screenshots/jenis_berkas_index_view.png' });
 
         // 3. Tambah Jenis Berkas
-        await page.click('button:has-text("Tambah Jenis Berkas")');
+        await page.click('button[data-testid="btn-tambah-persyaratan"], button:has-text("Tambah Persyaratan")');
         await page.fill('input[placeholder*="Laporan"]', 'Laporan Capaian Output');
         await page.selectOption('select', 'pengukuran');
         await page.check('input[type="checkbox"][id*="file"]');

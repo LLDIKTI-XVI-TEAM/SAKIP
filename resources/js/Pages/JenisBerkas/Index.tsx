@@ -28,7 +28,7 @@ export interface JenisBerkasItem {
     id: string;
     nama: string;
     tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan';
-    indikator_id: number | null;
+    indikator_id: string | null;
     wajib: boolean;
     keterangan: string | null;
     izinkan_file: boolean;
@@ -39,10 +39,12 @@ export interface JenisBerkasItem {
     format_diizinkan: string | null;
     ukuran_maks_kb: number | null;
     aktif: boolean;
+    updated_at?: string;
     indikator?: {
-        id: number;
+        id: string;
         kode: string;
         nama: string;
+        is_aktif?: boolean;
     } | null;
 }
 
@@ -90,6 +92,7 @@ export default function JenisBerkasIndex({
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
     const [auditAction, setAuditAction] = useState<'update' | 'delete' | null>(null);
     const [targetItem, setTargetItem] = useState<JenisBerkasItem | null>(null);
+    const [auditError, setAuditError] = useState<string | null>(null);
 
     // Filter list
     const filteredList = useMemo(() => {
@@ -130,8 +133,10 @@ export default function JenisBerkasIndex({
             urutan: item.urutan,
             format_diizinkan: item.format_diizinkan || '',
             ukuran_maks_kb: item.ukuran_maks_kb,
+            expected_updated_at: item.updated_at,
         });
         setFormErrors({});
+        setAuditError(null);
         setIsFormModalOpen(true);
     };
 
@@ -160,6 +165,7 @@ export default function JenisBerkasIndex({
 
         if (isEditing) {
             // Edit bertanda sensitif: buka modal alasan audit
+            setAuditError(null);
             setIsAuditModalOpen(true);
             setAuditAction('update');
         } else {
@@ -181,10 +187,12 @@ export default function JenisBerkasIndex({
     const handleOpenDelete = (item: JenisBerkasItem) => {
         setTargetItem(item);
         setAuditAction('delete');
+        setAuditError(null);
         setIsAuditModalOpen(true);
     };
 
     const handleConfirmAudit = (alasan: string) => {
+        setAuditError(null);
         if (auditAction === 'update' && formData.id) {
             setIsSubmitting(true);
             router.put(`/jenis-berkas/${formData.id}`, {
@@ -195,11 +203,16 @@ export default function JenisBerkasIndex({
                     setIsAuditModalOpen(false);
                     setIsFormModalOpen(false);
                     setIsSubmitting(false);
+                    setAuditError(null);
                 },
                 onError: (errs) => {
-                    setFormErrors(errs);
-                    setIsAuditModalOpen(false);
                     setIsSubmitting(false);
+                    if (errs.alasan || errs.konflik) {
+                        setAuditError(errs.alasan || errs.konflik);
+                    } else {
+                        setFormErrors(errs);
+                        setIsAuditModalOpen(false);
+                    }
                 },
             });
         } else if (auditAction === 'delete' && targetItem) {
@@ -210,10 +223,15 @@ export default function JenisBerkasIndex({
                     setIsAuditModalOpen(false);
                     setTargetItem(null);
                     setIsSubmitting(false);
+                    setAuditError(null);
                 },
-                onError: () => {
-                    setIsAuditModalOpen(false);
+                onError: (errs) => {
                     setIsSubmitting(false);
+                    if (errs && (errs.alasan || errs.konflik)) {
+                        setAuditError(errs.alasan || errs.konflik);
+                    } else {
+                        setAuditError('Gagal menghapus persyaratan jenis berkas.');
+                    }
                 },
             });
         }
@@ -269,6 +287,7 @@ export default function JenisBerkasIndex({
                     <Button
                         variant="primary"
                         size="sm"
+                        data-testid="btn-tambah-persyaratan"
                         onClick={handleOpenCreate}
                         className="gap-1.5"
                     >
@@ -530,6 +549,7 @@ export default function JenisBerkasIndex({
                 confirmText={auditAction === 'delete' ? 'Hapus Persyaratan' : 'Simpan Perubahan'}
                 confirmVariant={auditAction === 'delete' ? 'danger' : 'primary'}
                 isLoading={isSubmitting}
+                serverError={auditError || undefined}
                 onClose={() => setIsAuditModalOpen(false)}
                 onConfirm={handleConfirmAudit}
             />

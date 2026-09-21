@@ -6,16 +6,17 @@ import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 
 export interface IndikatorOption {
-    id: number;
+    id: string;
     kode: string;
     nama: string;
+    is_aktif?: boolean;
 }
 
 export interface JenisBerkasFormData {
     id?: string;
     nama: string;
     tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan';
-    indikator_id: number | '' | null;
+    indikator_id: string | '' | null;
     wajib: boolean;
     keterangan: string;
     izinkan_file: boolean;
@@ -25,6 +26,7 @@ export interface JenisBerkasFormData {
     urutan: number;
     format_diizinkan: string;
     ukuran_maks_kb: number | '' | null;
+    expected_updated_at?: string;
 }
 
 interface JenisBerkasModalProps {
@@ -109,14 +111,14 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         id="jb-indikator"
                         label="Lingkup Indikator"
                         value={data.indikator_id || ''}
-                        onChange={(e) => onChange('indikator_id', e.target.value ? Number(e.target.value) : null)}
+                        onChange={(e) => onChange('indikator_id', e.target.value || null)}
                         disabled={isLoading}
                         error={errors.indikator_id}
                     >
                         <option value="">Global (Berlaku Semua Indikator)</option>
                         {indikators.map((ind) => (
                             <option key={ind.id} value={ind.id}>
-                                {ind.kode} : {ind.nama}
+                                {ind.kode} : {ind.nama}{ind.is_aktif === false ? ' (Nonaktif)' : ''}
                             </option>
                         ))}
                     </Select>
