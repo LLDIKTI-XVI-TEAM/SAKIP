@@ -14,7 +14,7 @@ class AuditLogger
         'jenis_berkas.hapus',
     ];
 
-    public function __construct(private readonly ?WriteAuditLog $writeAuditLog = null) {}
+    public function __construct(private readonly WriteAuditLog $writeAuditLog) {}
 
     /**
      * @param  array<string, mixed>|null  $nilaiLama
@@ -41,9 +41,7 @@ class AuditLogger
             ? $alasan
             : "Pencatatan audit untuk tindakan {$tindakan}.";
 
-        $writer = $this->writeAuditLog ?? app(WriteAuditLog::class);
-
-        return $writer->handle([
+        return $this->writeAuditLog->handle([
             'actor_id' => $actor->id,
             'actor_type' => 'user',
             'sumber' => 'manual',
@@ -55,13 +53,5 @@ class AuditLogger
             'alasan' => $effectiveAlasan,
             'dasar_izin' => $dasarIzin,
         ]);
-    }
-
-    /**
-     * @param  array<int, mixed>  $arguments
-     */
-    public static function __callStatic(string $method, array $arguments): mixed
-    {
-        return app(self::class)->$method(...$arguments);
     }
 }

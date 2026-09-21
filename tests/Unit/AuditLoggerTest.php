@@ -19,7 +19,7 @@ class AuditLoggerTest extends TestCase
         $user = User::factory()->create();
         $targetId = (string) Str::uuid();
 
-        $log = AuditLogger::catat(
+        $log = app(AuditLogger::class)->catat(
             actor: $user,
             tindakan: 'jenis_berkas.buat',
             objekTipe: 'jenis_berkas',
@@ -44,7 +44,7 @@ class AuditLoggerTest extends TestCase
 
         $user = User::factory()->create();
 
-        AuditLogger::catat(
+        app(AuditLogger::class)->catat(
             actor: $user,
             tindakan: 'jenis_berkas.ubah',
             objekTipe: 'jenis_berkas',

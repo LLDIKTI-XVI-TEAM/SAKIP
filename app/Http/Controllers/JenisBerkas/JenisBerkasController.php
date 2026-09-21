@@ -20,6 +20,10 @@ use Inertia\Response;
 
 class JenisBerkasController extends Controller
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger
+    ) {}
+
     public function index(Request $request, PermissionResolver $resolver): Response
     {
         $actor = $request->user()->fresh();
@@ -62,7 +66,7 @@ class JenisBerkasController extends Controller
 
             $jb = JenisBerkas::create($data);
 
-            AuditLogger::catat(
+            $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'jenis_berkas.buat',
                 objekTipe: 'jenis_berkas',
@@ -104,7 +108,7 @@ class JenisBerkasController extends Controller
 
             $jb->update($data);
 
-            AuditLogger::catat(
+            $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'jenis_berkas.ubah',
                 objekTipe: 'jenis_berkas',
@@ -132,7 +136,7 @@ class JenisBerkasController extends Controller
 
             $jb->delete();
 
-            AuditLogger::catat(
+            $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'jenis_berkas.hapus',
                 objekTipe: 'jenis_berkas',
