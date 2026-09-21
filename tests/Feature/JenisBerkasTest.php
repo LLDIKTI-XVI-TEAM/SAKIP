@@ -4,9 +4,16 @@ namespace Tests\Feature;
 
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
+use App\Models\Permission;
+use App\Models\Renstra;
+use App\Models\Role;
+use App\Models\SasaranStrategis;
+use App\Models\Unit;
 use App\Models\User;
-use Database\Seeders\DatabaseSeeder;
+use App\Services\Authorization\RolePermissionPresets;
+use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class JenisBerkasTest extends TestCase
@@ -24,12 +31,55 @@ class JenisBerkasTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(DatabaseSeeder::class);
+        $this->seed(AccessCatalogSeeder::class);
 
-        $this->perencanaan = User::where('email', 'perencanaan@lldikti16.kemdikbud.go.id')->first();
-        $this->admin = User::where('email', 'admin@lldikti16.kemdikbud.go.id')->first();
-        $this->pegawai = User::where('email', 'pic.kelembagaan@lldikti16.kemdikbud.go.id')->first();
-        $this->indikator = IndikatorKinerja::first();
+        $this->perencanaan = $this->userWithRole('perencanaan');
+        $this->admin = $this->userWithRole('admin');
+        $this->pegawai = $this->userWithRole('pegawai');
+
+        $unit = Unit::create(['nama' => 'Unit Pengujian', 'created_by' => $this->perencanaan->id]);
+        $renstra = Renstra::create([
+            'kode' => 'R-UJI',
+            'nama' => 'Renstra Uji',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'S-UJI',
+            'deskripsi' => 'Sasaran Uji',
+        ]);
+        $this->indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $unit->id,
+            'kode' => 'I-UJI',
+            'nama' => 'Indikator Uji',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+            'is_aktif' => true,
+        ]);
+    }
+
+    protected function userWithRole(string $kode): User
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $role = Role::where('kode', $kode)->firstOrFail();
+        if (RolePermissionPresets::hasDefinedPreset($kode)) {
+            foreach (Permission::whereIn('kode', RolePermissionPresets::forRole($kode))->get() as $permission) {
+                $role->permissions()->syncWithoutDetaching([
+                    $permission->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+                ]);
+            }
+        }
+        $user->roles()->attach($role->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $user->id,
+            'created_at' => now(),
+        ]);
+
+        return $user;
     }
 
     /**
@@ -61,7 +111,7 @@ class JenisBerkasTest extends TestCase
             'wajib' => true,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'tindakan' => 'jenis_berkas.buat',
             'objek_tipe' => 'jenis_berkas',
         ]);
@@ -134,7 +184,7 @@ class JenisBerkasTest extends TestCase
         ]);
         $failUpdate->assertSessionHasErrors('alasan');
 
-        // Update dengan alasan berhasil dan tercatat di audit_logs
+        // Update dengan alasan berhasil dan tercatat di audit_log
         $successUpdate = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
             'nama' => 'Laporan Diperbarui',
             'tahap' => 'pengukuran',
@@ -145,19 +195,19 @@ class JenisBerkasTest extends TestCase
         ]);
         $successUpdate->assertRedirect('/jenis-berkas');
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'tindakan' => 'jenis_berkas.ubah',
             'objek_id' => $jb->id,
             'alasan' => 'Penyesuaian kebutuhan bukti mode tautan',
         ]);
 
-        // Delete dengan alasan berhasil dan tercatat di audit_logs
+        // Delete dengan alasan berhasil dan tercatat di audit_log
         $deleteResponse = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
             'alasan' => 'Penghapusan katalog persyaratan yang sudah tidak relevan',
         ]);
         $deleteResponse->assertRedirect('/jenis-berkas');
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'tindakan' => 'jenis_berkas.hapus',
             'objek_id' => $jb->id,
             'alasan' => 'Penghapusan katalog persyaratan yang sudah tidak relevan',

@@ -113,6 +113,8 @@ jobs:
           path: ~/.cache/composer/files
           key: composer-${{ runner.os }}-php83-${{ hashFiles('composer.lock') }}
       - run: composer install --prefer-dist --no-progress
+      # Seluruh konfigurasi test berasal dari env job; berkas kosong mencegah warning pembacaan Dotenv.
+      - run: touch .env.testing
       - run: composer test -- --log-junit="${{ runner.temp }}/backend-tests.xml"
       - name: Simpan laporan test
         if: always()

@@ -34,12 +34,14 @@ class JenisBerkasMigrationTest extends TestCase
         ]));
     }
 
-    public function test_audit_logs_table_has_expected_columns(): void
+    public function test_audit_log_table_has_expected_columns(): void
     {
-        $this->assertTrue(Schema::hasTable('audit_logs'));
-        $this->assertTrue(Schema::hasColumns('audit_logs', [
+        $this->assertTrue(Schema::hasTable('audit_log'));
+        $this->assertTrue(Schema::hasColumns('audit_log', [
             'id',
             'actor_id',
+            'actor_type',
+            'sumber',
             'waktu',
             'tindakan',
             'objek_tipe',

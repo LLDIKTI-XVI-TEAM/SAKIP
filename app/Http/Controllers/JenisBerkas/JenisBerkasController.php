@@ -9,17 +9,18 @@ use App\Http\Requests\UpdateJenisBerkasRequest;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class JenisBerkasController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, PermissionResolver $resolver): Response
     {
-        Gate::authorize('jenis_berkas:read');
+        $actor = $request->user()->fresh();
+        abort_unless($resolver->allows($actor, 'jenis_berkas:read'), 403);
 
         $jenisBerkasList = JenisBerkas::with('indikator')
             ->orderBy('tahap')
@@ -36,35 +37,42 @@ class JenisBerkasController extends Controller
             'jenisBerkasList' => $jenisBerkasList,
             'indikators' => $indikators,
             'can' => [
-                'create' => $request->user()->can('jenis_berkas:create'),
-                'update' => $request->user()->can('jenis_berkas:update'),
-                'delete' => $request->user()->can('jenis_berkas:delete'),
+                'create' => $resolver->allows($actor, 'jenis_berkas:create'),
+                'update' => $resolver->allows($actor, 'jenis_berkas:update'),
+                'delete' => $resolver->allows($actor, 'jenis_berkas:delete'),
             ],
         ]);
     }
 
-    public function store(StoreJenisBerkasRequest $request): RedirectResponse
+    public function store(StoreJenisBerkasRequest $request, PermissionResolver $resolver): RedirectResponse
     {
+        $actor = $request->user()->fresh();
+        abort_unless($resolver->allows($actor, 'jenis_berkas:create'), 403);
+
         $data = $request->validated();
-        $data['created_by'] = $request->user()->id;
+        $data['created_by'] = $actor->id;
 
         $jb = JenisBerkas::create($data);
 
         AuditLogger::catat(
-            actor: $request->user(),
+            actor: $actor,
             tindakan: 'jenis_berkas.buat',
             objekTipe: 'jenis_berkas',
             objekId: $jb->id,
             nilaiLama: null,
             nilaiBaru: $jb->toArray(),
-            alasan: null
+            alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
+            dasarIzin: ['permission' => 'jenis_berkas:create']
         );
 
         return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil ditambahkan.');
     }
 
-    public function update(UpdateJenisBerkasRequest $request, string $id): RedirectResponse
+    public function update(UpdateJenisBerkasRequest $request, string $id, PermissionResolver $resolver): RedirectResponse
     {
+        $actor = $request->user()->fresh();
+        abort_unless($resolver->allows($actor, 'jenis_berkas:update'), 403);
+
         $jb = JenisBerkas::findOrFail($id);
         $nilaiLama = $jb->toArray();
 
@@ -75,20 +83,24 @@ class JenisBerkasController extends Controller
         $jb->update($data);
 
         AuditLogger::catat(
-            actor: $request->user(),
+            actor: $actor,
             tindakan: 'jenis_berkas.ubah',
             objekTipe: 'jenis_berkas',
             objekId: $jb->id,
             nilaiLama: $nilaiLama,
             nilaiBaru: $jb->fresh()->toArray(),
-            alasan: $alasan
+            alasan: $alasan,
+            dasarIzin: ['permission' => 'jenis_berkas:update']
         );
 
         return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
     }
 
-    public function destroy(DeleteJenisBerkasRequest $request, string $id): RedirectResponse
+    public function destroy(DeleteJenisBerkasRequest $request, string $id, PermissionResolver $resolver): RedirectResponse
     {
+        $actor = $request->user()->fresh();
+        abort_unless($resolver->allows($actor, 'jenis_berkas:delete'), 403);
+
         $jb = JenisBerkas::findOrFail($id);
         $nilaiLama = $jb->toArray();
         $alasan = $request->validated()['alasan'];
@@ -96,13 +108,14 @@ class JenisBerkasController extends Controller
         $jb->delete();
 
         AuditLogger::catat(
-            actor: $request->user(),
+            actor: $actor,
             tindakan: 'jenis_berkas.hapus',
             objekTipe: 'jenis_berkas',
             objekId: $id,
             nilaiLama: $nilaiLama,
             nilaiBaru: null,
-            alasan: $alasan
+            alasan: $alasan,
+            dasarIzin: ['permission' => 'jenis_berkas:delete']
         );
 
         return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil dihapus.');

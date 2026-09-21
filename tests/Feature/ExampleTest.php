@@ -7,13 +7,15 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     /**
-     * Halaman login publik mengembalikan status HTTP 200 OK
+     * Konfigurasi provider yang belum tersedia menampilkan halaman pemulihan SSO.
      */
-    public function test_the_login_page_returns_a_successful_response(): void
+    public function test_unconfigured_login_redirects_to_the_sso_error_page(): void
     {
+        config(['services.keycloak.base_url' => '']);
         $response = $this->get('/login');
 
-        $response->assertStatus(200);
+        $response->assertRedirect('/auth/error');
+        $this->get('/auth/error')->assertOk();
     }
 
     /**

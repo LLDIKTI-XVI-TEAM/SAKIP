@@ -2,41 +2,21 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PenugasanIndikator extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
-    protected $table = 'penugasan_indikators';
+    protected $table = 'penanggung_jawab';
 
-    protected $fillable = [
-        'indikator_kinerja_id',
-        'unit_kerja_id',
-        'user_id',
-        'tahun',
-        'is_active',
-    ];
+    public $timestamps = false;
 
-    protected $casts = [
-        'tahun' => 'integer',
-        'is_active' => 'boolean',
-    ];
+    protected $fillable = ['indikator_id', 'user_id', 'tanggal_mulai_berlaku', 'ditetapkan_oleh', 'alasan', 'created_at'];
 
-    /** @return BelongsTo<IndikatorKinerja, $this> */
-    public function indikatorKinerja(): BelongsTo
-    {
-        return $this->belongsTo(IndikatorKinerja::class, 'indikator_kinerja_id');
-    }
-
-    /** @return BelongsTo<UnitKerja, $this> */
-    public function unitKerja(): BelongsTo
-    {
-        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
-    }
+    protected $casts = ['tanggal_mulai_berlaku' => 'date'];
 
     /** @return BelongsTo<User, $this> */
     public function pic(): BelongsTo
@@ -44,9 +24,9 @@ class PenugasanIndikator extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /** @return HasMany<PengukuranKinerja, $this> */
-    public function pengukurans(): HasMany
+    /** @return BelongsTo<IndikatorKinerja, $this> */
+    public function indikatorKinerja(): BelongsTo
     {
-        return $this->hasMany(PengukuranKinerja::class, 'penugasan_indikator_id');
+        return $this->belongsTo(IndikatorKinerja::class, 'indikator_id');
     }
 }

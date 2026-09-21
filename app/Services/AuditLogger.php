@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Actions\Audit\WriteAuditLog;
 use App\Models\AuditLog;
 use App\Models\User;
-use Carbon\Carbon;
 use InvalidArgumentException;
 
 class AuditLogger
@@ -30,15 +30,18 @@ class AuditLogger
             }
         }
 
-        return AuditLog::create([
+        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '') ? $alasan : 'Tindakan '.$tindakan;
+
+        return app(WriteAuditLog::class)->handle([
             'actor_id' => $actor->id,
-            'waktu' => Carbon::now(),
+            'actor_type' => 'user',
+            'sumber' => 'manual',
             'tindakan' => $tindakan,
             'objek_tipe' => $objekTipe,
             'objek_id' => $objekId,
             'nilai_lama' => $nilaiLama,
             'nilai_baru' => $nilaiBaru,
-            'alasan' => $alasan,
+            'alasan' => $effectiveAlasan,
             'dasar_izin' => $dasarIzin,
         ]);
     }

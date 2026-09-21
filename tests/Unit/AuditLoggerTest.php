@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -16,22 +17,24 @@ class AuditLoggerTest extends TestCase
     public function test_audit_logger_records_event_successfully(): void
     {
         $user = User::factory()->create();
+        $targetId = (string) Str::uuid();
 
         $log = AuditLogger::catat(
             actor: $user,
             tindakan: 'jenis_berkas.buat',
             objekTipe: 'jenis_berkas',
-            objekId: 'uuid-1234',
+            objekId: $targetId,
             nilaiLama: null,
             nilaiBaru: ['nama' => 'Bukti Laporan'],
             alasan: null
         );
 
         $this->assertInstanceOf(AuditLog::class, $log);
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'id' => $log->id,
             'actor_id' => $user->id,
             'tindakan' => 'jenis_berkas.buat',
+            'objek_id' => $targetId,
         ]);
     }
 
@@ -45,7 +48,7 @@ class AuditLoggerTest extends TestCase
             actor: $user,
             tindakan: 'jenis_berkas.ubah',
             objekTipe: 'jenis_berkas',
-            objekId: 'uuid-1234',
+            objekId: (string) Str::uuid(),
             nilaiLama: ['nama' => 'Lama'],
             nilaiBaru: ['nama' => 'Baru'],
             alasan: null

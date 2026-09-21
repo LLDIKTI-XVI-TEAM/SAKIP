@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\DatabaseSeeder;
+use App\Services\Authorization\RolePermissionPresets;
+use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class JenisBerkasPermissionSeederTest extends TestCase
@@ -13,26 +13,31 @@ class JenisBerkasPermissionSeederTest extends TestCase
 
     public function test_permissions_are_seeded_and_assigned_correctly(): void
     {
-        $this->seed(DatabaseSeeder::class);
+        $this->seed(AccessCatalogSeeder::class);
 
-        $perencanaan = Role::findByName('perencanaan', 'web');
-        $this->assertTrue($perencanaan->hasPermissionTo('jenis_berkas:create'));
-        $this->assertTrue($perencanaan->hasPermissionTo('jenis_berkas:read'));
-        $this->assertTrue($perencanaan->hasPermissionTo('jenis_berkas:update'));
-        $this->assertTrue($perencanaan->hasPermissionTo('jenis_berkas:delete'));
+        $this->assertDatabaseHas('permissions', ['kode' => 'jenis_berkas:create']);
+        $this->assertDatabaseHas('permissions', ['kode' => 'jenis_berkas:read']);
+        $this->assertDatabaseHas('permissions', ['kode' => 'jenis_berkas:update']);
+        $this->assertDatabaseHas('permissions', ['kode' => 'jenis_berkas:delete']);
 
-        $admin = Role::findByName('admin', 'web');
-        $this->assertTrue($admin->hasPermissionTo('jenis_berkas:read'));
-        $this->assertFalse($admin->hasPermissionTo('jenis_berkas:create'));
-        $this->assertFalse($admin->hasPermissionTo('jenis_berkas:update'));
-        $this->assertFalse($admin->hasPermissionTo('jenis_berkas:delete'));
+        $perencanaanPermissions = RolePermissionPresets::forRole('perencanaan');
+        $this->assertContains('jenis_berkas:create', $perencanaanPermissions);
+        $this->assertContains('jenis_berkas:read', $perencanaanPermissions);
+        $this->assertContains('jenis_berkas:update', $perencanaanPermissions);
+        $this->assertContains('jenis_berkas:delete', $perencanaanPermissions);
 
-        $pegawai = Role::findByName('pegawai', 'web');
-        $this->assertTrue($pegawai->hasPermissionTo('jenis_berkas:read'));
-        $this->assertFalse($pegawai->hasPermissionTo('jenis_berkas:create'));
+        $adminPermissions = RolePermissionPresets::forRole('admin');
+        $this->assertContains('jenis_berkas:read', $adminPermissions);
+        $this->assertNotContains('jenis_berkas:create', $adminPermissions);
+        $this->assertNotContains('jenis_berkas:update', $adminPermissions);
+        $this->assertNotContains('jenis_berkas:delete', $adminPermissions);
 
-        $pimpinan = Role::findByName('pimpinan', 'web');
-        $this->assertTrue($pimpinan->hasPermissionTo('jenis_berkas:read'));
-        $this->assertFalse($pimpinan->hasPermissionTo('jenis_berkas:create'));
+        $pegawaiPermissions = RolePermissionPresets::forRole('pegawai');
+        $this->assertContains('jenis_berkas:read', $pegawaiPermissions);
+        $this->assertNotContains('jenis_berkas:create', $pegawaiPermissions);
+
+        $pimpinanPermissions = RolePermissionPresets::forRole('pimpinan');
+        $this->assertContains('jenis_berkas:read', $pimpinanPermissions);
+        $this->assertNotContains('jenis_berkas:create', $pimpinanPermissions);
     }
 }

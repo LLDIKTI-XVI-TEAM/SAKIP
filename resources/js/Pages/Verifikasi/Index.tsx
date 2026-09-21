@@ -4,13 +4,17 @@ import { CheckCircle2, Clock, Eye, AlertCircle, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
-import { Button } from '@/Components/Button';
+import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
+import { statusPerhitungan } from '@/Pages/Pengukuran/types';
+import Pagination from '@/Pages/Pengukuran/Pagination';
+import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 
 interface VerifikasiIndexProps {
-    pengukurans: any[];
+    pengukurans: Pengukuran[];
+    pagination: PengukuranPagination;
 }
 
-export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexProps) {
+export default function VerifikasiIndex({ pengukurans = [], pagination }: VerifikasiIndexProps) {
     return (
         <AuthenticatedLayout
             title="Verifikasi & Pengesahan Kinerja"
@@ -31,7 +35,7 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-[#122E92]" />
-                        Daftar Pengajuan Masuk ({pengukurans.length})
+                        Daftar Pengajuan Masuk ({pagination.total})
                     </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
@@ -42,7 +46,7 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
                                 <th className="px-5 py-3.5">UNIT KERJA & PIC</th>
                                 <th className="px-5 py-3.5 text-right">TARGET</th>
                                 <th className="px-5 py-3.5 text-right">REALISASI</th>
-                                <th className="px-5 py-3.5 text-right">CAPAIAN (%)</th>
+                                <th className="px-5 py-3.5 text-right">HASIL PERHITUNGAN</th>
                                 <th className="px-5 py-3.5 text-center">BUKTI DUKUNG</th>
                                 <th className="px-5 py-3.5 text-center">STATUS</th>
                                 <th className="px-5 py-3.5 text-center">AKSI</th>
@@ -76,48 +80,37 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5">
-                                                <div className="font-medium text-slate-800">{unit?.singkatan || unit?.nama}</div>
+                                                <div className="font-medium text-slate-800">{unit?.nama}</div>
                                                 <div className="text-[11px] text-slate-400">
-                                                    PIC: {pic?.name || '-'}
+                                                    PIC: {pic?.nama || '-'}
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-medium">
-                                                {p.target} {iku?.satuan}
+                                                {p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
                                             <td className="px-5 py-3.5 text-right font-semibold">
-                                                {p.realisasi} {iku?.satuan}
+                                                {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
                                             <td className="px-5 py-3.5 text-right">
-                                                <span className={`font-bold px-2 py-0.5 rounded text-xs ${
-                                                    p.capaian_persen >= 100
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : p.capaian_persen >= 80
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'bg-rose-50 text-rose-700'
-                                                }`}>
-                                                    {p.capaian_persen}%
-                                                </span>
+                                                {statusPerhitungan[p.status_perhitungan]}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                {p.bukti_dukungs?.length > 0 ? (
+                                                {p.bukti_count > 0 ? (
                                                     <span className="inline-flex items-center gap-1 font-semibold text-[#122E92]">
                                                         <Paperclip className="w-3.5 h-3.5" />
-                                                        {p.bukti_dukungs.length} Dokumen
+                                                        {p.bukti_count} Dokumen
                                                     </span>
                                                 ) : (
-                                                    <span className="text-amber-600 font-medium">Tanpa Bukti</span>
+                                                    <span className="text-muted">Tanpa bukti</span>
                                                 )}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
                                                 <Badge status={p.status} />
+                                                {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
+                                                {p.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
-                                                <Link href={`/verifikasi/${p.id}`}>
-                                                    <Button variant="primary" size="sm">
-                                                        <Eye className="w-3.5 h-3.5 mr-1" />
-                                                        Reviu & Sahkan
-                                                    </Button>
-                                                </Link>
+                                                {p.can.view && <Link href={`/verifikasi/${p.id}`} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-primary"><Eye aria-hidden="true" className="h-3.5 w-3.5" />Lihat pengajuan</Link>}
                                             </td>
                                         </tr>
                                     );
@@ -126,6 +119,7 @@ export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexPro
                         </tbody>
                     </table>
                 </div>
+                <Pagination pagination={pagination} />
             </Card>
         </AuthenticatedLayout>
     );

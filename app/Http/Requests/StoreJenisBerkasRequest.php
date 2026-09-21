@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -9,7 +10,9 @@ class StoreJenisBerkasRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->can('jenis_berkas:create');
+        $user = $this->user()?->fresh();
+
+        return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:create');
     }
 
     public function rules(): array
@@ -17,7 +20,7 @@ class StoreJenisBerkasRequest extends FormRequest
         return [
             'nama' => ['required', 'string', 'max:255'],
             'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan'],
-            'indikator_id' => ['nullable', 'exists:indikator_kinerjas,id'],
+            'indikator_id' => ['nullable', 'uuid', 'exists:indikator_kinerjas,id'],
             'wajib' => ['boolean'],
             'keterangan' => ['nullable', 'string'],
             'izinkan_file' => ['boolean'],

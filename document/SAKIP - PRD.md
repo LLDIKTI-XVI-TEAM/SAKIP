@@ -4,22 +4,17 @@
 **Nama proyek:** SAKIP (Sistem Akuntabilitas Kinerja) — LLDIKTI Wilayah XVI
 **Sifat proyek:** Aplikasi baru, terpisah dari sistem informasi lain yang sudah berjalan di LLDIKTI Wilayah XVI
 
+
+> **Penyelarasan role — 20 September 2026 (Q31):** berdasarkan informasi langsung dari pihak LLDIKTI Wilayah XVI yang disampaikan kepada tim, SAKIP memiliki **enam role resmi**: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Dokumen ini mempertahankan requirement resmi yang sudah ada dan hanya menyesuaikan bagian yang terdampak langsung oleh penambahan role `pic`. Hubungan final antara role `pic`, preset `role_permissions`, eligibility menjadi `penanggung_jawab`, dan migrasi user existing **belum dinyatakan dalam dokumen resmi yang diterima** dan karena itu tetap ditandai **OPEN** sampai ada konfirmasi. Rujukan keputusan: [SAKIP - Keputusan Penyelarasan.md](SAKIP%20-%20Keputusan%20Penyelarasan.md).
+
 ---
-> **Baseline penyelarasan — 18 September 2026:** rekomendasi Q1–Q30 diterima melalui arahan pengguna yang menyampaikan keputusan PM. Q4 mengikuti pembaruan PM pada commit `d04ae5e`, dengan pengingat H-7/H-3/H-1; Q5 mengikuti rekomendasi lima input setelah analisis Excel. Rincian keputusan, provenance, dan parameter operasional yang masih harus diisi tersedia pada [Catatan Keputusan Penyelarasan](SAKIP%20-%20Keputusan%20Penyelarasan.md). Persetujuan arah solusi tidak menggantikan penetapan angka, pihak penerima, atau tanggal yang belum tersedia.
-
-### Tata kelola baseline, penerimaan, dan penggunaan pertama
-
-- PM mengelola baseline lintas PRD, Data Model, Workflow, dan Plan serta mencatat keputusan yang menggantikan ketentuan lama. Tim Perencanaan mengesahkan aturan bisnis, definisi indikator/angka, contoh laporan, dan hasil UAT; penanggung jawab teknis menetapkan implementasi. Nama wakil/penerima walkthrough dan UAT harus ditetapkan PM, bukan disimpulkan dari jabatan.
-- Milestone dibedakan menjadi siap diuji, evaluasi/perbaikan, diterima, dan produksi. Integrasi WA/email ditargetkan sebelum **9 November 2026** dan evaluasi/revisi final **16–30 November 2026** sesuai pembaruan PM; keduanya bukan bukti bahwa penerimaan atau go-live telah terjadi. Tanggal penerimaan dan produksi dicatat PM setelah disepakati.
-- Sebelum aktivasi penggunaan pertama, Perencanaan memverifikasi daftar tahun/periode, indikator, unit/PIC, definisi komponen, target/baseline, dan arsip historis yang wajib tersedia. Cakupan awal konkret masih harus dicatat; pengisian manual dan backfill bertahap yang disepakati tidak memperluas scope menjadi impor Excel.
-- PM bersama pengelola infrastruktur menetapkan pemilik client Keycloak, UAT/produksi, domain/HTTPS, storage, backup/pemulihan, layanan notifikasi, serta pemeliharaan. Konfigurasi SIMPEG tidak otomatis berlaku. Seed konfigurasi produksi dipisahkan dari seed akun/data pengujian.
 
 ## 1. Ringkasan
 
 SAKIP adalah aplikasi internal untuk menyusun rencana aksi, mencatat kegiatan pendukung, serta mencatat, memverifikasi, dan mengesahkan pengukuran indikator kinerja LLDIKTI Wilayah XVI. Indikator yang diukur diturunkan dari Kepmendiktisaintek 358/M/KEP/2025, dengan target tahunan mengacu pada Perjanjian Kinerja (PK) yang ditandatangani setiap tahun. Aplikasi ini menggantikan pencatatan manual (spreadsheet/dokumen lepas) dengan satu sistem yang:
 
 - Menjaga rantai kinerja tetap tertelusur: Kepmen → Renstra → Sasaran → Indikator → Target Tahunan → PK → Jadwal Tahunan → Rencana Aksi → Kegiatan → Pengukuran → Status Capaian → Rekomendasi Pimpinan.
-- Menyusun rencana aksi per indikator per tahun sebelum pengukuran periode berjalan dimulai — target periode bersifat kumulatif, diinput per komponen untuk rasio/penjumlahan dan sebagai satu nilai langsung untuk indikator manual.
+- Menyusun rencana aksi per indikator per tahun sebelum pengukuran periode berjalan dimulai — target dipecah ke level periode dan diinput pada level komponen, bersifat kumulatif antarperiode.
 - Mencatat kegiatan yang dilaksanakan tiap periode dan mengaitkannya (klaim) ke rencana aksi/komponen indikator yang didukungnya, sehingga narasi progres, kendala, dan strategi tindak lanjut pada rekapitulasi tersusun otomatis dari daftar kegiatan, bukan diketik ulang sebagai satu blok panjang.
 - Menyediakan mesin perhitungan indikator berbasis komponen: untuk indikator bertipe rasio atau penjumlahan, nilai capaian tidak lagi diketik sebagai satu angka jadi, melainkan diturunkan sistem dari nilai komponen pembentuknya (mis. pembilang dan penyebut suatu rasio) sesuai definisi yang dikelola Perencanaan — tanpa hardcode per indikator.
 - Memberi kejelasan siapa bertanggung jawab mengisi data untuk indikator apa, kapan jendela penyusunan rencana aksi dan pengisian pengukuran per periode, dan siapa yang dikecualikan dari batas waktu itu.
@@ -99,14 +94,14 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 
 1. Dashboard hanya menghitung data yang sudah **Disahkan** sebagai capaian resmi. Data berstatus Draft, Diajukan, Diverifikasi, atau Dikembalikan — baik pada Pengukuran maupun Rencana Aksi — tetap terlihat dalam konteks kerja (mis. daftar tugas verifikator), tapi tidak masuk ke ringkasan kinerja.
 2. Pengukuran, Rencana Aksi, dan Kegiatan yang sudah memiliki nilai atau catatan tidak dihapus permanen. Perubahan status — termasuk pembatalan — direkam sebagai transisi status di audit log, bukan sebagai penghapusan baris. Kegiatan yang tidak terlaksana diberi status dan justifikasi, bukan dihapus (§15.2).
-3. Snapshot membekukan konteks pengukuran. Versi snapshot yang dirujuk tidak ditimpa; koreksi kesalahan input mengikuti versi pengganti dengan alasan dan bukti resmi (§12.5), lalu pengajuan/pengesahan baru bila memengaruhi laporan. Versi historis tetap dapat ditelusuri dan tidak berubah diam-diam.
-4. Hak akses memakai model RBAC hidup: peran (`roles`) memuat permission sebagai data (`role_permissions`) yang dievaluasi setiap permintaan, dilengkapi pemberian izin tambahan per unit (`user_permission_granted`) dan pencabutan izin eksplisit (`user_permission_denied`) yang menang atas segala pemberian izin — bukan role yang di-hardcode maupun salinan baris izin statis per pengguna. Mekanisme ini menjadi gate akses backend sejak awal, dievaluasi penuh di server (bukan di klien), meski UI pengelolaannya masih disederhanakan pada Fase Awal (§7). Pengecualian yang disengaja: permission pengisian pengukuran dan rencana aksi milik peran Perencanaan bersifat global (tanpa scope unit) karena bersumber dari isi peran yang selalu global, sebab Perencanaan bertindak sebagai penjaga integritas data lintas unit, bukan pemilik satu unit tertentu.
+3. Snapshot membekukan konteks pengukuran, bukan menghapus fleksibilitas master data. Indikator, target, dan definisi komponen boleh terus dikembangkan dari tahun ke tahun; snapshot hanya memastikan pengukuran tahun berjalan tetap merujuk definisi, target, arah penilaian, dan cara hitung yang berlaku saat periode itu diaktifkan. Baris snapshot yang telah dirujuk oleh pengukuran bersifat abadi — tidak ada restatement data historis.
+4. Hak akses memakai model RBAC hidup: peran (`roles`) memuat permission sebagai data (`role_permissions`) yang dievaluasi setiap permintaan, dilengkapi pemberian izin tambahan per unit (`user_permission_granted`) dan pencabutan izin eksplisit (`user_permission_denials`) yang menang atas segala pemberian izin — bukan role yang di-hardcode maupun salinan baris izin statis per pengguna. Mekanisme ini menjadi gate akses backend sejak awal, dievaluasi penuh di server (bukan di klien), meski UI pengelolaannya masih disederhanakan pada Fase Awal (§7). Pengecualian yang disengaja: permission pengisian pengukuran dan rencana aksi milik peran Perencanaan bersifat global (tanpa scope unit) karena bersumber dari isi peran yang selalu global, sebab Perencanaan bertindak sebagai penjaga integritas data lintas unit, bukan pemilik satu unit tertentu.
 5. Beberapa alur — misalnya approval Pimpinan atas pengukuran — sengaja disederhanakan pada Fase Awal, tapi skema data tetap dirancang penuh dari awal supaya penambahan alur lanjutan nanti tidak membutuhkan migrasi data besar atau berisiko. Rekomendasi Pimpinan (§22) tetap diisi pada Fase Awal, tetapi oleh Perencanaan — bukan oleh Pimpinan sendiri — karena Pimpinan belum masuk ke alur kerja aplikasi.
 6. Tindakan sensitif seperti koreksi PK, pengembalian pengukuran atau rencana aksi (termasuk pengembalian setelah pengesahan), penggantian penanggung jawab, revisi Renstra, perubahan definisi komponen indikator, perubahan persyaratan berkas, penghapusan berkas/klaim, perubahan setelan aplikasi, dan penghapusan unit/indikator wajib menyertakan alasan tertulis (bila relevan) dan tercatat di audit log.
-7. PIC tunduk pada jendela resmi yang berlaku untuk rencana aksi/pengukuran. Perubahan jendela hanya sah melalui tindakan berwenang dengan alasan, tenggat baru, dan audit tenggat lama (§12.3). Perencanaan dapat menyelesaikan pengisian/reviu sampai penutupan tahunan atau selama jendela koreksi resmi setelah buka kembali (§12.6); buka kembali tahun tidak otomatis membuka hak PIC.
+7. Deadline pengisian bersifat mutlak bagi penanggung jawab (PIC) di unit — baik untuk jendela penyusunan rencana aksi maupun jendela pengisian pengukuran per periode. Perencanaan dikecualikan dari kedua batas ini karena berperan menjaga kelengkapan dan kebenaran data sampai tahun ditutup.
 8. Penghapusan bukan jalur koreksi. Kesalahan yang perlu dibetulkan — baik pada pengukuran, rencana aksi, jadwal, maupun master data — diselesaikan melalui transisi status, mekanisme buka kembali, atau baris riwayat baru; tidak pernah dengan menimpa/menghapus data lama secara diam-diam.
-9. Nilai rasio/penjumlahan diturunkan server dari komponen menurut versi snapshot. Pengecualian terbatas untuk backfill skor historis tanpa rincian memakai sumber `historis` dengan alasan dan sumber arsip (§17.6); tidak mengubah tipe indikator atau merekayasa komponen.
-10. Gerbang kelengkapan rencana aksi, komponen, dan bukti ditegakkan server (§19.4), dengan pengecualian backfill yang eksplisit. Saat unggahan dimatikan, hanya kewajiban mode file yang dikecualikan; mode lain yang masih diwajibkan tetap harus dipenuhi (§18.7). Pengecualian khusus lampiran PK tetap mengikuti §12.4.
+9. Nilai komponen adalah satuan input yang sebenarnya bagi indikator bertipe rasio/penjumlahan; skor akhir indikator untuk kedua tipe itu adalah **nilai turunan** hasil hitungan sistem, bukan angka yang diketik langsung — memindahkan risiko salah hitung manual ke satu tempat yang konsisten dan dapat diaudit, sekaligus menjaga rumus tetap sama antarperiode.
+10. Pengajuan — baik rencana aksi maupun pengukuran — ditolak sistem bila prasyarat kelengkapan belum terpenuhi (rencana aksi disahkan, komponen terisi penuh, bukti dukung wajib terpenuhi sesuai mode yang diizinkan). Gerbang serupa berlaku bagi kegiatan sebelum dinyatakan terlaksana (§15.6). Gerbang-gerbang ini adalah kontrol kualitas data yang ditegakkan otomatis, bukan sekadar imbauan SOP — kecuali pada jadwal retroaktif (backfill data historis, §12.6) yang sengaja dikecualikan dari seluruh gerbang tersebut karena tujuannya memang mengisi data historis yang lazimnya tidak melalui proses normal pada masanya. Ketersediaan mode bukti dukung tidak boleh memacetkan alur: persyaratan yang hanya mengizinkan mode file namun unggahan sedang dinonaktifkan pada setelan aplikasi ditandai `tidak_dapat_dipenuhi` dan tidak memblokir gerbang mana pun (§18.5).
 11. Klaim kegiatan adalah dokumentasi keterkaitan, bukan mesin hitung. Mengaitkan kegiatan ke rencana aksi/komponen tidak mengubah nilai komponen secara otomatis; nilai komponen tetap diisi manual oleh PIC untuk menghindari risiko penghitungan ganda (mis. satu pihak sasaran yang muncul di beberapa kegiatan tetap dihitung satu kali).
 
 ---
@@ -116,6 +111,7 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 ### 5.1 Termasuk (Fase Awal — MVP)
 
 - Autentikasi via Keycloak (SSO existing LLDIKTI) menggunakan client baru khusus SAKIP.
+- Katalog **enam role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. Preset permission final role `pic` mengikuti keputusan Q31 dan tetap OPEN sampai dikonfirmasi.
 - Pengelolaan **Dasar Aturan** (`regulasi`): CRUD produk hukum (Kepmen/Permen/Perpres/keputusan lainnya) beserta lampiran dokumen sumbernya, dirujuk oleh Renstra dan/atau Indikator (§9).
 - Manajemen Renstra (CRUD, siklus status draft/aktif/nonaktif/diarsipkan) beserta Sasaran dan Indikator turunannya, termasuk revisi Renstra akibat terbitnya Kepmen IKU baru (edit in place, teraudit), rujukan `regulasi_id`, dan lampiran dokumen Renstra.
 - Pengelolaan Perjanjian Kinerja (renstra_pk) per tahun per Renstra, termasuk koreksi beralasan dan lampiran dokumen PK.
@@ -124,10 +120,10 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 - Pengelolaan Periode (mis. Triwulan I–IV, Semester, Tahunan), Jadwal Tahunan (level tahun, termasuk jendela penyusunan Rencana Aksi), dan Jadwal Periode (jendela pengisian/reviu per periode di dalam suatu jadwal tahunan), termasuk aktivasi jadwal yang memicu pembuatan snapshot otomatis dan idempoten (termasuk snapshot cara hitung dan definisi komponen).
 - Mekanisme buka kembali jadwal (`jadwal:buka_kembali`) sebagai jalur standar untuk: koreksi setelah penutupan, penambahan indikator IKU baru di tengah tahun, dan backfill data historis via jadwal retroaktif.
 - Penugasan dan riwayat Penanggung Jawab per indikator.
-- Penyusunan dan pengesahan Rencana Aksi per indikator per tahun: target kumulatif per periode efektif, per komponen untuk rasio/penjumlahan atau nilai langsung untuk manual, melalui Draft → Diajukan → Diverifikasi → Disahkan (Dikembalikan untuk revisi), dengan versi pengajuan/pengesahan dan koreksi beralasan.
+- Penyusunan dan pengesahan Rencana Aksi per indikator per tahun: target dipecah per periode per komponen, bersifat kumulatif, melalui alur Draft → Diajukan → Diverifikasi → Disahkan (dengan Dikembalikan sebagai jalur revisi dan `rencana_aksi:buka_kembali` sebagai jalur koreksi setelah pengesahan).
 - Penyusunan Kegiatan per periode per unit (status rencana/terlaksana/tidak terlaksana/ditunda/batal, termasuk penggeseran periode) dan Klaim Kegiatan yang mengaitkan kegiatan ke Rencana Aksi/komponen indikator, baik pada tahap penyusunan rencana aksi maupun tahap pengisian pengukuran.
 - Pengelolaan persyaratan Bukti Dukung (`jenis_berkas`) per tahap (rencana aksi, pengukuran, atau **kegiatan**), dengan tiga mode pemenuhan yang dapat dikombinasikan per persyaratan — file, tautan, dan teks — beserta gerbang kelengkapan sebelum pengajuan/perubahan status, dan penyimpanan bukti (`berkas`) pada enam jenis induk: Rencana Aksi, Pengukuran, Kegiatan, Renstra, Perjanjian Kinerja (`renstra_pk`), dan Dasar Aturan (`regulasi`).
-- Alur pengukuran Draft → Diajukan → Diverifikasi → Disahkan, dengan Dikembalikan untuk revisi, gerbang kelengkapan (§19.4), versi pengajuan/pengesahan, serta koreksi sebelum penutupan atau dalam jendela koreksi setelah buka kembali (§19.5).
+- Alur pengukuran linear 4 status efektif pada Fase Awal: Draft → Diajukan → Diverifikasi → Disahkan (dengan opsi Dikembalikan sebagai jalur revisi), digerbangi kelengkapan rencana aksi, komponen, dan berkas wajib (§19.4), termasuk jalur pengembalian khusus setelah pengesahan (`pengukuran:buka_kembali`) sebelum jadwal ditutup.
 - Penetapan Status Capaian secara manual oleh Perencanaan/Superadmin.
 - Penetapan Rekomendasi Pimpinan atas indikator × periode oleh Perencanaan pada Fase Awal.
 - Rekapitulasi indikator × periode yang menggabungkan target PK, target periode (rencana aksi), capaian, nilai tiap komponen, daftar kegiatan yang diklaim beserta statusnya, narasi progres/kendala/tindak lanjut, dan rekomendasi Pimpinan dalam satu tampilan/ekspor.
@@ -135,20 +131,20 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 - Laporan tabular dengan ekspor ke Excel.
 - Audit log penuh atas seluruh peristiwa yang disebutkan di §25, sejak hari pertama.
 - Model hak akses RBAC (peran, katalog permission, isi peran, pemberian izin per unit, pencabutan izin) sebagai gate akses backend yang dievaluasi saat request dengan presedens deny menang, dengan UI pengelolaan yang disederhanakan (lihat §7.5).
-- Alert kontekstual dasar & notifikasi dalam aplikasi (*in-app notification* sebagai baseline penerimaan MVP; saluran eksternal WhatsApp dan Email dijadwalkan di bagian akhir sebelum batas waktu 9 November 2026).
-- Modul Setelan Aplikasi (§26): identitas, preferensi tampilan/laporan, kebijakan teknis unggahan, dan konfigurasi operasional notifikasi yang ditetapkan Q4; dikelola Admin/Superadmin tanpa mengubah aturan bisnis/permission.
+- Alert kontekstual dasar (tenggat penyusunan rencana aksi, tenggat pengisian per periode, pengukuran/rencana aksi dikembalikan, kelengkapan berkas, dsb).
+- Modul Setelan Aplikasi (§26): identitas instansi/aplikasi, label unit, preferensi tampilan/laporan — dikelola lewat tabel `pengaturan` key-value, terbatas hanya pada teks & preferensi presentasional — beserta halaman **"Batas unggahan berkas"** untuk mengubah `format_diizinkan`/`ukuran_maks_kb` per persyaratan bukti dukung (§26.4).
 - Seed data pengembangan/testing (bukan data produksi) via seeder Laravel.
 
 ### 5.2 Tidak Termasuk / Ditunda ke Fase Lanjutan
 
 - **Approval Pimpinan** dalam alur pengesahan pengukuran (kolom pendukung tersedia di skema, tetapi UI/alur belum dibangun) — Pimpinan tetap tidak masuk ke dalam alur rencana aksi maupun pengukuran pada Fase Awal; keterlibatannya terbatas pada pembacaan data dan hasil Rekomendasi Pimpinan yang diisikan Perencanaan (§22.2).
-- **Mesin formula bertingkat generik** ditunda. Fase Awal mendukung satu tingkat rasio atau penjumlahan berbobot (§17.10). IKU 3 tetap dihitung otomatis melalui lima komponen datar; menampilkan subtotal SAKIP tidak memerlukan mesin formula bertingkat.
+- **Formula perhitungan bertingkat** — mesin perhitungan Fase Awal hanya mendukung satu tingkat perhitungan (rasio atau penjumlahan komponen, dengan pembilang majemuk dan berbobot, §17.10). Formula yang menggabungkan beberapa sub-skor menjadi skor komposit (mis. Nilai SAKIP dan Nilai Zona Integritas yang seharusnya diturunkan dari sub-skor berbobot) tidak dibangun otomatis; indikator semacam ini memakai `tipe_perhitungan = manual`.
 - **Ekspor PDF** rekap laporan dan **ekspor gambar grafik** dashboard (Fase Awal hanya ekspor tabel ke Excel).
 - **Pengisian otomatis status capaian dari sistem lain** (data_sumber) — Fase Awal seluruh status capaian diisi manual.
 - **UI matrix permission penuh** (mencentang seluruh katalog permission per pengguna) — Fase Awal hanya tiga form terbatas (assign peran, kelola grant izin per unit, kelola deny izin) beserta halaman "Jelaskan izin pengguna".
 - **Impor data massal** (dari Excel/sistem lain) — di luar cakupan pada seluruh fase yang direncanakan saat ini, kecuali diputuskan lain di kemudian hari.
-- **Revisi komitmen target tahunan PK di tengah tahun** ditunda; ini berbeda dari pembetulan salah input agar sesuai PK resmi melalui versi koreksi (§12.5–12.7). Target periode Rencana Aksi dapat direvisi melalui pengajuan/pengesahan baru (§14.6).
-- **Input dan tampilan anggaran kegiatan serta modul anggaran penuh** ditunda. Kolom `kegiatan.anggaran` tersedia nullable untuk fase lanjutan; MVP tidak menampilkan, menerima, atau memvalidasi input anggaran.
+- **Revisi target tahunan PK di tengah tahun** — revisi target tahunan hanya efektif di antara tahun (lihat §12.7); jalur normal untuk target tidak tercapai adalah justifikasi tertulis, bukan revisi target. Ketentuan ini berlaku khusus untuk target tahunan PK — target periode (komponen) pada Rencana Aksi memiliki mekanisme revisi tersendiri di tengah tahun lewat `rencana_aksi:buka_kembali` (§14.6).
+- **Modul anggaran kegiatan penuh** — kolom `kegiatan.anggaran` disiapkan pada skema untuk kebutuhan pencatatan sederhana, tetapi modul pelaporan/rekonsiliasi anggaran belum dibangun pada Fase Awal.
 - Integrasi dengan sistem informasi lain milik LLDIKTI (tidak dibahas dalam dokumen ini).
 - Detail repository/deployment/infrastruktur VPS — dibahas dalam dokumen tersendiri.
 
@@ -182,25 +178,29 @@ Prinsip arsitektural:
 Hak akses SAKIP memakai **RBAC (Role-Based Access Control) dengan grant dan deny**, dievaluasi hidup pada setiap permintaan — bukan disalin ke baris izin statis per pengguna saat akun dibuat. Enam tabel menyusun model ini:
 
 1. **`permissions`** — katalog permission (§7.2), sumbernya konstanta aplikasi yang di-seed ke basis data.
-2. **`roles`** — lima peran bawaan (§7.3): `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
+2. **`roles`** — enam peran bawaan (§7.3): `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`.
 3. **`role_permissions`** — isi tiap peran sebagai data (§7.3): daftar permission yang melekat pada suatu peran. Permission yang berasal dari peran **selalu bersifat global** — tabel ini tidak memiliki kolom `unit_id`.
 4. **`user_roles`** — peran yang dipegang tiap pengguna. Pada Fase Awal, satu pengguna memegang **tepat satu** peran (`unique(user_id)`); struktur pivot ini disiapkan agar multi-peran dapat dibuka di Fase Lanjutan hanya dengan melepas constraint tersebut.
 5. **`user_permission_granted`** — pemberian izin tambahan di luar isi peran, opsional di-scope ke satu `unit_id` (`NULL` = global). Ini satu-satunya tempat scope unit hidup dalam model ini — mis. hak isi pengukuran/rencana aksi/kegiatan milik PIC diberikan di sini, bukan lewat isi peran.
-6. **`user_permission_denied`** — pencabutan izin eksplisit, opsional di-scope ke satu `unit_id` (`NULL` = pencabutan menyeluruh). Dapat mencabut permission yang berasal dari peran maupun dari grant.
+6. **`user_permission_denials`** — pencabutan izin eksplisit, opsional di-scope ke satu `unit_id` (`NULL` = pencabutan menyeluruh). Dapat mencabut permission yang berasal dari peran maupun dari grant.
 
 Permintaan otorisasi dijawab lewat algoritma resolusi izin (§7.4): himpunan izin dari peran + grant dibandingkan terhadap himpunan pencabutan, dengan **presedens deny menang** — bila ada pencabutan yang cocok, permintaan ditolak terlepas dari peran atau grant apa pun yang dimiliki pengguna. Pembedaan "tidak pernah diberi" dari "sengaja dicabut" ini dibutuhkan saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
 
-Permission berscope unit (`permissions.butuh_scope = unit`) meliputi:
-- `pengukuran:create`/`update`: grant wajib unit bagi PIC; selain izin unit, pengguna harus PIC indikator efektif pada tanggal tindakan (§13), dan tunduk jendela pengisian.
-- `rencana_aksi:read`/`create`/`update`/`ajukan`: grant wajib unit; mutasi/pengajuan juga mensyaratkan PIC indikator efektif dan jendela rencana aksi. Hak baca tidak terikat jendela pengisian.
-- `kegiatan:read`/`create`/`update`: grant wajib unit; kegiatan dapat dikerjakan kolaboratif oleh petugas unit yang memiliki izin, tanpa mensyaratkan PIC satu indikator tertentu.
-Permission tersebut dari isi peran tetap global, termasuk pengecualian operasional Perencanaan. Grant unit bukan pengganti penugasan PIC. Permission lain tetap `global`; akses berkas juga wajib memeriksa induk dan deny (§7.5).
+Sejumlah permission memiliki aturan scope kondisional (kolom `permissions.butuh_scope = unit`, §7.2), bukan seragam — polanya sama pada ketiganya:
+
+- **`pengukuran:create`/`pengukuran:update`** — hak PIC diberikan lewat grant per unit (§7.5), **wajib** mengisi `unit_id` (tidak boleh NULL) dan tunduk pada batas jendela pengisian periode (§12.3). Hak Perencanaan bersumber dari isi peran `perencanaan` — selalu global — dan tidak tunduk pada jendela periode, hanya pada `penutupan` jadwal tahunan.
+- **`rencana_aksi:create`/`rencana_aksi:update`/`rencana_aksi:ajukan`** — mengikuti pola identik: grant per unit dan dibatasi jendela `rencana_aksi_mulai`/`rencana_aksi_selesai` (§12.2) bagi PIC; global lewat isi peran dan dibatasi `penutupan` saja bagi Perencanaan.
+- **`kegiatan:create`/`kegiatan:update`** — grant per unit bagi PIC (unit pelaksana kegiatan), global lewat isi peran bagi Perencanaan, tanpa jendela waktu eksplisit selain batas `penutupan` jadwal tahunan.
+
+**Catatan Q31:** istilah PIC pada aturan scoped di atas kini juga merupakan nama role resmi. Namun aturan scoped yang sudah ada tidak otomatis berubah menjadi permission global pada role `pic`; preset final role `pic` masih OPEN sebagaimana §7.3.
+
+Seluruh permission lain bersifat `global` (`butuh_scope = global`) dan tidak pernah menerima `unit_id` pada grant maupun deny-nya.
 
 ### 7.2 Katalog Permission Lengkap
 
 Katalog permission didefinisikan sebagai **konstanta aplikasi** (kode permission bertipe aman, tidak bisa salah ketik), lalu **di-seed** ke tabel `permissions`. Tabel hanya dibaca aplikasi; penambahan atau penghapusan permission dilakukan lewat rilis kode dan seeder — **bukan** lewat UI. Setiap baris permission memiliki kolom `butuh_scope` (`global` atau `unit`) dan `sensitif` (boolean) selain kolom `kode`/`entitas`/`aksi`/`keterangan` dasarnya:
 
-- `butuh_scope = unit` untuk sembilan permission: `pengukuran:create`, `pengukuran:update`, `rencana_aksi:read`, `rencana_aksi:create`, `rencana_aksi:update`, `rencana_aksi:ajukan`, `kegiatan:read`, `kegiatan:create`, `kegiatan:update`. Permission lain `global`; berkas mengikuti kewenangan induk tanpa mengabaikan deny.
+- `butuh_scope = unit` hanya untuk tujuh permission: `pengukuran:create`, `pengukuran:update`, `rencana_aksi:create`, `rencana_aksi:update`, `rencana_aksi:ajukan`, `kegiatan:create`, `kegiatan:update`. Permission lain seluruhnya `global`.
 - `sensitif = true` untuk: `pengukuran:sahkan`, `pengukuran:buka_kembali`, `pengukuran:verifikasi`, `rencana_aksi:verifikasi`, `rencana_aksi:sahkan`, `rencana_aksi:buka_kembali`, `jadwal:aktivasi`, `jadwal:tutup`, `jadwal:buka_kembali`, `status_capaian:update`, `rekomendasi:tetapkan`, `komponen:update`, `komponen:delete`, `jenis_berkas:update`, `jenis_berkas:delete`, `regulasi:update`, `regulasi:delete`, `akses:update`, `pengaturan:update`, `berkas:delete`, `kegiatan:delete` — aksi dengan permission ini wajib mencatat **dasar izin** di `audit_log` (§7.4, §25.2).
 
 | Entitas | Aksi tersedia |
@@ -232,28 +232,32 @@ Catatan perbedaan dua permission koreksi: `pengukuran:kembalikan`/`rencana_aksi:
 
 Isi tiap peran adalah **data**, disimpan sebagai baris `role_permissions` (pasangan `role_id`–`permission_id`, `unique(role_id, permission_id)`), bukan daftar hardcode di kode aplikasi. Perubahan isi peran berlaku langsung bagi seluruh pemegangnya begitu disimpan — konsekuensi yang disadari, sehingga setiap perubahan **wajib tercatat di `audit_log`** dengan `nilai_lama`/`nilai_baru` (daftar permission sebelum/sesudah) dan `alasan`.
 
-Lima peran bawaan (`roles.is_sistem = true`, tidak dapat dihapus) dan isi permission masing-masing:
+Enam peran bawaan (`roles.is_sistem = true`, tidak dapat dihapus) dan isi permission masing-masing:
 
 | Peran | Permission yang diberikan |
 |---|---|
 | **Superadmin** | Seluruh permission di katalog (§7.2), tanpa kecuali, termasuk `pengaturan:update`, `komponen:*`, `jenis_berkas:*`, `regulasi:*`, `rekomendasi:tetapkan`. Diposisikan sebagai akses penuh/*break-glass* untuk keperluan teknis darurat (mis. pemulihan konfigurasi, penanganan insiden akses) — bukan akun operasional harian. Tindakan substantif apa pun yang dilakukan lewat Superadmin (mis. mengubah data kinerja, menyahkan pengukuran) bersifat pengecualian dan tetap sepenuhnya ter-audit seperti peran lain. |
 | **Admin** | `pengguna:read`, `akses:update`, `unit:create`, `unit:read`, `unit:update`, `unit:delete`, `pengaturan:update`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `audit:read`, `dashboard:read`, `laporan:read`. **Tidak** termasuk: seluruh `renstra:*`/`sasaran:*`/`indikator:*`/`target:update`/`pk:*`/`periode:*`/`jadwal:*`, `penanggung_jawab:update`, permission alur Rencana Aksi (`rencana_aksi:*`), Kegiatan (`kegiatan:*`), `komponen:create`/`update`/`delete`, `jenis_berkas:create`/`update`/`delete`, `regulasi:create`/`update`/`delete`, `berkas:*`, permission alur Pengukuran (`create`/`update`/`verifikasi`/`kembalikan`/`sahkan`/`buka_kembali`), `status_capaian:update`, `rekomendasi:tetapkan`, dan `laporan:ekspor`. Peran ini mengelola akun pengguna, unit, dan setelan aplikasi (termasuk halaman "Batas unggahan berkas", §26.4) — bukan data kinerja dan bukan substansi persyaratan bukti dukung atau dasar aturan. |
 | **Perencanaan** | `renstra:*`, `sasaran:*`, `indikator:*`, `target:update`, `pk:*`, `regulasi:*`, `periode:*`, `jadwal:*`, `penanggung_jawab:update`, seluruh `rencana_aksi:*` **(global — isi peran tidak memiliki kolom `unit_id`, untuk `create`/`update`/`ajukan`)**, `kegiatan:read`/`create`/`update`/`delete` **(global)**, `komponen:*`, `jenis_berkas:*`, `berkas:read`/`upload`/`delete`, `pengukuran:create`/`pengukuran:update` **(global)**, `pengukuran:read`, `pengukuran:verifikasi`, `pengukuran:kembalikan`, `pengukuran:sahkan`, `pengukuran:buka_kembali`, `status_capaian:update`, `rekomendasi:tetapkan`, `dashboard:read`, `laporan:read`, `laporan:ekspor`, `audit:read` |
+| **PIC** | **OPEN — preset permission bawaan role `pic` belum dikonfirmasi dalam dokumen resmi yang diterima.** Penambahan role `pic` tidak boleh secara otomatis membuat permission yang bertipe `unit` menjadi global melalui `role_permissions`. Sampai ada keputusan final, mekanisme operasional PIC yang sudah tertulis pada §7.1/§7.5 (grant per unit untuk permission scoped dan aturan bisnis penanggung jawab) tetap menjadi baseline proses, tanpa menyimpulkan eligibility `penanggung_jawab` hanya dari nama role. |
 | **Pimpinan** | `pengukuran:read`, `pengukuran:setujui` *(disiapkan untuk Fase Lanjutan, belum dipakai pada alur Fase Awal — lihat §19.2)*, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `berkas:read`, pembacaan Rekomendasi Pimpinan, `dashboard:read`, `laporan:read`, `laporan:ekspor`, `audit:read` |
 | **Pegawai** | `pengukuran:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`. Hak `pengukuran:create`/`update`, `rencana_aksi:read`/`create`/`update`/`ajukan`, dan `kegiatan:read`/`create`/`update` **tidak** termasuk dalam isi peran ini — harus diberikan eksplisit per unit lewat grant (§7.5), dan tunduk pada batas jendela masing-masing (§12.2, §12.3) |
 
+
+> **Catatan Q31 — role PIC:** keberadaan `pic` sebagai role keenam sudah dikonfirmasi. Yang belum dikonfirmasi adalah paket permission bawaan role tersebut dan apakah hanya user ber-role `pic` yang boleh menjadi `penanggung_jawab`. Karena `role_permissions` selalu global sedangkan sejumlah aksi PIC pada baseline ini bertipe scoped-unit, implementasi tidak boleh menebak preset PIC dengan memasukkan permission scoped sebagai allow global. Keputusan final wajib diselaraskan kembali setelah konfirmasi LLDIKTI/Tim Perencanaan.
+
 Pada Fase Awal, Pimpinan tidak berperan aktif dalam alur pengesahan rencana aksi maupun pengukuran — perannya murni pemantauan (dashboard, laporan, audit read-only, serta pembacaan Rekomendasi Pimpinan yang diisikan Perencanaan). Permission `pengukuran:setujui` tetap didefinisikan di katalog dan di isi peran Pimpinan agar skema serta kode sudah siap saat Fase Lanjutan mengaktifkan alur approval, meski belum ada UI yang memanggilnya sekarang.
 
-Isi peran Admin membatasi kewenangan **bawaan**, bukan larangan mutlak berdasarkan nama role. Admin dapat menerima grant eksplisit beralasan sesuai katalog dan jalur pengelolaan akses; semua deny, scope unit, penugasan PIC, waktu, serta pemisahan tugas tetap berlaku. Grant tidak otomatis menjadikan Admin Perencanaan atau memberinya pengecualian tenggat/F2. Hak bawaan `pengaturan:update` tetap pada Admin/Superadmin; substansi persyaratan memerlukan izin tersendiri.
+Pemisahan Admin dari Perencanaan menegakkan segregasi tugas (*segregation of duties*): pengelola akun, unit, dan setelan aplikasi tidak otomatis memegang wewenang substantif atas data kinerja (Renstra, indikator, komponen, target, rencana aksi, kegiatan, pengukuran, dasar aturan). Permission `pengaturan:update` dimiliki **Admin dan Superadmin** — bukan Superadmin saja (§26.4) — dan mencakup kewenangan mengubah halaman "Batas unggahan berkas" (§26.4), tetap tanpa wewenang atas substansi persyaratan (`jenis_berkas:*`) maupun dasar aturan (`regulasi:*`) yang tetap dipegang Perencanaan.
 
 ### 7.4 Algoritma Resolusi Izin
 
 Setiap permintaan otorisasi menjawab pertanyaan **"boleh(kode_permission, unit_target?)"** untuk aktor yang sedang login. Pertanyaan tanpa `unit_target` hanya sah diajukan untuk permission bertipe `global`. Resolusi dijalankan sebagai berikut:
 
 1. **Fail closed.** Bila tidak ada baris `permissions` aktif dengan `kode` tersebut, jawabannya langsung **tolak** — kode permission yang tidak dikenal tidak pernah dianggap "diizinkan secara default".
-2. **Susun himpunan allow**: (a) seluruh permission dari peran pengguna (`user_roles` → `role_permissions`), diperlakukan **global**; (b) baris `user_permission_granted` milik pengguna yang cocok; (c) khusus berkas jalur PIC, capability dari izin operasional induk pada unit target (§7.5). Izin ringkasan `pengukuran:read`/`dashboard:read` global saja tidak memberi akses bukti; deny induk dan berkas tetap diperiksa.
-3. **Susun himpunan deny**: baris `user_permission_denied` milik pengguna yang cocok.
-4. **Pencocokan scope.** Untuk pertanyaan dengan `unit_target = U`: deny cocok bila `unit_id IS NULL` **atau** `unit_id = U`; grant cocok bila `unit_id = U`, atau `unit_id IS NULL` untuk permission berkatalog `global`. Grant permission berkatalog `unit` tetap wajib memiliki unit. Untuk pertanyaan tanpa `unit_target`: deny ber-`unit_id` **tidak** menghalangi (izin untuk unit lain tetap berlaku); deny dengan `unit_id IS NULL` selalu menghalangi.
+2. **Susun himpunan allow**: (a) seluruh permission dari peran pengguna (`user_roles` → `role_permissions`), diperlakukan **global**; (b) baris `user_permission_granted` milik pengguna yang cocok.
+3. **Susun himpunan deny**: baris `user_permission_denials` milik pengguna yang cocok.
+4. **Pencocokan scope.** Untuk pertanyaan dengan `unit_target = U`: deny cocok bila `unit_id IS NULL` **atau** `unit_id = U`; grant cocok bila `unit_id = U`. Untuk pertanyaan tanpa `unit_target`: deny ber-`unit_id` **tidak** menghalangi (izin untuk unit lain tetap berlaku); deny dengan `unit_id IS NULL` selalu menghalangi.
 5. **Presedens: deny menang.** Ada deny yang cocok → **tolak**. Tidak ada deny yang cocok tetapi ada allow yang cocok → **izinkan**. Tidak ada allow yang cocok → **tolak**.
 6. **Terpisah dari validasi bisnis.** Jendela waktu (periode, rencana aksi) dan kepemilikan unit adalah validasi bisnis yang berjalan **setelah** izin dinyatakan "boleh" — bukan bagian dari resolusi izin. Izin menjawab "apakah boleh"; validasi bisnis menjawab "apakah masih dalam waktunya, untuk record yang benar, dan lewat gerbang kelengkapan yang benar" (§12.3, §14.7, §19.4).
 7. **Tidak ada evaluasi izin di sisi klien.** Resolusi hanya dijalankan di server (Policy/Gate/service layer Laravel). Halaman React menyembunyikan tombol berdasarkan hasil yang dikirim server, tetapi server tetap mengevaluasi ulang setiap permintaan — modifikasi tampilan di klien tidak pernah melewati gerbang ini.
@@ -264,31 +268,31 @@ Untuk aksi dengan `permissions.sensitif = true` (§7.2), hasil resolusi — sumb
 
 Pada Fase Awal, UI pengelolaan akses disederhanakan menjadi tiga form dan satu halaman:
 
-1. **Assign Peran** — Superadmin/Admin memilih pengguna dan menetapkan satu peran (Superadmin/Admin/Perencanaan/Pimpinan/Pegawai). Menyimpan baris di `user_roles` (constraint `unique(user_id)` pada Fase Awal).
-2. **Kelola Grant Izin per Unit** — Superadmin/Admin memilih pengguna, permission berscope unit (§7.2, termasuk `rencana_aksi:read` dan `kegiatan:read`), unit, dan alasan wajib. Grant unit memberi wilayah akses; mutasi rencana aksi/pengukuran juga memerlukan PIC efektif. Berkas mengikuti izin baca/mutasi induk yang sesuai tanpa grant tersendiri bagi PIC, tetapi deny `berkas:read`/`upload`/`delete` yang cocok tetap menolak. Izin baca pengukuran/dashboard umum tidak otomatis membuka detail kegiatan, rencana aksi, atau bukti unit lain.
-3. **Kelola Deny Izin** — Superadmin/Admin memilih pengguna, permission (global atau ber-unit), unit target (opsional — kosong berarti pencabutan menyeluruh), dan alasan (wajib), lalu menyimpan baris `user_permission_denied`.
+1. **Assign Peran** — Superadmin/Admin memilih pengguna dan menetapkan satu peran (Superadmin/Admin/Perencanaan/PIC/Pimpinan/Pegawai). Menyimpan baris di `user_roles` (constraint `unique(user_id)` pada Fase Awal).
+2. **Kelola Grant Izin per Unit** — Superadmin/Admin memilih pengguna, permission bertipe `unit` (`pengukuran:create`/`update`, `rencana_aksi:create`/`update`/`ajukan`, `kegiatan:create`/`update`), unit target, dan alasan (wajib), lalu menyimpan baris `user_permission_granted`. Form ini adalah satu-satunya jalur baku pemberian hak isi pengukuran, rencana aksi, dan kegiatan bagi Pegawai/PIC — konsisten dengan pola bahwa seluruh hak isi data kinerja tingkat unit diberikan lewat satu form grant, bukan form terpisah per entitas. `berkas:read`/`upload`/`delete` mengikuti otomatis lewat kepemilikan induk (rencana aksi/pengukuran/kegiatan) yang menjadi hak akses PIC unit tersebut, tanpa baris grant tersendiri.
+3. **Kelola Deny Izin** — Superadmin/Admin memilih pengguna, permission (global atau ber-unit), unit target (opsional — kosong berarti pencabutan menyeluruh), dan alasan (wajib), lalu menyimpan baris `user_permission_denials`.
 4. **"Jelaskan izin pengguna"** — pilih pengguna, sistem menampilkan daftar izin efektif per unit lengkap dengan **asal tiap izin** (peran/grant) dan deny yang berlaku. Halaman ini digerbangi permission `pengguna:read` (Admin/Superadmin) — tidak ada permission baru yang dibuat untuk halaman ini.
 
 Ketiga form digerbangi permission `akses:update`, yang hanya dimiliki Superadmin dan Admin — konsisten dengan segregasi tugas pada §7.3: pengelolaan akun/akses terpisah dari kewenangan atas data kinerja yang dipegang Perencanaan.
 
-Di luar form-form ini, permission individual ad-hoc (kasus edge di luar isi peran standar) diberikan oleh tim teknis melalui mekanisme terotorisasi yang mewajibkan alasan, validasi katalog/scope, serta audit aktor dan nilai sebelum/sesudah (misalnya command administratif), bukan query SQL tanpa jejak. Pemberian ini tetap tunduk deny dan seluruh invariant bisnis; form matrix bebas belum tersedia pada Fase Awal. UI matrix permission penuh — mencentang bebas seluruh permission per pengguna — ditunda ke Fase Lanjutan.
+Di luar form-form ini, permission individual ad-hoc (kasus edge di luar isi peran standar) ditulis lewat seeder atau query manual database oleh tim teknis pada Fase Awal, bukan lewat UI. UI matrix permission penuh — mencentang bebas seluruh permission per pengguna — ditunda ke Fase Lanjutan.
 
 ### 7.6 Pemisahan Tugas
 
 Dua aturan bisnis keras berikut ditegakkan di luar resolusi izin (§7.4) — tidak dapat "dinonaktifkan" lewat pemberian permission apa pun, karena keduanya membandingkan identitas aktor terhadap data, bukan sekadar memeriksa kepemilikan permission:
 
-- **F1 — Jalur PIC:** pengaju Rencana Aksi maupun Pengukuran melalui jalur PIC tidak boleh memverifikasi/mengesahkan versi yang diajukannya sendiri.
-- **F2 — Jalur Perencanaan:** pengajuan melalui kewenangan global Perencanaan boleh diverifikasi/disahkan oleh pengaju yang sama, dengan penanda `self_approval` pada audit dan laporan.
-- Identitas `diajukan_by`, waktu, `jalur_pengajuan`, dan `dasar_izin_pengajuan` dibekukan pada versi pengajuan; `created_by` hanya pembuat draft. Jika A membuat draft lalu B mengajukan, F1/F2 memakai B dan jalur saat pengajuan. Perubahan role/PIC/grant setelahnya tidak menulis ulang provenance atau meloloskan pengaju PIC dari F1.
-- Aktor tetap wajib lolos resolver permission dan aturan waktu/status saat verifikasi/pengesahan. F2 bukan bypass deny atau izin review. Hak baca lintas unit dan bukti mengikuti scope induk; pergantian PIC mengalihkan hak kerja ke PIC efektif tanpa mengubah identitas pengaju versi historis.
+- **Jalur PIC tidak boleh menilai pekerjaannya sendiri.** Pengaju Pengukuran yang mengisi lewat grant scope unit (jalur PIC) **tidak dapat** memverifikasi atau mengesahkan Pengukuran yang sama — ditegakkan dengan membandingkan aktor terhadap `pengukuran.created_by` pada transisi `diajukan → diverifikasi` dan `diverifikasi → disahkan` (§19.1, §19.5).
+- **Jalur Perencanaan boleh mengesahkan sendiri, dengan penanda.** Perencanaan yang mengisi Pengukuran atas nama unit (permission global, dipakai saat tenggat PIC terlewat atau untuk backfill, §12.6) **diizinkan** memverifikasi/mengesahkan pengukuran yang diisinya sendiri. Aksi ini diberi penanda **`self_approval`** di `audit_log` dan tampil sebagai penanda pada dashboard/laporan Perencanaan (§23, §25.2) — bukan disembunyikan. Alasan keputusan ini: bila jalur ini diblokir sepenuhnya, LLDIKTI XVI wajib menugaskan minimal dua akun Perencanaan agar pengisian yang terlambat masih dapat disahkan — kondisi yang belum tentu terpenuhi pada Fase Awal.
+
+Kedua aturan ini tidak menggantikan resolusi izin (§7.4): aktor tetap harus memiliki permission `pengukuran:verifikasi`/`pengukuran:sahkan` terlebih dahulu sebelum aturan pemisahan tugas ini dievaluasi.
 
 ### 7.7 Unit
 
-`unit` menggantikan istilah "tim kerja" pada seluruh lapisan sistem — nama tabel, kolom FK (`unit_id` pada `indikator`, `jadwal_snapshot`, `user_permission_granted`, `user_permission_denied`, `rencana_aksi`, `kegiatan`), permission (`unit:create/read/update/delete`), audit event (`unit.hapus`, dst.), dan seluruh teks aplikasi.
+`unit` menggantikan istilah "tim kerja" pada seluruh lapisan sistem — nama tabel, kolom FK (`unit_id` pada `indikator`, `jadwal_snapshot`, `user_permission_granted`, `user_permission_denials`, `rencana_aksi`, `kegiatan`), permission (`unit:create/read/update/delete`), audit event (`unit.hapus`, dst.), dan seluruh teks aplikasi.
 
 Definisi baku: `unit` adalah kelompok organisasi pemilik indikator dan penentu scope grant/deny permission pengukuran/rencana aksi/kegiatan — **bukan** satuan ukur (itu `indikator.satuan`). Penamaan sengaja tidak memakai "unit kerja" agar tidak bertabrakan dengan kosakata evaluasi ZI/SAKIP yang sudah punya makna berbeda. Label tampilan di UI (mis. jika institusi ingin menyebutnya "Bagian"/"Bidang") dapat disetel lewat modul Setelan Aplikasi (§7.7, §26.3) tanpa mengubah struktur data.
 
-- `unit` adalah master global (bukan sub-organisasi bertingkat), tanpa tabel keanggotaan eksplisit — keterkaitan pengguna ke unit terjadi melalui scope pada `user_permission_granted.unit_id` (dan pencabutannya pada `user_permission_denied.unit_id`), dan keterkaitan indikator/kegiatan/rencana aksi ke unit melalui kolom `unit_id` masing-masing.
+- `unit` adalah master global (bukan sub-organisasi bertingkat), tanpa tabel keanggotaan eksplisit — keterkaitan pengguna ke unit terjadi melalui scope pada `user_permission_granted.unit_id` (dan pencabutannya pada `user_permission_denials.unit_id`), dan keterkaitan indikator/kegiatan/rencana aksi ke unit melalui kolom `unit_id` masing-masing.
 - Unit berstatus `aktif` atau `nonaktif`.
 - Unit yang masih memiliki indikator, rencana aksi, atau kegiatan terkait tidak dapat dihapus.
 - Unit kosong (tanpa keterkaitan) dapat dihapus, hanya oleh Superadmin.
@@ -360,7 +364,7 @@ Halaman kerja tersendiri untuk CRUD `regulasi` beserta lampirannya: daftar produ
 
 ### 9.7 Hak Akses
 
-Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan.
+Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan. Hak bawaan role **PIC** atas `regulasi:read` tetap **OPEN** mengikuti penetapan preset permission Q31.
 
 ### 9.8 Audit
 
@@ -401,7 +405,7 @@ Ketika Kepmendiktisaintek yang menjadi dasar Renstra direvisi (mis. daftar IKU b
 
 - **Edit in place** pada baris `renstra` yang sama — nama, dasar_hukum, `regulasi_id`, atau atribut lain diperbarui langsung. Perubahan tercatat di `audit_log` (`nilai_lama`/`nilai_baru`) dengan `alasan` memuat nomor dan tanggal Kepmen yang menjadi dasar revisi; bila produk hukum baru belum tercatat di `regulasi`, Perencanaan mencatatnya lebih dulu lewat halaman Dasar Aturan (§9.6) sebelum menautkannya.
 - **IKU yang dihapus dari Kepmen** → indikator terkait di-**arsipkan** (`indikator.status = arsip`), **bukan dihapus**. Data pengukuran lama tetap utuh dan tetap muncul di laporan historis, dengan penanda status arsip (lihat §11).
-- **IKU baru** dibuat bersama komponen, target tahunan dan PK yang relevan, lalu ditambahkan melalui prosedur jadwal (§12.6). `jadwal_snapshot.periode_mulai_id` wajib menunjuk periode efektif pada jadwal yang sama. Periode sebelumnya bertanda **Tidak berlaku**, tidak membutuhkan target/pengukuran, tidak dihitung belum mengisi, dan tidak diberi nilai nol. Rencana Aksi hanya mencakup periode efektif dan sesudahnya.
+- **IKU baru** → dibuatkan indikator baru beserta definisi komponen (bila bertipe rasio/penjumlahan), `target_tahunan` tahun berjalan, dan revisi PK yang relevan, lalu dimasukkan ke jadwal tahun berjalan melalui `jadwal:buka_kembali` (§12.6) — ini adalah mekanisme standar penambahan indikator di tengah tahun, termasuk untuk mengisi periode yang tersisa pada tahun tersebut. Indikator yang masuk lewat jalur ini tetap memerlukan penyusunan dan pengesahan Rencana Aksi tersendiri (§14) sebelum pengukuran periode-periode yang tersisa dapat diajukan.
 - Indikator baru yang dibuat setelah jadwal aktif namun **tanpa** melewati `jadwal:buka_kembali` baru terukur mulai jadwal tahun berikutnya — ini adalah konsekuensi desain yang disadari, bukan celah.
 
 ### 10.6 Lampiran Dokumen Renstra
@@ -420,7 +424,7 @@ Halaman Renstra menampilkan panel lampiran dokumen (`berkas` dengan `berkasable_
 - Flag `wajib_catatan` — jika `true`, sistem mewajibkan pengisian kolom catatan pada Pengukuran indikator ini setiap kali diajukan (terlepas dari kondisi nilai naik/turun).
 - Perpindahan indikator antar unit adalah operasi terkendali: memerlukan permission `indikator:update`, dan wajib tercatat di audit log (nilai lama dan baru dari `unit_id`) karena berdampak pada siapa yang berhak mengisi rencana aksi/pengukuran ke depan.
 - Penghapusan indikator (`indikator:delete`) tunduk pada aturan integritas: indikator yang telah memiliki data pengukuran atau rencana aksi tidak dihapus secara fisik; wajib diarsipkan. Percobaan penghapusan tetap dicatat di audit log (lihat §25).
-- `target_tahunan.baseline` (numeric, nullable) adalah acuan tahun sebelumnya yang disalin ke snapshot. Perencanaan wajib memverifikasi kesamaan definisi, satuan dan cakupan dengan target sekarang. Baseline SAKIP saja tidak otomatis sebanding dengan target gabungan SAKIP/ZI; ketidaksetaraan diberi keterangan dan tidak ditampilkan sebagai tren setara sebelum dikonfirmasi.
+- `target_tahunan` mendapat kolom baru **`baseline`** (numeric, nullable) — nilai capaian tahun sebelumnya yang dipakai sebagai acuan saat menyusun target tahun berjalan. Kolom ini disalin ke `jadwal_snapshot` (§12.5) karena dokumen PK dan rekapitulasi indikator × periode (§22.4) menampilkan kolom "Baseline" yang dipakai berulang di setiap periode.
 
 ---
 
@@ -428,14 +432,14 @@ Halaman Renstra menampilkan panel lampiran dokumen (`berkas` dengan `berkasable_
 
 ### 12.1 Periode (Master)
 
-`periode` mendefinisikan satuan pelaporan, urutan, dan status aktif. Tepat satu periode per konfigurasi ditandai `is_nilai_akhir = true` untuk rekap tahunan. PIC/Perencanaan mengisi nilai manual atau komponen pada periode akhir itu; mesin tetap menghitung nilai turunan nonmanual. Sistem tidak menjumlahkan persentase/nilai seluruh triwulan untuk menciptakan angka tahunan.
+`periode` adalah master global yang mendefinisikan satuan waktu pelaporan dalam satu tahun (mis. Triwulan I, Triwulan II, Triwulan III, Triwulan IV, atau Semester I/II, atau Tahunan), masing-masing memiliki `urutan` tampil dan flag `aktif`. Tepat satu periode per konfigurasi ditandai `is_nilai_akhir = true` — periode yang dianggap sebagai representasi capaian akhir tahun (mis. Triwulan IV/Tahunan) untuk keperluan rekap tahunan pada dashboard/laporan. Nilai pada periode dengan `is_nilai_akhir = true` **diisi manual** oleh penanggung jawab/Perencanaan — sistem tidak menghitung agregasi otomatis dari periode-periode sebelumnya.
 
 ### 12.2 Jadwal Tahunan (Level Tahun)
 
 Setiap kombinasi Renstra + Tahun memiliki satu `jadwal_tahunan` yang membingkai tahun tersebut:
 
-- `rencana_aksi_mulai`, `rencana_aksi_selesai` — jendela penyusunan/pengajuan PIC; reviu Perencanaan dapat berlanjut sampai penutupan. Untuk jadwal normal, keduanya wajib tersusun dan selesai sebelum pengisian periode pertama dibuka.
-- `penutupan` — batas aktivitas normal tahunan. Setelah tanggal ini hanya tindakan dalam `koreksi_mulai`–`koreksi_sampai` dan `lingkup_koreksi` yang dibuka resmi (§12.6) boleh dilakukan; tanggal penutupan asli tidak diubah untuk melewati validasi.
+- `rencana_aksi_mulai`, `rencana_aksi_selesai` (date, nullable) — jendela penyusunan dan pengesahan Rencana Aksi, bersifat jendela tingkat tahun (bukan per periode), karena Rencana Aksi disusun sekali per (indikator × tahun), bukan per periode. Pola penegakannya sama seperti pengisian pengukuran: deadline **mutlak bagi PIC**; **Perencanaan dikecualikan** (permission global tanpa scope unit, dibatasi hanya oleh `penutupan`).
+- `penutupan` — tanggal batas akhir seluruh aktivitas jadwal tahun tersebut, termasuk pengecualian Perencanaan pada jendela Rencana Aksi maupun jendela pengisian periode (§7.1, §12.3).
 - `status`: `draft → aktif → ditutup`.
 - `pakai_persetujuan_pimpinan` (boolean, default `false`) dan `persetujuan_mulai`/`persetujuan_selesai` — kolom disiapkan untuk Fase Lanjutan; pada Fase Awal selalu `false` dan tidak dipakai dalam alur (lihat §19.2).
 - `renstra_pk_id` — wajib diisi saat aktivasi; lihat gerbang validasi §12.4.
@@ -460,14 +464,15 @@ Tabel pivot `jadwal_periode` (jadwal_tahunan × periode) mendaftar periode-perio
 
 - `jadwal_id`, `periode_id` — pasangan kunci.
 - `pengisian_mulai`, `pengisian_selesai` — jendela pengisian oleh penanggung jawab (PIC) untuk periode tersebut.
-- `reviu_mulai`, `reviu_selesai` — target operasional verifikasi/pengesahan Perencanaan, bukan blokir setelah batas reviu berakhir.
+- `reviu_mulai`, `reviu_selesai` — jendela verifikasi/pengesahan oleh Perencanaan untuk periode tersebut.
 
 Aturan penegakan:
-- PIC hanya membuat/mengubah/mengajukan dalam jendela resmi yang berlaku. Perencanaan dengan `jadwal:update` dapat memperpanjang/membuka ulang jendela PIC secara resmi dengan alasan, waktu mulai/akhir baru, serta audit waktu lama/baru. Perubahan tidak membuka record yang sudah terkunci status.
-- Perencanaan dapat mengisi, memverifikasi, dan mengesahkan sampai penutupan tahunan, atau dalam jendela/lingkup koreksi resmi sesudah buka kembali. Reviu melewati `reviu_selesai` diberi penanda terlambat.
-- Status belum/tidak mengisi hanya mencakup indikator × periode efektif pada jadwal (§10.5); periode sebelum `periode_mulai_id` dan indikator arsip dikecualikan.
-- Jadwal normal wajib memenuhi `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama. Validasi berlaku pada konfigurasi normal. Penambahan indikator, revisi, pembukaan resmi jendela, dan backfill memiliki jalur beralasan/teraudit; tidak dipaksa mengubah tanggal historis agar lolos urutan awal.
-- Buka kembali tahunan secara default mengaktifkan jalur koreksi Perencanaan, tanpa otomatis mengaktifkan PIC. Jika PIC dilibatkan, Perencanaan wajib melakukan perubahan jendela PIC terpisah melalui `jadwal:update`, dengan alasan dan batas baru di dalam waktu serta lingkup sesi koreksi tahunan. Setiap tindakan PIC harus lolos kedua jendela, grant, penugasan efektif, dan status; `status = aktif` saja tidak cukup.
+
+- Deadline `pengisian_selesai` bersifat **mutlak bagi PIC** (pengguna yang memperoleh `pengukuran:create`/`update` lewat grant scope unit, §7.1, §7.5). Setelah `pengisian_selesai` periode berjalan terlewati, PIC tidak dapat lagi membuat, mengubah, atau mengajukan pengukuran untuk periode tersebut.
+- **Perencanaan dikecualikan** dari batas jendela periode — dapat mengisi/mengubah pengukuran sampai `penutupan` jadwal tahunan (§12.2), karena permission pengisiannya bersifat global (§7.1).
+- Status tampilan "Belum mengisi"/"Tidak mengisi" pada dashboard (§23) dihitung per kombinasi **indikator × periode yang diharapkan** dari `jadwal_periode` — bukan dari tanggal generik. Indikator berstatus `arsip` tidak dihitung sebagai kewajiban pengisian.
+
+Rencana Aksi disusun **setelah** daftar `jadwal_periode` pada jadwal tahunan tersusun (target per periode butuh daftar periodenya), dan **sebelum** jendela pengisian periode pertama dibuka. Urutan ini adalah bagian dari alur Rencana Aksi (§14.1), bukan sekadar rekomendasi operasional.
 
 ### 12.4 Gerbang Validasi Aktivasi Jadwal
 
@@ -485,28 +490,28 @@ Keempat gerbang ini dievaluasi di service layer sebagai validasi utama. Sebagai 
 Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi, bukan trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
 
 - Referensi ke indikator master (`indikator_id`) untuk ketertelusuran.
-- `unit_id`, `nama`, `definisi`, `satuan`, `presisi`, `desimal_tampilan`, `arah`, `tipe_perhitungan`, `baseline`, dan `periode_mulai_id` — konteks beku termasuk periode efektif.
+- `unit_id`, `nama`, `definisi`, `satuan`, `presisi`, `desimal_tampilan`, `arah`, `tipe_perhitungan`, `baseline` — salinan beku dari kondisi master saat itu.
 - `target` — salinan nilai `target_tahunan` untuk tahun jadwal tersebut (nullable jika target belum diisi saat aktivasi — kondisi ini sudah dicegah oleh gerbang §12.4 poin 2 untuk indikator aktif pada aktivasi awal).
 
-Untuk indikator nonmanual, `jadwal_snapshot_komponen` membekukan `komponen_id` sumber, `kode`, `label`, `peran`, `bobot`, dan `urutan`. Identitas sumber hanya untuk pencocokan input; definisi perhitungan memakai snapshot, bukan mengambil ulang definisi master yang dapat berubah.
+Untuk indikator bertipe `tipe_perhitungan` selain `manual`, sistem juga membuat baris anak **`jadwal_snapshot_komponen`** (`jadwal_snapshot_id`, `kode`, `label`, `peran`, `bobot`, `urutan`) yang membekukan definisi komponen indikator (§17.9) pada saat aktivasi, sehingga perubahan definisi komponen di tengah tahun tidak mengubah makna data historis yang sudah dirujuk pengukuran.
 
 Aturan pembentukan snapshot:
 
-- **Aktivasi/buka kembali idempoten:** hanya membuat snapshot awal untuk indikator yang belum tercakup; tidak menerbitkan versi baru atau mengganti versi lama hanya karena aktivasi diulang.
-- **Koreksi terkendali:** salah input yang dibuktikan terhadap dokumen resmi ditangani pemegang `target:update` melalui transaksi koreksi. Jika snapshot belum dirujuk RA/Pengukuran maupun versi pengajuan, pembetulan dapat dilakukan pada baris tersebut saat jadwal aktif dengan audit. Jika sudah dirujuk, transaksi memperbarui nilai kerja/target sesuai sumber dan menerbitkan snapshot pengganti. Simpan `nomor_versi`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi` serta aktor/waktu audit. Setelah penutupan, perlu pula `jadwal:buka_kembali` dan jendela/lingkup koreksi.
-- **Versi lama tidak ditimpa:** snapshot dan komponen yang sudah dirujuk Rencana Aksi/Pengukuran atau versi pengajuannya tetap immutable. Membuka jadwal bukan izin mengedit baris tersebut. Pengukuran/laporan lama tetap merujuk versi lama.
-- Koreksi yang harus berlaku pada hasil disahkan memerlukan pembukaan record, versi pengajuan baru dengan snapshot pengganti, verifikasi dan pengesahan ulang. Tidak ada pembaruan FK versi historis secara massal. Perubahan target resmi untuk menghindari capaian rendah tetap di luar mekanisme pembetulan (§12.7).
-- Pembuatan snapshot serta setiap koreksi mencatat aktor manusia dan alasan; constraint `unique(jadwal_id, indikator_id, nomor_versi)` serta idempotensi aksi mencegah duplikasi.
+- **Idempoten** — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`, sistem hanya membuat baris `jadwal_snapshot` (dan `jadwal_snapshot_komponen` anaknya) untuk pasangan (`jadwal_id`, `indikator_id`) yang **belum ada**. Baris lama tidak pernah ditimpa.
+- **Abadi setelah dirujuk** — begitu suatu baris snapshot dirujuk oleh pengukuran pertamanya, baris itu (beserta baris komponennya) tidak dapat lagi diubah. Sebelum dirujuk pengukuran mana pun, baris snapshot boleh dikoreksi hanya selama jadwal berstatus `aktif` (mis. setelah `jadwal:buka_kembali`), dan koreksi itu wajib teraudit. Tidak ada restatement data historis dalam bentuk apa pun.
+- Baris `audit_log` untuk pembuatan snapshot memakai `actor_id` = pengguna Perencanaan yang menjalankan aksi aktivasi — jejaknya menempel pada aksi manusia yang memicunya, bukan pada proses sistem anonim.
 
-`rencana_aksi.jadwal_snapshot_id` dan `pengukuran.jadwal_snapshot_id` mengikat versi kerja; setiap versi pengajuan membekukan rujukan snapshot yang digunakannya. Laporan resmi mengambil konteks dari versi disahkan, bukan join ke master terbaru (§22.4).
+Setiap `pengukuran` merujuk ke `jadwal_snapshot_id`, bukan langsung ke `indikator_id` master, untuk keperluan tampilan (nama, satuan, target pembanding, arah, cara hitung). Keputusan ini masuk sebagai fondasi MVP sejak Fase Awal, bukan fitur yang ditunda — tanpa snapshot, perubahan pada master indikator maupun definisi komponennya di masa depan akan mendistorsi tampilan capaian tahun-tahun yang sudah disahkan.
+
+Implikasi operasional dari keputusan ini dijabarkan di §34 (Catatan Risiko).
 
 ### 12.6 Buka Kembali Jadwal: Koreksi, Penambahan Indikator, dan Backfill
 
-`jadwal:buka_kembali` (`ditutup → aktif`) adalah jalur koreksi setelah penutupan. Untuk penambahan indikator saat jadwal masih aktif sebelum penutupan, aksi resmi berizin `jadwal:buka_kembali` dapat menambah snapshot awal yang belum ada tanpa menutup lalu membuka jadwal secara semu; wajib alasan, validasi target/PK dan audit, serta tidak mengubah batas PIC otomatis. Penggunaan berikut dibedakan menurut tujuan:
+`jadwal:buka_kembali` (`ditutup → aktif`) adalah satu-satunya jalur setelah penutupan untuk melakukan hal berikut, seluruhnya teraudit:
 
-- **Koreksi setelah penutupan:** simpan `koreksi_mulai`, `koreksi_sampai`, `lingkup_koreksi` (unit/indikator/periode/jenis objek), dan alasan. Perencanaan menjalankan koreksi hanya dalam cakupan/waktu itu, kemudian menutup ulang jadwal. Tanggal penutupan asli dipertahankan. Hak PIC tidak otomatis dibuka; pelibatannya memerlukan pembukaan jendela terpisah dan kedua batas pada §12.3.
-- **IKU baru:** snapshot awal mencatat periode mulai berlaku; target, rencana aksi, pengukuran, dan dashboard hanya mewajibkan periode efektif dan sesudahnya (§10.5). Jalur tambahan tidak menimpa snapshot indikator lama.
-- **Backfill:** Perencanaan membuat jadwal retroaktif dalam rentang Renstra, mencatat PK dan memenuhi empat gerbang aktivasi (§12.4, termasuk pengecualian lampiran yang sudah ditetapkan), lalu mengisi data historis. Pengecualian kelengkapan rencana aksi/komponen/bukti berlaku pada pengajuan pengukuran, bukan menghapus gate aktivasi. Jika hanya skor akhir tersedia, gunakan `sumber_nilai = historis` dengan sumber arsip dan alasan (§17.6). Tetapkan jendela/lingkup koreksi agar pengisian setelah penutupan lampau tetap sah tanpa memalsukan tanggal; PIC tidak memakai jalur backfill. `activated_at` mencatat waktu sebenarnya.
+- **Koreksi data setelah penutupan** — jadwal dibuka kembali, data pengukuran/snapshot yang relevan dikoreksi, lalu `jadwal:tutup` dijalankan kembali untuk membekukannya. Sebelum penutupan, koreksi status pengesahan pengukuran cukup memakai `pengukuran:buka_kembali` (§19.5), dan koreksi status pengesahan rencana aksi cukup memakai `rencana_aksi:buka_kembali` (§14.6), tanpa perlu membuka jadwal.
+- **Penambahan indikator IKU baru di tengah tahun** (§10.5) — mekanisme standar, bukan pengecualian: snapshot baru dibuat secara idempoten hanya untuk indikator yang belum memiliki baris snapshot, sehingga indikator lama yang sudah berjalan tidak terganggu. Indikator baru ini tetap memerlukan Rencana Aksi tersendiri sebelum pengukurannya dapat diajukan.
+- **Backfill data historis** — Perencanaan membuat **jadwal retroaktif** untuk tahun lampau di dalam rentang Renstra (dengan `renstra_pk` tahun tersebut wajib dicatat lebih dulu), mengaktifkannya, lalu mengisi sendiri pengukurannya. PIC otomatis terkunci dari jadwal ini karena deadline periode-periode di dalamnya sudah lewat (§12.3). Jadwal retroaktif **dikecualikan** dari gerbang kelengkapan rencana aksi/komponen/berkas pada pengajuan pengukuran (§19.4) — tujuannya memang mengisi data historis yang lazimnya tidak melalui proses rencana aksi/berkas normal pada masanya. `activated_at` tetap mencatat waktu aktivasi yang sebenarnya (jujur, bukan tanggal retroaktif yang direkayasa).
 
 Revisi target antar-tahun (mis. menaikkan target 2027–2029 setelah 2026 terlampaui) tidak memerlukan `jadwal:buka_kembali` — cukup mengubah master `target_tahunan`; snapshot tahun tersebut baru terbentuk saat aktivasi jadwal tahun itu dan otomatis membawa nilai revisi. Tahun yang sudah beku (snapshot sudah terbentuk dan dirujuk) tidak tersentuh oleh revisi ini.
 
@@ -515,7 +520,7 @@ Revisi target antar-tahun (mis. menaikkan target 2027–2029 setelah 2026 terlam
 - Revisi PK jarang terjadi — biasanya di akhir tahun dan disetujui Eselon 1 di kementerian pusat, bukan rutinitas tahunan.
 - Jalur normal untuk target tahunan yang tidak tercapai adalah **justifikasi tertulis** (argumen tertulis), bukan revisi target. Jalur ini didukung penuh oleh §20 (catatan wajib saat nilai memburuk / flag `wajib_catatan`) dan `status_capaian = belum_tercapai` (§21) — justifikasi hidup di dalam sistem dan tertelusur, bukan tersebar di korespondensi terpisah.
 - Tidak ada mekanisme revisi **target tahunan PK** di tengah tahun pada Fase Awal. Revisi target tahunan efektif di antara tahun: jadwal tahun N ditutup → PK/target direvisi (dicatat via `pk:update` dan perubahan `target_tahunan`, wajib beralasan) → jadwal tahun N+1 diaktifkan dan snapshot menyalin target revisi. Ketentuan ini khusus untuk target tahunan PK — target periode (komponen) pada Rencana Aksi memiliki mekanisme revisi tersendiri di tengah tahun lewat `rencana_aksi:buka_kembali` (§14.6), karena keduanya adalah dua lapisan target yang berbeda: target tahunan PK adalah komitmen legal-formal, sedangkan target periode pada Rencana Aksi adalah rencana kerja operasional yang wajar direvisi bila kondisi lapangan berubah.
-- Salah ketik terhadap target resmi yang sudah dibekukan dibetulkan melalui versi snapshot pengganti (§12.5); nilai lama, alasan, dan bukti sumber tetap tersedia. Ini pembetulan pencatatan, bukan revisi komitmen target PK agar capaian terlihat lebih baik.
+- Koreksi di luar waktu normal (mis. salah ketik target yang sudah terbekukan) memakai prosedur §12.6: koreksi manual baris snapshot yang ter-audit, bukan fitur revisi target tersendiri.
 - Saat koreksi PK dilakukan, nomor/tanggal surat persetujuan Eselon 1 dicantumkan pada kolom `alasan` agar jejak audit sistem tersambung ke otorisasi eksternalnya.
 
 ---
@@ -527,7 +532,8 @@ Revisi target antar-tahun (mis. menaikkan target 2027–2029 setelah 2026 terlam
 - Riwayat penanggung jawab tidak pernah dihapus — pergantian dicatat sebagai baris baru.
 - Pergantian penanggung jawab wajib mengisi `alasan` (nullable secara skema hanya untuk penugasan pertama kali; wajib diisi pada aplikasi setiap kali terjadi pergantian atas indikator yang sudah punya penanggung jawab sebelumnya).
 - Permission: `penanggung_jawab:update`.
-- PIC Rencana Aksi/Pengukuran adalah PIC indikator efektif pada **tanggal tindakan**. Grant unit dan penugasan PIC sama-sama wajib untuk jalur PIC; petugas lain dalam unit yang sama tidak otomatis boleh mengubah indikator. Perencanaan tetap memakai kewenangan global. Riwayat penugasan, pembuat draft, dan pengaju versi terdahulu tidak ditulis ulang saat PIC berganti; kegiatan tetap kolaboratif berdasarkan izin unit.
+- **PIC Rencana Aksi = PIC indikator** yang tercatat pada `penanggung_jawab` — tidak ada penugasan penanggung jawab terpisah untuk Rencana Aksi (§14.8). Bila penanggung jawab indikator berganti di tengah tahun, hak pengisian Rencana Aksi mengikuti penanggung jawab yang berlaku pada tanggal acuan, sementara `rencana_aksi.penanggung_jawab_id` mencatat PIC yang berlaku saat rencana aksi disusun sebagai jejak historis.
+- **Penyelarasan Q31:** `pic` kini merupakan role resmi tersendiri, tetapi dokumen resmi yang diterima belum menetapkan bahwa `penanggung_jawab.user_id` **wajib** menunjuk user dengan role `pic`. Entitas dan histori `penanggung_jawab` tetap dipertahankan apa adanya; constraint eligibility berdasarkan role tidak boleh ditambahkan sebelum ada konfirmasi resmi.
 
 ---
 
@@ -539,7 +545,7 @@ Rencana Aksi adalah tahap baru yang disisipkan antara aktivasi Jadwal Tahunan da
 
 Renstra → Perjanjian Kinerja (PK) → Jadwal Tahunan + daftar periode (`jadwal_periode`) → **penyusunan & pengesahan Rencana Aksi per indikator** → penyusunan Kegiatan per periode + klaim kegiatan → Pengukuran per periode (komponen + berkas) → verifikasi/pengesahan → Rekomendasi Pimpinan → Status Capaian → dashboard/laporan.
 
-Rencana Aksi normal disusun setelah daftar periode tersedia dan sebelum pengisian periode pertama dibuka (§12.3). Satu header per indikator × tahun mencakup seluruh periode efektif indikator tersebut. Indikator baru, revisi, dan backfill mengikuti pengecualian resmi; periode sebelum indikator berlaku tidak memerlukan target.
+Rencana Aksi disusun **setelah** daftar periode pada jadwal tahunan tersusun (target triwulan membutuhkan daftar periodenya lebih dulu), dan **sebelum** jendela pengisian periode pertama dibuka. Rencana Aksi disusun **sekali per (indikator × tahun)**, bukan per periode — target seluruh periode dalam tahun itu disusun sekaligus di dalam satu baris Rencana Aksi.
 
 **Gerbang keras:** pengajuan Pengukuran untuk periode P pada indikator I **ditolak** selama `rencana_aksi` untuk (I × tahun) belum berstatus `disahkan` (lihat §19.4), kecuali pada jadwal retroaktif (§12.6).
 
@@ -549,7 +555,7 @@ Tabel `rencana_aksi` menyimpan header rencana per indikator per tahun:
 
 - `id`, `indikator_id` (FK → indikator), `tahun` (int).
 - `unit_id` (FK → unit) — salinan unit pemilik indikator pada saat penyusunan.
-- `jadwal_tahunan_id` (FK → jadwal_tahunan) dan `jadwal_snapshot_id` (FK → versi snapshot konteks kerja yang sesuai indikator/tahun).
+- `jadwal_tahunan_id` (FK → jadwal_tahunan).
 - `penanggung_jawab_id` (FK → users) — PIC efektif pada saat penyusunan (§13).
 - `uraian` (text, nullable).
 - `status_alur` — enum(`draft`, `diajukan`, `diverifikasi`, `dikembalikan`, `disahkan`), default `draft`.
@@ -559,22 +565,26 @@ Tabel `rencana_aksi` menyimpan header rencana per indikator per tahun:
 
 Constraint: **`unique(indikator_id, tahun)`** — satu Rencana Aksi per indikator per tahun.
 
-### 14.3 Target per Periode (`rencana_aksi_target`)
+### 14.3 Target per Periode per Komponen (`rencana_aksi_target`)
 
-- `id`, `rencana_aksi_id`, `periode_id`, `komponen_id` (nullable).
-- `nilai` numeric nullable: `0` sah, `null` belum diisi; `keterangan`, `updated_by`, `updated_at`.
-- **Indikator manual:** satu baris nilai target langsung per periode dengan `komponen_id = null`; tidak membuat komponen semu.
-- **Rasio/penjumlahan:** satu target per komponen snapshot aktif dan periode. `komponen_id` wajib cocok dengan konteks snapshot Rencana Aksi. Skor target dihitung server sebagai nilai turunan.
-- Dua partial unique index: `(rencana_aksi_id, periode_id) WHERE komponen_id IS NULL` dan `(rencana_aksi_id, periode_id, komponen_id) WHERE komponen_id IS NOT NULL`. Validasi jenis indikator menolak pencampuran target manual dan komponen untuk satu konteks.
-- Target hanya diwajibkan pada periode efektif. Versi pengajuan menyimpan nilai target dan konteksnya agar laporan disahkan tidak berubah saat target kerja direvisi.
+Target dituangkan sebagai baris-baris pada tabel `rencana_aksi_target`, satu baris per kombinasi periode × komponen:
+
+- `id`, `rencana_aksi_id` (FK), `periode_id` (FK → periode), `komponen_id` (FK → `indikator_komponen`).
+- `nilai` (numeric, **nullable**) — `0` adalah nilai sah, `null` berarti belum diisi.
+- `keterangan` (text, nullable).
+- `updated_by`, `updated_at`.
+
+Constraint: **`unique(rencana_aksi_id, periode_id, komponen_id)`**.
+
+**Target diinput pada level komponen, bukan skor final.** PIC mengisi angka komponen (mis. `n` = jumlah responden puas, `t` = total layanan) per periode; sistem menampilkan **perkiraan skor** hasil hitungan komponen itu memakai mesin perhitungan yang sama dengan §17. Perkiraan skor ini adalah nilai turunan tampilan — tidak disimpan sebagai input tersendiri.
 
 ### 14.4 Sifat Kumulatif Target
 
-Target periode bersifat kumulatif: TW II mencerminkan posisi Januari–Juni. Realisasi menggunakan basis waktu/populasi yang sebanding dengan target, dengan definisi operasional per indikator yang ditetapkan Perencanaan. Persentase antartriwulan tidak dijumlahkan; satu PTS tidak dihitung berulang dalam populasi kumulatif yang sama. Untuk skor penilaian seperti SAKIP/ZI, gunakan posisi penilaian sampai akhir periode, bukan menjumlahkan skor triwulan. Penurunan target komponen/nilai manual terhadap periode sebelumnya diberi peringatan, bukan blokir.
+**Target triwulan bersifat kumulatif**: nilai periode berjalan mencakup periode sebelumnya (mis. target Triwulan II = capaian Januari–Juni, bukan April–Juni saja). Sistem memberi **peringatan (bukan blokir)** bila nilai komponen suatu periode lebih kecil daripada nilai periode sebelumnya pada komponen yang sama.
 
 ### 14.5 Rekonsiliasi dengan Target PK Tahunan
 
-Skor target **periode efektif terakhir**, dihitung dari komponennya atau nilai target manual, dibandingkan dengan target PK tahunan; jangan menjumlahkan nilai komponen yang satuannya berbeda. Selisih menampilkan peringatan dan mewajibkan alasan saat pengajuan, bukan memblokir pengajuan, karena:
+Total target komponen pada periode terakhir memang seharusnya setara dengan target PK tahunan indikator tersebut. Bila tidak setara, sistem menampilkan **peringatan dan mewajibkan alasan** pada saat pengajuan Rencana Aksi (bukan memblokir pengajuan), karena:
 
 - target tahunan PK tetap hanya dapat diubah lewat revisi PK resmi (§12.7) — Rencana Aksi tidak berwenang mengubahnya; dan
 - deviasi antara rencana kerja dan target resmi wajib terlihat di layar dan tercatat di audit, bukan disesuaikan diam-diam.
@@ -590,11 +600,11 @@ Draft ──ajukan──► Diajukan ──verifikasi──► Diverifikasi ─�
   └────────────────────┴────────────────────────┘
 ```
 
-`Dikembalikan` memerlukan alasan. Koreksi setelah pengesahan memakai `rencana_aksi:buka_kembali` sebelum penutupan, atau dalam jendela/lingkup koreksi tahunan (§12.6). Versi pengajuan `rencana_aksi_versi` menyimpan nomor, identitas/jalur pengaju, target, klaim, narasi, bukti dan persyaratan saat diajukan. Isi versi immutable; metadata verifikasi/pengesahan diisi melalui transisi resmi. Perubahan kerja memerlukan pengajuan versi baru. F1/F2 berlaku pada Rencana Aksi maupun Pengukuran (§7.6); laporan periode yang sudah disahkan tetap merujuk versi terdahulu.
+`Dikembalikan` (alasan wajib) berfungsi sebagai jalur revisi dari `Diajukan`/`Diverifikasi`. Untuk koreksi setelah pengesahan, tersedia permission khusus **`rencana_aksi:buka_kembali`** (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) untuk transisi `Disahkan → Dikembalikan` — pola yang identik dengan `pengukuran:buka_kembali` (§19.5).
 
 ### 14.7 Gerbang Kelengkapan saat Pengajuan
 
-Pengajuan Rencana Aksi ditolak bila target pada periode efektif belum lengkap: satu nilai langsung untuk manual, atau semua komponen snapshot yang diwajibkan untuk nonmanual. Periode sebelum indikator berlaku tidak diperiksa. Bukti mengikuti persyaratan pengajuan (§18.6); sesudah gate lolos, sistem membekukan versi pengajuan dalam transaksi yang sama.
+Pengajuan Rencana Aksi (`Draft → Diajukan`) **ditolak** bila ada komponen aktif milik indikator tersebut yang belum memiliki target pada salah satu periode yang diharapkan menurut `jadwal_periode` tahun itu — ini adalah pemeriksaan kelengkapan, bukan sekadar catatan peringatan.
 
 ### 14.8 Penanggung Jawab Rencana Aksi
 
@@ -622,7 +632,7 @@ Tabel `kegiatan` menyimpan:
 
 - `id`, `unit_id` (FK → unit, not null), `tahun` (int, not null), `periode_id` (FK → periode; periode **rencana** pelaksanaan, not null).
 - `nama` (string), `tujuan` (text), `sasaran_peserta` (int, nullable — target jumlah peserta), `keterangan_peserta` (varchar, nullable — mis. "tim penyusun SPMI dari 30 PTS"), `lokasi` (varchar, nullable).
-- `tanggal_rencana` (date, nullable), `tanggal_realisasi` (date, nullable), `anggaran` (numeric, nullable; kolom cadangan fase lanjutan, tidak ditampilkan/diterima/divalidasi pada MVP).
+- `tanggal_rencana` (date, nullable), `tanggal_realisasi` (date, nullable), `anggaran` (numeric, nullable).
 - `status` — enum(`rencana`, `terlaksana`, `tidak_terlaksana`, `ditunda`, `batal`), default `rencana`.
 - `realisasi_peserta` (int, nullable).
 - `justifikasi` (text, nullable — **wajib** bila status `tidak_terlaksana`, `ditunda`, atau `batal`).
@@ -636,7 +646,7 @@ Tabel `kegiatan` menyimpan:
 
 ### 15.3 Narasi Kegiatan & Rekapitulasi Otomatis
 
-Narasi `uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut` diisi per kegiatan. Rekap layar kerja merangkai narasi kegiatan yang diklaim. Saat pengajuan, versi membekukan nilai target, daftar klaim, narasi/status kegiatan dan referensi bukti yang diperiksa; laporan resmi periode memakai salinan versi disahkan. Revisi kegiatan pada TW III tidak mengubah laporan TW I yang sudah disahkan (§22.4).
+Narasi `uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut` diisi per kegiatan. Kolom "Progress Kegiatan / Kendala dan Masalah / Strategi Tindak Lanjut" pada rekapitulasi per indikator × periode (§22.4) **dihasilkan otomatis** dari daftar kegiatan yang diklaim pada Rencana Aksi indikator itu (§16), bukan diketik ulang sebagai satu blok narasi panjang.
 
 ### 15.4 Pembaruan & Batas Waktu
 
@@ -648,9 +658,9 @@ Kegiatan berstatus `batal`/`tidak_terlaksana` **tetap boleh diklaim** — kegiat
 
 ### 15.6 Gerbang Kelengkapan Bukti Dukung sebelum Terlaksana
 
-Transisi `rencana → terlaksana` ditolak bila bukti wajib tahap kegiatan belum lengkap. Persyaratannya adalah **gabungan persyaratan global (`indikator_id = null`) dan persyaratan seluruh indikator yang sudah diklaim**, dideduplikasi per persyaratan; kegiatan tanpa klaim tetap mengikuti persyaratan global. Klaim baru atas kegiatan yang telah terlaksana diperiksa terhadap persyaratan tambahan indikator tujuan dan ditolak bila belum lengkap, dengan pengecualian mode file §18.7. Transisi gagal/ditunda/batal tetap hanya memerlukan justifikasi, bukan bukti pelaksanaan. Percobaan yang ditolak diaudit.
+Transisi status `rencana → terlaksana` **ditolak sistem** bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` untuk kegiatan tersebut yang belum terpenuhi (§18.6) — pengertian "terpenuhi" mengikuti mode bukti yang dipilih (file terunggah, tautan terisi, atau teks terisi) dan aturan `semua_mode_wajib` pada persyaratan terkait (§18.5). Transisi ke `tidak_terlaksana`, `ditunda`, atau `batal` **tidak** memerlukan bukti pelaksanaan apa pun — syaratnya tetap hanya `justifikasi` (§15.1), karena kegiatan yang gagal dilaksanakan memang tidak memiliki pertanggungjawaban pelaksanaan (SPJ) untuk dilampirkan. Percobaan transisi ke `terlaksana` yang ditolak gerbang ini tercatat di audit log (§25.1).
 
-Setelah kegiatan terlaksana, bukti lama tidak dihapus/diganti. Koreksi dilakukan dengan menambah bukti baru berisi `menggantikan_id` dan `alasan_koreksi` (§18.8); bukti lama serta hubungan koreksinya tetap terlihat. Mengubah status kegiatan bukan cara membuka penghapusan. Bukti/narasi dalam versi laporan terdahulu tidak berubah otomatis.
+Setelah status kegiatan berpindah ke `terlaksana`, bukti dukung yang menempel padanya tunduk pada aturan imutabilitas (§18.8) — tidak dapat dihapus atau diganti.
 
 ---
 
@@ -682,7 +692,7 @@ Klaim menyatakan **kegiatan mana yang mendukung Rencana Aksi/indikator dan berda
 
 ### 16.5 Penghapusan Klaim
 
-Koreksi klaim mengikuti `sumber_klaim`: klaim `rencana_aksi` hanya dapat diubah/dihapus pada Rencana Aksi draft/dikembalikan; klaim `pengukuran` mengikuti status pengukuran terkait (draft/dikembalikan), walaupun Rencana Aksi sudah disahkan. Pada diajukan/diverifikasi harus dikembalikan lebih dulu; setelah disahkan gunakan jalur koreksi induk dan versi pengajuan baru. PIC tetap harus berhak atas induk dan jendelanya; Perencanaan mengikuti pengecualian resmi. Salinan klaim dalam versi historis tidak dihapus, dan setiap koreksi tercatat audit.
+Klaim dapat dihapus oleh PIC pembuat klaim atau Perencanaan selama induknya (Rencana Aksi) belum `disahkan`; penghapusan tercatat di `audit_log`.
 
 ---
 
@@ -716,9 +726,8 @@ Validasi definisi: `rasio_persen` wajib punya **≥1 komponen `pembilang` aktif 
 
 ### 17.4 Pembagian Nol & Pembulatan
 
-- Penyebut benar-benar nol dengan komponen lengkap menghasilkan `nilai = null`, `status_perhitungan = tidak_dapat_dihitung`, dan alasan wajib. Keadaan faktual ini boleh diajukan, diverifikasi, dan disahkan; tidak diubah menjadi nol atau status capaian otomatis.
-- `status_perhitungan = belum_diisi` membedakan input yang belum lengkap; `terhitung` menandai nilai numerik yang tersedia. Null komponen tetap gagal gerbang normal.
-- Pembulatan mengikuti presisi snapshot indikator; tampilan mengikuti `desimal_tampilan`. Hasil yang tidak dapat dihitung ditampilkan terpisah dalam ringkasan, tidak ikut rata-rata/sum numerik sebagai nol; status Tercapai/Belum tercapai tetap keputusan manual beralasan.
+- Pembagian nol (penyebut bernilai 0) → nilai **tidak dapat dihitung** (disimpan `null`, ditampilkan sebagai "tidak dapat dihitung"), bukan `0` dan bukan galat sistem.
+- Pembulatan: nilai disimpan sesuai `indikator.presisi` dan ditampilkan sesuai `indikator.desimal_tampilan` (kolom lama tetap berlaku, §11).
 
 ### 17.5 Tabel `pengukuran_komponen`
 
@@ -728,29 +737,27 @@ Constraint: **`unique(pengukuran_id, komponen_id)`**.
 
 ### 17.6 Nilai Turunan pada Pengukuran
 
-`pengukuran.nilai` nonmanual dihitung server dari komponen sesuai snapshot dan tidak diterima sebagai input tepercaya. `sumber_nilai` = `komponen`, `manual`, atau `historis`. Sumber `historis` hanya untuk Perencanaan pada jadwal retroaktif ketika arsip hanya memiliki skor final; wajib `sumber_historis` dan `alasan_historis`, penanda di laporan, audit, serta alur verifikasi/pengesahan normal. Jangan membuat komponen rekaan atau mengubah tipe master. Sumber manual tetap nilai langsung untuk indikator manual; `0` sah, `null` belum diisi. Status perhitungan membedakan null karena belum lengkap dari penyebut nol (§17.4).
+`pengukuran.nilai` menjadi **nilai turunan** bila `indikator.tipe_perhitungan` ≠ `manual`: dihitung sistem dari `pengukuran_komponen`, tidak dapat diketik PIC (read-only di UI). Kolom baru `sumber_nilai` — enum(`komponen`, `manual`) — mencatat asalnya untuk audit. Untuk `manual`, perilaku lama berlaku (`nilai` diketik, `0` sah, `null` = belum diisi).
 
 ### 17.7 Gerbang Kelengkapan Komponen
 
-Pengajuan normal ditolak jika komponen yang diwajibkan oleh snapshot belum terisi. Komponen lengkap dengan penyebut nol boleh diajukan dengan alasan dan status tidak dapat dihitung (§17.4); pengecualian backfill historis mengikuti §17.6. Input target/komponen untuk periode sebelum indikator berlaku tidak diwajibkan.
+Pengajuan Pengukuran **ditolak** bila ada komponen aktif yang nilainya (`pengukuran_komponen.nilai`) masih `null` (kelengkapan komponen), di samping aturan catatan wajib berbasis `arah` dan `wajib_catatan` (§20) — lihat gerbang lengkap di §19.4.
 
 ### 17.8 Pengelolaan Definisi Komponen
 
-**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
+**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka; hak bawaan role PIC atas `komponen:read` tetap **OPEN** mengikuti preset permission Q31). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
 
 ### 17.9 Pembekuan Cara Hitung di Snapshot
 
-`jadwal_snapshot` membekukan cara hitung, baseline, satuan dan konteks periode efektif; `jadwal_snapshot_komponen` membekukan identitas komponen sumber beserta kode, label, peran, bobot dan urutan. Definisi historis tidak diambil ulang dari master. Koreksi menerbitkan versi pengganti (§12.5); versi pengajuan/disahkan tetap merujuk snapshot yang diperiksa.
+`jadwal_snapshot` ikut membekukan cara hitung: kolom baru `tipe_perhitungan`, `baseline` (numeric, nullable), `satuan`, plus tabel anak baru **`jadwal_snapshot_komponen`** (`jadwal_snapshot_id`, `kode`, `label`, `peran`, `bobot`, `urutan`) — lihat detail pembentukannya di §12.5. Baris snapshot tetap idempoten dan imutabel setelah dirujuk pengukuran, sehingga perubahan definisi komponen di tengah tahun tidak mengubah makna data historis.
 
 ### 17.10 Batas Mesin Perhitungan: Satu Tingkat
 
-**Batas Fase Awal:** mesin mendukung satu tingkat rasio atau penjumlahan berbobot; tidak ada editor formula bertingkat generik. IKU 3 menggunakan **lima komponen datar**: `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, dan `zi`, semuanya `penjumlah` berbobot `0,5`. Rumus `0,5 × (P + U + L + E + ZI)` sama dengan `(SAKIP + ZI) / 2`, karena subtotal SAKIP = `P + U + L + E`.
-
-Subtotal SAKIP ditampilkan dari empat subskor yang sama; bukan input keenam dan tidak ikut dijumlahkan lagi. Bobot 30/30/15/25 pada label sumber bukan pengali ulang untuk skor seperti 23/24/11,5/19. Nilai ZI diterima sebagai satu skor; rincian penilaian ZI tidak dihitung mesin. Definisi formula tetap berupa data komponen/snapshot, bukan cabang kode berdasarkan nama IKU.
+**Batas sadar Fase Awal:** mesin perhitungan mendukung **satu tingkat** perhitungan (rasio atau penjumlahan, dengan pembilang berjumlah banyak dan berbobot). Formula **bertingkat** (sub-skor → nilai komposit → digabung lagi) **tidak** dibangun; indikator semacam IKU "Predikat SAKIP dan Zona Integritas" memakai `tipe_perhitungan = manual` (Nilai SAKIP dan Nilai ZI diketik langsung sebagai angka, tanpa diturunkan ke sub-skor komponen penyusunnya). Bila kementerian menuntut formula bertingkat di kemudian hari, itu adalah perubahan yang membutuhkan pengembangan lanjutan — bukan sesuatu yang dapat dikonfigurasi dari layar pada Fase Awal. Batas ini yang membuat lampiran pemetaan pada §17.11 mencatat IKU 3 dengan `tipe_perhitungan = manual` alih-alih menjabarkan sub-skornya sebagai komponen.
 
 ### 17.11 Lampiran: Pemetaan Indikator 2026 ke Definisi Komponen
 
-Lampiran ini merupakan **contoh konfigurasi/fixture aritmetika**, bukan pengesahan seluruh data produksi atau formula hardcode. Provenance workbook `Pengukuran Kinerja  Triwulan 2026.xlsx` berada pada riwayat commit `54c9489`; PM menghapus workbook/transkrip dari checkout development pada `17761d8`. Dokumen ini mempertahankan hasil analisis yang diperlukan tanpa memulihkan file sumber. Perencanaan memverifikasi definisi operasional, angka resmi dan cakupan penggunaan pertama sebelum aktivasi.
+**Status lampiran ini adalah contoh pengisian awal, bukan aturan yang ditanam di kode.** Tabel berikut bersumber dari file kerja pengukuran kinerja institusi tahun 2026, disediakan sebagai (a) acuan pengisian awal `indikator_komponen` oleh Perencanaan saat data induk mulai dimasukkan ke aplikasi, dan (b) fixture test bagi mesin perhitungan (§17.11.3) — **bukan** logika yang dihardcode ke kode aplikasi. Tipe perhitungan dan komponen setiap indikator tetap sepenuhnya data-driven (§17.1): baris pada tabel ini dapat diubah, ditambah, atau diganti oleh Perencanaan lewat `komponen:create`/`update`/`delete` kapan pun tanpa rilis kode, termasuk untuk tahun-tahun setelah 2026.
 
 #### 17.11.1 Tabel Pemetaan
 
@@ -758,7 +765,7 @@ Lampiran ini merupakan **contoh konfigurasi/fixture aritmetika**, bukan pengesah
 |---|---|---|---|---|
 | 1. Keunggulan Layanan | `rasio_persen` | `n` — jumlah respon pengguna layanan yang puas — pembilang — 1; `t` — total respon pengguna layanan — penyebut — 1 | `n / t × 100` | n=254, t=255 → 99,60784314 |
 | 2. Arsitektur PTS | `rasio_persen` | `a` — jumlah PTS terakreditasi — pembilang — 1; `b` — jumlah PTS yang melakukan penyatuan/penggabungan — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `(a + b) / t × 100` | a=79, b=0, t=84 → 94,04761905 |
-| 3. Predikat SAKIP dan Zona Integrasi (WBK/WBBM) | `penjumlahan` | `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi` — masing-masing penjumlah berbobot 0,5 | `0,5 × (P + U + L + E + ZI)` | 23 + 24 + 11,5 + 19 = SAKIP 77,5; ZI=75 → 76,25 |
+| 3. Predikat SAKIP dan Zona Integrasi (WBK/WBBM) | `penjumlahan` | `sakip` — Nilai SAKIP — penjumlah — 0,5; `zi` — Nilai ZI WBK/WBBM — penjumlah — 0,5 | `(sakip × 0,5) + (zi × 0,5)` | sakip=77,5; zi=75 → 76,25 |
 | 4. Fasilitasi Peningkatan Mutu PTS oleh LLDIKTI | `rasio_persen` | `n` — jumlah PTS yang menerima fasilitasi peningkatan mutu — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=50, t=84 → 59,52380952 |
 | 5. Pencegahan dan Penanganan Anti Kekerasan, Anti Narkoba, dan Anti Korupsi | `rasio_persen` | `n` — jumlah PTS yang memiliki kebijakan anti kekerasan/narkoba/korupsi — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=78, t=84 → 92,85714286 |
 | 6. Fasilitasi Pengembangan Kemahasiswaan dan Prestasi oleh LLDIKTI | `rasio_persen` | `n` — jumlah PTS yang menerima fasilitasi peningkatan mutu layanan kemahasiswaan — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=68, t=84 → 80,95238095 |
@@ -767,14 +774,14 @@ Lampiran ini merupakan **contoh konfigurasi/fixture aritmetika**, bukan pengesah
 
 #### 17.11.2 Catatan Penting
 
-- **IKU 3:** lima input dan subtotal mengikuti §17.10. Fixture kedua: 23,1 + 24,6 + 11,55 + 20,5 = SAKIP 79,75; ZI=53,04 → gabungan 66,395 sebelum pembulatan. Workbook TW II memakai `F14=(G15+G20)/2`, `H14=76.25`, dan `H15=F14/H14*100`; angka 76,25 sebagai target, 66,395 sebagai realisasi, dan 87,0754% sebagai pencapaian masih merupakan interpretasi yang harus disahkan Perencanaan. Baseline 74,2 pada PK bersumber dari SAKIP saja, sehingga tidak otomatis sebanding dengan gabungan (§11). Fixture membuktikan aritmetika, bukan pengesahan label kolom/angka produksi.
+- **IKU 3:** sub-skor di dalam Nilai SAKIP (Perencanaan Kinerja 30, Pengukuran Kinerja 30, Pelaporan Kinerja 15, Evaluasi Internal 25) **tidak** dimodelkan sebagai komponen — konsekuensi langsung dari batas satu tingkat perhitungan (§17.10); Nilai SAKIP diinput sebagai satu angka. Bila kelak ingin dirinci, mesin yang sama sudah menampungkannya lewat komponen berbobot tanpa perubahan struktur data.
 - **IKU 7:** komponen Tenaga Pengajar dan Asisten Ahli hanya berfungsi sebagai baseline dan **tidak** masuk penjumlahan target.
-- **IKU 8:** Tim Perencanaan wajib menetapkan definisi pembilang/penyebut, satuan, cakupan waktu/populasi, dan sumber data. Angka contoh 84 tidak membuktikan penyebutnya jumlah PTS. Sampai penetapan tercatat, konfigurasi tetap draf/contoh uji dan **tidak boleh diaktifkan untuk pengukuran produksi**.
+- **IKU 8:** label penyebut pada sumber kerja institusi berbunyi "total publikasi", tetapi angka yang dipakai adalah 84 — sama dengan total PTS wilayah kerja. Definisi penyebut ini **wajib ditegaskan Tim Perencanaan** sebelum dipakai produksi; sampai ada penegasan, definisi komponen dicatat sebagai "perlu penegasan" pada `indikator_komponen.label`.
 - **Varian berbobot multi-pembilang** (`Σ(nᵢ × kᵢ) / t × 100`, mis. bobot 1 / 0,75 / 0,5 / 0,25 per jenis capaian) tertampung oleh `rasio_persen` dengan bobot komponen (§17.3) — dicatat sebagai kemampuan mesin yang tersedia tanpa pengembangan lanjutan, bukan indikator aktif pada lampiran ini.
 
 #### 17.11.3 Pemakaian sebagai Fixture Test
 
-Fixture mesin perhitungan memakai contoh pada tabel, menguji presisi, pembagian nol, serta IKU 3 lima input (termasuk fixture TW II). Hasilnya diverifikasi secara aritmetika; IKU 8 boleh menjadi contoh uji formula tanpa mengesahkan definisi produksinya. Setelah definisi resmi diputuskan, Perencanaan/PM memperbarui catatan konfigurasi dan fixture yang terdampak; mesin generik tidak perlu dihardcode ulang.
+Lampiran ini menjadi acuan fixture test mesin perhitungan: setiap baris pada §17.11.1 diuji dengan angka contoh 2026 dan hasilnya harus sama persis dengan hitungan manual, mencakup penanganan pembagian nol (§17.4) dan pembulatan sesuai `presisi`/`desimal_tampilan` (§10). Status lampiran tetap **contoh pengisian awal** — perubahan definisi komponen di kemudian hari (mis. penegasan definisi IKU 8) tidak memerlukan perubahan pada bab ini maupun pada kode mesin perhitungan, hanya pada baris `indikator_komponen` yang bersangkutan.
 
 ---
 
@@ -828,7 +835,7 @@ Tabel `berkas` menjadi wadah bukti dukung untuk **enam jenis induk**: `rencana_a
 - `isi_teks` (text, nullable) — **wajib diisi** bila `mode = teks`.
 - `nama_asli`, `path`, `mime`, `ukuran_bytes` — **nullable**; wajib hanya bila `mode = file`, bernilai `NULL` pada mode lain.
 - `uploaded_by`, `created_at`.
-- `dihapus_pada`, `dihapus_oleh` untuk penghapusan yang masih diizinkan; `menggantikan_id` (FK → berkas), `alasan_koreksi` untuk bukti koreksi append-only.
+- `dihapus_pada` (timestamp, nullable), `dihapus_oleh` (FK → users, nullable).
 
 Satu persyaratan dapat dipenuhi oleh **lebih dari satu baris** `berkas` (mis. laporan sebagai file dan dokumentasi sebagai tautan), terutama bila `semua_mode_wajib = true`.
 
@@ -842,29 +849,28 @@ Kelengkapan suatu persyaratan mengikuti `semua_mode_wajib` (§18.2): bila `false
 
 - **Rencana Aksi & Pengukuran** (tidak berubah dari pola lama): transisi `draft → diajukan` **ditolak** bila ada `jenis_berkas` aktif bertanda `wajib` pada tahap tersebut yang belum terpenuhi untuk induknya — dengan pengertian "terpenuhi" kini mengikuti mode (§18.5), bukan semata unggahan file.
 - **Kegiatan**: transisi status `rencana → terlaksana` **ditolak** bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` yang belum terpenuhi untuk kegiatan tersebut — lihat detail dan pengecualian justifikasi di §15.6.
-- Ketiga gerbang mengecualikan kewajiban mode file yang tidak tersedia sesuai §18.7; penanda tidak menggugurkan mode tautan/teks yang masih wajib.
+- Ketiga gerbang di atas menghormati penanda `tidak_dapat_dipenuhi` (§18.7): persyaratan yang ditandai demikian tidak memblokir gerbang mana pun.
 - Percobaan pengajuan/transisi yang ditolak salah satu gerbang ini tercatat di audit log (§25.1).
 
 ### 18.7 Aturan Anti-Macet: Penanda `tidak_dapat_dipenuhi`
 
-Bila `berkas.unggahan_aktif = false`, pemenuhan mode file dikecualikan dan ditandai `tidak_dapat_dipenuhi` beserta alasan/audit. Penerapannya:
-- File-only: persyaratan tidak memblokir karena tidak ada mode tersedia.
-- `semua_mode_wajib = true`: hanya file dikecualikan; setiap mode tautan/teks yang diizinkan tetap wajib. Contoh file + tautan tetap membutuhkan tautan.
-- `semua_mode_wajib = false`: jika ada mode lain tersedia, minimal satu mode tersebut tetap wajib.
-- Pengecualian dan mode yang belum lengkap ditampilkan terpisah pada layar kerja/rekap; bukan dianggap file telah tersedia. Snapshot pengajuan menyimpan persyaratan dan pengecualian yang dipakai saat gate dievaluasi (§18.11).
-- Gerbang lampiran PK memiliki pengecualian khusus yang sudah ditetapkan pada §12.4/§14.10; ketentuan ini tidak mencabutnya.
+**Ketersediaan mode tidak boleh memacetkan alur.** Bila unggahan file dinonaktifkan pada setelan aplikasi (`berkas.unggahan_aktif = false`, §18.9) sementara suatu persyaratan hanya mengizinkan mode `file` (`izinkan_tautan = false` dan `izinkan_teks = false`), persyaratan itu ditandai **`tidak_dapat_dipenuhi`**:
+
+- Pemenuhannya **tidak** memblokir gerbang kelengkapan (§18.6) — kegiatan/rencana aksi/pengukuran tetap dapat diajukan/dilanjutkan meski persyaratan ini belum terpenuhi.
+- Penanda ini tercatat di `audit_log`.
+- Penanda ini tampil pada rekapitulasi (§22.4) serta halaman kerja Perencanaan, sehingga tetap terlihat dan dapat diperbaiki — Perencanaan dapat menambahkan mode `tautan`/`teks` pada persyaratan tersebut, atau pemegang `pengaturan:update` mengaktifkan kembali unggahan file.
 
 ### 18.8 Imutabilitas & Penghapusan
 
 **Imutabilitas mengikuti status induk, ditegakkan seragam untuk seluruh mode (`file`/`tautan`/`teks`) pada keenam jenis induk:**
 
-- lampiran `rencana_aksi`/`pengukuran` yang direferensikan versi pengajuan/disahkan tidak dapat dihapus/ditimpa, termasuk ketika header dikembalikan; versi pengajuan berikutnya dapat memilih bukti koreksi baru;
-- lampiran `kegiatan` setelah terlaksana tetap immutable; koreksi menambah bukti dengan `menggantikan_id` dan alasan, pada induk yang sama, tanpa siklus atau penghapusan bukti lama;
+- lampiran **`rencana_aksi`**/**`pengukuran`** tidak dapat dihapus setelah induknya berstatus `disahkan`;
+- lampiran **`kegiatan`** tidak dapat dihapus setelah kegiatan berstatus `terlaksana` (§15.6);
 - lampiran **`renstra`** tidak dapat dihapus setelah Renstra berstatus `aktif` (§10.6);
 - lampiran **`renstra_pk`** tidak dapat dihapus setelah Jadwal Tahunan tahun itu berstatus `aktif` (§14.10);
 - lampiran **`regulasi`** tidak dapat dihapus selama regulasi masih dirujuk oleh Renstra atau indikator aktif (§9.5).
 
-Sebelum batas imutabilitas, penghapusan yang diizinkan menggunakan soft delete dan audit. Bukti yang sudah dirujuk versi historis tetap dipertahankan terlepas dari perubahan status header. Koreksi setelah penutupan harus berada dalam jendela/lingkup `jadwal:buka_kembali`, dengan permission mutasi induk dan bukti yang sesuai. Unduhan lama tetap terlindungi scope/deny. Referensi/metadata/isi teks atau URL disimpan dalam versi; tautan eksternal tidak menjamin isi situs pihak ketiga tidak berubah.
+Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghapus lampiran; setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`). Setelah `penutupan` jadwal, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali`.
 
 ### 18.9 Kebijakan Storage pada Setelan Aplikasi
 
@@ -883,11 +889,7 @@ Halaman Setelan Aplikasi menampilkan panel **read-only "Penggunaan penyimpanan b
 
 ### 18.10 Lampiran Bebas pada Kegiatan
 
-Lampiran bebas kegiatan tetap tersedia tanpa `jenis_berkas_id`; lampiran tersebut tidak otomatis memenuhi persyaratan wajib. Rekap historis menggunakan bukti yang dirujuk versi disahkan, sedangkan layar kerja dapat menampilkan koreksi terbaru dengan penanda.
-
-### 18.11 Versi Persyaratan saat Pengajuan
-
-Persyaratan substantif beserta mode, kewajiban, pengecualian dan bukti pemenuhan dibekukan dalam snapshot `rencana_aksi_versi`/`pengukuran_versi` saat pengajuan berhasil. Reviewer memakai ketentuan versi tersebut. Perubahan master berlaku untuk pengajuan baru berikutnya; untuk menerapkannya pada pengajuan berjalan, Perencanaan mengembalikan dengan alasan sebelum diajukan ulang. Data yang sudah disahkan tidak otomatis tidak lengkap. Untuk kegiatan, ketentuan dan bukti yang digunakan saat transisi terlaksana dicatat audit; klaim tambahan mengikuti §15.6. Koreksi bukti mengikuti §18.8, bukan pengubahan historis.
+Lampiran di level `kegiatan` tetap tersedia sebagai **lampiran bebas** (bukan persyaratan bergerbang, tanpa `jenis_berkas_id`) — bukti pelaksanaan kegiatan (daftar hadir, dokumentasi) menempel pada kegiatannya dalam mode apa pun, dan ikut tampil di rekapitulasi indikator × periode (§22.4).
 
 ---
 
@@ -918,8 +920,8 @@ Permission `pengukuran:setujui` dan isi peran Pimpinan sudah didefinisikan di ka
 
 ### 19.3 Aturan Perubahan
 
-- `pengukuran:create`/`pengukuran:update` untuk PIC (Pegawai) diberikan lewat grant (`user_permission_granted`) yang wajib di-scope ke `unit_id` sesuai dengan `indikator.unit_id` terkait, dan tunduk pada batas jendela pengisian periode (§12.3). Untuk Perencanaan, permission ini bersumber dari isi peran — bersifat global dan hanya tunduk pada `penutupan` jadwal tahunan (§12.2).
-- Verifikasi/pengesahan memakai identitas dan jalur pengaju yang dibekukan dalam `pengukuran_versi`, sama seperti Rencana Aksi (§7.6). Pembuat draft atau role saat review bukan pengganti provenance pengajuan.
+- `pengukuran:create`/`pengukuran:update` untuk PIC diberikan lewat grant (`user_permission_granted`) yang wajib di-scope ke `unit_id` sesuai dengan `indikator.unit_id` terkait, dan tunduk pada batas jendela pengisian periode (§12.3). Untuk Perencanaan, permission ini bersumber dari isi peran — bersifat global dan hanya tunduk pada `penutupan` jadwal tahunan (§12.2).
+- Transisi `diajukan → diverifikasi` dan `diverifikasi → disahkan` tunduk pada pemisahan tugas (§7.6): PIC yang mengajukan pengukurannya sendiri tidak dapat memverifikasi/mengesahkannya; Perencanaan yang mengisi atas nama unit diizinkan mengesahkan pengisiannya sendiri, dengan penanda `self_approval` tercatat di audit.
 - Untuk indikator berkomponen, input dilakukan pada level `pengukuran_komponen` (§17.5); `pengukuran.nilai` ikut terisi otomatis sebagai nilai turunan (§17.6) dan bersifat read-only bagi PIC.
 - Perubahan pada baris `pengukuran` yang sudah memiliki nilai menaikkan kolom `versi` (optimistic locking, lihat §27).
 - Data pengukuran dengan nilai/catatan terisi tidak dapat dihapus permanen — pembatalan diwujudkan sebagai transisi status atau baris histori, bukan penghapusan baris (§4 prinsip 2).
@@ -929,22 +931,21 @@ Permission `pengukuran:setujui` dan isi peran Pimpinan sudah didefinisikan di ka
 Pengajuan Pengukuran (`Draft → Diajukan`) **ditolak sistem** bila salah satu dari tiga syarat berikut tidak terpenuhi:
 
 1. `rencana_aksi` untuk (indikator, tahun) belum berstatus `disahkan` (§14.9).
-2. Nilai belum lengkap: indikator manual belum memiliki nilai langsung, atau nonmanual memiliki komponen wajib snapshot yang masih `null`. Penyebut nol yang sudah diisi bukan komponen kosong (§17.4).
-3. Persyaratan wajib tahap pengukuran untuk pengajuan ini belum lengkap, setelah pengecualian mode file yang sah (§18.7).
+2. Ada `indikator_komponen` aktif milik indikator tersebut yang nilainya (`pengukuran_komponen.nilai`) masih `null` (§17.7).
+3. Ada `jenis_berkas` aktif bertanda `wajib` pada tahap `pengukuran` untuk indikator tersebut yang belum terpenuhi untuk pengukuran ini (§18.6).
 
-Ketiga gerbang dikecualikan pada jadwal retroaktif, tetapi nilai historis final tetap wajib terisi serta membutuhkan sumber/alasan, permission, waktu koreksi dan alur verifikasi/pengesahan (§17.6). Pengajuan normal dengan komponen lengkap dan hasil tidak dapat dihitung boleh dilanjutkan dengan alasan. Pengajuan yang berhasil menerbitkan `pengukuran_versi` immutable, termasuk FK `rencana_aksi_versi_id` ke versi disahkan (nullable hanya pada backfill yang tidak memiliki rencana aksi), rujukan snapshot, komponen, target, klaim, narasi dan bukti. Percobaan yang gagal diaudit.
+Ketiga gerbang ini **dikecualikan pada jadwal retroaktif** (backfill data historis, §12.6) — tujuan jadwal retroaktif memang mengisi data historis yang lazimnya tidak melalui proses Rencana Aksi/berkas normal pada masanya. Percobaan pengajuan yang ditolak oleh salah satu gerbang ini tetap dicatat di audit log (§25.1).
 
 ### 19.5 Koreksi Setelah Pengesahan
 
-- Sebelum penutupan, koreksi hasil disahkan memakai `pengukuran:buka_kembali` dengan alasan.
-- Setelah penutupan, perlu `jadwal:buka_kembali` dengan waktu dan lingkup koreksi eksplisit. Tanggal penutupan asli dipertahankan; Perencanaan dapat mengoreksi hanya dalam jendela itu.
-- Pembukaan record menyiapkan versi kerja; versi disahkan sebelumnya tidak ditimpa. Pengajuan, verifikasi dan pengesahan ulang menghasilkan versi resmi baru. Status capaian versi lama tetap histori dan **tidak diwariskan**; versi baru tampil **Belum ditetapkan** sampai dinilai kembali (§21). Laporan historis lama tetap tersedia.
+- **Sebelum penutupan jadwal**: Perencanaan/Superadmin dapat mengembalikan pengukuran yang sudah **Disahkan** ke status **Dikembalikan** melalui permission `pengukuran:buka_kembali`, dengan **alasan wajib** diisi. Jalur ini hanya tersedia sebelum `penutupan` jadwal tahunan tercapai.
+- **Setelah penutupan jadwal**: satu-satunya jalur koreksi adalah `jadwal:buka_kembali` (§12.6) — membuka jadwal (`ditutup → aktif`), melakukan koreksi yang diperlukan (termasuk membuka kembali pengukuran individual bila perlu), lalu menutup ulang jadwal (`jadwal:tutup`). Seluruh rangkaian ini tercatat penuh di audit log.
 
 ---
 
 ## 20. Nilai & Catatan
 
-- `nilai` numerik nullable: `0` sah; null dibedakan melalui `status_perhitungan` sebagai belum diisi atau tidak dapat dihitung. Nonmanual dihitung server dari komponen snapshot, kecuali jalur historis resmi (§17.6). Kondisi penyebut nol memerlukan catatan dan tidak diberi status capaian otomatis.
+- `nilai` bertipe numerik, **nullable**: `null` berarti "belum diisi", sedangkan `0` adalah nilai sah (capaian nol adalah data valid, bukan representasi kekosongan). Untuk indikator dengan `tipe_perhitungan` selain `manual`, `nilai` bersifat read-only di UI karena diturunkan dari komponen (§17.6); PIC mengisi angka pada level komponen, bukan pada `nilai` langsung.
 - `catatan` bertipe teks, nullable secara default, namun wajib diisi saat pengajuan (`pengukuran:create`/`update` menuju status Diajukan) jika salah satu kondisi berikut terpenuhi:
   1. Nilai pada periode ini **memburuk menurut `indikator.arah`** (§11) dibandingkan **pengukuran berstatus Disahkan terakhir secara kronologis** untuk indikator yang sama — nilai yang stagnan (sama persis) **tidak** memicu kewajiban ini. Pengukuran pertama suatu indikator, yang belum memiliki pembanding Disahkan sebelumnya, tidak wajib mengisi catatan atas dasar aturan ini. Untuk indikator berkomponen, perbandingan ini dilakukan atas **nilai turunan** hasil hitungan komponen.
   2. Indikator memiliki flag `wajib_catatan = true` (§11) — mewajibkan catatan pada setiap pengajuan tanpa syarat pemburukan.
@@ -956,11 +957,11 @@ Ketiga gerbang dikecualikan pada jadwal retroaktif, tetapi nilai historis final 
 
 ### 21.1 Definisi
 
-`status_capaian` menilai **versi pengukuran disahkan** melalui `pengukuran_versi_id`, dengan status `tercapai` atau `belum_tercapai`. Pengesahan tidak otomatis menetapkan status; setiap versi baru hasil koreksi dimulai dengan tampilan Belum ditetapkan. Status versi lama tetap terbaca bersama versi yang dinilainya.
+`status_capaian` menyatakan penilaian akhir atas satu baris `pengukuran`: `tercapai` atau `belum_tercapai`, dengan kolom `sumber` bernilai `manual` atau `data_sumber`. Penetapan status capaian adalah momen terpisah dari pengesahan pengukuran (`Disahkan`) — pengukuran dapat berstatus Disahkan tanpa status capaian aktif untuk sementara waktu, sampai Perencanaan/Superadmin menetapkannya secara manual.
 
 ### 21.2 Aturan
 
-- Maksimal satu status aktif per `pengukuran_versi_id`; penetapan baru untuk versi yang sama menonaktifkan status sebelumnya tanpa menghapus histori. Versi koreksi baru tidak memakai status aktif versi sebelumnya.
+- Maksimal 1 status capaian aktif per pengukuran pada satu waktu; penetapan status baru tidak menghapus status lama — status lama tetap sebagai riwayat (soft replace, ditandai bukan-aktif, bukan dihapus).
 - `ditetapkan_oleh` bernilai `null` hanya jika sumber adalah `data_sumber` (ditetapkan otomatis oleh sistem, bukan manusia).
 - Permission: `status_capaian:update`.
 
@@ -990,9 +991,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 
 ### 22.4 Rekapitulasi Indikator × Periode
 
-Rekap indikator × periode memuat PIC, definisi/formula, baseline dan konteksnya, **target PK tahunan**, **target periode**, **realisasi nilai indikator**, serta **persentase pencapaian** sebagai kolom berbeda bila pembandingnya telah ditetapkan dan sebanding. Nilai tiap komponen target/realisasi, subtotal SAKIP, klaim/status kegiatan, narasi, bukti/pengecualian, status capaian dan Rekomendasi Pimpinan tetap tertelusur.
-
-Laporan resmi membaca `pengukuran_versi` disahkan dan versi Rencana Aksi/snapshot yang dirujuknya, bukan target/narasi master terbaru. Versi lama tetap dapat dibuka ketika versi kerja dikoreksi; versi resmi pengganti diberi penanda dan rujukan koreksi. Layar kerja boleh menampilkan kondisi terbaru dengan label versi/status. Rekomendasi Pimpinan tetap riwayat independen indikator × periode (§22.3), ditampilkan bersama tanggal dan identitas entri agar perubahan rekomendasi tidak dikira bagian snapshot pengukuran lama.
+**Rekapitulasi indikator × periode** (setara format kerja yang dipakai saat ini) wajib dapat ditampilkan dan diekspor, memuat: PIC, nama indikator, formula/cara hitung, baseline, target PK tahunan, target periode (Rencana Aksi), capaian periode, **nilai tiap komponen** (target dan realisasi), daftar kegiatan yang diklaim beserta statusnya, narasi `uraian_pelaksanaan`/`kendala`/`strategi_tindaklanjut` per kegiatan, Rekomendasi Pimpinan, dan penanda persyaratan bukti dukung yang berstatus `tidak_dapat_dipenuhi` (§18.7) agar Perencanaan dapat menindaklanjutinya. Seluruh nilai turunan ditampilkan bersama angka pembentuknya, sehingga rekapitulasi tetap dapat ditelusuri kembali ke angka mentahnya.
 
 ---
 
@@ -1001,21 +1000,18 @@ Laporan resmi membaca `pengukuran_versi` disahkan dan versi Rencana Aksi/snapsho
 - Dashboard menampilkan ringkasan capaian berbasis data yang telah **Disahkan** (§19.1), tidak mencampur data Draft/Diajukan/Diverifikasi ke dalam angka capaian resmi.
 - Visualisasi dibangun dengan ApexCharts (Fase Awal): grafik batang/garis perbandingan target vs realisasi per indikator/periode, ringkasan status capaian (Tercapai/Belum Tercapai) per Sasaran/Renstra.
 - Panel tambahan: progres Rencana Aksi per indikator (status alur Draft/Diajukan/Diverifikasi/Disahkan), jumlah Kegiatan per status per periode (termasuk hitungan kegiatan `batal`/`tidak_terlaksana`), dan perbandingan target periode (Rencana Aksi) dengan realisasi komponen.
-- Status capaian resmi dinilai per versi disahkan; status kerja/pengisian dan penanda kualitas angka ditampilkan terpisah:
+- Status Capaian yang ditampilkan pada dashboard mencakup 5 kemungkinan tampilan (kombinasi status alur pengukuran dan status capaian):
 
 | Status Tampilan | Kondisi |
 |---|---|
-| **Tercapai** | Versi pengukuran disahkan yang ditampilkan memiliki status capaian aktif `tercapai` |
-| **Belum tercapai** | Versi pengukuran disahkan yang ditampilkan memiliki status capaian aktif `belum_tercapai` |
-| **Belum ditetapkan** | Versi pengukuran disahkan belum memiliki status capaian aktif, termasuk versi baru hasil koreksi |
-| **Belum mengisi** | Tidak ada pengukuran pada indikator × periode efektif yang diwajibkan jadwal; indikator arsip dikecualikan |
-| **Tidak mengisi** | Pengukuran tetap Draft melewati tenggat resmi periode efektif |
-| **Tidak berlaku** | Periode mendahului periode mulai berlaku indikator; tidak dihitung kewajiban atau nilai nol |
-
-Penanda **Tidak dapat dihitung** menjelaskan kualitas angka, bukan status alur/capaian. Angka null tidak dimasukkan sebagai nol dalam grafik/rata-rata; jumlah kasusnya ditampilkan terpisah. Tampilan versi historis yang telah disahkan tidak hilang karena header kerja dikembalikan.
+| **Tercapai** | Pengukuran berstatus Disahkan dan `status_capaian.status = tercapai` |
+| **Belum tercapai** | Pengukuran berstatus Disahkan dan `status_capaian.status = belum_tercapai` |
+| **Belum ditetapkan** | Pengukuran Disahkan tetapi belum ada baris `status_capaian` aktif |
+| **Belum mengisi** | Tidak ada baris `pengukuran` sama sekali untuk kombinasi indikator × periode yang diharapkan menurut `jadwal_periode` (§12.3) pada jadwal aktif. Indikator berstatus `arsip` tidak dihitung. |
+| **Tidak mengisi** | Ada baris `pengukuran` namun tetap berstatus Draft melewati `pengisian_selesai` periode yang bersangkutan pada `jadwal_periode` (dianggap gagal mengisi tepat waktu) |
 
 - Dashboard dapat difilter berdasarkan Renstra, Tahun, Periode, Sasaran, dan Unit.
-- Akses dashboard: `dashboard:read` (dimiliki seluruh peran, termasuk Pegawai — sesuai §7.3).
+- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena role `pic` baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
 
 ---
 
@@ -1024,7 +1020,7 @@ Penanda **Tidak dapat dihitung** menjelaskan kualitas angka, bukan status alur/c
 ### 24.1 Fase Awal
 
 - Laporan tabular (daftar pengukuran dengan filter Renstra/Tahun/Periode/Sasaran/Unit/Status) dapat diekspor ke format Excel — ini satu-satunya format ekspor pada Fase Awal.
-- Rekap indikator × periode (§22.4) diekspor dengan rincian komponen dan subtotal relevan, narasi serta rekomendasi. Kesetaraan dengan workbook sumber berarti kelengkapan informasi yang disepakati, bukan menyalin kesalahan judul kolom/sel gabungan. Perencanaan mengesahkan satu contoh keluaran (kolom, urutan, presisi, narasi, rekomendasi, pemisahan target/realisasi/persentase) sebagai fixture UAT; contoh final masih perlu ditetapkan.
+- Rekapitulasi indikator × periode (§22.4) — satu baris per komponen, disertai narasi kegiatan dan Rekomendasi Pimpinan — dapat ditampilkan dan diekspor Excel dengan format yang setara dengan format kerja yang dipakai saat ini.
 - Permission: `laporan:read`, `laporan:ekspor`.
 
 ### 24.2 Fase Lanjutan (Belum Dibangun)
@@ -1040,7 +1036,7 @@ Penanda **Tidak dapat dihitung** menjelaskan kualitas angka, bukan status alur/c
 
 Audit log tidak dipersempit pada Fase Awal — seluruh peristiwa berikut dicatat sejak hari pertama:
 
-- Perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), pemberian izin (`user_permission_granted`), dan pencabutan izin (`user_permission_denied`) — seluruhnya lewat permission `akses:update`.
+- Perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), pemberian izin (`user_permission_granted`), dan pencabutan izin (`user_permission_denials`) — seluruhnya lewat permission `akses:update`.
 - Pembuatan/perubahan/penghapusan `regulasi` (`nilai_lama`/`nilai_baru` dan `alasan` untuk `update`/`delete`), perubahan `renstra.regulasi_id`/`indikator.regulasi_id`, dan pengiriman/penghapusan lampiran dokumen dasar aturan (§9.8).
 - CRUD dan perubahan status Renstra, termasuk revisi in-place akibat Kepmen IKU baru (`dasar_hukum`, `regulasi_id`, atau atribut lain, dengan `alasan` memuat rujukan Kepmen — §10.5), serta pengiriman/penghapusan lampiran dokumen Renstra (§10.6).
 - CRUD Sasaran dan Indikator, termasuk perpindahan indikator antar unit, perubahan `tipe_perhitungan` indikator, perubahan `regulasi_id`, dan pengarsipan indikator akibat IKU dihapus dari Kepmen.
@@ -1066,7 +1062,7 @@ Audit log tidak dipersempit pada Fase Awal — seluruh peristiwa berikut dicatat
 
 ### 25.2 Struktur Pencatatan
 
-Audit memuat aktor/waktu, tindakan, tipe/id objek, nilai lama/baru, alasan dan dasar izin untuk aksi sensitif. F1/F2 Rencana Aksi dan Pengukuran mencatat identitas/jalur pengaju versi, aktor review, serta `self_approval` bila berlaku. Koreksi snapshot, jendela PIC/tahunan, bukti pengganti, klaim, dan status capaian mencantumkan rujukan versi lama/baru. Isi snapshot bisnis disimpan pada tabel versi dengan akses induk; audit bukti teks tetap hanya panjang/metadata, bukan menyalin seluruh isi. Rahasia integrasi seperti API key selalu dimasking dalam audit.
+Setiap baris `audit_log` menyimpan: `actor_id`, `waktu`, `tindakan`, `objek_tipe`, `objek_id`, `nilai_lama` (JSON, nullable), `nilai_baru` (JSON, nullable), `alasan` (teks, wajib untuk tindakan tertentu seperti koreksi PK, pengembalian pengukuran/rencana aksi (baik jalur normal maupun buka kembali setelah pengesahan), pergantian penanggung jawab, revisi Renstra, dan penghapusan unit), dan **`dasar_izin`** (JSON, nullable) — khusus aksi dengan `permissions.sensitif = true` (§7.2), memuat daftar sumber izin yang mengizinkan aksi tersebut (peran mana/grant mana) atau deny yang memicu penolakan (§7.4). Transisi verifikasi/pengesahan Pengukuran yang dilakukan Perencanaan atas pengisiannya sendiri menyertakan penanda **`self_approval`** (§7.6). Perubahan definisi komponen dan persyaratan `jenis_berkas` (termasuk mode bukti dan `semua_mode_wajib`) dicatat dengan `nilai_lama`/`nilai_baru` dan `alasan` — inilah jejak yang menjaga data historis tetap dapat dipertanggungjawabkan meski formula dan persyaratan bukti dukung dapat diubah dari layar.
 
 ### 25.3 Sifat Append-Only
 
@@ -1075,7 +1071,7 @@ Tabel `audit_log` append-only — tidak ada endpoint untuk mengubah atau menghap
 ### 25.4 Visibilitas per Role
 
 - `audit:read` dimiliki Superadmin, Perencanaan, dan Pimpinan.
-- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`).
+- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). Hak bawaan role PIC atas `audit:read` belum dikonfirmasi dan tetap **OPEN** pada Q31.
 
 ---
 
@@ -1083,7 +1079,7 @@ Tabel `audit_log` append-only — tidak ada endpoint untuk mengubah atau menghap
 
 ### 26.1 Tabel `pengaturan`
 
-Tabel `pengaturan` menyimpan preferensi presentasional dan operasional yang disetujui: identitas, tampilan, unggahan, serta grup `notifikasi` Q4. Kolom: kunci unik, nilai, tipe, grup, updated_by/at. Rahasia integrasi disimpan terlindungi, tidak ikut shared props/render umum atau nilai audit mentah.
+Modul bergaya key-value untuk parameter aplikasi yang bersifat presentasional, disimpan pada tabel `pengaturan`: `kunci` (unique), `nilai`, `tipe`, `grup`, `updated_by`, `updated_at`.
 
 ### 26.2 Nilai Default & Pembacaan
 
@@ -1094,8 +1090,7 @@ Nilai default di-seed saat instalasi aplikasi. Pembacaan nilai dilakukan lewat a
 - Identitas instansi: nama instansi, alamat, telepon, surel, laman, logo.
 - Identitas aplikasi: nama aplikasi, label unit (memungkinkan penyebutan "Unit" diganti istilah lain di UI tanpa mengubah struktur data — lihat §7.5).
 - Preferensi tampilan/laporan: zona waktu, format tanggal, format angka, header/footer ekspor.
-- Batas unggahan grup `berkas` (§18.9) serta panel penggunaan storage.
-- Notifikasi: `notifikasi.wa_aktif`/`email_aktif` default false, `wa_gateway_url`, `wa_api_key` rahasia, dan `ews_h_minus` default `7,3,1`. Konfigurasi layanan/credential hanya oleh pihak berwenang; jangan menebak provider atau menyalin konfigurasi SIMPEG.
+- Batas unggahan berkas (default aplikasi): ukuran maksimum unggahan berkas dan daftar format yang diizinkan, disimpan pada grup kunci `berkas` — dipakai sebagai nilai fallback saat `jenis_berkas.ukuran_maks_kb`/`format_diizinkan` kosong (§18.9). Termasuk panel read-only "Penggunaan penyimpanan bukti dukung" (§18.9).
 
 ### 26.4 Halaman "Batas Unggahan Berkas"
 
@@ -1115,15 +1110,15 @@ Halaman kerja tersendiri di dalam Setelan Aplikasi, terpisah dari kunci grup `be
 
 ### 26.5 Hak Akses
 
-Permission `pengaturan:update` diberikan bawaan kepada Admin/Superadmin. Preferensi tampilan nonrahasia dapat dibaca saat render; konfigurasi gateway/API key tidak dikirim otomatis ke klien umum. Akses pengecualian tetap mengikuti resolver dan audit, bukan pemeriksaan nama role semata.
+Permission `pengaturan:update` dimiliki **Admin dan Superadmin** (§7.3) — tidak ada peran lain yang memilikinya lewat isi peran maupun dianjurkan mendapatkannya secara eksplisit. Pembacaan nilai setelan terjadi otomatis saat render halaman, tanpa memerlukan permission baca khusus.
 
 ### 26.6 Audit
 
-Setiap perubahan setelan tercatat di `audit_log` (nilai lama/baru per kunci, dengan rahasia integrasi dimasking) — masuk ke daftar peristiwa teraudit (§25.1).
+Setiap perubahan setelan tercatat di `audit_log` (nilai lama/baru per kunci) — masuk ke daftar peristiwa teraudit (§25.1).
 
 ### 26.7 Batas Tegas
 
-Modul setelan mengelola teks, preferensi presentasi/operasional, batas teknis unggahan, dan konfigurasi notifikasi yang disetujui Q4. Modul ini tidak mengubah enum/status, katalog permission, formula indikator, atau substansi persyaratan bukti. Mode/kewajiban bukti tetap dikelola Perencanaan melalui `jenis_berkas`. Branding login Keycloak tetap di realm, bukan aplikasi SAKIP.
+Yang boleh dikelola secara dinamis lewat modul ini **hanya teks, preferensi presentasional, dan dua kolom teknis unggahan pada §26.4**, termasuk kunci grup `berkas` (§18.9) yang tetap berstatus preferensi operasional. Modul ini secara eksplisit **bukan** tempat mengubah enum/status, nama permission, atau aturan bisnis apa pun — perubahan semacam itu tetap memerlukan perubahan kode dan migrasi basis data, bukan lewat UI setelan. Daftar mode bukti yang diizinkan per persyaratan dan seluruh kolom substantif lainnya tetap milik `jenis_berkas` (Perencanaan), bukan milik modul ini (§18.9, §26.4). Kustomisasi tampilan halaman login Keycloak (branding, logo login) berada di luar cakupan aplikasi SAKIP — diatur di level realm Keycloak, bukan lewat modul ini.
 
 ---
 
@@ -1134,7 +1129,7 @@ Modul setelan mengelola teks, preferensi presentasi/operasional, batas teknis un
   - `pengukuran`: unique(`indikator_id`, `tahun`, `periode_id`) — mencegah duplikasi baris pengukuran untuk kombinasi yang sama.
   - `pengukuran_komponen`: unique(`pengukuran_id`, `komponen_id`).
   - `rencana_aksi`: unique(`indikator_id`, `tahun`).
-  - `rencana_aksi_target`: partial unique per periode manual (`komponen_id IS NULL`) dan per periode × komponen nonmanual (§14.3).
+  - `rencana_aksi_target`: unique(`rencana_aksi_id`, `periode_id`, `komponen_id`).
   - `indikator_komponen`: unique(`indikator_id`, `kode`).
   - `klaim_kegiatan`: unique pada (`rencana_aksi_id`, `kegiatan_id`, `komponen_id`) memakai index dengan `COALESCE(komponen_id, ...)` karena PostgreSQL memperlakukan NULL sebagai nilai berbeda.
   - `target_tahunan`: unique(`indikator_id`, `tahun`).
@@ -1142,14 +1137,12 @@ Modul setelan mengelola teks, preferensi presentasi/operasional, batas teknis un
   - `regulasi`: unique(`jenis`, `nomor`, `tahun`).
   - `jadwal_tahunan`: unique(`tahun`) di antara jadwal **aktif** untuk Renstra yang sama.
   - `jadwal_periode`: unique(`jadwal_id`, `periode_id`).
-  - `jadwal_snapshot`: unique(`jadwal_id`, `indikator_id`, `nomor_versi`); aktivasi ulang tetap idempoten dan hanya koreksi eksplisit menerbitkan versi pengganti.
-  - `rencana_aksi_versi`/`pengukuran_versi`: unique(parent_id, nomor); isi snapshot immutable, metadata transisi resmi diisi sekali. FK rujukan harus konsisten indikator, tahun, jadwal dan unit; `versi` optimistic locking header berbeda dari nomor versi pengajuan.
-  - `status_capaian`: paling banyak satu aktif per `pengukuran_versi_id`; status tidak diwariskan ke versi baru.
+  - `jadwal_snapshot`: unique(`jadwal_id`, `indikator_id`) — menegakkan idempotensi pembentukan snapshot (§12.5); `jadwal_snapshot_komponen` mengikuti idempotensi induknya.
   - `permissions.kode`: unique.
   - `role_permissions`: unique(`role_id`, `permission_id`).
   - `user_roles`: unique(`user_id`) — satu peran per pengguna pada Fase Awal.
   - `user_permission_granted`: unique(`user_id`, `permission_id`, `unit_id`) — implementasi index unik memakai `COALESCE(unit_id, ...)` karena PostgreSQL memperlakukan NULL sebagai nilai berbeda.
-  - `user_permission_denied`: unique(`user_id`, `permission_id`, `unit_id`) dengan pola `COALESCE` yang sama.
+  - `user_permission_denials`: unique(`user_id`, `permission_id`, `unit_id`) dengan pola `COALESCE` yang sama.
   - `users.keycloak_id`: unique — satu identitas Keycloak terhubung ke satu akun SAKIP.
   - `pengaturan.kunci`: unique.
 - Anjuran PostgreSQL exclusion constraint (`EXCLUDE USING gist` + `btree_gist`) untuk rentang tahun Renstra yang beririsan tetap berlaku sebagai lapisan pertahanan kedua (§12.4); validasi utama ditegakkan di service layer.
@@ -1158,31 +1151,18 @@ Modul setelan mengelola teks, preferensi presentasi/operasional, batas teknis un
 
 ---
 
-## 28. Alert Kontekstual & Strategi Notifikasi
+## 28. Alert Kontekstual
 
-Keputusan Q4 mengikuti pembaruan PM `d04ae5e` dan klarifikasi pengguna 18 September 2026: in-app sebagai baseline MVP, WA/email sebelum 9 November 2026, pengingat hanya H-7/H-3/H-1. Transkrip koordinasi merupakan sumber historis pada commit `54c9489`, bukan file aktif pada development.
+Pada Fase Awal, alert kontekstual mencakup notifikasi/tampilan dalam aplikasi (bukan email/push eksternal, kecuali diputuskan lain kemudian) untuk:
 
-### 28.1 Notifikasi Dalam Aplikasi (In-App) — Baseline Scope MVP
-Pada Fase Awal (MVP), seluruh mekanisme alert kontekstual dan notifikasi diwujudkan melalui antarmuka aplikasi (*in-app banner, badges, counter* pada lonceng notifikasi, dan daftar tugas aksi) sebagai **kriteria penerimaan utama (*baseline scope*)**:
-
-- **Tenggat penyusunan Rencana Aksi** (`rencana_aksi_mulai/selesai` pada `jadwal_tahunan`, §12.2) yang mendekat/terlewati bagi PIC yang belum menyusun.
-- **Tenggat pengisian periode** (`pengisian_selesai` pada `jadwal_periode`, §12.3) yang mendekat/terlewati bagi PIC yang belum mengisi (status "Belum mengisi"/"Tidak mengisi", lihat §23).
-- **Pengembalian Rencana Aksi atau Pengukuran** — notifikasi ke penanggung jawab terkait beserta alasan pengembalian, baik jalur normal maupun buka kembali setelah pengesahan.
-- **Pengajuan Menunggu Tindakan** — notifikasi/daftar tugas untuk Perencanaan saat Rencana Aksi atau Pengukuran diajukan oleh PIC.
-- **Kelengkapan bukti dukung wajib** (rencana aksi/pengukuran/kegiatan) yang belum terpenuhi menjelang batas waktu pengajuan/perubahan status.
-- **Persyaratan bukti dukung bertanda `tidak_dapat_dipenuhi`** (§18.7), agar Perencanaan segera menambahkan mode alternatif atau meninjau kebijakan unggahan.
-- **Justifikasi kegiatan** yang berstatus `tidak_terlaksana`/`ditunda`/`batal` yang belum diisi alasannya.
-- **Kelengkapan PK tahun berjalan** menjelang jendela aktivasi jadwal — pengingat bagi Perencanaan agar tidak terhambat validasi aktivasi (§10.3, §12.4).
-
-### 28.2 Integrasi Saluran Eksternal (WhatsApp & Email) — Konfigurasi Akhir Sebelum 9 November
-Saluran notifikasi dan pengingat eksternal (WhatsApp & Email) ditetapkan sebagai penyempurnaan operasional yang **dikonfigurasi dan diintegrasikan di bagian akhir sebelum batas waktu 9 November 2026** (sebelum memasuki fase evaluasi dan revisi final 16–30 November 2026):
-
-1. **Notifikasi Pembukaan Jadwal Pengisian**: Saat jadwal pengisian triwulan resmi dibuka oleh Perencanaan/sistem, notifikasi otomatis dikirim ke WhatsApp dan Email seluruh PIC unit kerja terkait.
-2. **EWS Tenggat Triwulan:** scheduler boleh mengevaluasi setiap hari, tetapi pengiriman pengingat kepada PIC yang belum menyelesaikan/mengajukan pengukuran **hanya pada H-7, H-3, dan H-1** dari `pengisian_selesai` resmi. Bukan pengiriman setiap hari H-7 sampai H-1; default `notifikasi.ews_h_minus = 7,3,1`.
-3. **Rekap Perencanaan:** kirim ringkasan unit/indikator belum mengisi pada H-3 dan H-1. Penerima tetap mengikuti hak dan penugasan efektif, bukan seluruh pengguna tanpa seleksi.
-4. **Pengembalian:** kirim WA/email kepada PIC terkait saat pengukuran/rencana aksi dikembalikan, dengan tautan aman serta catatan yang sesuai hak baca.
-
-Pengiriman dijalankan setelah transaksi bisnis berhasil melalui antrean; kegagalan provider tidak membatalkan status bisnis. Pengiriman ulang terkontrol tidak boleh menggandakan pesan untuk event/penerima/jendela yang sama. Status diterima provider berbeda dari terbukti sampai penerima. Provider, kontrak API/template, sumber nomor telepon, jam kirim/zona waktu operasional dan kriteria bukti pengiriman harus disiapkan pemilik layanan sebelum integrasi diaktifkan; persetujuan Q4 tidak membuktikan konfigurasi tersebut sudah tersedia.
+- Tenggat penyusunan Rencana Aksi (`rencana_aksi_mulai/selesai` pada `jadwal_tahunan`, §12.2) yang mendekat/terlewati bagi PIC yang belum menyusun.
+- Tenggat `pengisian_selesai` per periode (`jadwal_periode`, §12.3) yang mendekat/terlewati bagi PIC yang belum mengisi (status "Belum mengisi"/"Tidak mengisi", lihat §23).
+- Rencana Aksi atau Pengukuran yang dikembalikan — notifikasi ke penanggung jawab terkait beserta alasan pengembalian, baik jalur normal maupun buka kembali setelah pengesahan.
+- Rencana Aksi atau Pengukuran yang telah diajukan dan menunggu verifikasi — notifikasi/daftar tugas untuk Perencanaan.
+- Kelengkapan bukti dukung wajib (rencana aksi/pengukuran/kegiatan) yang belum terpenuhi menjelang batas waktu pengajuan/perubahan status.
+- Persyaratan bukti dukung yang ditandai `tidak_dapat_dipenuhi` (§18.7), agar Perencanaan segera menambahkan mode alternatif atau meninjau kebijakan unggahan.
+- Kegiatan berstatus `tidak_terlaksana`/`ditunda`/`batal` yang belum diisi justifikasinya.
+- PK tahun berjalan yang belum tercatat menjelang jendela aktivasi jadwal — pengingat bagi Perencanaan agar tidak terhambat validasi aktivasi (§10.3, §12.4).
 
 ---
 
@@ -1190,14 +1170,14 @@ Pengiriman dijalankan setelah transaksi bisnis berhasil melalui antrean; kegagal
 
 Model data lengkap (ERD dan detail kolom) didokumentasikan secara terpisah pada **SAKIP - Data Model.md**. Ringkasan kelompok entitas pada Fase Awal:
 
-- **Identitas & Akses**: `users`, `unit`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denied`.
+- **Identitas & Akses**: `users`, `unit`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`.
 - **Dasar Aturan**: `regulasi`.
 - **Strategi & Kinerja**: `renstra`, `renstra_pk`, `sasaran`, `indikator`, `target_tahunan`.
 - **Periode & Jadwal**: `periode`, `jadwal_tahunan`, `jadwal_periode`, `jadwal_snapshot`, `jadwal_snapshot_komponen`.
-- **Rencana & Kegiatan**: `rencana_aksi`, `rencana_aksi_versi`, `rencana_aksi_target`, `kegiatan`, `klaim_kegiatan`.
+- **Rencana & Kegiatan**: `rencana_aksi`, `rencana_aksi_target`, `kegiatan`, `klaim_kegiatan`.
 - **Komponen & Perhitungan**: `indikator_komponen`, `pengukuran_komponen`.
 - **Berkas**: `jenis_berkas`, `berkas`.
-- **Eksekusi & Akuntabilitas**: `penanggung_jawab`, `pengukuran`, `pengukuran_versi`, `status_capaian`, `rekomendasi_pimpinan`, `audit_log`.
+- **Eksekusi & Akuntabilitas**: `penanggung_jawab`, `pengukuran`, `status_capaian`, `rekomendasi_pimpinan`, `audit_log`.
 - **Konfigurasi**: `pengaturan`.
 
 ---
@@ -1219,8 +1199,7 @@ Urutan modul mengikuti prioritas pembangunan (§33):
 11. **Dashboard** — visualisasi ApexCharts, filter, status tampilan (§23), panel Rencana Aksi & Kegiatan.
 12. **Laporan & Ekspor** — tabel terfilter, rekapitulasi indikator × periode, ekspor Excel.
 13. **Audit & Histori** — pencarian dan tampilan `audit_log`.
-14. **Setelan Aplikasi** — identitas, preferensi, kebijakan unggahan dan konfigurasi notifikasi (§26).
-15. **Alert & Notifikasi** — in-app baseline MVP serta WA/email sesuai jadwal Q4 (§28); rincian task mengikuti Modul 14 Plan.
+14. **Setelan Aplikasi** — identitas instansi/aplikasi, label unit, preferensi tampilan/laporan, kebijakan storage bukti dukung grup `berkas`, halaman "Batas unggahan berkas" (§26).
 
 ---
 
@@ -1240,7 +1219,7 @@ Ringkasan naratif (diagram lengkap ada di SAKIP - Workflow.md):
 10. Dalam jendela `rencana_aksi_mulai`–`rencana_aksi_selesai`, PIC menyusun Rencana Aksi indikatornya: mengisi target per periode per komponen (kumulatif), memenuhi persyaratan bukti dukung wajib tahap Rencana Aksi bila ada (file, tautan, atau teks sesuai mode yang diizinkan), lalu mengajukannya; Perencanaan memverifikasi dan mengesahkannya.
 11. PIC menyusun Kegiatan per periode untuk unitnya, dan dapat mengklaim kegiatan ke Rencana Aksi/komponen yang didukungnya; saat kegiatan dinyatakan `terlaksana`, sistem memeriksa kelengkapan bukti dukung wajib bertahap `kegiatan` (§15.6).
 12. Penanggung jawab (PIC) mengisi nilai komponen (atau nilai manual) Pengukuran (Draft), memenuhi persyaratan bukti dukung wajib tahap Pengukuran bila ada, lalu mengajukannya (Diajukan) dalam jendela `pengisian_mulai`–`pengisian_selesai` periode yang bersangkutan — tenggat ini mutlak bagi PIC, dan pengajuan hanya berhasil bila lolos gerbang §19.4 (Rencana Aksi disahkan, komponen lengkap, bukti dukung wajib terpenuhi).
-13. Perencanaan memverifikasi/mengembalikan dengan alasan, lalu mengesahkan. Jendela reviu merupakan target operasional; keterlambatan terlihat dan tidak memblokir sampai penutupan atau selama jendela koreksi resmi. Identitas/jalur pengaju versi tetap dipakai untuk F1/F2.
+13. Perencanaan memverifikasi (Diverifikasi) atau mengembalikan (Dikembalikan, dengan alasan) dalam jendela reviu periode tersebut; Perencanaan sendiri dapat mengisi/mengoreksi Rencana Aksi maupun Pengukuran kapan pun sampai `penutupan` jadwal tahunan.
 14. Perencanaan mengesahkan (Disahkan) — tanpa tahap approval Pimpinan pada Fase Awal.
 15. Perencanaan/Superadmin menetapkan Status Capaian secara manual atas pengukuran yang telah Disahkan, dan Perencanaan menetapkan Rekomendasi Pimpinan atas indikator × periode terkait.
 16. Dashboard dan Laporan menampilkan capaian terkini secara otomatis begitu status berubah menjadi Disahkan dan Status Capaian ditetapkan; rekapitulasi indikator × periode dapat diekspor kapan pun.
@@ -1254,48 +1233,43 @@ Ringkasan naratif (diagram lengkap ada di SAKIP - Workflow.md):
 Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 
 1. **Autentikasi**: Pengguna dapat login melalui Keycloak dan sesi Laravel terbentuk berbasis `keycloak_id`; percobaan akses tanpa sesi valid diarahkan ke login.
-2. **Otorisasi dan scope:** resolver menolak permission tak dikenal, deny cocok, atau tidak ada allow. Baca detail Rencana Aksi/Kegiatan dan bukti PIC terbatas unit berizin; mutasi Rencana Aksi/Pengukuran juga memerlukan PIC efektif. Ringkasan umum tidak membuka bukti lintas unit. Admin tanpa grant substantif ditolak, dengan grant valid diizinkan sesuai semua gate; bukan larangan nama role.
+2. **Otorisasi granular**: Permintaan terhadap aksi apa pun ditolak (403) bila algoritma resolusi izin (§7.4) menghasilkan tolak — termasuk saat kode permission tidak dikenal (fail closed), saat ditemukan deny yang cocok (presedens deny menang atas allow), atau saat tidak ada allow yang cocok; permintaan `pengukuran:create`/`update`/`rencana_aksi:create`/`update`/`ajukan`/`kegiatan:create`/`update` oleh PIC ditolak jika tidak ada grant yang cocok dengan `unit_id` target, sementara permintaan yang sama oleh Perencanaan diizinkan tanpa syarat unit karena bersumber dari isi peran (selalu global).
 3. **Validasi aktivasi Renstra**: Sistem menolak aktivasi Renstra tanpa `dasar_hukum` terisi, dan menolak aktivasi jika terjadi irisan rentang tahun dengan Renstra aktif lain.
 4. **Larangan nonaktivasi Renstra**: Sistem menolak permintaan menonaktifkan Renstra selama masih ada `jadwal_tahunan` berstatus aktif yang merujuknya.
 5. **Empat gerbang aktivasi Jadwal**: Sistem menolak aktivasi Jadwal Tahunan jika (a) `renstra_pk` tahun tersebut belum tercatat, (b) ada indikator aktif tanpa `target_tahunan` tahun itu, (c) tahun jadwal berada di luar rentang tahun Renstra, atau (d) `renstra_pk` tahun tersebut belum memiliki minimal satu lampiran dokumen — gerbang (d) ditandai `tidak_dapat_dipenuhi` dan tidak menghalangi aktivasi bila unggahan file dimatikan sementara belum ada lampiran mode lain (§12.4, §14.10).
-6. **Snapshot:** aktivasi/buka kembali idempoten, snapshot yang dirujuk tidak ditimpa. Salah input dibetulkan lewat versi pengganti beralasan/bukti resmi; pengukuran historis tetap memakai versi lama dan koreksi hasil resmi memerlukan pengesahan baru.
-7. **Target Rencana Aksi:** pengajuan menolak target kosong pada periode efektif; manual menerima satu nilai langsung tanpa komponen, nonmanual memakai seluruh komponen snapshot. Periode sebelum berlaku tidak diwajibkan.
+6. **Snapshot otomatis, idempoten, dan imutabel**: Saat Jadwal diaktifkan (termasuk lewat buka kembali), baris `jadwal_snapshot` beserta `jadwal_snapshot_komponen` terbentuk otomatis untuk setiap indikator relevan yang belum punya baris snapshot (tidak pernah menimpa yang sudah ada); baris yang telah dirujuk pengukuran pertamanya tidak dapat diubah lagi.
+7. **Rencana Aksi lengkap sebelum diajukan**: Sistem menolak pengajuan Rencana Aksi bila ada komponen aktif yang belum memiliki target pada salah satu periode yang diharapkan.
 8. **Gerbang keras Pengukuran**: Sistem menolak pengajuan Pengukuran bila Rencana Aksi (indikator × tahun) belum `disahkan`, bila ada komponen aktif dengan nilai `null`, atau bila ada persyaratan bukti dukung wajib tahap pengukuran yang belum terpenuhi (mode file/tautan/teks sesuai yang diizinkan) — kecuali pada jadwal retroaktif.
-9. **Bukti kegiatan:** gate memakai union global dan indikator yang diklaim. Klaim baru setelah terlaksana juga memeriksa bukti tambahan. Status gagal/ditunda/batal cukup justifikasi; bukti koreksi append-only, tanpa penghapusan jejak.
-10. **Perhitungan:** server menghitung dari komponen snapshot, termasuk lima input IKU 3. Penyebut nol dengan komponen lengkap boleh diajukan/disahkan beralasan sebagai tidak dapat dihitung, dibedakan dari input kosong. Backfill final historis wajib sumber/alasan dan tidak mengubah tipe master.
-11. **Waktu:** konfigurasi normal menegakkan urutan jendela RA sebelum pengisian pertama. PIC tunduk jendela resmi yang dapat direvisi beralasan/teraudit. Perencanaan boleh reviu terlambat sampai penutupan, atau dalam lingkup/waktu koreksi setelah buka kembali; PIC tidak otomatis terbuka.
+9. **Gerbang keras Kegiatan**: Sistem menolak transisi status Kegiatan `rencana → terlaksana` bila ada persyaratan bukti dukung wajib bertahap `kegiatan` yang belum terpenuhi (§15.6); persyaratan yang ditandai `tidak_dapat_dipenuhi` (§18.7) tidak menghalangi transisi ini. Transisi ke `tidak_terlaksana`/`ditunda`/`batal` hanya mensyaratkan `justifikasi` terisi.
+10. **Mesin perhitungan komponen**: Untuk indikator bertipe `rasio_persen`/`penjumlahan`, sistem menghitung `pengukuran.nilai` secara otomatis dan benar dari `pengukuran_komponen` sesuai definisi `indikator_komponen` (peran dan bobot), termasuk penanganan pembagian nol sebagai "tidak dapat dihitung".
+11. **Deadline pengisian per periode dan per jendela Rencana Aksi**: PIC ditolak sistem saat mencoba membuat/mengubah/mengajukan Pengukuran setelah `pengisian_selesai` periode yang bersangkutan terlewati, dan saat mencoba menyusun/mengajukan Rencana Aksi setelah `rencana_aksi_selesai` terlewati; Perencanaan tetap dapat melakukannya sampai `penutupan` jadwal tahunan.
 12. **Alur linear Rencana Aksi dan Pengukuran**: Transisi status pada kedua entitas hanya dapat mengikuti urutan yang diizinkan (Draft→Diajukan→Diverifikasi→Disahkan, dengan Dikembalikan sebagai jalur balik dari Diajukan/Diverifikasi/Disahkan); transisi di luar urutan ini ditolak sistem.
 13. **Buka kembali setelah pengesahan**: Sebelum `penutupan`, `pengukuran:buka_kembali`/`rencana_aksi:buka_kembali` berhasil memindahkan status Disahkan ke Dikembalikan dengan alasan wajib; setelah `penutupan`, permintaan yang sama ditolak dan hanya `jadwal:buka_kembali` yang dapat membuka jalur koreksi.
-14. **Catatan:** pengajuan menolak catatan kosong bila nilai numerik memburuk menurut arah snapshot terhadap pembanding disahkan yang relevan, flag wajib_catatan aktif, atau hasil tidak dapat dihitung akibat penyebut nol. Null tidak diperlakukan sebagai nol untuk perbandingan; cakupan pembanding yang belum sebanding wajib ditandai.
+14. **Validasi catatan wajib berbasis arah**: Pengajuan pengukuran ditolak jika catatan kosong pada kondisi nilai (termasuk nilai turunan) memburuk menurut `indikator.arah` dibanding pengukuran Disahkan terakhir secara kronologis, atau jika `indikator.wajib_catatan = true`; nilai stagnan dan pengukuran pertama tanpa pembanding tidak memicu penolakan ini.
 15. **Klaim kegiatan tidak mengubah nilai komponen**: Menambah/menghapus baris `klaim_kegiatan` tidak mengubah nilai `pengukuran_komponen`/`rencana_aksi_target` mana pun secara otomatis.
 16. **Optimistic locking**: Update pengukuran/rencana aksi dengan nomor `versi` usang ditolak dengan pesan konflik yang jelas.
 17. **Tidak ada penghapusan permanen**: Percobaan menghapus pengukuran/rencana aksi yang memiliki nilai/catatan, baris snapshot yang telah dirujuk, atau bukti dukung pada induk yang sudah berada dalam keadaan sah (Disahkan/`terlaksana`), ditolak sistem dan/atau tercatat sebagai percobaan di audit log.
 18. **Audit lengkap**: Setiap peristiwa pada §25.1 menghasilkan baris `audit_log` yang dapat dicari dan ditelusuri oleh pengguna dengan `audit:read`.
-19. **Dashboard/histori:** ringkasan resmi memakai versi disahkan, konteks target/narasi historis tidak berubah oleh revisi kerja, dan periode tidak berlaku dikecualikan dari kewajiban. Versi koreksi disahkan baru tampil Belum ditetapkan sampai status capaian baru dibuat; null tidak dijumlahkan sebagai nol.
-20. **Ekspor:** Excel valid memisahkan target PK, target periode, realisasi, persentase dan konteks baseline; angka/komponen/narasi/versi cocok dengan contoh penerimaan yang disahkan Perencanaan, bukan susunan kolom sumber yang ambigu.
+19. **Dashboard hanya data sah**: Angka capaian pada dashboard hanya dihitung dari pengukuran berstatus Disahkan; status "Belum mengisi"/"Tidak mengisi" dihitung per kombinasi indikator × periode dari `jadwal_periode`, mengecualikan indikator arsip.
+20. **Ekspor Excel**: Laporan tabular terfilter dan rekapitulasi indikator × periode dapat diekspor ke berkas Excel yang valid dan dapat dibuka.
 21. **Tanpa approval Pimpinan**: Tidak ada langkah wajib yang memerlukan aksi `pengukuran:setujui` agar Pengukuran mencapai status Disahkan pada Fase Awal; Rekomendasi Pimpinan diisi Perencanaan, bukan Pimpinan.
 22. **Status capaian manual**: Seluruh baris `status_capaian` yang dibuat pada Fase Awal memiliki `sumber = 'manual'` dan `ditetapkan_oleh` terisi.
 23. **UI akses terbatas**: Hanya tiga form pengelolaan akses (assign peran, kelola grant izin per unit, kelola deny izin) beserta halaman "Jelaskan izin pengguna" yang tersedia di UI; tidak ada UI matrix permission penuh.
-24. **Setelan aplikasi terbatas dan teraudit**: Hanya pemegang `pengaturan:update` (bawaan Superadmin/Admin) yang dapat mengubah `pengaturan` (termasuk kunci grup `berkas`) dan mengubah `format_diizinkan`/`ukuran_maks_kb` lewat halaman "Batas unggahan berkas"; setiap perubahan menghasilkan baris `audit_log` dengan nilai lama/baru dan masking rahasia; tidak ada kunci `pengaturan` maupun halaman "Batas unggahan berkas" yang mengendalikan enum/status/permission/aturan bisnis maupun kolom substantif persyaratan bukti dukung.
-25. **Seed data**: Skrip seeder Laravel dapat dijalankan pada lingkungan pengembangan/testing dan menghasilkan minimal 1 Renstra, Sasaran, beberapa Indikator (termasuk minimal satu indikator berkomponen), Target, 1 PK, 1 Jadwal Tahunan beserta Jadwal Periode-nya, Rencana Aksi yang disahkan, dan Kegiatan yang valid untuk pengujian alur end-to-end.
-26. **Presedens deny**: Sistem menolak permintaan otorisasi bila ditemukan baris `user_permission_denied` yang cocok (unit maupun global), terlepas dari peran atau grant apa pun yang dimiliki pengguna.
+24. **Setelan aplikasi terbatas dan teraudit**: Hanya Superadmin dan Admin yang dapat mengubah `pengaturan` (termasuk kunci grup `berkas`) dan mengubah `format_diizinkan`/`ukuran_maks_kb` lewat halaman "Batas unggahan berkas"; setiap perubahan menghasilkan baris `audit_log` dengan nilai lama/baru; tidak ada kunci `pengaturan` maupun halaman "Batas unggahan berkas" yang mengendalikan enum/status/permission/aturan bisnis maupun kolom substantif persyaratan bukti dukung.
+25. **Seed data**: Skrip seeder Laravel dapat dijalankan pada lingkungan pengembangan/testing dan menghasilkan minimal 1 Renstra, Sasaran, beberapa Indikator (termasuk minimal satu indikator berkomponen), Target, 1 PK, 1 Jadwal Tahunan beserta Jadwal Periode-nya, Rencana Aksi yang disahkan, dan Kegiatan yang valid untuk pengujian alur end-to-end, serta minimal 1 user uji untuk masing-masing dari enam role (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`).
+26. **Presedens deny**: Sistem menolak permintaan otorisasi bila ditemukan baris `user_permission_denials` yang cocok (unit maupun global), terlepas dari peran atau grant apa pun yang dimiliki pengguna.
 27. **Fail closed**: Sistem menolak permintaan otorisasi untuk kode permission yang tidak terdaftar aktif di tabel `permissions`.
 28. **Dasar izin tercatat**: Setiap aksi dengan `permissions.sensitif = true` menghasilkan baris `audit_log` yang memuat `dasar_izin` (sumber allow yang mengizinkan, atau deny yang menolak).
-29. **F1/F2:** berlaku untuk Rencana Aksi dan Pengukuran. Aktor yang sama dengan pengaju versi melalui jalur PIC ditolak meskipun role kemudian berubah; pengajuan jalur Perencanaan boleh self-approval dengan penanda, tanpa melewati permission/deny.
+29. **Pemisahan tugas F1/F2**: Sistem menolak transisi verifikasi/pengesahan Pengukuran oleh aktor yang sama dengan `pengukuran.created_by` pada jalur PIC; transisi yang sama oleh Perencanaan atas pengisiannya sendiri berhasil namun tercatat dengan penanda `self_approval`.
 30. **Halaman "Jelaskan izin pengguna"**: Untuk sembarang pengguna yang dipilih, halaman ini menampilkan daftar izin efektifnya per unit beserta asal (peran/grant) dan deny yang berlaku, konsisten dengan hasil algoritma resolusi izin (§7.4).
 31. **Validasi mode bukti dukung**: Penyimpanan `jenis_berkas` ditolak bila ketiga `izinkan_file`/`izinkan_tautan`/`izinkan_teks` bernilai `false`; pengiriman bukti (`berkas`) dengan `mode` di luar yang diizinkan pada persyaratannya ditolak sistem; bukti bermode `tautan` tanpa skema `http`/`https` atau bukti bermode `teks`/`tautan` tanpa `isi_teks`/`tautan` terisi ditolak.
-32. **Pengecualian file:** saat upload off, file-only tidak memblokir; kombinasi seluruh-mode-wajib tetap mewajibkan tautan/teks yang tersedia. Mode yang dikecualikan/masih kurang terlihat dan diaudit. Pengecualian khusus lampiran PK tetap berlaku. Persyaratan versi diajukan dibekukan; perubahan baru tidak membatalkan versi disahkan.
+32. **Penanda `tidak_dapat_dipenuhi` tidak memblokir**: Bila `berkas.unggahan_aktif = false` dan suatu persyaratan hanya mengizinkan mode `file`, persyaratan itu ditandai `tidak_dapat_dipenuhi`, tercatat di `audit_log`, tampil pada rekapitulasi dan halaman kerja Perencanaan, dan tidak menghalangi gerbang kelengkapan mana pun (§18.6, §18.7), termasuk gerbang lampiran PK pada aktivasi jadwal (§12.4).
 33. **Entitas `regulasi` dan rujukannya**: Penyimpanan `regulasi` ditolak bila kombinasi (`jenis`, `nomor`, `tahun`) sudah ada (`unique`); lampiran `regulasi` ditolak dihapus selama regulasi masih dirujuk oleh Renstra atau indikator aktif; perubahan `renstra.regulasi_id`/`indikator.regulasi_id` tercatat di `audit_log`.
 34. **Lampiran enam induk**: Pengiriman/penghapusan `berkas` berhasil untuk keenam nilai `berkasable_type` (`rencana_aksi`/`pengukuran`/`kegiatan`/`renstra`/`renstra_pk`/`regulasi`); penghapusan ditolak sistem setelah induk masing-masing melewati batas imutabilitasnya (§18.8).
 35. **Halaman "Batas unggahan berkas" terbatas**: Permintaan ubah `jenis_berkas` lewat halaman ini yang menyertakan kolom substantif di luar `format_diizinkan`/`ukuran_maks_kb` ditolak sistem; halaman hanya dapat diakses pemegang `pengaturan:update`; setiap perubahan tercatat di `audit_log` per persyaratan (§26.4).
-36. **Fixture perhitungan:** konfigurasi contoh diuji sesuai definisi snapshot dan presisi. IKU 3 membuktikan lima input → subtotal SAKIP → hasil setara penjumlahan datar tanpa double weighting; fixture IKU 8 tidak menjadi izin memakai definisi penyebut yang belum disahkan pada produksi.
+36. **Lampiran pemetaan indikator sebagai fixture**: Kedelapan baris pada §17.11.1, saat diinput sebagai `indikator_komponen` dengan angka contoh 2026, menghasilkan nilai turunan yang sama persis dengan hitungan manual pada kolom "Contoh angka 2026" — dipakai sebagai test mesin perhitungan (§17.11.3), bukan nilai yang di-hardcode pada kode.
+37. **Enam role resmi (Q31)**: Tabel `roles` memuat tepat enam kode sistem (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`); Form Assign Peran menampilkan keenam pilihan dan user dapat ditetapkan ke role `pic` tanpa melanggar constraint satu role per user. Kriteria ini **tidak** menetapkan preset permission role `pic` maupun eligibility `penanggung_jawab`, karena keduanya masih OPEN sampai ada konfirmasi resmi.
 
-Pelengkap penerimaan hasil penyelarasan:
-- Koreksi klaim mengikuti sumber/induknya; klaim Pengukuran draft dapat dibetulkan meski Rencana Aksi sudah disahkan, tanpa menghapus histori.
-- Versi pengajuan mempertahankan target, narasi, bukti dan persyaratan yang ditinjau. Perubahan persyaratan bagi proses berjalan membutuhkan pengembalian beralasan.
-- Kolom anggaran tidak ditampilkan, diterima atau divalidasi pada MVP.
-- Alert in-app, pengingat eksternal H-7/H-3/H-1 dan rekap H-3/H-1 diverifikasi sesuai §28; kegagalan provider tidak menggagalkan transaksi bisnis.
-- Checklist developer/test otomatis dipisahkan dari walkthrough/UAT, penetapan data awal, bukti kesiapan infrastruktur, dan persetujuan penerimaan/go-live oleh pihak yang ditetapkan PM.
 
 ---
 
@@ -1316,8 +1290,7 @@ Urutan modul mengikuti §30, dengan alasan dependency teknis:
 11. Dashboard — bergantung pada Pengukuran, Rencana Aksi, Kegiatan, dan Status Capaian.
 12. Laporan & Ekspor — bergantung pada Pengukuran, Rencana Aksi, Kegiatan, dan Dashboard.
 13. Audit & Histori — dibangun paralel sejak modul pertama (audit log dicatat sejak Autentikasi & Akses), namun UI pencarian/tampilannya dituntaskan setelah modul inti berjalan.
-14. Setelan operasional unggahan disiapkan sebelum gate bukti/aktivasi memakainya; preferensi administratif lainnya dapat menyusul. Ini tidak menjadikan seed data pengujian prasyarat produksi.
-15. Alert in-app dibangun bersama alur yang memicunya; integrasi WA/email disiapkan pada bagian akhir sebelum 9 November 2026 sesuai Q4.
+14. Setelan Aplikasi (termasuk halaman "Batas unggahan berkas") — tidak memiliki dependency berat ke modul lain; ditempatkan terakhir karena bersifat administratif dan tidak menghambat alur inti pengukuran.
 
 Detail pemecahan task granular per fitur ada di **SAKIP - Plan Pengembangan.md**.
 
@@ -1325,20 +1298,21 @@ Detail pemecahan task granular per fitur ada di **SAKIP - Plan Pengembangan.md**
 
 ## 34. Catatan Risiko
 
-1. **Snapshot dan titik commit aktivasi jadwal.** `jadwal_snapshot` (beserta `jadwal_snapshot_komponen`) diterapkan penuh sejak Fase Awal, bersifat idempoten dan imutabel setelah dirujuk — begitu suatu Jadwal Tahunan diaktifkan, perubahan berikutnya pada master Indikator (nama, definisi, satuan, target, arah, cara hitung, definisi komponen) tidak lagi memengaruhi pengukuran tahun berjalan yang sudah merujuk snapshot tersebut. Ini memang disengaja, untuk menjaga integritas historis capaian yang telah atau akan disahkan. Konsekuensinya, aktivasi jadwal menjadi titik pemeriksaan penting. Koreksi salah input target resmi mengikuti §12.5: snapshot yang sudah dirujuk memerlukan versi pengganti, sumber dan alasan; hasil disahkan hanya berubah lewat pengajuan/pengesahan baru. Buka kembali setelah penutupan tidak memberi izin menimpa histori atau mengubah formula secara bebas. Validasi kelengkapan dan kebenaran Renstra/Indikator/Komponen/Target sebelum aktivasi jadwal (lihat §10.3, §12.4) karena itu perlu ditegakkan ketat, idealnya lewat checklist yang ditegakkan aplikasi maupun SOP manual Perencanaan.
+1. **Snapshot dan titik commit aktivasi jadwal.** `jadwal_snapshot` (beserta `jadwal_snapshot_komponen`) diterapkan penuh sejak Fase Awal, bersifat idempoten dan imutabel setelah dirujuk — begitu suatu Jadwal Tahunan diaktifkan, perubahan berikutnya pada master Indikator (nama, definisi, satuan, target, arah, cara hitung, definisi komponen) tidak lagi memengaruhi pengukuran tahun berjalan yang sudah merujuk snapshot tersebut. Ini memang disengaja, untuk menjaga integritas historis capaian yang telah atau akan disahkan. Konsekuensinya, aktivasi jadwal menjadi titik commit penting: kesalahan pada master data atau definisi komponen yang belum diperbaiki sebelum aktivasi ikut terbekukan ke snapshot dan sulit dikoreksi tanpa `jadwal:buka_kembali` atau koreksi manual pada baris snapshot yang belum dirujuk. Validasi kelengkapan dan kebenaran Renstra/Indikator/Komponen/Target sebelum aktivasi jadwal (lihat §10.3, §12.4) karena itu perlu ditegakkan ketat, idealnya lewat checklist yang ditegakkan aplikasi maupun SOP manual Perencanaan.
 2. **Rencana Aksi sebagai gerbang baru berisiko menghambat pengisian bila keterlambatan penyusunannya tidak dikelola.** Karena pengajuan Pengukuran ditolak selama Rencana Aksi belum `disahkan` (§19.4), keterlambatan penyusunan atau pengesahan Rencana Aksi berdampak langsung memblokir seluruh pengukuran periode berjalan pada indikator tersebut. Disarankan alert dini (§28) menjelang `rencana_aksi_selesai` dan pemantauan proaktif Perencanaan atas indikator yang belum menyusun Rencana Aksi.
-3. **Batas mesin dan kualitas data:** mesin formula bertingkat generik ditunda, tetapi IKU 3 dapat direpresentasikan sebagai lima komponen penjumlah berbobot (§17.10). Risiko utama adalah menggandakan bobot, mencampur target dengan realisasi, atau menyamakan baseline SAKIP saja dengan skor gabungan; verifikasi definisi/angka Perencanaan tetap diperlukan.
+3. **Mesin perhitungan satu tingkat membatasi indikator yang dapat diotomasi.** Indikator dengan struktur formula bertingkat (mis. Predikat SAKIP/ZI) tetap harus diketik manual (§17.10), sehingga manfaat mesin perhitungan tidak merata ke seluruh indikator — perlu SOP terpisah untuk indikator-indikator ini agar tetap konsisten dan terverifikasi meski tidak dihitung sistem.
 4. **Klaim kegiatan yang tidak mengubah nilai komponen berisiko disalahpahami pengguna sebagai bug** bila tidak dijelaskan jelas di UI — perlu penegasan tampilan bahwa klaim adalah dokumentasi keterkaitan, sementara nilai komponen tetap harus diisi manual terpisah (§16.3).
 5. **Makna "Disahkan" pada Fase Awal.** Status ini dicapai murni oleh keputusan internal Perencanaan, tanpa jenjang persetujuan pimpinan unit — berlaku untuk Rencana Aksi maupun Pengukuran. Organisasi perlu menyesuaikan ekspektasi: "Disahkan" di sini setara "sah secara administratif teknis", bukan "disetujui pimpinan". Pelaporan formal (mis. LKj) sebaiknya memperhitungkan konteks ini sampai Fase Lanjutan mengaktifkan approval Pimpinan.
-6. **Kelonggaran operasional Perencanaan tetap berbatas.** Perencanaan dapat menyelesaikan pengisian/reviu setelah jendela PIC, dengan penanda keterlambatan, tetapi hanya sampai penutupan tahunan. Sesudahnya sistem wajib memeriksa sesi koreksi resmi, lingkup dan deadline; SOP serta pengingat melengkapi batas sistem tersebut (§12.3, §12.6).
+6. **Ketergantungan pada kedisiplinan Perencanaan sebagai pihak yang dikecualikan dari tenggat.** Karena permission pengisian Rencana Aksi dan Pengukuran milik Perencanaan bersifat global dan tidak tunduk pada jendela periode/tahun, kedisiplinan menjaga kelengkapan data sebelum `penutupan` sepenuhnya bergantung pada SOP internal, bukan penegakan sistem. Disarankan pengingat/alert (§28) menjelang tanggal `penutupan` sebagai kompensasi.
 7. **`jadwal:buka_kembali` sebagai jalur serbaguna berisiko disalahgunakan bila SOP longgar.** Karena mekanisme yang sama dipakai untuk beberapa tujuan berbeda (koreksi, penambahan IKU baru, backfill), penting agar setiap penggunaannya disertai alasan yang spesifik dan dapat dibedakan lewat audit log, bukan sekadar "buka jadwal" generik.
 8. Penetapan status capaian dan Rekomendasi Pimpinan sepenuhnya manual pada Fase Awal, sehingga rawan human error dan keterlambatan — dashboard bisa menampilkan banyak baris "Belum ditetapkan" meski data sudah Disahkan. SOP yang disarankan: tetapkan status capaian dan Rekomendasi Pimpinan segera setelah pengesahan, idealnya dalam satu alur kerja yang sama.
-9. Permission individual di luar tiga form pengelolaan akses (§7.5) berisiko salah cakupan. Mekanisme administratif tetap wajib memvalidasi katalog/scope, mencatat aktor, alasan, nilai sebelum/sesudah dan `dasar_izin` pada audit; query SQL tanpa jejak bukan jalur pemberian izin.
+9. Permission individual di luar tiga form pengelolaan akses (§7.5) hanya bisa diberikan lewat seeder atau query manual, yang berisiko human error dan tidak terdokumentasi lewat UI. Mitigasi minimalnya: perubahan manual semacam ini tetap harus melalui jalur yang menulis ke `audit_log` — misalnya Artisan command yang mencatat audit, bukan `UPDATE` SQL langsung tanpa jejak.
 10. Penyimpanan file di disk VPS memerlukan kapasitas dan strategi cadangan yang memadai seiring bertambahnya volume unggahan tiap periode. Panel "Penggunaan penyimpanan bukti dukung" (§18.9) membantu memantau tren ini, tetapi keputusan menaikkan kapasitas atau mendorong persyaratan baru memakai mode `tautan`/`teks` tetap SOP manual Perencanaan dan pemegang `pengaturan:update` — perlu dipantau sejak awal operasional agar tidak menjadi kendala kapasitas di kemudian hari.
 11. Selama ekspor PDF belum tersedia (Fase Lanjutan), kebutuhan lampiran dokumen resmi (LKj, laporan ke Kemen PANRB) tetap memerlukan proses manual di luar sistem, misalnya menyalin data Excel ke template dokumen, sampai Fase Lanjutan direalisasikan.
 12. **Penanda `self_approval` membutuhkan pemantauan aktif.** Karena jalur Perencanaan boleh mengesahkan pengisiannya sendiri (§7.6), volume penanda `self_approval` yang tinggi adalah sinyal beban kerja atau keterlambatan PIC yang perlu ditindaklanjuti secara organisasi, bukan sekadar catatan administratif yang dibiarkan menumpuk di audit log.
 13. **Gerbang lampiran PK dapat "dilonggarkan" lewat mode teks.** Karena gerbang lampiran PK pada aktivasi jadwal (§12.4) menerima mode apa pun termasuk keterangan teks bebas, ada risiko Perencanaan mengisi lampiran seadanya (teks singkat) hanya untuk melewati gerbang, alih-alih mengunggah naskah PK yang sesungguhnya. Mitigasi: SOP internal Perencanaan menegaskan bahwa lampiran PK idealnya berupa salinan naskah resmi (mode file/tautan), bukan sekadar teks — gerbang sistem hanya menjamin *ada* lampiran, bukan menjamin *mutu* lampiran.
 14. **Pemisahan kewenangan `format_diizinkan`/`ukuran_maks_kb` antara dua jalur berisiko tumpang tindih tanpa koordinasi.** Karena kedua kolom ini dapat diubah baik lewat form persyaratan (Perencanaan, §18.2) maupun halaman "Batas unggahan berkas" (Admin/Superadmin, §26.4), perubahan oleh satu pihak dapat menimpa nilai yang baru saja ditetapkan pihak lain tanpa keduanya menyadari. Mitigasi: SOP operasional menetapkan bahwa perubahan format/ukuran rutin (kapasitas, dukungan format baru) lewat halaman Admin, sedangkan perubahan yang menyertai perubahan substansi persyaratan lain lewat form Perencanaan — dan audit log (§26.4) dipantau berkala untuk mendeteksi tumpang tindih.
 15. **Lampiran pemetaan indikator (§17.11) berisiko dibaca sebagai aturan final oleh implementator** meski berstatus contoh pengisian awal. Mitigasi: penegasan definisi IKU 8 (§17.11.2) wajib diselesaikan Tim Perencanaan sebelum data produksi tahun 2026 diinput, dan setiap turunan indikator baru (2027 dst.) harus melalui verifikasi ulang terhadap Kepmen yang berlaku saat itu, bukan menyalin lampiran ini secara membuta.
+16. **Role PIC sudah resmi, tetapi preset permission dan eligibility assignment belum final.** Risiko terbesar adalah implementasi langsung memberi permission scoped sebagai permission global lewat `role_permissions`, atau menambahkan constraint `penanggung_jawab` hanya boleh role PIC tanpa keputusan bisnis. Mitigasi: implementasikan keberadaan role/Assign Peran/seeder/test enam role terlebih dahulu, tetapi pertahankan status OPEN untuk preset permission dan constraint eligibility sampai LLDIKTI/Tim Perencanaan memberi konfirmasi eksplisit.
 
 ---

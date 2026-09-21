@@ -2,75 +2,40 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
     public function share(Request $request): array
     {
-        $user = $request->user();
-
         return [
             ...parent::share($request),
-            'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'nip' => $user->nip,
-                    'jabatan' => $user->jabatan,
-                    'unit_kerja' => $user->unitKerja ? [
-                        'id' => $user->unitKerja->id,
-                        'nama' => $user->unitKerja->nama,
-                        'singkatan' => $user->unitKerja->singkatan,
-                    ] : null,
-                    'roles' => $user->roles->pluck('name')->toArray(),
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-                ] : null,
-            ],
+            'auth' => function () use ($request) {
+                $user = $request->user()?->fresh();
+                $resolver = app(PermissionResolver::class);
+                $active = $user && $user->is_active;
+
+                return [
+                    'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'is_active' => $user->is_active, 'role' => $active ? $user->roles()->value('kode') : null] : null,
+                    'can' => [
+                        'dashboard' => $active && $resolver->allows($user, 'dashboard:read'),
+                        'pengukuran' => $active && $resolver->allows($user, 'pengukuran:read'),
+                        'verifikasi' => $active && $resolver->allows($user, 'pengukuran:read') && ($resolver->allows($user, 'pengukuran:verifikasi') || $resolver->allows($user, 'pengukuran:sahkan') || $resolver->allows($user, 'pengukuran:kembalikan')),
+                        'aktivasi' => $active && $resolver->allows($user, 'pengguna:read'),
+                        'assignRole' => $active && $resolver->allows($user, 'pengguna:read') && $resolver->allows($user, 'akses:update'),
+                        'jenisBerkas' => $active && $resolver->allows($user, 'jenis_berkas:read'),
+                    ],
+                ];
+            },
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'message' => fn () => $request->session()->get('message'),
             ],
-            'is_dev' => app()->environment('local'),
-            'demo_users' => app()->environment('local') ? User::with('unitKerja', 'roles')->get()->map(function ($u) {
-                return [
-                    'id' => $u->id,
-                    'name' => $u->name,
-                    'email' => $u->email,
-                    'role' => $u->roles->first()?->name ?? 'pegawai',
-                    'unit' => $u->unitKerja?->singkatan ?? 'LLDIKTI',
-                ];
-            }) : [],
         ];
     }
 }

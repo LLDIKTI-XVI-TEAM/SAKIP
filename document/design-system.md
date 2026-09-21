@@ -5,6 +5,9 @@
 >
 > Gunakan panduan ini saat membuat atau memodifikasi komponen antarmuka React (`resources/js/pages/`, `resources/js/components/`, `resources/js/layouts/`). Jangan menggunakan kelas ad-hoc atau raw hex apabila token dan komponen reusable yang sesuai sudah tersedia.
 
+> **Penyelarasan role — 20 September 2026 (Q31):** SAKIP menggunakan **enam role resmi**: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Design system **tidak** menetapkan permission bisnis berdasarkan nama role. UI hanya menampilkan menu, tombol, form, dan aksi berdasarkan capability/permission yang sudah dihitung server melalui props `can.*`. Role `pic` juga tidak boleh disamakan dengan assignment `penanggung_jawab` indikator. Preset permission bawaan PIC dan eligibility menjadi `penanggung_jawab` masih **OPEN** sampai dikonfirmasi LLDIKTI/Tim Perencanaan.
+
+
 ---
 
 ## 📋 Deskripsi Proyek & Arsitektur
@@ -28,7 +31,7 @@ Design system dan panduan implementasi UI untuk aplikasi **SAKIP LLDIKTI Wilayah
 
 ## 🎯 Prinsip Desain
 
-**Physical scene:** Tim Perencanaan Kinerja, Pimpinan Lembaga, Penanggung Jawab (PIC Unit Kerja), serta Auditor/Admin di lingkungan LLDIKTI Wilayah XVI. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
+**Physical scene:** pengguna SAKIP di lingkungan LLDIKTI Wilayah XVI mencakup enam role resmi — **Super Admin, Admin, Perencanaan, PIC, Pimpinan, dan Pegawai** — serta konteks bisnis **Penanggung Jawab indikator/PIC operasional**. Role PIC dan assignment Penanggung Jawab adalah konsep berbeda: role menggambarkan klasifikasi utama pengguna, sedangkan assignment menentukan konteks indikator yang menjadi tanggung jawabnya. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
 
 Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data kinerja tinggi**, andal, dan fungsional — bukan dekoratif.
 
@@ -41,6 +44,24 @@ Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data k
 - ✅ Pertahankan **spacing konsisten** dan ritme visual berjenjang
 - ✅ Semua halaman wajib **mobile responsive** dan rapi di layar desktop
 - ✅ **Single Page Application Feel** — Navigasi instan tanpa reload halaman via `<Link>` dari `@inertiajs/react`
+
+### Prinsip UI untuk Role, Permission, dan Q31
+
+Design system hanya mengatur **presentasi hasil authorization**, bukan menentukan authorization itu sendiri.
+
+- ✅ Backend menghitung hak akses melalui Policy/Gate/resolver dan mengirim hasil sebagai props `can.*`.
+- ✅ React boleh memakai `can.*` untuk menentukan visibilitas atau disabled state.
+- ✅ Route/controller tetap melakukan authorization ulang; menyembunyikan tombol **bukan** mekanisme keamanan.
+- ✅ Form **Assign Peran** menampilkan enam pilihan: **Super Admin, Admin, Perencanaan, PIC, Pimpinan, Pegawai**.
+- ✅ Label role boleh dipakai untuk identitas/presentasi, misalnya badge profil atau kolom tabel.
+- ✅ UI Penanggung Jawab harus menampilkan konteks assignment indikator secara terpisah dari label role.
+- ❌ Jangan menulis authorization seperti `if (user.role === 'pic')` untuk membuka aksi bisnis.
+- ❌ Jangan menganggap role `pic` otomatis memberi akses ke semua indikator, unit, Rencana Aksi, atau Pengukuran.
+- ❌ Jangan menganggap seluruh user role `pic` adalah penerima notifikasi untuk semua indikator; penerima mengikuti konteks domain yang dikirim server.
+- ❌ Jangan membuat menu khusus PIC dengan permission default yang belum dikonfirmasi.
+
+> **OPEN Q31:** preset permission bawaan role `pic`, eligibility menjadi `penanggung_jawab`, mapping user existing, dan beberapa hak baca default PIC belum final. Frontend harus tetap netral terhadap keputusan tersebut.
+
 
 ---
 
@@ -521,30 +542,97 @@ export default function EditPengukuran({ pengukuran }: Props) {
 
 ## 🗂️ Navigasi Sidebar Berbasis `<Link>` Inertia
 
-Navigasi antar halaman dilakukan menggunakan komponen `<Link>` dari `@inertiajs/react` agar transisi halaman cepat tanpa refresh layar penuh:
+Navigasi antar halaman menggunakan `<Link>` dari `@inertiajs/react`. Daftar menu mengikuti rantai kinerja, tetapi **visibilitas menu harus berasal dari capability yang sudah dihitung server**, bukan dari nama role.
+
+> Contoh berikut memakai objek `can` sebagai representasi capability server. Nama key dapat disesuaikan dengan kontrak props aplikasi, tetapi keputusan allow/deny tetap dibuat backend.
 
 ```tsx
 import { Link, usePage } from '@inertiajs/react';
 
-export default function SidebarNav() {
-    const { url } = usePage();
+interface NavigationPageProps {
+    can: Record<string, boolean>;
+}
 
-    // Menu disusun mengikuti rantai kinerja:
-    // Regulasi/Renstra → Indikator → PK → Jadwal → Rencana Aksi → Kegiatan → Pengukuran → Dashboard/Laporan
-    // Visibilitas item disesuaikan oleh server via props `can.*`
+export default function SidebarNav() {
+    const { url, props } = usePage<NavigationPageProps>();
+    const { can } = props;
+
+    // Rantai menu:
+    // Regulasi/Renstra → Indikator → PK → Jadwal → Rencana Aksi
+    // → Kegiatan → Pengukuran → Dashboard/Laporan
+    //
+    // PENTING:
+    // - Jangan gunakan user.role === 'pic' untuk membuka menu.
+    // - Server sudah menghitung capability efektif melalui role/grant/deny/business context.
+
     const navItems = [
-        { label: 'Dashboard', href: '/dashboard', active: url.startsWith('/dashboard') },
-        { label: 'Regulasi', href: '/regulasi', active: url.startsWith('/regulasi') },
-        { label: 'Renstra & Indikator', href: '/renstra', active: url.startsWith('/renstra') },
-        { label: 'Perjanjian Kinerja', href: '/pk', active: url.startsWith('/pk') },
-        { label: 'Jadwal Tahunan', href: '/jadwal', active: url.startsWith('/jadwal') },
-        { label: 'Rencana Aksi', href: '/rencana-aksi', active: url.startsWith('/rencana-aksi') },
-        { label: 'Kegiatan', href: '/kegiatan', active: url.startsWith('/kegiatan') },
-        { label: 'Pengukuran Kinerja', href: '/pengukuran', active: url.startsWith('/pengukuran') },
-        { label: 'Laporan & Ekspor', href: '/laporan', active: url.startsWith('/laporan') },
-        { label: 'Kelola Akses', href: '/akses', active: url.startsWith('/akses') },
-        { label: 'Pengaturan', href: '/pengaturan', active: url.startsWith('/pengaturan') },
-    ];
+        {
+            label: 'Dashboard',
+            href: '/dashboard',
+            active: url.startsWith('/dashboard'),
+            visible: can['dashboard:read'] === true,
+        },
+        {
+            label: 'Regulasi',
+            href: '/regulasi',
+            active: url.startsWith('/regulasi'),
+            visible: can['regulasi:read'] === true,
+        },
+        {
+            label: 'Renstra & Indikator',
+            href: '/renstra',
+            active: url.startsWith('/renstra'),
+            visible: can['renstra:read'] === true || can['indikator:read'] === true,
+        },
+        {
+            label: 'Perjanjian Kinerja',
+            href: '/pk',
+            active: url.startsWith('/pk'),
+            visible: can['pk:read'] === true,
+        },
+        {
+            label: 'Jadwal Tahunan',
+            href: '/jadwal',
+            active: url.startsWith('/jadwal'),
+            visible: can['jadwal:read'] === true,
+        },
+        {
+            label: 'Rencana Aksi',
+            href: '/rencana-aksi',
+            active: url.startsWith('/rencana-aksi'),
+            visible: can['rencana_aksi:read'] === true,
+        },
+        {
+            label: 'Kegiatan',
+            href: '/kegiatan',
+            active: url.startsWith('/kegiatan'),
+            visible: can['kegiatan:read'] === true,
+        },
+        {
+            label: 'Pengukuran Kinerja',
+            href: '/pengukuran',
+            active: url.startsWith('/pengukuran'),
+            visible: can['pengukuran:read'] === true,
+        },
+        {
+            label: 'Laporan & Ekspor',
+            href: '/laporan',
+            active: url.startsWith('/laporan'),
+            visible: can['laporan:read'] === true,
+        },
+        {
+            label: 'Kelola Akses',
+            href: '/akses',
+            active: url.startsWith('/akses'),
+            visible: can['akses:update'] === true,
+        },
+        {
+            label: 'Pengaturan',
+            href: '/pengaturan',
+            active: url.startsWith('/pengaturan'),
+            visible: can['pengaturan:update'] === true,
+        },
+    ].filter(item => item.visible);
 
     return (
         <nav className="space-y-1 px-3 py-4">
@@ -553,8 +641,8 @@ export default function SidebarNav() {
                     key={item.href}
                     href={item.href}
                     className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                        item.active 
-                            ? 'bg-primary text-white shadow-sm' 
+                        item.active
+                            ? 'bg-primary text-white shadow-sm'
                             : 'text-muted hover:bg-soft hover:text-ink'
                     }`}
                 >
@@ -565,6 +653,115 @@ export default function SidebarNav() {
     );
 }
 ```
+
+### Aturan Tombol dan Aksi Sensitif
+
+Prinsip yang sama berlaku pada tombol **Tambah**, **Edit**, **Ajukan**, **Verifikasi**, **Sahkan**, **Kembalikan**, **Buka Kembali**, **Hapus**, dan aksi lain:
+
+```tsx
+{canUpdate && (
+    <Button variant="primary" onClick={handleEdit}>
+        Edit
+    </Button>
+)}
+```
+
+`canUpdate` harus berasal dari server. React tidak menghitung sendiri kombinasi role, unit, grant, deny, Penanggung Jawab efektif, jendela waktu, status record, atau F1/F2.
+
+### UI Assign Peran
+
+Form Assign Peran menampilkan enam opsi resmi:
+
+```tsx
+const roleOptions = [
+    { value: 'superadmin', label: 'Super Admin' },
+    { value: 'admin', label: 'Admin' },
+    { value: 'perencanaan', label: 'Perencanaan' },
+    { value: 'pic', label: 'PIC' },
+    { value: 'pimpinan', label: 'Pimpinan' },
+    { value: 'pegawai', label: 'Pegawai' },
+];
+```
+
+Aturan:
+
+- hanya tampil kepada pengguna yang menerima capability akses dari server;
+- satu user tetap satu role pada MVP;
+- mengganti role tidak boleh mengubah provenance RA/Pengukuran lama;
+- memilih role PIC tidak otomatis membuat assignment `penanggung_jawab`;
+- memilih role PIC tidak otomatis membuat grant unit;
+- frontend tidak menampilkan daftar permission bawaan PIC sebagai fakta final selama preset Q31 masih OPEN.
+
+### Presentasi Role PIC vs Penanggung Jawab
+
+Jika layar perlu menampilkan keduanya, gunakan label yang tidak ambigu.
+
+Contoh:
+
+```text
+Role Utama
+PIC
+
+Penanggung Jawab Indikator
+- IKU 1 — aktif mulai 1 Jan 2026
+- IKU 3 — aktif mulai 1 Jul 2026
+```
+
+Jangan menampilkan:
+
+```text
+PIC semua indikator
+```
+
+hanya karena role pengguna adalah `pic`.
+
+---
+
+## 🔐 Kontrak UI Authorization Q31
+
+Frontend harus memperlakukan tiga konsep berikut secara terpisah:
+
+| Konsep | Sumber | Digunakan UI untuk |
+|---|---|---|
+| **Role utama** | `user_roles` / props identitas | Label/profil dan Form Assign Peran |
+| **Capability efektif** | hasil resolver server, `can.*` | Visibilitas menu, tombol, aksi, disabled state |
+| **Penanggung Jawab/PIC efektif** | konteks domain server | Menampilkan indikator/tugas yang menjadi tanggung jawab pengguna |
+
+### Yang Boleh Dilakukan React
+
+- menampilkan/menyembunyikan UI berdasarkan `can.*`;
+- menampilkan badge/label role;
+- menampilkan daftar indikator/tugas yang sudah difilter server;
+- memberikan disabled/loading/error state;
+- menampilkan alasan 403/validation yang aman;
+- menampilkan konteks Penanggung Jawab yang dikirim server.
+
+### Yang Tidak Boleh Dilakukan React
+
+```tsx
+// ❌ SALAH — authorization berdasarkan role
+if (auth.user.role === 'pic') {
+    showApproveButton();
+}
+
+// ❌ SALAH — menganggap PIC dapat semua indikator
+const editable = auth.user.role === 'pic';
+
+// ❌ SALAH — menghitung izin dari unit di client
+const canEdit = user.unit_id === indikator.unit_id;
+```
+
+Gunakan hasil server:
+
+```tsx
+// ✅ BENAR
+const { can } = usePage<PageProps>().props;
+
+{can.update && <Button>Edit</Button>}
+```
+
+> **Catatan:** server tetap harus memverifikasi ulang authorization pada request mutasi. `can.*` pada UI adalah alat presentasi dan UX, bukan pengganti Policy/Gate/resolver.
+
 
 ---
 
@@ -580,6 +777,14 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
 - [ ] **Modal Alasan Audit**: Aksi sensitif (permission `sensitif=true`) memicu modal input alasan sebelum request dikirim
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
+
+- [ ] **Enam Role Q31**: UI yang menampilkan pilihan/label role mengenal `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`
+- [ ] **PIC ≠ Pegawai**: Tidak ada label/logic frontend yang menyamakan role PIC dengan Pegawai
+- [ ] **PIC ≠ Penanggung Jawab**: Assignment indikator ditampilkan sebagai konteks terpisah dari role utama
+- [ ] **Tidak Ada Role-Based Authorization**: Tidak ada `if (role === 'pic')`, `if (role === 'admin')`, atau pola sejenis untuk memberikan akses bisnis
+- [ ] **Capability-Based Navigation**: Sidebar, tombol, dan aksi sensitif mengikuti `can.*` dari server
+- [ ] **Preset PIC OPEN**: Tidak ada permission default PIC yang di-hardcode sebelum keputusan Q31 ditutup
+- [ ] **Assign Peran Lengkap**: Form Assign Peran menampilkan keenam role dan tetap satu role per user pada MVP
 - [ ] **Toolchain Bun**: Tidak ada `package-lock.json` atau referensi npm; lockfile yang sah adalah `bun.lock`/`bun.lockb`
 - [ ] **shadcn/ui Konsisten**: Komponen shadcn/ui dikustomisasi menggunakan token design system ini, bukan warna default-nya
 - [ ] **Aksesibilitas & Kontras**: Kontras teks body terhadap background ≥ 4.5:1
@@ -587,4 +792,4 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 
 ---
 
-*Versi 4.0 — SAKIP LLDIKTI Wilayah XVI — September 2026 — Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
+*Versi 4.1 — SAKIP LLDIKTI Wilayah XVI — 20 September 2026 — Penyelarasan Q31 (6 role) — Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
