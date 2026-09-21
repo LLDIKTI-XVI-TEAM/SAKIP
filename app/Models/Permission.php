@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
-use Spatie\Permission\Models\Permission as SpatiePermission;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
-/**
- * @property string|null $entitas
- * @property string|null $aksi
- * @property string $butuh_scope
- * @property bool $sensitif
- * @property bool $aktif
- * @property string|null $keterangan
- */
-class Permission extends SpatiePermission {}
+class Permission extends Model
+{
+    use HasUuids;
+
+    protected $fillable = ['kode', 'entitas', 'aksi', 'keterangan', 'butuh_scope', 'sensitif', 'aktif'];
+
+    protected function casts(): array
+    {
+        return ['sensitif' => 'boolean', 'aktif' => 'boolean'];
+    }
+}

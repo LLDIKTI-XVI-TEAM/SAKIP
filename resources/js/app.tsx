@@ -1,6 +1,11 @@
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 
+// Kembali dari bfcache harus memeriksa session dan izin terbaru di server.
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) window.location.reload();
+});
+
 createInertiaApp({
     title: (title) => (title ? `${title} - SAKIP LLDIKTI XVI` : 'SAKIP LLDIKTI XVI'),
     resolve: (name) => {

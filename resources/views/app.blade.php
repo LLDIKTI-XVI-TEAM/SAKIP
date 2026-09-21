@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title inertia>{{ config('app.name', 'SAKIP LLDIKTI XVI') }}</title>
+    <link rel="icon" type="image/png" sizes="150x150" href="/img/dikti16-favicon-blue-150x150.png">
 
     <!-- Google Fonts Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

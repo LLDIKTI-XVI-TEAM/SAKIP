@@ -2,39 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 class AuditLog extends Model
 {
+    use HasUuids;
+
     protected $table = 'audit_log';
 
     public $timestamps = false;
 
-    protected $fillable = [
-        'actor_id',
-        'waktu',
-        'tindakan',
-        'objek_tipe',
-        'objek_id',
-        'nilai_lama',
-        'nilai_baru',
-        'alasan',
-        'dasar_izin',
-    ];
+    protected $fillable = ['actor_id', 'actor_type', 'sumber', 'operator_reference', 'runtime_identity', 'waktu', 'tindakan', 'objek_tipe', 'objek_id', 'nilai_lama', 'nilai_baru', 'alasan', 'dasar_izin'];
 
     protected function casts(): array
     {
-        return [
-            'waktu' => 'datetime',
-            'nilai_lama' => 'array',
-            'nilai_baru' => 'array',
-            'dasar_izin' => 'array',
-        ];
+        return ['waktu' => 'immutable_datetime', 'nilai_lama' => 'array', 'nilai_baru' => 'array', 'dasar_izin' => 'array'];
     }
 
-    public function actor(): BelongsTo
+    protected static function booted(): void
     {
-        return $this->belongsTo(User::class, 'actor_id');
+        static::updating(fn () => throw new LogicException('Audit bersifat append-only.'));
+        static::deleting(fn () => throw new LogicException('Audit bersifat append-only.'));
     }
 }

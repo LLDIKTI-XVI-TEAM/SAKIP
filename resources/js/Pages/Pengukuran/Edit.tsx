@@ -1,425 +1,153 @@
-import React, { useMemo } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { 
-    Calculator, 
-    UploadCloud, 
-    Link as LinkIcon, 
-    FileText, 
-    AlertTriangle, 
-    CheckCircle2, 
-    ArrowLeft,
-    Send,
-    Save,
-    ExternalLink,
-    Clock
-} from 'lucide-react';
+import { ArrowLeft, Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
+import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
+import EvidenceList from './EvidenceList';
+import { formatNilai } from './formatNilai';
+import CalculationPreview from './CalculationPreview';
 
-interface PengukuranEditProps {
-    pengukuran: any;
+interface PengukuranEditProps { pengukuran: Pengukuran }
+
+export default function PengukuranEdit(props: PengukuranEditProps) {
+    return <PengukuranForm key={props.pengukuran.id} {...props} />;
 }
 
-export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
-    const iku = pengukuran.penugasan_indikator?.indikator_kinerja;
-    const isLocked = !['draft', 'dikembalikan'].includes(pengukuran.status);
-
-    const { data, setData, post, processing, errors } = useForm({
-        realisasi: pengukuran.realisasi !== null ? String(pengukuran.realisasi) : '',
-        kendala: pengukuran.kendala || '',
-        tindak_lanjut: pengukuran.tindak_lanjut || '',
-        strategi: pengukuran.strategi || '',
-        file_bukti: null as File | null,
-        url_bukti: '',
-        keterangan_bukti: '',
-        action: 'draft',
+function PengukuranForm({ pengukuran }: PengukuranEditProps) {
+    const { can } = pengukuran;
+    const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
+    const historical = pengukuran.sumber_nilai === 'historis';
+    const manual = pengukuran.sumber_nilai !== 'komponen';
+    const errorSummary = useRef<HTMLUListElement>(null);
+    const [requestError, setRequestError] = useState('');
+    const { data, setData, transform, post, processing, errors } = useForm({
+        versi: pengukuran.versi,
+        nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
+        komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
+        catatan: pengukuran.catatan || '',
+        alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
+        tambah_bukti: false,
+        jenis_berkas_id: '',
+        menggantikan_id: '',
+        alasan_koreksi: '',
+        mode: 'tautan' as BuktiPengukuran['mode'],
+        file: null as File | null,
+        tautan: '',
+        isi_teks: '',
+        action: 'draft' as 'draft' | 'ajukan',
     });
+    const fieldErrors: Record<string, string | undefined> = errors;
+    const disabled = !can.update || historical || processing;
+    const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
+    const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
+    const activeMode = modes.includes(data.mode) ? data.mode : (modes[0] ?? null);
+    const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
 
-    // Real-time live calculation in React
-    const calculatedCapaian = useMemo(() => {
-        if (!data.realisasi || isNaN(Number(data.realisasi))) {
-            return null;
-        }
-
-        const realisasi = parseFloat(data.realisasi);
-        const target = parseFloat(pengukuran.target);
-
-        if (target <= 0) {
-            return realisasi > 0 ? 100 : 0;
-        }
-
-        if (iku?.tipe_perhitungan === 'turun_baik') {
-            const res = ((2 * target - realisasi) / target) * 100;
-            return Math.max(0, Math.round(res * 100) / 100);
-        } else {
-            const res = (realisasi / target) * 100;
-            return Math.max(0, Math.round(res * 100) / 100);
-        }
-    }, [data.realisasi, pengukuran.target, iku?.tipe_perhitungan]);
-
-    const isUnderperforming = calculatedCapaian !== null && calculatedCapaian < 100.0;
-
-    const handleSubmit = (actionType: 'draft' | 'ajukan') => {
-        data.action = actionType;
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (disabled) return;
+        const submitter = (event.nativeEvent as SubmitEvent).submitter;
+        const intent = submitter instanceof HTMLButtonElement && submitter.value === 'ajukan' ? 'ajukan' : 'draft';
+        if (intent === 'ajukan' && !can.submit) return;
+        setRequestError('');
+        transform((values) => ({
+            versi: values.versi, action: intent,
+            ...(manual ? { nilai: values.nilai === '' ? null : values.nilai } : { komponen: values.komponen.map((item) => ({ ...item, nilai: item.nilai === '' ? null : item.nilai })) }),
+            catatan: values.catatan, alasan_tidak_dapat_dihitung: values.alasan_tidak_dapat_dihitung,
+            ...(values.tambah_bukti && can.uploadEvidence && modes.length > 0 ? { bukti: {
+                jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
+                ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),
+                ...(activeMode === 'file' ? { file: values.file } : activeMode === 'tautan' ? { tautan: values.tautan } : { isi_teks: values.isi_teks }),
+            } } : {}),
+        }));
         post(`/pengukuran/${pengukuran.id}`, {
             preserveScroll: true,
+            onError: () => requestAnimationFrame(() => errorSummary.current?.focus()),
+            onNetworkError: () => { setRequestError('Koneksi terputus. Hasil penyimpanan belum diketahui; periksa status pengukuran sebelum mencoba kembali.'); return false; },
+            onHttpException: () => { setRequestError('Penyimpanan belum dapat dipastikan. Sesi atau izin mungkin berubah. Periksa status pengukuran sebelum mencoba kembali.'); return false; },
         });
     };
 
-    // Find if there is a rejection note from previous review
-    const lastRejection = pengukuran.riwayats?.find((r: any) => r.status_ke === 'dikembalikan');
-
-    return (
-        <AuthenticatedLayout
-            title="Form Pengisian Realisasi Kinerja"
-            breadcrumbs={[
-                { label: 'Pengukuran Kinerja', href: '/pengukuran' },
-                { label: `Pengisian ${iku?.kode}` },
-            ]}
-        >
-            <Head title={`Pengisian ${iku?.kode}`} />
-
-            <div className="max-w-4xl mx-auto space-y-6">
-                {/* Back button */}
-                <div className="flex items-center justify-between">
-                    <Link
-                        href="/pengukuran"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Kembali ke Daftar Pengukuran
-                    </Link>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">Status Saat Ini:</span>
-                        <Badge status={pengukuran.status} />
-                    </div>
-                </div>
-
-                {/* Catatan Revisi jika Dikembalikan */}
-                {lastRejection && pengukuran.status === 'dikembalikan' && (
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                            <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">
-                                Catatan Perbaikan dari Tim Perencanaan
-                            </h4>
-                            <p className="text-xs text-rose-800 mt-1 whitespace-pre-wrap">
-                                {lastRejection.catatan}
-                            </p>
-                            <span className="text-[10px] text-rose-500 mt-1 block">
-                                Dikembalikan oleh {lastRejection.user?.name || 'Verifikator'} • {new Date(lastRejection.created_at).toLocaleString('id-ID')}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Lock banner if not draft */}
-                {isLocked && (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-900 text-xs">
-                        <Clock className="w-5 h-5 text-blue-600 shrink-0" />
-                        <div>
-                            <span className="font-semibold">Data sedang dalam status {pengukuran.status}.</span>{' '}
-                            Formulir ini terkunci untuk pengeditan karena telah diajukan ke tim verifikator.
-                        </div>
-                    </div>
-                )}
-
-                {/* Info Indikator Card */}
+    return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}>
+        <Head title={`Pengisian ${indikator.kode}`} />
+        <div className="mx-auto max-w-4xl space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <Link href="/pengukuran" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary"><ArrowLeft className="h-4 w-4" />Kembali ke daftar pengukuran</Link>
+                <Badge status={pengukuran.status} />
+            </div>
+            {lastRejection && pengukuran.status === 'dikembalikan' && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{lastRejection.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {lastRejection.user?.nama || 'Verifikator'}</p></div>}
+            {!can.update && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p>}
+            {historical && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p>}
+            <Card>
+                <CardHeader><CardTitle>{indikator.kode} · {indikator.nama}</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                    {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
+                    <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                        <div><dt className="text-muted">Unit penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
+                        <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd><dd className="text-xs text-muted">{indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd></div>
+                        <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                    </dl>
+                </CardContent>
+            </Card>
+            {!pengukuran.prasyarat.siap && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Prasyarat pengajuan belum lengkap</h2><ul className="mt-2 list-disc space-y-1 pl-5">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Simpan draf untuk memperbarui hasil dan pemenuhan sebelum mengajukan.</p></div>}
+            <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
+                {Object.keys(errors).length > 0 && <ul ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{Object.entries(errors).map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
+                {requestError && <p role="alert" className="text-sm text-danger">{requestError}</p>}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Informasi Indikator Kinerja Utama</CardTitle>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-primary/10 text-primary">
-                            {iku?.kode}
-                        </span>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div>
-                            <h2 className="text-base font-bold text-slate-900">
-                                {iku?.nama}
-                            </h2>
-                            {iku?.definisi_operasional && (
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    {iku?.definisi_operasional}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 text-xs">
-                            <div className="p-2.5 bg-slate-50 rounded-lg">
-                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                                    Unit Penanggung Jawab
-                                </span>
-                                <span className="font-semibold text-slate-800">
-                                    {pengukuran.penugasan_indikator?.unit_kerja?.nama}
-                                </span>
-                            </div>
-                            <div className="p-2.5 bg-slate-50 rounded-lg">
-                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                                    Tipe Perhitungan Formula
-                                </span>
-                                <span className="font-semibold text-primary uppercase">
-                                    {iku?.tipe_perhitungan}
-                                </span>
-                                <span className="text-slate-500 text-[10px] block">
-                                    {iku?.tipe_perhitungan === 'turun_baik'
-                                        ? 'Semakin kecil realisasi, capaian semakin tinggi'
-                                        : 'Semakin besar realisasi, capaian semakin tinggi'}
-                                </span>
-                            </div>
-                            <div className="p-2.5 bg-slate-50 rounded-lg">
-                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                                    Target Triwulan {pengukuran.periode_jadwal?.triwulan}
-                                </span>
-                                <span className="font-bold text-base text-slate-900">
-                                    {pengukuran.target} {iku?.satuan}
-                                </span>
-                            </div>
-                        </div>
+                    <CardHeader><CardTitle>Nilai pengukuran</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={disabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
+                            <p className="text-sm text-muted">Isi setiap komponen sesuai periode pengukuran. Pratinjau diperbarui dari hasil perhitungan server; simpan draf untuk menyimpan perubahan.</p>
+                            {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={disabled} helperText={`${item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
+                        </div>}
+                        {!manual && can.update && !historical && <CalculationPreview id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
+                        <div className="rounded-lg border border-border bg-soft p-4"><p className="text-xs font-medium text-muted">Hasil terakhir tersimpan</p><p className="mt-1 break-words text-2xl font-semibold text-primary">{pengukuran.nilai === null ? statusPerhitungan[pengukuran.status_perhitungan] : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</p><p className="mt-2 text-xs text-muted">Perubahan input belum mengubah hasil ini.</p></div>
+                        {!manual && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={disabled} helperText="Isi alasan jika penyebut faktual bernilai nol. Komponen kosong tetap harus dilengkapi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
+                        <Textarea name="catatan" label="Catatan pengukuran" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Catatan wajib mengikuti ketentuan indikator dan perubahan nilai terhadap pengukuran sah sebelumnya. Server memeriksanya saat pengajuan." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
                     </CardContent>
                 </Card>
-
-                {/* Form Pengukuran */}
-                <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-                    {/* Realisasi & Live Calculator */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Calculator className="w-4 h-4 text-primary" />
-                                Realisasi & Simulasi Capaian
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
-                                <div>
-                                    <Input
-                                        label={`Realisasi Capaian (${iku?.satuan})`}
-                                        type="number"
-                                        step="any"
-                                        name="realisasi"
-                                        placeholder="Masukkan angka realisasi..."
-                                        value={data.realisasi}
-                                        onChange={(e) => setData('realisasi', e.target.value)}
-                                        error={errors.realisasi}
-                                        disabled={isLocked}
-                                        required
-                                        helperText={`Target yang harus dipenuhi: ${pengukuran.target} ${iku?.satuan}`}
-                                    />
-                                </div>
-
-                                {/* Live Calculation Result Card */}
-                                <div className={`p-4 rounded-xl border transition-all ${
-                                    calculatedCapaian === null
-                                        ? 'bg-slate-50 border-slate-200'
-                                        : calculatedCapaian >= 100
-                                        ? 'bg-emerald-50/80 border-emerald-300'
-                                        : calculatedCapaian >= 80
-                                        ? 'bg-blue-50/80 border-blue-300'
-                                        : 'bg-rose-50/80 border-rose-300'
-                                }`}>
-                                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                                        Hasil Kalkulasi Otomatis (Live Preview)
-                                    </div>
-                                    <div className="flex items-baseline gap-2 mt-1">
-                                        <span className={`text-3xl font-extrabold ${
-                                            calculatedCapaian === null
-                                                ? 'text-slate-400'
-                                                : calculatedCapaian >= 100
-                                                ? 'text-emerald-700'
-                                                : calculatedCapaian >= 80
-                                                ? 'text-blue-700'
-                                                : 'text-rose-700'
-                                        }`}>
-                                            {calculatedCapaian !== null ? `${calculatedCapaian}%` : '0.00%'}
-                                        </span>
-                                        {calculatedCapaian !== null && (
-                                            <span className="text-xs font-semibold">
-                                                {calculatedCapaian >= 100
-                                                    ? 'Target Tercapai / Melampaui'
-                                                    : calculatedCapaian >= 80
-                                                    ? 'Cukup Baik'
-                                                    : 'Perlu Perhatian Khusus'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 mt-1 font-mono">
-                                        Rumus: {iku?.tipe_perhitungan === 'turun_baik'
-                                            ? `((2 * ${pengukuran.target} - ${data.realisasi || '0'}) / ${pengukuran.target}) * 100%`
-                                            : `(${data.realisasi || '0'} / ${pengukuran.target}) * 100%`}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Bukti Dukung (Evidence) Card */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <UploadCloud className="w-4 h-4 text-primary" />
-                                Dokumen Bukti Dukung (Evidence)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {/* Existing Evidence List */}
-                            {pengukuran.bukti_dukungs && pengukuran.bukti_dukungs.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="text-xs font-semibold text-slate-700">
-                                        Berkas Bukti Dukung Terlampir:
-                                    </div>
-                                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
-                                        {pengukuran.bukti_dukungs.map((b: any) => (
-                                            <div key={b.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
-                                                <div className="flex items-center gap-2">
-                                                    <FileText className="w-4 h-4 text-primary" />
-                                                    <div>
-                                                        <div className="font-semibold text-slate-800">{b.nama_file}</div>
-                                                        <div className="text-[10px] text-slate-400">{b.keterangan || 'Dokumen Bukti'}</div>
-                                                    </div>
-                                                </div>
-                                                {b.download_url && (
-                                                    <a
-                                                        href={b.download_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
-                                                    >
-                                                        Lihat Dokumen
-                                                        <ExternalLink className="w-3 h-3" />
-                                                    </a>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {!isLocked && (
-                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-                                    <div className="text-xs font-semibold text-slate-700">
-                                        Unggah Bukti Dukung Baru
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* File Upload Option */}
-                                        <div>
-                                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                                                Unggah File Fisik (PDF / Gambar / Excel)
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx"
-                                                onChange={(e) => setData('file_bukti', e.target.files?.[0] || null)}
-                                                className="block w-full text-xs text-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 file:cursor-pointer cursor-pointer border border-border rounded-lg p-1.5 bg-surface"
-                                            />
-                                            {errors.file_bukti && (
-                                                <p className="mt-1 text-xs text-rose-600">{errors.file_bukti}</p>
-                                            )}
-                                        </div>
-
-                                        {/* Cloud Link Option */}
-                                        <div>
-                                            <Input
-                                                label="Atau Tautan Cloud (Google Drive / OneDrive)"
-                                                type="url"
-                                                placeholder="https://drive.google.com/..."
-                                                value={data.url_bukti}
-                                                onChange={(e) => setData('url_bukti', e.target.value)}
-                                                error={errors.url_bukti}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <Input
-                                            label="Keterangan Singkat Bukti Dukung"
-                                            placeholder="Contoh: SK Rektor, Laporan Akreditasi BAN-PT..."
-                                            value={data.keterangan_bukti}
-                                            onChange={(e) => setData('keterangan_bukti', e.target.value)}
-                                            error={errors.keterangan_bukti}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Catatan Analisis & Kendala (Mandatory if Capaian < 100%) */}
-                    <Card className={isUnderperforming ? 'border-amber-300 ring-1 ring-amber-200' : ''}>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-primary" />
-                                Analisis Kinerja & Tindak Lanjut
-                            </CardTitle>
-                            {isUnderperforming && (
-                                <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-md flex items-center gap-1">
-                                    <AlertTriangle className="w-3.5 h-3.5" />
-                                    Wajib Diisi (Capaian &lt; 100%)
-                                </span>
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Textarea
-                                label="Identifikasi Kendala dan Permasalahan"
-                                placeholder="Jelaskan hambatan atau tantangan operasional yang dihadapi selama periode berjalan..."
-                                value={data.kendala}
-                                onChange={(e) => setData('kendala', e.target.value)}
-                                error={errors.kendala}
-                                disabled={isLocked}
-                                required={isUnderperforming}
-                            />
-
-                            <Textarea
-                                label="Tindak Lanjut Yang Telah Dilakukan"
-                                placeholder="Upaya dan penanganan konkrit yang sudah dijalankan untuk mengatasi kendala..."
-                                value={data.tindak_lanjut}
-                                onChange={(e) => setData('tindak_lanjut', e.target.value)}
-                                error={errors.tindak_lanjut}
-                                disabled={isLocked}
-                                required={isUnderperforming}
-                            />
-
-                            <Textarea
-                                label="Strategi dan Solusi Periode Berikutnya"
-                                placeholder="Rencana strategi perbaikan untuk mencapai target pada triwulan berikutnya..."
-                                value={data.strategi}
-                                onChange={(e) => setData('strategi', e.target.value)}
-                                error={errors.strategi}
-                                disabled={isLocked}
-                                required={isUnderperforming}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* Action Buttons */}
-                    {!isLocked && (
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => handleSubmit('draft')}
-                                isLoading={processing}
-                            >
-                                <Save className="w-4 h-4 mr-1" />
-                                Simpan Sebagai Draft
-                            </Button>
-
-                            <Button
-                                type="button"
-                                variant="primary"
-                                onClick={() => handleSubmit('ajukan')}
-                                isLoading={processing}
-                            >
-                                <Send className="w-4 h-4 mr-1" />
-                                Ajukan ke Tim Perencanaan
-                            </Button>
-                        </div>
-                    )}
-                </form>
-            </div>
-        </AuthenticatedLayout>
-    );
+                <Card>
+                    <CardHeader><CardTitle>Bukti dukung</CardTitle></CardHeader>
+                    <CardContent className="space-y-5">
+                        <EvidenceList pengukuran={pengukuran} />
+                        {can.uploadEvidence && !historical && <div className="space-y-4 rounded-lg border border-border bg-soft p-4">
+                            <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={data.tambah_bukti} disabled={disabled} onChange={(event) => setData('tambah_bukti', event.target.checked)} />Tambahkan bukti dukung</label>
+                            {data.tambah_bukti && <>
+                                <div><label htmlFor="jenis-bukti" className="block text-sm font-medium">Persyaratan yang dipenuhi</label><select id="jenis-bukti" value={data.jenis_berkas_id} disabled={disabled} onChange={(event) => {
+                                    const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
+                                    const available = (['file', 'tautan', 'teks'] as const).filter((mode) => (!selected || selected[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
+                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '', mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
+                                }} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary"><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></div>
+                                {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <div>
+                                    <label htmlFor="bukti-pendahulu" className="block text-sm font-medium">Bukti yang diganti (opsional)</label>
+                                    <select id="bukti-pendahulu" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-koreksi-help'} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary">
+                                        <option value="">Tambahkan tanpa mengganti bukti</option>
+                                        {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({item.mode})</option>)}
+                                    </select>
+                                    <p id="bukti-koreksi-help" className="mt-1 text-xs text-muted">Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti.</p>
+                                </div>}
+                                {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
+                                {modes.length === 0 ? <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p> : <>
+                                    <div><label htmlFor="mode-bukti" className="block text-sm font-medium">Mode bukti</label><select id="mode-bukti" value={activeMode ?? ''} disabled={disabled} onChange={(event) => setData('mode', event.target.value as BuktiPengukuran['mode'])} className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:ring-2 focus:ring-primary">{modes.map((mode) => <option key={mode} value={mode}>{mode === 'file' ? 'Unggahan file' : mode === 'tautan' ? 'Tautan' : 'Teks'}</option>)}</select></div>
+                                    {activeMode === 'file' && <Input name="bukti-file" label="File bukti" type="file" disabled={disabled} onChange={(event) => setData('file', event.target.files?.[0] ?? null)} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')} helperText={requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : undefined} error={fieldErrors['bukti.file']} aria-describedby={fieldErrors['bukti.file'] ? 'measurement-errors' : undefined} />}
+                                    {activeMode === 'tautan' && <Input name="bukti-tautan" label="Tautan bukti" type="url" value={data.tautan} disabled={disabled} onChange={(event) => setData('tautan', event.target.value)} error={fieldErrors['bukti.tautan']} helperText="Gunakan alamat http atau https." aria-describedby={fieldErrors['bukti.tautan'] ? 'measurement-errors' : undefined} />}
+                                    {activeMode === 'teks' && <Textarea name="bukti-teks" label="Isi bukti teks" value={data.isi_teks} disabled={disabled} onChange={(event) => setData('isi_teks', event.target.value)} error={fieldErrors['bukti.isi_teks']} aria-describedby={fieldErrors['bukti.isi_teks'] ? 'measurement-errors' : undefined} />}
+                                </>}
+                                <p className="text-xs text-muted">Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya.</p>
+                            </>}
+                        </div>}
+                    </CardContent>
+                </Card>
+                {can.update && !historical && <div className="flex flex-wrap justify-between gap-3 border-t border-border pt-4">
+                    <Button type="submit" name="action" value="draft" variant="outline" isLoading={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary"><Save className="mr-2 h-4 w-4" />Simpan Sebagai Draft</Button>
+                    {can.submit && <Button type="submit" name="action" value="ajukan" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary"><Send className="mr-2 h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
+                </div>}
+            </form>
+        </div>
+    </AuthenticatedLayout>;
 }
