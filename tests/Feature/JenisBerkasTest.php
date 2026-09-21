@@ -6,6 +6,7 @@ use App\Actions\Audit\WriteAuditLog;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
+use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use RuntimeException;
@@ -223,7 +225,7 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-5: Otorisasi fail closed: Admin dan Pegawai ditolak (403).
+     * TEST-5: Otorisasi fail closed: Admin dan Pegawai ditolak (403), dan percobaan mutasi sensitif dicatat audit.
      */
     public function test_unauthorized_users_cannot_mutate_jenis_berkas(): void
     {
@@ -238,6 +240,36 @@ class JenisBerkasTest extends TestCase
 
         $responsePegawai = $this->actingAs($this->pegawai)->post('/jenis-berkas', $payload);
         $responsePegawai->assertStatus(403);
+
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Terlindungi',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Percobaan update oleh pegawai ditolak 403 dan dicatat di audit log
+        $updateResponse = $this->actingAs($this->pegawai)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Pembaruan Tidak Sah',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'alasan' => 'Mencoba ubah tanpa hak',
+        ]);
+        $updateResponse->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'jenis_berkas.ubah_ditolak',
+            'objek_id' => $jb->id,
+        ]);
+
+        // Percobaan delete oleh pegawai ditolak 403 dan dicatat di audit log
+        $deleteResponse = $this->actingAs($this->pegawai)->delete("/jenis-berkas/{$jb->id}", [
+            'alasan' => 'Mencoba hapus tanpa hak',
+        ]);
+        $deleteResponse->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'jenis_berkas.hapus_ditolak',
+            'objek_id' => $jb->id,
+        ]);
     }
 
     /**
@@ -329,5 +361,65 @@ class JenisBerkasTest extends TestCase
                 ->etc()
             )
         );
+    }
+
+    /**
+     * TEST-9: Penghapusan persyaratan yang masih dirujuk berkas ditolak dengan validation error.
+     */
+    public function test_cannot_delete_jenis_berkas_referenced_by_berkas(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Dengan Berkas',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        DB::table('berkas')->insert([
+            'id' => (string) Str::uuid(),
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => (string) Str::uuid(),
+            'mode' => 'teks',
+            'isi_teks' => 'Catatan bukti yang dirujuk',
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
+            'alasan' => 'Mencoba hapus persyaratan yang sudah dirujuk bukti',
+        ]);
+
+        $response->assertSessionHasErrors('alasan');
+        $this->assertDatabaseHas('jenis_berkas', ['id' => $jb->id]);
+    }
+
+    /**
+     * TEST-10: Peringatan flash muncul saat persyaratan wajib file-only disimpan sementara unggahan nonaktif.
+     */
+    public function test_warning_flashed_when_mandatory_file_only_saved_while_uploads_disabled(): void
+    {
+        Pengaturan::create([
+            'kunci' => 'berkas.unggahan_aktif',
+            'nilai' => 'false',
+            'tipe' => 'boolean',
+            'grup' => 'berkas',
+            'updated_at' => now(),
+        ]);
+
+        $payload = [
+            'nama' => 'Laporan Khusus File Dinonaktifkan',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+        ];
+
+        $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', $payload);
+        $response->assertRedirect('/jenis-berkas');
+        $response->assertSessionHas('warning');
+        $this->assertDatabaseHas('jenis_berkas', ['nama' => 'Laporan Khusus File Dinonaktifkan']);
     }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, CheckSquare, Settings2 } from 'lucide-react';
+import { FileText, CheckSquare, Settings2, AlertCircle } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
@@ -36,6 +36,7 @@ interface JenisBerkasModalProps {
     errors: Record<string, string>;
     indikators: IndikatorOption[];
     isLoading: boolean;
+    unggahanAktif?: boolean;
     onChange: (field: keyof JenisBerkasFormData, value: any) => void;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
@@ -48,6 +49,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     errors,
     indikators,
     isLoading,
+    unggahanAktif = true,
     onChange,
     onClose,
     onSubmit,
@@ -211,6 +213,20 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     </label>
                 </div>
 
+                {/* Peringatan jika berkas.unggahan_aktif = false dan syarat wajib hanya mode file */}
+                {!unggahanAktif && data.wajib && data.izinkan_file && !data.izinkan_tautan && !data.izinkan_teks && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-xs text-amber-800" role="alert">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold text-amber-900">Peringatan: Mode Unggahan File Dinonaktifkan Global</span>
+                            <p className="mt-0.5 text-amber-700 leading-relaxed">
+                                Setelan aplikasi saat ini menonaktifkan mode unggahan file (<code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-[11px]">berkas.unggahan_aktif = false</code>). 
+                                Persyaratan wajib dengan hanya mode file ini berpotensi tidak dapat dipenuhi oleh PIC dan akan ditandai <span className="font-semibold">tidak dapat dipenuhi</span> pada alur kerja. Disarankan mengaktifkan mode tautan atau teks.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Batasan Teknis File (Hanya relevan jika izinkan_file = true) */}
                 <div className={`p-3.5 rounded-lg border transition-colors ${data.izinkan_file ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-100 opacity-60'}`}>
                     <div className="flex items-center gap-1.5 mb-2.5">
@@ -227,6 +243,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             onChange={(e) => onChange('format_diizinkan', e.target.value)}
                             placeholder="Contoh: pdf,docx,xlsx,jpg,png"
                             disabled={isLoading || !data.izinkan_file}
+                            error={errors.format_diizinkan}
                             helperText="Kosong = default aplikasi"
                         />
 
@@ -240,6 +257,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             onChange={(e) => onChange('ukuran_maks_kb', e.target.value ? Number(e.target.value) : null)}
                             placeholder="Contoh: 10240 (10 MB)"
                             disabled={isLoading || !data.izinkan_file}
+                            error={errors.ukuran_maks_kb}
                             helperText="Kosong = default aplikasi (minimal 100 KB)"
                         />
                     </div>
@@ -256,6 +274,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             value={data.urutan}
                             onChange={(e) => onChange('urutan', Number(e.target.value))}
                             disabled={isLoading}
+                            error={errors.urutan}
                         />
                     </div>
 
@@ -268,6 +287,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             onChange={(e) => onChange('keterangan', e.target.value)}
                             placeholder="Petunjuk khusus pengunggahan bagi PIC..."
                             disabled={isLoading}
+                            error={errors.keterangan}
                         />
                     </div>
                 </div>

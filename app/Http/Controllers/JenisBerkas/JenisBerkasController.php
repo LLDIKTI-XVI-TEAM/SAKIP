@@ -8,6 +8,7 @@ use App\Http\Requests\StoreJenisBerkasRequest;
 use App\Http\Requests\UpdateJenisBerkasRequest;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
+use App\Models\Pengaturan;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use Carbon\Carbon;
@@ -43,9 +44,15 @@ class JenisBerkasController extends Controller
             ->orderBy('kode')
             ->get();
 
+        $isUnggahanAktif = filter_var(
+            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
         return Inertia::render('JenisBerkas/Index', [
             'jenisBerkasList' => $jenisBerkasList,
             'indikators' => $indikators,
+            'unggahanAktif' => $isUnggahanAktif,
             'can' => [
                 'create' => $resolver->allows($actor, 'jenis_berkas:create'),
                 'update' => $resolver->allows($actor, 'jenis_berkas:update'),
@@ -60,8 +67,13 @@ class JenisBerkasController extends Controller
         $decision = $resolver->decide($actor, 'jenis_berkas:create');
         abort_unless($decision['allowed'], 403);
 
-        DB::transaction(function () use ($request, $actor, $decision) {
-            $data = $request->validated();
+        $data = $request->validated();
+        $isUnggahanAktif = filter_var(
+            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        DB::transaction(function () use ($data, $actor, $decision) {
             $data['created_by'] = $actor->id;
 
             $jb = JenisBerkas::create($data);
@@ -78,31 +90,51 @@ class JenisBerkasController extends Controller
             );
         });
 
-        return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil ditambahkan.');
+        $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil ditambahkan.');
+
+        if (! $isUnggahanAktif && ($data['wajib'] ?? false) && ($data['izinkan_file'] ?? false) && ! ($data['izinkan_tautan'] ?? false) && ! ($data['izinkan_teks'] ?? false)) {
+            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan wajib ini berpotensi tidak dapat dipenuhi PIC atau ditandai tidak dapat dipenuhi.');
+        }
+
+        return $redirect;
     }
 
     public function update(UpdateJenisBerkasRequest $request, string $id, PermissionResolver $resolver): RedirectResponse
     {
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'jenis_berkas:update');
-        abort_unless($decision['allowed'], 403);
-
-        $jb = JenisBerkas::findOrFail($id);
-
-        $expectedUpdatedAt = $request->validated()['expected_updated_at'] ?? null;
-        if ($expectedUpdatedAt !== null && $jb->updated_at !== null) {
-            $expectedTimestamp = Carbon::parse($expectedUpdatedAt)->timestamp;
-            if ($jb->updated_at->timestamp !== $expectedTimestamp) {
-                throw ValidationException::withMessages([
-                    'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
-                ]);
-            }
+        if (! $decision['allowed']) {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'jenis_berkas.ubah_ditolak',
+                objekTipe: 'jenis_berkas',
+                objekId: $id,
+                alasan: $request->input('alasan') ?: 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.',
+                dasarIzin: $decision
+            );
+            abort(403);
         }
 
-        DB::transaction(function () use ($request, $jb, $actor, $decision) {
-            $nilaiLama = $jb->toArray();
+        $data = $request->validated();
+        $isUnggahanAktif = filter_var(
+            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
+            FILTER_VALIDATE_BOOLEAN
+        );
 
-            $data = $request->validated();
+        DB::transaction(function () use ($data, $id, $actor, $decision) {
+            $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            $expectedUpdatedAt = $data['expected_updated_at'] ?? null;
+            if ($expectedUpdatedAt !== null && $jb->updated_at !== null) {
+                $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
+                if ($jb->updated_at->toISOString() !== $expectedIso) {
+                    throw ValidationException::withMessages([
+                        'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    ]);
+                }
+            }
+
+            $nilaiLama = $jb->toArray();
             $alasan = $data['alasan'];
             unset($data['alasan'], $data['expected_updated_at']);
 
@@ -120,17 +152,40 @@ class JenisBerkasController extends Controller
             );
         });
 
-        return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
+        $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
+
+        if (! $isUnggahanAktif && ($data['wajib'] ?? false) && ($data['izinkan_file'] ?? false) && ! ($data['izinkan_tautan'] ?? false) && ! ($data['izinkan_teks'] ?? false)) {
+            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan wajib ini berpotensi tidak dapat dipenuhi PIC atau ditandai tidak dapat dipenuhi.');
+        }
+
+        return $redirect;
     }
 
     public function destroy(DeleteJenisBerkasRequest $request, string $id, PermissionResolver $resolver): RedirectResponse
     {
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'jenis_berkas:delete');
-        abort_unless($decision['allowed'], 403);
+        if (! $decision['allowed']) {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'jenis_berkas.hapus_ditolak',
+                objekTipe: 'jenis_berkas',
+                objekId: $id,
+                alasan: $request->input('alasan') ?: 'Percobaan penghapusan persyaratan jenis berkas ditolak karena tidak memiliki izin.',
+                dasarIzin: $decision
+            );
+            abort(403);
+        }
 
         DB::transaction(function () use ($request, $id, $actor, $decision) {
-            $jb = JenisBerkas::findOrFail($id);
+            $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if (DB::table('berkas')->where('jenis_berkas_id', $jb->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'alasan' => 'Persyaratan jenis berkas ini tidak dapat dihapus karena telah digunakan pada berkas bukti dukung. Anda dapat menonaktifkannya melalui opsi ubah.',
+                ]);
+            }
+
             $nilaiLama = $jb->toArray();
             $alasan = $request->validated()['alasan'];
 

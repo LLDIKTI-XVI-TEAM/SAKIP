@@ -56,6 +56,7 @@ interface IndexProps {
         update: boolean;
         delete: boolean;
     };
+    unggahanAktif?: boolean;
 }
 
 const defaultFormData: JenisBerkasFormData = {
@@ -77,6 +78,7 @@ export default function JenisBerkasIndex({
     jenisBerkasList = [],
     indikators = [],
     can = { create: false, update: false, delete: false },
+    unggahanAktif = true,
 }: IndexProps) {
     const [selectedTahap, setSelectedTahap] = useState<string>('semua');
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -532,6 +534,7 @@ export default function JenisBerkasIndex({
                 errors={formErrors}
                 indikators={indikators}
                 isLoading={isSubmitting}
+                unggahanAktif={unggahanAktif}
                 onChange={handleFormChange}
                 onClose={() => setIsFormModalOpen(false)}
                 onSubmit={handleFormSubmit}
