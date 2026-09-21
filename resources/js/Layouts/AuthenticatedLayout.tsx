@@ -18,6 +18,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
+        { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth.can.assignRole },
     ];
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();

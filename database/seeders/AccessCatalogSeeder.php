@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Services\Authorization\PermissionCatalog;
+use App\Services\Authorization\RoleCatalog;
 use Illuminate\Database\Seeder;
 
 class AccessCatalogSeeder extends Seeder
@@ -20,11 +21,9 @@ class AccessCatalogSeeder extends Seeder
                 'sensitif' => in_array($code, PermissionCatalog::SENSITIVE, true),
             ]);
         }
-        foreach (['superadmin' => 'Superadmin', 'admin' => 'Administrator', 'perencanaan' => 'Perencanaan', 'pic' => 'PIC', 'pimpinan' => 'Pimpinan', 'pegawai' => 'Pegawai'] as $code => $label) {
+        foreach (RoleCatalog::ROLES as $code => $definition) {
             // Rerun tidak mengaktifkan ulang peran/permission atau menimpa izin yang dikelola.
-            Role::firstOrCreate(['kode' => $code], ['nama' => $label, 'urutan' => match ($code) {
-                'superadmin' => 1, 'admin' => 2, 'perencanaan' => 3, 'pimpinan' => 4, 'pegawai' => 5, 'pic' => 6
-            }, 'is_sistem' => true, 'aktif' => true]);
+            Role::firstOrCreate(['kode' => $code], ['nama' => $definition['nama'], 'urutan' => $definition['seed_urutan'], 'is_sistem' => true, 'aktif' => true]);
         }
     }
 }

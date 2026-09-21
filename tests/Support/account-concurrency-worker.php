@@ -1,9 +1,12 @@
 <?php
 
+use App\Actions\Access\AssignRole;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
@@ -29,11 +32,20 @@ try {
         throw new RuntimeException('Barrier worker tidak diberikan.');
     }
     $identity = $argv[2];
-    $result = match ($argv[1]) {
-        'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
-        'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
-        default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
-    };
+    try {
+        $assignment = $argv[1] === 'assign-role' ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
+        $result = match ($argv[1]) {
+            'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment']),
+            'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
+            'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
+            default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
+        };
+    } catch (ValidationException $exception) {
+        if ($argv[1] !== 'assign-role' || ! isset($exception->errors()['expected_assignment'])) {
+            throw $exception;
+        }
+        $result = 'conflict';
+    }
     fwrite(STDOUT, 'RESULT:'.json_encode($result, JSON_THROW_ON_ERROR)."\n");
 } catch (Throwable $exception) {
     // Jangan mencetak SQL, konfigurasi koneksi, atau kredensial dari exception.
