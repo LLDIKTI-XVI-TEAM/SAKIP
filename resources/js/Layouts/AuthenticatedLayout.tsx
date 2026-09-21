@@ -1,21 +1,23 @@
-import React, { ReactNode } from 'react';
-import { Link, router, usePage } from '@inertiajs/react';
-import { 
-    LayoutDashboard, 
-    FileSpreadsheet, 
-    CheckCircle2, 
-    LogOut, 
-    Building2, 
-    Calendar,
+import { Fragment, useState, type ReactNode, type FormEvent } from 'react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
+import {
+    LayoutDashboard,
+    FileSpreadsheet,
+    CheckCircle2,
+    LogOut,
     ChevronRight,
     CheckCircle,
     AlertCircle,
-    ShieldCheck,
+    UserCheck,
+    Menu,
+    X,
     Layers,
     TrendingUp,
-    ListTodo
+    ListTodo,
+    Building2,
+    ShieldCheck,
 } from 'lucide-react';
-import { RoleSwitcher } from '@/Components/RoleSwitcher';
+import type { SharedPageProps } from '@/types/auth';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -23,267 +25,100 @@ interface AuthenticatedLayoutProps {
     breadcrumbs?: { label: string; href?: string }[];
 }
 
-export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
-    children,
-    title,
-    breadcrumbs = [],
-}) => {
-    const { auth, flash } = usePage<any>().props;
-    const user = auth?.user;
-    const currentRole = user?.roles?.[0] || 'pegawai';
-
-    const handleLogout = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.post('/logout');
+export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: AuthenticatedLayoutProps) {
+    const { props: { auth, flash }, url } = usePage<SharedPageProps>();
+    const [navigationOpen, setNavigationOpen] = useState(false);
+    const logout = useForm({});
+    const navigation = [
+        { href: '/dashboard', label: 'Dashboard Capaian', icon: LayoutDashboard, visible: auth?.can?.dashboard ?? true },
+        { href: '/renstra', label: 'Renstra & Sasaran', icon: Layers, visible: true },
+        { href: '/indikator', label: 'Indikator Kinerja (IKU)', icon: TrendingUp, visible: true },
+        { href: '/rencana-aksi', label: 'Rencana Aksi (RA)', icon: ListTodo, visible: true },
+        { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth?.can?.pengukuran ?? true },
+        { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth?.can?.verifikasi ?? true },
+        { href: '/unit', label: 'Master Unit', icon: Building2, visible: true },
+        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: true },
+        { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth?.can?.aktivasi ?? false },
+    ];
+    const handleLogout = (event: FormEvent) => {
+        event.preventDefault();
+        if (!logout.processing) logout.post('/logout', { onStart: () => router.clearHistory() });
     };
 
-    const isPerencanaanOrSuper = currentRole === 'perencanaan' || currentRole === 'superadmin';
-    const isAdminOrSuper = currentRole === 'admin' || currentRole === 'superadmin';
-
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-            {/* Top Quick Role Switcher for local dev */}
-            <RoleSwitcher />
-
-            <div className="flex flex-1 overflow-hidden">
-                {/* Modern Institutional Sidebar */}
-                <aside className="w-64 bg-[#0a1b5c] text-white flex flex-col border-r border-[#122E92]/40 shrink-0 select-none">
-                    {/* Brand / Logo */}
-                    <div className="p-5 border-b border-white/10 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#122E92] to-[#D6AC48] flex items-center justify-center font-bold text-white shadow-md text-lg">
-                            S
-                        </div>
+        <div className="min-h-screen bg-page font-sans text-ink">
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded focus:bg-surface focus:p-3 focus:text-primary">Langsung ke isi halaman</a>
+            <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
+                <div className="flex min-w-0 items-center gap-3">
+                    <img src="/img/dikti16-favicon-blue-150x150.png" width={150} height={150} alt="" className="h-10 w-10 shrink-0 object-contain" />
+                    <span className="text-sm font-bold text-primary">SAKIP LLDIKTI XVI</span>
+                </div>
+                <button type="button" aria-expanded={navigationOpen} aria-controls="application-navigation" aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'} onClick={() => setNavigationOpen(!navigationOpen)} className="rounded-lg p-2 text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
+                </button>
+            </div>
+            <div className="md:flex md:min-h-screen">
+                <aside id="application-navigation" className={`${navigationOpen ? 'flex' : 'hidden'} flex-col border-b border-border bg-surface md:flex md:w-64 md:shrink-0 md:border-b-0 md:border-r`}>
+                    <div className="hidden items-center gap-3 border-b border-border p-5 md:flex">
+                        <img src="/img/dikti16-favicon-blue-150x150.png" width={150} height={150} alt="" className="h-12 w-12 shrink-0 object-contain" />
                         <div>
-                            <div className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-                                SAKIP
-                                <span className="text-[10px] bg-[#D6AC48] text-slate-900 font-bold px-1.5 py-0.2 rounded uppercase">
-                                    XVI
-                                </span>
-                            </div>
-                            <div className="text-[11px] text-slate-300 font-normal leading-tight">
-                                LLDIKTI Wilayah XVI
-                            </div>
+                            <p className="text-lg font-bold text-primary">SAKIP <span className="rounded bg-secondary px-1.5 text-xs text-ink">XVI</span></p>
+                            <p className="mt-1 text-xs text-muted">LLDIKTI Wilayah XVI</p>
                         </div>
                     </div>
-
-                    {/* Navigation Menu */}
-                    <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-                        <div className="px-3 py-2 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                            Menu Utama
-                        </div>
-
-                        <Link
-                            href="/dashboard"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/dashboard')
-                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            <LayoutDashboard className="w-4 h-4 text-[#D6AC48]" />
-                            Dashboard Capaian
-                        </Link>
-
-                        <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                            Perencanaan Kinerja
-                        </div>
-
-                        <Link
-                            href="/renstra"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/renstra')
-                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            <Layers className="w-4 h-4 text-[#D6AC48]" />
-                            Renstra & Sasaran
-                        </Link>
-
-                        <Link
-                            href="/indikator"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/indikator')
-                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            <TrendingUp className="w-4 h-4 text-[#D6AC48]" />
-                            Indikator Kinerja (IKU)
-                        </Link>
-
-                        <Link
-                            href="/rencana-aksi"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/rencana-aksi')
-                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            <ListTodo className="w-4 h-4 text-[#D6AC48]" />
-                            Rencana Aksi (RA)
-                        </Link>
-
-                        <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                            Pengukuran & Pelaporan
-                        </div>
-
-                        <Link
-                            href="/pengukuran"
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                window.location.pathname.startsWith('/pengukuran')
-                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            <FileSpreadsheet className="w-4 h-4 text-[#D6AC48]" />
-                            Pengukuran Kinerja
-                        </Link>
-
-                        {isPerencanaanOrSuper && (
-                            <>
-                                <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                                    Verifikasi & Reviu
-                                </div>
+                    <nav aria-label="Navigasi utama" className="flex-1 space-y-1 p-3">
+                        {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
+                            const active = url ? url.split('?')[0].startsWith(href) : false;
+                            return (
                                 <Link
-                                    href="/verifikasi"
-                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                        window.location.pathname.startsWith('/verifikasi')
-                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
+                                    key={href}
+                                    href={href}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() => setNavigationOpen(false)}
+                                    className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${active ? 'bg-primary text-white' : 'text-ink hover:bg-soft'}`}
                                 >
-                                    <CheckCircle2 className="w-4 h-4 text-[#D6AC48]" />
-                                    Verifikasi & Pengesahan
+                                    <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />{label}
                                 </Link>
-                            </>
-                        )}
-
-                        {isAdminOrSuper && (
-                            <>
-                                <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                                    Pengaturan & Akses
-                                </div>
-                                <Link
-                                    href="/unit"
-                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                        window.location.pathname.startsWith('/unit')
-                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
-                                >
-                                    <Building2 className="w-4 h-4 text-[#D6AC48]" />
-                                    Master Unit
-                                </Link>
-                                <Link
-                                    href="/akses/grant"
-                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                                        window.location.pathname.startsWith('/akses/grant')
-                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
-                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
-                                >
-                                    <ShieldCheck className="w-4 h-4 text-[#D6AC48]" />
-                                    Izin Unit (Grant)
-                                </Link>
-                            </>
-                        )}
+                            );
+                        })}
                     </nav>
-
-                    {/* Bottom User Profile */}
-                    <div className="p-4 border-t border-white/10 bg-black/15">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-full bg-[#122E92] border border-[#D6AC48]/40 flex items-center justify-center font-bold text-xs text-white uppercase">
-                                {user?.name?.slice(0, 2) || 'US'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-white truncate">
-                                    {user?.name || 'Pengguna'}
-                                </div>
-                                <div className="text-[11px] text-slate-400 truncate flex items-center gap-1">
-                                    <span className="capitalize text-[#D6AC48] font-medium">{currentRole}</span>
-                                    <span>•</span>
-                                    <span>{user?.unit_kerja?.singkatan || 'LLDIKTI'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleLogout}>
-                            <button
-                                type="submit"
-                                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:bg-rose-500/20 hover:text-rose-300 transition-colors cursor-pointer"
-                            >
-                                <LogOut className="w-3.5 h-3.5" />
-                                Keluar Sistem
+                    <div className="border-t border-border p-4">
+                        <p className="break-words text-sm font-semibold">{auth?.user?.nama ?? 'Pengguna'}</p>
+                        <p className="mt-1 break-all text-xs text-muted">{auth?.user?.email ?? '-'}</p>
+                        {auth?.user?.role && <p className="mt-1 text-xs font-medium capitalize text-primary">{auth.user.role}</p>}
+                        <form onSubmit={handleLogout} className="mt-3">
+                            <button type="submit" disabled={logout.processing} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
+                                <LogOut aria-hidden="true" className="h-4 w-4" />{logout.processing ? 'Keluar…' : 'Keluar sistem'}
                             </button>
                         </form>
                     </div>
                 </aside>
-
-                {/* Main Content Area */}
-                <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-                    {/* Top Header */}
-                    <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-2xs">
-                        {/* Breadcrumbs & Title */}
-                        <div>
-                            {breadcrumbs.length > 0 && (
-                                <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
-                                    <Link href="/dashboard" className="hover:text-slate-900">
-                                        SAKIP
-                                    </Link>
-                                    {breadcrumbs.map((b, idx) => (
-                                        <React.Fragment key={idx}>
-                                            <ChevronRight className="w-3 h-3 text-slate-400" />
-                                            {b.href ? (
-                                                <Link href={b.href} className="hover:text-slate-900">
-                                                    {b.label}
-                                                </Link>
-                                            ) : (
-                                                <span className="font-semibold text-slate-800">{b.label}</span>
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </nav>
-                            )}
-                            <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-                                {title || 'Dashboard Kinerja'}
-                            </h1>
-                        </div>
-
-                        {/* Top Right Badges */}
-                        <div className="flex items-center gap-3">
-                            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg text-xs text-slate-600 border border-slate-200">
-                                <Calendar className="w-3.5 h-3.5 text-[#122E92]" />
-                                <span className="font-medium">Tahun Anggaran 2026</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 px-3 py-1 bg-[#122E92]/10 rounded-lg text-xs text-[#122E92] font-semibold border border-[#122E92]/20">
-                                <Building2 className="w-3.5 h-3.5 text-[#122E92]" />
-                                <span>{user?.unit_kerja?.nama || 'LLDIKTI XVI'}</span>
-                            </div>
-                        </div>
+                <div className="min-w-0 flex-1">
+                    <header className="border-b border-border bg-surface px-4 py-4 sm:px-6">
+                        {breadcrumbs.length > 0 && <nav aria-label="Jejak navigasi" className="mb-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                            {auth?.can?.dashboard ? <Link href="/dashboard" className="rounded hover:text-primary focus:ring-2 focus:ring-primary">SAKIP</Link> : <span>SAKIP</span>}
+                            {breadcrumbs.map((item, index) => (
+                                <Fragment key={`${index}-${item.label}`}>
+                                    <ChevronRight aria-hidden="true" className="h-3 w-3" />
+                                    {item.href ? <Link href={item.href} className="rounded hover:text-primary focus:ring-2 focus:ring-primary">{item.label}</Link> : <span aria-current="page" className="font-medium text-ink">{item.label}</span>}
+                                </Fragment>
+                            ))}
+                        </nav>}
+                        <p className="text-lg font-bold">{title || 'SAKIP'}</p>
                     </header>
-
-                    {/* Flash Message Alerts */}
                     {flash?.success && (
-                        <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-emerald-800 text-xs font-medium animate-fade-in shadow-xs">
-                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span>{flash.success}</span>
+                        <div role="status" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-ink sm:mx-6">
+                            <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.success}</span>
                         </div>
                     )}
                     {flash?.error && (
-                        <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2.5 text-rose-800 text-xs font-medium animate-fade-in shadow-xs">
-                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                            <span>{flash.error}</span>
+                        <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger sm:mx-6">
+                            <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.error}</span>
                         </div>
                     )}
-
-                    {/* Page Content */}
-                    <main className="flex-1 p-6">
-                        {children}
-                    </main>
+                    <main id="main-content" tabIndex={-1} className="p-4 sm:p-6">{children}</main>
                 </div>
             </div>
         </div>
     );
-};
+}

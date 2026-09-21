@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Auth\KeycloakIdentityProvider;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(KeycloakIdentityProvider::class, fn ($app) => KeycloakIdentityProvider::forRequest($app['request']));
     }
 
     /**
@@ -22,15 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('akses:update', function (User $user) {
-            if ($user->hasRole(['superadmin', 'admin'])) {
-                return true;
-            }
-
-            try {
-                return $user->hasPermissionTo('akses:update');
-            } catch (\Throwable) {
-                return false;
-            }
+            return app(PermissionResolver::class)->allows($user, 'akses:update');
         });
     }
 }

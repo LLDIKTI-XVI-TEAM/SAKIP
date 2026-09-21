@@ -2,51 +2,31 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PeriodeJadwal extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
-    protected $table = 'periode_jadwals';
+    protected $table = 'jadwal_periode';
 
-    protected $fillable = [
-        'tahun',
-        'triwulan',
-        'nama_periode',
-        'tanggal_mulai',
-        'tanggal_selesai',
-        'status',
-        'is_tahun_ditutup',
-    ];
+    public $timestamps = false;
 
-    protected $casts = [
-        'tahun' => 'integer',
-        'triwulan' => 'integer',
-        'tanggal_mulai' => 'datetime',
-        'tanggal_selesai' => 'datetime',
-        'is_tahun_ditutup' => 'boolean',
-    ];
+    protected $fillable = ['jadwal_id', 'periode_id', 'pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai'];
 
-    public function pengukuranKinerjas(): HasMany
+    protected $casts = ['pengisian_mulai' => 'date', 'pengisian_selesai' => 'date', 'reviu_mulai' => 'date', 'reviu_selesai' => 'date'];
+
+    /** @return BelongsTo<JadwalTahunan, $this> */
+    public function jadwal(): BelongsTo
     {
-        return $this->hasMany(PengukuranKinerja::class, 'periode_jadwal_id');
+        return $this->belongsTo(JadwalTahunan::class, 'jadwal_id');
     }
 
-    /**
-     * Cek apakah periode saat ini aktif/buka dan belum melewati deadline
-     */
-    public function isAktifBuka(): bool
+    /** @return BelongsTo<Periode, $this> */
+    public function periode(): BelongsTo
     {
-        if ($this->status !== 'buka' || $this->is_tahun_ditutup) {
-            return false;
-        }
-
-        $now = Carbon::now();
-
-        return $now->between($this->tanggal_mulai, $this->tanggal_selesai);
+        return $this->belongsTo(Periode::class, 'periode_id');
     }
 }
