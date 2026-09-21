@@ -2,44 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class BuktiDukung extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
-    protected $table = 'bukti_dukungs';
+    protected $table = 'berkas';
 
-    protected $fillable = [
-        'pengukuran_kinerja_id',
-        'nama_file',
-        'file_path',
-        'tipe_file',
-        'file_size',
-        'url_tautan',
-        'keterangan',
-    ];
+    public $timestamps = false;
 
-    protected $appends = ['download_url'];
+    protected $fillable = ['jenis_berkas_id', 'berkasable_type', 'berkasable_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks', 'uploaded_by', 'created_at', 'dihapus_pada', 'dihapus_oleh'];
 
-    public function pengukuranKinerja(): BelongsTo
+    protected $casts = ['ukuran_bytes' => 'integer', 'created_at' => 'datetime', 'dihapus_pada' => 'datetime'];
+
+    /** Bukti kerja memilih ujung rantai koreksi; baris lama tetap tersedia bagi versi historis. */
+    public function scopeCurrent(Builder $query): void
     {
-        return $this->belongsTo(PengukuranKinerja::class, 'pengukuran_kinerja_id');
-    }
-
-    public function getDownloadUrlAttribute(): ?string
-    {
-        if ($this->url_tautan) {
-            return $this->url_tautan;
-        }
-
-        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
-            return Storage::disk('public')->url($this->file_path);
-        }
-
-        return null;
+        $query->whereNull('berkas.dihapus_pada')->whereNotExists(function (QueryBuilder $replacement): void {
+            $replacement->selectRaw('1')->from('berkas as pengganti')
+                ->whereColumn('pengganti.menggantikan_id', 'berkas.id')
+                ->whereColumn('pengganti.berkasable_type', 'berkas.berkasable_type')
+                ->whereColumn('pengganti.berkasable_id', 'berkas.berkasable_id')
+                ->whereNull('pengganti.dihapus_pada');
+        });
     }
 }
