@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Models\UserRole;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\RoleCatalog;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
@@ -34,6 +35,8 @@ class AccessFoundationTest extends TestCase
         $this->assertDatabaseCount('roles', 6);
         $this->assertEqualsCanonicalizing(['superadmin', 'admin', 'perencanaan', 'pic', 'pimpinan', 'pegawai'], Role::pluck('kode')->all());
         $this->assertSame(6, Role::pluck('urutan')->unique()->count());
+        $this->assertSame(['superadmin', 'admin', 'perencanaan', 'pic', 'pimpinan', 'pegawai'], RoleCatalog::codes());
+        $this->assertDatabaseHas('roles', ['kode' => 'pic', 'aktif' => true, 'is_sistem' => true, 'urutan' => 6]);
         $this->assertDatabaseCount('role_permissions', 0);
         $this->assertSame(9, Permission::where('butuh_scope', 'unit')->count());
         $this->assertSame(21, Permission::where('sensitif', true)->count());
@@ -78,22 +81,58 @@ class AccessFoundationTest extends TestCase
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $otherUnit->id));
     }
 
-    public function test_pic_role_has_no_default_permission_but_can_use_an_explicit_unit_grant(): void
+    public function test_pic_identity_does_not_imply_a_defined_preset_and_unknown_roles_are_invalid(): void
+    {
+        $this->assertTrue(RoleCatalog::contains('pic'));
+        $this->assertFalse(RolePermissionPresets::hasDefinedPreset('pic'));
+        foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
+            $this->assertTrue(RolePermissionPresets::hasDefinedPreset($code));
+        }
+        $this->assertFalse(RoleCatalog::contains('asing'));
+        foreach (['pic', 'asing'] as $code) {
+            try {
+                RolePermissionPresets::forRole($code);
+                $this->fail('Preset belum tersedia atau peran asing harus ditolak.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame($code === 'pic' ? 'Preset peran belum ditetapkan.' : 'Peran tidak dikenal.', $exception->getMessage());
+            }
+        }
+        $this->expectException(\InvalidArgumentException::class);
+        RolePermissionPresets::hasDefinedPreset('asing');
+    }
+
+    public function test_catalog_rerun_preserves_existing_role_fields_and_managed_permissions(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $this->assertDatabaseHas('roles', ['kode' => 'pimpinan', 'urutan' => 4]);
+        $this->assertDatabaseHas('roles', ['kode' => 'pegawai', 'urutan' => 5]);
+        $role = Role::where('kode', 'pimpinan')->sole();
+        $role->update(['nama' => 'Label tersimpan', 'urutan' => 20, 'aktif' => false]);
+        $role->permissions()->attach(Permission::where('kode', 'dashboard:read')->value('id'), ['id' => Str::uuid(), 'created_at' => now()]);
+        $before = DB::table('roles')->orderBy('kode')->get()->toJson();
+        $permissions = DB::table('role_permissions')->get()->toJson();
+        $this->seed(AccessCatalogSeeder::class);
+        $this->assertSame($before, DB::table('roles')->orderBy('kode')->get()->toJson());
+        $this->assertSame($permissions, DB::table('role_permissions')->get()->toJson());
+    }
+
+    public function test_pic_without_preset_uses_explicit_grant_and_deny(): void
     {
         $this->seed(AccessCatalogSeeder::class);
         $user = User::factory()->create(['is_active' => true]);
-        $pic = Role::where('kode', 'pic')->firstOrFail();
-        $user->roles()->attach($pic->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $role = Role::where('kode', 'pic')->sole();
+        $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $permission = Permission::where('kode', 'pengukuran:update')->sole();
         $unit = Unit::create(['nama' => 'Unit PIC', 'created_by' => $user->id]);
         $otherUnit = Unit::create(['nama' => 'Unit Lain', 'created_by' => $user->id]);
-        $permission = Permission::where('kode', 'pengukuran:update')->firstOrFail();
         $resolver = app(PermissionResolver::class);
-
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $unit->id));
-        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture grant unit PIC', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $this->assertTrue($resolver->allows($user, 'pengukuran:update', $unit->id));
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $otherUnit->id));
         $this->assertFalse($resolver->allows($user, 'pengukuran:update'));
+        DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
+        $this->assertFalse($resolver->allows($user, 'pengukuran:update', $unit->id));
         $this->assertDatabaseCount('role_permissions', 0);
     }
 

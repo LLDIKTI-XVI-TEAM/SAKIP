@@ -26,6 +26,7 @@ class HandleInertiaRequests extends Middleware
                         'pengukuran' => $active && $resolver->allows($user, 'pengukuran:read'),
                         'verifikasi' => $active && $resolver->allows($user, 'pengukuran:read') && ($resolver->allows($user, 'pengukuran:verifikasi') || $resolver->allows($user, 'pengukuran:sahkan') || $resolver->allows($user, 'pengukuran:kembalikan')),
                         'aktivasi' => $active && $resolver->allows($user, 'pengguna:read'),
+                        'assignRole' => $active && $resolver->allows($user, 'pengguna:read') && $resolver->allows($user, 'akses:update'),
                     ],
                 ];
             },
