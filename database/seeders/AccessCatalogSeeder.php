@@ -20,10 +20,10 @@ class AccessCatalogSeeder extends Seeder
                 'sensitif' => in_array($code, PermissionCatalog::SENSITIVE, true),
             ]);
         }
-        foreach (['superadmin' => 'Superadmin', 'admin' => 'Administrator', 'perencanaan' => 'Perencanaan', 'pimpinan' => 'Pimpinan', 'pegawai' => 'Pegawai'] as $code => $label) {
+        foreach (['superadmin' => 'Superadmin', 'admin' => 'Administrator', 'perencanaan' => 'Perencanaan', 'pic' => 'PIC', 'pimpinan' => 'Pimpinan', 'pegawai' => 'Pegawai'] as $code => $label) {
             // Rerun tidak mengaktifkan ulang peran/permission atau menimpa izin yang dikelola.
             Role::firstOrCreate(['kode' => $code], ['nama' => $label, 'urutan' => match ($code) {
-                'superadmin' => 1, 'admin' => 2, 'perencanaan' => 3, 'pimpinan' => 4, 'pegawai' => 5
+                'superadmin' => 1, 'admin' => 2, 'perencanaan' => 3, 'pimpinan' => 4, 'pegawai' => 5, 'pic' => 6
             }, 'is_sistem' => true, 'aktif' => true]);
         }
     }

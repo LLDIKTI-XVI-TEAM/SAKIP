@@ -31,7 +31,9 @@ class AccessFoundationTest extends TestCase
         // Fixture kontrak terpisah dari generator produksi agar kode hilang/berlebih terdeteksi.
         $expected = 'renstra:create renstra:read renstra:update renstra:delete sasaran:create sasaran:update sasaran:delete indikator:create indikator:read indikator:update indikator:delete target:update pk:create pk:update regulasi:create regulasi:read regulasi:update regulasi:delete periode:create periode:update jadwal:create jadwal:update jadwal:aktivasi jadwal:tutup jadwal:buka_kembali penanggung_jawab:update rencana_aksi:read rencana_aksi:create rencana_aksi:update rencana_aksi:ajukan rencana_aksi:verifikasi rencana_aksi:kembalikan rencana_aksi:sahkan rencana_aksi:buka_kembali kegiatan:read kegiatan:create kegiatan:update kegiatan:delete komponen:create komponen:read komponen:update komponen:delete jenis_berkas:create jenis_berkas:read jenis_berkas:update jenis_berkas:delete berkas:read berkas:upload berkas:delete pengukuran:create pengukuran:update pengukuran:read pengukuran:verifikasi pengukuran:kembalikan pengukuran:sahkan pengukuran:buka_kembali pengukuran:setujui status_capaian:update rekomendasi:tetapkan unit:create unit:read unit:update unit:delete pengguna:read akses:update dashboard:read laporan:read laporan:ekspor audit:read pengaturan:update';
         $this->assertEqualsCanonicalizing(explode(' ', $expected), Permission::pluck('kode')->all());
-        $this->assertDatabaseCount('roles', 5);
+        $this->assertDatabaseCount('roles', 6);
+        $this->assertEqualsCanonicalizing(['superadmin', 'admin', 'perencanaan', 'pic', 'pimpinan', 'pegawai'], Role::pluck('kode')->all());
+        $this->assertSame(6, Role::pluck('urutan')->unique()->count());
         $this->assertDatabaseCount('role_permissions', 0);
         $this->assertSame(9, Permission::where('butuh_scope', 'unit')->count());
         $this->assertSame(21, Permission::where('sensitif', true)->count());
@@ -74,6 +76,25 @@ class AccessFoundationTest extends TestCase
         DB::table('user_permission_denied')->delete();
         $permission->update(['aktif' => false]);
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $otherUnit->id));
+    }
+
+    public function test_pic_role_has_no_default_permission_but_can_use_an_explicit_unit_grant(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $user = User::factory()->create(['is_active' => true]);
+        $pic = Role::where('kode', 'pic')->firstOrFail();
+        $user->roles()->attach($pic->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $unit = Unit::create(['nama' => 'Unit PIC', 'created_by' => $user->id]);
+        $otherUnit = Unit::create(['nama' => 'Unit Lain', 'created_by' => $user->id]);
+        $permission = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        $resolver = app(PermissionResolver::class);
+
+        $this->assertFalse($resolver->allows($user, 'pengukuran:update', $unit->id));
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture grant unit PIC', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $this->assertTrue($resolver->allows($user, 'pengukuran:update', $unit->id));
+        $this->assertFalse($resolver->allows($user, 'pengukuran:update', $otherUnit->id));
+        $this->assertFalse($resolver->allows($user, 'pengukuran:update'));
+        $this->assertDatabaseCount('role_permissions', 0);
     }
 
     public function test_global_permission_is_checked_against_the_target_unit_deny(): void

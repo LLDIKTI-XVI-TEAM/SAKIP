@@ -45,6 +45,16 @@ Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document
 
 ---
 
+## Bootstrap Super Admin pertama
+
+Setelah skema dan katalog akses tersedia di lingkungan tujuan, calon Super Admin yang telah ditunjuk login melalui Keycloak sekali. Akunnya akan berstatus menunggu aktivasi. Ia menyalin **ID akun SAKIP** dari halaman tersebut dan menyampaikannya kepada operator yang berwenang bersama referensi otorisasi di luar aplikasi.
+
+Operator menjalankan `php artisan sakip:bootstrap-superadmin` pada server SAKIP. Perintah meminta ID akun, menampilkan nama dan email untuk dicocokkan dengan otorisasi, lalu meminta identitas/referensi operator, alasan, dan satu konfirmasi. Untuk eksekusi non-interaktif, berikan ID sebagai argumen serta `--operator-reference`, `--reason`, `--confirm-user=<ID yang sama>`, dan `--no-interaction`.
+
+Bootstrap hanya berlaku sekali. Pengulangan untuk akun yang sama tidak memulihkan hak yang kemudian dicabut; ID akun lain ditolak. Lima preset role yang sudah disepakati dipasang secara teraudit. Role `pic` tersedia tanpa preset bawaan selama keputusan Q31 masih terbuka; kondisi ini belum menutup gate UAT final/produksi pada Plan Q31.2. Setelah operator berhasil, pengguna menekan **Periksa status** pada halaman menunggu aktivasi.
+
+---
+
 ## 🧪 CI dan quality gate
 
 Workflow `.github/workflows/ci.yml` berjalan pada PR menuju `development`/`main`, push ke kedua branch tersebut, dan pemicu manual. Enam job berjalan independen sehingga setiap pemeriksaan memiliki hasil sendiri di GitHub:
