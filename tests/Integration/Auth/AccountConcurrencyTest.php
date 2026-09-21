@@ -3,9 +3,13 @@
 namespace Tests\Integration\Auth;
 
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -41,13 +45,33 @@ class AccountConcurrencyTest extends TestCase
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'auth.bootstrap')->count());
     }
 
+    public function test_two_first_assignments_have_one_winner_and_one_stale_conflict(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['is_active' => true]);
+        $target = User::factory()->create();
+        $admin = Role::where('kode', 'admin')->sole();
+        $actor->roles()->attach($admin->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        foreach (Permission::whereIn('kode', ['pengguna:read', 'akses:update'])->get() as $permission) {
+            $admin->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        }
+        $roles = [Role::where('kode', 'pic')->value('id'), Role::where('kode', 'pegawai')->value('id')];
+        $payloads = array_map(fn ($role) => ['actor_id' => $actor->id, 'target_id' => $target->id, 'role_id' => $role, 'alasan' => 'Fixture konkurensi', 'expected_assignment' => null], $roles);
+        $results = $this->race('assign-role', $target->id, '', $payloads);
+        $this->assertEqualsCanonicalizing(['assigned', 'conflict'], $results);
+        $this->assertSame(1, DB::table('user_roles')->where('user_id', $target->id)->count());
+        $this->assertContains(DB::table('user_roles')->where('user_id', $target->id)->value('role_id'), $roles);
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.tambah')->count());
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.ditolak')->count());
+    }
+
     /**
      * Kedua proses harus terbukti menunggu lock PostgreSQL yang sama sebelum dilepas.
      * Fixture sudah committed; ini tidak memakai transaksi luar RefreshDatabase.
      *
      * @return list<string|bool>
      */
-    private function race(string $operation, string $subject, string $lock): array
+    private function race(string $operation, string $subject, string $lock, array $assignments = []): array
     {
         $connection = DB::connection();
         $environment = [
@@ -65,10 +89,18 @@ class AccountConcurrencyTest extends TestCase
         $inputs = [];
         DB::beginTransaction();
         try {
-            DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
+            if ($operation === 'assign-role') {
+                User::whereKey($subject)->lockForUpdate()->firstOrFail();
+            } else {
+                DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
+            }
             for ($index = 0; $index < 2; $index++) {
                 $input = new InputStream;
-                $process = new Process([PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $operation, $subject], base_path(), $environment, $input, 20);
+                $arguments = [PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $operation, $subject];
+                if ($operation === 'assign-role') {
+                    $arguments[] = json_encode($assignments[$index], JSON_THROW_ON_ERROR);
+                }
+                $process = new Process($arguments, base_path(), $environment, $input, 20);
                 $process->start();
                 $processes[] = $process;
                 $inputs[] = $input;

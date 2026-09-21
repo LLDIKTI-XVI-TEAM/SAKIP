@@ -6,6 +6,7 @@ use App\Actions\Audit\WriteAuditLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Authorization\RoleCatalog;
 use App\Services\Authorization\RolePermissionPresets;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -35,8 +36,9 @@ class BootstrapSuperadmin
 
                 return false;
             }
-            $roles = Role::orderBy('urutan')->get();
-            $expected = ['admin', 'pegawai', 'perencanaan', 'pic', 'pimpinan', 'superadmin'];
+            $roles = Role::get()->keyBy('kode');
+            $expected = RoleCatalog::codes();
+            sort($expected);
             if ($roles->pluck('kode')->sort()->values()->all() !== $expected || $roles->contains(fn (Role $role) => ! $role->aktif)) {
                 throw new DomainException('Enam peran aktif wajib lengkap sebelum bootstrap.');
             }
@@ -53,9 +55,9 @@ class BootstrapSuperadmin
             }
             $provenance = ['actor_type' => 'operator', 'sumber' => 'bootstrap', 'operator_reference' => $operator, 'runtime_identity' => $runtimeIdentity, 'alasan' => $reason];
             $permissions = Permission::where('aktif', true)->pluck('id', 'kode');
-            foreach ($roles as $role) {
-                // Preset PIC belum diputuskan pada Q31; role tersedia tanpa izin bawaan.
-                if ($role->kode === 'pic') {
+            foreach (RoleCatalog::codes() as $kode) {
+                $role = $roles->get($kode);
+                if (! RolePermissionPresets::hasDefinedPreset($kode)) {
                     continue;
                 }
                 $codes = RolePermissionPresets::forRole($role->kode);

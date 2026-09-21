@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
@@ -45,6 +46,9 @@ Route::get('/auth/pending', function (Request $request) {
 })->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
+    Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
+    Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
     Route::get('/akses/aktivasi', [UserActivation::class, 'index'])->name('activation.index');
     Route::post('/akses/aktivasi/{user}', [UserActivation::class, 'store'])->whereUuid('user')->name('activation.store');
