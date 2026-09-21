@@ -74,8 +74,8 @@ Warna dan font **tetap sama persis** dengan identitas visual institusi:
 
 | Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
 |-------|-------------|---------------|-----------|---------------------|
-| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#122E92` | Brand utama, CTA, active state sidebar, header resmi |
-| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#D6AC48` | Aksen emas, badge sekunder, highlight target khusus |
+| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#0F2A6B` | Brand utama, CTA, active state sidebar, header resmi |
+| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#C09A43` | Aksen emas, badge sekunder, highlight target khusus |
 
 ### Surface Colors
 
@@ -771,7 +771,7 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 
 - [ ] **Font Poppins**: Menggunakan `font-sans` (Poppins)
 - [ ] **Design Tokens**: Menggunakan token resmi (`bg-primary`, `text-primary`, `bg-secondary`, `bg-surface`, `bg-page`, `text-ink`, `text-muted`)
-- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#122E92` atau warna Tailwind default di luar token
+- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#0F2A6B` atau warna Tailwind default di luar token
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit

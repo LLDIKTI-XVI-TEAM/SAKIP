@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class StoreGrant extends Controller
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request, AuditLogger $auditLogger): RedirectResponse
     {
         Gate::authorize('akses:update');
 
@@ -78,10 +78,11 @@ class StoreGrant extends Controller
         ]);
 
         // Audit Trail
-        AuditLogger::catat(
+        $auditLogger->catat(
+            actor: $request->user(),
             tindakan: 'user_permission_granted.tambah',
             objekTipe: 'user_permission_granted',
-            objekId: $grant->id,
+            objekId: (string) $grant->id,
             nilaiLama: null,
             nilaiBaru: [
                 'user_id' => $targetUser->id,

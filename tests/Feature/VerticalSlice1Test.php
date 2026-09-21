@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Access\AssignRole;
 use App\Models\AuditLog;
 use App\Models\IndikatorKomponen;
 use App\Models\PenugasanIndikator;
@@ -151,8 +152,23 @@ class VerticalSlice1Test extends TestCase
         $this->submit($pic);
         $reviewer = $this->userWithRole('perencanaan');
         $role = Role::where('kode', 'perencanaan')->firstOrFail();
-        $pic->roles()->detach();
-        $pic->roles()->attach($role->id, ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->deny($pic, 'dashboard:read');
+        $tables = ['user_permission_granted', 'user_permission_denied', 'penanggung_jawab', 'rencana_aksi_versi', 'pengukuran_versi', 'role_permissions', 'auth_bootstraps'];
+        $preserved = [];
+        foreach ($tables as $table) {
+            $preserved[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+        }
+        $this->assertDatabaseCount('user_permission_granted', 1);
+        $this->assertDatabaseCount('user_permission_denied', 1);
+        $auditIds = AuditLog::pluck('id');
+        $history = DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson();
+        $token = (array) DB::table('user_roles')->where('user_id', $pic->id)->first(['id', 'role_id', 'audit_id']);
+        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor, $pic->id, $role->id, 'Penyesuaian peran tanpa mengubah histori', $token));
+        foreach ($tables as $table) {
+            $this->assertSame($preserved[$table], DB::table($table)->orderBy('id')->get()->toJson(), $table);
+        }
+        $this->assertSame($history, DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson());
+        $this->assertTrue($pic->fresh()->is_active);
         PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $reviewer->id, 'tanggal_mulai_berlaku' => '2026-03-10', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
         $this->review($pic, 'verifikasi')->assertSessionHasErrors('versi');
         $this->review($reviewer, 'verifikasi')->assertSessionHasNoErrors()->assertRedirect();

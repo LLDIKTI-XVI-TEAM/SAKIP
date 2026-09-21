@@ -69,8 +69,10 @@ trait CreatesPengukuranFixture
     {
         $user = User::factory()->create(['is_active' => true]);
         $role = Role::where('kode', $kode)->firstOrFail();
-        foreach (Permission::whereIn('kode', RolePermissionPresets::forRole($kode))->get() as $permission) {
-            $role->permissions()->syncWithoutDetaching([$permission->id => ['id' => (string) Str::uuid(), 'created_at' => now()]]);
+        if (RolePermissionPresets::hasDefinedPreset($kode)) {
+            foreach (Permission::whereIn('kode', RolePermissionPresets::forRole($kode))->get() as $permission) {
+                $role->permissions()->syncWithoutDetaching([$permission->id => ['id' => (string) Str::uuid(), 'created_at' => now()]]);
+            }
         }
         $user->roles()->attach($role->id, ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
 

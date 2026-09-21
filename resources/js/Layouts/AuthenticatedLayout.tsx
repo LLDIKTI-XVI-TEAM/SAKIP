@@ -16,6 +16,7 @@ import {
     ListTodo,
     Building2,
     ShieldCheck,
+    BookOpen,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -36,9 +37,11 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/rencana-aksi', label: 'Rencana Aksi (RA)', icon: ListTodo, visible: true },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth?.can?.pengukuran ?? true },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth?.can?.verifikasi ?? true },
+        { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth?.can?.regulasi ?? false },
         { href: '/unit', label: 'Master Unit', icon: Building2, visible: true },
         { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: true },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth?.can?.aktivasi ?? false },
+        { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth?.can?.assignRole ?? false },
     ];
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();

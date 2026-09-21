@@ -40,6 +40,30 @@ class AuthHttpTest extends TestCase
         $this->post('/dev/switch-role/1')->assertNotFound();
     }
 
+    public function test_local_loopback_alias_redirects_before_creating_oidc_state(): void
+    {
+        // Job backend CI tidak membangun aset; pastikan test juga mencakup versi aset kosong.
+        $this->app->usePublicPath(storage_path('framework/testing/no-built-assets'));
+        config(['app.asset_url' => null]);
+        app()->instance('env', 'local');
+        config(['services.keycloak.redirect' => 'http://localhost:8000/auth/keycloak/callback']);
+        $this->get('http://127.0.0.1:8000/login?redirect_uri=https://attacker.test')
+            ->assertRedirect('http://localhost:8000/login')
+            ->assertSessionMissing('state')->assertSessionMissing('oidc_nonce')->assertSessionMissing('code_verifier');
+        $this->get('http://127.0.0.1:8000/login', ['X-Inertia' => 'true', 'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(Request::create('/login'))])
+            ->assertStatus(409)->assertHeader('X-Inertia-Location', 'http://localhost:8000/login');
+        $this->get('http://localhost:8000/login')
+            ->assertRedirectContains('https://sso.test/realms/sakip/protocol/openid-connect/auth')
+            ->assertSessionHas('state')->assertSessionHas('oidc_nonce')->assertSessionHas('code_verifier');
+    }
+
+    public function test_loopback_normalization_does_not_change_production_login(): void
+    {
+        config(['services.keycloak.redirect' => 'https://localhost/auth/keycloak/callback']);
+        app()->instance('env', 'production');
+        $this->get('http://127.0.0.1/login')->assertRedirectContains('https://sso.test/realms/sakip/protocol/openid-connect/auth');
+    }
+
     public function test_pending_callback_has_identity_session_but_no_business_access_or_sensitive_props(): void
     {
         $this->mock(KeycloakIdentityProvider::class)->shouldReceive('identity')->once()->andReturn(['subject' => 'pending-canary', 'nama' => 'Pengguna Uji', 'email' => 'test@example.test']);
@@ -66,7 +90,7 @@ class AuthHttpTest extends TestCase
     {
         $provision = app(ProvisionKeycloakUser::class);
         $admin = $provision->handle(['subject' => 'admin', 'nama' => 'Admin Uji', 'email' => 'admin@example.test']);
-        app(BootstrapSuperadmin::class)->handle('admin', 'Operator QA', 'Inisialisasi', 'qa-runtime');
+        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
         $target = $provision->handle(['subject' => 'target', 'nama' => 'Target Uji', 'email' => 'target@example.test']);
         $this->actingAs($admin->fresh())->post('/akses/aktivasi/'.$target->id, ['alasan' => ''])->assertSessionHasErrors('alasan');
         $this->post('/akses/aktivasi/'.$target->id, ['alasan' => 'Disetujui'])->assertRedirect('/akses/aktivasi')->assertSessionHas('activationResult.status', 'activated');

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Akses\IndexGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\StoreGrant;
@@ -17,6 +18,15 @@ use App\Http\Controllers\Pengukuran\UpdatePengukuran;
 use App\Http\Controllers\Perencanaan\IndexIndikator;
 use App\Http\Controllers\Perencanaan\IndexRencanaAksi;
 use App\Http\Controllers\Perencanaan\IndexRenstra;
+use App\Http\Controllers\Regulasi\CreateRegulasi;
+use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
+use App\Http\Controllers\Regulasi\DestroyRegulasi;
+use App\Http\Controllers\Regulasi\DownloadBerkasRegulasi;
+use App\Http\Controllers\Regulasi\EditRegulasi;
+use App\Http\Controllers\Regulasi\IndexRegulasi;
+use App\Http\Controllers\Regulasi\ShowRegulasi;
+use App\Http\Controllers\Regulasi\StoreRegulasi;
+use App\Http\Controllers\Regulasi\UpdateRegulasi;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
@@ -46,9 +56,23 @@ Route::get('/auth/pending', function (Request $request) {
 })->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
+    Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
+    Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
     Route::get('/akses/aktivasi', [UserActivation::class, 'index'])->name('activation.index');
     Route::post('/akses/aktivasi/{user}', [UserActivation::class, 'store'])->whereUuid('user')->name('activation.store');
+
+    // Regulasi
+    Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');
+    Route::get('/regulasi/create', CreateRegulasi::class)->name('regulasi.create');
+    Route::post('/regulasi', StoreRegulasi::class)->name('regulasi.store');
+    Route::get('/regulasi/{regulasi}/edit', EditRegulasi::class)->whereUuid('regulasi')->name('regulasi.edit');
+    Route::put('/regulasi/{regulasi}', UpdateRegulasi::class)->whereUuid('regulasi')->name('regulasi.update');
+    Route::delete('/regulasi/{regulasi}', DestroyRegulasi::class)->whereUuid('regulasi')->name('regulasi.destroy');
+    Route::delete('/regulasi/{regulasi}/berkas/{berkas}', DestroyBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.destroy');
+    Route::get('/regulasi/{regulasi}/berkas/{berkas}/download', DownloadBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.download');
+    Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
 
     // Perencanaan Kinerja (Mockup Pages)
     Route::get('/renstra', IndexRenstra::class)->name('renstra.index');

@@ -17,6 +17,7 @@ class IndikatorKinerja extends Model
 
     protected $fillable = [
         'sasaran_strategis_id',
+        'regulasi_id',
         'kode',
         'nama',
         'definisi_operasional',

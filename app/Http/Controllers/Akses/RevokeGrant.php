@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 
 class RevokeGrant extends Controller
 {
-    public function __invoke(Request $request, string $id): RedirectResponse
+    public function __invoke(Request $request, string $id, AuditLogger $auditLogger): RedirectResponse
     {
         Gate::authorize('akses:update');
 
@@ -43,10 +43,11 @@ class RevokeGrant extends Controller
         $grant->delete();
 
         // AC-6: Audit Trail Pencabutan Izin
-        AuditLogger::catat(
+        $auditLogger->catat(
+            actor: $request->user(),
             tindakan: 'user_permission_granted.hapus',
             objekTipe: 'user_permission_granted',
-            objekId: $grantId,
+            objekId: (string) $grantId,
             nilaiLama: $oldValues,
             nilaiBaru: null,
             alasan: $validated['alasan'],
