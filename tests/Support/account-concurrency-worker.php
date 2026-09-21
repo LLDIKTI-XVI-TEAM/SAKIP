@@ -28,10 +28,10 @@ try {
     if (trim((string) fgets(STDIN)) !== 'GO') {
         throw new RuntimeException('Barrier worker tidak diberikan.');
     }
-    $subject = $argv[2];
+    $identity = $argv[2];
     $result = match ($argv[1]) {
-        'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $subject, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
-        'bootstrap' => app(BootstrapSuperadmin::class)->handle($subject, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
+        'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
+        'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
         default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
     };
     fwrite(STDOUT, 'RESULT:'.json_encode($result, JSON_THROW_ON_ERROR)."\n");

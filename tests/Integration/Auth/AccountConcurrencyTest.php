@@ -29,7 +29,7 @@ class AccountConcurrencyTest extends TestCase
     {
         $this->seed(AccessCatalogSeeder::class);
         $user = app(ProvisionKeycloakUser::class)->handle(['subject' => 'bootstrap-subject', 'nama' => 'Fixture Bootstrap', 'email' => 'bootstrap@example.test']);
-        $results = $this->race('bootstrap', 'bootstrap-subject', 'sakip:initial-bootstrap');
+        $results = $this->race('bootstrap', $user->id, 'sakip:initial-bootstrap');
         $this->assertEqualsCanonicalizing([true, false], $results);
         $this->assertDatabaseCount('auth_bootstraps', 1);
         $this->assertDatabaseCount('role_permissions', 162);
