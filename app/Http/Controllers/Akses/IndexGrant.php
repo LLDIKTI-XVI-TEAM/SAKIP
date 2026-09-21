@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
-use App\Models\UnitKerja;
+use App\Models\Unit;
 use App\Models\User;
-use App\Models\UserPermissionGranted;
+use App\Models\UserPermissionGrant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -18,59 +18,58 @@ class IndexGrant extends Controller
     {
         Gate::authorize('akses:update');
 
-        $grants = UserPermissionGranted::with([
-            'user:id,name,email,unit_kerja_id',
-            'user.roles:id,name',
-            'permission:id,name,kode,keterangan,butuh_scope',
-            'unitKerja:id,kode,nama,singkatan',
-            'diberikanOleh:id,name',
+        $grants = UserPermissionGrant::with([
+            'user:id,nama,email',
+            'user.roles:id,nama,kode',
+            'permission:id,kode,keterangan,butuh_scope',
+            'unit:id,nama',
+            'diberikanOleh:id,nama',
         ])
             ->latest()
             ->get()
-            ->map(fn (UserPermissionGranted $grant) => [
+            ->map(fn (UserPermissionGrant $grant) => [
                 'id' => $grant->id,
                 'user_id' => $grant->user_id,
-                'user_name' => $grant->user->name,
-                'user_email' => $grant->user->email,
-                'user_roles' => $grant->user->roles->pluck('name')->all(),
+                'user_name' => $grant->user?->nama ?? '-',
+                'user_email' => $grant->user?->email ?? '-',
+                'user_roles' => $grant->user?->roles->pluck('nama')->all() ?? [],
                 'permission_id' => $grant->permission_id,
-                'permission_kode' => $grant->permission->kode ?? $grant->permission->name,
-                'permission_keterangan' => $grant->permission->keterangan,
+                'permission_kode' => $grant->permission?->kode,
+                'permission_keterangan' => $grant->permission?->keterangan,
                 'unit_id' => $grant->unit_id,
-                'unit_kode' => $grant->unitKerja?->kode,
-                'unit_nama' => $grant->unitKerja?->nama,
+                'unit_nama' => $grant->unit?->nama,
                 'alasan' => $grant->alasan,
-                'diberikan_oleh_nama' => $grant->diberikanOleh->name,
-                'created_at' => $grant->created_at->format('d M Y H:i'),
+                'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
+                'created_at' => $grant->created_at?->format('d M Y H:i'),
             ]);
 
         $users = User::where('is_active', true)
-            ->with('roles:id,name')
-            ->select('id', 'name', 'email', 'unit_kerja_id')
-            ->orderBy('name')
+            ->with('roles:id,nama,kode')
+            ->select('id', 'nama', 'email')
+            ->orderBy('nama')
             ->get()
             ->map(fn (User $user) => [
                 'id' => $user->id,
-                'name' => $user->name,
+                'name' => $user->nama,
+                'nama' => $user->nama,
                 'email' => $user->email,
-                'roles' => $user->roles->pluck('name')->all(),
+                'roles' => $user->roles->pluck('nama')->all(),
             ]);
 
-        $units = UnitKerja::where('is_active', true)
-            ->select('id', 'kode', 'nama', 'singkatan')
-            ->orderBy('urutan')
+        $units = Unit::where('status', 'aktif')
+            ->select('id', 'nama')
             ->orderBy('nama')
             ->get();
 
         $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
             ->where('aktif', true)
-            ->select('id', 'name', 'kode', 'entitas', 'aksi', 'keterangan')
-            ->orderBy('name')
+            ->select('id', 'kode', 'entitas', 'aksi', 'keterangan')
+            ->orderBy('kode')
             ->get()
             ->map(fn (Permission $p) => [
                 'id' => $p->id,
-                'name' => $p->name,
-                'kode' => $p->kode ?? $p->name,
+                'name' => $p->kode,
+                'kode' => $p->kode,
                 'keterangan' => $p->keterangan,
             ]);
 

@@ -23,7 +23,7 @@ class AuditLogger
         ?array $nilaiBaru = null,
         ?string $alasan = null,
         ?array $dasarIzin = null,
-        ?int $actorId = null
+        ?string $actorId = null
     ): AuditLog {
         return AuditLog::create([
             'actor_id' => $actorId ?? Auth::id(),

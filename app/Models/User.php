@@ -40,9 +40,9 @@ class User extends Authenticatable
         return $this->hasMany(PenugasanIndikator::class, 'user_id');
     }
 
-    /** @return HasMany<UserPermissionGranted, $this> */
+    /** @return HasMany<UserPermissionGrant, $this> */
     public function permissionGrants(): HasMany
     {
-        return $this->hasMany(UserPermissionGranted::class, 'user_id');
+        return $this->hasMany(UserPermissionGrant::class, 'user_id');
     }
 }

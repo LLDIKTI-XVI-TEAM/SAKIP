@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
-use App\Models\UserPermissionGranted;
+use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 
 class RevokeGrant extends Controller
 {
-    public function __invoke(Request $request, int $id): RedirectResponse
+    public function __invoke(Request $request, string $id): RedirectResponse
     {
         Gate::authorize('akses:update');
 
@@ -22,23 +22,23 @@ class RevokeGrant extends Controller
             'alasan.min' => 'Alasan pencabutan izin minimal 5 karakter.',
         ]);
 
-        $grant = UserPermissionGranted::with(['user', 'permission', 'unitKerja'])->findOrFail($id);
+        $grant = UserPermissionGrant::with(['user', 'permission', 'unit'])->findOrFail($id);
 
         $oldValues = [
             'id' => $grant->id,
             'user_id' => $grant->user_id,
-            'user_name' => $grant->user->name,
+            'user_nama' => $grant->user?->nama,
             'permission_id' => $grant->permission_id,
-            'permission_kode' => $grant->permission->kode ?? $grant->permission->name,
+            'permission_kode' => $grant->permission?->kode,
             'unit_id' => $grant->unit_id,
-            'unit_kode' => $grant->unitKerja?->kode,
+            'unit_kode' => $grant->unit?->kode,
             'alasan_pemberian' => $grant->alasan,
             'diberikan_oleh' => $grant->diberikan_oleh,
         ];
 
         $grantId = $grant->id;
-        $userName = $grant->user->name;
-        $permName = $grant->permission->kode ?? $grant->permission->name;
+        $userName = $grant->user?->nama ?? 'Pengguna';
+        $permName = $grant->permission?->kode ?? 'Izin';
 
         $grant->delete();
 
@@ -52,7 +52,7 @@ class RevokeGrant extends Controller
             alasan: $validated['alasan'],
             dasarIzin: [
                 'permission' => 'akses:update',
-                'roles' => $request->user()->getRoleNames()->all(),
+                'roles' => $request->user()->roles->pluck('nama')->all(),
             ]
         );
 

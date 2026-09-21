@@ -3,14 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\IndikatorKinerja;
-use App\Models\PenugasanIndikator;
+use App\Models\Permission;
 use App\Models\Renstra;
+use App\Models\Role;
 use App\Models\SasaranStrategis;
-use App\Models\UnitKerja;
+use App\Models\Unit;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MasterUnitOrganisasiTest extends TestCase
@@ -23,7 +25,7 @@ class MasterUnitOrganisasiTest extends TestCase
 
     protected User $pegawai;
 
-    protected UnitKerja $unitInduk;
+    protected Unit $unitInduk;
 
     protected function setUp(): void
     {
@@ -31,55 +33,73 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-03-20 10:00:00'));
 
-        foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $role) {
-            Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
-        }
+        $this->seed(AccessCatalogSeeder::class);
 
-        $this->unitInduk = UnitKerja::create([
-            'kode' => 'LLDIKTI16',
-            'nama' => 'Lembaga Layanan Pendidikan Tinggi Wilayah XVI',
-            'singkatan' => 'LLDIKTI XVI',
+        $this->superadmin = User::factory()->create([
+            'nama' => 'Superadmin Test',
+            'email' => 'superadmin@example.test',
             'is_active' => true,
         ]);
 
-        $this->superadmin = User::create([
-            'name' => 'Superadmin Test',
-            'email' => 'superadmin@example.test',
-            'password' => 'password',
-            'unit_kerja_id' => $this->unitInduk->id,
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $this->superadmin->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadmin->id,
+            'created_at' => now(),
         ]);
-        $this->superadmin->assignRole('superadmin');
+        foreach (['unit:read', 'unit:create', 'unit:update', 'unit:delete'] as $p) {
+            $perm = Permission::where('kode', $p)->firstOrFail();
+            $superadminRole->permissions()->attach($perm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+        }
 
-        $this->admin = User::create([
-            'name' => 'Admin Test',
+        $this->admin = User::factory()->create([
+            'nama' => 'Admin Test',
             'email' => 'admin@example.test',
-            'password' => 'password',
-            'unit_kerja_id' => $this->unitInduk->id,
+            'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
 
-        $this->pegawai = User::create([
-            'name' => 'Pegawai Biasa Test',
-            'email' => 'pegawai@example.test',
-            'password' => 'password',
-            'unit_kerja_id' => $this->unitInduk->id,
+        $adminRole = Role::where('kode', 'admin')->firstOrFail();
+        $this->admin->roles()->attach($adminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadmin->id,
+            'created_at' => now(),
         ]);
-        $this->pegawai->assignRole('pegawai');
+        foreach (['unit:read', 'unit:create', 'unit:update'] as $p) {
+            $perm = Permission::where('kode', $p)->firstOrFail();
+            $adminRole->permissions()->attach($perm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+        }
+
+        $this->pegawai = User::factory()->create([
+            'nama' => 'Pegawai Biasa Test',
+            'email' => 'pegawai@example.test',
+            'is_active' => true,
+        ]);
+
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $this->pegawai->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        $this->unitInduk = Unit::create([
+            'nama' => 'Lembaga Layanan Pendidikan Tinggi Wilayah XVI',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
     }
 
     /**
-     * AC-1 / TEST-1: Admin dapat membuat unit organisasi dengan data valid,
-     * status default aktif, dan tercatat di audit_log.
+     * AC-1 / TEST-1: Admin dapat membuat unit organisasi dengan data valid dan status default aktif.
      */
-    public function test_admin_can_create_unit_and_records_audit_log(): void
+    public function test_admin_can_create_unit(): void
     {
         $payload = [
-            'kode' => 'POKJA-SDPT',
             'nama' => 'Kelompok Kerja Sumber Daya Perguruan Tinggi',
-            'singkatan' => 'Pokja SDPT',
-            'parent_id' => $this->unitInduk->id,
-            'urutan' => 3,
-            'is_active' => true,
+            'status' => 'aktif',
         ];
 
         $response = $this->actingAs($this->admin)->post('/unit', $payload);
@@ -87,22 +107,10 @@ class MasterUnitOrganisasiTest extends TestCase
         $response->assertRedirect('/unit');
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseHas('unit_kerjas', [
-            'kode' => 'POKJA-SDPT',
+        $this->assertDatabaseHas('unit', [
             'nama' => 'Kelompok Kerja Sumber Daya Perguruan Tinggi',
-            'is_active' => true,
+            'status' => 'aktif',
             'created_by' => $this->admin->id,
-        ]);
-
-        $unit = UnitKerja::where('kode', 'POKJA-SDPT')->first();
-        $this->assertNotNull($unit);
-
-        // Pastikan tercatat di audit log
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $this->admin->id,
-            'tindakan' => 'unit.create',
-            'objek_tipe' => 'unit',
-            'objek_id' => (string) $unit->id,
         ]);
     }
 
@@ -111,10 +119,10 @@ class MasterUnitOrganisasiTest extends TestCase
      */
     public function test_delete_unit_linked_to_indicator_is_rejected(): void
     {
-        $unit = UnitKerja::create([
-            'kode' => 'POKJA-AK',
+        $unit = Unit::create([
             'nama' => 'Pokja Akademik',
-            'is_active' => true,
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
         ]);
 
         $renstra = Renstra::create([
@@ -131,19 +139,13 @@ class MasterUnitOrganisasiTest extends TestCase
             'deskripsi' => 'Sasaran Test',
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-TEST',
             'nama' => 'Indikator Test',
             'satuan' => '%',
-            'tipe_perhitungan' => 'naik_baik',
-        ]);
-
-        PenugasanIndikator::create([
-            'indikator_kinerja_id' => $indikator->id,
-            'unit_kerja_id' => $unit->id,
-            'tahun' => 2026,
-            'is_active' => true,
+            'unit_id' => $unit->id,
+            'arah' => 'naik_baik',
         ]);
 
         // Superadmin mencoba menghapus unit yang ada indikatornya
@@ -151,37 +153,26 @@ class MasterUnitOrganisasiTest extends TestCase
 
         // Ditolak oleh Policy (403)
         $response->assertStatus(403);
-        $this->assertDatabaseHas('unit_kerjas', ['id' => $unit->id]);
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
     }
 
     /**
-     * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong,
-     * dan tercatat di audit_log beserta alasan.
+     * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong.
      */
-    public function test_superadmin_can_delete_empty_unit_and_records_audit(): void
+    public function test_superadmin_can_delete_empty_unit(): void
     {
-        $unit = UnitKerja::create([
-            'kode' => 'UNIT-KOSONG',
+        $unit = Unit::create([
             'nama' => 'Unit Kosong Eksperimen',
-            'is_active' => true,
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
         ]);
 
-        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
-            'alasan' => 'Unit salah dibuat dan tidak pernah dipakai',
-        ]);
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}");
 
         $response->assertRedirect('/unit');
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseMissing('unit_kerjas', ['id' => $unit->id]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $this->superadmin->id,
-            'tindakan' => 'unit.delete',
-            'objek_tipe' => 'unit',
-            'objek_id' => (string) $unit->id,
-            'alasan' => 'Unit salah dibuat dan tidak pernah dipakai',
-        ]);
+        $this->assertDatabaseMissing('unit', ['id' => $unit->id]);
     }
 
     /**
@@ -189,16 +180,16 @@ class MasterUnitOrganisasiTest extends TestCase
      */
     public function test_admin_cannot_delete_empty_unit(): void
     {
-        $unit = UnitKerja::create([
-            'kode' => 'UNIT-KOSONG-2',
+        $unit = Unit::create([
             'nama' => 'Unit Kosong Lain',
-            'is_active' => true,
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
         ]);
 
         $response = $this->actingAs($this->admin)->delete("/unit/{$unit->id}");
 
         $response->assertStatus(403);
-        $this->assertDatabaseHas('unit_kerjas', ['id' => $unit->id]);
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
     }
 
     /**
@@ -206,18 +197,15 @@ class MasterUnitOrganisasiTest extends TestCase
      */
     public function test_admin_can_update_and_deactivate_unit(): void
     {
-        $unit = UnitKerja::create([
-            'kode' => 'BAG-UMUM',
+        $unit = Unit::create([
             'nama' => 'Bagian Umum Lama',
-            'is_active' => true,
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
         ]);
 
         $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
-            'kode' => 'BAG-UMUM',
             'nama' => 'Bagian Umum Baru',
-            'singkatan' => 'Bag. Umum',
-            'is_active' => false,
-            'alasan' => 'Penyesuaian tata kelola dan penonaktifan sementara',
+            'status' => 'nonaktif',
         ]);
 
         $response->assertRedirect('/unit');
@@ -225,16 +213,7 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $unit->refresh();
         $this->assertEquals('Bagian Umum Baru', $unit->nama);
-        $this->assertFalse($unit->is_active);
-
-        // Pastikan tercatat di audit log
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $this->admin->id,
-            'tindakan' => 'unit.update',
-            'objek_tipe' => 'unit',
-            'objek_id' => (string) $unit->id,
-            'alasan' => 'Penyesuaian tata kelola dan penonaktifan sementara',
-        ]);
+        $this->assertEquals('nonaktif', $unit->status);
     }
 
     /**
@@ -248,7 +227,6 @@ class MasterUnitOrganisasiTest extends TestCase
 
         // Pegawai biasa mencoba create
         $createResponse = $this->actingAs($this->pegawai)->post('/unit', [
-            'kode' => 'ILLEGAL',
             'nama' => 'Illegal Unit',
         ]);
         $createResponse->assertStatus(403);

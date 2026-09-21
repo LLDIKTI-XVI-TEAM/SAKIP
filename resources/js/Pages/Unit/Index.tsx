@@ -10,28 +10,22 @@ import {
     CheckCircle2, 
     XCircle, 
     AlertTriangle,
-    Layers,
-    X,
-    FolderTree
+    X
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
-import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 
 interface UnitItem {
-    id: number;
-    kode: string;
+    id: string;
     nama: string;
-    singkatan: string | null;
-    parent_id: number | null;
-    parent_nama: string | null;
-    urutan: number;
+    status: 'aktif' | 'nonaktif';
     is_active: boolean;
-    penugasan_count: number;
-    users_count: number;
-    children_count: number;
+    indikators_count: number;
+    rencana_aksis_count: number;
+    kegiatans_count: number;
+    grants_count: number;
     is_deletable: boolean;
     can: {
         update: boolean;
@@ -39,21 +33,14 @@ interface UnitItem {
     };
 }
 
-interface ParentOption {
-    id: number;
-    nama: string;
-    singkatan: string | null;
-}
-
 interface UnitIndexProps {
     units: UnitItem[];
-    parentOptions: ParentOption[];
     can: {
         create: boolean;
     };
 }
 
-export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps) {
+export default function UnitIndex({ units, can }: UnitIndexProps) {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
@@ -61,36 +48,23 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState<UnitItem | null>(null);
     const [deletingUnit, setDeletingUnit] = useState<UnitItem | null>(null);
-    const [deleteReason, setDeleteReason] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Form Tambah Unit
     const createForm = useForm({
-        kode: '',
         nama: '',
-        singkatan: '',
-        parent_id: '' as string | number,
-        urutan: 0,
-        is_active: true,
+        status: 'aktif' as 'aktif' | 'nonaktif',
     });
 
     // Form Edit Unit
     const editForm = useForm({
-        kode: '',
         nama: '',
-        singkatan: '',
-        parent_id: '' as string | number,
-        urutan: 0,
-        is_active: true,
-        alasan: '',
+        status: 'aktif' as 'aktif' | 'nonaktif',
     });
 
     const filteredUnits = useMemo(() => {
         return units.filter((u) => {
-            const matchesSearch = 
-                u.nama.toLowerCase().includes(search.toLowerCase()) ||
-                u.kode.toLowerCase().includes(search.toLowerCase()) ||
-                (u.singkatan && u.singkatan.toLowerCase().includes(search.toLowerCase()));
+            const matchesSearch = u.nama.toLowerCase().includes(search.toLowerCase());
 
             const matchesStatus = 
                 filterStatus === 'all' ||
@@ -110,13 +84,8 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
     const handleOpenEdit = (unit: UnitItem) => {
         setEditingUnit(unit);
         editForm.setData({
-            kode: unit.kode,
             nama: unit.nama,
-            singkatan: unit.singkatan || '',
-            parent_id: unit.parent_id || '',
-            urutan: unit.urutan,
-            is_active: unit.is_active,
-            alasan: '',
+            status: unit.status,
         });
         editForm.clearErrors();
     };
@@ -145,15 +114,11 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
     };
 
     const handleToggleStatus = (unit: UnitItem) => {
-        if (confirm(`Ubah status unit '${unit.nama}' menjadi ${unit.is_active ? 'Nonaktif' : 'Aktif'}?`)) {
+        const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
+        if (confirm(`Ubah status unit '${unit.nama}' menjadi ${nextStatus === 'aktif' ? 'Aktif' : 'Nonaktif'}?`)) {
             router.post(`/unit/${unit.id}`, {
-                kode: unit.kode,
                 nama: unit.nama,
-                singkatan: unit.singkatan || '',
-                parent_id: unit.parent_id || '',
-                urutan: unit.urutan,
-                is_active: !unit.is_active,
-                alasan: `Mengubah status unit kerja menjadi ${!unit.is_active ? 'Aktif' : 'Nonaktif'}`,
+                status: nextStatus,
             }, {
                 preserveScroll: true,
             });
@@ -166,12 +131,10 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
 
         setIsDeleting(true);
         router.delete(`/unit/${deletingUnit.id}`, {
-            data: { alasan: deleteReason },
             preserveScroll: true,
             onFinish: () => {
                 setIsDeleting(false);
                 setDeletingUnit(null);
-                setDeleteReason('');
             },
         });
     };
@@ -195,7 +158,7 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                             Pengelolaan Master Unit Organisasi
                         </h1>
                         <p className="text-xs text-slate-500 mt-1">
-                            Kelola struktur unit kerja pemilik indikator kinerja, penugasan aparatur, dan batas lingkup kewenangan.
+                            Kelola unit kerja pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
                         </p>
                     </div>
 
@@ -219,7 +182,7 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari kode unit, nama, atau singkatan..."
+                                placeholder="Cari nama unit organisasi..."
                                 className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] transition-colors"
                             />
                         </div>
@@ -263,11 +226,11 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                             <thead>
                                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                                     <th className="py-3.5 px-4 w-12 text-center">No</th>
-                                    <th className="py-3.5 px-4">Kode & Nama Unit</th>
-                                    <th className="py-3.5 px-4">Singkatan</th>
-                                    <th className="py-3.5 px-4">Induk Organisasi</th>
+                                    <th className="py-3.5 px-4">Nama Unit Organisasi</th>
                                     <th className="py-3.5 px-4 text-center">Indikator</th>
-                                    <th className="py-3.5 px-4 text-center">Pegawai</th>
+                                    <th className="py-3.5 px-4 text-center">Rencana Aksi</th>
+                                    <th className="py-3.5 px-4 text-center">Kegiatan</th>
+                                    <th className="py-3.5 px-4 text-center">Grant Izin</th>
                                     <th className="py-3.5 px-4 text-center">Status</th>
                                     <th className="py-3.5 px-4 text-right">Aksi</th>
                                 </tr>
@@ -289,43 +252,43 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                             <td className="py-3.5 px-4 text-center font-medium text-slate-400">
                                                 {index + 1}
                                             </td>
-                                            <td className="py-3.5 px-4">
-                                                <div className="font-bold text-slate-900 flex items-center gap-2">
-                                                    <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold">
-                                                        {unit.kode}
-                                                    </span>
-                                                    <span>{unit.nama}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-slate-600 font-medium">
-                                                {unit.singkatan || '-'}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-slate-500">
-                                                {unit.parent_nama ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-slate-700">
-                                                        <FolderTree className="w-3.5 h-3.5 text-slate-400" />
-                                                        {unit.parent_nama}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-400 italic">Induk Utama</span>
-                                                )}
+                                            <td className="py-3.5 px-4 font-semibold text-slate-900">
+                                                {unit.nama}
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
                                                 <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.penugasan_count > 0 
+                                                    unit.indikators_count > 0 
                                                         ? 'bg-blue-50 text-blue-700' 
                                                         : 'bg-slate-100 text-slate-400'
                                                 }`}>
-                                                    {unit.penugasan_count}
+                                                    {unit.indikators_count}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
                                                 <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.users_count > 0 
+                                                    unit.rencana_aksis_count > 0 
+                                                        ? 'bg-indigo-50 text-indigo-700' 
+                                                        : 'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                    {unit.rencana_aksis_count}
+                                                </span>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                    unit.kegiatans_count > 0 
+                                                        ? 'bg-amber-50 text-amber-700' 
+                                                        : 'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                    {unit.kegiatans_count}
+                                                </span>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                    unit.grants_count > 0 
                                                         ? 'bg-purple-50 text-purple-700' 
                                                         : 'bg-slate-100 text-slate-400'
                                                 }`}>
-                                                    {unit.users_count}
+                                                    {unit.grants_count}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
@@ -384,7 +347,7 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                                     ) : (
                                                         !unit.is_deletable && (
                                                             <span 
-                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, pegawai, atau bawahan."
+                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, atau izin."
                                                                 className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed"
                                                             >
                                                                 <Trash2 className="w-3.5 h-3.5 opacity-30" />
@@ -421,26 +384,12 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
 
                         <form onSubmit={handleCreateSubmit} className="p-5 space-y-4 text-xs">
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Kode Unit <span className="text-rose-500">*</span></label>
-                                <Input
-                                    type="text"
-                                    value={createForm.data.kode}
-                                    onChange={(e) => createForm.setData('kode', e.target.value.toUpperCase())}
-                                    placeholder="Contoh: BAG-UMUM, POKJA-KLSI"
-                                    required
-                                />
-                                {createForm.errors.kode && (
-                                    <p className="text-[11px] text-rose-600">{createForm.errors.kode}</p>
-                                )}
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Nama Lengkap Unit <span className="text-rose-500">*</span></label>
+                                <label className="font-semibold text-slate-700">Nama Unit Organisasi <span className="text-rose-500">*</span></label>
                                 <Input
                                     type="text"
                                     value={createForm.data.nama}
                                     onChange={(e) => createForm.setData('nama', e.target.value)}
-                                    placeholder="Contoh: Kelompok Kerja Kelembagaan dan Sistem Informasi"
+                                    placeholder="Contoh: Bagian Umum / Pokja Kelembagaan"
                                     required
                                 />
                                 {createForm.errors.nama && (
@@ -448,50 +397,12 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-slate-700">Singkatan / Akronim</label>
-                                    <Input
-                                        type="text"
-                                        value={createForm.data.singkatan}
-                                        onChange={(e) => createForm.setData('singkatan', e.target.value)}
-                                        placeholder="Contoh: Pokja Kelembagaan"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-slate-700">Urutan Tampilan</label>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        value={createForm.data.urutan}
-                                        onChange={(e) => createForm.setData('urutan', parseInt(e.target.value) || 0)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Induk Organisasi (Opsional)</label>
-                                <select
-                                    value={createForm.data.parent_id}
-                                    onChange={(e) => createForm.setData('parent_id', e.target.value)}
-                                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] bg-white"
-                                >
-                                    <option value="">-- Tanpa Induk (Organisasi Tingkat Pertama) --</option>
-                                    {parentOptions.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.nama} {p.singkatan ? `(${p.singkatan})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
                             <div className="flex items-center gap-2 pt-1">
                                 <input
                                     type="checkbox"
                                     id="create_is_active"
-                                    checked={createForm.data.is_active}
-                                    onChange={(e) => createForm.setData('is_active', e.target.checked)}
+                                    checked={createForm.data.status === 'aktif'}
+                                    onChange={(e) => createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
                                     className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
                                 />
                                 <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
@@ -509,10 +420,10 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                 </Button>
                                 <Button
                                     type="submit"
-                                    isLoading={createForm.processing}
+                                    disabled={createForm.processing}
                                     className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                                 >
-                                    Simpan Unit
+                                    {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
                                 </Button>
                             </div>
                         </form>
@@ -539,20 +450,7 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
 
                         <form onSubmit={handleEditSubmit} className="p-5 space-y-4 text-xs">
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Kode Unit <span className="text-rose-500">*</span></label>
-                                <Input
-                                    type="text"
-                                    value={editForm.data.kode}
-                                    onChange={(e) => editForm.setData('kode', e.target.value.toUpperCase())}
-                                    required
-                                />
-                                {editForm.errors.kode && (
-                                    <p className="text-[11px] text-rose-600">{editForm.errors.kode}</p>
-                                )}
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Nama Lengkap Unit <span className="text-rose-500">*</span></label>
+                                <label className="font-semibold text-slate-700">Nama Unit Organisasi <span className="text-rose-500">*</span></label>
                                 <Input
                                     type="text"
                                     value={editForm.data.nama}
@@ -564,66 +462,17 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-slate-700">Singkatan</label>
-                                    <Input
-                                        type="text"
-                                        value={editForm.data.singkatan}
-                                        onChange={(e) => editForm.setData('singkatan', e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-slate-700">Urutan Tampilan</label>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        value={editForm.data.urutan}
-                                        onChange={(e) => editForm.setData('urutan', parseInt(e.target.value) || 0)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Induk Organisasi</label>
-                                <select
-                                    value={editForm.data.parent_id}
-                                    onChange={(e) => editForm.setData('parent_id', e.target.value)}
-                                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] bg-white"
-                                >
-                                    <option value="">-- Tanpa Induk --</option>
-                                    {parentOptions
-                                        .filter((p) => p.id !== editingUnit.id)
-                                        .map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.nama} {p.singkatan ? `(${p.singkatan})` : ''}
-                                            </option>
-                                        ))}
-                                </select>
-                            </div>
-
                             <div className="flex items-center gap-2 pt-1">
                                 <input
                                     type="checkbox"
                                     id="edit_is_active"
-                                    checked={editForm.data.is_active}
-                                    onChange={(e) => editForm.setData('is_active', e.target.checked)}
+                                    checked={editForm.data.status === 'aktif'}
+                                    onChange={(e) => editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
                                     className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
                                 />
                                 <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
                                     Unit Aktif
                                 </label>
-                            </div>
-
-                            <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                                <label className="font-semibold text-slate-700">Alasan Perubahan (Audit Trail)</label>
-                                <Input
-                                    type="text"
-                                    value={editForm.data.alasan}
-                                    onChange={(e) => editForm.setData('alasan', e.target.value)}
-                                    placeholder="Contoh: Penyesuaian nomenklatur struktur organisasi"
-                                />
                             </div>
 
                             <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -636,10 +485,10 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                 </Button>
                                 <Button
                                     type="submit"
-                                    isLoading={editForm.processing}
+                                    disabled={editForm.processing}
                                     className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                                 >
-                                    Simpan Perubahan
+                                    {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                                 </Button>
                             </div>
                         </form>
@@ -658,40 +507,26 @@ export default function UnitIndex({ units, parentOptions, can }: UnitIndexProps)
                                     Hapus Unit: {deletingUnit.nama}?
                                 </h3>
                                 <p className="text-xs text-rose-700 mt-1">
-                                    Aksi ini hanya dapat dilakukan oleh peran Superadmin untuk unit yang benar-benar kosong (tanpa keterkaitan indikator, bawahan, atau pegawai). Tindakan ini bersifat permanen.
+                                    Aksi ini hanya dapat dilakukan oleh Superadmin untuk unit yang tidak memiliki keterkaitan data. Tindakan ini bersifat permanen.
                                 </p>
                             </div>
                         </div>
 
                         <form onSubmit={handleDeleteSubmit} className="p-5 space-y-4 text-xs">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Alasan Penghapusan (Wajib Dicatat ke Audit Log)</label>
-                                <Input
-                                    type="text"
-                                    value={deleteReason}
-                                    onChange={(e) => setDeleteReason(e.target.value)}
-                                    placeholder="Contoh: Unit redundan yang salah dibuat"
-                                    required
-                                />
-                            </div>
-
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => {
-                                        setDeletingUnit(null);
-                                        setDeleteReason('');
-                                    }}
+                                    onClick={() => setDeletingUnit(null)}
                                 >
                                     Batal
                                 </Button>
                                 <Button
                                     type="submit"
-                                    isLoading={isDeleting}
+                                    disabled={isDeleting}
                                     className="bg-rose-600 hover:bg-rose-700 text-white"
                                 >
-                                    Hapus Permanen
+                                    {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}
                                 </Button>
                             </div>
                         </form>

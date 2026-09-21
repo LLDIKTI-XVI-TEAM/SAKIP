@@ -17,16 +17,15 @@ import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 
 interface GrantItem {
-    id: number;
-    user_id: number;
+    id: string;
+    user_id: string;
     user_name: string;
     user_email: string;
     user_roles: string[];
-    permission_id: number;
+    permission_id: string;
     permission_kode: string;
     permission_keterangan: string | null;
-    unit_id: number;
-    unit_kode: string | null;
+    unit_id: string | null;
     unit_nama: string | null;
     alasan: string;
     diberikan_oleh_nama: string;
@@ -34,21 +33,20 @@ interface GrantItem {
 }
 
 interface UserOption {
-    id: number;
+    id: string;
     name: string;
+    nama: string;
     email: string;
     roles: string[];
 }
 
 interface UnitOption {
-    id: number;
-    kode: string;
+    id: string;
     nama: string;
-    singkatan: string | null;
 }
 
 interface PermissionOption {
-    id: number;
+    id: string;
     name: string;
     kode: string;
     keterangan: string | null;
@@ -97,12 +95,11 @@ export default function GrantIndex({
                 grant.user_name.toLowerCase().includes(search.toLowerCase()) ||
                 grant.user_email.toLowerCase().includes(search.toLowerCase()) ||
                 grant.permission_kode.toLowerCase().includes(search.toLowerCase()) ||
-                (grant.unit_nama && grant.unit_nama.toLowerCase().includes(search.toLowerCase())) ||
-                (grant.unit_kode && grant.unit_kode.toLowerCase().includes(search.toLowerCase()));
+                (grant.unit_nama && grant.unit_nama.toLowerCase().includes(search.toLowerCase()));
 
             const matchUnit =
                 selectedUnitFilter === 'all' ||
-                grant.unit_id.toString() === selectedUnitFilter;
+                grant.unit_id === selectedUnitFilter;
 
             return matchSearch && matchUnit;
         });
@@ -195,8 +192,8 @@ export default function GrantIndex({
                                 >
                                     <option value="all">Semua Unit</option>
                                     {units.map((u) => (
-                                        <option key={u.id} value={u.id.toString()}>
-                                            {u.singkatan || u.nama} ({u.kode})
+                                        <option key={u.id} value={u.id}>
+                                            {u.nama}
                                         </option>
                                     ))}
                                 </select>
@@ -281,16 +278,9 @@ export default function GrantIndex({
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
                                                     <Building2 className="w-4 h-4 text-[#D6AC48] shrink-0" />
-                                                    <div>
-                                                        <span className="font-medium text-slate-800">
-                                                            {grant.unit_nama || 'Semua Unit'}
-                                                        </span>
-                                                        {grant.unit_kode && (
-                                                            <span className="ml-1.5 text-xs text-slate-400">
-                                                                ({grant.unit_kode})
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    <span className="font-medium text-slate-800">
+                                                        {grant.unit_nama || 'Semua Unit'}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -367,7 +357,7 @@ export default function GrantIndex({
                                     <option value="">-- Pilih Pengguna --</option>
                                     {users.map((u) => (
                                         <option key={u.id} value={u.id}>
-                                            {u.name} ({u.roles.join(', ')}) - {u.email}
+                                            {u.nama} ({u.roles.join(', ')}) - {u.email}
                                         </option>
                                     ))}
                                 </select>
@@ -413,7 +403,7 @@ export default function GrantIndex({
                                     <option value="">-- Pilih Unit Target --</option>
                                     {units.map((u) => (
                                         <option key={u.id} value={u.id}>
-                                            {u.kode} - {u.nama}
+                                            {u.nama}
                                         </option>
                                     ))}
                                 </select>

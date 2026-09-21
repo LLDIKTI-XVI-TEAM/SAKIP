@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
-use App\Models\UnitKerja;
+use App\Models\Unit;
 use App\Models\User;
-use App\Models\UserPermissionGranted;
+use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,13 +22,14 @@ class StoreGrant extends Controller
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
             'permission_id' => ['required', 'exists:permissions,id'],
-            'unit_id' => ['nullable'],
+            'unit_id' => ['nullable', 'exists:unit,id'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ], [
             'user_id.required' => 'Pengguna target wajib dipilih.',
             'user_id.exists' => 'Pengguna target tidak ditemukan.',
             'permission_id.required' => 'Permission wajib dipilih.',
             'permission_id.exists' => 'Permission tidak ditemukan dalam katalog.',
+            'unit_id.exists' => 'Unit target tidak ditemukan.',
             'alasan.required' => 'Alasan pemberian grant wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan pemberian grant minimal 5 karakter.',
         ]);
@@ -51,10 +52,10 @@ class StoreGrant extends Controller
         }
 
         // Pastikan unit_id valid dan aktif
-        $unit = UnitKerja::findOrFail($validated['unit_id']);
+        $unit = Unit::findOrFail($validated['unit_id']);
 
         // AC-4: Cek duplikasi user-permission-unit
-        $isDuplicate = UserPermissionGranted::where('user_id', $validated['user_id'])
+        $isDuplicate = UserPermissionGrant::where('user_id', $validated['user_id'])
             ->where('permission_id', $validated['permission_id'])
             ->where('unit_id', $unit->id)
             ->exists();
@@ -68,7 +69,7 @@ class StoreGrant extends Controller
         $targetUser = User::findOrFail($validated['user_id']);
 
         // AC-1 & AC-5: Simpan grant
-        $grant = UserPermissionGranted::create([
+        $grant = UserPermissionGrant::create([
             'user_id' => $targetUser->id,
             'permission_id' => $permission->id,
             'unit_id' => $unit->id,
@@ -84,9 +85,9 @@ class StoreGrant extends Controller
             nilaiLama: null,
             nilaiBaru: [
                 'user_id' => $targetUser->id,
-                'user_name' => $targetUser->name,
+                'user_nama' => $targetUser->nama,
                 'permission_id' => $permission->id,
-                'permission_kode' => $permission->kode ?? $permission->name,
+                'permission_kode' => $permission->kode,
                 'unit_id' => $unit->id,
                 'unit_kode' => $unit->kode,
                 'alasan' => $grant->alasan,
@@ -95,11 +96,11 @@ class StoreGrant extends Controller
             alasan: $grant->alasan,
             dasarIzin: [
                 'permission' => 'akses:update',
-                'roles' => $request->user()->getRoleNames()->all(),
+                'roles' => $request->user()->roles->pluck('nama')->all(),
             ]
         );
 
         return redirect()->route('akses.grant.index')
-            ->with('success', "Izin '{$permission->name}' pada unit '{$unit->nama}' berhasil diberikan kepada {$targetUser->name}.");
+            ->with('success', "Izin '{$permission->kode}' pada unit '{$unit->nama}' berhasil diberikan kepada {$targetUser->nama}.");
     }
 }

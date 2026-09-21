@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Unit;
 
 use App\Http\Controllers\Controller;
-use App\Models\UnitKerja;
+use App\Models\Unit;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -13,45 +14,36 @@ class IndexUnit extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        Gate::authorize('viewAny', UnitKerja::class);
+        Gate::authorize('viewAny', Unit::class);
 
         $user = $request->user();
+        $resolver = app(PermissionResolver::class);
 
-        $units = UnitKerja::with('parent')
-            ->withCount(['penugasanIndikators', 'users', 'children'])
-            ->orderBy('urutan')
+        $units = Unit::withCount(['indikators', 'rencanaAksis', 'kegiatans', 'permissionGrants'])
             ->orderBy('nama')
             ->get()
-            ->map(function (UnitKerja $unit) use ($user) {
+            ->map(function (Unit $unit) use ($user, $resolver) {
                 return [
                     'id' => $unit->id,
-                    'kode' => $unit->kode,
                     'nama' => $unit->nama,
-                    'singkatan' => $unit->singkatan,
-                    'parent_id' => $unit->parent_id,
-                    'parent_nama' => $unit->parent?->nama,
-                    'urutan' => $unit->urutan,
-                    'is_active' => $unit->is_active,
-                    'penugasan_count' => $unit->penugasan_indicators_count ?? $unit->penugasanIndikators()->count(),
-                    'users_count' => $unit->users_count ?? $unit->users()->count(),
-                    'children_count' => $unit->children_count ?? $unit->children()->count(),
+                    'status' => $unit->status,
+                    'is_active' => $unit->status === 'aktif',
+                    'indikators_count' => $unit->indikators_count,
+                    'rencana_aksis_count' => $unit->rencana_aksis_count,
+                    'kegiatans_count' => $unit->kegiatans_count,
+                    'grants_count' => $unit->permission_grants_count,
                     'is_deletable' => $unit->isDeletable(),
                     'can' => [
-                        'update' => $user->can('update', $unit),
-                        'delete' => $user->hasRole('superadmin') && $unit->isDeletable(),
+                        'update' => $resolver->allows($user, 'unit:update'),
+                        'delete' => $user->hasRole('superadmin') && $resolver->allows($user, 'unit:delete') && $unit->isDeletable(),
                     ],
                 ];
             });
 
-        $parentOptions = UnitKerja::where('is_active', true)
-            ->orderBy('nama')
-            ->get(['id', 'nama', 'singkatan']);
-
         return Inertia::render('Unit/Index', [
             'units' => $units,
-            'parentOptions' => $parentOptions,
             'can' => [
-                'create' => $user->can('create', UnitKerja::class),
+                'create' => $resolver->allows($user, 'unit:create'),
             ],
         ]);
     }

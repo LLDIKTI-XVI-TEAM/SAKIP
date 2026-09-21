@@ -4,12 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Permission;
-use App\Models\UnitKerja;
+use App\Models\Role;
+use App\Models\Unit;
 use App\Models\User;
-use App\Models\UserPermissionGranted;
-use Database\Seeders\PermissionCatalogSeeder;
+use App\Models\UserPermissionGrant;
+use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class GrantIzinTambahanUnitTest extends TestCase
@@ -22,9 +23,9 @@ class GrantIzinTambahanUnitTest extends TestCase
 
     protected User $pimpinanUser;
 
-    protected UnitKerja $unitA;
+    protected Unit $unitA;
 
-    protected UnitKerja $unitB;
+    protected Unit $unitB;
 
     protected Permission $unitPermission;
 
@@ -34,53 +35,67 @@ class GrantIzinTambahanUnitTest extends TestCase
     {
         parent::setUp();
 
-        $roles = ['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'];
-        foreach ($roles as $r) {
-            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
-        }
+        $this->seed(AccessCatalogSeeder::class);
 
-        $this->seed(PermissionCatalogSeeder::class);
-
-        $this->unitA = UnitKerja::create([
-            'kode' => 'UNIT-A',
-            'nama' => 'Pokja Kelembagaan',
-            'singkatan' => 'Kelembagaan',
-            'is_active' => true,
-        ]);
-
-        $this->unitB = UnitKerja::create([
-            'kode' => 'UNIT-B',
-            'nama' => 'Pokja Akademik',
-            'singkatan' => 'Akademik',
-            'is_active' => true,
-        ]);
-
-        $this->adminUser = User::create([
-            'name' => 'Admin Pengelola',
+        $this->adminUser = User::factory()->create([
+            'nama' => 'Admin Pengelola',
             'email' => 'admin@sakip.test',
-            'password' => 'secret123',
-            'unit_kerja_id' => $this->unitA->id,
             'is_active' => true,
         ]);
-        $this->adminUser->assignRole('admin');
 
-        $this->pegawaiUser = User::create([
-            'name' => 'Pegawai Staf',
+        $this->pegawaiUser = User::factory()->create([
+            'nama' => 'Pegawai Staf',
             'email' => 'pegawai@sakip.test',
-            'password' => 'secret123',
-            'unit_kerja_id' => $this->unitA->id,
             'is_active' => true,
         ]);
-        $this->pegawaiUser->assignRole('pegawai');
 
-        $this->pimpinanUser = User::create([
-            'name' => 'Pimpinan Lembaga',
+        $this->pimpinanUser = User::factory()->create([
+            'nama' => 'Pimpinan Lembaga',
             'email' => 'pimpinan@sakip.test',
-            'password' => 'secret123',
-            'unit_kerja_id' => $this->unitA->id,
             'is_active' => true,
         ]);
-        $this->pimpinanUser->assignRole('pimpinan');
+
+        $adminRole = Role::where('kode', 'admin')->firstOrFail();
+        $this->adminUser->roles()->attach($adminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $aksesUpdatePerm = Permission::where('kode', 'akses:update')->firstOrFail();
+        $adminRole->permissions()->attach($aksesUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $this->pegawaiUser->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $pimpinanRole = Role::where('kode', 'pimpinan')->firstOrFail();
+        $this->pimpinanUser->roles()->attach($pimpinanRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $this->unitA = Unit::create([
+            'nama' => 'Pokja Kelembagaan',
+            'status' => 'aktif',
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        $this->unitB = Unit::create([
+            'nama' => 'Pokja Akademik',
+            'status' => 'aktif',
+            'created_by' => $this->adminUser->id,
+        ]);
 
         $this->unitPermission = Permission::where('kode', 'pengukuran:create')->firstOrFail();
         $this->globalPermission = Permission::where('kode', 'pengaturan:update')->firstOrFail();
@@ -110,14 +125,14 @@ class GrantIzinTambahanUnitTest extends TestCase
             'alasan' => 'Penugasan khusus bantuan penyusunan capaian Pokja Akademik',
         ]);
 
-        $grant = UserPermissionGranted::where('user_id', $this->pegawaiUser->id)
+        $grant = UserPermissionGrant::where('user_id', $this->pegawaiUser->id)
             ->where('permission_id', $this->unitPermission->id)
             ->first();
 
         $this->assertNotNull($grant);
         $this->assertEquals($this->unitB->id, $grant->unit_id);
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'actor_id' => $this->adminUser->id,
             'tindakan' => 'user_permission_granted.tambah',
             'objek_tipe' => 'user_permission_granted',
@@ -165,7 +180,7 @@ class GrantIzinTambahanUnitTest extends TestCase
      */
     public function test_duplicate_grant_is_rejected(): void
     {
-        UserPermissionGranted::create([
+        UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitA->id,
@@ -211,7 +226,7 @@ class GrantIzinTambahanUnitTest extends TestCase
      */
     public function test_revoking_grant_deletes_record_and_creates_audit_log(): void
     {
-        $grant = UserPermissionGranted::create([
+        $grant = UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitA->id,
@@ -230,7 +245,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'id' => $grant->id,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseHas('audit_log', [
             'actor_id' => $this->adminUser->id,
             'tindakan' => 'user_permission_granted.hapus',
             'objek_tipe' => 'user_permission_granted',
@@ -266,7 +281,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
         $storeResponse->assertStatus(403);
 
-        $grant = UserPermissionGranted::create([
+        $grant = UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitA->id,
