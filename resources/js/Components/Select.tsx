@@ -1,4 +1,4 @@
-import React, { SelectHTMLAttributes } from 'react';
+import React, { SelectHTMLAttributes, useId } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -9,7 +9,8 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function Select({ label, error, helperText, className, id, children, ...props }: SelectProps) {
-    const selectId = id || props.name;
+    const fallbackId = useId();
+    const selectId = id ?? props.name ?? fallbackId;
 
     return (
         <div className="w-full">

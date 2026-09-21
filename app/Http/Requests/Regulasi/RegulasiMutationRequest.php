@@ -43,9 +43,9 @@ abstract class RegulasiMutationRequest extends FormRequest
                 : ['nullable', 'string', 'max:1000'],
             'lampiran' => ['sometimes', 'array'],
             'lampiran.*.mode' => ['required', Rule::in(['file', 'tautan', 'teks'])],
-            'lampiran.*.file' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:10240'],
-            'lampiran.*.tautan' => ['nullable', 'string', 'url:http,https', 'max:2048'],
-            'lampiran.*.isi_teks' => ['nullable', 'string', 'max:10000'],
+            'lampiran.*.file' => ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:10240'],
+            'lampiran.*.tautan' => ['exclude_unless:lampiran.*.mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
+            'lampiran.*.isi_teks' => ['exclude_unless:lampiran.*.mode,teks', 'required', 'string', 'max:10000'],
         ];
     }
 

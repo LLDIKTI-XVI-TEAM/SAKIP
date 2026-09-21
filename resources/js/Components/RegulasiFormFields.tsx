@@ -40,6 +40,15 @@ export function RegulasiFormFields({ data, errors, disabled = false, setField }:
         setField('lampiran', next);
     };
 
+    const updateModeLampiran = (index: number, mode: LampiranMode) => {
+        const next = data.lampiran.map((item, itemIndex) => (
+            itemIndex === index
+                ? { ...item, mode, file: null, tautan: '', isi_teks: '' }
+                : item
+        ));
+        setField('lampiran', next);
+    };
+
     const removeLampiran = (index: number) => {
         setField('lampiran', data.lampiran.filter((_, itemIndex) => itemIndex !== index));
     };
@@ -207,7 +216,7 @@ export function RegulasiFormFields({ data, errors, disabled = false, setField }:
                                         <Select
                                             label="Mode lampiran"
                                             value={item.mode}
-                                            onChange={(event) => updateLampiran(index, 'mode', event.target.value as LampiranMode)}
+                                            onChange={(event) => updateModeLampiran(index, event.target.value as LampiranMode)}
                                             disabled={disabled}
                                             error={errors[`lampiran.${index}.mode`]}
                                         >
