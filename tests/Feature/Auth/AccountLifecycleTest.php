@@ -6,9 +6,11 @@ use App\Actions\Audit\WriteAuditLog;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,25 +64,46 @@ class AccountLifecycleTest extends TestCase
     {
         $user = $this->pending('bootstrap');
         $action = app(BootstrapSuperadmin::class);
-        $this->assertTrue($action->handle('bootstrap', 'Operator Uji / otorisasi QA', 'Inisialisasi pengujian', 'qa-runtime'));
+        $this->assertTrue($action->handle($user->id, 'Operator Uji / otorisasi QA', 'Inisialisasi pengujian', 'qa-runtime'));
         $this->assertTrue($user->fresh()->is_active);
         $this->assertSame('superadmin', $user->roles()->first()->kode);
         $this->assertDatabaseCount('role_permissions', 162);
+        $this->assertSame(0, DB::table('role_permissions')->where('role_id', Role::where('kode', 'pic')->sole()->id)->count());
+        foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
+            $role = Role::where('kode', $code)->sole();
+            $installed = DB::table('role_permissions')
+                ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $role->id)
+                ->pluck('permissions.kode')->all();
+            $this->assertEqualsCanonicalizing(RolePermissionPresets::forRole($code), $installed);
+            $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->where('objek_id', $role->id)->sole();
+            $this->assertEqualsCanonicalizing(RolePermissionPresets::forRole($code), $audit->nilai_baru['permissions']);
+        }
+        $bootstrapAudits = AuditLog::where('sumber', 'bootstrap')->get();
+        $this->assertCount(8, $bootstrapAudits);
+        foreach ($bootstrapAudits as $audit) {
+            $this->assertSame('operator', $audit->actor_type);
+            $this->assertSame('Operator Uji / otorisasi QA', $audit->operator_reference);
+            $this->assertSame('Inisialisasi pengujian', $audit->alasan);
+            $this->assertSame('qa-runtime', $audit->runtime_identity);
+        }
+        $this->assertSame(AuditLog::where('tindakan', 'auth.bootstrap')->sole()->id, DB::table('auth_bootstraps')->value('audit_id'));
         $auditCount = DB::table('audit_log')->count();
         DB::table('user_roles')->where('user_id', $user->id)->update(['role_id' => Role::where('kode', 'pegawai')->value('id')]);
         $user->refresh()->update(['is_active' => false]);
-        $this->assertFalse($action->handle('bootstrap', 'Operator Uji / otorisasi QA', 'Percobaan ulang', 'qa-runtime'));
+        $this->assertFalse($action->handle($user->id, 'Operator Uji / otorisasi QA', 'Percobaan ulang', 'qa-runtime'));
         $this->assertFalse($user->fresh()->is_active);
         $this->assertSame('pegawai', $user->roles()->first()->kode);
         $this->assertSame($auditCount, DB::table('audit_log')->count());
+        $other = $this->pending('other');
         $this->expectException(\DomainException::class);
-        $action->handle('other', 'Operator Uji', 'Target berbeda', 'qa-runtime');
+        $action->handle($other->id, 'Operator Uji', 'Target berbeda', 'qa-runtime');
     }
 
     public function test_activation_is_atomic_idempotent_and_deny_overrides_superadmin(): void
     {
         $admin = $this->pending('admin');
-        app(BootstrapSuperadmin::class)->handle('admin', 'Operator QA', 'Inisialisasi uji', 'qa-runtime');
+        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi uji', 'qa-runtime');
         $target = $this->pending('target');
         $action = app(ActivateUser::class);
         $this->assertTrue($action->handle($admin->fresh(), $target->id, 'Disetujui admin'));
@@ -101,7 +124,7 @@ class AccountLifecycleTest extends TestCase
         $user = $this->pending('incomplete');
         Role::where('kode', 'pimpinan')->delete();
         try {
-            app(BootstrapSuperadmin::class)->handle('incomplete', 'Operator QA', 'Inisialisasi', 'qa-runtime');
+            app(BootstrapSuperadmin::class)->handle($user->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
             $this->fail('Bootstrap tidak boleh menandai preset parsial sebagai selesai.');
         } catch (\DomainException) {
             $this->assertFalse($user->fresh()->is_active);
@@ -115,7 +138,7 @@ class AccountLifecycleTest extends TestCase
         $user = $this->pending('audit-failure');
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('audit-unavailable'));
         try {
-            app(BootstrapSuperadmin::class)->handle('audit-failure', 'Operator QA', 'Inisialisasi', 'qa-runtime');
+            app(BootstrapSuperadmin::class)->handle($user->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
             $this->fail('Audit gagal harus membatalkan bootstrap.');
         } catch (RuntimeException $e) {
             $this->assertSame('audit-unavailable', $e->getMessage());
@@ -130,7 +153,7 @@ class AccountLifecycleTest extends TestCase
     public function test_activation_audit_failure_leaves_account_pending(): void
     {
         $admin = $this->pending('admin-audit');
-        app(BootstrapSuperadmin::class)->handle('admin-audit', 'Operator QA', 'Inisialisasi', 'qa-runtime');
+        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
         $target = $this->pending('target-audit');
         $count = DB::table('audit_log')->count();
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('audit-unavailable'));

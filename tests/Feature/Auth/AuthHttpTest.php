@@ -66,7 +66,7 @@ class AuthHttpTest extends TestCase
     {
         $provision = app(ProvisionKeycloakUser::class);
         $admin = $provision->handle(['subject' => 'admin', 'nama' => 'Admin Uji', 'email' => 'admin@example.test']);
-        app(BootstrapSuperadmin::class)->handle('admin', 'Operator QA', 'Inisialisasi', 'qa-runtime');
+        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
         $target = $provision->handle(['subject' => 'target', 'nama' => 'Target Uji', 'email' => 'target@example.test']);
         $this->actingAs($admin->fresh())->post('/akses/aktivasi/'.$target->id, ['alasan' => ''])->assertSessionHasErrors('alasan');
         $this->post('/akses/aktivasi/'.$target->id, ['alasan' => 'Disetujui'])->assertRedirect('/akses/aktivasi')->assertSessionHas('activationResult.status', 'activated');
