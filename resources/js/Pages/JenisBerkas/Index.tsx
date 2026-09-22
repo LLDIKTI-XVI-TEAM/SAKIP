@@ -39,6 +39,7 @@ export interface JenisBerkasItem {
     format_diizinkan: string | null;
     ukuran_maks_kb: number | null;
     aktif: boolean;
+    created_at?: string;
     updated_at?: string;
     indikator?: {
         id: string;
@@ -222,7 +223,10 @@ export default function JenisBerkasIndex({
         } else if (auditAction === 'delete' && targetItem) {
             setIsSubmitting(true);
             router.delete(`/jenis-berkas/${targetItem.id}`, {
-                data: { alasan },
+                data: {
+                    alasan,
+                    expected_updated_at: targetItem.updated_at || targetItem.created_at,
+                },
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetItem(null);
@@ -231,8 +235,8 @@ export default function JenisBerkasIndex({
                 },
                 onError: (errs) => {
                     setIsSubmitting(false);
-                    if (errs && (errs.alasan || errs.konflik)) {
-                        setAuditError(errs.alasan || errs.konflik);
+                    if (errs && (errs.alasan || errs.konflik || errs.expected_updated_at)) {
+                        setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
                     } else {
                         setAuditError('Gagal menghapus persyaratan jenis berkas.');
                     }

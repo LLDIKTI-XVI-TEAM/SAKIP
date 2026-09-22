@@ -43,6 +43,14 @@ class DeleteJenisBerkasRequest extends FormRequest
     {
         return [
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'expected_updated_at' => ['required', 'date'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 }

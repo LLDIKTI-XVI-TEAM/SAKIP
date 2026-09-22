@@ -214,6 +214,7 @@ class JenisBerkasTest extends TestCase
         // Delete dengan alasan berhasil dan tercatat di audit_log beserta dasar_izin
         $deleteResponse = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
             'alasan' => 'Penghapusan katalog persyaratan yang sudah tidak relevan',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
         ]);
         $deleteResponse->assertRedirect('/jenis-berkas');
 
@@ -266,6 +267,7 @@ class JenisBerkasTest extends TestCase
         // Percobaan delete oleh pegawai ditolak 403 dan dicatat di audit log
         $deleteResponse = $this->actingAs($this->pegawai)->delete("/jenis-berkas/{$jb->id}", [
             'alasan' => 'Mencoba hapus tanpa hak',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
         $deleteResponse->assertStatus(403);
         $this->assertDatabaseHas('audit_log', [
@@ -392,6 +394,7 @@ class JenisBerkasTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
             'alasan' => 'Mencoba hapus persyaratan yang sudah dirujuk bukti',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
         ]);
 
         $response->assertSessionHasErrors('alasan');
@@ -635,5 +638,70 @@ class JenisBerkasTest extends TestCase
 
         $response->assertRedirect('/jenis-berkas');
         $response->assertSessionHas('warning');
+    }
+
+    /**
+     * TEST-17: Delete gagal dan melempar error konflik jika expected_updated_at tidak cocok dengan versi database.
+     */
+    public function test_delete_fails_when_expected_updated_at_conflicts(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Uji Konflik Delete',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
+            'alasan' => 'Mencoba hapus dengan versi timestamp usang',
+            'expected_updated_at' => now()->subHours(2)->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors('konflik');
+        $this->assertDatabaseHas('jenis_berkas', ['id' => $jb->id]);
+    }
+
+    /**
+     * TEST-18: Delete gagal dengan error validasi saat expected_updated_at bukan format tanggal valid.
+     */
+    public function test_delete_fails_when_expected_updated_at_is_invalid_format(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Uji Format Delete',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
+            'alasan' => 'Mencoba hapus dengan tanggal invalid',
+            'expected_updated_at' => 'format-tanggal-rusak',
+        ]);
+
+        $response->assertSessionHasErrors('expected_updated_at');
+        $this->assertDatabaseHas('jenis_berkas', ['id' => $jb->id]);
+    }
+
+    /**
+     * TEST-19: Update gagal dengan error validasi (bukan 500) saat expected_updated_at bukan tanggal valid.
+     */
+    public function test_update_fails_with_validation_error_when_expected_updated_at_is_invalid_format(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Uji Format Update',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Update Nama Baru',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'alasan' => 'Alasan yang sah untuk pembaruan',
+            'expected_updated_at' => 'string-bukan-tanggal',
+        ]);
+
+        $response->assertSessionHasErrors('expected_updated_at');
     }
 }

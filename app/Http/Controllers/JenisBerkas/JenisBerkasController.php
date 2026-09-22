@@ -127,10 +127,19 @@ class JenisBerkasController extends Controller
             $expectedUpdatedAt = (string) $data['expected_updated_at'];
             $currentTimestamp = $jb->updated_at ?? $jb->created_at;
             if ($currentTimestamp !== null) {
-                $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
-                if ($currentTimestamp->toISOString() !== $expectedIso) {
+                try {
+                    $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
+                    if ($currentTimestamp->toISOString() !== $expectedIso) {
+                        throw ValidationException::withMessages([
+                            'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    if ($e instanceof ValidationException) {
+                        throw $e;
+                    }
                     throw ValidationException::withMessages([
-                        'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
                     ]);
                 }
             }
@@ -178,8 +187,30 @@ class JenisBerkasController extends Controller
             abort(403);
         }
 
-        DB::transaction(function () use ($request, $id, $actor, $decision) {
+        $data = $request->validated();
+
+        DB::transaction(function () use ($data, $id, $actor, $decision) {
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            $expectedUpdatedAt = (string) $data['expected_updated_at'];
+            $currentTimestamp = $jb->updated_at ?? $jb->created_at;
+            if ($currentTimestamp !== null) {
+                try {
+                    $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
+                    if ($currentTimestamp->toISOString() !== $expectedIso) {
+                        throw ValidationException::withMessages([
+                            'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman sebelum menghapus.',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    if ($e instanceof ValidationException) {
+                        throw $e;
+                    }
+                    throw ValidationException::withMessages([
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                    ]);
+                }
+            }
 
             if (DB::table('berkas')->where('jenis_berkas_id', $jb->id)->exists()) {
                 throw ValidationException::withMessages([
@@ -188,7 +219,7 @@ class JenisBerkasController extends Controller
             }
 
             $nilaiLama = $jb->toArray();
-            $alasan = $request->validated()['alasan'];
+            $alasan = $data['alasan'];
 
             $jb->delete();
 

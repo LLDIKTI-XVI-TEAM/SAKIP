@@ -44,10 +44,11 @@ class UpdateJenisBerkasRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $urutan = $this->input('urutan');
-        $merges = [
-            'urutan' => ($urutan === null || $urutan === '') ? 0 : (int) $urutan,
-        ];
+        $merges = [];
+
+        if (! $this->has('urutan') || $this->input('urutan') === null || $this->input('urutan') === '') {
+            $merges['urutan'] = 0;
+        }
 
         if ($this->has('format_diizinkan')) {
             $format = $this->input('format_diizinkan');
@@ -57,7 +58,9 @@ class UpdateJenisBerkasRequest extends FormRequest
             }
         }
 
-        $this->merge($merges);
+        if (! empty($merges)) {
+            $this->merge($merges);
+        }
     }
 
     public function rules(): array
@@ -84,12 +87,12 @@ class UpdateJenisBerkasRequest extends FormRequest
             'izinkan_tautan' => ['boolean'],
             'izinkan_teks' => ['boolean'],
             'semua_mode_wajib' => ['boolean'],
-            'urutan' => ['integer', 'min:0'],
+            'urutan' => ['integer', 'min:0', 'max:2147483647'],
             'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
-            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100'],
+            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:2147483647'],
             'aktif' => ['sometimes', 'boolean'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
-            'expected_updated_at' => ['required', 'string'],
+            'expected_updated_at' => ['required', 'date'],
         ];
     }
 
@@ -98,6 +101,7 @@ class UpdateJenisBerkasRequest extends FormRequest
         return [
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah dinonaktifkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 

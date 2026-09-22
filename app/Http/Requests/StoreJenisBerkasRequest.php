@@ -18,10 +18,11 @@ class StoreJenisBerkasRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $urutan = $this->input('urutan');
-        $merges = [
-            'urutan' => ($urutan === null || $urutan === '') ? 0 : (int) $urutan,
-        ];
+        $merges = [];
+
+        if (! $this->has('urutan') || $this->input('urutan') === null || $this->input('urutan') === '') {
+            $merges['urutan'] = 0;
+        }
 
         if ($this->has('format_diizinkan')) {
             $format = $this->input('format_diizinkan');
@@ -31,7 +32,9 @@ class StoreJenisBerkasRequest extends FormRequest
             }
         }
 
-        $this->merge($merges);
+        if (! empty($merges)) {
+            $this->merge($merges);
+        }
     }
 
     public function rules(): array
@@ -52,9 +55,9 @@ class StoreJenisBerkasRequest extends FormRequest
             'izinkan_tautan' => ['boolean'],
             'izinkan_teks' => ['boolean'],
             'semua_mode_wajib' => ['boolean'],
-            'urutan' => ['integer', 'min:0'],
+            'urutan' => ['integer', 'min:0', 'max:2147483647'],
             'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
-            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100'],
+            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:2147483647'],
             'aktif' => ['sometimes', 'boolean'],
         ];
     }
