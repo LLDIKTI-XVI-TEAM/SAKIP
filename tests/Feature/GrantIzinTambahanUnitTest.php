@@ -19,6 +19,10 @@ class GrantIzinTambahanUnitTest extends TestCase
 
     protected User $adminUser;
 
+    protected User $superadminUser;
+
+    protected User $otherAdminUser;
+
     protected User $pegawaiUser;
 
     protected User $pimpinanUser;
@@ -43,6 +47,18 @@ class GrantIzinTambahanUnitTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->superadminUser = User::factory()->create([
+            'nama' => 'Superadmin Utama',
+            'email' => 'superadmin@sakip.test',
+            'is_active' => true,
+        ]);
+
+        $this->otherAdminUser = User::factory()->create([
+            'nama' => 'Admin Kedua',
+            'email' => 'admin2@sakip.test',
+            'is_active' => true,
+        ]);
+
         $this->pegawaiUser = User::factory()->create([
             'nama' => 'Pegawai Staf',
             'email' => 'pegawai@sakip.test',
@@ -63,8 +79,27 @@ class GrantIzinTambahanUnitTest extends TestCase
             'created_at' => now(),
         ]);
 
+        $this->otherAdminUser->roles()->attach($adminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $this->superadminUser->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
         $aksesUpdatePerm = Permission::where('kode', 'akses:update')->firstOrFail();
         $adminRole->permissions()->attach($aksesUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+        $superadminRole->permissions()->attach($aksesUpdatePerm->id, [
             'id' => (string) Str::uuid(),
             'created_at' => now(),
         ]);
@@ -305,5 +340,214 @@ class GrantIzinTambahanUnitTest extends TestCase
             'alasan' => 'Alasan pencabutan izin valid',
         ]);
         $response->assertStatus(404);
+    }
+
+    /**
+     * Aturan Hierarki: Admin TIDAK BISA memberikan izin unit kepada Admin atau Superadmin.
+     */
+    public function test_admin_cannot_grant_permission_to_admin_or_superadmin(): void
+    {
+        // Admin mencoba memberi grant ke sesama Admin
+        $responseAdmin = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->otherAdminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba memberi izin ke sesama Admin',
+        ]);
+        $responseAdmin->assertStatus(403);
+
+        // Admin mencoba memberi grant ke Superadmin
+        $responseSuperadmin = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->superadminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba memberi izin ke Superadmin',
+        ]);
+        $responseSuperadmin->assertStatus(403);
+
+        $this->assertDatabaseCount('user_permission_granted', 0);
+    }
+
+    /**
+     * Aturan Hierarki: Admin TIDAK BISA mencabut izin unit milik Admin atau Superadmin.
+     */
+    public function test_admin_cannot_revoke_grant_belonging_to_admin_or_superadmin(): void
+    {
+        $adminGrant = UserPermissionGrant::create([
+            'user_id' => $this->otherAdminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Izin unit untuk Admin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $superadminGrant = UserPermissionGrant::create([
+            'user_id' => $this->superadminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Izin unit untuk Superadmin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        // Admin mencoba mencabut izin Admin lain
+        $revokeAdmin = $this->actingAs($this->adminUser)->delete("/akses/grant/{$adminGrant->id}", [
+            'alasan' => 'Mencoba cabut grant admin',
+        ]);
+        $revokeAdmin->assertStatus(403);
+
+        // Admin mencoba mencabut izin Superadmin
+        $revokeSuperadmin = $this->actingAs($this->adminUser)->delete("/akses/grant/{$superadminGrant->id}", [
+            'alasan' => 'Mencoba cabut grant superadmin',
+        ]);
+        $revokeSuperadmin->assertStatus(403);
+
+        $this->assertDatabaseHas('user_permission_granted', ['id' => $adminGrant->id]);
+        $this->assertDatabaseHas('user_permission_granted', ['id' => $superadminGrant->id]);
+    }
+
+    /**
+     * Aturan Hierarki: Superadmin BISA memberikan izin unit kepada Admin dan Superadmin.
+     */
+    public function test_superadmin_can_grant_permission_to_admin_and_superadmin(): void
+    {
+        // Superadmin memberi grant ke Admin
+        $responseAdmin = $this->actingAs($this->superadminUser)->post('/akses/grant', [
+            'user_id' => $this->adminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Penugasan khusus unit oleh Superadmin untuk Admin',
+        ]);
+        $responseAdmin->assertRedirect('/akses/grant');
+        $responseAdmin->assertSessionHas('success');
+
+        $this->assertDatabaseHas('user_permission_granted', [
+            'user_id' => $this->adminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        // Superadmin memberi grant ke sesama Superadmin
+        $anotherSuperadmin = User::factory()->create(['is_active' => true]);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $anotherSuperadmin->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $responseSuper = $this->actingAs($this->superadminUser)->post('/akses/grant', [
+            'user_id' => $anotherSuperadmin->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Penugasan khusus unit untuk sesama Superadmin',
+        ]);
+        $responseSuper->assertRedirect('/akses/grant');
+
+        $this->assertDatabaseHas('user_permission_granted', [
+            'user_id' => $anotherSuperadmin->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+        ]);
+    }
+
+    /**
+     * Aturan Hierarki: Superadmin BISA mencabut izin unit milik Admin dan Superadmin.
+     */
+    public function test_superadmin_can_revoke_grant_belonging_to_admin_and_superadmin(): void
+    {
+        $adminGrant = UserPermissionGrant::create([
+            'user_id' => $this->adminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Izin unit untuk Admin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $superadminGrant = UserPermissionGrant::create([
+            'user_id' => $this->superadminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Izin unit untuk Superadmin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        // Superadmin mencabut izin Admin
+        $revokeAdmin = $this->actingAs($this->superadminUser)->delete("/akses/grant/{$adminGrant->id}", [
+            'alasan' => 'Pencabutan wewenang unit oleh Superadmin',
+        ]);
+        $revokeAdmin->assertRedirect('/akses/grant');
+        $this->assertDatabaseMissing('user_permission_granted', ['id' => $adminGrant->id]);
+
+        // Superadmin mencabut izin Superadmin
+        $revokeSuper = $this->actingAs($this->superadminUser)->delete("/akses/grant/{$superadminGrant->id}", [
+            'alasan' => 'Pencabutan wewenang unit superadmin',
+        ]);
+        $revokeSuper->assertRedirect('/akses/grant');
+        $this->assertDatabaseMissing('user_permission_granted', ['id' => $superadminGrant->id]);
+    }
+
+    /**
+     * Dropdown Pengguna: Admin hanya melihat user non-Admin & non-Superadmin; Superadmin melihat semua user.
+     */
+    public function test_index_filters_target_users_by_actor_role(): void
+    {
+        // Saat diakses Admin
+        $adminIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $adminIndex->assertStatus(200);
+        $adminUsers = collect($adminIndex->viewData('page')['props']['users']);
+
+        $this->assertFalse($adminUsers->contains('id', $this->adminUser->id));
+        $this->assertFalse($adminUsers->contains('id', $this->otherAdminUser->id));
+        $this->assertFalse($adminUsers->contains('id', $this->superadminUser->id));
+        $this->assertTrue($adminUsers->contains('id', $this->pegawaiUser->id));
+        $this->assertTrue($adminUsers->contains('id', $this->pimpinanUser->id));
+
+        // Saat diakses Superadmin
+        $superIndex = $this->actingAs($this->superadminUser)->get('/akses/grant');
+        $superIndex->assertStatus(200);
+        $superUsers = collect($superIndex->viewData('page')['props']['users']);
+
+        $this->assertTrue($superUsers->contains('id', $this->adminUser->id));
+        $this->assertTrue($superUsers->contains('id', $this->otherAdminUser->id));
+        $this->assertTrue($superUsers->contains('id', $this->superadminUser->id));
+        $this->assertTrue($superUsers->contains('id', $this->pegawaiUser->id));
+    }
+
+    /**
+     * Visibilitas Tombol Cabut: can_revoke bernilai false untuk Admin yang melihat grant Admin/Superadmin.
+     */
+    public function test_index_marks_can_revoke_appropriately(): void
+    {
+        $adminGrant = UserPermissionGrant::create([
+            'user_id' => $this->otherAdminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant admin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $pegawaiGrant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Grant pegawai',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // Aktor Admin: grant admin terkunci (can_revoke = false), grant pegawai bisa dicabut (can_revoke = true)
+        $adminIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $adminGrants = collect($adminIndex->viewData('page')['props']['grants'])->keyBy('id');
+
+        $this->assertFalse($adminGrants[$adminGrant->id]['can_revoke']);
+        $this->assertTrue($adminGrants[$pegawaiGrant->id]['can_revoke']);
+
+        // Aktor Superadmin: kedua grant bisa dicabut (can_revoke = true)
+        $superIndex = $this->actingAs($this->superadminUser)->get('/akses/grant');
+        $superGrants = collect($superIndex->viewData('page')['props']['grants'])->keyBy('id');
+
+        $this->assertTrue($superGrants[$adminGrant->id]['can_revoke']);
+        $this->assertTrue($superGrants[$pegawaiGrant->id]['can_revoke']);
     }
 }

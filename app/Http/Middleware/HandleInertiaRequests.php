@@ -79,7 +79,8 @@ class HandleInertiaRequests extends Middleware
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),
             'unit' => $resolver->allows($user, 'unit:read'),
-            'grant' => $resolver->allows($user, 'akses:update'),
+            'grant' => $resolver->allows($user, 'akses:update')
+                && $user->hasAnyRole(['admin', 'superadmin']),
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
             'regulasi:read' => $regulasiRead,

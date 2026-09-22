@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
@@ -16,6 +17,12 @@ class RevokeGrant extends Controller
     {
         Gate::authorize('akses:update');
 
+        /** @var User $actor */
+        $actor = $request->user();
+        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang mencabut izin unit.');
+        }
+
         $validated = $request->validate([
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ], [
@@ -23,7 +30,12 @@ class RevokeGrant extends Controller
             'alasan.min' => 'Alasan pencabutan izin minimal 5 karakter.',
         ]);
 
-        $grant = UserPermissionGrant::with(['user', 'permission', 'unit'])->findOrFail($id);
+        $grant = UserPermissionGrant::with(['user.roles', 'permission', 'unit'])->findOrFail($id);
+
+        // Admin tidak dapat merubah/mencabut izin dari Admin dan Superadmin
+        if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {
+            abort(403, 'Admin tidak memiliki wewenang untuk mencabut izin unit dari pengguna dengan peran Admin atau Superadmin.');
+        }
 
         $oldValues = [
             'id' => $grant->id,
@@ -45,14 +57,14 @@ class RevokeGrant extends Controller
 
         // AC-6: Audit Trail Pencabutan Izin
         $auditLogger->catat(
-            actor: $request->user(),
+            actor: $actor,
             tindakan: 'user_permission_granted.hapus',
             objekTipe: 'user_permission_granted',
             objekId: (string) $grantId,
             nilaiLama: $oldValues,
             nilaiBaru: null,
             alasan: $validated['alasan'],
-            dasarIzin: $permissionResolver->resolve($request->user(), 'akses:update')->toAuditBasis(),
+            dasarIzin: $permissionResolver->resolve($actor, 'akses:update')->toAuditBasis(),
         );
 
         return redirect()->route('akses.grant.index')

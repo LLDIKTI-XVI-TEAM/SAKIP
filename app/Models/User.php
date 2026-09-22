@@ -31,7 +31,23 @@ class User extends Authenticatable
     /** Pemeriksaan label peran bukan pengganti resolver permission. */
     public function hasRole(string $kode): bool
     {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains('kode', $kode);
+        }
+
         return $this->roles()->where('kode', $kode)->exists();
+    }
+
+    /**
+     * @param  list<string>  $kodes
+     */
+    public function hasAnyRole(array $kodes): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(fn (Role $role) => in_array($role->kode, $kodes, true));
+        }
+
+        return $this->roles()->whereIn('kode', $kodes)->exists();
     }
 
     /** @return HasMany<PenugasanIndikator, $this> */

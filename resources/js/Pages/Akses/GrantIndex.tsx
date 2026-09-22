@@ -30,6 +30,7 @@ interface GrantItem {
     alasan: string;
     diberikan_oleh_nama: string;
     created_at: string;
+    can_revoke?: boolean;
 }
 
 interface UserOption {
@@ -57,6 +58,7 @@ interface GrantIndexProps {
     users: UserOption[];
     units: UnitOption[];
     unitPermissions: PermissionOption[];
+    is_superadmin?: boolean;
     can: {
         create_grant: boolean;
         revoke_grant: boolean;
@@ -68,6 +70,7 @@ export default function GrantIndex({
     users,
     units,
     unitPermissions,
+    is_superadmin = false,
     can,
 }: GrantIndexProps) {
     const [search, setSearch] = useState('');
@@ -293,7 +296,7 @@ export default function GrantIndex({
                                                 <div className="text-slate-400 mt-0.5">{grant.created_at}</div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {can.revoke_grant && (
+                                                {can.revoke_grant && (grant.can_revoke ?? true) ? (
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
@@ -307,6 +310,10 @@ export default function GrantIndex({
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                         Cabut
                                                     </Button>
+                                                ) : (
+                                                    <span className="text-[11px] text-slate-400 italic font-medium px-2 py-0.5 rounded bg-slate-100/80">
+                                                        Hanya Superadmin
+                                                    </span>
                                                 )}
                                             </td>
                                         </tr>
@@ -338,9 +345,16 @@ export default function GrantIndex({
                         <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
                                 <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                                <p>
-                                    Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
-                                </p>
+                                <div className="space-y-1">
+                                    <p>
+                                        Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
+                                    </p>
+                                    {!is_superadmin && (
+                                        <p className="font-semibold text-amber-800">
+                                            Catatan: Admin berwenang mengelola izin unit pegawai non-Admin dan non-Superadmin.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Pilih Pengguna */}

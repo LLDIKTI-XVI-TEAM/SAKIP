@@ -18,6 +18,14 @@ class IndexGrant extends Controller
     {
         Gate::authorize('akses:update');
 
+        /** @var User $actor */
+        $actor = $request->user();
+        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang mengakses manajemen izin unit.');
+        }
+
+        $actorIsSuperadmin = $actor->hasRole('superadmin');
+
         $grants = UserPermissionGrant::with([
             'user:id,nama,email',
             'user.roles:id,nama,kode',
@@ -27,26 +35,40 @@ class IndexGrant extends Controller
         ])
             ->latest()
             ->get()
-            ->map(fn (UserPermissionGrant $grant) => [
-                'id' => $grant->id,
-                'user_id' => $grant->user_id,
-                'user_name' => $grant->user?->nama ?? '-',
-                'user_email' => $grant->user?->email ?? '-',
-                'user_roles' => $grant->user?->roles->pluck('nama')->all() ?? [],
-                'permission_id' => $grant->permission_id,
-                'permission_kode' => $grant->permission?->kode,
-                'permission_keterangan' => $grant->permission?->keterangan,
-                'unit_id' => $grant->unit_id,
-                'unit_nama' => $grant->unit?->nama,
-                'alasan' => $grant->alasan,
-                'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
-                'created_at' => $grant->created_at?->format('d M Y H:i'),
-            ]);
+            ->map(function (UserPermissionGrant $grant) use ($actorIsSuperadmin) {
+                $targetIsAdminOrSuperadmin = $grant->user?->hasAnyRole(['admin', 'superadmin']) ?? false;
 
-        $users = User::where('is_active', true)
+                return [
+                    'id' => $grant->id,
+                    'user_id' => $grant->user_id,
+                    'user_name' => $grant->user?->nama ?? '-',
+                    'user_email' => $grant->user?->email ?? '-',
+                    'user_roles' => $grant->user?->roles->pluck('nama')->all() ?? [],
+                    'permission_id' => $grant->permission_id,
+                    'permission_kode' => $grant->permission?->kode,
+                    'permission_keterangan' => $grant->permission?->keterangan,
+                    'unit_id' => $grant->unit_id,
+                    'unit_nama' => $grant->unit?->nama,
+                    'alasan' => $grant->alasan,
+                    'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
+                    'created_at' => $grant->created_at?->format('d M Y H:i'),
+                    'can_revoke' => $actorIsSuperadmin || ! $targetIsAdminOrSuperadmin,
+                ];
+            });
+
+        $usersQuery = User::where('is_active', true)
             ->with('roles:id,nama,kode')
             ->select('id', 'nama', 'email')
-            ->orderBy('nama')
+            ->orderBy('nama');
+
+        if (! $actorIsSuperadmin) {
+            // Admin tidak dapat merubah izin untuk Admin dan Superadmin
+            $usersQuery->whereDoesntHave('roles', function ($q) {
+                $q->whereIn('kode', ['admin', 'superadmin']);
+            });
+        }
+
+        $users = $usersQuery
             ->get()
             ->map(fn (User $user) => [
                 'id' => $user->id,
@@ -78,6 +100,7 @@ class IndexGrant extends Controller
             'users' => $users,
             'units' => $units,
             'unitPermissions' => $unitPermissions,
+            'is_superadmin' => $actorIsSuperadmin,
             'can' => [
                 'create_grant' => true,
                 'revoke_grant' => true,

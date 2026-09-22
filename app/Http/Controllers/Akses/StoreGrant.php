@@ -20,6 +20,12 @@ class StoreGrant extends Controller
     {
         Gate::authorize('akses:update');
 
+        /** @var User $actor */
+        $actor = $request->user();
+        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang memberikan izin unit.');
+        }
+
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
             'permission_id' => ['required', 'exists:permissions,id'],
@@ -34,6 +40,14 @@ class StoreGrant extends Controller
             'alasan.required' => 'Alasan pemberian grant wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan pemberian grant minimal 5 karakter.',
         ]);
+
+        /** @var User $targetUser */
+        $targetUser = User::with('roles')->findOrFail($validated['user_id']);
+
+        // Admin tidak dapat merubah/memberikan izin kepada Admin dan Superadmin
+        if ($targetUser->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {
+            abort(403, 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.');
+        }
 
         /** @var Permission $permission */
         $permission = Permission::findOrFail($validated['permission_id']);
@@ -68,21 +82,18 @@ class StoreGrant extends Controller
             ]);
         }
 
-        /** @var User $targetUser */
-        $targetUser = User::findOrFail($validated['user_id']);
-
         // AC-1 & AC-5: Simpan grant
         $grant = UserPermissionGrant::create([
             'user_id' => $targetUser->id,
             'permission_id' => $permission->id,
             'unit_id' => $unit->id,
             'alasan' => $validated['alasan'],
-            'diberikan_oleh' => $request->user()->id,
+            'diberikan_oleh' => $actor->id,
         ]);
 
         // Audit Trail
         $auditLogger->catat(
-            actor: $request->user(),
+            actor: $actor,
             tindakan: 'user_permission_granted.tambah',
             objekTipe: 'user_permission_granted',
             objekId: (string) $grant->id,
@@ -95,10 +106,10 @@ class StoreGrant extends Controller
                 'unit_id' => $unit->id,
                 'unit_nama' => $unit->nama,
                 'alasan' => $grant->alasan,
-                'diberikan_oleh' => $request->user()->id,
+                'diberikan_oleh' => $actor->id,
             ],
             alasan: $grant->alasan,
-            dasarIzin: $permissionResolver->resolve($request->user(), 'akses:update')->toAuditBasis(),
+            dasarIzin: $permissionResolver->resolve($actor, 'akses:update')->toAuditBasis(),
         );
 
         return redirect()->route('akses.grant.index')
