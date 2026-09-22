@@ -2,9 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Permission;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -31,6 +33,9 @@ class HandleInertiaRequests extends Middleware
                         'manageDeny' => $can['manageDeny'],
                         'unit' => $can['unit'],
                         'grant' => $can['grant'],
+                        'renstra' => $can['renstra'],
+                        'indikator' => $can['indikator'],
+                        'rencanaAksi' => $can['rencanaAksi'],
                     ],
                 ];
             },
@@ -61,6 +66,9 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => false,
             'regulasi:delete' => false,
             'berkas:delete' => false,
+            'renstra' => false,
+            'indikator' => false,
+            'rencanaAksi' => false,
         ];
 
         if ($user === null || ! $user->is_active) {
@@ -69,6 +77,39 @@ class HandleInertiaRequests extends Middleware
 
         $resolver = app(PermissionResolver::class);
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
+        $renstraRead = $resolver->allows($user, 'renstra:read');
+        $indikatorRead = $resolver->allows($user, 'indikator:read');
+
+        $permRA = Permission::where('kode', 'rencana_aksi:read')->where('aktif', true)->first();
+        $hasGlobalDenyRA = $permRA ? DB::table('user_permission_denied')->where('user_id', $user->id)->where('permission_id', $permRA->id)->whereNull('unit_id')->exists() : true;
+        $rencanaAksiRead = false;
+        if (! $hasGlobalDenyRA && $permRA) {
+            $hasRoleRA = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
+                ->where('user_roles.user_id', $user->id)
+                ->where('roles.aktif', true)
+                ->where('role_permissions.permission_id', $permRA->id)
+                ->exists();
+
+            if ($hasRoleRA) {
+                $rencanaAksiRead = true;
+            } else {
+                $deniedUnits = DB::table('user_permission_denied')
+                    ->where('user_id', $user->id)
+                    ->where('permission_id', $permRA->id)
+                    ->whereNotNull('unit_id')
+                    ->pluck('unit_id')
+                    ->all();
+
+                $rencanaAksiRead = DB::table('user_permission_granted')
+                    ->where('user_id', $user->id)
+                    ->where('permission_id', $permRA->id)
+                    ->whereNotNull('unit_id')
+                    ->whereNotIn('unit_id', $deniedUnits)
+                    ->exists();
+            }
+        }
 
         return [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),
@@ -90,6 +131,9 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
             'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
             'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
+            'renstra' => $renstraRead,
+            'indikator' => $indikatorRead,
+            'rencanaAksi' => $rencanaAksiRead,
         ];
     }
 }

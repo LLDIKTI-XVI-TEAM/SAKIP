@@ -21,6 +21,9 @@ export interface SharedPageProps extends PageProps {
             manageDeny: boolean;
             unit: boolean;
             grant: boolean;
+            renstra?: boolean;
+            indikator?: boolean;
+            rencanaAksi?: boolean;
         };
     };
     flash?: { success?: string | null; error?: string | null };

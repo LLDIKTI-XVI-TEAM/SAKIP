@@ -2,8 +2,16 @@
 
 namespace Tests\Feature\Perencanaan;
 
+use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
+use App\Models\Periode;
 use App\Models\Permission;
+use App\Models\RencanaAksi;
+use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
+use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
@@ -225,6 +233,192 @@ class PerencanaanAuthorizationTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('RencanaAksi/Index')
                 ->has('rencanaAksiList', 4) // Total 5 dikurangi 1 item Bagian Umum
+            );
+    }
+
+    public function test_user_cannot_access_other_unit_record_with_same_name_and_normalizes_nullable_uraian(): void
+    {
+        $renstra = Renstra::create([
+            'kode' => 'R-TEST',
+            'nama' => 'Renstra Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'S-TEST',
+            'deskripsi' => 'Sasaran Test',
+        ]);
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-TEST',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->superadminUser->id,
+        ]);
+        $periode = Periode::create([
+            'nama' => 'Triwulan I',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        // Dua unit dengan nama identik
+        $unitA = Unit::create(['nama' => 'Unit Kembar', 'status' => 'aktif', 'created_by' => $this->superadminUser->id]);
+        $unitB = Unit::create(['nama' => 'Unit Kembar', 'status' => 'aktif', 'created_by' => $this->superadminUser->id]);
+
+        $indikatorA = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $unitA->id,
+            'kode' => 'I-A',
+            'nama' => 'Indikator A',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+        ]);
+        $indikatorB = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $unitB->id,
+            'kode' => 'I-B',
+            'nama' => 'Indikator B',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $contextA = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikatorA->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $unitA->id,
+            'nama' => 'Indikator A',
+            'definisi' => 'Definisi A',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 70,
+        ]);
+        $contextB = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikatorB->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $unitB->id,
+            'nama' => 'Indikator B',
+            'definisi' => 'Definisi B',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 70,
+        ]);
+
+        // RA untuk Unit A memiliki uraian = null (menguji normalisasi uraian nullable)
+        RencanaAksi::create([
+            'indikator_id' => $indikatorA->id,
+            'tahun' => 2026,
+            'unit_id' => $unitA->id,
+            'jadwal_tahunan_id' => $jadwal->id,
+            'jadwal_snapshot_id' => $contextA->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => null,
+            'status_alur' => 'draft',
+        ]);
+
+        // RA untuk Unit B
+        RencanaAksi::create([
+            'indikator_id' => $indikatorB->id,
+            'tahun' => 2026,
+            'unit_id' => $unitB->id,
+            'jadwal_tahunan_id' => $jadwal->id,
+            'jadwal_snapshot_id' => $contextB->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => 'Uraian Unit B',
+            'status_alur' => 'draft',
+        ]);
+
+        $perm = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
+        // Pegawai hanya diberi grant ke Unit A
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $perm->id,
+            'unit_id' => $unitA->id,
+            'alasan' => 'Izin khusus Unit A saja',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $this->actingAs($this->pegawaiUser)
+            ->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('RencanaAksi/Index')
+                ->has('rencanaAksiList', 1)
+                ->where('rencanaAksiList.0.unit_id', $unitA->id)
+                ->where('rencanaAksiList.0.uraian', '')
+                ->where('rencanaAksiList.0.nama_rencana_aksi', '-')
+            );
+    }
+
+    public function test_shared_inertia_capabilities_hide_planning_for_unauthorized_users(): void
+    {
+        $dashPerm = Permission::where('kode', 'dashboard:read')->firstOrFail();
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $pegawaiRole->permissions()->syncWithoutDetaching([
+            $dashPerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+        ]);
+        $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
+        $perencanaanRole->permissions()->syncWithoutDetaching([
+            $dashPerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+        ]);
+
+        // 1. Pegawai biasa tanpa hak akses perencanaan
+        $this->actingAs($this->pegawaiUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.can.renstra', false)
+                ->where('auth.can.indikator', false)
+                ->where('auth.can.rencanaAksi', false)
+            );
+
+        // 2. Pengguna dengan peran perencanaan
+        $this->actingAs($this->perencanaanUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.can.renstra', true)
+                ->where('auth.can.indikator', true)
+                ->where('auth.can.rencanaAksi', true)
+            );
+
+        // 3. Pegawai dengan grant unit rencana aksi
+        $perm = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $perm->id,
+            'unit_id' => $this->unitKLSI->id,
+            'alasan' => 'Penugasan khusus unit KLSI',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $this->actingAs($this->pegawaiUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.can.renstra', false)
+                ->where('auth.can.indikator', false)
+                ->where('auth.can.rencanaAksi', true)
             );
     }
 }

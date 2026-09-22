@@ -624,4 +624,39 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $response->assertSessionHasErrors('permission_id');
     }
+
+    /**
+     * Filter daftar agar hanya memuat grant unit (unit_id IS NOT NULL dan butuh_scope = 'unit').
+     */
+    public function test_grant_index_only_lists_unit_scoped_grants(): void
+    {
+        // 1. Grant unit valid
+        $unitGrant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant unit valid',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // 2. Grant global (unit_id = null)
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->globalPermission->id,
+            'unit_id' => null,
+            'alasan' => 'Grant global di luar cakupan unit',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->get('/akses/grant');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Akses/GrantIndex')
+            ->has('grants', 1)
+            ->where('grants.0.id', $unitGrant->id)
+            ->where('grants.0.unit_id', $this->unitA->id)
+        );
+    }
 }

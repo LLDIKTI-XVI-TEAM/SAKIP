@@ -33,6 +33,8 @@ class IndexGrant extends Controller
             'unit:id,nama',
             'diberikanOleh:id,nama',
         ])
+            ->whereNotNull('unit_id')
+            ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT))
             ->latest()
             ->get()
             ->map(function (UserPermissionGrant $grant) use ($actorIsSuperadmin) {

@@ -85,11 +85,11 @@ export default function RencanaAksiIndex({
     const filteredList = useMemo(() => {
         return rencanaAksiList.filter((item) => {
             const matchSearch =
-                item.nama_rencana_aksi.toLowerCase().includes(search.toLowerCase()) ||
-                item.indikator_kode.toLowerCase().includes(search.toLowerCase()) ||
-                item.indikator_nama.toLowerCase().includes(search.toLowerCase()) ||
-                item.unit_nama.toLowerCase().includes(search.toLowerCase()) ||
-                item.uraian.toLowerCase().includes(search.toLowerCase());
+                (item.nama_rencana_aksi || '').toLowerCase().includes(search.toLowerCase()) ||
+                (item.indikator_kode || '').toLowerCase().includes(search.toLowerCase()) ||
+                (item.indikator_nama || '').toLowerCase().includes(search.toLowerCase()) ||
+                (item.unit_nama || '').toLowerCase().includes(search.toLowerCase()) ||
+                (item.uraian || '').toLowerCase().includes(search.toLowerCase());
 
             const matchStatus =
                 selectedStatus === 'all' || item.status_alur === selectedStatus;

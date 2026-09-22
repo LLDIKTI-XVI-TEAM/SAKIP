@@ -195,8 +195,8 @@ class IndexRencanaAksi extends Controller
                 ->map(function (RencanaAksi $ra) {
                     return [
                         'id' => $ra->id,
-                        'nama_rencana_aksi' => $ra->uraian,
-                        'uraian' => $ra->uraian,
+                        'nama_rencana_aksi' => $ra->uraian ?? '-',
+                        'uraian' => $ra->uraian ?? '',
                         'tahun' => $ra->tahun,
                         'indikator_kode' => $ra->indikator?->kode ?? '-',
                         'indikator_nama' => $ra->indikator?->nama ?? '-',
@@ -236,22 +236,22 @@ class IndexRencanaAksi extends Controller
             $unitNama = $item['unit_nama'] ?? '';
 
             if ($hasGlobalRole) {
-                if ($unitId && in_array($unitId, $deniedUnitIds, true)) {
-                    return false;
+                if ($unitId !== null) {
+                    return ! in_array($unitId, $deniedUnitIds, true);
                 }
-                if ($unitNama && in_array($unitNama, $deniedUnitNames, true)) {
-                    return false;
+                if ($unitNama !== '') {
+                    return ! in_array($unitNama, $deniedUnitNames, true);
                 }
 
                 return true;
             }
 
-            // Akses berbasis grant
-            if ($unitId && in_array($unitId, $effectiveGrantedUnitIds, true)) {
-                return true;
+            // Akses berbasis grant: gunakan UUID jika tersedia, fallback nama hanya untuk data mock
+            if ($unitId !== null) {
+                return in_array($unitId, $effectiveGrantedUnitIds, true);
             }
-            if ($unitNama && in_array($unitNama, $allowedUnitNames, true)) {
-                return true;
+            if ($unitNama !== '') {
+                return in_array($unitNama, $allowedUnitNames, true);
             }
 
             return false;
@@ -263,21 +263,21 @@ class IndexRencanaAksi extends Controller
             $unitNama = $unit['nama'] ?? '';
 
             if ($hasGlobalRole) {
-                if ($unitId && in_array($unitId, $deniedUnitIds, true)) {
-                    return false;
+                if ($unitId !== null && is_string($unitId) && Str::isUuid($unitId)) {
+                    return ! in_array($unitId, $deniedUnitIds, true);
                 }
-                if ($unitNama && in_array($unitNama, $deniedUnitNames, true)) {
-                    return false;
+                if ($unitNama !== '') {
+                    return ! in_array($unitNama, $deniedUnitNames, true);
                 }
 
                 return true;
             }
 
-            if ($unitId && in_array($unitId, $effectiveGrantedUnitIds, true)) {
-                return true;
+            if ($unitId !== null && is_string($unitId) && Str::isUuid($unitId)) {
+                return in_array($unitId, $effectiveGrantedUnitIds, true);
             }
-            if ($unitNama && in_array($unitNama, $allowedUnitNames, true)) {
-                return true;
+            if ($unitNama !== '') {
+                return in_array($unitNama, $allowedUnitNames, true);
             }
 
             return false;

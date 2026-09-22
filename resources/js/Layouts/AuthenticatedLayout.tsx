@@ -32,9 +32,9 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
     const logout = useForm({});
     const navigation = [
         { href: '/dashboard', label: 'Dashboard Capaian', icon: LayoutDashboard, visible: auth?.can?.dashboard ?? true },
-        { href: '/renstra', label: 'Renstra & Sasaran', icon: Layers, visible: true },
-        { href: '/indikator', label: 'Indikator Kinerja (IKU)', icon: TrendingUp, visible: true },
-        { href: '/rencana-aksi', label: 'Rencana Aksi (RA)', icon: ListTodo, visible: true },
+        { href: '/renstra', label: 'Renstra & Sasaran', icon: Layers, visible: auth?.can?.renstra ?? false },
+        { href: '/indikator', label: 'Indikator Kinerja (IKU)', icon: TrendingUp, visible: auth?.can?.indikator ?? false },
+        { href: '/rencana-aksi', label: 'Rencana Aksi (RA)', icon: ListTodo, visible: auth?.can?.rencanaAksi ?? false },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth?.can?.pengukuran ?? true },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth?.can?.verifikasi ?? true },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth?.can?.regulasi ?? false },
