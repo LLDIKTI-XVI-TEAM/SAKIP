@@ -1,3 +1,6 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
 import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
@@ -34,9 +37,13 @@ function cleanPaginationLabel(label: string): string {
 }
 
 export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexProps) {
+    const recovery = useAuthRecovery();
+    const [recoveryUnknown, setRecoveryUnknown] = useState(false);
+    const [recoveryMessage, setRecoveryMessage] = useState('');
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
     const [selected, setSelected] = useState<RegulasiSummary | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [reasonError, setReasonError] = useState<string | undefined>();
     const deleteForm = useForm({ alasan: '' });
 
@@ -49,7 +56,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
     };
 
     const confirmDelete = () => {
-        if (!selected) return;
+        if (!selected || deleteForm.processing || recovery.recovery || recoveryUnknown) return;
         if (deleteForm.data.alasan.trim().length < 10) {
             setReasonError('Jelaskan alasan penghapusan minimal 10 karakter.');
             return;
@@ -57,7 +64,16 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
 
         deleteForm.delete(`/regulasi/${selected.id}`, {
             preserveScroll: true,
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'delete', path: `/regulasi/${selected.id}`, mutation: true })) return false;
+                setRecoveryMessage(response.status === 403 ? 'Akses ditolak. Hasil tindakan sebelumnya belum dapat dipastikan. Periksa akses dan data terbaru.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setRecoveryUnknown(true);
+                return false;
+            },
+            onCancel: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
+            onNetworkError: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
             onSuccess: () => {
+                setDeleteOpen(false);
                 setSelected(null);
                 deleteForm.reset();
             },
@@ -65,6 +81,9 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
     };
 
     const openDelete = (item: RegulasiSummary) => {
+        setDeleteOpen(true);
+        // Hasil attempt dan alasan tetap melekat pada target asal selama recovery.
+        if (recoveryUnknown || recovery.recovery) return;
         deleteForm.clearErrors();
         deleteForm.reset();
         setReasonError(undefined);
@@ -249,12 +268,14 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
             </div>
 
             <AuditReasonModal
-                open={selected !== null}
-                title="Hapus dasar aturan?"
+                open={deleteOpen}
+                title={recovery.recovery || recoveryUnknown ? 'Pemulihan penghapusan dasar aturan' : 'Hapus dasar aturan?'}
                 description={selected ? `${selected.nomor}/${selected.tahun} akan dihapus. Aksi ditolak bila masih dirujuk Renstra atau Indikator aktif.` : ''}
                 reason={deleteForm.data.alasan}
                 error={deleteError}
                 busy={deleteForm.processing}
+                submitDisabled={Boolean(recovery.recovery) || recoveryUnknown}
+                notice={<><AuthRecoveryNotice recovery={recovery.recovery} pending={deleteForm.processing} />{!recovery.recovery && <RegulasiFailureNotice message={recoveryMessage} />}</>}
                 confirmLabel="Hapus dasar aturan"
                 destructive
                 onReasonChange={(value) => {
@@ -262,7 +283,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                     setReasonError(undefined);
                     deleteForm.clearErrors();
                 }}
-                onClose={() => !deleteForm.processing && setSelected(null)}
+                onClose={() => !deleteForm.processing && setDeleteOpen(false)}
                 onConfirm={confirmDelete}
             />
         </AuthenticatedLayout>

@@ -190,3 +190,19 @@ describe('Alur pengukuran', () => {
         expect(document.activeElement).toBe(note);
     });
 });
+
+
+it('cancel setelah submit mempertahankan draft dan mengunci klik serta Enter ulang', async () => {
+    const user = userEvent.setup();
+    render(<PengukuranEdit pengukuran={measurement} />);
+    const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan Sebagai Draft' });
+    await user.click(submit);
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { options?.onCancel?.(); });
+    expect(screen.getByText(/Permintaan dibatalkan/)).toBeTruthy();
+    expect(submit.disabled).toBe(true);
+    await user.click(submit);
+    await user.click(screen.getByRole('spinbutton', { name: /Nilai realisasi/ }));
+    await user.keyboard('{Enter}');
+    expect(router.post).toHaveBeenCalledTimes(1);
+});

@@ -1,3 +1,5 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Fragment, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -29,6 +31,8 @@ interface AuthenticatedLayoutProps {
 export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: AuthenticatedLayoutProps) {
     const { props: { auth, flash }, url } = usePage<SharedPageProps>();
     const [navigationOpen, setNavigationOpen] = useState(false);
+    const recovery = useAuthRecovery();
+    const [logoutError, setLogoutError] = useState('');
     const logout = useForm({});
     const navigation = [
         { href: '/dashboard', label: 'Dashboard Capaian', icon: LayoutDashboard, visible: auth?.can?.dashboard ?? true },
@@ -46,7 +50,16 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
     ];
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();
-        if (!logout.processing) logout.post('/logout', { onStart: () => router.clearHistory() });
+        if (logout.processing || recovery.recovery || logoutError) return;
+        logout.post('/logout', {
+            onStart: () => router.clearHistory(),
+            onHttpException: (response) => {
+                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/logout', mutation: true })) setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.');
+                return false;
+            },
+            onCancel: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); },
+            onNetworkError: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); return false; },
+        });
     };
 
     return (
@@ -90,8 +103,10 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         <p className="break-words text-sm font-semibold">{auth?.user?.nama ?? 'Pengguna'}</p>
                         <p className="mt-1 break-all text-xs text-muted">{auth?.user?.email ?? '-'}</p>
                         {auth?.user?.role && <p className="mt-1 text-xs font-medium capitalize text-primary">{auth.user.role}</p>}
+                        <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
+                        {logoutError && <p role="alert" className="my-3 text-sm text-danger">{logoutError}</p>}
                         <form onSubmit={handleLogout} className="mt-3">
-                            <button type="submit" disabled={logout.processing} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
+                            <button type="submit" disabled={logout.processing || Boolean(recovery.recovery || logoutError)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
                                 <LogOut aria-hidden="true" className="h-4 w-4" />{logout.processing ? 'Keluar…' : 'Keluar sistem'}
                             </button>
                         </form>

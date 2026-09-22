@@ -28,3 +28,7 @@ export interface SharedPageProps extends PageProps {
     };
     flash?: { success?: string | null; error?: string | null };
 }
+
+declare module '@inertiajs/core' {
+    interface PageFlashData { authRecoveryNotice?: 'no_replay' }
+}

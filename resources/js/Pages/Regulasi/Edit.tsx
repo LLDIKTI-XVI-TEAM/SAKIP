@@ -1,3 +1,6 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Download, ExternalLink, FileText, Save, Trash2 } from 'lucide-react';
@@ -69,9 +72,16 @@ function ExistingAttachment({ attachment, canDelete, onDelete }: ExistingAttachm
 }
 
 export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
+    const recovery = useAuthRecovery();
+    const [recoveryUnknown, setRecoveryUnknown] = useState(false);
+    const [recoveryMessage, setRecoveryMessage] = useState('');
+    const attachmentRecovery = useAuthRecovery();
+    const [attachmentRecoveryUnknown, setAttachmentRecoveryUnknown] = useState(false);
+    const [attachmentRecoveryMessage, setAttachmentRecoveryMessage] = useState('');
     const [auditOpen, setAuditOpen] = useState(false);
     const [reasonError, setReasonError] = useState<string | undefined>();
     const [selectedAttachment, setSelectedAttachment] = useState<BerkasRegulasi | null>(null);
+    const [attachmentDeleteOpen, setAttachmentDeleteOpen] = useState(false);
     const [attachmentReasonError, setAttachmentReasonError] = useState<string | undefined>();
     const form = useForm<RegulasiFormData>({
         jenis: regulasi.jenis,
@@ -87,6 +97,8 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
         lampiran: [],
         _method: 'put',
     });
+    const saveRecovery = recovery.recovery ?? (attachmentRecovery.recovery ? { ...attachmentRecovery.recovery, outcome: 'unknown' as const } : null);
+    const deleteRecovery = attachmentRecovery.recovery ?? (recovery.recovery ? { ...recovery.recovery, outcome: 'unknown' as const } : null);
     const deleteAttachmentForm = useForm({ alasan: '' });
 
     const requestAuditReason = (event: React.FormEvent<HTMLFormElement>) => {
@@ -96,6 +108,7 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
     };
 
     const submit = () => {
+        if (form.processing || recovery.recovery || attachmentRecovery.recovery || recoveryUnknown) return;
         if (form.data.alasan.trim().length < 10) {
             setReasonError('Jelaskan alasan perubahan minimal 10 karakter.');
             return;
@@ -103,6 +116,14 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
 
         form.post(`/regulasi/${regulasi.id}`, {
             forceFormData: true,
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'put', path: `/regulasi/${regulasi.id}`, mutation: true })) return false;
+                setRecoveryMessage(response.status === 403 ? 'Akses ditolak. Hasil tindakan sebelumnya belum dapat dipastikan. Periksa akses dan data terbaru.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setRecoveryUnknown(true);
+                return false;
+            },
+            onCancel: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
+            onNetworkError: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
             onError: (errors) => {
                 if (!errors.alasan) setAuditOpen(false);
             },
@@ -110,6 +131,9 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
     };
 
     const openAttachmentDelete = (attachment: BerkasRegulasi) => {
+        setAttachmentDeleteOpen(true);
+        // Hasil attempt dan alasan tetap melekat pada lampiran asal selama recovery.
+        if (attachmentRecoveryUnknown || attachmentRecovery.recovery) return;
         deleteAttachmentForm.reset();
         deleteAttachmentForm.clearErrors();
         setAttachmentReasonError(undefined);
@@ -117,7 +141,7 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
     };
 
     const deleteAttachment = () => {
-        if (!selectedAttachment) return;
+        if (!selectedAttachment || deleteAttachmentForm.processing || recovery.recovery || attachmentRecovery.recovery || attachmentRecoveryUnknown) return;
 
         if (deleteAttachmentForm.data.alasan.trim().length < 10) {
             setAttachmentReasonError('Jelaskan alasan penghapusan minimal 10 karakter.');
@@ -126,7 +150,16 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
 
         deleteAttachmentForm.delete(`/regulasi/${regulasi.id}/berkas/${selectedAttachment.id}`, {
             preserveScroll: true,
+            onHttpException: (response) => {
+                if (attachmentRecovery.handleHttpException(response, { effectiveMethod: 'delete', path: `/regulasi/${regulasi.id}/berkas/${selectedAttachment.id}`, mutation: true })) return false;
+                setAttachmentRecoveryMessage(response.status === 403 ? 'Akses ditolak. Hasil tindakan sebelumnya belum dapat dipastikan. Periksa akses dan data terbaru.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setAttachmentRecoveryUnknown(true);
+                return false;
+            },
+            onCancel: () => { setAttachmentRecoveryUnknown(true); setAttachmentRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
+            onNetworkError: () => { setAttachmentRecoveryUnknown(true); setAttachmentRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
             onSuccess: () => {
+                setAttachmentDeleteOpen(false);
                 setSelectedAttachment(null);
                 deleteAttachmentForm.reset();
             },
@@ -136,6 +169,11 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
     const attachmentDeleteError = attachmentReasonError
         ?? deleteAttachmentForm.errors.alasan
         ?? (deleteAttachmentForm.errors as Record<string, string | undefined>).berkas;
+    const attachmentLabel = selectedAttachment?.mode === 'file'
+        ? selectedAttachment.nama_asli
+        : selectedAttachment?.mode === 'tautan'
+            ? selectedAttachment.tautan
+            : selectedAttachment?.isi_teks;
 
     return (
         <AuthenticatedLayout
@@ -204,6 +242,8 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
                 reason={form.data.alasan}
                 error={reasonError ?? form.errors.alasan}
                 busy={form.processing}
+                submitDisabled={Boolean(recovery.recovery || attachmentRecovery.recovery) || recoveryUnknown}
+                notice={<><AuthRecoveryNotice recovery={saveRecovery} pending={form.processing} />{!saveRecovery && <RegulasiFailureNotice message={recoveryMessage} />}</>}
                 confirmLabel="Simpan perubahan"
                 onReasonChange={(value) => {
                     form.setData('alasan', value);
@@ -214,12 +254,14 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
             />
 
             <AuditReasonModal
-                open={selectedAttachment !== null}
-                title="Hapus lampiran?"
-                description="Lampiran akan dihapus dari metadata dan private storage setelah transaksi berhasil. Aksi ini membutuhkan alasan audit."
+                open={attachmentDeleteOpen}
+                title={attachmentRecovery.recovery || attachmentRecoveryUnknown ? 'Pemulihan penghapusan lampiran' : 'Hapus lampiran?'}
+                description={`Lampiran “${(attachmentLabel ?? '').slice(0, 120)}${attachmentLabel && attachmentLabel.length > 120 ? '…' : ''}” akan dihapus setelah transaksi berhasil. Aksi ini membutuhkan alasan audit.`}
                 reason={deleteAttachmentForm.data.alasan}
                 error={attachmentDeleteError}
                 busy={deleteAttachmentForm.processing}
+                submitDisabled={Boolean(recovery.recovery || attachmentRecovery.recovery) || attachmentRecoveryUnknown}
+                notice={<><AuthRecoveryNotice recovery={deleteRecovery} pending={deleteAttachmentForm.processing} />{!deleteRecovery && <RegulasiFailureNotice message={attachmentRecoveryMessage} />}</>}
                 confirmLabel="Hapus lampiran"
                 destructive
                 onReasonChange={(value) => {
@@ -227,7 +269,7 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
                     setAttachmentReasonError(undefined);
                     deleteAttachmentForm.clearErrors();
                 }}
-                onClose={() => !deleteAttachmentForm.processing && setSelectedAttachment(null)}
+                onClose={() => !deleteAttachmentForm.processing && setAttachmentDeleteOpen(false)}
                 onConfirm={deleteAttachment}
             />
         </AuthenticatedLayout>
