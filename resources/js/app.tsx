@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
+import { AuthRecoveryFallback } from '@/Components/Auth/AuthRecoveryFallback';
 
 // Kembali dari bfcache harus memeriksa session dan izin terbaru di server.
 window.addEventListener('pageshow', (event) => {
@@ -18,7 +19,7 @@ createInertiaApp({
     },
     setup({ el, App, props }) {
         const root = createRoot(el);
-        root.render(<App {...props} />);
+        root.render(<><App {...props} /><AuthRecoveryFallback /></>);
     },
     progress: {
         color: 'var(--color-primary)',

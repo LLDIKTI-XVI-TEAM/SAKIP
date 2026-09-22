@@ -127,7 +127,7 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     expect(screen.getByText(/Koneksi terputus/).textContent).toContain('belum diketahui');
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ }).value).toBe('Perubahan uji');
     await act(async () => { options?.onHttpException?.({ status: 403, data: '', headers: {} }); });
-    expect(screen.getByText(/Sesi atau izin/)).toBeTruthy();
+    expect(screen.getByText(/Izin tindakan ditolak/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
     expect(vi.mocked(router.post).mock.calls).toHaveLength(1);
 });
@@ -140,4 +140,19 @@ it.each([
     expect(screen.getByText(message)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Kembali ke penetapan peran' })).toBeNull();
     expect(screen.getByText(/Menu mengikuti izin peran Anda saat ini/)).toBeTruthy();
+});
+
+it('recovery401 mempertahankan alasan, mengonsumsi callback lokal dan mengunci submit', async () => {
+    const user = userEvent.setup(); page();
+    await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
+    await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Draft recovery');
+    await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { expect(options?.onHttpException?.({ status: 401, headers: {}, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/akses/peran/user-a', before_action: true } } } })).toBe(false); });
+    expect(screen.getByRole('link', { name: 'Masuk ulang' })).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toContain('ditolak');
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ }).value).toBe('Draft recovery');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan peran' }).disabled).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
+    expect(router.post).toHaveBeenCalledTimes(1);
 });
