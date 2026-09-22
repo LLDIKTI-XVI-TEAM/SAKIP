@@ -1,6 +1,6 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import { Fragment, useEffect, useState, type ReactNode, type FormEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     FileSpreadsheet,
@@ -33,6 +33,8 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 768px)').matches);
+    const menuButtonRef = useRef<HTMLButtonElement>(null);
+    const drawerRef = useRef<HTMLElement>(null);
     const recovery = useAuthRecovery();
     const [logoutError, setLogoutError] = useState('');
     const logout = useForm({});
@@ -48,6 +50,57 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
     }, []);
 
     const sidebarHidden = !isDesktopViewport && !navigationOpen;
+    const isMobileDrawerOpen = navigationOpen && !isDesktopViewport;
+
+    useEffect(() => {
+        if (!isMobileDrawerOpen) return;
+
+        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const focusFirstDrawerControl = () => {
+            drawerRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
+        };
+        const focusFrame = window.requestAnimationFrame(focusFirstDrawerControl);
+        const trapFocus = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setNavigationOpen(false);
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+
+            const controls = Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+            const firstControl = controls.at(0);
+            const lastControl = controls.at(-1);
+
+            if (!firstControl || !lastControl) {
+                event.preventDefault();
+                drawerRef.current?.focus();
+                return;
+            }
+
+            if (event.shiftKey && document.activeElement === firstControl) {
+                event.preventDefault();
+                lastControl.focus();
+            } else if (!event.shiftKey && document.activeElement === lastControl) {
+                event.preventDefault();
+                firstControl.focus();
+            }
+        };
+
+        document.addEventListener('keydown', trapFocus);
+
+        return () => {
+            window.cancelAnimationFrame(focusFrame);
+            document.removeEventListener('keydown', trapFocus);
+            if (!window.matchMedia('(min-width: 768px)').matches && menuButtonRef.current?.isConnected) {
+                menuButtonRef.current.focus();
+            } else if (previousFocus?.isConnected) {
+                previousFocus.focus();
+            }
+        };
+    }, [isMobileDrawerOpen]);
 
     const navigation = [
         { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
@@ -98,11 +151,12 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     </div>
                 </div>
                 <button
+                    ref={menuButtonRef}
                     type="button"
                     aria-expanded={navigationOpen}
                     aria-controls="application-navigation"
                     aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
-                    onClick={() => setNavigationOpen(!navigationOpen)}
+                    onClick={() => setNavigationOpen((isOpen) => !isOpen)}
                     className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
                 >
                     {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
@@ -121,14 +175,19 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
             {/* Deep Navy Sidebar */}
             <aside
                 id="application-navigation"
+                ref={drawerRef}
+                role={isMobileDrawerOpen ? 'dialog' : undefined}
+                aria-modal={isMobileDrawerOpen || undefined}
+                aria-label={isMobileDrawerOpen ? 'Navigasi utama' : undefined}
                 aria-hidden={sidebarHidden || undefined}
                 inert={sidebarHidden || undefined}
+                tabIndex={-1}
                 className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-primary text-white transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 ${
                     navigationOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0 md:shadow-none'
                 }`}
             >
                 {/* Brand Header */}
-                <div className="flex h-[68px] items-center border-b border-white/10 px-5 shrink-0">
+                <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
                     <div className="flex items-center gap-3">
                         <img
                             src="/img/dikti16-favicon-blue-150x150.png"
@@ -144,6 +203,14 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                             </p>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setNavigationOpen(false)}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 md:hidden"
+                        aria-label="Tutup navigasi"
+                    >
+                        <X aria-hidden="true" className="h-5 w-5" />
+                    </button>
                 </div>
 
                 {/* Navigation Menu */}
@@ -182,10 +249,10 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-xs font-bold text-white leading-tight">
-                                {auth.user?.nama || 'Superadmin LLDIKTI16'}
+                                {auth.user?.nama || 'Pengguna'}
                             </p>
                             <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
-                                {auth.user?.role || 'Superadmin'}
+                                {auth.user?.role || 'Belum ada peran'}
                             </p>
                         </div>
                     </div>
@@ -207,7 +274,11 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
             </aside>
 
             {/* Main Column */}
-            <div className="min-w-0 flex-1 flex flex-col">
+            <div
+                aria-hidden={isMobileDrawerOpen || undefined}
+                inert={isMobileDrawerOpen || undefined}
+                className="min-w-0 flex-1 flex flex-col"
+            >
                 {/* Top White Header Bar */}
                 <header className="hidden md:flex h-[68px] items-center justify-between border-b border-border bg-surface px-4 xl:px-8 sticky top-0 z-30 shadow-2xs">
                     {/* Left: Search Input Pill */}
@@ -244,10 +315,10 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                             </div>
                             <div className="hidden xl:block text-left">
                                 <p className="text-xs font-bold text-primary leading-none truncate max-w-[140px]">
-                                    {auth.user?.nama || 'Superadmin LLDIKTI16'}
+                                    {auth.user?.nama || 'Pengguna'}
                                 </p>
                                 <p className="mt-1 text-[11px] text-muted leading-none capitalize">
-                                    {auth.user?.role || 'Superadmin'}
+                                    {auth.user?.role || 'Belum ada peran'}
                                 </p>
                             </div>
                         </div>
