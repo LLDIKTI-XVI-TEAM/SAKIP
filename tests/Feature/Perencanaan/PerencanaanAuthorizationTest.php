@@ -370,6 +370,96 @@ class PerencanaanAuthorizationTest extends TestCase
             );
     }
 
+    public function test_real_rencana_aksi_unit_code_matches_filter_option_code(): void
+    {
+        $renstra = Renstra::create([
+            'kode' => 'R-KODE',
+            'nama' => 'Renstra Kode',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'S-KODE',
+            'deskripsi' => 'Sasaran Kode',
+        ]);
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-KODE',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->superadminUser->id,
+        ]);
+        $periode = Periode::create([
+            'nama' => 'Triwulan I',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        // Buat unit riil "Bagian Umum" (yang ada di mock options)
+        $indikatorUmum = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $this->unitUmum->id,
+            'kode' => 'I-UMUM',
+            'nama' => 'Indikator Bagian Umum',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $contextUmum = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikatorUmum->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $this->unitUmum->id,
+            'nama' => 'Indikator Bagian Umum',
+            'definisi' => 'Definisi',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 80,
+        ]);
+
+        RencanaAksi::create([
+            'indikator_id' => $indikatorUmum->id,
+            'tahun' => 2026,
+            'unit_id' => $this->unitUmum->id,
+            'jadwal_tahunan_id' => $jadwal->id,
+            'jadwal_snapshot_id' => $contextUmum->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => 'Rencana Aksi Bagian Umum',
+            'status_alur' => 'draft',
+        ]);
+
+        $this->actingAs($this->superadminUser)
+            ->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(function (Assert $page) {
+                $page->component('RencanaAksi/Index');
+                // Pastikan item riil Bagian Umum memiliki unit_kode 'BAG-UMUM'
+                $page->where('rencanaAksiList.0.unit_kode', 'BAG-UMUM');
+                // Pastikan opsi unit Bagian Umum juga memiliki kode 'BAG-UMUM'
+                $page->where('unitOptions', function ($options) {
+                    $collection = collect($options);
+                    $bagianUmumOpt = $collection->firstWhere('nama', 'Bagian Umum');
+
+                    return $bagianUmumOpt && $bagianUmumOpt['kode'] === 'BAG-UMUM';
+                });
+            });
+    }
+
     public function test_shared_inertia_capabilities_hide_planning_for_unauthorized_users(): void
     {
         $dashPerm = Permission::where('kode', 'dashboard:read')->firstOrFail();

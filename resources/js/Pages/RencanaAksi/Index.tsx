@@ -26,7 +26,7 @@ import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 
 interface RencanaAksiItem {
-    id: number;
+    id: number | string;
     nama_rencana_aksi: string;
     uraian: string;
     tahun: number;
@@ -34,6 +34,7 @@ interface RencanaAksiItem {
     indikator_nama: string;
     unit_nama: string;
     unit_kode: string;
+    unit_id?: string | null;
     penanggung_jawab_nama: string;
     status_alur: 'draft' | 'diajukan' | 'diverifikasi' | 'disahkan' | 'dikembalikan' | string;
     target_triwulan_1: string;
@@ -45,13 +46,13 @@ interface RencanaAksiItem {
 }
 
 interface IndikatorOption {
-    id: number;
+    id: number | string;
     kode: string;
     nama: string;
 }
 
 interface UnitOption {
-    id: number;
+    id: number | string;
     kode: string;
     nama: string;
 }
@@ -95,7 +96,10 @@ export default function RencanaAksiIndex({
                 selectedStatus === 'all' || item.status_alur === selectedStatus;
 
             const matchUnit =
-                selectedUnit === 'all' || item.unit_kode === selectedUnit;
+                selectedUnit === 'all' ||
+                item.unit_kode === selectedUnit ||
+                (Boolean(item.unit_id) && item.unit_id === selectedUnit) ||
+                (Boolean(item.unit_kode) && Boolean(selectedUnit) && item.unit_kode.toLowerCase() === selectedUnit.toLowerCase());
 
             return matchSearch && matchStatus && matchUnit;
         });

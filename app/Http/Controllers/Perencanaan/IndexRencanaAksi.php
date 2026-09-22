@@ -188,11 +188,26 @@ class IndexRencanaAksi extends Controller
             ['id' => 5, 'kode' => 'POKJA-SDPT', 'nama' => 'Pokja Sumber Daya Perguruan Tinggi'],
         ];
 
+        $unitCodeMap = [
+            'Bagian Umum' => 'BAG-UMUM',
+            'Pokja Kelembagaan dan Sistem Informasi' => 'POKJA-KLSI',
+            'Pokja Akademik dan Kemahasiswaan' => 'POKJA-AK',
+            'Pokja Sumber Daya Perguruan Tinggi' => 'POKJA-SDPT',
+        ];
+
+        $resolveUnitCode = function (?string $nama) use ($unitCodeMap): string {
+            if (! $nama) {
+                return '-';
+            }
+
+            return $unitCodeMap[$nama] ?? Str::slug($nama);
+        };
+
         // Prioritaskan data riil database jika ada
         if (RencanaAksi::exists()) {
             $rencanaAksiList = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab', 'disahkanBy'])
                 ->get()
-                ->map(function (RencanaAksi $ra) {
+                ->map(function (RencanaAksi $ra) use ($resolveUnitCode) {
                     return [
                         'id' => $ra->id,
                         'nama_rencana_aksi' => $ra->uraian ?? '-',
@@ -201,7 +216,7 @@ class IndexRencanaAksi extends Controller
                         'indikator_kode' => $ra->indikator?->kode ?? '-',
                         'indikator_nama' => $ra->indikator?->nama ?? '-',
                         'unit_nama' => $ra->unit?->nama ?? '-',
-                        'unit_kode' => $ra->unit ? Str::slug($ra->unit->nama) : '-',
+                        'unit_kode' => $ra->unit ? $resolveUnitCode($ra->unit->nama) : '-',
                         'unit_id' => $ra->unit_id,
                         'penanggung_jawab_nama' => $ra->penanggungJawab?->nama ?? '-',
                         'status_alur' => $ra->status_alur,
@@ -218,12 +233,23 @@ class IndexRencanaAksi extends Controller
         // Gabungkan unit database aktif ke opsi jika ada
         $dbUnits = Unit::where('status', 'aktif')->get();
         if ($dbUnits->isNotEmpty()) {
-            $existingNames = array_column($unitOptions, 'nama');
             foreach ($dbUnits as $dbUnit) {
-                if (! in_array($dbUnit->nama, $existingNames, true)) {
+                $code = $resolveUnitCode($dbUnit->nama);
+                $matched = false;
+                foreach ($unitOptions as &$opt) {
+                    if ($opt['nama'] === $dbUnit->nama) {
+                        $opt['id'] = $dbUnit->id;
+                        $opt['kode'] = $code;
+                        $matched = true;
+                        break;
+                    }
+                }
+                unset($opt);
+
+                if (! $matched) {
                     $unitOptions[] = [
                         'id' => $dbUnit->id,
-                        'kode' => Str::slug($dbUnit->nama),
+                        'kode' => $code,
                         'nama' => $dbUnit->nama,
                     ];
                 }
