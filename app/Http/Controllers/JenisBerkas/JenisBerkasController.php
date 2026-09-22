@@ -120,7 +120,7 @@ class JenisBerkasController extends Controller
             FILTER_VALIDATE_BOOLEAN
         );
 
-        DB::transaction(function () use ($data, $id, $actor, $decision) {
+        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver) {
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
             $expectedUpdatedAt = (string) $data['expected_updated_at'];
@@ -146,6 +146,10 @@ class JenisBerkasController extends Controller
             $nilaiLama = $jb->toArray();
             $alasan = $data['alasan'];
             unset($data['alasan'], $data['expected_updated_at']);
+
+            if (! $resolver->allows($actor, 'pengaturan:update')) {
+                unset($data['format_diizinkan'], $data['ukuran_maks_kb']);
+            }
 
             $jb->update($data);
 
