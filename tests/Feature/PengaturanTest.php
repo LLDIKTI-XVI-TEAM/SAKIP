@@ -1,0 +1,227 @@
+<?php
+
+use App\Models\AuditLog;
+use App\Models\Pengaturan;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\Authorization\RolePermissionPresets;
+use App\Services\PengaturanService;
+use Database\Seeders\AccessCatalogSeeder;
+use Database\Seeders\PengaturanSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+class PengaturanPestTestCase extends TestCase
+{
+    public User $admin;
+
+    public User $perencanaan;
+
+    public User $pegawai;
+}
+
+uses(PengaturanPestTestCase::class, RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->seed(AccessCatalogSeeder::class);
+    $this->seed(PengaturanSeeder::class);
+
+    pasangRoleDanPermission('admin');
+    pasangRoleDanPermission('perencanaan');
+    pasangRoleDanPermission('pegawai');
+
+    $this->admin = buatUserDenganRole('admin', 'admin-pengaturan@example.test');
+    $this->perencanaan = buatUserDenganRole('perencanaan', 'perencanaan-pengaturan@example.test');
+    $this->pegawai = buatUserDenganRole('pegawai', 'pegawai-pengaturan@example.test');
+});
+
+function pasangRoleDanPermission(string $roleName): void
+{
+    $role = Role::query()->where('kode', $roleName)->firstOrFail();
+    $codes = RolePermissionPresets::forRole($roleName);
+    $permissionIds = Permission::query()
+        ->whereIn('kode', $codes)
+        ->pluck('id');
+
+    $role->permissions()->syncWithoutDetaching(
+        $permissionIds->mapWithKeys(fn (string $id) => [
+            $id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+        ])->all()
+    );
+}
+
+function buatUserDenganRole(string $roleName, string $email): User
+{
+    $role = Role::query()->where('kode', $roleName)->firstOrFail();
+    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user->roles()->attach($role->id, [
+        'id' => (string) Str::uuid(),
+        'sumber_pemberian' => 'manual',
+        'diberikan_oleh' => $user->id,
+        'created_at' => now(),
+    ]);
+
+    return $user;
+}
+
+test('AC-1: admin dapat mengakses halaman pengaturan dan melihat grup konfigurasi', function (): void {
+    $response = $this->actingAs($this->admin)->get('/pengaturan');
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Pengaturan/Index')
+        ->has('grouped.instansi')
+        ->has('grouped.aplikasi')
+        ->has('grouped.tampilan')
+        ->has('grouped.laporan')
+        ->has('values')
+    );
+
+    /** @var array<string, mixed> $props */
+    $props = $response->original->getData()['page']['props'];
+    expect($props['values']['instansi.nama'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+});
+
+test('AC-1 & AC-2: admin dapat memperbarui pengaturan dan menghasilkan pencatatan audit log lengkap', function (): void {
+    $response = $this->actingAs($this->admin)->put('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Wilayah XVI Baru',
+        'instansi.alamat' => 'Jl. Baru Kampus Barat, Gorontalo',
+        'instansi.telepon' => '(0435) 899999',
+        'instansi.surel' => 'info@lldikti16.kemdikbud.go.id',
+        'instansi.laman' => 'https://lldikti16.kemdikbud.go.id',
+        'instansi.logo' => '/img/logo-baru.png',
+        'aplikasi.nama' => 'SAKIP LLDIKTI XVI 2026',
+        'aplikasi.label_unit' => 'Satuan Kerja',
+        'tampilan.zona_waktu' => 'Asia/Makassar',
+        'tampilan.format_tanggal' => 'd F Y',
+        'tampilan.format_angka' => 'id_ID',
+        'laporan.header' => 'KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI',
+        'laporan.footer' => 'Dicetak dari SAKIP Resmi',
+        'alasan' => 'Pembaruan identitas dan kontak institusi periode 2026.',
+    ]);
+
+    $response->assertRedirect(route('pengaturan.index'));
+    $response->assertSessionHas('success');
+
+    // Pastikan database terupdate
+    $this->assertDatabaseHas('pengaturan', [
+        'kunci' => 'instansi.nama',
+        'nilai' => 'LLDIKTI Wilayah XVI Baru',
+        'updated_by' => $this->admin->id,
+    ]);
+
+    $this->assertDatabaseHas('pengaturan', [
+        'kunci' => 'aplikasi.nama',
+        'nilai' => 'SAKIP LLDIKTI XVI 2026',
+        'updated_by' => $this->admin->id,
+    ]);
+
+    // Pastikan audit log tercatat untuk perubahan
+    $setting = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+    $audit = AuditLog::query()
+        ->where('tindakan', 'pengaturan:update')
+        ->where('objek_tipe', 'pengaturan')
+        ->where('objek_id', (string) $setting->id)
+        ->first();
+
+    expect($audit)->not->toBeNull();
+    expect($audit->actor_id)->toBe($this->admin->id);
+    expect($audit->alasan)->toBe('Pembaruan identitas dan kontak institusi periode 2026.');
+    expect($audit->nilai_lama['nilai'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+    expect($audit->nilai_baru['nilai'])->toBe('LLDIKTI Wilayah XVI Baru');
+    expect($audit->dasar_izin['permission'])->toBe('pengaturan:update');
+    expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
+});
+
+test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui', function (): void {
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+
+    // Initial read (mengisi cache)
+    $val1 = $service->get('instansi.nama');
+    expect($val1)->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+
+    // Update via service
+    $service->update(
+        $this->admin,
+        ['instansi.nama' => 'LLDIKTI Wilayah XVI Terverifikasi Cache'],
+        'Uji invalidasi cache'
+    );
+
+    // Read kembali harus mengembalikan nilai baru yang sudah diinvalidasi
+    $val2 = $service->get('instansi.nama');
+    expect($val2)->toBe('LLDIKTI Wilayah XVI Terverifikasi Cache');
+});
+
+test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 403', function (): void {
+    // Role perencanaan mencoba mengakses GET /pengaturan
+    $resPerencanaanGet = $this->actingAs($this->perencanaan)->get('/pengaturan');
+    $resPerencanaanGet->assertForbidden();
+
+    // Role perencanaan mencoba mutasi PUT /pengaturan
+    $resPerencanaanPut = $this->actingAs($this->perencanaan)->put('/pengaturan', [
+        'instansi.nama' => 'Pembobolan Oleh Perencanaan',
+    ]);
+    $resPerencanaanPut->assertForbidden();
+
+    // Role pegawai mencoba mengakses GET /pengaturan
+    $resPegawaiGet = $this->actingAs($this->pegawai)->get('/pengaturan');
+    $resPegawaiGet->assertForbidden();
+
+    // Role pegawai mencoba mutasi PUT /pengaturan
+    $resPegawaiPut = $this->actingAs($this->pegawai)->put('/pengaturan', [
+        'instansi.nama' => 'Pembobolan Oleh Pegawai',
+    ]);
+    $resPegawaiPut->assertForbidden();
+});
+
+test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): void {
+    $response = $this->get('/pengaturan');
+    $response->assertRedirect('/login');
+
+    $responsePut = $this->put('/pengaturan', [
+        'instansi.nama' => 'Tamu Mengubah',
+    ]);
+    $responsePut->assertRedirect('/login');
+});
+
+test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist dengan HTTP 422', function (): void {
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI XVI Valid',
+        'status_alur_kerja' => 'bypass_approval', // Kunci berbahaya di luar whitelist
+        'roles.superadmin' => 'semua_akses',       // Kunci berbahaya lain
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['status_alur_kerja', 'roles.superadmin']);
+
+    // Pastikan tidak ada data ilegal tersimpan di database
+    $this->assertDatabaseMissing('pengaturan', [
+        'kunci' => 'status_alur_kerja',
+    ]);
+
+    // Pastikan tidak ada catatan audit palsu yang tercipta
+    $this->assertDatabaseMissing('audit_log', [
+        'tindakan' => 'pengaturan:update',
+        'alasan' => 'bypass_approval',
+    ]);
+});
+
+test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function (): void {
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Wilayah XVI',
+        'aplikasi.nama' => 'SAKIP LLDIKTI XVI',
+        'aplikasi.label_unit' => 'Unit Kerja',
+        'tampilan.zona_waktu' => 'Asia/Kucing', // Zona waktu ilegal
+        'tampilan.format_tanggal' => 'd F Y',
+        'tampilan.format_angka' => 'id_ID',
+        'instansi.surel' => 'bukan-email-valid',
+        'instansi.laman' => 'bukan-url-valid',
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['instansi.surel', 'instansi.laman', 'tampilan.zona_waktu']);
+});
