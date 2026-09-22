@@ -27,6 +27,7 @@ export interface JenisBerkasFormData {
     format_diizinkan: string;
     ukuran_maks_kb: number | '' | null;
     expected_updated_at?: string;
+    aktif?: boolean;
 }
 
 interface JenisBerkasModalProps {
@@ -58,10 +59,23 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
 
     const atLeastOneMode = data.izinkan_file || data.izinkan_tautan || data.izinkan_teks;
 
+    const availableIndikators = indikators.filter((ind) => {
+        if (ind.is_aktif !== false) {
+            return true;
+        }
+        return isEditing && ind.id === data.indikator_id;
+    });
+
+    const handleSafeClose = () => {
+        if (isLoading) return;
+        onClose();
+    };
+
     return (
         <Modal
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={handleSafeClose}
+            showCloseButton={!isLoading}
             size="2xl"
             title={
                 <div className="flex items-center gap-2.5">
@@ -107,6 +121,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             { value: 'pengukuran', label: 'Pengukuran Kinerja' },
                             { value: 'kegiatan', label: 'Pelaksanaan Kegiatan (SPJ)' },
                         ]}
+                        helperText="Tahap pengukuran terhubung langsung ke evaluasi bukti saat pengajuan kinerja"
                     />
 
                     <Select
@@ -118,7 +133,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         error={errors.indikator_id}
                     >
                         <option value="">Global (Berlaku Semua Indikator)</option>
-                        {indikators.map((ind) => (
+                        {availableIndikators.map((ind) => (
                             <option key={ind.id} value={ind.id}>
                                 {ind.kode} : {ind.nama}{ind.is_aktif === false ? ' (Nonaktif)' : ''}
                             </option>
@@ -213,6 +228,30 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     </label>
                 </div>
 
+                {/* Status Aktif / Nonaktif Persyaratan */}
+                <div className={`p-3.5 rounded-lg border transition-colors ${data.aktif !== false ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'}`}>
+                    <label className="flex items-start gap-2.5 text-xs cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="jb-aktif"
+                            checked={data.aktif !== false}
+                            onChange={(e) => onChange('aktif', e.target.checked)}
+                            disabled={isLoading}
+                            className="mt-0.5 rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                        />
+                        <div>
+                            <span className={`font-semibold ${data.aktif !== false ? 'text-emerald-900' : 'text-rose-900'}`}>
+                                {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
+                            </span>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                                {data.aktif !== false 
+                                    ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
+                                    : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
                 {/* Peringatan jika berkas.unggahan_aktif = false dan syarat wajib hanya mode file */}
                 {!unggahanAktif && data.wajib && data.izinkan_file && !data.izinkan_tautan && !data.izinkan_teks && (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-xs text-amber-800" role="alert">
@@ -299,7 +338,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         variant="outline"
                         size="sm"
                         disabled={isLoading}
-                        onClick={onClose}
+                        onClick={handleSafeClose}
                     >
                         Batal
                     </Button>

@@ -72,6 +72,7 @@ const defaultFormData: JenisBerkasFormData = {
     urutan: 0,
     format_diizinkan: '',
     ukuran_maks_kb: null,
+    aktif: true,
 };
 
 export default function JenisBerkasIndex({
@@ -135,7 +136,8 @@ export default function JenisBerkasIndex({
             urutan: item.urutan,
             format_diizinkan: item.format_diizinkan || '',
             ukuran_maks_kb: item.ukuran_maks_kb,
-            expected_updated_at: item.updated_at,
+            aktif: item.aktif !== false,
+            expected_updated_at: item.updated_at || new Date().toISOString(),
         });
         setFormErrors({});
         setAuditError(null);
@@ -349,6 +351,7 @@ export default function JenisBerkasIndex({
                                 <th className="px-4 py-3.5 min-w-[180px]">LINGKUP</th>
                                 <th className="px-4 py-3.5 text-center">MODE DIIZINKAN</th>
                                 <th className="px-4 py-3.5 text-center">KEWAJIBAN</th>
+                                <th className="px-4 py-3.5 text-center">STATUS</th>
                                 <th className="px-4 py-3.5">BATAS TEKNIS</th>
                                 {(can.update || can.delete) && (
                                     <th className="px-4 py-3.5 text-center w-28">AKSI</th>
@@ -358,7 +361,7 @@ export default function JenisBerkasIndex({
                         <tbody className="divide-y divide-slate-100">
                             {filteredList.length === 0 ? (
                                 <tr>
-                                    <td colSpan={can.update || can.delete ? 8 : 7} className="px-4 py-12 text-center text-slate-400">
+                                    <td colSpan={can.update || can.delete ? 9 : 8} className="px-4 py-12 text-center text-slate-400">
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <FileText className="w-8 h-8 text-slate-300" />
                                             <span className="font-medium text-slate-600">
@@ -469,6 +472,19 @@ export default function JenisBerkasIndex({
                                             </div>
                                         </td>
 
+                                        {/* Status */}
+                                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                                            {item.aktif !== false ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Aktif
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                                    Nonaktif
+                                                </span>
+                                            )}
+                                        </td>
+
                                         {/* Batas Teknis */}
                                         <td className="px-4 py-3.5">
                                             {item.izinkan_file ? (
@@ -536,7 +552,9 @@ export default function JenisBerkasIndex({
                 isLoading={isSubmitting}
                 unggahanAktif={unggahanAktif}
                 onChange={handleFormChange}
-                onClose={() => setIsFormModalOpen(false)}
+                onClose={() => {
+                    if (!isSubmitting) setIsFormModalOpen(false);
+                }}
                 onSubmit={handleFormSubmit}
             />
 
@@ -553,7 +571,9 @@ export default function JenisBerkasIndex({
                 confirmVariant={auditAction === 'delete' ? 'danger' : 'primary'}
                 isLoading={isSubmitting}
                 serverError={auditError || undefined}
-                onClose={() => setIsAuditModalOpen(false)}
+                onClose={() => {
+                    if (!isSubmitting) setIsAuditModalOpen(false);
+                }}
                 onConfirm={handleConfirmAudit}
             />
         </AuthenticatedLayout>

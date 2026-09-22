@@ -21,12 +21,17 @@ class DeleteJenisBerkasRequest extends FormRequest
         if ($user) {
             $id = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
             $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:delete');
+            $rawAlasan = $this->input('alasan');
+            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
+                ? trim($rawAlasan)
+                : 'Percobaan penghapusan persyaratan jenis berkas ditolak karena tidak memiliki izin.';
+
             app(AuditLogger::class)->catat(
                 actor: $user,
                 tindakan: 'jenis_berkas.hapus_ditolak',
                 objekTipe: 'jenis_berkas',
                 objekId: $id,
-                alasan: $this->input('alasan') ?: 'Percobaan penghapusan persyaratan jenis berkas ditolak karena tidak memiliki izin.',
+                alasan: $alasan,
                 dasarIzin: $decision,
             );
         }

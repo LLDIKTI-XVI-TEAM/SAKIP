@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreJenisBerkasRequest extends FormRequest
@@ -15,21 +16,54 @@ class StoreJenisBerkasRequest extends FormRequest
         return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:create');
     }
 
+    protected function prepareForValidation(): void
+    {
+        $urutan = $this->input('urutan');
+        $merges = [
+            'urutan' => ($urutan === null || $urutan === '') ? 0 : (int) $urutan,
+        ];
+
+        if ($this->has('format_diizinkan')) {
+            $format = $this->input('format_diizinkan');
+            if (is_string($format)) {
+                $tokens = array_filter(array_map('trim', explode(',', strtolower($format))), fn ($t) => $t !== '');
+                $merges['format_diizinkan'] = ! empty($tokens) ? implode(',', $tokens) : null;
+            }
+        }
+
+        $this->merge($merges);
+    }
+
     public function rules(): array
     {
         return [
             'nama' => ['required', 'string', 'max:255'],
             'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan'],
-            'indikator_id' => ['nullable', 'uuid', 'exists:indikator_kinerjas,id'],
+            'indikator_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('indikator_kinerjas', 'id')->where(function ($query) {
+                    $query->where('is_aktif', true);
+                }),
+            ],
             'wajib' => ['boolean'],
             'keterangan' => ['nullable', 'string'],
             'izinkan_file' => ['boolean'],
             'izinkan_tautan' => ['boolean'],
             'izinkan_teks' => ['boolean'],
             'semua_mode_wajib' => ['boolean'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
-            'format_diizinkan' => ['nullable', 'string', 'max:255'],
+            'urutan' => ['integer', 'min:0'],
+            'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'ukuran_maks_kb' => ['nullable', 'integer', 'min:100'],
+            'aktif' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah dinonaktifkan.',
+            'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
         ];
     }
 

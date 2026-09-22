@@ -124,10 +124,11 @@ class JenisBerkasController extends Controller
         DB::transaction(function () use ($data, $id, $actor, $decision) {
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
-            $expectedUpdatedAt = $data['expected_updated_at'] ?? null;
-            if ($expectedUpdatedAt !== null && $jb->updated_at !== null) {
+            $expectedUpdatedAt = (string) $data['expected_updated_at'];
+            $currentTimestamp = $jb->updated_at ?? $jb->created_at;
+            if ($currentTimestamp !== null) {
                 $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
-                if ($jb->updated_at->toISOString() !== $expectedIso) {
+                if ($currentTimestamp->toISOString() !== $expectedIso) {
                     throw ValidationException::withMessages([
                         'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
                     ]);

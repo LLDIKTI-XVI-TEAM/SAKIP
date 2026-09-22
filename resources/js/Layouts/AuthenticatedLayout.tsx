@@ -82,6 +82,9 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     {flash?.success && <div role="status" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-ink sm:mx-6">
                         <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.success}</span>
                     </div>}
+                    {flash?.warning && <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-dark sm:mx-6">
+                        <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark" /><span>{flash.warning}</span>
+                    </div>}
                     {flash?.error && <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger sm:mx-6">
                         <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.error}</span>
                     </div>}

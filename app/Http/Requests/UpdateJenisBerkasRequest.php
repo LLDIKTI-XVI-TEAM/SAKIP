@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\JenisBerkas;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateJenisBerkasRequest extends FormRequest
@@ -22,12 +24,17 @@ class UpdateJenisBerkasRequest extends FormRequest
         if ($user) {
             $id = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
             $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:update');
+            $rawAlasan = $this->input('alasan');
+            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
+                ? trim($rawAlasan)
+                : 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.';
+
             app(AuditLogger::class)->catat(
                 actor: $user,
                 tindakan: 'jenis_berkas.ubah_ditolak',
                 objekTipe: 'jenis_berkas',
                 objekId: $id,
-                alasan: $this->input('alasan') ?: 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.',
+                alasan: $alasan,
                 dasarIzin: $decision,
             );
         }
@@ -35,23 +42,62 @@ class UpdateJenisBerkasRequest extends FormRequest
         parent::failedAuthorization();
     }
 
+    protected function prepareForValidation(): void
+    {
+        $urutan = $this->input('urutan');
+        $merges = [
+            'urutan' => ($urutan === null || $urutan === '') ? 0 : (int) $urutan,
+        ];
+
+        if ($this->has('format_diizinkan')) {
+            $format = $this->input('format_diizinkan');
+            if (is_string($format)) {
+                $tokens = array_filter(array_map('trim', explode(',', strtolower($format))), fn ($t) => $t !== '');
+                $merges['format_diizinkan'] = ! empty($tokens) ? implode(',', $tokens) : null;
+            }
+        }
+
+        $this->merge($merges);
+    }
+
     public function rules(): array
     {
+        $currentId = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
+
         return [
             'nama' => ['required', 'string', 'max:255'],
             'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan'],
-            'indikator_id' => ['nullable', 'uuid', 'exists:indikator_kinerjas,id'],
+            'indikator_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('indikator_kinerjas', 'id')->where(function ($query) use ($currentId) {
+                    $currentIndikatorId = JenisBerkas::where('id', $currentId)->value('indikator_id');
+                    $query->where('is_aktif', true);
+                    if ($currentIndikatorId) {
+                        $query->orWhere('id', $currentIndikatorId);
+                    }
+                }),
+            ],
             'wajib' => ['boolean'],
             'keterangan' => ['nullable', 'string'],
             'izinkan_file' => ['boolean'],
             'izinkan_tautan' => ['boolean'],
             'izinkan_teks' => ['boolean'],
             'semua_mode_wajib' => ['boolean'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
-            'format_diizinkan' => ['nullable', 'string', 'max:255'],
+            'urutan' => ['integer', 'min:0'],
+            'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'ukuran_maks_kb' => ['nullable', 'integer', 'min:100'],
+            'aktif' => ['sometimes', 'boolean'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
-            'expected_updated_at' => ['nullable', 'string'],
+            'expected_updated_at' => ['required', 'string'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah dinonaktifkan.',
+            'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
         ];
     }
 

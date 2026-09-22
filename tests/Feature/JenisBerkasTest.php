@@ -188,6 +188,7 @@ class JenisBerkasTest extends TestCase
             'izinkan_tautan' => false,
             'izinkan_teks' => false,
             'alasan' => '',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
         $failUpdate->assertSessionHasErrors('alasan');
 
@@ -254,6 +255,7 @@ class JenisBerkasTest extends TestCase
             'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'alasan' => 'Mencoba ubah tanpa hak',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
         $updateResponse->assertStatus(403);
         $this->assertDatabaseHas('audit_log', [
@@ -277,6 +279,7 @@ class JenisBerkasTest extends TestCase
      */
     public function test_mutation_and_audit_are_atomic_in_single_transaction(): void
     {
+        $this->withoutExceptionHandling();
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('Audit system down'));
 
         $payload = [
@@ -421,5 +424,216 @@ class JenisBerkasTest extends TestCase
         $response->assertRedirect('/jenis-berkas');
         $response->assertSessionHas('warning');
         $this->assertDatabaseHas('jenis_berkas', ['nama' => 'Laporan Khusus File Dinonaktifkan']);
+    }
+
+    /**
+     * TEST-11: Persyaratan jenis berkas dapat dinonaktifkan melalui update (aktif = false).
+     */
+    public function test_perencanaan_can_deactivate_jenis_berkas_via_update(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Usang',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Laporan Usang (Dinonaktifkan)',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'aktif' => false,
+            'alasan' => 'Penonaktifan persyaratan usang agar tidak memblokir pengajuan mendatang',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'aktif' => false,
+        ]);
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah')->where('objek_id', $jb->id)->first();
+        $this->assertNotNull($audit);
+        $this->assertSame(false, $audit->nilai_baru['aktif']);
+    }
+
+    /**
+     * TEST-12: Update wajib menyertakan expected_updated_at dan mendeteksi konflik konkurensi.
+     */
+    public function test_update_requires_expected_updated_at_and_detects_concurrency_conflict(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Concurrency',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 1. Tanpa expected_updated_at -> validasi gagal (422)
+        $noVersion = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Pembaruan Tanpa Versi',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'alasan' => 'Pembaruan tanpa expected_updated_at',
+        ]);
+        $noVersion->assertSessionHasErrors('expected_updated_at');
+
+        // 2. Dengan expected_updated_at lama/tidak cocok -> konflik
+        $staleTimestamp = now()->subMinutes(10)->toISOString();
+        $conflictResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Pembaruan Versi Usang',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'alasan' => 'Mencoba menimpa perubahan',
+            'expected_updated_at' => $staleTimestamp,
+        ]);
+        $conflictResponse->assertSessionHasErrors('konflik');
+    }
+
+    /**
+     * TEST-13: Store ditolak jika memilih indikator kinerja nonaktif.
+     */
+    public function test_store_fails_when_assigning_to_inactive_indicator(): void
+    {
+        $inactiveIndikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $this->indikator->sasaran_strategis_id,
+            'unit_id' => $this->indikator->unit_id,
+            'kode' => 'I-NONAKTIF',
+            'nama' => 'Indikator Nonaktif',
+            'satuan' => 'dokumen',
+            'tipe_perhitungan' => 'manual',
+            'is_aktif' => false,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Persyaratan Indikator Nonaktif',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $inactiveIndikator->id,
+            'izinkan_file' => true,
+        ]);
+
+        $response->assertSessionHasErrors('indikator_id');
+    }
+
+    /**
+     * TEST-14: Update mengizinkan indikator nonaktif yang sudah terpasang, tetapi menolak perpindahan ke indikator nonaktif lain.
+     */
+    public function test_update_allows_existing_inactive_indicator_but_rejects_switching_to_different_inactive(): void
+    {
+        $inactiveA = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $this->indikator->sasaran_strategis_id,
+            'unit_id' => $this->indikator->unit_id,
+            'kode' => 'I-NONAKTIF-A',
+            'nama' => 'Indikator Nonaktif A',
+            'satuan' => 'dokumen',
+            'tipe_perhitungan' => 'manual',
+            'is_aktif' => false,
+        ]);
+
+        $inactiveB = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $this->indikator->sasaran_strategis_id,
+            'unit_id' => $this->indikator->unit_id,
+            'kode' => 'I-NONAKTIF-B',
+            'nama' => 'Indikator Nonaktif B',
+            'satuan' => 'dokumen',
+            'tipe_perhitungan' => 'manual',
+            'is_aktif' => false,
+        ]);
+
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Lama Nonaktif',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $inactiveA->id,
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 1. Update dengan mempertahankan inactiveA -> diizinkan
+        $okResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Lama Tetap A',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $inactiveA->id,
+            'izinkan_file' => true,
+            'alasan' => 'Pembaruan tanpa mengubah indikator nonaktif',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ]);
+        $okResponse->assertRedirect('/jenis-berkas');
+
+        // 2. Update dengan mengubah ke inactiveB -> ditolak
+        $failResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Pindah ke B Nonaktif',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $inactiveB->id,
+            'izinkan_file' => true,
+            'alasan' => 'Mencoba pindah ke indikator nonaktif lain',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ]);
+        $failResponse->assertSessionHasErrors('indikator_id');
+    }
+
+    /**
+     * TEST-15: failedAuthorization tidak mengalami TypeError saat payload alasan berupa array dan tetap merespons 403.
+     */
+    public function test_failed_authorization_handles_array_alasan_without_type_error(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Hak Akses',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Kirim alasan sebagai array oleh user tanpa izin (pegawai)
+        $response = $this->actingAs($this->pegawai)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Coba Ubah',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'alasan' => ['malicious', 'array', 'payload'],
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertStatus(403);
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah_ditolak')
+            ->where('objek_id', $jb->id)
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertIsString($audit->alasan);
+    }
+
+    /**
+     * TEST-16: Store memicu session flash warning saat mode file diwajibkan dan berkas.unggahan_aktif false.
+     */
+    public function test_store_flashes_warning_when_required_file_only_and_uploads_disabled(): void
+    {
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.unggahan_aktif'],
+            [
+                'nilai' => 'false',
+                'tipe' => 'boolean',
+                'grup' => 'berkas',
+                'updated_at' => now(),
+            ]
+        );
+
+        $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Bukti Wajib File Saat Mati',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+        $response->assertSessionHas('warning');
     }
 }
