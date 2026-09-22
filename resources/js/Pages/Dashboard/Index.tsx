@@ -11,7 +11,6 @@ import {
     Plus,
     Target,
     ChevronRight,
-    ArrowUpDown,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
@@ -21,7 +20,7 @@ import type { SharedPageProps } from '@/types/auth';
 
 interface DashboardProps {
     activeRenstra: { id: string; nama: string; tahun_mulai: number; tahun_selesai: number } | null;
-    activePeriode: { id: string; nama_periode: string } | null;
+    activePeriode: { id: string; nama_periode: string; status: 'aktif' | 'terakhir' } | null;
     stats: {
         total: number;
         draft: number;
@@ -49,7 +48,9 @@ interface DashboardProps {
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
     const { auth } = usePage<SharedPageProps>().props;
     const [currentDate, setCurrentDate] = useState<string>('');
-    const hasActivePeriode = activePeriode !== null;
+    const hasPeriode = activePeriode !== null;
+    const isActivePeriode = activePeriode?.status === 'aktif';
+    const periodeLabel = isActivePeriode ? 'Periode aktif' : 'Periode terakhir';
 
     useEffect(() => {
         const updateBusinessDate = () => {
@@ -74,7 +75,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
             label: 'Total pengukuran',
             icon: BarChart2,
             iconStyle: 'bg-[#ebf2fe] text-[#2563eb]',
-            desc: 'Seluruh periode',
+            desc: 'Periode terpilih',
         },
         {
             key: 'draft' as const,
@@ -176,19 +177,19 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                     <BarChart2 className="h-4 w-4 text-sky-400" />
                                     <span className="text-xs sm:text-sm font-semibold text-white">Status Pengukuran</span>
                                 </div>
-                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${hasActivePeriode ? 'border-emerald-400/30 bg-emerald-500/20 text-emerald-300' : 'border-amber-300/40 bg-amber-400/15 text-amber-100'}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${hasActivePeriode ? 'bg-emerald-400' : 'bg-amber-300'}`} />
-                                    <span>{hasActivePeriode ? 'Aktif' : 'Tidak aktif'}</span>
+                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${isActivePeriode ? 'border-emerald-400/30 bg-emerald-500/20 text-emerald-300' : hasPeriode ? 'border-slate-300/40 bg-slate-300/15 text-slate-100' : 'border-amber-300/40 bg-amber-400/15 text-amber-100'}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${isActivePeriode ? 'bg-emerald-400' : hasPeriode ? 'bg-slate-200' : 'bg-amber-300'}`} />
+                                    <span>{isActivePeriode ? 'Aktif' : hasPeriode ? 'Periode terakhir' : 'Tidak tersedia'}</span>
                                 </div>
                             </div>
 
                             {/* Counter Value */}
                             <div className="mt-3.5 flex items-baseline gap-2">
                                 <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-none">
-                                    {hasActivePeriode ? stats.disahkan : '—'}
+                                    {hasPeriode ? stats.disahkan : '—'}
                                 </span>
                                 <span className="text-xs sm:text-sm font-medium text-blue-200">
-                                    {hasActivePeriode ? `/ ${stats.total} Disahkan` : 'Tidak tersedia'}
+                                    {hasPeriode ? `/ ${stats.total} Disahkan` : 'Tidak tersedia'}
                                 </span>
                             </div>
 
@@ -196,13 +197,13 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                             <div className="mt-3.5 h-2 w-full rounded-full bg-white/15 overflow-hidden">
                                 <div
                                     className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-400 transition-all duration-500"
-                                    style={{ width: hasActivePeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}%` : '0%' }}
+                                    style={{ width: hasPeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}%` : '0%' }}
                                 />
                             </div>
 
                             {/* Bottom Label */}
                             <p className="mt-2.5 text-right text-[11px] font-medium text-blue-200/80">
-                                {!hasActivePeriode ? 'Belum ada periode pelaporan aktif' : stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}% terselesaikan` : 'Belum ada data'}
+                                {!hasPeriode ? 'Belum ada periode pelaporan aktif' : isActivePeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}% terselesaikan` : isActivePeriode ? 'Belum ada data' : 'Periode pelaporan telah berakhir'}
                             </p>
                         </div>
                     </div>
@@ -227,11 +228,11 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                 {label}
                             </p>
                             <p className="mt-1 text-3xl font-extrabold text-[#0c2356]">
-                                {hasActivePeriode ? stats[key] : '—'}
+                                {hasPeriode ? stats[key] : '—'}
                             </p>
                         </div>
                         <p className="mt-4 text-xs text-slate-400 font-medium">
-                            {hasActivePeriode ? desc : 'Tidak ada periode aktif'}
+                            {hasPeriode ? (key === 'total' ? periodeLabel : desc) : 'Tidak ada periode aktif'}
                         </p>
                     </div>
                 ))}
@@ -254,10 +255,10 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                     <div className="flex flex-wrap items-center gap-2.5">
                         <div
                             className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-soft px-3.5 text-xs font-medium text-ink shrink-0 select-none"
-                            aria-label="Periode aktif"
+                            aria-label={periodeLabel}
                         >
                             <Calendar className="h-3.5 w-3.5 text-muted shrink-0" />
-                            <span>Periode: {activePeriode ? activePeriode.nama_periode : 'Belum ada periode aktif'}</span>
+                            <span>{activePeriode ? `${periodeLabel}: ${activePeriode.nama_periode}` : 'Belum ada periode aktif'}</span>
                         </div>
 
                         {auth.can.pengukuran && (
@@ -288,10 +289,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                         <thead className="bg-[#f0f4f9] text-slate-700 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200">
                             <tr>
                                 <th scope="col" className="px-6 py-3.5">
-                                    <div className="flex items-center gap-1.5">
-                                        <span>KODE & INDIKATOR</span>
-                                        <ArrowUpDown className="h-3 w-3 text-slate-400" />
-                                    </div>
+                                    KODE & INDIKATOR
                                 </th>
                                 <th scope="col" className="px-6 py-3.5">
                                     UNIT & PIC
@@ -327,7 +325,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                                 </svg>
                                             </div>
                                             <p className="text-sm font-bold text-[#0c2356]">
-                                                {hasActivePeriode ? 'Belum ada pengukuran untuk periode ini.' : 'Belum ada periode pelaporan aktif.'}
+                                                {hasPeriode ? `Belum ada pengukuran untuk ${periodeLabel.toLowerCase()} ini.` : 'Belum ada periode pelaporan aktif.'}
                                             </p>
                                         </div>
                                     </td>

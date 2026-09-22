@@ -34,7 +34,7 @@ export const Badge: React.FC<BadgeProps> = ({ status, className, children }) => 
         },
         disahkan: {
             label: 'Disahkan',
-            style: 'bg-success/15 text-success border-success/30',
+            style: 'bg-success/15 text-success-dark border-success/30',
             dotColor: 'bg-success',
         },
     };
