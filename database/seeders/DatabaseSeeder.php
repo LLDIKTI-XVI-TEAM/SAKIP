@@ -10,5 +10,6 @@ class DatabaseSeeder extends Seeder
     {
         // Akun hanya berasal dari callback SSO; privilege awal dipasang bootstrap teraudit.
         $this->call(AccessCatalogSeeder::class);
+        $this->call(PengaturanSeeder::class);
     }
 }

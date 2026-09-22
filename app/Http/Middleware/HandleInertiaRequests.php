@@ -29,6 +29,8 @@ class HandleInertiaRequests extends Middleware
                         'regulasi' => $can['regulasi'],
                         'assignRole' => $can['assignRole'],
                         'manageDeny' => $can['manageDeny'],
+                        'pengaturan' => $can['pengaturan'],
+                        'pengaturan:update' => $can['pengaturan:update'],
                     ],
                 ];
             },
@@ -57,6 +59,8 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => false,
             'regulasi:delete' => false,
             'berkas:delete' => false,
+            'pengaturan' => false,
+            'pengaturan:update' => false,
         ];
 
         if ($user === null || ! $user->is_active) {
@@ -65,6 +69,7 @@ class HandleInertiaRequests extends Middleware
 
         $resolver = app(PermissionResolver::class);
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
+        $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
 
         return [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),
@@ -83,6 +88,8 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
             'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
             'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
+            'pengaturan' => $pengaturanUpdate,
+            'pengaturan:update' => $pengaturanUpdate,
         ];
     }
 }

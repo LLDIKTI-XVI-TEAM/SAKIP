@@ -7,6 +7,8 @@ use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\Pengaturan\IndexPengaturan;
+use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
@@ -81,4 +83,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+    Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
+    Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 });

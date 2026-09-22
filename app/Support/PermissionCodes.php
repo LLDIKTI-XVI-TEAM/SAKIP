@@ -14,6 +14,8 @@ final class PermissionCodes
 
     public const BERKAS_DELETE = 'berkas:delete';
 
+    public const PENGATURAN_UPDATE = 'pengaturan:update';
+
     /** @return list<string> */
     public static function regulasi(): array
     {
