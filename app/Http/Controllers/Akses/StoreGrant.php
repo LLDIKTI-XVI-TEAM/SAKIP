@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -50,7 +52,12 @@ class StoreGrant extends Controller
         }
 
         /** @var Permission $permission */
-        $permission = Permission::findOrFail($validated['permission_id']);
+        $permission = Permission::find($validated['permission_id']);
+        if (! $permission || ! $permission->aktif) {
+            throw ValidationException::withMessages([
+                'permission_id' => 'Permission tidak ditemukan atau sudah dinonaktifkan.',
+            ]);
+        }
 
         // AC-2: Tolak jika permission bersifat global
         if ($permission->butuh_scope !== Permission::SCOPE_UNIT) {
@@ -82,35 +89,47 @@ class StoreGrant extends Controller
             ]);
         }
 
-        // AC-1 & AC-5: Simpan grant
-        $grant = UserPermissionGrant::create([
-            'user_id' => $targetUser->id,
-            'permission_id' => $permission->id,
-            'unit_id' => $unit->id,
-            'alasan' => $validated['alasan'],
-            'diberikan_oleh' => $actor->id,
-        ]);
+        try {
+            DB::transaction(function () use ($targetUser, $permission, $unit, $validated, $actor, $auditLogger, $permissionResolver) {
+                // AC-1 & AC-5: Simpan grant
+                $grant = UserPermissionGrant::create([
+                    'user_id' => $targetUser->id,
+                    'permission_id' => $permission->id,
+                    'unit_id' => $unit->id,
+                    'alasan' => $validated['alasan'],
+                    'diberikan_oleh' => $actor->id,
+                ]);
 
-        // Audit Trail
-        $auditLogger->catat(
-            actor: $actor,
-            tindakan: 'user_permission_granted.tambah',
-            objekTipe: 'user_permission_granted',
-            objekId: (string) $grant->id,
-            nilaiLama: null,
-            nilaiBaru: [
-                'user_id' => $targetUser->id,
-                'user_nama' => $targetUser->nama,
-                'permission_id' => $permission->id,
-                'permission_kode' => $permission->kode,
-                'unit_id' => $unit->id,
-                'unit_nama' => $unit->nama,
-                'alasan' => $grant->alasan,
-                'diberikan_oleh' => $actor->id,
-            ],
-            alasan: $grant->alasan,
-            dasarIzin: $permissionResolver->resolve($actor, 'akses:update')->toAuditBasis(),
-        );
+                // Audit Trail
+                $auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'user_permission_granted.tambah',
+                    objekTipe: 'user_permission_granted',
+                    objekId: (string) $grant->id,
+                    nilaiLama: null,
+                    nilaiBaru: [
+                        'user_id' => $targetUser->id,
+                        'user_nama' => $targetUser->nama,
+                        'permission_id' => $permission->id,
+                        'permission_kode' => $permission->kode,
+                        'unit_id' => $unit->id,
+                        'unit_nama' => $unit->nama,
+                        'alasan' => $grant->alasan,
+                        'diberikan_oleh' => $actor->id,
+                    ],
+                    alasan: $grant->alasan,
+                    dasarIzin: $permissionResolver->resolve($actor, 'akses:update')->toAuditBasis(),
+                );
+            });
+        } catch (QueryException $exception) {
+            if (($exception->errorInfo[0] ?? null) === '23505'
+                && str_contains($exception->errorInfo[2] ?? '', 'user_permission_granted')) {
+                throw ValidationException::withMessages([
+                    'permission_id' => 'Pengguna sudah memiliki izin tambahan untuk unit ini.',
+                ]);
+            }
+            throw $exception;
+        }
 
         return redirect()->route('akses.grant.index')
             ->with('success', "Izin '{$permission->kode}' pada unit '{$unit->nama}' berhasil diberikan kepada {$targetUser->nama}.");

@@ -550,4 +550,78 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertTrue($superGrants[$adminGrant->id]['can_revoke']);
         $this->assertTrue($superGrants[$pegawaiGrant->id]['can_revoke']);
     }
+
+    /**
+     * Temuan 1: Tolak pencabutan grant berscope global melalui endpoint unit (HTTP 422).
+     */
+    public function test_cannot_revoke_global_grant_via_unit_grant_endpoint(): void
+    {
+        $globalPerm = Permission::where('kode', 'pengguna:read')->firstOrFail();
+
+        // Buat grant global langsung di database (unit_id = null)
+        $globalGrant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $globalPerm->id,
+            'unit_id' => null,
+            'alasan' => 'Grant global pengujian',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$globalGrant->id}", [
+                'alasan' => 'Mencoba mencabut grant global lewat endpoint unit.',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('user_permission_granted', ['id' => $globalGrant->id]);
+    }
+
+    /**
+     * Temuan 5: Tolak permission nonaktif sebelum membuat grant (HTTP 422 Validation Error).
+     */
+    public function test_cannot_grant_inactive_permission(): void
+    {
+        // Nonaktifkan permission
+        $this->unitPermission->update(['aktif' => false]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Mencoba memberikan izin yang nonaktif.',
+            ]);
+
+        $response->assertSessionHasErrors('permission_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+        ]);
+    }
+
+    /**
+     * Temuan 3: Tangani benturan unik saat grant dibuat bersamaan (SQLSTATE 23505 -> Validation Error).
+     */
+    public function test_concurrent_grant_creation_handles_unique_violation_gracefully(): void
+    {
+        // Buat grant yang sama terlebih dahulu untuk mensimulasikan request konkuren yang telah menyelesaikan insert
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant pertama yang sudah tersimpan',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // Request kedua yang mencoba membuat grant identik
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Grant kedua dari request paralel',
+            ]);
+
+        $response->assertSessionHasErrors('permission_id');
+    }
 }

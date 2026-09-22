@@ -82,6 +82,7 @@ class KonfirmasiPermissionTest extends TestCase
     {
         $sensitiveInScope = [
             'akses:update',
+            'unit:delete',
             'regulasi:update',
             'regulasi:delete',
             'pengaturan:update',

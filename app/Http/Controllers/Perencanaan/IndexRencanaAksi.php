@@ -3,7 +3,13 @@
 namespace App\Http\Controllers\Perencanaan;
 
 use App\Http\Controllers\Controller;
+use App\Models\Permission;
+use App\Models\RencanaAksi;
+use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -11,6 +17,69 @@ class IndexRencanaAksi extends Controller
 {
     public function __invoke(Request $request): Response
     {
+        /** @var User $actor */
+        $actor = $request->user();
+        if (! $actor || ! $actor->is_active) {
+            abort(403);
+        }
+
+        $permission = Permission::where('kode', 'rencana_aksi:read')->where('aktif', true)->first();
+        if (! $permission) {
+            abort(403);
+        }
+
+        // Global deny check: jika user memiliki deny tanpa unit_id, tolak secara global
+        $hasGlobalDeny = DB::table('user_permission_denied')
+            ->where('user_id', $actor->id)
+            ->where('permission_id', $permission->id)
+            ->whereNull('unit_id')
+            ->exists();
+
+        if ($hasGlobalDeny) {
+            abort(403, 'Akses rencana aksi ditolak secara global.');
+        }
+
+        // Cek apakah peran user memberikan hak rencana_aksi:read
+        $hasGlobalRole = DB::table('user_roles')
+            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
+            ->where('user_roles.user_id', $actor->id)
+            ->where('roles.aktif', true)
+            ->where('role_permissions.permission_id', $permission->id)
+            ->exists();
+
+        // Unit yang di-deny secara spesifik untuk user ini
+        $deniedUnitIds = DB::table('user_permission_denied')
+            ->where('user_id', $actor->id)
+            ->where('permission_id', $permission->id)
+            ->whereNotNull('unit_id')
+            ->pluck('unit_id')
+            ->all();
+
+        // Unit yang di-grant secara spesifik untuk user ini
+        $grantedUnitIds = DB::table('user_permission_granted')
+            ->where('user_id', $actor->id)
+            ->where('permission_id', $permission->id)
+            ->whereNotNull('unit_id')
+            ->pluck('unit_id')
+            ->all();
+
+        // Unit efektif hasil grant dikurangi deny
+        $effectiveGrantedUnitIds = array_values(array_diff($grantedUnitIds, $deniedUnitIds));
+
+        // Otorisasi: user wajib memiliki peran global atau minimal satu grant unit efektif
+        if (! $hasGlobalRole && empty($effectiveGrantedUnitIds)) {
+            abort(403, 'Anda tidak memiliki hak akses rencana aksi pada unit manapun.');
+        }
+
+        $deniedUnitNames = ! empty($deniedUnitIds)
+            ? Unit::whereIn('id', $deniedUnitIds)->pluck('nama')->all()
+            : [];
+
+        $allowedUnitNames = ! empty($effectiveGrantedUnitIds)
+            ? Unit::whereIn('id', $effectiveGrantedUnitIds)->pluck('nama')->all()
+            : [];
+
         $rencanaAksiList = [
             [
                 'id' => 1,
@@ -118,6 +187,101 @@ class IndexRencanaAksi extends Controller
             ['id' => 4, 'kode' => 'POKJA-AK', 'nama' => 'Pokja Akademik dan Kemahasiswaan'],
             ['id' => 5, 'kode' => 'POKJA-SDPT', 'nama' => 'Pokja Sumber Daya Perguruan Tinggi'],
         ];
+
+        // Prioritaskan data riil database jika ada
+        if (RencanaAksi::exists()) {
+            $rencanaAksiList = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab', 'disahkanBy'])
+                ->get()
+                ->map(function (RencanaAksi $ra) {
+                    return [
+                        'id' => $ra->id,
+                        'nama_rencana_aksi' => $ra->uraian,
+                        'uraian' => $ra->uraian,
+                        'tahun' => $ra->tahun,
+                        'indikator_kode' => $ra->indikator?->kode ?? '-',
+                        'indikator_nama' => $ra->indikator?->nama ?? '-',
+                        'unit_nama' => $ra->unit?->nama ?? '-',
+                        'unit_kode' => $ra->unit ? Str::slug($ra->unit->nama) : '-',
+                        'unit_id' => $ra->unit_id,
+                        'penanggung_jawab_nama' => $ra->penanggungJawab?->nama ?? '-',
+                        'status_alur' => $ra->status_alur,
+                        'target_triwulan_1' => '-',
+                        'target_triwulan_2' => '-',
+                        'target_triwulan_3' => '-',
+                        'target_triwulan_4' => '-',
+                        'disahkan_at' => $ra->disahkan_at?->format('Y-m-d H:i'),
+                        'disahkan_by_nama' => $ra->disahkanBy?->nama,
+                    ];
+                })->all();
+        }
+
+        // Gabungkan unit database aktif ke opsi jika ada
+        $dbUnits = Unit::where('status', 'aktif')->get();
+        if ($dbUnits->isNotEmpty()) {
+            $existingNames = array_column($unitOptions, 'nama');
+            foreach ($dbUnits as $dbUnit) {
+                if (! in_array($dbUnit->nama, $existingNames, true)) {
+                    $unitOptions[] = [
+                        'id' => $dbUnit->id,
+                        'kode' => Str::slug($dbUnit->nama),
+                        'nama' => $dbUnit->nama,
+                    ];
+                }
+            }
+        }
+
+        // Saring rencanaAksiList berdasarkan hak unit efektif
+        $rencanaAksiList = array_values(array_filter($rencanaAksiList, function ($item) use ($hasGlobalRole, $deniedUnitNames, $allowedUnitNames, $deniedUnitIds, $effectiveGrantedUnitIds) {
+            $unitId = $item['unit_id'] ?? null;
+            $unitNama = $item['unit_nama'] ?? '';
+
+            if ($hasGlobalRole) {
+                if ($unitId && in_array($unitId, $deniedUnitIds, true)) {
+                    return false;
+                }
+                if ($unitNama && in_array($unitNama, $deniedUnitNames, true)) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            // Akses berbasis grant
+            if ($unitId && in_array($unitId, $effectiveGrantedUnitIds, true)) {
+                return true;
+            }
+            if ($unitNama && in_array($unitNama, $allowedUnitNames, true)) {
+                return true;
+            }
+
+            return false;
+        }));
+
+        // Saring unitOptions berdasarkan hak unit efektif
+        $unitOptions = array_values(array_filter($unitOptions, function ($unit) use ($hasGlobalRole, $deniedUnitNames, $allowedUnitNames, $deniedUnitIds, $effectiveGrantedUnitIds) {
+            $unitId = $unit['id'] ?? null;
+            $unitNama = $unit['nama'] ?? '';
+
+            if ($hasGlobalRole) {
+                if ($unitId && in_array($unitId, $deniedUnitIds, true)) {
+                    return false;
+                }
+                if ($unitNama && in_array($unitNama, $deniedUnitNames, true)) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            if ($unitId && in_array($unitId, $effectiveGrantedUnitIds, true)) {
+                return true;
+            }
+            if ($unitNama && in_array($unitNama, $allowedUnitNames, true)) {
+                return true;
+            }
+
+            return false;
+        }));
 
         return Inertia::render('RencanaAksi/Index', [
             'rencanaAksiList' => $rencanaAksiList,

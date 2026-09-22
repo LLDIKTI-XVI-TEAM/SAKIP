@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
+use App\Models\Permission;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
@@ -31,6 +32,11 @@ class RevokeGrant extends Controller
         ]);
 
         $grant = UserPermissionGrant::with(['user.roles', 'permission', 'unit'])->findOrFail($id);
+
+        // Temuan 1: Tolak pencabutan grant global melalui endpoint unit
+        if ($grant->permission?->butuh_scope !== Permission::SCOPE_UNIT || $grant->unit_id === null) {
+            abort(422, 'Endpoint ini hanya dapat mencabut grant yang berscope unit.');
+        }
 
         // Admin tidak dapat merubah/mencabut izin dari Admin dan Superadmin
         if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {

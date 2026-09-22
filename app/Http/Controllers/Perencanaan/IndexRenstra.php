@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Perencanaan;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -11,6 +12,8 @@ class IndexRenstra extends Controller
 {
     public function __invoke(Request $request): Response
     {
+        Gate::authorize('renstra:read');
+
         // Mockup Data Renstra & Cascading Kinerja LLDIKTI Wilayah XVI
         $renstraAktif = [
             'id' => 1,
