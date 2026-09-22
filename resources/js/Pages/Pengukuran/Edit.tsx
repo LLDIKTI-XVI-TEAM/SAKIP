@@ -1,4 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import type { HttpExceptionResponse } from '@inertiajs/core';
+import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import { ArrowLeft, Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -25,6 +28,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const manual = pengukuran.sumber_nilai !== 'komponen';
     const errorSummary = useRef<HTMLUListElement>(null);
     const [requestError, setRequestError] = useState('');
+    const recovery = useAuthRecovery();
     const { data, setData, transform, post, processing, errors } = useForm({
         versi: pengukuran.versi,
         nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
@@ -41,6 +45,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         isi_teks: '',
         action: 'draft' as 'draft' | 'ajukan',
     });
+    const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => { recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}/pratinjau`, mutation: false }); }, [recovery.handleHttpException, pengukuran.id]);
     const fieldErrors: Record<string, string | undefined> = errors;
     const disabled = !can.update || historical || processing;
     const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
@@ -50,7 +55,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (disabled) return;
+        if (disabled || recovery.recovery || requestError) return;
         const submitter = (event.nativeEvent as SubmitEvent).submitter;
         const intent = submitter instanceof HTMLButtonElement && submitter.value === 'ajukan' ? 'ajukan' : 'draft';
         if (intent === 'ajukan' && !can.submit) return;
@@ -68,8 +73,9 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         post(`/pengukuran/${pengukuran.id}`, {
             preserveScroll: true,
             onError: () => requestAnimationFrame(() => errorSummary.current?.focus()),
+            onCancel: () => { setRequestError('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
             onNetworkError: () => { setRequestError('Koneksi terputus. Hasil penyimpanan belum diketahui; periksa status pengukuran sebelum mencoba kembali.'); return false; },
-            onHttpException: () => { setRequestError('Penyimpanan belum dapat dipastikan. Sesi atau izin mungkin berubah. Periksa status pengukuran sebelum mencoba kembali.'); return false; },
+            onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}`, mutation: true })) return false; setRequestError(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
         });
     };
 
@@ -97,7 +103,8 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
             {!pengukuran.prasyarat.siap && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Prasyarat pengajuan belum lengkap</h2><ul className="mt-2 list-disc space-y-1 pl-5">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Simpan draf untuk memperbarui hasil dan pemenuhan sebelum mengajukan.</p></div>}
             <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
                 {Object.keys(errors).length > 0 && <ul ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{Object.entries(errors).map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
-                {requestError && <p role="alert" className="text-sm text-danger">{requestError}</p>}
+                <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
+                {requestError && !recovery.recovery && <p role="alert" className="text-sm text-danger">{requestError}</p>}
                 <Card>
                     <CardHeader><CardTitle>Nilai pengukuran</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -105,7 +112,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                             <p className="text-sm text-muted">Isi setiap komponen sesuai periode pengukuran. Pratinjau diperbarui dari hasil perhitungan server; simpan draf untuk menyimpan perubahan.</p>
                             {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={disabled} helperText={`${item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
                         </div>}
-                        {!manual && can.update && !historical && <CalculationPreview id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
+                        {!manual && can.update && !historical && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
                         <div className="rounded-lg border border-border bg-soft p-4"><p className="text-xs font-medium text-muted">Hasil terakhir tersimpan</p><p className="mt-1 break-words text-2xl font-semibold text-primary">{pengukuran.nilai === null ? statusPerhitungan[pengukuran.status_perhitungan] : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</p><p className="mt-2 text-xs text-muted">Perubahan input belum mengubah hasil ini.</p></div>
                         {!manual && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={disabled} helperText="Isi alasan jika penyebut faktual bernilai nol. Komponen kosong tetap harus dilengkapi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
                         <Textarea name="catatan" label="Catatan pengukuran" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Catatan wajib mengikuti ketentuan indikator dan perubahan nilai terhadap pengukuran sah sebelumnya. Server memeriksanya saat pengajuan." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
@@ -144,8 +151,8 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                     </CardContent>
                 </Card>
                 {can.update && !historical && <div className="flex flex-wrap justify-between gap-3 border-t border-border pt-4">
-                    <Button type="submit" name="action" value="draft" variant="outline" isLoading={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary"><Save className="mr-2 h-4 w-4" />Simpan Sebagai Draft</Button>
-                    {can.submit && <Button type="submit" name="action" value="ajukan" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary"><Send className="mr-2 h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
+                    <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="draft" variant="outline" isLoading={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary"><Save className="mr-2 h-4 w-4" />Simpan Sebagai Draft</Button>
+                    {can.submit && <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary"><Send className="mr-2 h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
                 </div>}
             </form>
         </div>

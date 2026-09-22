@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/Components/Button';
 
@@ -9,6 +9,8 @@ interface AuditReasonModalProps {
     reason: string;
     error?: string;
     busy?: boolean;
+    submitDisabled?: boolean;
+    notice?: ReactNode;
     confirmLabel: string;
     destructive?: boolean;
     onReasonChange: (reason: string) => void;
@@ -23,32 +25,30 @@ export function AuditReasonModal({
     reason,
     error,
     busy = false,
+    submitDisabled = false,
+    notice,
     confirmLabel,
     destructive = false,
     onReasonChange,
     onClose,
     onConfirm,
 }: AuditReasonModalProps) {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const id = useId();
+    const reasonInput = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
-        if (!open) return;
-
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !busy) onClose();
-        };
-
-        document.addEventListener('keydown', handleEscape);
-        return () => document.removeEventListener('keydown', handleEscape);
-    }, [busy, onClose, open]);
-
-    if (!open) return null;
+        const element = dialog.current;
+        if (open) {
+            element?.showModal();
+            (element?.querySelector<HTMLElement>('[role=alert] h2') ?? reasonInput.current)?.focus();
+        }
+        else element?.close();
+        return () => element?.close();
+    }, [open]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4" role="presentation">
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="audit-reason-title"
-                aria-describedby="audit-reason-description"
+        <dialog ref={dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/55">
+            {open && <div
                 className="w-full max-w-lg rounded-xl bg-surface"
             >
                 <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
@@ -56,9 +56,9 @@ export function AuditReasonModal({
                         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning-dark">
                             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                         </span>
-                        <div>
-                            <h2 id="audit-reason-title" className="text-base font-semibold text-ink">{title}</h2>
-                            <p id="audit-reason-description" className="mt-1 text-sm leading-6 text-muted">{description}</p>
+                        <div className="min-w-0">
+                            <h2 id={`${id}-title`} className="text-base font-semibold text-ink">{title}</h2>
+                            <p id={`${id}-description`} className="mt-1 break-words text-sm leading-6 text-muted">{description}</p>
                         </div>
                     </div>
                     <button
@@ -73,12 +73,13 @@ export function AuditReasonModal({
                 </div>
 
                 <div className="px-5 py-4">
-                    <label htmlFor="audit-reason" className="mb-1.5 block text-sm font-semibold text-ink">
+                    {open && notice}
+                    <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
                         Alasan perubahan <span className="text-danger" aria-hidden="true">*</span>
                     </label>
                     <textarea
-                        id="audit-reason"
-                        autoFocus
+                        id={`${id}-reason`}
+                        ref={reasonInput}
                         rows={4}
                         value={reason}
                         onChange={(event) => onReasonChange(event.target.value)}
@@ -96,13 +97,14 @@ export function AuditReasonModal({
                     <Button
                         type="button"
                         variant={destructive ? 'danger' : 'primary'}
-                        onClick={onConfirm}
+                        onClick={() => { if (!busy && !submitDisabled) onConfirm(); }}
+                        disabled={submitDisabled}
                         isLoading={busy}
                     >
                         {confirmLabel}
                     </Button>
                 </div>
-            </div>
-        </div>
+            </div>}
+        </dialog>
     );
 }

@@ -35,7 +35,7 @@ Route::get('/', fn () => redirect()->route('dashboard'));
 Route::get('/login', RedirectToKeycloak::class)->name('login')->block();
 // Lock mencakup empat request provider yang masing-masing dibatasi sepuluh detik.
 Route::get('/auth/keycloak/callback', KeycloakCallback::class)->name('auth.callback')->block(60, 10);
-Route::get('/auth/error', fn () => Inertia::render('Auth/Error'))->name('auth.error');
+Route::get('/auth/error', fn (Request $request) => Inertia::render('Auth/Error', ['recoveryRetry' => $request->session()->pull('auth_recovery_retry') === true]))->name('auth.error');
 Route::get('/auth/logged-out', function () {
     Inertia::clearHistory();
 
@@ -47,6 +47,7 @@ Route::get('/auth/pending', function (Request $request) {
 })->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
     Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
     Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
     Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');

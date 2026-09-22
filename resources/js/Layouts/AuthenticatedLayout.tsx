@@ -1,3 +1,5 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Fragment, useEffect, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -31,6 +33,8 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 768px)').matches);
+    const recovery = useAuthRecovery();
+    const [logoutError, setLogoutError] = useState('');
     const logout = useForm({});
 
     useEffect(() => {
@@ -57,7 +61,16 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
 
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();
-        if (!logout.processing) logout.post('/logout', { onStart: () => router.clearHistory() });
+        if (logout.processing || recovery.recovery || logoutError) return;
+        logout.post('/logout', {
+            onStart: () => router.clearHistory(),
+            onHttpException: (response) => {
+                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/logout', mutation: true })) setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.');
+                return false;
+            },
+            onCancel: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); },
+            onNetworkError: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); return false; },
+        });
     };
 
     return (
@@ -177,10 +190,13 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         </div>
                     </div>
 
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
+                    {logoutError && <p role="alert" className="my-3 text-xs text-danger">{logoutError}</p>}
+
                     <form onSubmit={handleLogout} className="mt-3">
                         <button
                             type="submit"
-                            disabled={logout.processing}
+                            disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
                             className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <LogOut aria-hidden="true" className="h-3.5 w-3.5" />

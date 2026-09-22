@@ -98,9 +98,9 @@ it('menjaga form saat respons belum pasti dan tidak menganggap callback sukses t
     expect(screen.getByRole('alert').textContent).toContain('belum diketahui');
     await act(async () => { options?.onNetworkError?.(new Error('offline')); });
     expect(screen.getByRole('alert').textContent).toContain('Koneksi terputus');
-    for (const status of [401, 403, 419]) {
+    for (const status of [403, 500]) {
         await act(async () => { options?.onHttpException?.({ status, data: '', headers: {} }); });
-        expect(screen.getByRole('alert').textContent).toContain('Sesi atau izin');
+        expect(screen.getByRole('alert').textContent).toContain(status === 403 ? 'Izin tindakan ditolak' : 'belum dapat dipastikan');
     }
     await user.click(screen.getByRole('button', { name: 'Simpan deny' }));
     expect(vi.mocked(router.post).mock.calls).toHaveLength(1);
@@ -127,7 +127,7 @@ it('lookup mengabaikan respons lama dan menampilkan kegagalan izin sebagai error
     await act(async () => { finishOld?.(new Response(JSON.stringify({ items: [{ ...target, nama: 'Respons Lama' }], page: 1, hasMore: false }))); });
     expect(screen.queryByRole('option', { name: /Respons Lama/ })).toBeNull();
     await user.clear(search); await user.type(search, 'tolak'); await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('Sesi atau izin');
+    expect((await screen.findByRole('alert')).textContent).toContain('Izin pembacaan ditolak');
     expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pengguna' }).disabled).toBe(true);
 });
 
@@ -144,4 +144,35 @@ it('toast hanya mengikuti flash server dan receipt tanpa izin tidak menawarkan p
     expect(screen.getByText(/pengelola lain/)).toBeTruthy();
     receipt.rerender(<DenyResult status={null} canReturn={false} />);
     expect(screen.getByRole('status').textContent).toContain('Tidak ada hasil');
+});
+
+it.each([401, 419])('lookup %s mempertahankan pilihan dan menghentikan pembacaan serta mutation', async (status) => {
+    render(<DenyIndex {...props} />);
+    const user = await fillCreate();
+    vi.mocked(fetch).mockResolvedValue(new Response('{}', { status }));
+    await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
+    await screen.findByRole(status === 401 ? 'link' : 'button', { name: status === 401 ? 'Masuk ulang' : 'Muat ulang halaman' });
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pengguna' }).value).toBe('target');
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan pembatasan/ }).value).toBe('Evaluasi akses');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan deny' }).disabled).toBe(true);
+    const count = vi.mocked(fetch).mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Cari izin' }));
+    expect(fetch).toHaveBeenCalledTimes(count);
+    expect(router.post).not.toHaveBeenCalled();
+});
+it.each([false, true])('correlation create/revoke %s dan draft terjaga pada recovery', async (revoke) => {
+    render(<DenyIndex {...props} />);
+    const user = revoke ? userEvent.setup() : await fillCreate();
+    if (revoke) {
+        await user.click(screen.getByRole('button', { name: /Cabut deny Ayu/ }));
+        await user.type(screen.getByRole('textbox', { name: /Alasan pencabutan/ }), 'Draft pencabutan');
+    }
+    const label = revoke ? 'Konfirmasi cabut deny' : 'Simpan deny';
+    await user.click(screen.getByRole('button', { name: label }));
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { options?.onHttpException?.({ status: 401, headers: {}, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: revoke ? '/akses/deny/deny-original/cabut' : '/akses/deny', before_action: true } } } }); });
+    expect(screen.getByRole('alert').textContent).toContain('ditolak');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: label }).disabled).toBe(true);
+    await user.click(screen.getByRole('button', { name: label }));
+    expect(router.post).toHaveBeenCalledTimes(1);
 });
