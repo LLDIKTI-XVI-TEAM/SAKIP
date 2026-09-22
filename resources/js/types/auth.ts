@@ -18,6 +18,7 @@ export interface SharedPageProps extends PageProps {
             aktivasi: boolean;
             regulasi: boolean;
             assignRole: boolean;
+            manageDeny: boolean;
             unit: boolean;
             grant: boolean;
         };
