@@ -867,7 +867,7 @@ class JenisBerkasTest extends TestCase
     /**
      * TEST-21: Evaluasi bukti membatalkan pemenuhan file draf jika format atau ukuran maksimum jenis berkas diperketat.
      */
-    public function test_evidence_evaluation_invalidates_file_when_format_or_size_limits_are_tightened(): void
+    public function test_evidence_evaluation_preserves_grandfathered_evidence_when_format_or_size_limits_are_tightened(): void
     {
         // Persyaratan awal: izinkan pdf dan docx, ukuran maksimum 1000 KB
         $jb = JenisBerkas::create([
@@ -927,7 +927,7 @@ class JenisBerkasTest extends TestCase
         ]);
 
         // Unggah bukti draf berformat docx (400 KB) yang sesuai konfigurasi awal
-        $bukti = BuktiDukung::create([
+        BuktiDukung::create([
             'jenis_berkas_id' => $jb->id,
             'berkasable_type' => 'pengukuran',
             'berkasable_id' => $pengukuran->id,
@@ -947,36 +947,90 @@ class JenisBerkasTest extends TestCase
         $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
         $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
 
-        // Tahap 2: Tim Perencanaan memperketat format_diizinkan menjadi hanya pdf -> docx lama tidak lagi valid
+        // Tahap 2: Batas format dipersempit menjadi hanya pdf -> Bukti lama TETAP SAH (Grandfathered sesuai SAKIP - Workflow.md:1489-1493)
         $jb->update(['format_diizinkan' => 'pdf']);
-        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
-        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
-        $this->assertSame(['file'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
-
-        // Tahap 3: Kembalikan format docx, tetapi perketat batas ukuran menjadi 200 KB (< 400 KB) -> tidak lagi valid
-        $jb->update(['format_diizinkan' => 'pdf,docx', 'ukuran_maks_kb' => 200]);
-        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
-        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
-        $this->assertSame(['file'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
-
-        // Tahap 4: PIC mengunggah bukti pengganti PDF berukuran 100 KB yang memenuhi batas baru -> terpenuhi = true
-        BuktiDukung::create([
-            'jenis_berkas_id' => $jb->id,
-            'berkasable_type' => 'pengukuran',
-            'berkasable_id' => $pengukuran->id,
-            'menggantikan_id' => $bukti->id,
-            'alasan_koreksi' => 'Penyesuaian terhadap batas format dan ukuran terbaru.',
-            'mode' => 'file',
-            'nama_asli' => 'laporan_kinerja_kompresi.pdf',
-            'path' => 'berkas/laporan_kinerja_kompresi.pdf',
-            'mime' => 'application/pdf',
-            'ukuran_bytes' => 100 * 1024,
-            'uploaded_by' => $this->perencanaan->id,
-            'created_at' => now(),
-        ]);
-
         $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
         $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
         $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // Tahap 3: Batas ukuran diperketat menjadi 200 KB (< 400 KB) -> Bukti lama TETAP SAH (Grandfathered)
+        $jb->update(['format_diizinkan' => 'pdf,docx', 'ukuran_maks_kb' => 200]);
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+    }
+
+    /**
+     * TEST-22: Pemisahan kewenangan kebijakan teknis unggahan berkas (SAKIP - Workflow.md:1527-1529).
+     * Perencanaan (tanpa pengaturan:update) dilarang mengatur/mengubah format_diizinkan dan ukuran_maks_kb.
+     * Pengguna dengan izin pengaturan:update (Superadmin) diizinkan mengatur batas teknis tersebut.
+     */
+    public function test_technical_upload_limits_require_pengaturan_update_permission(): void
+    {
+        // 1. Buat jenis berkas awal
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Batas Teknis Awal',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 2. Perencanaan (tanpa pengaturan:update) mencoba mengubah format_diizinkan / ukuran_maks_kb -> DITOLAK
+        $responseUpdateReject = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Legal Diubah',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 2000,
+            'alasan' => 'Mencoba mengubah format teknis tanpa izin pengaturan.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+        $responseUpdateReject->assertSessionHasErrors(['format_diizinkan', 'ukuran_maks_kb']);
+
+        // 3. Perencanaan memperbarui kolom substantif dengan format & ukuran tetap sama -> BERHASIL
+        $responseUpdateOk = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Legal Diperbarui',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => $jb->format_diizinkan,
+            'ukuran_maks_kb' => $jb->ukuran_maks_kb,
+            'alasan' => 'Pembaruan nama persyaratan oleh tim perencanaan.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+        $responseUpdateOk->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'nama' => 'Syarat Legal Diperbarui',
+        ]);
+
+        // 4. Superadmin (memiliki jenis_berkas:update DAN pengaturan:update) dapat mengubah batas teknis -> BERHASIL
+        $superadmin = $this->userWithRole('superadmin');
+        $jbFresh = $jb->fresh();
+        $responseSuperadmin = $this->actingAs($superadmin)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Legal Diperbarui',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,png',
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Admin menyesuaikan batas teknis penyimpanan berkas.',
+            'expected_updated_at' => ($jbFresh->updated_at ?? $jbFresh->created_at)->toISOString(),
+        ]);
+        $responseSuperadmin->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'format_diizinkan' => 'pdf,png',
+            'ukuran_maks_kb' => 8192,
+        ]);
     }
 }

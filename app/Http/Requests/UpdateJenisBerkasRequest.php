@@ -115,6 +115,43 @@ class UpdateJenisBerkasRequest extends FormRequest
             if (! $izinkanFile && ! $izinkanTautan && ! $izinkanTeks) {
                 $validator->errors()->add('modes', 'Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.');
             }
+
+            // Pemisahan kewenangan (document/SAKIP - Workflow.md:1527-1529):
+            // Format dan ukuran unggahan per persyaratan adalah wewenang pemegang pengaturan:update.
+            $currentId = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
+            $currentRecord = $currentId ? JenisBerkas::find($currentId) : null;
+
+            if ($currentRecord) {
+                $newFormat = $this->input('format_diizinkan');
+                if ($newFormat === '') {
+                    $newFormat = null;
+                }
+                $currentFormat = $currentRecord->format_diizinkan !== null ? (string) $currentRecord->format_diizinkan : null;
+
+                $newSize = $this->input('ukuran_maks_kb');
+                if ($newSize === '' || $newSize === null) {
+                    $newSize = null;
+                } else {
+                    $newSize = (int) $newSize;
+                }
+                $currentSize = $currentRecord->ukuran_maks_kb !== null ? (int) $currentRecord->ukuran_maks_kb : null;
+
+                $formatChanged = $this->has('format_diizinkan') && $newFormat !== $currentFormat;
+                $sizeChanged = $this->has('ukuran_maks_kb') && $newSize !== $currentSize;
+
+                if ($formatChanged || $sizeChanged) {
+                    $user = $this->user()?->fresh();
+                    $canManageSettings = $user !== null && app(PermissionResolver::class)->allows($user, 'pengaturan:update');
+                    if (! $canManageSettings) {
+                        if ($formatChanged) {
+                            $validator->errors()->add('format_diizinkan', 'Perubahan batas format unggahan memerlukan izin pengaturan:update.');
+                        }
+                        if ($sizeChanged) {
+                            $validator->errors()->add('ukuran_maks_kb', 'Perubahan batas ukuran unggahan memerlukan izin pengaturan:update.');
+                        }
+                    }
+                }
+            }
         });
     }
 }

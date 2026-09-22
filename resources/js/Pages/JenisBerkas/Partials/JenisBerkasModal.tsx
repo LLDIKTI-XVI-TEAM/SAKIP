@@ -38,6 +38,7 @@ interface JenisBerkasModalProps {
     indikators: IndikatorOption[];
     isLoading: boolean;
     unggahanAktif?: boolean;
+    canManageSettings?: boolean;
     onChange: (field: keyof JenisBerkasFormData, value: any) => void;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
@@ -51,6 +52,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     indikators,
     isLoading,
     unggahanAktif = true,
+    canManageSettings = true,
     onChange,
     onClose,
     onSubmit,
@@ -277,9 +279,9 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             value={data.format_diizinkan}
                             onChange={(e) => onChange('format_diizinkan', e.target.value)}
                             placeholder="Contoh: pdf,docx,xlsx,jpg,png"
-                            disabled={isLoading || !data.izinkan_file}
+                            disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.format_diizinkan}
-                            helperText="Kosong = default aplikasi"
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin (izin pengaturan:update) yang dapat mengubah format.' : 'Kosong = default aplikasi'}
                         />
 
                         <Input
@@ -287,13 +289,13 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             label="Batas Ukuran Maksimum (KB)"
                             type="number"
                             min={100}
-                            step={100}
+                            step={1}
                             value={data.ukuran_maks_kb ?? ''}
                             onChange={(e) => onChange('ukuran_maks_kb', e.target.value ? Number(e.target.value) : null)}
                             placeholder="Contoh: 10240 (10 MB)"
-                            disabled={isLoading || !data.izinkan_file}
+                            disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.ukuran_maks_kb}
-                            helperText="Kosong = default aplikasi (minimal 100 KB)"
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin (izin pengaturan:update) yang dapat mengubah batas ukuran.' : 'Kosong = default aplikasi (minimal 100 KB)'}
                         />
                     </div>
                 </div>

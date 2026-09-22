@@ -57,6 +57,7 @@ class JenisBerkasController extends Controller
                 'create' => $resolver->allows($actor, 'jenis_berkas:create'),
                 'update' => $resolver->allows($actor, 'jenis_berkas:update'),
                 'delete' => $resolver->allows($actor, 'jenis_berkas:delete'),
+                'pengaturan_update' => $resolver->allows($actor, 'pengaturan:update'),
             ],
         ]);
     }

@@ -56,6 +56,7 @@ interface IndexProps {
         create: boolean;
         update: boolean;
         delete: boolean;
+        pengaturan_update?: boolean;
     };
     unggahanAktif?: boolean;
 }
@@ -558,6 +559,7 @@ export default function JenisBerkasIndex({
                 indikators={indikators}
                 isLoading={isSubmitting}
                 unggahanAktif={unggahanAktif}
+                canManageSettings={can.pengaturan_update}
                 onChange={handleFormChange}
                 onClose={() => {
                     if (!isSubmitting) setIsFormModalOpen(false);
