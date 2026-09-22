@@ -179,10 +179,11 @@ export default function JenisBerkasIndex({
             router.post('/jenis-berkas', formData as any, {
                 onSuccess: () => {
                     setIsFormModalOpen(false);
-                    setIsSubmitting(false);
                 },
                 onError: (errs) => {
                     setFormErrors(errs);
+                },
+                onFinish: () => {
                     setIsSubmitting(false);
                 },
             });
@@ -207,17 +208,18 @@ export default function JenisBerkasIndex({
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setIsFormModalOpen(false);
-                    setIsSubmitting(false);
                     setAuditError(null);
                 },
                 onError: (errs) => {
-                    setIsSubmitting(false);
                     if (errs.alasan || errs.konflik) {
                         setAuditError(errs.alasan || errs.konflik);
                     } else {
                         setFormErrors(errs);
                         setIsAuditModalOpen(false);
                     }
+                },
+                onFinish: () => {
+                    setIsSubmitting(false);
                 },
             });
         } else if (auditAction === 'delete' && targetItem) {
@@ -230,16 +232,17 @@ export default function JenisBerkasIndex({
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetItem(null);
-                    setIsSubmitting(false);
                     setAuditError(null);
                 },
                 onError: (errs) => {
-                    setIsSubmitting(false);
                     if (errs && (errs.alasan || errs.konflik || errs.expected_updated_at)) {
                         setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
                     } else {
                         setAuditError('Gagal menghapus persyaratan jenis berkas.');
                     }
+                },
+                onFinish: () => {
+                    setIsSubmitting(false);
                 },
             });
         }
@@ -249,7 +252,7 @@ export default function JenisBerkasIndex({
         switch (tahap) {
             case 'rencana_aksi':
                 return (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#122E92] border border-blue-200">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
                         Rencana Aksi
                     </span>
                 );
@@ -321,7 +324,7 @@ export default function JenisBerkasIndex({
                             onClick={() => setSelectedTahap(tab.id)}
                             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                                 selectedTahap === tab.id
-                                    ? 'bg-[#122E92] text-white shadow-xs'
+                                    ? 'bg-primary text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                             }`}
                         >
@@ -338,7 +341,7 @@ export default function JenisBerkasIndex({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Cari nama atau indikator..."
-                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-[#122E92] focus:ring-1 focus:ring-[#122E92] focus:outline-none"
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                     />
                 </div>
             </div>
@@ -419,7 +422,7 @@ export default function JenisBerkasIndex({
                                         <td className="px-4 py-3.5">
                                             {item.indikator ? (
                                                 <div>
-                                                    <span className="inline-flex items-center gap-1 font-bold text-[#122E92] text-[11px]">
+                                                    <span className="inline-flex items-center gap-1 font-bold text-primary text-[11px]">
                                                         <Target className="w-3 h-3" />
                                                         {item.indikator.kode}
                                                     </span>
@@ -519,7 +522,7 @@ export default function JenisBerkasIndex({
                                                         <button
                                                             type="button"
                                                             onClick={() => handleOpenEdit(item)}
-                                                            className="p-1.5 text-slate-500 hover:text-[#122E92] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+                                                            className="p-1.5 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                                                             title="Ubah Persyaratan"
                                                         >
                                                             <Edit2 className="w-3.5 h-3.5" />

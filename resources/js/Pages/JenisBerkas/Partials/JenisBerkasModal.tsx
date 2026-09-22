@@ -79,19 +79,15 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
             size="2xl"
             title={
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-[#122E92]/10 text-[#122E92] flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
                         <FileText className="w-4 h-4" />
                     </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900">
-                            {isEditing ? 'Ubah Persyaratan Jenis Berkas' : 'Tambah Persyaratan Jenis Berkas'}
-                        </h2>
-                        <p className="text-[11px] text-slate-500 font-normal">
-                            Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP
-                        </p>
-                    </div>
+                    <span>
+                        {isEditing ? 'Ubah Persyaratan Jenis Berkas' : 'Tambah Persyaratan Jenis Berkas'}
+                    </span>
                 </div>
             }
+            description="Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP"
         >
             <form onSubmit={onSubmit} className="space-y-4">
                 {/* Nama Persyaratan */}
@@ -145,7 +141,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                            <CheckSquare className="w-3.5 h-3.5 text-[#122E92]" />
+                            <CheckSquare className="w-3.5 h-3.5 text-primary" />
                             Mode Bukti yang Diizinkan <span className="text-rose-600">*</span>
                         </span>
                         {!atLeastOneMode && (
@@ -161,7 +157,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 checked={data.izinkan_file}
                                 onChange={(e) => onChange('izinkan_file', e.target.checked)}
                                 disabled={isLoading}
-                                className="rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                                className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">File / Dokumen</span>
                         </label>
@@ -172,7 +168,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 checked={data.izinkan_tautan}
                                 onChange={(e) => onChange('izinkan_tautan', e.target.checked)}
                                 disabled={isLoading}
-                                className="rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                                className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">Tautan / URL</span>
                         </label>
@@ -183,7 +179,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 checked={data.izinkan_teks}
                                 onChange={(e) => onChange('izinkan_teks', e.target.checked)}
                                 disabled={isLoading}
-                                className="rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                                className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">Teks / Narasi</span>
                         </label>
@@ -201,7 +197,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             checked={data.wajib}
                             onChange={(e) => onChange('wajib', e.target.checked)}
                             disabled={isLoading}
-                            className="mt-0.5 rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
                             <span className="font-semibold text-slate-900">Bukti Wajib</span>
@@ -217,7 +213,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             checked={data.semua_mode_wajib}
                             onChange={(e) => onChange('semua_mode_wajib', e.target.checked)}
                             disabled={isLoading}
-                            className="mt-0.5 rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
                             <span className="font-semibold text-slate-900">Semua Mode Wajib</span>
@@ -237,7 +233,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             checked={data.aktif !== false}
                             onChange={(e) => onChange('aktif', e.target.checked)}
                             disabled={isLoading}
-                            className="mt-0.5 rounded border-slate-300 text-[#122E92] focus:ring-[#122E92]"
+                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
                             <span className={`font-semibold ${data.aktif !== false ? 'text-emerald-900' : 'text-rose-900'}`}>

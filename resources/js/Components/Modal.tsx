@@ -13,6 +13,7 @@ export interface ModalProps {
     footer?: React.ReactNode;
     showCloseButton?: boolean;
     className?: string;
+    ariaLabel?: string;
 }
 
 // Global modal stack to ensure only the topmost modal handles Escape
@@ -28,8 +29,11 @@ export const Modal: React.FC<ModalProps> = ({
     footer,
     showCloseButton = true,
     className,
+    ariaLabel,
 }) => {
     const modalId = useId();
+    const titleId = title ? `${modalId}-title` : undefined;
+    const descriptionId = description ? `${modalId}-desc` : undefined;
     const modalRef = useRef<HTMLDivElement>(null);
     const previousFocusedElement = useRef<HTMLElement | null>(null);
     const onCloseRef = useRef(onClose);
@@ -138,6 +142,9 @@ export const Modal: React.FC<ModalProps> = ({
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200"
             role="dialog"
             aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
+            aria-label={!titleId ? ariaLabel : undefined}
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}
@@ -157,12 +164,12 @@ export const Modal: React.FC<ModalProps> = ({
                     <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                         <div>
                             {title && (
-                                <h3 className="text-base font-bold text-slate-900 leading-tight">
+                                <h3 id={titleId} className="text-base font-bold text-slate-900 leading-tight">
                                     {title}
                                 </h3>
                             )}
                             {description && (
-                                <p className="text-xs text-slate-500 mt-0.5">
+                                <p id={descriptionId} className="text-xs text-slate-500 mt-0.5">
                                     {description}
                                 </p>
                             )}

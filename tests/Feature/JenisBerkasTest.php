@@ -3,12 +3,19 @@
 namespace Tests\Feature;
 
 use App\Actions\Audit\WriteAuditLog;
+use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\AuditLog;
+use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\PengukuranKinerja;
+use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
@@ -142,13 +149,14 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-3: semua_mode_wajib tersimpan sesuai semantik.
+     * TEST-3: semua_mode_wajib tersimpan dan diverifikasi pemenuhannya oleh EvaluateEvidence.
      */
     public function test_semua_mode_wajib_semantics(): void
     {
         $payload = [
             'nama' => 'Bukti Dukung Lengkap',
-            'tahap' => 'kegiatan',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
             'izinkan_file' => true,
             'izinkan_tautan' => true,
             'izinkan_teks' => true,
@@ -163,6 +171,109 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Bukti Dukung Lengkap',
             'semua_mode_wajib' => true,
         ]);
+
+        $jb = JenisBerkas::where('nama', 'Bukti Dukung Lengkap')->firstOrFail();
+
+        // Setup context pengukuran untuk evaluasi pemenuhan bukti
+        $renstra = Renstra::where('kode', 'R-UJI')->firstOrFail();
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UJI',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $periode = Periode::create([
+            'nama' => 'Triwulan I',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+        $context = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $this->indikator->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $this->indikator->unit_id,
+            'nama' => 'Indikator Uji',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 70,
+        ]);
+        $pengukuran = PengukuranKinerja::create([
+            'indikator_id' => $this->indikator->id,
+            'tahun' => 2026,
+            'periode_id' => $periode->id,
+            'jadwal_snapshot_id' => $context->id,
+            'sumber_nilai' => 'manual',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $evaluator = app(EvaluateEvidence::class);
+
+        // 1. Belum ada bukti dukung -> terpenuhi = false, mode kurang = file, tautan, teks
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertEqualsCanonicalizing(['file', 'tautan', 'teks'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // 2. Parsial: hanya mode teks disediakan -> terpenuhi tetap false karena semua_mode_wajib = true
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => $pengukuran->id,
+            'mode' => 'teks',
+            'isi_teks' => 'Catatan pemenuhan narasi',
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertEqualsCanonicalizing(['file', 'tautan'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // 3. Parsial: mode tautan ditambahkan -> terpenuhi tetap false (masih kurang mode file)
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => $pengukuran->id,
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/laporan-kinerja',
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame(['file'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // 4. Lengkap: mode file juga diunggah -> terpenuhi = true, mode kurang kosong
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => $pengukuran->id,
+            'mode' => 'file',
+            'nama_asli' => 'laporan.pdf',
+            'path' => 'evidence/laporan.pdf',
+            'mime' => 'application/pdf',
+            'ukuran_bytes' => 2048,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+        $this->assertEqualsCanonicalizing(['file', 'tautan', 'teks'], $evaluations[$jb->id]['pemenuhan']['mode_terpenuhi']);
     }
 
     /**

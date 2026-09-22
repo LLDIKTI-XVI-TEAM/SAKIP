@@ -65,11 +65,9 @@ export const AuditReasonModal: React.FC<AuditReasonModalProps> = ({
                     <span>{title}</span>
                 </div>
             }
+            description={description}
         >
             <form onSubmit={handleSubmit} className="space-y-4">
-                <p className="text-xs text-slate-600 leading-relaxed">
-                    {description}
-                </p>
 
                 <div className="space-y-1">
                     <Textarea
