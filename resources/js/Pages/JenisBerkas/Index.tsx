@@ -338,6 +338,8 @@ export default function JenisBerkasIndex({
                 <div className="relative w-full sm:w-64">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                     <input
+                        id="pencarian-jenis-berkas"
+                        aria-label="Cari persyaratan berdasarkan nama atau indikator"
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}

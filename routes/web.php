@@ -86,5 +86,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');
     Route::post('/jenis-berkas', [JenisBerkasController::class, 'store'])->name('jenis-berkas.store');
     Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->whereUuid('id')->name('jenis-berkas.update');
+    Route::patch('/jenis-berkas/{id}/batas-teknis', [JenisBerkasController::class, 'updateBatasTeknis'])->whereUuid('id')->name('jenis-berkas.update-batas-teknis');
     Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->whereUuid('id')->name('jenis-berkas.destroy');
 });

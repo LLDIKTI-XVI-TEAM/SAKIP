@@ -5,7 +5,9 @@ namespace App\Http\Controllers\JenisBerkas;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DeleteJenisBerkasRequest;
 use App\Http\Requests\StoreJenisBerkasRequest;
+use App\Http\Requests\UpdateBatasTeknisJenisBerkasRequest;
 use App\Http\Requests\UpdateJenisBerkasRequest;
+use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
@@ -123,8 +125,9 @@ class JenisBerkasController extends Controller
             Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
             FILTER_VALIDATE_BOOLEAN
         );
+        $formatWarning = null;
 
-        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver) {
+        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver, &$formatWarning) {
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
             $expectedUpdatedAt = (string) $data['expected_updated_at'];
@@ -155,7 +158,22 @@ class JenisBerkasController extends Controller
                 unset($data['format_diizinkan'], $data['ukuran_maks_kb']);
             }
 
+            if (array_key_exists('format_diizinkan', $data) && $data['format_diizinkan'] !== $nilaiLama['format_diizinkan']) {
+                $formatWarning = $this->checkFormatNarrowingWarning($jb, $data['format_diizinkan']);
+            }
+
             $jb->update($data);
+
+            $isFormatOrSizeChanged = ($data['format_diizinkan'] ?? null) !== $nilaiLama['format_diizinkan']
+                || ($data['ukuran_maks_kb'] ?? null) !== $nilaiLama['ukuran_maks_kb'];
+
+            $dasarIzin = $decision;
+            if ($isFormatOrSizeChanged && $resolver->allows($actor, 'pengaturan:update')) {
+                $dasarIzin = [
+                    'jenis_berkas' => $decision,
+                    'pengaturan' => $resolver->decide($actor, 'pengaturan:update'),
+                ];
+            }
 
             $this->auditLogger->catat(
                 actor: $actor,
@@ -165,13 +183,17 @@ class JenisBerkasController extends Controller
                 nilaiLama: $nilaiLama,
                 nilaiBaru: $jb->fresh()->toArray(),
                 alasan: $alasan,
-                dasarIzin: $decision
+                dasarIzin: $dasarIzin
             );
         });
 
         $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
 
-        $this->flashUploadWarningIfNeeded($redirect, $isUnggahanAktif, $data);
+        if ($formatWarning) {
+            $redirect->with('warning', $formatWarning);
+        } else {
+            $this->flashUploadWarningIfNeeded($redirect, $isUnggahanAktif, $data);
+        }
 
         return $redirect;
     }
@@ -241,6 +263,104 @@ class JenisBerkasController extends Controller
         });
 
         return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil dihapus.');
+    }
+
+    public function updateBatasTeknis(UpdateBatasTeknisJenisBerkasRequest $request, string $id, PermissionResolver $resolver): RedirectResponse
+    {
+        $actor = $request->user()->fresh();
+        $decision = $resolver->decide($actor, 'pengaturan:update');
+        if (! $decision['allowed']) {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'jenis_berkas.batas_teknis_ubah_ditolak',
+                objekTipe: 'jenis_berkas',
+                objekId: $id,
+                alasan: $request->input('alasan') ?: 'Percobaan pembaruan batas teknis persyaratan jenis berkas ditolak karena tidak memiliki izin.',
+                dasarIzin: $decision
+            );
+            abort(403);
+        }
+
+        $data = $request->validated();
+        $formatWarning = null;
+
+        DB::transaction(function () use ($data, $id, $actor, $decision, &$formatWarning) {
+            $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if (! empty($data['expected_updated_at'])) {
+                try {
+                    $expected = Carbon::parse($data['expected_updated_at']);
+                    if ($jb->updated_at && $jb->updated_at->gt($expected)) {
+                        throw ValidationException::withMessages([
+                            'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    if ($e instanceof ValidationException) {
+                        throw $e;
+                    }
+                    throw ValidationException::withMessages([
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                    ]);
+                }
+            }
+
+            $nilaiLama = $jb->toArray();
+            $alasan = $data['alasan'];
+            unset($data['alasan'], $data['expected_updated_at']);
+
+            if (array_key_exists('format_diizinkan', $data) && $data['format_diizinkan'] !== $nilaiLama['format_diizinkan']) {
+                $formatWarning = $this->checkFormatNarrowingWarning($jb, $data['format_diizinkan']);
+            }
+
+            $jb->update($data);
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'jenis_berkas.batas_teknis_ubah',
+                objekTipe: 'jenis_berkas',
+                objekId: $jb->id,
+                nilaiLama: $nilaiLama,
+                nilaiBaru: $jb->fresh()->toArray(),
+                alasan: $alasan,
+                dasarIzin: $decision
+            );
+        });
+
+        $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Batas teknis persyaratan jenis berkas berhasil diperbarui.');
+
+        if ($formatWarning) {
+            $redirect->with('warning', $formatWarning);
+        }
+
+        return $redirect;
+    }
+
+    private function checkFormatNarrowingWarning(JenisBerkas $jb, ?string $newFormatStr): ?string
+    {
+        if ($newFormatStr === null) {
+            return null;
+        }
+
+        $newFormats = array_filter(array_map('trim', explode(',', strtolower($newFormatStr))));
+        if (empty($newFormats)) {
+            return null;
+        }
+
+        $existingFiles = BuktiDukung::where('jenis_berkas_id', $jb->id)
+            ->where('mode', 'file')
+            ->whereNull('dihapus_pada')
+            ->get(['nama_asli', 'path']);
+
+        foreach ($existingFiles as $file) {
+            $filename = (string) ($file->nama_asli ?? $file->path ?? '');
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            if ($ext !== '' && ! in_array($ext, $newFormats, true)) {
+                return 'Peringatan: Format diizinkan dipersempit dan terdapat berkas bukti dukung lama yang formatnya tidak lagi tercakup dalam daftar baru. Bukti lama tetap sah (grandfathered), batas baru hanya berlaku untuk unggahan berikutnya.';
+            }
+        }
+
+        return null;
     }
 
     private function flashUploadWarningIfNeeded(RedirectResponse $redirect, bool $isUnggahanAktif, array $data): void

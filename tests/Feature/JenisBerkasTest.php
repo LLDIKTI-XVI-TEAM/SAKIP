@@ -1069,4 +1069,196 @@ class JenisBerkasTest extends TestCase
             'ukuran_maks_kb' => 8192,
         ]);
     }
+
+    /**
+     * TEST-23: Admin (memiliki pengaturan:update, tanpa jenis_berkas:update) dapat memperbarui batas teknis via endpoint khusus.
+     */
+    public function test_admin_can_update_batas_teknis_via_dedicated_endpoint(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Teknis Khusus',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 10240,
+            'alasan' => 'Admin memperbarui kuota ukuran berkas dan menambah format xlsx.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 10240,
+        ]);
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.batas_teknis_ubah')
+            ->where('objek_id', $jb->id)
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission'] ?? null);
+    }
+
+    /**
+     * TEST-24: Endpoint batas teknis menolak kolom substantif (nama, tahap, dll).
+     */
+    public function test_batas_teknis_endpoint_rejects_substantive_fields(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Substantif Kebal',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'nama' => 'Upaya Modifikasi Substantif',
+            'tahap' => 'evaluasi',
+            'wajib' => false,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 10240,
+            'alasan' => 'Mencoba mengubah kolom substantif via jalur teknis.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors(['nama', 'tahap', 'wajib']);
+        $this->assertSame(
+            'Kolom substantif bukan wewenang pembaruan batas teknis.',
+            session('errors')->first('nama')
+        );
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'nama' => 'Syarat Substantif Kebal',
+            'tahap' => 'pengukuran',
+        ]);
+    }
+
+    /**
+     * TEST-25: Pengguna tanpa izin pengaturan:update dilarang mengakses endpoint batas teknis dan dicatat pada audit log.
+     */
+    public function test_perencanaan_without_pengaturan_update_is_forbidden_on_batas_teknis_endpoint(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Terlindungi Izin',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Percobaan pembaruan batas teknis tanpa izin pengaturan.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.batas_teknis_ubah_ditolak')
+            ->where('objek_id', $jb->id)
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertSame($this->perencanaan->id, $audit->actor_id);
+    }
+
+    /**
+     * TEST-26: Penyempitan format diizinkan memicu peringatan grandfathering jika terdapat berkas bukti dukung lama.
+     */
+    public function test_format_narrowing_flashes_grandfathering_warning_when_old_files_exist(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Format Sempit',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Simpan bukti dukung lama dengan format docx
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => (string) Str::uuid(),
+            'mode' => 'file',
+            'nama_asli' => 'laporan_kinerja_lama.docx',
+            'path' => 'berkas/laporan_kinerja_lama.docx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'ukuran_bytes' => 15000,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // Admin mempersempit format menjadi hanya 'pdf,png' (docx tidak lagi tercakup)
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,png',
+            'ukuran_maks_kb' => 5000,
+            'alasan' => 'Penyempitan format yang diizinkan untuk keamanan berkas.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $response->assertSessionHas('warning');
+        $this->assertStringContainsString('grandfathered', session('warning'));
+
+        // Bukti dukung lama tetap tersimpan (grandfathered)
+        $this->assertDatabaseHas('berkas', [
+            'jenis_berkas_id' => $jb->id,
+            'nama_asli' => 'laporan_kinerja_lama.docx',
+        ]);
+    }
+
+    /**
+     * TEST-27: Pembaruan batas teknis pada jalur substantif oleh user dengan kedua izin mencatat dasar izin ganda.
+     */
+    public function test_substantive_update_records_dual_dasar_izin_when_batas_teknis_also_changed(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Dual Izin',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($superadmin)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Dual Izin Diperbarui',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 10240,
+            'alasan' => 'Pembaruan nama dan batas teknis sekaligus oleh Superadmin.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah')
+            ->where('objek_id', $jb->id)
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertIsArray($audit->dasar_izin);
+        $this->assertArrayHasKey('jenis_berkas', $audit->dasar_izin);
+        $this->assertArrayHasKey('pengaturan', $audit->dasar_izin);
+        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['jenis_berkas']['permission']);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['pengaturan']['permission']);
+    }
 }
