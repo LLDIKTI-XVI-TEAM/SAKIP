@@ -659,4 +659,55 @@ class GrantIzinTambahanUnitTest extends TestCase
             ->where('grants.0.unit_id', $this->unitA->id)
         );
     }
+
+    /**
+     * Codex Review: Request dengan user_id, permission_id, atau unit_id non-UUID ditolak dengan validasi 422.
+     */
+    public function test_grant_creation_rejects_non_uuid_identifiers_with_validation_error(): void
+    {
+        // 1. Non-UUID user_id
+        $responseUser = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => 'bukan-sebuah-uuid',
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Uji validasi UUID user_id',
+            ]);
+
+        $responseUser->assertSessionHasErrors('user_id');
+        $this->assertEquals(
+            'Format ID pengguna tidak valid.',
+            session('errors')->first('user_id')
+        );
+
+        // 2. Non-UUID permission_id
+        $responsePerm = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => 'invalid-uuid-perm',
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Uji validasi UUID permission_id',
+            ]);
+
+        $responsePerm->assertSessionHasErrors('permission_id');
+        $this->assertEquals(
+            'Format ID permission tidak valid.',
+            session('errors')->first('permission_id')
+        );
+
+        // 3. Non-UUID unit_id
+        $responseUnit = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => '12345-not-uuid',
+                'alasan' => 'Uji validasi UUID unit_id',
+            ]);
+
+        $responseUnit->assertSessionHasErrors('unit_id');
+        $this->assertEquals(
+            'Format ID unit tidak valid.',
+            session('errors')->first('unit_id')
+        );
+    }
 }

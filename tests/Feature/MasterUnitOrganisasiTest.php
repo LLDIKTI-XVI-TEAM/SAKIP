@@ -297,4 +297,42 @@ class MasterUnitOrganisasiTest extends TestCase
         $deleteResponse = $this->actingAs($this->superadmin)->delete('/unit/bukan-uuid');
         $deleteResponse->assertStatus(404);
     }
+
+    /**
+     * Codex Review: Input nama unit yang hanya berisi spasi ditolak pada pembuatan.
+     */
+    public function test_cannot_create_unit_with_whitespace_only_name(): void
+    {
+        $response = $this->actingAs($this->admin)->post('/unit', [
+            'nama' => "   \t  \n  ",
+            'status' => 'aktif',
+        ]);
+
+        $response->assertSessionHasErrors('nama');
+        $this->assertDatabaseMissing('unit', [
+            'status' => 'aktif',
+            'nama' => '',
+        ]);
+    }
+
+    /**
+     * Codex Review: Input nama unit yang hanya berisi spasi ditolak pada pembaruan.
+     */
+    public function test_cannot_update_unit_with_whitespace_only_name(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Valid Awal',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => '     ',
+            'status' => 'aktif',
+        ]);
+
+        $response->assertSessionHasErrors('nama');
+        $unit->refresh();
+        $this->assertSame('Unit Valid Awal', $unit->nama);
+    }
 }

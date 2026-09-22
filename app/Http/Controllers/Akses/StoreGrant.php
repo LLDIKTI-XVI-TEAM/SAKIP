@@ -29,15 +29,18 @@ class StoreGrant extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => ['required', 'exists:users,id'],
-            'permission_id' => ['required', 'exists:permissions,id'],
-            'unit_id' => ['nullable', 'exists:unit,id'],
+            'user_id' => ['required', 'bail', 'uuid', 'exists:users,id'],
+            'permission_id' => ['required', 'bail', 'uuid', 'exists:permissions,id'],
+            'unit_id' => ['nullable', 'bail', 'uuid', 'exists:unit,id'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ], [
             'user_id.required' => 'Pengguna target wajib dipilih.',
+            'user_id.uuid' => 'Format ID pengguna tidak valid.',
             'user_id.exists' => 'Pengguna target tidak ditemukan.',
             'permission_id.required' => 'Permission wajib dipilih.',
+            'permission_id.uuid' => 'Format ID permission tidak valid.',
             'permission_id.exists' => 'Permission tidak ditemukan dalam katalog.',
+            'unit_id.uuid' => 'Format ID unit tidak valid.',
             'unit_id.exists' => 'Unit target tidak ditemukan.',
             'alasan.required' => 'Alasan pemberian grant wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan pemberian grant minimal 5 karakter.',

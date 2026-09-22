@@ -20,7 +20,16 @@ class UpdateUnit extends Controller
         Gate::authorize('update', $unit);
 
         $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
+            'nama' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (trim((string) $value) === '') {
+                        $fail('Nama unit organisasi tidak boleh kosong atau hanya berisi spasi.');
+                    }
+                },
+            ],
             'status' => ['required', 'in:aktif,nonaktif'],
         ]);
 
