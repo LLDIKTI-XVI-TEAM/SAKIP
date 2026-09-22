@@ -38,8 +38,8 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth?.can?.pengukuran ?? true },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth?.can?.verifikasi ?? true },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth?.can?.regulasi ?? false },
-        { href: '/unit', label: 'Master Unit', icon: Building2, visible: true },
-        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: true },
+        { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth?.can?.unit ?? false },
+        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth?.can?.grant ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth?.can?.aktivasi ?? false },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth?.can?.assignRole ?? false },
     ];

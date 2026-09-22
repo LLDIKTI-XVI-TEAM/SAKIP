@@ -295,4 +295,15 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
         $revokeResponse->assertStatus(403);
     }
+
+    /**
+     * Temuan Review 8: Parameter route non-UUID pada revoke grant menghasilkan 404 bukan 500.
+     */
+    public function test_revoke_grant_with_invalid_uuid_returns_404(): void
+    {
+        $response = $this->actingAs($this->adminUser)->delete('/akses/grant/bukan-uuid', [
+            'alasan' => 'Alasan pencabutan izin valid',
+        ]);
+        $response->assertStatus(404);
+    }
 }

@@ -97,11 +97,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Master Unit Organisasi
     Route::get('/unit', IndexUnit::class)->name('unit.index');
     Route::post('/unit', StoreUnit::class)->name('unit.store');
-    Route::post('/unit/{id}', UpdateUnit::class)->name('unit.update');
-    Route::delete('/unit/{id}', DestroyUnit::class)->name('unit.destroy');
+    Route::post('/unit/{id}', UpdateUnit::class)->whereUuid('id')->name('unit.update');
+    Route::delete('/unit/{id}', DestroyUnit::class)->whereUuid('id')->name('unit.destroy');
 
     // Manajemen Hak Akses: Grant Izin per Unit
     Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
     Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
-    Route::delete('/akses/grant/{id}', RevokeGrant::class)->name('akses.grant.destroy');
+    Route::delete('/akses/grant/{id}', RevokeGrant::class)->whereUuid('id')->name('akses.grant.destroy');
 });

@@ -8,6 +8,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class StoreGrant extends Controller
 {
-    public function __invoke(Request $request, AuditLogger $auditLogger): RedirectResponse
+    public function __invoke(Request $request, AuditLogger $auditLogger, PermissionResolver $permissionResolver): RedirectResponse
     {
         Gate::authorize('akses:update');
 
@@ -97,10 +98,7 @@ class StoreGrant extends Controller
                 'diberikan_oleh' => $request->user()->id,
             ],
             alasan: $grant->alasan,
-            dasarIzin: [
-                'permission' => 'akses:update',
-                'roles' => $request->user()->roles->pluck('nama')->all(),
-            ]
+            dasarIzin: $permissionResolver->resolve($request->user(), 'akses:update')->toAuditBasis(),
         );
 
         return redirect()->route('akses.grant.index')

@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Str;
 
 class PermissionCatalogSeeder extends Seeder
 {
@@ -237,9 +238,8 @@ class PermissionCatalogSeeder extends Seeder
 
         foreach ($permissions as $data) {
             Permission::updateOrCreate(
-                ['name' => $data['kode'], 'guard_name' => 'web'],
+                ['kode' => $data['kode']],
                 [
-                    'kode' => $data['kode'],
                     'entitas' => $data['entitas'],
                     'aksi' => $data['aksi'],
                     'keterangan' => $data['keterangan'],
@@ -251,10 +251,25 @@ class PermissionCatalogSeeder extends Seeder
         }
 
         // Pastikan role superadmin dan admin memiliki izin akses:update
-        $superadmin = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $superadmin = Role::firstOrCreate(
+            ['kode' => 'superadmin'],
+            ['nama' => 'Super Admin', 'urutan' => 1, 'is_sistem' => true, 'aktif' => true]
+        );
+        $admin = Role::firstOrCreate(
+            ['kode' => 'admin'],
+            ['nama' => 'Admin Pengelola', 'urutan' => 2, 'is_sistem' => true, 'aktif' => true]
+        );
 
-        $superadmin->givePermissionTo('akses:update');
-        $admin->givePermissionTo('akses:update');
+        $aksesUpdatePerm = Permission::where('kode', 'akses:update')->first();
+        if ($aksesUpdatePerm) {
+            foreach ([$superadmin, $admin] as $role) {
+                if (! $role->permissions()->where('permissions.id', $aksesUpdatePerm->id)->exists()) {
+                    $role->permissions()->attach($aksesUpdatePerm->id, [
+                        'id' => (string) Str::uuid(),
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+        }
     }
 }

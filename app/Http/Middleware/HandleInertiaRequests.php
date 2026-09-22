@@ -28,6 +28,8 @@ class HandleInertiaRequests extends Middleware
                         'aktivasi' => $can['aktivasi'],
                         'regulasi' => $can['regulasi'],
                         'assignRole' => $can['assignRole'],
+                        'unit' => $can['unit'],
+                        'grant' => $can['grant'],
                     ],
                 ];
             },
@@ -49,6 +51,8 @@ class HandleInertiaRequests extends Middleware
             'verifikasi' => false,
             'aktivasi' => false,
             'assignRole' => false,
+            'unit' => false,
+            'grant' => false,
             'regulasi' => false,
             'regulasi:create' => false,
             'regulasi:read' => false,
@@ -74,6 +78,8 @@ class HandleInertiaRequests extends Middleware
             'aktivasi' => $resolver->allows($user, 'pengguna:read'),
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),
+            'unit' => $resolver->allows($user, 'unit:read'),
+            'grant' => $resolver->allows($user, 'akses:update'),
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
             'regulasi:read' => $regulasiRead,

@@ -5,13 +5,14 @@ namespace App\Http\Controllers\Akses;
 use App\Http\Controllers\Controller;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class RevokeGrant extends Controller
 {
-    public function __invoke(Request $request, string $id, AuditLogger $auditLogger): RedirectResponse
+    public function __invoke(Request $request, string $id, AuditLogger $auditLogger, PermissionResolver $permissionResolver): RedirectResponse
     {
         Gate::authorize('akses:update');
 
@@ -51,10 +52,7 @@ class RevokeGrant extends Controller
             nilaiLama: $oldValues,
             nilaiBaru: null,
             alasan: $validated['alasan'],
-            dasarIzin: [
-                'permission' => 'akses:update',
-                'roles' => $request->user()->roles->pluck('nama')->all(),
-            ]
+            dasarIzin: $permissionResolver->resolve($request->user(), 'akses:update')->toAuditBasis(),
         );
 
         return redirect()->route('akses.grant.index')

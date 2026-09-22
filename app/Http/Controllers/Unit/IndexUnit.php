@@ -19,10 +19,16 @@ class IndexUnit extends Controller
         $user = $request->user();
         $resolver = app(PermissionResolver::class);
 
-        $units = Unit::withCount(['indikators', 'rencanaAksis', 'kegiatans', 'permissionGrants'])
+        $canCreate = $resolver->allows($user, 'unit:create');
+        $canUpdate = $resolver->allows($user, 'unit:update');
+        $canDeleteUnit = $user->hasRole('superadmin') && $resolver->allows($user, 'unit:delete');
+
+        $units = Unit::withCount(['indikators', 'rencanaAksis', 'kegiatans', 'permissionGrants', 'permissionDenies'])
             ->orderBy('nama')
             ->get()
-            ->map(function (Unit $unit) use ($user, $resolver) {
+            ->map(function (Unit $unit) use ($canUpdate, $canDeleteUnit) {
+                $isDeletable = $unit->isDeletable();
+
                 return [
                     'id' => $unit->id,
                     'nama' => $unit->nama,
@@ -32,10 +38,11 @@ class IndexUnit extends Controller
                     'rencana_aksis_count' => $unit->rencana_aksis_count,
                     'kegiatans_count' => $unit->kegiatans_count,
                     'grants_count' => $unit->permission_grants_count,
-                    'is_deletable' => $unit->isDeletable(),
+                    'denies_count' => $unit->permission_denies_count,
+                    'is_deletable' => $isDeletable,
                     'can' => [
-                        'update' => $resolver->allows($user, 'unit:update'),
-                        'delete' => $user->hasRole('superadmin') && $resolver->allows($user, 'unit:delete') && $unit->isDeletable(),
+                        'update' => $canUpdate,
+                        'delete' => $canDeleteUnit && $isDeletable,
                     ],
                 ];
             });
@@ -43,7 +50,7 @@ class IndexUnit extends Controller
         return Inertia::render('Unit/Index', [
             'units' => $units,
             'can' => [
-                'create' => $resolver->allows($user, 'unit:create'),
+                'create' => $canCreate,
             ],
         ]);
     }

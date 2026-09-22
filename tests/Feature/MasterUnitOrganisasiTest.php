@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserPermissionDeny;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,6 +113,12 @@ class MasterUnitOrganisasiTest extends TestCase
             'status' => 'aktif',
             'created_by' => $this->admin->id,
         ]);
+
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->admin->id,
+            'tindakan' => 'unit.tambah',
+            'objek_tipe' => 'unit',
+        ]);
     }
 
     /**
@@ -157,6 +164,36 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
+     * Temuan Review 2: Unit yang memiliki relasi ke user_permission_denied ditolak dihapus.
+     */
+    public function test_delete_unit_linked_to_user_permission_denied_is_rejected(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Denial Test',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $perm = Permission::where('butuh_scope', 'unit')->firstOrFail();
+
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawai->id,
+            'permission_id' => $perm->id,
+            'unit_id' => $unit->id,
+            'alasan' => 'Larangan penugasan khusus unit untuk pegawai',
+            'ditetapkan_oleh' => $this->superadmin->id,
+        ]);
+
+        $this->assertFalse($unit->isDeletable());
+
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}");
+
+        // Ditolak oleh Policy (403)
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+    }
+
+    /**
      * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong.
      */
     public function test_superadmin_can_delete_empty_unit(): void
@@ -173,6 +210,13 @@ class MasterUnitOrganisasiTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertDatabaseMissing('unit', ['id' => $unit->id]);
+
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->superadmin->id,
+            'tindakan' => 'unit.hapus',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 
     /**
@@ -214,6 +258,13 @@ class MasterUnitOrganisasiTest extends TestCase
         $unit->refresh();
         $this->assertEquals('Bagian Umum Baru', $unit->nama);
         $this->assertEquals('nonaktif', $unit->status);
+
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->admin->id,
+            'tindakan' => 'unit.ubah',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 
     /**
@@ -230,5 +281,20 @@ class MasterUnitOrganisasiTest extends TestCase
             'nama' => 'Illegal Unit',
         ]);
         $createResponse->assertStatus(403);
+    }
+
+    /**
+     * Temuan Review 8: Parameter route non-UUID menghasilkan 404 bukan 500.
+     */
+    public function test_invalid_uuid_route_parameters_return_404(): void
+    {
+        $updateResponse = $this->actingAs($this->admin)->post('/unit/bukan-uuid', [
+            'nama' => 'Invalid UUID Unit',
+            'status' => 'aktif',
+        ]);
+        $updateResponse->assertStatus(404);
+
+        $deleteResponse = $this->actingAs($this->superadmin)->delete('/unit/bukan-uuid');
+        $deleteResponse->assertStatus(404);
     }
 }

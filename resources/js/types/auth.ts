@@ -11,7 +11,16 @@ export interface AuthUser {
 export interface SharedPageProps extends PageProps {
     auth: {
         user: AuthUser | null;
-        can: { dashboard: boolean; pengukuran: boolean; verifikasi: boolean; aktivasi: boolean; regulasi: boolean; assignRole: boolean };
+        can: {
+            dashboard: boolean;
+            pengukuran: boolean;
+            verifikasi: boolean;
+            aktivasi: boolean;
+            regulasi: boolean;
+            assignRole: boolean;
+            unit: boolean;
+            grant: boolean;
+        };
     };
     flash?: { success?: string | null; error?: string | null };
 }
