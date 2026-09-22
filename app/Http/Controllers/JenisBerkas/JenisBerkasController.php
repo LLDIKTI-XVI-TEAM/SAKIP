@@ -74,6 +74,10 @@ class JenisBerkasController extends Controller
             FILTER_VALIDATE_BOOLEAN
         );
 
+        if (! $resolver->allows($actor, 'pengaturan:update')) {
+            unset($data['format_diizinkan'], $data['ukuran_maks_kb']);
+        }
+
         DB::transaction(function () use ($data, $actor, $decision) {
             $data['created_by'] = $actor->id;
 

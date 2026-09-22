@@ -967,7 +967,43 @@ class JenisBerkasTest extends TestCase
      */
     public function test_technical_upload_limits_require_pengaturan_update_permission(): void
     {
-        // 1. Buat jenis berkas awal
+        $superadmin = $this->userWithRole('superadmin');
+
+        // 1. Jalur Store: Perencanaan mengirim format & ukuran kustom -> nilainya diabaikan oleh controller (fallback ke null/default aplikasi)
+        $responsePerencanaanStore = $this->actingAs($this->perencanaan)->post(route('jenis-berkas.store'), [
+            'nama' => 'Syarat Perencanaan Tanpa Batas Teknis',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 5000,
+        ]);
+        $responsePerencanaanStore->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'nama' => 'Syarat Perencanaan Tanpa Batas Teknis',
+            'format_diizinkan' => null,
+            'ukuran_maks_kb' => null,
+        ]);
+
+        // 2. Jalur Store: Superadmin (memiliki pengaturan:update) mengirim format & ukuran kustom -> nilainya tersimpan
+        $responseSuperadminStore = $this->actingAs($superadmin)->post(route('jenis-berkas.store'), [
+            'nama' => 'Syarat Admin Dengan Batas Teknis',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 10240,
+        ]);
+        $responseSuperadminStore->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'nama' => 'Syarat Admin Dengan Batas Teknis',
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 10240,
+        ]);
+
+        // 3. Buat jenis berkas awal untuk pengujian update
         $jb = JenisBerkas::create([
             'nama' => 'Syarat Batas Teknis Awal',
             'tahap' => 'pengukuran',
