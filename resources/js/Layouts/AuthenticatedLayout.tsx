@@ -18,6 +18,7 @@ import {
     Bell,
     User,
     Home,
+    Settings,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -110,6 +111,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
+        { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
     ];
 
     const handleLogout = (event: FormEvent) => {
