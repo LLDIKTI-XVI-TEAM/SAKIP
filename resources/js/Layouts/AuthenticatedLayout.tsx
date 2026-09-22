@@ -257,8 +257,12 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         </div>
                     </div>
 
-                    <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
-                    {logoutError && <p role="alert" className="my-3 text-xs text-danger">{logoutError}</p>}
+                    {recovery.recovery && (
+                        <div className="mt-3 flow-root rounded-lg bg-surface px-3 text-ink">
+                            <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
+                        </div>
+                    )}
+                    {logoutError && <p role="alert" className="mt-3 rounded-lg border border-danger/30 bg-surface p-3 text-xs font-medium leading-relaxed text-danger">{logoutError}</p>}
 
                     <form onSubmit={handleLogout} className="mt-3">
                         <button
@@ -296,7 +300,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     </div>
 
                     {/* Right Functional Chips */}
-                    <div className="flex items-center gap-2 xl:gap-4">
+                    <div className="ml-auto flex items-center gap-2 xl:gap-4">
 
                         <button
                             type="button"

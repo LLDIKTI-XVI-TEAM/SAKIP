@@ -10,7 +10,6 @@ import {
     Check,
     Plus,
     Target,
-    ChevronRight,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
@@ -74,42 +73,42 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
             key: 'total' as const,
             label: 'Total pengukuran',
             icon: BarChart2,
-            iconStyle: 'bg-[#ebf2fe] text-[#2563eb]',
+            iconStyle: 'bg-info/15 text-info-dark',
             desc: 'Periode terpilih',
         },
         {
             key: 'draft' as const,
             label: 'Draf',
             icon: FileText,
-            iconStyle: 'bg-[#eef2f6] text-[#3b82f6]',
+            iconStyle: 'bg-soft text-muted',
             desc: 'Menunggu penyelesaian',
         },
         {
             key: 'diajukan' as const,
             label: 'Diajukan',
             icon: Send,
-            iconStyle: 'bg-[#ecfdf5] text-[#10b981]',
+            iconStyle: 'bg-warning/15 text-warning-dark',
             desc: 'Menunggu verifikasi',
         },
         {
             key: 'diverifikasi' as const,
             label: 'Diverifikasi',
             icon: ShieldCheck,
-            iconStyle: 'bg-[#fefce8] text-[#d97706]',
+            iconStyle: 'bg-info/15 text-info-dark',
             desc: 'Telah diverifikasi',
         },
         {
             key: 'dikembalikan' as const,
             label: 'Dikembalikan',
             icon: RotateCcw,
-            iconStyle: 'bg-[#fef2f2] text-[#ef4444]',
+            iconStyle: 'bg-danger/15 text-danger',
             desc: 'Perlu perbaikan',
         },
         {
             key: 'disahkan' as const,
             label: 'Disahkan',
             icon: Check,
-            iconStyle: 'bg-[#f5f3ff] text-[#8b5cf6]',
+            iconStyle: 'bg-success/15 text-success-dark',
             desc: 'Terselesaikan',
         },
     ];
@@ -146,9 +145,9 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                         </div>
 
                         {/* Title */}
-                        <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-white leading-tight">
+                        <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-white leading-tight">
                             Selamat Datang di <span className="text-white">SAKIP LLDIKTI XVI</span>
-                        </h2>
+                        </h1>
 
                         {/* Description */}
                         <p className="mt-2 text-xs sm:text-sm text-blue-100/90 leading-relaxed max-w-xl">
@@ -170,7 +169,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
                     {/* Right: Status Pengukuran Widget */}
                     <div className="shrink-0 w-full lg:w-auto">
-                        <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 p-5 text-white shadow-xl min-w-[260px] lg:min-w-[280px]">
+                        <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 p-5 text-white shadow-xl backdrop-blur-md lg:min-w-[280px]">
                             {/* Top Header */}
                             <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-2">
@@ -215,14 +214,11 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                 {cards.map(({ key, label, icon: Icon, iconStyle, desc }) => (
                     <div
                         key={key}
-                        className="flex flex-col justify-between rounded-2xl border border-slate-100/80 bg-white p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-slate-200"
+                        className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-4 shadow-xs sm:p-5"
                     >
                         <div>
-                            <div className="flex items-center justify-between">
-                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconStyle}`}>
-                                    <Icon className="h-5 w-5" />
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-slate-300" />
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconStyle}`}>
+                                <Icon className="h-5 w-5" />
                             </div>
                             <p className="mt-4 text-xs font-semibold text-slate-600">
                                 {label}
