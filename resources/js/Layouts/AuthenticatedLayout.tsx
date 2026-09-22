@@ -143,7 +143,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         src="/img/dikti16-favicon-blue-150x150.png"
                         width={36}
                         height={36}
-                        alt="Logo LLDIKTI XVI"
+                        alt=""
                         className="h-9 w-9 shrink-0 object-contain rounded-md"
                     />
                     <div>
@@ -193,7 +193,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                             src="/img/dikti16-favicon-blue-150x150.png"
                             width={38}
                             height={38}
-                            alt="Logo LLDIKTI XVI"
+                            alt=""
                             className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
                         />
                         <div>

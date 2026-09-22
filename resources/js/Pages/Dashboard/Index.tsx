@@ -118,11 +118,11 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
             <Head title="Dashboard Kinerja" />
 
             {/* Hero Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#081a4a] via-[#0d286d] to-[#1546b8] p-5 sm:p-6 lg:p-7 text-white shadow-sm mb-6 border border-white/10">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-dark via-primary-mid to-primary-light p-5 sm:p-6 lg:p-7 text-surface shadow-sm mb-6 border border-white/10">
                 {/* Decorative Light Glows */}
-                <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
-                <div className="absolute right-36 -bottom-20 h-56 w-56 rounded-full bg-blue-500/20 blur-2xl pointer-events-none" />
-                <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-indigo-500/15 blur-2xl pointer-events-none" />
+                <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-light/20 blur-3xl pointer-events-none" />
+                <div className="absolute right-36 -bottom-20 h-56 w-56 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
+                <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-info/15 blur-2xl pointer-events-none" />
 
                 {/* Geometric Pattern Overlay */}
                 <div
@@ -138,30 +138,30 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                     <div className="max-w-xl">
                         {/* Top Eyebrow */}
                         <div className="flex items-center gap-2.5 mb-2.5">
-                            <span className="h-1.5 w-7 rounded-full bg-white shrink-0" />
-                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.16em] text-white/85">
+                            <span className="h-1.5 w-7 rounded-full bg-secondary shrink-0" />
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.16em] text-surface/85">
                                 SISTEM AKUNTABILITAS KINERJA INSTANSI PEMERINTAH
                             </span>
                         </div>
 
                         {/* Title */}
-                        <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-white leading-tight">
-                            Selamat Datang di <span className="text-white">SAKIP LLDIKTI XVI</span>
+                        <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-surface leading-tight">
+                            Selamat Datang di <span className="text-surface">SAKIP LLDIKTI XVI</span>
                         </h1>
 
                         {/* Description */}
-                        <p className="mt-2 text-xs sm:text-sm text-blue-100/90 leading-relaxed max-w-xl">
+                        <p className="mt-2 text-xs sm:text-sm text-surface/85 leading-relaxed max-w-xl">
                             Pantau dan kelola capaian kinerja secara terintegrasi untuk mendukung tata kelola pemerintahan yang akuntabel, efektif, dan berorientasi hasil.
                         </p>
 
                         {/* Context Metadata Chips */}
                         <div className="mt-5 flex flex-wrap items-center gap-3">
-                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-md border border-white/15 shadow-2xs">
-                                <Calendar className="h-4 w-4 text-sky-400" />
+                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-surface/10 px-4 py-2 text-xs font-medium text-surface border border-surface/15 shadow-2xs">
+                                <Calendar className="h-4 w-4 text-secondary" aria-hidden="true" />
                                 <span>{currentDate || 'Memuat tanggal…'}</span>
                             </div>
-                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-md border border-white/15 shadow-2xs">
-                                <Target className="h-4 w-4 text-sky-400" />
+                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-surface/10 px-4 py-2 text-xs font-medium text-surface border border-surface/15 shadow-2xs">
+                                <Target className="h-4 w-4 text-secondary" aria-hidden="true" />
                                 <span>Renstra: {activeRenstra ? `${activeRenstra.tahun_mulai}–${activeRenstra.tahun_selesai}` : 'Belum tersedia'}</span>
                             </div>
                         </div>
@@ -169,39 +169,39 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
                     {/* Right: Status Pengukuran Widget */}
                     <div className="shrink-0 w-full lg:w-auto">
-                        <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 p-5 text-white shadow-xl backdrop-blur-md lg:min-w-[280px]">
+                        <div className="min-w-0 rounded-2xl border border-surface/15 bg-surface/10 p-5 text-surface shadow-xl lg:min-w-[280px]">
                             {/* Top Header */}
                             <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-2">
-                                    <BarChart2 className="h-4 w-4 text-sky-400" />
-                                    <span className="text-xs sm:text-sm font-semibold text-white">Status Pengukuran</span>
+                                    <BarChart2 className="h-4 w-4 text-secondary" aria-hidden="true" />
+                                    <span className="text-xs sm:text-sm font-semibold text-surface">Status Pengukuran</span>
                                 </div>
-                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${isActivePeriode ? 'border-emerald-400/30 bg-emerald-500/20 text-emerald-300' : hasPeriode ? 'border-slate-300/40 bg-slate-300/15 text-slate-100' : 'border-amber-300/40 bg-amber-400/15 text-amber-100'}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${isActivePeriode ? 'bg-emerald-400' : hasPeriode ? 'bg-slate-200' : 'bg-amber-300'}`} />
+                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${isActivePeriode ? 'border-success/40 bg-success/20 text-surface' : hasPeriode ? 'border-surface/30 bg-surface/15 text-surface' : 'border-warning/40 bg-warning/20 text-surface'}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${isActivePeriode ? 'bg-success' : hasPeriode ? 'bg-surface/60' : 'bg-warning'}`} aria-hidden="true" />
                                     <span>{isActivePeriode ? 'Aktif' : hasPeriode ? 'Periode terakhir' : 'Tidak tersedia'}</span>
                                 </div>
                             </div>
 
                             {/* Counter Value */}
                             <div className="mt-3.5 flex items-baseline gap-2">
-                                <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-none">
+                                <span className="text-3xl sm:text-4xl font-extrabold text-surface tracking-tight leading-none">
                                     {hasPeriode ? stats.disahkan : '—'}
                                 </span>
-                                <span className="text-xs sm:text-sm font-medium text-blue-200">
+                                <span className="text-xs sm:text-sm font-medium text-surface/75">
                                     {hasPeriode ? `/ ${stats.total} Disahkan` : 'Tidak tersedia'}
                                 </span>
                             </div>
 
                             {/* Progress Track */}
-                            <div className="mt-3.5 h-2 w-full rounded-full bg-white/15 overflow-hidden">
+                            <div className="mt-3.5 h-2 w-full rounded-full bg-surface/15 overflow-hidden">
                                 <div
-                                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-400 transition-all duration-500"
+                                    className="h-full rounded-full bg-secondary transition-all duration-500"
                                     style={{ width: hasPeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}%` : '0%' }}
                                 />
                             </div>
 
                             {/* Bottom Label */}
-                            <p className="mt-2.5 text-right text-[11px] font-medium text-blue-200/80">
+                            <p className="mt-2.5 text-right text-[11px] font-medium text-surface/75">
                                 {!hasPeriode ? 'Belum ada periode pelaporan aktif' : isActivePeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}% terselesaikan` : isActivePeriode ? 'Belum ada data' : 'Periode pelaporan telah berakhir'}
                             </p>
                         </div>
@@ -220,10 +220,10 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconStyle}`}>
                                 <Icon className="h-5 w-5" />
                             </div>
-                            <p className="mt-4 text-xs font-semibold text-slate-600">
+                            <p className="mt-4 text-xs font-semibold text-muted">
                                 {label}
                             </p>
-                            <p className="mt-1 text-3xl font-extrabold text-[#0c2356]">
+                            <p className="mt-1 text-3xl font-extrabold text-primary">
                                 {hasPeriode ? stats[key] : '—'}
                             </p>
                         </div>
@@ -249,11 +249,8 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
                     {/* Right Filter & Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <div
-                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-soft px-3.5 text-xs font-medium text-ink shrink-0 select-none"
-                            aria-label={periodeLabel}
-                        >
-                            <Calendar className="h-3.5 w-3.5 text-muted shrink-0" />
+                        <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-soft px-3.5 text-xs font-medium text-ink shrink-0 select-none">
+                            <Calendar className="h-3.5 w-3.5 text-muted shrink-0" aria-hidden="true" />
                             <span>{activePeriode ? `${periodeLabel}: ${activePeriode.nama_periode}` : 'Belum ada periode aktif'}</span>
                         </div>
 
@@ -282,7 +279,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                 {/* Table View */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs text-ink">
-                        <thead className="bg-[#f0f4f9] text-slate-700 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200">
+                        <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
                             <tr>
                                 <th scope="col" className="px-6 py-3.5">
                                     KODE & INDIKATOR
@@ -320,7 +317,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                                     <path d="M34 33V35M34 37V42" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                                                 </svg>
                                             </div>
-                                            <p className="text-sm font-bold text-[#0c2356]">
+                                            <p className="text-sm font-bold text-ink">
                                                 {hasPeriode ? `Belum ada pengukuran untuk ${periodeLabel.toLowerCase()} ini.` : 'Belum ada periode pelaporan aktif.'}
                                             </p>
                                         </div>

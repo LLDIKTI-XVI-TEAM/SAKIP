@@ -10,6 +10,9 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
     --color-primary: #0F2A6B;
+    --color-primary-dark: #081A4A;
+    --color-primary-mid: #0D286D;
+    --color-primary-light: #1546B8;
     --color-secondary: #C09A43;
     --color-page: #F8FAFC;
     --color-surface: #FFFFFF;
