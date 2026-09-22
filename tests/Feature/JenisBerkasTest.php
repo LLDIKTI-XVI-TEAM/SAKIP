@@ -1261,4 +1261,150 @@ class JenisBerkasTest extends TestCase
         $this->assertSame('jenis_berkas:update', $audit->dasar_izin['jenis_berkas']['permission']);
         $this->assertSame('pengaturan:update', $audit->dasar_izin['pengaturan']['permission']);
     }
+
+    /**
+     * TEST-28: Pembaruan batas teknis mewajibkan kecocokan timestamp versi persis (menolak timestamp masa depan maupun usang).
+     */
+    public function test_update_batas_teknis_requires_exact_version_timestamp_matching_optimistic_locking(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Kunci Versi',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 1. Kirim timestamp masa depan -> ditolak dengan error 'konflik'
+        $futureIso = now()->addDays(2)->toISOString();
+        $responseFuture = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Upaya pembaruan dengan timestamp masa depan.',
+            'expected_updated_at' => $futureIso,
+        ]);
+        $responseFuture->assertSessionHasErrors('konflik');
+
+        // 2. Kirim timestamp masa lalu yang tidak cocok -> ditolak dengan error 'konflik'
+        $pastIso = now()->subDays(2)->toISOString();
+        $responsePast = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Upaya pembaruan dengan timestamp usang.',
+            'expected_updated_at' => $pastIso,
+        ]);
+        $responsePast->assertSessionHasErrors('konflik');
+
+        // 3. Kirim timestamp persis identik -> berhasil
+        $exactIso = ($jb->updated_at ?? $jb->created_at)->toISOString();
+        $responseExact = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Pembaruan batas teknis dengan versi timestamp identik.',
+            'expected_updated_at' => $exactIso,
+        ]);
+        $responseExact->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+        ]);
+    }
+
+    /**
+     * TEST-29: Pembuatan jenis berkas baru oleh pengguna dengan izin pengaturan mencatat dasar izin komposit pada audit log.
+     */
+    public function test_store_records_dual_dasar_izin_when_batas_teknis_specified_by_superadmin(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+
+        $response = $this->actingAs($superadmin)->post(route('jenis-berkas.store'), [
+            'nama' => 'Syarat Baru Dengan Batas Teknis Superadmin',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx,xlsx',
+            'ukuran_maks_kb' => 10240,
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $jb = JenisBerkas::where('nama', 'Syarat Baru Dengan Batas Teknis Superadmin')->firstOrFail();
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.buat')
+            ->where('objek_id', $jb->id)
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertIsArray($audit->dasar_izin);
+        $this->assertArrayHasKey('jenis_berkas', $audit->dasar_izin);
+        $this->assertArrayHasKey('pengaturan', $audit->dasar_izin);
+        $this->assertSame('jenis_berkas:create', $audit->dasar_izin['jenis_berkas']['permission']);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['pengaturan']['permission']);
+    }
+
+    /**
+     * TEST-30: Endpoint batas teknis menolak payload non-string (array) pada format_diizinkan dengan 422 tanpa TypeError 500.
+     */
+    public function test_update_batas_teknis_rejects_non_string_format_gracefully(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Uji Input Malformed',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => ['pdf', 'docx'],
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Uji kirim format_diizinkan sebagai array.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors('format_diizinkan');
+        $this->assertNotSame(500, $response->getStatusCode());
+    }
+
+    /**
+     * TEST-31: Perluasan format_diizinkan tidak memicu peringatan grandfathering meski ada berkas lama.
+     */
+    public function test_format_expansion_does_not_trigger_grandfathering_warning(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Ekstensi Diperluas',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Simpan bukti dukung lama yang formatnya docx (dari riwayat sebelum konfigurasi master pdf)
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => (string) Str::uuid(),
+            'mode' => 'file',
+            'nama_asli' => 'laporan_lama.docx',
+            'path' => 'berkas/laporan_lama.docx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'ukuran_bytes' => 12000,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // Admin memperluas format dari 'pdf' menjadi 'pdf,xlsx'
+        // Format 'pdf' tetap ada, tidak ada format lama yang dihilangkan
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,xlsx',
+            'ukuran_maks_kb' => 5000,
+            'alasan' => 'Memperluas format file yang diizinkan untuk menyertakan spreadsheet.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $response->assertSessionMissing('warning');
+    }
 }

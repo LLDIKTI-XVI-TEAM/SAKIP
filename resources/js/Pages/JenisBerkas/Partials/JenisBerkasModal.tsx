@@ -33,6 +33,7 @@ export interface JenisBerkasFormData {
 interface JenisBerkasModalProps {
     isOpen: boolean;
     isEditing: boolean;
+    isBatasTeknisOnly?: boolean;
     data: JenisBerkasFormData;
     errors: Record<string, string>;
     indikators: IndikatorOption[];
@@ -47,6 +48,7 @@ interface JenisBerkasModalProps {
 export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     isOpen,
     isEditing,
+    isBatasTeknisOnly = false,
     data,
     errors,
     indikators,
@@ -82,16 +84,36 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
             title={
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-                        <FileText className="w-4 h-4" />
+                        {isBatasTeknisOnly ? <Settings2 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                     </div>
                     <span>
-                        {isEditing ? 'Ubah Persyaratan Jenis Berkas' : 'Tambah Persyaratan Jenis Berkas'}
+                        {isBatasTeknisOnly
+                            ? 'Ubah Batas Teknis Persyaratan'
+                            : isEditing
+                            ? 'Ubah Persyaratan Jenis Berkas'
+                            : 'Tambah Persyaratan Jenis Berkas'}
                     </span>
                 </div>
             }
-            description="Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP"
+            description={
+                isBatasTeknisOnly
+                    ? 'Penyesuaian konfigurasi format berkas dan batas ukuran dokumen oleh Administrator'
+                    : 'Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP'
+            }
         >
             <form onSubmit={onSubmit} className="space-y-4">
+                {isBatasTeknisOnly && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2.5 text-xs text-blue-800" role="alert">
+                        <Settings2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold text-blue-900">Mode Batas Teknis Pengaturan</span>
+                            <p className="mt-0.5 text-blue-700 leading-relaxed">
+                                Anda sedang mengubah batas teknis format dan ukuran berkas. Kolom substantif persyaratan hanya dapat diubah oleh tim Perencanaan.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Nama Persyaratan */}
                 <Input
                     id="jb-nama"
@@ -100,7 +122,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     value={data.nama}
                     onChange={(e) => onChange('nama', e.target.value)}
                     placeholder="Contoh: Laporan Capaian Kinerja Triwulan"
-                    disabled={isLoading}
+                    disabled={isLoading || isBatasTeknisOnly}
                     error={errors.nama}
                 />
 
@@ -112,7 +134,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         required
                         value={data.tahap}
                         onChange={(e) => onChange('tahap', e.target.value)}
-                        disabled={isLoading}
+                        disabled={isLoading || isBatasTeknisOnly}
                         error={errors.tahap}
                         options={[
                             { value: 'rencana_aksi', label: 'Rencana Aksi' },
@@ -127,7 +149,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         label="Lingkup Indikator"
                         value={data.indikator_id || ''}
                         onChange={(e) => onChange('indikator_id', e.target.value || null)}
-                        disabled={isLoading}
+                        disabled={isLoading || isBatasTeknisOnly}
                         error={errors.indikator_id}
                     >
                         <option value="">Global (Berlaku Semua Indikator)</option>
@@ -158,7 +180,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 type="checkbox"
                                 checked={data.izinkan_file}
                                 onChange={(e) => onChange('izinkan_file', e.target.checked)}
-                                disabled={isLoading}
+                                disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">File / Dokumen</span>
@@ -169,7 +191,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 type="checkbox"
                                 checked={data.izinkan_tautan}
                                 onChange={(e) => onChange('izinkan_tautan', e.target.checked)}
-                                disabled={isLoading}
+                                disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">Tautan / URL</span>
@@ -180,7 +202,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 type="checkbox"
                                 checked={data.izinkan_teks}
                                 onChange={(e) => onChange('izinkan_teks', e.target.checked)}
-                                disabled={isLoading}
+                                disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
                             <span className="font-medium">Teks / Narasi</span>
@@ -198,7 +220,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             type="checkbox"
                             checked={data.wajib}
                             onChange={(e) => onChange('wajib', e.target.checked)}
-                            disabled={isLoading}
+                            disabled={isLoading || isBatasTeknisOnly}
                             className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
@@ -214,7 +236,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             type="checkbox"
                             checked={data.semua_mode_wajib}
                             onChange={(e) => onChange('semua_mode_wajib', e.target.checked)}
-                            disabled={isLoading}
+                            disabled={isLoading || isBatasTeknisOnly}
                             className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
@@ -234,7 +256,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             id="jb-aktif"
                             checked={data.aktif !== false}
                             onChange={(e) => onChange('aktif', e.target.checked)}
-                            disabled={isLoading}
+                            disabled={isLoading || isBatasTeknisOnly}
                             className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
                         />
                         <div>
@@ -310,7 +332,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             min={0}
                             value={data.urutan}
                             onChange={(e) => onChange('urutan', Number(e.target.value))}
-                            disabled={isLoading}
+                            disabled={isLoading || isBatasTeknisOnly}
                             error={errors.urutan}
                         />
                     </div>
@@ -323,7 +345,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             value={data.keterangan}
                             onChange={(e) => onChange('keterangan', e.target.value)}
                             placeholder="Petunjuk khusus pengunggahan bagi PIC..."
-                            disabled={isLoading}
+                            disabled={isLoading || isBatasTeknisOnly}
                             error={errors.keterangan}
                         />
                     </div>
@@ -345,9 +367,9 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         variant="primary"
                         size="sm"
                         isLoading={isLoading}
-                        disabled={!atLeastOneMode}
+                        disabled={!isBatasTeknisOnly && !atLeastOneMode}
                     >
-                        {isEditing ? 'Lanjut ke Konfirmasi' : 'Simpan Persyaratan'}
+                        {isBatasTeknisOnly || isEditing ? 'Lanjut ke Konfirmasi' : 'Simpan Persyaratan'}
                     </Button>
                 </div>
             </form>

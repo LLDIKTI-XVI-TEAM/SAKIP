@@ -76,11 +76,22 @@ class JenisBerkasController extends Controller
             FILTER_VALIDATE_BOOLEAN
         );
 
+        $hasBatasTeknis = array_key_exists('format_diizinkan', $data) || array_key_exists('ukuran_maks_kb', $data);
+
         if (! $resolver->allows($actor, 'pengaturan:update')) {
             unset($data['format_diizinkan'], $data['ukuran_maks_kb']);
+            $hasBatasTeknis = false;
         }
 
-        DB::transaction(function () use ($data, $actor, $decision) {
+        $dasarIzin = $decision;
+        if ($hasBatasTeknis && $resolver->allows($actor, 'pengaturan:update')) {
+            $dasarIzin = [
+                'jenis_berkas' => $decision,
+                'pengaturan' => $resolver->decide($actor, 'pengaturan:update'),
+            ];
+        }
+
+        DB::transaction(function () use ($data, $actor, $dasarIzin) {
             $data['created_by'] = $actor->id;
 
             $jb = JenisBerkas::create($data);
@@ -93,7 +104,7 @@ class JenisBerkasController extends Controller
                 nilaiLama: null,
                 nilaiBaru: $jb->toArray(),
                 alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
-                dasarIzin: $decision
+                dasarIzin: $dasarIzin
             );
         });
 
@@ -287,10 +298,12 @@ class JenisBerkasController extends Controller
         DB::transaction(function () use ($data, $id, $actor, $decision, &$formatWarning) {
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
-            if (! empty($data['expected_updated_at'])) {
+            $expectedUpdatedAt = (string) $data['expected_updated_at'];
+            $currentTimestamp = $jb->updated_at ?? $jb->created_at;
+            if ($currentTimestamp !== null) {
                 try {
-                    $expected = Carbon::parse($data['expected_updated_at']);
-                    if ($jb->updated_at && $jb->updated_at->gt($expected)) {
+                    $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
+                    if ($currentTimestamp->toISOString() !== $expectedIso) {
                         throw ValidationException::withMessages([
                             'konflik' => 'Data persyaratan telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
                         ]);
@@ -347,6 +360,22 @@ class JenisBerkasController extends Controller
             return null;
         }
 
+        $oldFormatStr = $jb->format_diizinkan;
+        if ($oldFormatStr === null) {
+            return null;
+        }
+
+        $oldFormats = array_filter(array_map('trim', explode(',', strtolower($oldFormatStr))));
+        if (empty($oldFormats)) {
+            return null;
+        }
+
+        // Himpunan format lama yang dihilangkan pada konfigurasi baru
+        $removedFormats = array_diff($oldFormats, $newFormats);
+        if (empty($removedFormats)) {
+            return null;
+        }
+
         $existingFiles = BuktiDukung::where('jenis_berkas_id', $jb->id)
             ->where('mode', 'file')
             ->whereNull('dihapus_pada')
@@ -355,7 +384,7 @@ class JenisBerkasController extends Controller
         foreach ($existingFiles as $file) {
             $filename = (string) ($file->nama_asli ?? $file->path ?? '');
             $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            if ($ext !== '' && ! in_array($ext, $newFormats, true)) {
+            if ($ext !== '' && in_array($ext, $removedFormats, true)) {
                 return 'Peringatan: Format diizinkan dipersempit dan terdapat berkas bukti dukung lama yang formatnya tidak lagi tercakup dalam daftar baru. Bukti lama tetap sah (grandfathered), batas baru hanya berlaku untuk unggahan berikutnya.';
             }
         }
