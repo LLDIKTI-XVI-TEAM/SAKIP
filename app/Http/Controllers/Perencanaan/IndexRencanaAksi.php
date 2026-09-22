@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Perencanaan;
 
 use App\Http\Controllers\Controller;
+use App\Models\IndikatorKinerja;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
@@ -17,6 +18,8 @@ class IndexRencanaAksi extends Controller
 {
     public function __invoke(Request $request): Response
     {
+        $tahunAktif = (int) $request->input('tahun', 2026);
+
         /** @var User $actor */
         $actor = $request->user();
         if (! $actor || ! $actor->is_active) {
@@ -174,11 +177,11 @@ class IndexRencanaAksi extends Controller
         ];
 
         $indikatorOptions = [
-            ['id' => 1, 'kode' => 'IKU-01', 'nama' => 'Persentase PTS yang Terakreditasi Minimal Baik Sekali'],
-            ['id' => 2, 'kode' => 'IKU-02', 'nama' => 'Persentase PTS yang Memiliki Masalah Sengketa Kelembagaan / Legalitas'],
-            ['id' => 3, 'kode' => 'IKU-03', 'nama' => 'Persentase Dosen Tetap PTS yang Berkualifikasi S3 / Doktor'],
-            ['id' => 4, 'kode' => 'IKU-04', 'nama' => 'Persentase Mahasiswa PTS yang Berprestasi Tingkat Nasional/Internasional'],
-            ['id' => 5, 'kode' => 'IKU-05', 'nama' => 'Indeks Kepuasan Masyarakat (IKM) atas Pelayanan LLDIKTI XVI'],
+            ['id' => 1, 'kode' => 'IKU-01', 'nama' => 'Persentase PTS yang Terakreditasi Minimal Baik Sekali', 'unit_nama' => 'Pokja Kelembagaan dan Sistem Informasi', 'unit_kode' => 'POKJA-KLSI'],
+            ['id' => 2, 'kode' => 'IKU-02', 'nama' => 'Persentase PTS yang Memiliki Masalah Sengketa Kelembagaan / Legalitas', 'unit_nama' => 'Pokja Kelembagaan dan Sistem Informasi', 'unit_kode' => 'POKJA-KLSI'],
+            ['id' => 3, 'kode' => 'IKU-03', 'nama' => 'Persentase Dosen Tetap PTS yang Berkualifikasi S3 / Doktor', 'unit_nama' => 'Pokja Sumber Daya Perguruan Tinggi', 'unit_kode' => 'POKJA-SDPT'],
+            ['id' => 4, 'kode' => 'IKU-04', 'nama' => 'Persentase Mahasiswa PTS yang Berprestasi Tingkat Nasional/Internasional', 'unit_nama' => 'Pokja Akademik dan Kemahasiswaan', 'unit_kode' => 'POKJA-AK'],
+            ['id' => 5, 'kode' => 'IKU-05', 'nama' => 'Indeks Kepuasan Masyarakat (IKM) atas Pelayanan LLDIKTI XVI', 'unit_nama' => 'Bagian Umum', 'unit_kode' => 'BAG-UMUM'],
         ];
 
         $unitOptions = [
@@ -205,9 +208,51 @@ class IndexRencanaAksi extends Controller
 
         // Prioritaskan data riil database jika ada
         if (RencanaAksi::exists()) {
-            $rencanaAksiList = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab', 'disahkanBy'])
+            $rencanaAksiList = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab', 'disahkanBy', 'targets.periode'])
+                ->where('tahun', $tahunAktif)
                 ->get()
                 ->map(function (RencanaAksi $ra) use ($resolveUnitCode) {
+                    $targetsByQuarter = [
+                        1 => '-',
+                        2 => '-',
+                        3 => '-',
+                        4 => '-',
+                    ];
+
+                    foreach ($ra->targets as $target) {
+                        $quarter = $target->periode?->urutan;
+                        if (! $quarter && $target->periode?->nama) {
+                            if (preg_match('/I{1,3}|IV/i', $target->periode->nama, $matches)) {
+                                $roman = strtoupper($matches[0]);
+                                $quarter = match ($roman) {
+                                    'I' => 1,
+                                    'II' => 2,
+                                    'III' => 3,
+                                    'IV' => 4,
+                                    default => null,
+                                };
+                            } elseif (preg_match('/[1-4]/', $target->periode->nama, $matches)) {
+                                $quarter = (int) $matches[0];
+                            }
+                        }
+
+                        if ($quarter !== null && $quarter >= 1 && $quarter <= 4) {
+                            $text = '';
+                            if ($target->keterangan !== null && trim($target->keterangan) !== '') {
+                                $text = trim($target->keterangan);
+                                if ($target->nilai !== null) {
+                                    $text .= ' (Target: '.(float) $target->nilai.')';
+                                }
+                            } elseif ($target->nilai !== null) {
+                                $text = (string) (float) $target->nilai;
+                            }
+
+                            if ($text !== '') {
+                                $targetsByQuarter[$quarter] = $text;
+                            }
+                        }
+                    }
+
                     return [
                         'id' => $ra->id,
                         'nama_rencana_aksi' => $ra->uraian ?? '-',
@@ -220,14 +265,17 @@ class IndexRencanaAksi extends Controller
                         'unit_id' => $ra->unit_id,
                         'penanggung_jawab_nama' => $ra->penanggungJawab?->nama ?? '-',
                         'status_alur' => $ra->status_alur,
-                        'target_triwulan_1' => '-',
-                        'target_triwulan_2' => '-',
-                        'target_triwulan_3' => '-',
-                        'target_triwulan_4' => '-',
+                        'target_triwulan_1' => $targetsByQuarter[1],
+                        'target_triwulan_2' => $targetsByQuarter[2],
+                        'target_triwulan_3' => $targetsByQuarter[3],
+                        'target_triwulan_4' => $targetsByQuarter[4],
                         'disahkan_at' => $ra->disahkan_at?->format('Y-m-d H:i'),
                         'disahkan_by_nama' => $ra->disahkanBy?->nama,
                     ];
                 })->all();
+        } else {
+            // Jika menggunakan data mockup, filter juga berdasarkan tahun aktif
+            $rencanaAksiList = array_values(array_filter($rencanaAksiList, fn ($item) => ($item['tahun'] ?? 2026) === $tahunAktif));
         }
 
         // Gabungkan unit database aktif ke opsi jika ada
@@ -254,6 +302,35 @@ class IndexRencanaAksi extends Controller
                     ];
                 }
             }
+        }
+
+        // Muat indikator riil jika ada di database
+        if (IndikatorKinerja::where('is_aktif', true)->exists()) {
+            $indikatorOptions = IndikatorKinerja::with('unit')
+                ->where('is_aktif', true)
+                ->get()
+                ->map(function (IndikatorKinerja $ik) use ($resolveUnitCode) {
+                    return [
+                        'id' => $ik->id,
+                        'kode' => $ik->kode,
+                        'nama' => $ik->nama,
+                        'unit_id' => $ik->unit_id,
+                        'unit_nama' => $ik->unit?->nama,
+                        'unit_kode' => $ik->unit ? $resolveUnitCode($ik->unit->nama) : null,
+                    ];
+                })
+                ->all();
+        } else {
+            // Kaitkan unit_id dari unitOptions jika cocok dengan nama unit pada mock indikator
+            foreach ($indikatorOptions as &$opt) {
+                foreach ($unitOptions as $u) {
+                    if ($u['nama'] === ($opt['unit_nama'] ?? null) && is_string($u['id']) && Str::isUuid($u['id'])) {
+                        $opt['unit_id'] = $u['id'];
+                        break;
+                    }
+                }
+            }
+            unset($opt);
         }
 
         // Saring rencanaAksiList berdasarkan hak unit efektif
@@ -309,11 +386,37 @@ class IndexRencanaAksi extends Controller
             return false;
         }));
 
+        // Saring indikatorOptions berdasarkan hak unit efektif
+        $indikatorOptions = array_values(array_filter($indikatorOptions, function ($indikator) use ($hasGlobalRole, $deniedUnitNames, $allowedUnitNames, $deniedUnitIds, $effectiveGrantedUnitIds) {
+            $unitId = $indikator['unit_id'] ?? null;
+            $unitNama = $indikator['unit_nama'] ?? '';
+
+            if ($hasGlobalRole) {
+                if ($unitId !== null && is_string($unitId) && Str::isUuid($unitId)) {
+                    return ! in_array($unitId, $deniedUnitIds, true);
+                }
+                if ($unitNama !== '') {
+                    return ! in_array($unitNama, $deniedUnitNames, true);
+                }
+
+                return true;
+            }
+
+            if ($unitId !== null && is_string($unitId) && Str::isUuid($unitId)) {
+                return in_array($unitId, $effectiveGrantedUnitIds, true);
+            }
+            if ($unitNama !== '') {
+                return in_array($unitNama, $allowedUnitNames, true);
+            }
+
+            return false;
+        }));
+
         return Inertia::render('RencanaAksi/Index', [
             'rencanaAksiList' => $rencanaAksiList,
             'indikatorOptions' => $indikatorOptions,
             'unitOptions' => $unitOptions,
-            'tahunAktif' => 2026,
+            'tahunAktif' => $tahunAktif,
             'can' => [
                 'create' => true,
                 'verify' => true,

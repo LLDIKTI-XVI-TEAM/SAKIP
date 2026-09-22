@@ -37,6 +37,12 @@ class IndikatorKinerja extends Model
         return $this->belongsTo(SasaranStrategis::class, 'sasaran_strategis_id');
     }
 
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
     /** @return HasMany<TargetKinerja, $this> */
     public function targetKinerjas(): HasMany
     {

@@ -8,6 +8,7 @@ use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\RencanaAksiTarget;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
@@ -509,6 +510,271 @@ class PerencanaanAuthorizationTest extends TestCase
                 ->where('auth.can.renstra', false)
                 ->where('auth.can.indikator', false)
                 ->where('auth.can.rencanaAksi', true)
+            );
+    }
+
+    /**
+     * Codex Review: Batasi daftar riil pada tahun yang ditampilkan (filter query by active year).
+     */
+    public function test_real_rencana_aksi_filters_by_active_year(): void
+    {
+        $renstra = Renstra::create([
+            'kode' => 'R-TAHUN',
+            'nama' => 'Renstra Filter Tahun',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'S-TAHUN',
+            'deskripsi' => 'Sasaran Filter Tahun',
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $this->unitKLSI->id,
+            'kode' => 'I-TAHUN',
+            'nama' => 'Indikator Filter Tahun',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+        ]);
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-TAHUN',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->superadminUser->id,
+        ]);
+        $periode = Periode::create([
+            'nama' => 'Triwulan I',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+        $jadwal2026 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+        $jadwal2025 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2025,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2025-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $context2026 = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal2026->id,
+            'indikator_id' => $indikator->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $this->unitKLSI->id,
+            'nama' => 'Snapshot 2026',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 90,
+        ]);
+        $context2025 = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal2025->id,
+            'indikator_id' => $indikator->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $this->unitKLSI->id,
+            'nama' => 'Snapshot 2025',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 80,
+        ]);
+
+        // 1. Rencana Aksi Tahun 2025 (historis)
+        RencanaAksi::create([
+            'indikator_id' => $indikator->id,
+            'tahun' => 2025,
+            'unit_id' => $this->unitKLSI->id,
+            'jadwal_tahunan_id' => $jadwal2025->id,
+            'jadwal_snapshot_id' => $context2025->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => 'Rencana Aksi 2025',
+            'status_alur' => 'disahkan',
+        ]);
+
+        // 2. Rencana Aksi Tahun 2026 (aktif)
+        RencanaAksi::create([
+            'indikator_id' => $indikator->id,
+            'tahun' => 2026,
+            'unit_id' => $this->unitKLSI->id,
+            'jadwal_tahunan_id' => $jadwal2026->id,
+            'jadwal_snapshot_id' => $context2026->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => 'Rencana Aksi 2026',
+            'status_alur' => 'draft',
+        ]);
+
+        // Request default (tahunAktif = 2026) -> hanya 2026 yang dikembalikan
+        $this->actingAs($this->superadminUser)
+            ->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('RencanaAksi/Index')
+                ->has('rencanaAksiList', 1)
+                ->where('rencanaAksiList.0.tahun', 2026)
+                ->where('rencanaAksiList.0.nama_rencana_aksi', 'Rencana Aksi 2026')
+                ->where('tahunAktif', 2026)
+            );
+
+        // Request dengan parameter query tahun=2025 -> hanya 2025 yang dikembalikan
+        $this->actingAs($this->superadminUser)
+            ->get('/rencana-aksi?tahun=2025')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('RencanaAksi/Index')
+                ->has('rencanaAksiList', 1)
+                ->where('rencanaAksiList.0.tahun', 2025)
+                ->where('rencanaAksiList.0.nama_rencana_aksi', 'Rencana Aksi 2025')
+                ->where('tahunAktif', 2025)
+            );
+    }
+
+    /**
+     * Codex Review: Muat target periode untuk rencana aksi riil.
+     */
+    public function test_real_rencana_aksi_loads_quarter_targets_from_database(): void
+    {
+        $renstra = Renstra::create([
+            'kode' => 'R-TARGET',
+            'nama' => 'Renstra Target',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'S-TARGET',
+            'deskripsi' => 'Sasaran Target',
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $this->unitKLSI->id,
+            'kode' => 'I-TARGET',
+            'nama' => 'Indikator Target TW',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+        ]);
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-TARGET',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->superadminUser->id,
+        ]);
+
+        $tw1 = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $tw3 = Periode::create(['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $tw4 = Periode::create(['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
+
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $context = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikator->id,
+            'periode_mulai_id' => $tw1->id,
+            'unit_id' => $this->unitKLSI->id,
+            'nama' => 'Snapshot Target',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 95,
+        ]);
+
+        $ra = RencanaAksi::create([
+            'indikator_id' => $indikator->id,
+            'tahun' => 2026,
+            'unit_id' => $this->unitKLSI->id,
+            'jadwal_tahunan_id' => $jadwal->id,
+            'jadwal_snapshot_id' => $context->id,
+            'penanggung_jawab_id' => $this->superadminUser->id,
+            'created_by' => $this->superadminUser->id,
+            'uraian' => 'Rencana Aksi dengan Target TW Aktual',
+            'status_alur' => 'draft',
+        ]);
+
+        // Simpan target aktual di database
+        RencanaAksiTarget::create([
+            'rencana_aksi_id' => $ra->id,
+            'periode_id' => $tw1->id,
+            'nilai' => 15,
+            'keterangan' => 'Pelatihan Tahap I',
+            'updated_by' => $this->superadminUser->id,
+            'updated_at' => now(),
+        ]);
+
+        RencanaAksiTarget::create([
+            'rencana_aksi_id' => $ra->id,
+            'periode_id' => $tw2->id,
+            'nilai' => 30,
+            'keterangan' => null,
+            'updated_by' => $this->superadminUser->id,
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->superadminUser)
+            ->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('RencanaAksi/Index')
+                ->where('rencanaAksiList.0.target_triwulan_1', 'Pelatihan Tahap I (Target: 15)')
+                ->where('rencanaAksiList.0.target_triwulan_2', '30')
+                ->where('rencanaAksiList.0.target_triwulan_3', '-')
+                ->where('rencanaAksiList.0.target_triwulan_4', '-')
+            );
+    }
+
+    /**
+     * Codex Review: Batasi opsi indikator sesuai scope unit.
+     */
+    public function test_indikator_options_are_filtered_by_effective_unit_scope(): void
+    {
+        $perm = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
+
+        // Pegawai hanya diberi grant ke unit KLSI
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $perm->id,
+            'unit_id' => $this->unitKLSI->id,
+            'alasan' => 'Grant khusus KLSI',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        // Uji dengan data mock default: hanya opsi IKU milik unitKLSI yang tampil (IKU-01 dan IKU-02)
+        $this->actingAs($this->pegawaiUser)
+            ->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('RencanaAksi/Index')
+                ->has('indikatorOptions', 2)
+                ->where('indikatorOptions.0.kode', 'IKU-01')
+                ->where('indikatorOptions.1.kode', 'IKU-02')
             );
     }
 }

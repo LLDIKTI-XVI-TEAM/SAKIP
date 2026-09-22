@@ -183,7 +183,7 @@ export default function RencanaAksiIndex({
                         <div className="flex items-center gap-2">
                             <ListTodo className="w-6 h-6 text-[#D6AC48]" />
                             <h1 className="text-xl font-bold tracking-tight">
-                                Rencana Aksi (RA) Kinerja Tahunan
+                                Rencana Aksi (RA) Kinerja Tahunan {tahunAktif}
                             </h1>
                         </div>
                         <p className="text-sm text-blue-100/90 max-w-2xl">
@@ -319,6 +319,9 @@ export default function RencanaAksiIndex({
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="px-2 py-0.5 bg-[#122E92] text-white font-mono text-xs font-bold rounded">
                                                     {ra.indikator_kode}
+                                                </span>
+                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono text-xs font-medium rounded border border-slate-200">
+                                                    Tahun {ra.tahun}
                                                 </span>
                                                 <span className="text-xs font-medium text-slate-600">
                                                     {ra.indikator_nama}
@@ -507,9 +510,14 @@ export default function RencanaAksiIndex({
 
                         <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                             <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="font-mono text-xs font-bold bg-blue-50 text-[#122E92] px-2.5 py-1 rounded border border-blue-200">
-                                    {selectedRaModal.indikator_kode}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs font-bold bg-blue-50 text-[#122E92] px-2.5 py-1 rounded border border-blue-200">
+                                        {selectedRaModal.indikator_kode}
+                                    </span>
+                                    <span className="font-mono text-xs font-medium bg-slate-100 text-slate-700 px-2 py-1 rounded border border-slate-200">
+                                        Tahun {selectedRaModal.tahun}
+                                    </span>
+                                </div>
                                 {getStatusBadge(selectedRaModal.status_alur)}
                             </div>
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RencanaAksi extends Model
 {
@@ -64,6 +65,12 @@ class RencanaAksi extends Model
     public function disahkanBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'disahkan_by');
+    }
+
+    /** @return HasMany<RencanaAksiTarget, $this> */
+    public function targets(): HasMany
+    {
+        return $this->hasMany(RencanaAksiTarget::class, 'rencana_aksi_id');
     }
 
     public function isDisahkan(): bool
