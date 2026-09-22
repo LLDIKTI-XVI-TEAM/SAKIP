@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     FileSpreadsheet,
@@ -28,7 +28,22 @@ interface AuthenticatedLayoutProps {
 export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: AuthenticatedLayoutProps) {
     const { props: { auth, flash }, url } = usePage<SharedPageProps>();
     const [navigationOpen, setNavigationOpen] = useState(false);
+    const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(min-width: 768px)').matches);
     const logout = useForm({});
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(min-width: 768px)');
+        const updateViewport = () => setIsDesktopViewport(mediaQuery.matches);
+
+        updateViewport();
+        mediaQuery.addEventListener('change', updateViewport);
+
+        return () => mediaQuery.removeEventListener('change', updateViewport);
+    }, []);
+
+    const sidebarHidden = !isDesktopViewport && !navigationOpen;
 
     const navigation = [
         { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
@@ -93,6 +108,8 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
             {/* Deep Navy Sidebar */}
             <aside
                 id="application-navigation"
+                aria-hidden={sidebarHidden || undefined}
+                inert={sidebarHidden || undefined}
                 className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-primary text-white transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 ${
                     navigationOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0 md:shadow-none'
                 }`}
@@ -176,9 +193,9 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
             {/* Main Column */}
             <div className="min-w-0 flex-1 flex flex-col">
                 {/* Top White Header Bar */}
-                <header className="hidden md:flex h-[68px] items-center justify-between border-b border-border bg-surface px-6 lg:px-8 sticky top-0 z-30 shadow-2xs">
+                <header className="hidden md:flex h-[68px] items-center justify-between border-b border-border bg-surface px-4 xl:px-8 sticky top-0 z-30 shadow-2xs">
                     {/* Left: Search Input Pill */}
-                    <div className="relative">
+                    <div className="relative hidden xl:block">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
                         <input
                             type="text"
@@ -192,7 +209,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     </div>
 
                     {/* Right Functional Chips */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 xl:gap-4">
 
                         <button
                             type="button"
@@ -209,7 +226,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">
                                 <User className="h-4 w-4" />
                             </div>
-                            <div className="hidden sm:block text-left">
+                            <div className="hidden xl:block text-left">
                                 <p className="text-xs font-bold text-primary leading-none truncate max-w-[140px]">
                                     {auth.user?.nama || 'Superadmin LLDIKTI16'}
                                 </p>

@@ -20,7 +20,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
             title="Verifikasi & Pengesahan Kinerja"
             breadcrumbs={[{ label: 'Verifikasi Kinerja' }]}
         >
-            <Head title="Verifikasi Kinerja — SAKIP LLDIKTI XVI" />
+            <Head title="Verifikasi Kinerja" />
 
             <div className="mb-6">
                 <h2 className="text-sm font-semibold text-ink">

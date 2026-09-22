@@ -21,7 +21,7 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
             title="Pengukuran Kinerja"
             breadcrumbs={[{ label: 'Pengukuran Kinerja' }]}
         >
-            <Head title="Pengukuran Kinerja — SAKIP LLDIKTI XVI" />
+            <Head title="Pengukuran Kinerja" />
 
             <div className="mb-6">
                 <h2 className="text-sm font-semibold text-ink">
