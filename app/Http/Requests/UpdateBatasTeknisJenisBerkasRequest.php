@@ -101,7 +101,7 @@ class UpdateBatasTeknisJenisBerkasRequest extends FormRequest
             $id = (string) ($this->route('id') ?? '');
             if ($id !== '') {
                 $jb = JenisBerkas::find($id);
-                if ($jb && $jb->izinkan_file) {
+                if ($jb && $jb->izinkan_file && $this->has('format_diizinkan')) {
                     $format = $this->input('format_diizinkan');
                     if ($format === null || ! is_string($format) || trim($format) === '') {
                         $validator->errors()->add('format_diizinkan', 'Format file wajib diisi jika mode file diizinkan pada persyaratan ini.');

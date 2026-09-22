@@ -81,6 +81,8 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
             onClose={handleSafeClose}
             showCloseButton={!isLoading}
             size="2xl"
+            scrollable={false}
+            bodyClassName="p-4 sm:p-5"
             title={
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -101,9 +103,9 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     : 'Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP'
             }
         >
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-2.5 sm:space-y-3">
                 {isBatasTeknisOnly && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2.5 text-xs text-blue-800" role="alert">
+                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2 text-xs text-blue-800" role="alert">
                         <Settings2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                         <div>
                             <span className="font-semibold text-blue-900">Mode Batas Teknis Pengaturan</span>
@@ -127,7 +129,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 />
 
                 {/* Tahap & Lingkup Indikator */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <Select
                         id="jb-tahap"
                         label="Tahap Kepatuhan"
@@ -141,7 +143,6 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             { value: 'pengukuran', label: 'Pengukuran Kinerja' },
                             { value: 'kegiatan', label: 'Pelaksanaan Kegiatan (SPJ)' },
                         ]}
-                        helperText="Tahap pengukuran terhubung langsung ke evaluasi bukti saat pengajuan kinerja"
                     />
 
                     <Select
@@ -162,7 +163,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 </div>
 
                 {/* Mode Bukti yang Diizinkan */}
-                <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
+                <div className="p-2.5 sm:p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
                             <CheckSquare className="w-3.5 h-3.5 text-primary" />
@@ -175,7 +176,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                        <label className="flex items-center gap-2 p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
+                        <label className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
                             <input
                                 type="checkbox"
                                 checked={data.izinkan_file}
@@ -183,10 +184,10 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
-                            <span className="font-medium">File / Dokumen</span>
+                            <span className="font-medium text-[11px] sm:text-xs">File / Dokumen</span>
                         </label>
 
-                        <label className="flex items-center gap-2 p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
+                        <label className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
                             <input
                                 type="checkbox"
                                 checked={data.izinkan_tautan}
@@ -194,10 +195,10 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
-                            <span className="font-medium">Tautan / URL</span>
+                            <span className="font-medium text-[11px] sm:text-xs">Tautan / URL</span>
                         </label>
 
-                        <label className="flex items-center gap-2 p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
+                        <label className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
                             <input
                                 type="checkbox"
                                 checked={data.izinkan_teks}
@@ -205,7 +206,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                                 disabled={isLoading || isBatasTeknisOnly}
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                             />
-                            <span className="font-medium">Teks / Narasi</span>
+                            <span className="font-medium text-[11px] sm:text-xs">Teks / Narasi</span>
                         </label>
                     </div>
                     {errors.modes && (
@@ -214,7 +215,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 </div>
 
                 {/* Pengaturan Kewajiban */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-lg border border-slate-200 bg-slate-50/50">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-slate-200 bg-slate-50/50">
                     <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                         <input
                             type="checkbox"
@@ -248,33 +249,35 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     </label>
                 </div>
 
-                {/* Status Aktif / Nonaktif Persyaratan */}
-                <div className={`p-3.5 rounded-lg border transition-colors ${data.aktif !== false ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'}`}>
-                    <label className="flex items-start gap-2.5 text-xs cursor-pointer">
-                        <input
-                            type="checkbox"
-                            id="jb-aktif"
-                            checked={data.aktif !== false}
-                            onChange={(e) => onChange('aktif', e.target.checked)}
-                            disabled={isLoading || isBatasTeknisOnly}
-                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
-                        />
-                        <div>
-                            <span className={`font-semibold ${data.aktif !== false ? 'text-emerald-900' : 'text-rose-900'}`}>
-                                {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
-                            </span>
-                            <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                                {data.aktif !== false 
-                                    ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
-                                    : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
-                            </p>
-                        </div>
-                    </label>
-                </div>
+                {/* Status Aktif / Nonaktif Persyaratan (Khusus saat Edit) */}
+                {isEditing && (
+                    <div className={`p-2.5 sm:p-3 rounded-lg border transition-colors ${data.aktif !== false ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'}`}>
+                        <label className="flex items-start gap-2 text-xs cursor-pointer">
+                            <input
+                                type="checkbox"
+                                id="jb-aktif"
+                                checked={data.aktif !== false}
+                                onChange={(e) => onChange('aktif', e.target.checked)}
+                                disabled={isLoading || isBatasTeknisOnly}
+                                className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
+                            />
+                            <div>
+                                <span className={`font-semibold ${data.aktif !== false ? 'text-emerald-900' : 'text-rose-900'}`}>
+                                    {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
+                                </span>
+                                <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                                    {data.aktif !== false 
+                                        ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
+                                        : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                )}
 
                 {/* Peringatan jika berkas.unggahan_aktif = false dan syarat wajib hanya mode file */}
                 {!unggahanAktif && data.wajib && data.izinkan_file && !data.izinkan_tautan && !data.izinkan_teks && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-xs text-amber-800" role="alert">
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-800" role="alert">
                         <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>
                             <span className="font-semibold text-amber-900">Peringatan: Mode Unggahan File Dinonaktifkan Global</span>
@@ -287,14 +290,14 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 )}
 
                 {/* Batasan Teknis File (Hanya relevan jika izinkan_file = true) */}
-                <div className={`p-3.5 rounded-lg border transition-colors ${data.izinkan_file ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-100 opacity-60'}`}>
-                    <div className="flex items-center gap-1.5 mb-2.5">
+                <div className={`p-2.5 sm:p-3 rounded-lg border transition-colors ${data.izinkan_file ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-100 opacity-60'}`}>
+                    <div className="flex items-center gap-1.5 mb-2">
                         <Settings2 className="w-3.5 h-3.5 text-slate-500" />
                         <span className="text-xs font-semibold text-slate-800">
                             Batasan Teknis File {data.izinkan_file ? '' : '(Nonaktif karena mode file tidak diizinkan)'}
                         </span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                         <Input
                             id="jb-format"
                             label="Format File Diizinkan"
@@ -303,7 +306,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             placeholder="Contoh: pdf,docx,xlsx,jpg,png"
                             disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.format_diizinkan}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin (izin pengaturan:update) yang dapat mengubah format.' : 'Kosong = default aplikasi'}
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah format.' : 'Kosong = default aplikasi'}
                         />
 
                         <Input
@@ -317,13 +320,13 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             placeholder="Contoh: 10240 (10 MB)"
                             disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.ukuran_maks_kb}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin (izin pengaturan:update) yang dapat mengubah batas ukuran.' : 'Kosong = default aplikasi (minimal 100 KB)'}
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah batas ukuran.' : 'Kosong = default aplikasi (minimal 100 KB)'}
                         />
                     </div>
                 </div>
 
                 {/* Urutan & Keterangan */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 sm:gap-3">
                     <div className="sm:col-span-1">
                         <Input
                             id="jb-urutan"
@@ -352,7 +355,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                     <Button
                         type="button"
                         variant="outline"

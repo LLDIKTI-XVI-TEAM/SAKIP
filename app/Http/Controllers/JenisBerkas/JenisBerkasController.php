@@ -174,9 +174,10 @@ class JenisBerkasController extends Controller
             }
 
             $jb->update($data);
+            $nilaiBaru = $jb->fresh()->toArray();
 
-            $isFormatOrSizeChanged = ($data['format_diizinkan'] ?? null) !== $nilaiLama['format_diizinkan']
-                || ($data['ukuran_maks_kb'] ?? null) !== $nilaiLama['ukuran_maks_kb'];
+            $isFormatOrSizeChanged = ($nilaiBaru['format_diizinkan'] !== $nilaiLama['format_diizinkan'])
+                || ($nilaiBaru['ukuran_maks_kb'] !== $nilaiLama['ukuran_maks_kb']);
 
             $dasarIzin = $decision;
             if ($isFormatOrSizeChanged && $resolver->allows($actor, 'pengaturan:update')) {
@@ -192,7 +193,7 @@ class JenisBerkasController extends Controller
                 objekTipe: 'jenis_berkas',
                 objekId: $jb->id,
                 nilaiLama: $nilaiLama,
-                nilaiBaru: $jb->fresh()->toArray(),
+                nilaiBaru: $nilaiBaru,
                 alasan: $alasan,
                 dasarIzin: $dasarIzin
             );
@@ -361,8 +362,8 @@ class JenisBerkasController extends Controller
         }
 
         $oldFormatStr = $jb->format_diizinkan;
-        if ($oldFormatStr === null) {
-            return null;
+        if ($oldFormatStr === null || trim($oldFormatStr) === '') {
+            $oldFormatStr = Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,docx,xlsx,jpg,jpeg,png';
         }
 
         $oldFormats = array_filter(array_map('trim', explode(',', strtolower($oldFormatStr))));

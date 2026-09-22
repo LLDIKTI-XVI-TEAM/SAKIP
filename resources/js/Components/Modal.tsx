@@ -13,6 +13,8 @@ export interface ModalProps {
     footer?: React.ReactNode;
     showCloseButton?: boolean;
     className?: string;
+    bodyClassName?: string;
+    scrollable?: boolean;
     ariaLabel?: string;
 }
 
@@ -29,6 +31,8 @@ export const Modal: React.FC<ModalProps> = ({
     footer,
     showCloseButton = true,
     className,
+    bodyClassName,
+    scrollable = true,
     ariaLabel,
 }) => {
     const modalId = useId();
@@ -154,7 +158,8 @@ export const Modal: React.FC<ModalProps> = ({
                 tabIndex={-1}
                 className={twMerge(
                     clsx(
-                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] transition-all transform duration-200 outline-none',
+                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col transition-all transform duration-200 outline-none',
+                        scrollable ? 'max-h-[90vh]' : 'max-h-[96vh]',
                         sizeClasses[size],
                         className
                     )
@@ -187,7 +192,17 @@ export const Modal: React.FC<ModalProps> = ({
                     </div>
                 )}
 
-                <div className="p-6 overflow-y-auto flex-1">
+                <div
+                    className={twMerge(
+                        clsx(
+                            'p-6 flex-1',
+                            scrollable
+                                ? 'overflow-y-auto'
+                                : 'overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+                            bodyClassName
+                        )
+                    )}
+                >
                     {children}
                 </div>
 

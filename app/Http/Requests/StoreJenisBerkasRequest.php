@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -14,6 +16,30 @@ class StoreJenisBerkasRequest extends FormRequest
         $user = $this->user()?->fresh();
 
         return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:create');
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user()?->fresh();
+        if ($user) {
+            $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:create');
+            $rawAlasan = $this->input('alasan');
+            $nama = is_string($this->input('nama')) ? trim($this->input('nama')) : '';
+            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
+                ? trim($rawAlasan)
+                : 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin.'.($nama !== '' ? ' (Nama: '.$nama.')' : '');
+
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'jenis_berkas.buat_ditolak',
+                objekTipe: 'jenis_berkas',
+                objekId: (string) Str::uuid(),
+                alasan: $alasan,
+                dasarIzin: $decision,
+            );
+        }
+
+        parent::failedAuthorization();
     }
 
     protected function prepareForValidation(): void

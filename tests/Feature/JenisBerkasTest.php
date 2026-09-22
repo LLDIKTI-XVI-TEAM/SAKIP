@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Access\CreateDeny;
 use App\Actions\Audit\WriteAuditLog;
 use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\AuditLog;
@@ -1406,5 +1407,222 @@ class JenisBerkasTest extends TestCase
 
         $response->assertRedirect(route('jenis-berkas.index'));
         $response->assertSessionMissing('warning');
+    }
+
+    /**
+     * TEST-32: Pembuatan jenis berkas yang ditolak oleh larangan eksplisit (explicit deny) dicatat pada audit log.
+     */
+    public function test_store_jenis_berkas_rejected_by_explicit_deny_is_logged_to_audit(): void
+    {
+        $permission = Permission::where('kode', 'jenis_berkas:create')->sole();
+
+        app(CreateDeny::class)->handle(
+            $this->admin,
+            $this->perencanaan->id,
+            $permission->id,
+            null,
+            'Larangan eksplisit sementara untuk perencanaan'
+        );
+
+        $response = $this->actingAs($this->perencanaan)->post(route('jenis-berkas.store'), [
+            'nama' => 'Syarat Ditolak Eksplisit',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => true,
+            'semua_mode_wajib' => false,
+            'urutan' => 1,
+            'keterangan' => 'Uji coba create dengan explicit deny',
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.buat_ditolak')
+            ->where('actor_id', $this->perencanaan->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('jenis_berkas.buat_ditolak', $audit->tindakan);
+        $this->assertFalse($audit->dasar_izin['allowed'] ?? true);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['reason'] ?? null);
+    }
+
+    /**
+     * TEST-33: Pembaruan batas teknis yang hanya mengubah ukuran_maks_kb (tanpa format_diizinkan) berhasil diproses.
+     */
+    public function test_update_batas_teknis_supports_omitted_format_diizinkan(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Patch Ukuran Parsial',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Hanya mengubah ukuran berkas maksimum tanpa mengirim format_diizinkan.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $this->assertDatabaseHas('jenis_berkas', [
+            'id' => $jb->id,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 8192,
+        ]);
+    }
+
+    /**
+     * TEST-34: Penyempitan format dari default global (saat master null) memicu peringatan grandfathering bila ada bukti lama.
+     */
+    public function test_format_narrowing_from_global_fallback_triggers_warning_when_old_files_exist(): void
+    {
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.format_diizinkan'],
+            [
+                'nilai' => 'pdf,docx,xlsx,jpg,jpeg,png',
+                'tipe' => 'string',
+                'grup' => 'berkas',
+                'updated_at' => now(),
+            ]
+        );
+
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Format Global Default',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'format_diizinkan' => null,
+            'ukuran_maks_kb' => null,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => (string) Str::uuid(),
+            'mode' => 'file',
+            'nama_asli' => 'tabel_kinerja.xlsx',
+            'path' => 'berkas/tabel_kinerja.xlsx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ukuran_bytes' => 15000,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+            'format_diizinkan' => 'pdf,docx',
+            'alasan' => 'Menetapkan format khusus dari default global yang lebih sempit.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $response->assertSessionHas('warning');
+        $this->assertStringContainsString('Format diizinkan dipersempit', session('warning'));
+    }
+
+    /**
+     * TEST-35: Update substantif tanpa atribut batas teknis hanya mencatat wewenang jenis_berkas:update.
+     */
+    public function test_substantive_update_without_tech_fields_does_not_assert_pengaturan_permission(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Awal Substantif',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Diperbarui Substantif',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => true,
+            'semua_mode_wajib' => false,
+            'urutan' => 5,
+            'keterangan' => 'Update murni substantif',
+            'alasan' => 'Koreksi penamaan dokumen bukti kinerja.',
+            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah')
+            ->where('objek_id', $jb->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['permission'] ?? null);
+        $this->assertArrayNotHasKey('pengaturan:update', $audit->dasar_izin);
+    }
+
+    /**
+     * TEST-36: Optimistic locking menolak mutasi dengan timestamp lama saat terjadi pembaruan beruntun subdetik.
+     */
+    public function test_optimistic_locking_rejects_subsecond_stale_update(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Syarat Subdetik Concurrency',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $initialVersion = ($jb->updated_at ?? $jb->created_at)->toISOString();
+
+        $firstResponse = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Subdetik Concurrency Mutasi 1',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => true,
+            'semua_mode_wajib' => false,
+            'urutan' => 2,
+            'keterangan' => 'Mutasi pertama',
+            'alasan' => 'Pembaruan data pertama dalam subdetik.',
+            'expected_updated_at' => $initialVersion,
+        ]);
+
+        $firstResponse->assertRedirect(route('jenis-berkas.index'));
+
+        $secondResponse = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => 'Syarat Subdetik Concurrency Mutasi 2 Stale',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => true,
+            'semua_mode_wajib' => false,
+            'urutan' => 3,
+            'keterangan' => 'Mutasi kedua yang harus ditolak',
+            'alasan' => 'Mencoba mengupdate dengan token lama.',
+            'expected_updated_at' => $initialVersion,
+        ]);
+
+        $secondResponse->assertSessionHasErrors('konflik');
+        $this->assertStringContainsString(
+            'Data persyaratan telah diperbarui oleh pengguna lain',
+            session('errors')->first('konflik')
+        );
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,6 +41,22 @@ class JenisBerkas extends Model
         'ukuran_maks_kb' => 'integer',
         'aktif' => 'boolean',
     ];
+
+    protected $dateFormat = 'Y-m-d H:i:s.u';
+
+    protected static function booted(): void
+    {
+        static::saving(function (JenisBerkas $model) {
+            $now = Carbon::now();
+            if ($model->exists && $model->getOriginal('updated_at')) {
+                $orig = Carbon::parse($model->getOriginal('updated_at'));
+                if ($now->lte($orig)) {
+                    $now = $orig->copy()->addMicrosecond();
+                }
+            }
+            $model->updated_at = $now;
+        });
+    }
 
     public function indikator(): BelongsTo
     {
