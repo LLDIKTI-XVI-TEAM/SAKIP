@@ -16,9 +16,6 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
-use App\Http\Controllers\Perencanaan\IndexIndikator;
-use App\Http\Controllers\Perencanaan\IndexRencanaAksi;
-use App\Http\Controllers\Perencanaan\IndexRenstra;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
 use App\Http\Controllers\Regulasi\DestroyRegulasi;
@@ -82,11 +79,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/regulasi/{regulasi}/berkas/{berkas}', DestroyBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.destroy');
     Route::get('/regulasi/{regulasi}/berkas/{berkas}/download', DownloadBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.download');
     Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
-
-    // Perencanaan Kinerja (Mockup Pages)
-    Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
-    Route::get('/indikator', IndexIndikator::class)->name('indikator.index');
-    Route::get('/rencana-aksi', IndexRencanaAksi::class)->name('rencana-aksi.index');
 
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');

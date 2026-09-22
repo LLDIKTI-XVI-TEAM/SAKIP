@@ -21,7 +21,6 @@ class Renstra extends Model
         'tahun_mulai',
         'tahun_selesai',
         'deskripsi',
-        'dasar_hukum',
         'is_aktif',
     ];
 
