@@ -815,4 +815,168 @@ class JenisBerkasTest extends TestCase
 
         $response->assertSessionHasErrors('expected_updated_at');
     }
+
+    /**
+     * TEST-20: Store dan update memicu session flash warning saat semua_mode_wajib mencakup file sementara unggahan nonaktif.
+     */
+    public function test_warning_flashed_when_semua_mode_wajib_with_file_and_uploads_disabled(): void
+    {
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.unggahan_aktif'],
+            [
+                'nilai' => 'false',
+                'tipe' => 'boolean',
+                'grup' => 'berkas',
+                'updated_at' => now(),
+            ]
+        );
+
+        // 1. Jalur Store
+        $storeResponse = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Semua Mode Saat Unggahan Mati',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'semua_mode_wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => true,
+        ]);
+
+        $storeResponse->assertRedirect('/jenis-berkas');
+        $storeResponse->assertSessionHas('warning');
+
+        $jb = JenisBerkas::where('nama', 'Semua Mode Saat Unggahan Mati')->firstOrFail();
+
+        // 2. Jalur Update
+        $updateResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Semua Mode Saat Unggahan Mati Diperbarui',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'semua_mode_wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => true,
+            'alasan' => 'Pembaruan justifikasi operasional',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $updateResponse->assertRedirect('/jenis-berkas');
+        $updateResponse->assertSessionHas('warning');
+    }
+
+    /**
+     * TEST-21: Evaluasi bukti membatalkan pemenuhan file draf jika format atau ukuran maksimum jenis berkas diperketat.
+     */
+    public function test_evidence_evaluation_invalidates_file_when_format_or_size_limits_are_tightened(): void
+    {
+        // Persyaratan awal: izinkan pdf dan docx, ukuran maksimum 1000 KB
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Berkas Dinamis',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'izinkan_file' => true,
+            'wajib' => true,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 1000,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Buat konteks pengukuran
+        $renstra = Renstra::where('kode', 'R-UJI')->firstOrFail();
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-DINAMIS',
+            'tanggal_pk' => '2026-01-01',
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $periode = Periode::create([
+            'nama' => 'Triwulan II',
+            'urutan' => 2,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+        $context = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $this->indikator->id,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $this->indikator->unit_id,
+            'nama' => 'Indikator Uji',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 80,
+        ]);
+        $pengukuran = PengukuranKinerja::create([
+            'indikator_id' => $this->indikator->id,
+            'tahun' => 2026,
+            'periode_id' => $periode->id,
+            'jadwal_snapshot_id' => $context->id,
+            'sumber_nilai' => 'manual',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Unggah bukti draf berformat docx (400 KB) yang sesuai konfigurasi awal
+        $bukti = BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => $pengukuran->id,
+            'mode' => 'file',
+            'nama_asli' => 'laporan_kinerja.docx',
+            'path' => 'berkas/laporan_kinerja.docx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'ukuran_bytes' => 400 * 1024,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $evaluator = app(EvaluateEvidence::class);
+
+        // Tahap 1: Konfigurasi awal memenuhi syarat -> terpenuhi = true
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // Tahap 2: Tim Perencanaan memperketat format_diizinkan menjadi hanya pdf -> docx lama tidak lagi valid
+        $jb->update(['format_diizinkan' => 'pdf']);
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame(['file'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // Tahap 3: Kembalikan format docx, tetapi perketat batas ukuran menjadi 200 KB (< 400 KB) -> tidak lagi valid
+        $jb->update(['format_diizinkan' => 'pdf,docx', 'ukuran_maks_kb' => 200]);
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertFalse($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame(['file'], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+
+        // Tahap 4: PIC mengunggah bukti pengganti PDF berukuran 100 KB yang memenuhi batas baru -> terpenuhi = true
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => $pengukuran->id,
+            'menggantikan_id' => $bukti->id,
+            'alasan_koreksi' => 'Penyesuaian terhadap batas format dan ukuran terbaru.',
+            'mode' => 'file',
+            'nama_asli' => 'laporan_kinerja_kompresi.pdf',
+            'path' => 'berkas/laporan_kinerja_kompresi.pdf',
+            'mime' => 'application/pdf',
+            'ukuran_bytes' => 100 * 1024,
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $evaluations = collect($evaluator->handle($pengukuran))->keyBy('id');
+        $this->assertTrue($evaluations[$jb->id]['pemenuhan']['terpenuhi']);
+        $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
+    }
 }

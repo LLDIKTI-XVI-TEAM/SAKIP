@@ -26,7 +26,21 @@ class EvaluateEvidence
         return JenisBerkas::where('aktif', true)->where('tahap', 'pengukuran')->where(fn ($q) => $q->whereNull('indikator_id')->orWhere('indikator_id', $pengukuran->indikator_id))
             ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence) {
                 $modes = array_values(array_filter(['file', 'tautan', 'teks'], fn ($mode) => $requirement->{'izinkan_'.$mode}));
-                $fulfilled = $evidence->where('jenis_berkas_id', $requirement->id)->pluck('mode')->unique()->intersect($modes)->values()->all();
+                $fulfilled = $evidence->where('jenis_berkas_id', $requirement->id)->filter(function ($item) use ($requirement, $settings) {
+                    if ($item->mode === 'file') {
+                        $formats = array_filter(array_map('trim', explode(',', strtolower($requirement->format_diizinkan ?: $settings['format_diizinkan']))));
+                        $ext = strtolower(pathinfo((string) ($item->nama_asli ?? $item->path ?? ''), PATHINFO_EXTENSION));
+                        if (! empty($formats) && ! in_array($ext, $formats, true)) {
+                            return false;
+                        }
+                        $maxKb = $requirement->ukuran_maks_kb ?? $settings['ukuran_maks_kb'];
+                        if ($maxKb && $item->ukuran_bytes !== null && $item->ukuran_bytes > ($maxKb * 1024)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                })->pluck('mode')->unique()->intersect($modes)->values()->all();
                 $waived = ! $settings['unggahan_aktif'] && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
                 $available = array_values(array_diff($modes, $waived));
                 $missing = array_values(array_diff($available, $fulfilled));

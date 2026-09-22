@@ -92,9 +92,7 @@ class JenisBerkasController extends Controller
 
         $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil ditambahkan.');
 
-        if (! $isUnggahanAktif && ($data['wajib'] ?? false) && ($data['izinkan_file'] ?? false) && ! ($data['izinkan_tautan'] ?? false) && ! ($data['izinkan_teks'] ?? false)) {
-            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan wajib ini berpotensi tidak dapat dipenuhi PIC atau ditandai tidak dapat dipenuhi.');
-        }
+        $this->flashUploadWarningIfNeeded($redirect, $isUnggahanAktif, $data);
 
         return $redirect;
     }
@@ -164,9 +162,7 @@ class JenisBerkasController extends Controller
 
         $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
 
-        if (! $isUnggahanAktif && ($data['wajib'] ?? false) && ($data['izinkan_file'] ?? false) && ! ($data['izinkan_tautan'] ?? false) && ! ($data['izinkan_teks'] ?? false)) {
-            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan wajib ini berpotensi tidak dapat dipenuhi PIC atau ditandai tidak dapat dipenuhi.');
-        }
+        $this->flashUploadWarningIfNeeded($redirect, $isUnggahanAktif, $data);
 
         return $redirect;
     }
@@ -236,5 +232,27 @@ class JenisBerkasController extends Controller
         });
 
         return redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil dihapus.');
+    }
+
+    private function flashUploadWarningIfNeeded(RedirectResponse $redirect, bool $isUnggahanAktif, array $data): void
+    {
+        if ($isUnggahanAktif) {
+            return;
+        }
+
+        $wajib = $data['wajib'] ?? false;
+        $izinkanFile = $data['izinkan_file'] ?? false;
+        $izinkanTautan = $data['izinkan_tautan'] ?? false;
+        $izinkanTeks = $data['izinkan_teks'] ?? false;
+        $semuaModeWajib = $data['semua_mode_wajib'] ?? false;
+
+        $isFileOnlyWajib = $wajib && $izinkanFile && ! $izinkanTautan && ! $izinkanTeks;
+        $isSemuaModeWajibWithFile = $wajib && $semuaModeWajib && $izinkanFile;
+
+        if ($isFileOnlyWajib) {
+            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan wajib ini berpotensi tidak dapat dipenuhi PIC atau ditandai tidak dapat dipenuhi.');
+        } elseif ($isSemuaModeWajibWithFile) {
+            $redirect->with('warning', 'Peringatan: Mode unggahan file sedang dinonaktifkan pada setelan aplikasi (berkas.unggahan_aktif = false). Persyaratan "semua mode wajib" ini akan mengecualikan kewajiban file (waiver) saat evaluasi bukti.');
+        }
     }
 }
