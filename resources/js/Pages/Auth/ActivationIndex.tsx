@@ -1,3 +1,5 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/Components/Button';
@@ -14,6 +16,7 @@ function ActivationDialog({ user, onClose }: { user: PendingUser; onClose: () =>
     const dialog = useRef<HTMLDialogElement>(null);
     const reason = useRef<HTMLTextAreaElement>(null);
     const [message, setMessage] = useState('');
+    const recovery = useAuthRecovery();
     const { data, setData, post, processing, errors } = useForm({ alasan: '' });
 
     useEffect(() => {
@@ -24,7 +27,7 @@ function ActivationDialog({ user, onClose }: { user: PendingUser; onClose: () =>
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        if (processing) return;
+        if (processing || recovery.recovery || message) return;
         setMessage('');
         post(`/akses/aktivasi/${user.id}`, {
             preserveScroll: true,
@@ -38,12 +41,13 @@ function ActivationDialog({ user, onClose }: { user: PendingUser; onClose: () =>
                     setMessage('Hasil aktivasi belum terkonfirmasi. Periksa status akun sebelum mencoba kembali.');
                 }
             },
+            onCancel: () => { setMessage('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
             onNetworkError: () => {
                 setMessage('Koneksi terputus. Hasil aktivasi belum diketahui; periksa status akun sebelum mencoba kembali.');
                 return false;
             },
-            onHttpException: () => {
-                setMessage('Aktivasi belum dapat dipastikan. Sesi atau izin mungkin berubah. Periksa status akun sebelum mencoba kembali.');
+            onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/akses/aktivasi/${user.id}`, mutation: true })) return false;
+                setMessage(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
                 return false;
             },
         });
@@ -52,7 +56,7 @@ function ActivationDialog({ user, onClose }: { user: PendingUser; onClose: () =>
     return (
         <dialog ref={dialog} aria-labelledby="activation-title" aria-describedby="activation-description" onCancel={(event) => {
             if (processing) event.preventDefault();
-        }} onClose={onClose} className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
+        }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] overflow-y-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
             <h2 id="activation-title" className="text-lg font-semibold">Aktifkan akun</h2>
             <p id="activation-description" className="mt-2 break-words text-sm text-muted">Aktifkan {user.nama} ({user.email}). Peran dan izin akun tetap mengikuti pengaturan yang berlaku.</p>
             <form onSubmit={submit} className="mt-5 space-y-4" aria-busy={processing}>
@@ -61,10 +65,11 @@ function ActivationDialog({ user, onClose }: { user: PendingUser; onClose: () =>
                     <textarea ref={reason} id="activation-reason" name="alasan" required autoFocus rows={4} value={data.alasan} onChange={(event) => setData('alasan', event.target.value)} disabled={processing} aria-invalid={Boolean(errors.alasan)} aria-describedby={errors.alasan ? 'activation-error' : 'activation-help'} className="mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
                     {errors.alasan ? <p id="activation-error" role="alert" className="mt-1 text-sm text-danger">{errors.alasan}</p> : <p id="activation-help" className="mt-1 text-xs text-muted">Alasan dicatat dalam jejak audit.</p>}
                 </div>
-                {message && <p role="alert" className="text-sm text-danger">{message}</p>}
+                <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
+                {message && !recovery.recovery && <p role="alert" className="text-sm text-danger">{message}</p>}
                 <div className="flex flex-wrap justify-end gap-3">
                     <Button type="button" variant="outline" className={secondaryButton} disabled={processing} onClick={onClose}>Batal</Button>
-                    <Button type="submit" className={primaryButton} isLoading={processing}>Konfirmasi aktivasi</Button>
+                    <Button disabled={Boolean(recovery.recovery || message)} type="submit" className={primaryButton} isLoading={processing}>Konfirmasi aktivasi</Button>
                 </div>
             </form>
         </dialog>

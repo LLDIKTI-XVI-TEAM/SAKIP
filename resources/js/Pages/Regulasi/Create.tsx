@@ -1,4 +1,7 @@
-import React from 'react';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
+import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -8,6 +11,9 @@ import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
 import type { RegulasiFormData } from '@/types/regulasi';
 
 export default function CreateRegulasi() {
+    const recovery = useAuthRecovery();
+    const [recoveryUnknown, setRecoveryUnknown] = useState(false);
+    const [recoveryMessage, setRecoveryMessage] = useState('');
     const form = useForm<RegulasiFormData>({
         jenis: 'kepmen',
         nomor: '',
@@ -23,7 +29,17 @@ export default function CreateRegulasi() {
 
     const submit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post('/regulasi', { forceFormData: true });
+        if (form.processing || recovery.recovery || recoveryUnknown) return;
+        form.post('/regulasi', { forceFormData: true,
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/regulasi', mutation: true })) return false;
+                setRecoveryMessage(response.status === 403 ? 'Akses ditolak. Hasil tindakan sebelumnya belum dapat dipastikan. Periksa akses dan data terbaru.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setRecoveryUnknown(true);
+                return false;
+            },
+            onCancel: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
+            onNetworkError: () => { setRecoveryUnknown(true); setRecoveryMessage('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
+        });
     };
 
     return (
@@ -42,6 +58,7 @@ export default function CreateRegulasi() {
                 </div>
 
                 <form onSubmit={submit} noValidate>
+                    <><AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />{!recovery.recovery && <RegulasiFailureNotice message={recoveryMessage} />}</>
                     <Card>
                         <CardContent>
                             <RegulasiFormFields
@@ -58,7 +75,7 @@ export default function CreateRegulasi() {
                             >
                                 Batal
                             </Link>
-                            <Button type="submit" isLoading={form.processing}>
+                            <Button disabled={Boolean(recovery.recovery) || recoveryUnknown} type="submit" isLoading={form.processing}>
                                 <Save className="h-4 w-4" aria-hidden="true" />
                                 Simpan dasar aturan
                             </Button>

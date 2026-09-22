@@ -4,11 +4,12 @@ import { afterEach, expect, it, vi } from 'vitest';
 import CalculationPreview from '@/Pages/Pengukuran/CalculationPreview';
 import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 
+const onRecovery = vi.fn();
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it.each([[401, 'Sesi kedaluwarsa'], [419, 'Sesi kedaluwarsa'], [403, 'Akses pratinjau ditolak'], [422, 'Input pratinjau tidak valid'], [503, 'Pratinjau belum tersedia']])('memberikan tindak lanjut sesuai kegagalan HTTP %s', async (status, message) => {
+it.each([[403, 'Akses pratinjau ditolak'], [422, 'Input pratinjau tidak valid'], [503, 'Pratinjau belum tersedia']])('memberikan tindak lanjut sesuai kegagalan HTTP %s', async (status, message) => {
     vi.spyOn(http.getClient(), 'request').mockRejectedValueOnce(new HttpResponseError('Ditolak', { status: Number(status), data: '', headers: {} }));
-    render(<CalculationPreview id="pengukuran-uji" satuan="%" desimalTampilan={2} komponen={[{ komponen_id: 'a', nilai: '80' }]} />);
+    render(<CalculationPreview paused={false} onRecovery={onRecovery} id="pengukuran-uji" satuan="%" desimalTampilan={2} komponen={[{ komponen_id: 'a', nilai: '80' }]} />);
     await screen.findByText(new RegExp(String(message)));
     expect(screen.queryByText('80,00 %')).toBeNull();
 });
@@ -25,9 +26,9 @@ it('mengambil pratinjau server, membatalkan request lama dan mengabaikan hasil b
     request.mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }));
     request.mockResolvedValueOnce({ status: 200, data: JSON.stringify({ nilai: '90.00', status_perhitungan: 'terhitung' }), headers: {} });
     const props = { id: 'pengukuran-uji', satuan: '%', desimalTampilan: 2, komponen: [{ komponen_id: 'a', nilai: '80' }] };
-    const { rerender } = render(<CalculationPreview {...props} />);
+    const { rerender } = render(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} />);
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-    rerender(<CalculationPreview {...props} komponen={[{ komponen_id: 'a', nilai: '90' }]} />);
+    rerender(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} komponen={[{ komponen_id: 'a', nilai: '90' }]} />);
     expect(screen.queryByText('80,00 %')).toBeNull();
     await screen.findByText('90,00 %');
     expect(request.mock.calls[0][0].signal?.aborted).toBe(true);
@@ -40,10 +41,24 @@ it('mengambil pratinjau server, membatalkan request lama dan mengabaikan hasil b
 it('menampilkan penyebut nol dan kegagalan tanpa menyajikan angka lama sebagai hasil baru', async () => {
     const request = vi.spyOn(http.getClient(), 'request').mockResolvedValueOnce({ status: 200, data: JSON.stringify({ nilai: null, status_perhitungan: 'tidak_dapat_dihitung' }), headers: {} });
     const props = { id: 'pengukuran-uji', satuan: '%', desimalTampilan: 2, komponen: [{ komponen_id: 'a', nilai: '0' }] };
-    const { rerender } = render(<CalculationPreview {...props} />);
+    const { rerender } = render(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} />);
     await screen.findByText('Tidak dapat dihitung');
     request.mockRejectedValueOnce(new Error('Koneksi putus'));
-    rerender(<CalculationPreview {...props} komponen={[{ komponen_id: 'a', nilai: '' }]} />);
+    rerender(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} komponen={[{ komponen_id: 'a', nilai: '' }]} />);
     await screen.findByText(/Pratinjau belum tersedia/);
     expect(screen.queryByText('Tidak dapat dihitung')).toBeNull();
+});
+
+
+it.each([401, 419])('meneruskan preview %s ke parent dan berhenti ketika dipause', async (status) => {
+    const failure = { status, data: '{}', headers: {} };
+    const request = vi.spyOn(http.getClient(), 'request').mockRejectedValue(new HttpResponseError('Ditolak', failure));
+    const recovery = vi.fn();
+    const props = { id: 'qa', satuan: '%', desimalTampilan: 2, komponen: [{ komponen_id: 'a', nilai: '1' }], onRecovery: recovery };
+    const { rerender } = render(<CalculationPreview {...props} paused={false} />);
+    await waitFor(() => expect(recovery).toHaveBeenCalledWith(failure));
+    rerender(<CalculationPreview {...props} paused={true} komponen={[{ komponen_id: 'a', nilai: '2' }]} />);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Pratinjau dihentikan/)).toBeTruthy();
 });

@@ -140,4 +140,83 @@ class AuthHttpTest extends TestCase
         $this->get('/auth/logged-out')->assertInertia(fn (Assert $page) => $page->component('Auth/LoggedOut')->where('auth.user', null));
         $this->get('/dashboard')->assertRedirect('/login');
     }
+
+    public function test_recovery_login_is_explicit_and_normal_login_clears_stale_marker(): void
+    {
+        $this->withSession(['auth_recovery_requested' => true, 'auth_recovery_retry' => true])
+            ->get('/login?recovery=true&return_to=https://attacker.test')->assertRedirect()
+            ->assertSessionMissing('auth_recovery_requested')->assertSessionMissing('auth_recovery_retry');
+        $this->get('/login?recovery=1&outcome=saved&target=secret')->assertRedirect()->assertSessionHas('auth_recovery_requested', true);
+        $this->get('/login')->assertRedirect()->assertSessionMissing('auth_recovery_requested');
+    }
+
+    public function test_recovery_callback_is_one_shot_and_does_not_require_dashboard_permission(): void
+    {
+        $user = User::factory()->create(['keycloak_id' => 'recovery-qa', 'is_active' => true]);
+        $this->mock(KeycloakIdentityProvider::class)->shouldReceive('identity')->twice()
+            ->andReturn(['subject' => 'recovery-qa', 'nama' => 'Recovery QA', 'email' => 'qa@example.test']);
+        $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')
+            ->assertRedirect('/auth/recovered')->assertSessionMissing('auth_recovery_requested');
+        $this->get('/auth/recovered')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth/Recovered')->where('auth.can.dashboard', false));
+        $this->get('/dashboard')->assertForbidden();
+        $this->get('/auth/keycloak/callback')->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_failed_recovery_only_leaves_one_read_presentation_and_normal_login_cleans_it(): void
+    {
+        $provider = $this->mock(KeycloakIdentityProvider::class);
+        $provider->shouldReceive('identity')->andThrow(new \RuntimeException('safe-test'));
+        $provider->shouldReceive('redirect')->andReturn(redirect('https://sso.test/login'));
+        $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')
+            ->assertRedirect('/auth/error')->assertSessionMissing('auth_recovery_requested')->assertSessionHas('auth_recovery_retry', true);
+        $this->get('/auth/error')->assertInertia(fn (Assert $page) => $page->where('recoveryRetry', true))->assertSessionMissing('auth_recovery_retry');
+        $this->get('/auth/error')->assertInertia(fn (Assert $page) => $page->where('recoveryRetry', false));
+        $this->withSession(['auth_recovery_retry' => true])->get('/login')->assertSessionMissing('auth_recovery_retry')->assertSessionMissing('auth_recovery_requested');
+        $this->get('/login?recovery=1')->assertSessionHas('auth_recovery_requested', true);
+    }
+
+    public function test_provider_start_failure_and_inactive_recovery_do_not_leave_authoritative_marker(): void
+    {
+        $provider = $this->mock(KeycloakIdentityProvider::class);
+        $provider->shouldReceive('redirect')->once()->andThrow(new \RuntimeException('start-test'));
+        $this->get('/login?recovery=1')->assertRedirect('/auth/error')->assertSessionMissing('auth_recovery_requested')->assertSessionHas('auth_recovery_retry', true);
+        $provider->shouldReceive('identity')->once()->andReturn(['subject' => 'pending-recovery', 'nama' => 'QA', 'email' => 'qa@example.test']);
+        $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')->assertRedirect('/auth/pending')->assertSessionMissing('auth_recovery_requested');
+        $this->assertSame('no_replay', session('inertia.flash_data.authRecoveryNotice'));
+        $this->get('/auth/recovered')->assertRedirect('/auth/pending');
+    }
+
+    public function test_canonical_recovery_carries_only_literal_flag_and_logout_clears_it(): void
+    {
+        app()->instance('env', 'local');
+        config(['services.keycloak.redirect' => 'http://localhost:8197/auth/keycloak/callback']);
+        $this->withSession(['auth_recovery_requested' => true])->get('http://127.0.0.1:8197/login?recovery=1&return_to=https://attacker.test')
+            ->assertRedirect('http://localhost:8197/login?recovery=1')->assertSessionMissing('auth_recovery_requested');
+        app()->instance('env', 'testing');
+        $this->withSession(['auth_recovery_requested' => true, 'auth_recovery_retry' => true])->post('/logout')
+            ->assertSessionMissing('auth_recovery_requested')->assertSessionMissing('auth_recovery_retry');
+    }
+
+    public function test_failed_attempt_then_explicit_retry_consumes_new_marker_for_new_identity(): void
+    {
+        $other = User::factory()->create(['keycloak_id' => 'other-recovery-qa', 'is_active' => true]);
+        $calls = 0;
+        $provider = $this->mock(KeycloakIdentityProvider::class);
+        $provider->shouldReceive('redirect')->andReturn(redirect('https://sso.test/login'));
+        $provider->shouldReceive('identity')->andReturnUsing(function () use (&$calls) {
+            if ($calls++ === 0) {
+                throw new \RuntimeException('qa failure');
+            }
+
+            return ['subject' => 'other-recovery-qa', 'nama' => 'Other QA', 'email' => 'other@example.test'];
+        });
+        $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')->assertRedirect('/auth/error');
+        $this->get('/auth/error')->assertInertia(fn (Assert $page) => $page->where('recoveryRetry', true));
+        $this->get('/login?recovery=1')->assertSessionHas('auth_recovery_requested', true);
+        $this->get('/auth/keycloak/callback')->assertRedirect('/auth/recovered')->assertSessionMissing('auth_recovery_requested');
+        $this->assertAuthenticatedAs($other);
+        $this->get('/login')->assertSessionMissing('auth_recovery_requested');
+        $this->get('/auth/keycloak/callback')->assertRedirect('/dashboard');
+    }
 }
