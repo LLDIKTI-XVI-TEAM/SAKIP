@@ -29,7 +29,7 @@ export const Badge: React.FC<BadgeProps> = ({ status, className, children }) => 
         },
         dikembalikan: {
             label: 'Dikembalikan',
-            style: 'bg-danger/15 text-danger border-danger/30',
+            style: 'bg-danger/15 text-danger-dark border-danger/30',
             dotColor: 'bg-danger',
         },
         disahkan: {

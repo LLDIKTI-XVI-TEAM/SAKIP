@@ -227,7 +227,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                 {hasPeriode ? stats[key] : '—'}
                             </p>
                         </div>
-                        <p className="mt-4 text-xs text-slate-400 font-medium">
+                        <p className="mt-4 text-xs font-medium text-muted">
                             {hasPeriode ? (key === 'total' ? periodeLabel : desc) : 'Tidak ada periode aktif'}
                         </p>
                     </div>
