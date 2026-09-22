@@ -216,7 +216,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                 </div>
 
                 {/* Navigation Menu */}
-                <div className="flex-1 overflow-y-auto px-3 py-3">
+                <div className="flex-1 overflow-y-auto px-3 py-3 sidebar-scroll">
                     <nav aria-label="Navigasi utama" className="space-y-1.5">
                         {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
                             const active = url.split('?')[0].startsWith(href);
@@ -224,6 +224,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                                 <Link
                                     key={href}
                                     href={href}
+                                    title={label}
                                     aria-current={active ? 'page' : undefined}
                                     onClick={() => setNavigationOpen(false)}
                                     className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
