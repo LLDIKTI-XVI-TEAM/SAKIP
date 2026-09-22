@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -29,6 +30,7 @@ class HandleInertiaRequests extends Middleware
                         'regulasi' => $can['regulasi'],
                         'assignRole' => $can['assignRole'],
                         'manageDeny' => $can['manageDeny'],
+                        'manageRolePermissions' => $can['manageRolePermissions'],
                     ],
                 ];
             },
@@ -51,6 +53,7 @@ class HandleInertiaRequests extends Middleware
             'aktivasi' => false,
             'assignRole' => false,
             'manageDeny' => false,
+            'manageRolePermissions' => false,
             'regulasi' => false,
             'regulasi:create' => false,
             'regulasi:read' => false,
@@ -77,6 +80,7 @@ class HandleInertiaRequests extends Middleware
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),
             'manageDeny' => $resolver->allows($user, 'akses:update'),
+            'manageRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
             'regulasi:read' => $regulasiRead,
