@@ -156,11 +156,19 @@ class MasterUnitOrganisasiTest extends TestCase
         ]);
 
         // Superadmin mencoba menghapus unit yang ada indikatornya
-        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}");
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => 'Mencoba hapus unit yang memiliki indikator',
+        ]);
 
-        // Ditolak oleh Policy (403)
+        // Ditolak dengan 403 dan dicatat di audit log
         $response->assertStatus(403);
         $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->superadmin->id,
+            'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 
     /**
@@ -186,15 +194,23 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $this->assertFalse($unit->isDeletable());
 
-        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}");
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => 'Mencoba hapus unit yang memiliki deny',
+        ]);
 
-        // Ditolak oleh Policy (403)
+        // Ditolak dengan 403 dan dicatat di audit log
         $response->assertStatus(403);
         $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->superadmin->id,
+            'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 
     /**
-     * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong.
+     * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong dengan alasan tertulis.
      */
     public function test_superadmin_can_delete_empty_unit(): void
     {
@@ -204,7 +220,11 @@ class MasterUnitOrganisasiTest extends TestCase
             'created_by' => $this->superadmin->id,
         ]);
 
-        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}");
+        $alasan = 'Unit kosong hasil uji coba dihapus secara administratif';
+
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => $alasan,
+        ]);
 
         $response->assertRedirect('/unit');
         $response->assertSessionHas('success');
@@ -216,7 +236,33 @@ class MasterUnitOrganisasiTest extends TestCase
             'tindakan' => 'unit.hapus',
             'objek_tipe' => 'unit',
             'objek_id' => (string) $unit->id,
+            'alasan' => $alasan,
         ]);
+    }
+
+    /**
+     * Codex Review 5: Penghapusan unit wajib mencantumkan alasan minimal 5 karakter.
+     */
+    public function test_delete_unit_requires_reason(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Uji Alasan',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        // 1. Tanpa alasan
+        $responseMissing = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", []);
+        $responseMissing->assertSessionHasErrors('alasan');
+
+        // 2. Alasan terlalu pendek (< 5 karakter)
+        $responseShort = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => 'abc',
+        ]);
+        $responseShort->assertSessionHasErrors('alasan');
+
+        // Unit tetap utuh
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
     }
 
     /**
@@ -230,10 +276,18 @@ class MasterUnitOrganisasiTest extends TestCase
             'created_by' => $this->superadmin->id,
         ]);
 
-        $response = $this->actingAs($this->admin)->delete("/unit/{$unit->id}");
+        $response = $this->actingAs($this->admin)->delete("/unit/{$unit->id}", [
+            'alasan' => 'Admin mencoba menghapus unit',
+        ]);
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->admin->id,
+            'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 
     /**

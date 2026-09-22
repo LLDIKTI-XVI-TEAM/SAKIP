@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -709,5 +710,154 @@ class GrantIzinTambahanUnitTest extends TestCase
             'Format ID unit tidak valid.',
             session('errors')->first('unit_id')
         );
+    }
+
+    /**
+     * Codex Review 1: Tolak penerima grant yang sudah nonaktif.
+     */
+    public function test_cannot_grant_permission_to_inactive_user(): void
+    {
+        $inactiveUser = User::factory()->create([
+            'nama' => 'User Nonaktif',
+            'email' => 'nonaktif@sakip.test',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $inactiveUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Mencoba memberikan izin ke akun nonaktif',
+            ]);
+
+        $response->assertSessionHasErrors('user_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $inactiveUser->id,
+        ]);
+    }
+
+    /**
+     * Codex Review 2: Tolak pembuatan grant untuk unit nonaktif.
+     */
+    public function test_cannot_grant_permission_for_inactive_unit(): void
+    {
+        $inactiveUnit = Unit::create([
+            'nama' => 'Unit Nonaktif Uji',
+            'status' => 'nonaktif',
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $inactiveUnit->id,
+                'alasan' => 'Mencoba memberikan izin pada unit nonaktif',
+            ]);
+
+        $response->assertSessionHasErrors('unit_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'unit_id' => $inactiveUnit->id,
+        ]);
+    }
+
+    /**
+     * Codex Review 4: Catat penolakan aksi sensitif sebelum mengembalikan 403 saat aktor memiliki explicit deny.
+     */
+    public function test_explicit_deny_on_akses_update_records_denial_audit_before_403(): void
+    {
+        $perm = Permission::where('kode', 'akses:update')->firstOrFail();
+
+        // Admin di-deny untuk akses:update
+        UserPermissionDeny::create([
+            'user_id' => $this->adminUser->id,
+            'permission_id' => $perm->id,
+            'unit_id' => null,
+            'alasan' => 'Larangan eksplisit kelola akses',
+            'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+
+        // 1. Coba Store Grant
+        $responseStore = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Percobaan store grant saat di-deny',
+            ]);
+
+        $responseStore->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'alasan' => 'Anda tidak berwenang mengelola pemberian izin unit.',
+        ]);
+
+        // 2. Coba Revoke Grant
+        $grant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant awal oleh superadmin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $responseRevoke = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$grant->id}", [
+                'alasan' => 'Percobaan revoke saat di-deny',
+            ]);
+
+        $responseRevoke->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'alasan' => 'Anda tidak berwenang mengelola pencabutan izin unit.',
+        ]);
+    }
+
+    /**
+     * Codex Review 4: Penolakan Admin mengelola grant Admin/Superadmin dicatat di audit log.
+     */
+    public function test_admin_granting_or_revoking_admin_records_denial_audit(): void
+    {
+        // 1. Admin mencoba grant ke admin lain
+        $responseStore = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->otherAdminUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Admin mencoba memberi grant ke admin lain',
+            ]);
+
+        $responseStore->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'users',
+            'objek_id' => $this->otherAdminUser->id,
+        ]);
+
+        // 2. Admin mencoba revoke grant milik admin lain
+        $grantAdmin = UserPermissionGrant::create([
+            'user_id' => $this->otherAdminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Diberikan oleh superadmin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $responseRevoke = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$grantAdmin->id}", [
+                'alasan' => 'Admin mencoba mencabut grant admin lain',
+            ]);
+
+        $responseRevoke->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => (string) $grantAdmin->id,
+        ]);
     }
 }

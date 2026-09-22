@@ -49,6 +49,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const [editingUnit, setEditingUnit] = useState<UnitItem | null>(null);
     const [deletingUnit, setDeletingUnit] = useState<UnitItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteReason, setDeleteReason] = useState('');
+    const [deleteError, setDeleteError] = useState('');
 
     // Form Tambah Unit
     const createForm = useForm({
@@ -129,12 +131,22 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         e.preventDefault();
         if (!deletingUnit) return;
 
+        if (deleteReason.trim().length < 5) {
+            setDeleteError('Alasan penghapusan unit wajib diisi minimal 5 karakter.');
+            return;
+        }
+
         setIsDeleting(true);
         router.delete(`/unit/${deletingUnit.id}`, {
+            data: {
+                alasan: deleteReason.trim(),
+            },
             preserveScroll: true,
             onFinish: () => {
                 setIsDeleting(false);
                 setDeletingUnit(null);
+                setDeleteReason('');
+                setDeleteError('');
             },
         });
     };
@@ -338,7 +350,11 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => setDeletingUnit(unit)}
+                                                            onClick={() => {
+                                                                setDeletingUnit(unit);
+                                                                setDeleteReason('');
+                                                                setDeleteError('');
+                                                            }}
                                                             title="Hapus Unit Kosong (Superadmin)"
                                                             className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:border-rose-200"
                                                         >
@@ -513,6 +529,33 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         </div>
 
                         <form onSubmit={handleDeleteSubmit} className="p-5 space-y-4 text-xs">
+                            <div className="space-y-1.5">
+                                <label htmlFor="delete_alasan" className="block font-semibold text-slate-700">
+                                    Alasan Penghapusan <span className="text-rose-600">*</span>
+                                </label>
+                                <textarea
+                                    id="delete_alasan"
+                                    rows={3}
+                                    value={deleteReason}
+                                    onChange={(e) => {
+                                        setDeleteReason(e.target.value);
+                                        if (e.target.value.trim().length >= 5) {
+                                            setDeleteError('');
+                                        }
+                                    }}
+                                    placeholder="Masukkan dasar administratif penghapusan unit (minimal 5 karakter)..."
+                                    className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-colors"
+                                    required
+                                    minLength={5}
+                                />
+                                {deleteError && (
+                                    <p className="text-[11px] text-rose-600">{deleteError}</p>
+                                )}
+                                <p className="text-[11px] text-slate-500">
+                                    Alasan tertulis diwajibkan sebagai rekaman permanen pada audit trail SAKIP.
+                                </p>
+                            </div>
+
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                                 <Button
                                     type="button"
@@ -523,7 +566,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={isDeleting}
+                                    disabled={isDeleting || deleteReason.trim().length < 5}
                                     className="bg-rose-600 hover:bg-rose-700 text-white"
                                 >
                                     {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}

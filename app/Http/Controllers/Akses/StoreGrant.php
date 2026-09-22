@@ -13,44 +13,85 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreGrant extends Controller
 {
     public function __invoke(Request $request, AuditLogger $auditLogger, PermissionResolver $permissionResolver): RedirectResponse
     {
-        Gate::authorize('akses:update');
-
-        /** @var User $actor */
+        /** @var User|null $actor */
         $actor = $request->user();
-        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
-            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang memberikan izin unit.');
+        if (! $actor) {
+            abort(401);
+        }
+
+        $decision = $permissionResolver->resolve($actor, 'akses:update');
+        if (! $decision->allowed || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'user_permission_granted.ditolak',
+                objekTipe: 'user_permission_granted',
+                objekId: (string) Str::uuid(),
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: 'Anda tidak berwenang mengelola pemberian izin unit.',
+                dasarIzin: $decision->toAuditBasis(),
+            );
+
+            abort(403, 'Anda tidak berwenang mengelola pemberian izin unit.');
         }
 
         $validated = $request->validate([
-            'user_id' => ['required', 'bail', 'uuid', 'exists:users,id'],
+            'user_id' => [
+                'required',
+                'bail',
+                'uuid',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'permission_id' => ['required', 'bail', 'uuid', 'exists:permissions,id'],
-            'unit_id' => ['nullable', 'bail', 'uuid', 'exists:unit,id'],
+            'unit_id' => [
+                'nullable',
+                'bail',
+                'uuid',
+                Rule::exists('unit', 'id')->where(fn ($query) => $query->where('status', 'aktif')),
+            ],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ], [
             'user_id.required' => 'Pengguna target wajib dipilih.',
             'user_id.uuid' => 'Format ID pengguna tidak valid.',
-            'user_id.exists' => 'Pengguna target tidak ditemukan.',
+            'user_id.exists' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
             'permission_id.required' => 'Permission wajib dipilih.',
             'permission_id.uuid' => 'Format ID permission tidak valid.',
             'permission_id.exists' => 'Permission tidak ditemukan dalam katalog.',
             'unit_id.uuid' => 'Format ID unit tidak valid.',
-            'unit_id.exists' => 'Unit target tidak ditemukan.',
+            'unit_id.exists' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
             'alasan.required' => 'Alasan pemberian grant wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan pemberian grant minimal 5 karakter.',
         ]);
 
-        /** @var User $targetUser */
-        $targetUser = User::with('roles')->findOrFail($validated['user_id']);
+        /** @var User|null $targetUser */
+        $targetUser = User::with('roles')->find($validated['user_id']);
+        if (! $targetUser || ! $targetUser->is_active) {
+            throw ValidationException::withMessages([
+                'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+            ]);
+        }
 
         // Admin tidak dapat merubah/memberikan izin kepada Admin dan Superadmin
         if ($targetUser->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'user_permission_granted.ditolak',
+                objekTipe: 'users',
+                objekId: (string) $targetUser->id,
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.',
+                dasarIzin: $decision->toAuditBasis(),
+            );
+
             abort(403, 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.');
         }
 
@@ -77,8 +118,13 @@ class StoreGrant extends Controller
         }
 
         // Pastikan unit_id valid dan aktif
-        /** @var Unit $unit */
-        $unit = Unit::findOrFail($validated['unit_id']);
+        /** @var Unit|null $unit */
+        $unit = Unit::find($validated['unit_id']);
+        if (! $unit || $unit->status !== 'aktif') {
+            throw ValidationException::withMessages([
+                'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+            ]);
+        }
 
         // AC-4: Cek duplikasi user-permission-unit
         $isDuplicate = UserPermissionGrant::where('user_id', $validated['user_id'])
@@ -93,12 +139,15 @@ class StoreGrant extends Controller
         }
 
         try {
-            DB::transaction(function () use ($targetUser, $permission, $unit, $validated, $actor, $auditLogger, $permissionResolver) {
+            DB::transaction(function () use ($targetUser, $permission, $unit, $validated, $actor, $auditLogger, $decision) {
+                // Kunci unit dengan sharedLock agar urutan penguncian konsisten terhadap lockForUpdate di penghapusan unit
+                $lockedUnit = Unit::whereKey($unit->id)->sharedLock()->firstOrFail();
+
                 // AC-1 & AC-5: Simpan grant
                 $grant = UserPermissionGrant::create([
                     'user_id' => $targetUser->id,
                     'permission_id' => $permission->id,
-                    'unit_id' => $unit->id,
+                    'unit_id' => $lockedUnit->id,
                     'alasan' => $validated['alasan'],
                     'diberikan_oleh' => $actor->id,
                 ]);
@@ -115,13 +164,13 @@ class StoreGrant extends Controller
                         'user_nama' => $targetUser->nama,
                         'permission_id' => $permission->id,
                         'permission_kode' => $permission->kode,
-                        'unit_id' => $unit->id,
-                        'unit_nama' => $unit->nama,
+                        'unit_id' => $lockedUnit->id,
+                        'unit_nama' => $lockedUnit->nama,
                         'alasan' => $grant->alasan,
                         'diberikan_oleh' => $actor->id,
                     ],
                     alasan: $grant->alasan,
-                    dasarIzin: $permissionResolver->resolve($actor, 'akses:update')->toAuditBasis(),
+                    dasarIzin: $decision->toAuditBasis(),
                 );
             });
         } catch (QueryException $exception) {
