@@ -121,7 +121,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
         if (trigger.current?.isConnected) trigger.current.focus();
         else title.current?.focus();
     }, [selected]);
-    return <AuthenticatedLayout title="Penetapan Peran">
+    return <AuthenticatedLayout title="Penetapan Peran" hasCustomHeading>
         <Head title="Penetapan Peran" />
         {successMessage && dismissedFlash !== flash && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
             <CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />

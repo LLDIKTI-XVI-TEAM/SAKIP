@@ -27,9 +27,18 @@ interface AuthenticatedLayoutProps {
     children: ReactNode;
     title?: string;
     breadcrumbs?: { label: string; href?: string }[];
+    renderTitleHeading?: boolean;
+    hasCustomHeading?: boolean;
 }
 
-export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: AuthenticatedLayoutProps) {
+export function AuthenticatedLayout({
+    children,
+    title,
+    breadcrumbs = [],
+    renderTitleHeading = true,
+    hasCustomHeading = false,
+}: AuthenticatedLayoutProps) {
+    const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
     const { props: { auth, flash }, url } = usePage<SharedPageProps>();
     const [navigationOpen, setNavigationOpen] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
@@ -218,68 +227,70 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     </button>
                 </div>
 
-                {/* Navigation Menu */}
-                <div className="flex-1 overflow-y-auto px-3 py-3 sidebar-scroll">
-                    <nav aria-label="Navigasi utama" className="space-y-1.5">
-                        {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
-                            const active = url.split('?')[0].startsWith(href);
-                            return (
-                                <Link
-                                    key={href}
-                                    href={href}
-                                    title={label}
-                                    aria-current={active ? 'page' : undefined}
-                                    onClick={() => setNavigationOpen(false)}
-                                    className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
-                                        active
-                                            ? 'bg-surface/15 text-white font-semibold shadow-xs'
-                                            : 'text-white/75 hover:bg-surface/10 hover:text-white'
-                                    }`}
-                                >
-                                    <Icon
-                                        aria-hidden="true"
-                                        className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? 'text-white' : 'text-white/75 group-hover:text-white'}`}
-                                    />
-                                    <span className="truncate">{label}</span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </div>
-
-                {/* Bottom User Profile Section */}
-                <div className="border-t border-white/10 bg-primary p-4 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
-                            <User className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-bold text-white leading-tight">
-                                {auth.user?.nama || 'Pengguna'}
-                            </p>
-                            <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
-                                {auth.user?.role || 'Belum ada peran'}
-                            </p>
-                        </div>
+                {/* Scrollable Sidebar Body: Navigation & Profile */}
+                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between sidebar-scroll">
+                    <div className="px-3 py-3">
+                        <nav aria-label="Navigasi utama" className="space-y-1.5">
+                            {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
+                                const active = url.split('?')[0].startsWith(href);
+                                return (
+                                    <Link
+                                        key={href}
+                                        href={href}
+                                        title={label}
+                                        aria-current={active ? 'page' : undefined}
+                                        onClick={() => setNavigationOpen(false)}
+                                        className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
+                                            active
+                                                ? 'bg-surface/15 text-white font-semibold shadow-xs'
+                                                : 'text-white/75 hover:bg-surface/10 hover:text-white'
+                                        }`}
+                                    >
+                                        <Icon
+                                            aria-hidden="true"
+                                            className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? 'text-white' : 'text-white/75 group-hover:text-white'}`}
+                                        />
+                                        <span className="truncate">{label}</span>
+                                    </Link>
+                                );
+                            })}
+                        </nav>
                     </div>
 
-                    {recovery.recovery && (
-                        <div className="mt-3 flow-root rounded-lg bg-surface px-3 text-ink">
-                            <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
+                    {/* Bottom User Profile Section */}
+                    <div className="mt-auto border-t border-white/10 bg-primary p-4 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
+                                <User className="h-5 w-5" aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-bold text-white leading-tight">
+                                    {auth.user?.nama || 'Pengguna'}
+                                </p>
+                                <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
+                                    {auth.user?.role || 'Belum ada peran'}
+                                </p>
+                            </div>
                         </div>
-                    )}
-                    {logoutError && <p role="alert" className="mt-3 rounded-lg border border-danger/30 bg-surface p-3 text-xs font-medium leading-relaxed text-danger">{logoutError}</p>}
 
-                    <form onSubmit={handleLogout} className="mt-3">
-                        <button
-                            type="submit"
-                            disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
-                            <span>{logout.processing ? 'Keluar…' : 'Keluar sistem'}</span>
-                        </button>
-                    </form>
+                        {recovery.recovery && (
+                            <div className="mt-3 flow-root rounded-lg bg-surface px-3 text-ink">
+                                <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
+                            </div>
+                        )}
+                        {logoutError && <p role="alert" className="mt-3 rounded-lg border border-danger/30 bg-surface p-3 text-xs font-medium leading-relaxed text-danger">{logoutError}</p>}
+
+                        <form onSubmit={handleLogout} className="mt-3">
+                            <button
+                                type="submit"
+                                disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+                                <span>{logout.processing ? 'Keluar…' : 'Keluar sistem'}</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </aside>
 
@@ -348,7 +359,13 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                                 ))}
                             </nav>
                         )}
-                        {title && <h1 className="text-lg font-bold text-ink">{title}</h1>}
+                        {title && (
+                            shouldRenderH1 ? (
+                                <h1 className="text-lg font-bold text-ink">{title}</h1>
+                            ) : (
+                                <p className="text-lg font-bold text-ink">{title}</p>
+                            )
+                        )}
                     </header>
                 )}
 
