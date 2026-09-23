@@ -112,9 +112,9 @@ class DestroyUnit extends Controller
                             'nama' => $unit->nama,
                             'status' => $unit->status,
                         ],
-                        'alasan' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.',
+                        'alasan' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, snapshot jadwal, atau izin terkait.',
                         'dasarIzin' => $currentDecision->toAuditBasis(),
-                        'message' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.',
+                        'message' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, snapshot jadwal, atau izin terkait.',
                     ];
                 }
 
@@ -158,7 +158,7 @@ class DestroyUnit extends Controller
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
-                abort(403, 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.');
+                abort(403, 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, snapshot jadwal, atau izin terkait.');
             }
 
             throw $exception;

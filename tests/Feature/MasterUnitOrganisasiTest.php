@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
+use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
@@ -212,6 +215,178 @@ class MasterUnitOrganisasiTest extends TestCase
             'objek_tipe' => 'unit',
             'objek_id' => (string) $unit->id,
         ]);
+    }
+
+    /**
+     * Review Codex: Unit yang pernah dibekukan di jadwal_snapshot dilarang dihapus
+     * sekalipun indikator induknya telah dipindahkan ke unit lain.
+     */
+    public function test_delete_unit_linked_to_jadwal_snapshot_is_rejected(): void
+    {
+        $unitAwal = Unit::create([
+            'nama' => 'Unit Pemilik Awal',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $unitBaru = Unit::create([
+            'nama' => 'Unit Pemilik Baru',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $renstra = Renstra::create([
+            'kode' => 'RENSTRA-SNAP-TEST',
+            'nama' => 'Renstra Snapshot Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'SS-SNAP',
+            'deskripsi' => 'Sasaran Snapshot',
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SNAP',
+            'nama' => 'Indikator Snapshot',
+            'satuan' => '%',
+            'unit_id' => $unitAwal->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $periode = Periode::create([
+            'nama' => 'Triwulan I Snapshot',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikator->id,
+            'nomor_versi' => 1,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $unitAwal->id,
+            'nama' => 'Indikator Snapshot Terbekukan',
+            'satuan' => '%',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 85,
+        ]);
+
+        // Pindahkan indikator induk ke unit baru
+        $indikator->update(['unit_id' => $unitBaru->id]);
+
+        // Verifikasi bahwa unit awal tidak memiliki relasi lain
+        $this->assertSame(0, $unitAwal->indikators()->count());
+        $this->assertSame(0, $unitAwal->rencanaAksis()->count());
+        $this->assertSame(0, $unitAwal->kegiatans()->count());
+        $this->assertSame(0, $unitAwal->permissionGrants()->count());
+        $this->assertSame(0, $unitAwal->permissionDenies()->count());
+
+        // Namun unit awal tetap terikat oleh snapshot jadwal historis
+        $this->assertSame(1, $unitAwal->jadwalSnapshots()->count());
+        $this->assertFalse($unitAwal->isDeletable());
+
+        // Superadmin mencoba menghapus unit awal
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unitAwal->id}", [
+            'alasan' => 'Mencoba menghapus unit yang pernah masuk jadwal snapshot',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('unit', ['id' => $unitAwal->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->superadmin->id,
+            'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unitAwal->id,
+        ]);
+    }
+
+    /**
+     * Review Codex: Foreign key constraint di database mencegah penghapusan unit
+     * yang dirujuk oleh jadwal_snapshot.
+     */
+    public function test_foreign_key_constraint_prevents_raw_deletion_of_unit_in_jadwal_snapshot(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Uji Constraint FK',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $renstra = Renstra::create([
+            'kode' => 'RENSTRA-FK-TEST',
+            'nama' => 'Renstra FK Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id,
+            'kode' => 'SS-FK',
+            'deskripsi' => 'Sasaran FK',
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-FK',
+            'nama' => 'Indikator FK',
+            'satuan' => '%',
+            'unit_id' => $unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $periode = Periode::create([
+            'nama' => 'Triwulan I FK',
+            'urutan' => 1,
+            'aktif' => true,
+            'is_nilai_akhir' => false,
+        ]);
+
+        $jadwal = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikator->id,
+            'nomor_versi' => 1,
+            'periode_mulai_id' => $periode->id,
+            'unit_id' => $unit->id,
+            'nama' => 'Indikator Snapshot Terbekukan',
+            'satuan' => '%',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 90,
+        ]);
+
+        // Percobaan penghapusan langsung di level basis data harus ditolak oleh foreign key constraint
+        $this->expectException(QueryException::class);
+        DB::table('unit')->where('id', $unit->id)->delete();
     }
 
     /**

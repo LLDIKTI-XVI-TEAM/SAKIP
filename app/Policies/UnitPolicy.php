@@ -33,7 +33,7 @@ class UnitPolicy
     public function delete(User $user, Unit $unit): Response
     {
         if (! $unit->isDeletable()) {
-            return Response::deny('Unit organisasi tidak dapat dihapus karena masih memiliki relasi dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.');
+            return Response::deny('Unit organisasi tidak dapat dihapus karena masih memiliki relasi dengan indikator kinerja, rencana aksi, kegiatan, snapshot jadwal, atau izin terkait.');
         }
 
         if (! app(PermissionResolver::class)->allows($user, PermissionCodes::UNIT_DELETE) || ! $user->hasRole('superadmin')) {

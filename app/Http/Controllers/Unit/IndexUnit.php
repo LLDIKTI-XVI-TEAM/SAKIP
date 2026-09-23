@@ -23,7 +23,7 @@ class IndexUnit extends Controller
         $canUpdate = $resolver->allows($user, 'unit:update');
         $canDeleteUnit = $user->hasRole('superadmin') && $resolver->allows($user, 'unit:delete');
 
-        $units = Unit::withCount(['indikators', 'rencanaAksis', 'kegiatans', 'permissionGrants', 'permissionDenies'])
+        $units = Unit::withCount(['indikators', 'rencanaAksis', 'kegiatans', 'permissionGrants', 'permissionDenies', 'jadwalSnapshots'])
             ->orderBy('nama')
             ->get()
             ->map(function (Unit $unit) use ($canUpdate, $canDeleteUnit) {
@@ -39,6 +39,7 @@ class IndexUnit extends Controller
                     'kegiatans_count' => $unit->kegiatans_count,
                     'grants_count' => $unit->permission_grants_count,
                     'denies_count' => $unit->permission_denies_count,
+                    'jadwal_snapshots_count' => $unit->jadwal_snapshots_count,
                     'is_deletable' => $isDeletable,
                     'can' => [
                         'update' => $canUpdate,

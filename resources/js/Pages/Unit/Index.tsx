@@ -27,6 +27,8 @@ interface UnitItem {
     rencana_aksis_count: number;
     kegiatans_count: number;
     grants_count: number;
+    denies_count?: number;
+    jadwal_snapshots_count?: number;
     is_deletable: boolean;
     can: {
         update: boolean;
@@ -407,7 +409,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                     ) : (
                                                         !unit.is_deletable && (
                                                             <span 
-                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, atau izin."
+                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin."
                                                                 className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed"
                                                             >
                                                                 <Trash2 className="w-3.5 h-3.5 opacity-30" />
