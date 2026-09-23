@@ -14,6 +14,7 @@ import {
     Menu,
     X,
     BookOpen,
+    FileText,
     Search,
     Bell,
     User,
@@ -107,9 +108,11 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
+        { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
+        { href: '/akses/izin-peran', label: 'Izin Peran', icon: UserCheck, visible: auth.can.manageRolePermissions },
     ];
 
     const handleLogout = (event: FormEvent) => {
@@ -352,6 +355,14 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                         <div role="status" className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-sm text-ink shadow-2xs">
                             <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-success mt-0.5" />
                             <span>{flash.success}</span>
+                        </div>
+                    </div>
+                )}
+                {flash?.warning && (
+                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning-dark shadow-2xs">
+                            <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark mt-0.5" />
+                            <span>{flash.warning}</span>
                         </div>
                     </div>
                 )}

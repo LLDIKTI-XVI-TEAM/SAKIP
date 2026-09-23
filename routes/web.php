@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Access\DenyManagement;
 use App\Http\Controllers\Access\RoleAssignment;
+use App\Http\Controllers\Access\RolePermissionManagement;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
@@ -48,6 +50,9 @@ Route::get('/auth/pending', function (Request $request) {
 
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
+    Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
+    Route::get('/akses/izin-peran/hasil', [RolePermissionManagement::class, 'result'])->name('role-permission.result');
+    Route::post('/akses/izin-peran/{role}', [RolePermissionManagement::class, 'store'])->whereUuid('role')->name('role-permission.store');
     Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
     Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
     Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');
@@ -81,4 +86,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+
+    // Konfigurasi Persyaratan Jenis Berkas (Alur Tim Perencanaan)
+    Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');
+    Route::post('/jenis-berkas', [JenisBerkasController::class, 'store'])->name('jenis-berkas.store');
+    Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->whereUuid('id')->name('jenis-berkas.update');
+    Route::patch('/jenis-berkas/{id}/batas-teknis', [JenisBerkasController::class, 'updateBatasTeknis'])->whereUuid('id')->name('jenis-berkas.update-batas-teknis');
+    Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->whereUuid('id')->name('jenis-berkas.destroy');
 });
