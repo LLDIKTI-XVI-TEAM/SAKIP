@@ -68,7 +68,7 @@ export default function RolePermissionIndex({
         );
     };
     return (
-        <AuthenticatedLayout title="Izin Peran">
+        <AuthenticatedLayout title="Izin Peran" hasCustomHeading>
             <Head title="Izin Peran" />
             {status && dismissed !== receiptId && (
                 <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">

@@ -1,7 +1,17 @@
+import { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Calendar } from 'lucide-react';
+import {
+    Calendar,
+    BarChart2,
+    FileText,
+    Send,
+    ShieldCheck,
+    RotateCcw,
+    Check,
+    Plus,
+    Target,
+} from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
@@ -9,7 +19,7 @@ import type { SharedPageProps } from '@/types/auth';
 
 interface DashboardProps {
     activeRenstra: { id: string; nama: string; tahun_mulai: number; tahun_selesai: number } | null;
-    activePeriode: { id: string; nama_periode: string } | null;
+    activePeriode: { id: string; nama_periode: string; status: 'aktif' | 'terakhir' } | null;
     stats: {
         total: number;
         draft: number;
@@ -34,106 +44,344 @@ interface DashboardProps {
     }[];
 }
 
-const summaries = [
-    { key: 'total', label: 'Total pengukuran' },
-    { key: 'draft', label: 'Draf' },
-    { key: 'diajukan', label: 'Diajukan' },
-    { key: 'diverifikasi', label: 'Diverifikasi' },
-    { key: 'dikembalikan', label: 'Dikembalikan' },
-    { key: 'disahkan', label: 'Disahkan' },
-] as const;
-
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
     const { auth } = usePage<SharedPageProps>().props;
+    const [currentDate, setCurrentDate] = useState<string>('');
+    const hasPeriode = activePeriode !== null;
+    const isActivePeriode = activePeriode?.status === 'aktif';
+    const periodeLabel = isActivePeriode ? 'Periode aktif' : 'Periode terakhir';
+
+    useEffect(() => {
+        const updateBusinessDate = () => {
+            setCurrentDate(new Intl.DateTimeFormat('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'Asia/Makassar',
+            }).format(new Date()));
+        };
+
+        updateBusinessDate();
+        const interval = window.setInterval(updateBusinessDate, 60_000);
+
+        return () => window.clearInterval(interval);
+    }, []);
+
+    const cards = [
+        {
+            key: 'total' as const,
+            label: 'Total pengukuran',
+            icon: BarChart2,
+            iconStyle: 'bg-info/15 text-info-dark',
+            desc: 'Periode terpilih',
+        },
+        {
+            key: 'draft' as const,
+            label: 'Draf',
+            icon: FileText,
+            iconStyle: 'bg-soft text-muted',
+            desc: 'Menunggu penyelesaian',
+        },
+        {
+            key: 'diajukan' as const,
+            label: 'Diajukan',
+            icon: Send,
+            iconStyle: 'bg-warning/15 text-warning-dark',
+            desc: 'Menunggu verifikasi',
+        },
+        {
+            key: 'diverifikasi' as const,
+            label: 'Diverifikasi',
+            icon: ShieldCheck,
+            iconStyle: 'bg-info/15 text-info-dark',
+            desc: 'Telah diverifikasi',
+        },
+        {
+            key: 'dikembalikan' as const,
+            label: 'Dikembalikan',
+            icon: RotateCcw,
+            iconStyle: 'bg-danger/15 text-danger',
+            desc: 'Perlu perbaikan',
+        },
+        {
+            key: 'disahkan' as const,
+            label: 'Disahkan',
+            icon: Check,
+            iconStyle: 'bg-success/15 text-success-dark',
+            desc: 'Terselesaikan',
+        },
+    ];
 
     return (
-        <AuthenticatedLayout title="Dashboard Kinerja">
-            <Head title="Dashboard" />
+        <AuthenticatedLayout>
+            <Head title="Dashboard Kinerja" />
 
-            {activePeriode && (
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-secondary/30 bg-primary p-4 text-white">
-                    <div className="flex items-center gap-3">
-                        <Calendar aria-hidden="true" className="h-6 w-6 shrink-0 text-secondary" />
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Periode pelaporan</p>
-                            <h2 className="mt-1 text-lg font-semibold">{activePeriode.nama_periode}</h2>
-                            {activeRenstra && <p className="mt-1 text-xs text-white/80">{activeRenstra.nama} · {activeRenstra.tahun_mulai}–{activeRenstra.tahun_selesai}</p>}
+            {/* Hero Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-dark via-primary-mid to-primary-light p-5 sm:p-6 lg:p-7 text-surface shadow-sm mb-6 border border-white/10">
+                {/* Decorative Light Glows */}
+                <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-light/20 blur-3xl pointer-events-none" />
+                <div className="absolute right-36 -bottom-20 h-56 w-56 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
+                <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-info/15 blur-2xl pointer-events-none" />
+
+                {/* Geometric Pattern Overlay */}
+                <div
+                    className="absolute inset-0 opacity-5 pointer-events-none"
+                    style={{
+                        backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
+                        backgroundSize: '24px 24px',
+                    }}
+                />
+
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                    {/* Left Content */}
+                    <div className="max-w-xl">
+                        {/* Top Eyebrow */}
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                            <span className="h-1.5 w-7 rounded-full bg-secondary shrink-0" />
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.16em] text-surface/85">
+                                SISTEM AKUNTABILITAS KINERJA INSTANSI PEMERINTAH
+                            </span>
+                        </div>
+
+                        {/* Title */}
+                        <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-surface leading-tight">
+                            Selamat Datang di <span className="text-surface">SAKIP LLDIKTI XVI</span>
+                        </h1>
+
+                        {/* Description */}
+                        <p className="mt-2 text-xs sm:text-sm text-surface/85 leading-relaxed max-w-xl">
+                            Pantau dan kelola capaian kinerja secara terintegrasi untuk mendukung tata kelola pemerintahan yang akuntabel, efektif, dan berorientasi hasil.
+                        </p>
+
+                        {/* Context Metadata Chips */}
+                        <div className="mt-5 flex flex-wrap items-center gap-3">
+                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-surface/10 px-4 py-2 text-xs font-medium text-surface border border-surface/15 shadow-2xs">
+                                <Calendar className="h-4 w-4 text-secondary" aria-hidden="true" />
+                                <span>{currentDate || 'Memuat tanggal…'}</span>
+                            </div>
+                            <div className="inline-flex items-center gap-2.5 rounded-xl bg-surface/10 px-4 py-2 text-xs font-medium text-surface border border-surface/15 shadow-2xs">
+                                <Target className="h-4 w-4 text-secondary" aria-hidden="true" />
+                                <span>Renstra: {activeRenstra ? `${activeRenstra.tahun_mulai}–${activeRenstra.tahun_selesai}` : 'Belum tersedia'}</span>
+                            </div>
                         </div>
                     </div>
-                    {auth.can.pengukuran && (
-                        <Link href="/pengukuran" className="rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2">
-                            Buka Pengukuran
-                        </Link>
-                    )}
-                </div>
-            )}
 
-            <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-                {summaries.map(({ key, label }) => (
-                    <Card key={key}>
-                        <CardContent className="p-4">
-                            <p className="text-xs font-medium text-muted">{label}</p>
-                            <p className="mt-2 text-2xl font-semibold text-primary">{stats[key]}</p>
-                        </CardContent>
-                    </Card>
+                    {/* Right: Status Pengukuran Widget */}
+                    <div className="shrink-0 w-full lg:w-auto">
+                        <div className="min-w-0 rounded-2xl border border-surface/15 bg-surface/10 p-5 text-surface shadow-xl lg:min-w-[280px]">
+                            {/* Top Header */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2">
+                                    <BarChart2 className="h-4 w-4 text-secondary" aria-hidden="true" />
+                                    <span className="text-xs sm:text-sm font-semibold text-surface">Status Pengukuran</span>
+                                </div>
+                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${isActivePeriode ? 'border-success/40 bg-success/20 text-surface' : hasPeriode ? 'border-surface/30 bg-surface/15 text-surface' : 'border-warning/40 bg-warning/20 text-surface'}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${isActivePeriode ? 'bg-success' : hasPeriode ? 'bg-surface/60' : 'bg-warning'}`} aria-hidden="true" />
+                                    <span>{isActivePeriode ? 'Aktif' : hasPeriode ? 'Periode terakhir' : 'Tidak tersedia'}</span>
+                                </div>
+                            </div>
+
+                            {/* Counter Value */}
+                            <div className="mt-3.5 flex items-baseline gap-2">
+                                <span className="text-3xl sm:text-4xl font-extrabold text-surface tracking-tight leading-none">
+                                    {hasPeriode ? stats.disahkan : '—'}
+                                </span>
+                                <span className="text-xs sm:text-sm font-medium text-surface/75">
+                                    {hasPeriode ? `/ ${stats.total} Disahkan` : 'Tidak tersedia'}
+                                </span>
+                            </div>
+
+                            {/* Progress Track */}
+                            <div className="mt-3.5 h-2 w-full rounded-full bg-surface/15 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-secondary transition-all duration-500"
+                                    style={{ width: hasPeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}%` : '0%' }}
+                                />
+                            </div>
+
+                            {/* Bottom Label */}
+                            <p className="mt-2.5 text-right text-[11px] font-medium text-surface/75">
+                                {!hasPeriode ? 'Belum ada periode pelaporan aktif' : isActivePeriode && stats.total > 0 ? `${Math.round((stats.disahkan / stats.total) * 100)}% terselesaikan` : isActivePeriode ? 'Belum ada data' : 'Periode pelaporan telah berakhir'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 6 KPI Metric Cards */}
+            <div className="grid grid-cols-2 gap-3.5 mb-6 sm:grid-cols-3 xl:grid-cols-6">
+                {cards.map(({ key, label, icon: Icon, iconStyle, desc }) => (
+                    <div
+                        key={key}
+                        className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-4 shadow-xs sm:p-5"
+                    >
+                        <div>
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconStyle}`}>
+                                <Icon className="h-5 w-5" />
+                            </div>
+                            <p className="mt-4 text-xs font-semibold text-muted">
+                                {label}
+                            </p>
+                            <p className="mt-1 text-3xl font-extrabold text-primary">
+                                {hasPeriode ? stats[key] : '—'}
+                            </p>
+                        </div>
+                        <p className="mt-4 text-xs font-medium text-muted">
+                            {hasPeriode ? (key === 'total' ? periodeLabel : desc) : 'Tidak ada periode aktif'}
+                        </p>
+                    </div>
                 ))}
             </div>
 
-            <Card>
-                <CardHeader>
-                    <div>
-                        <CardTitle>Pengukuran terbaru</CardTitle>
-                        <p className="mt-1 text-xs text-muted">Nilai ditampilkan dengan satuan masing-masing indikator. Hasil resmi berstatus Disahkan.</p>
+            {/* Main Section: Pengukuran Terbaru Card */}
+            <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-2xs">
+                {/* Header */}
+                <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 max-w-xl">
+                        <h2 className="text-base font-bold leading-tight text-ink">
+                            Pengukuran terbaru
+                        </h2>
+                        <p className="mt-0.5 text-xs text-muted leading-relaxed">
+                            Nilai ditampilkan dengan satuan masing-masing indikator. Hasil resmi berstatus Disahkan.
+                        </p>
                     </div>
-                    {auth.can.verifikasi && (
-                        <Link href="/verifikasi" className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
-                            Buka antrean verifikasi
-                        </Link>
-                    )}
-                </CardHeader>
+
+                    {/* Right Filter & Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-soft px-3.5 text-xs font-medium text-ink shrink-0 select-none">
+                            <Calendar className="h-3.5 w-3.5 text-muted shrink-0" aria-hidden="true" />
+                            <span>{activePeriode ? `${periodeLabel}: ${activePeriode.nama_periode}` : 'Belum ada periode aktif'}</span>
+                        </div>
+
+                        {auth.can.pengukuran && (
+                            <Link
+                                href="/pengukuran"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-3.5 text-xs font-semibold text-ink shadow-xs transition-colors hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/40 shrink-0 select-none"
+                            >
+                                <BarChart2 className="h-4 w-4 shrink-0" />
+                                <span>Buka pengukuran</span>
+                            </Link>
+                        )}
+
+                        {auth.can.verifikasi && (
+                            <Link
+                                href="/verifikasi"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 shrink-0 select-none"
+                            >
+                                <Plus className="h-4 w-4 shrink-0" />
+                                <span>Buka antrean verifikasi</span>
+                            </Link>
+                        )}
+                    </div>
+                </div>
+
+                {/* Table View */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs text-ink">
-                        <thead className="border-b border-border bg-soft font-semibold">
+                        <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
                             <tr>
-                                <th scope="col" className="px-5 py-3.5">KODE & INDIKATOR</th>
-                                <th scope="col" className="px-5 py-3.5">UNIT & PIC</th>
-                                <th scope="col" className="px-5 py-3.5 text-right">NILAI</th>
-                                <th scope="col" className="px-5 py-3.5">HASIL PERHITUNGAN</th>
-                                <th scope="col" className="px-5 py-3.5 text-center">STATUS</th>
-                                <th scope="col" className="px-5 py-3.5 text-center">AKSI</th>
+                                <th scope="col" className="px-6 py-3.5">
+                                    KODE & INDIKATOR
+                                </th>
+                                <th scope="col" className="px-6 py-3.5">
+                                    UNIT & PIC
+                                </th>
+                                <th scope="col" className="px-6 py-3.5 text-right">
+                                    NILAI
+                                </th>
+                                <th scope="col" className="px-6 py-3.5">
+                                    HASIL PERHITUNGAN
+                                </th>
+                                <th scope="col" className="px-6 py-3.5 text-center">
+                                    STATUS
+                                </th>
+                                <th scope="col" className="px-6 py-3.5 text-center">
+                                    AKSI
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {pengukurans.length === 0 ? (
-                                <tr><td colSpan={6} className="px-5 py-8 text-center text-muted">Belum ada pengukuran untuk periode ini.</td></tr>
-                            ) : pengukurans.map((item) => (
-                                <tr key={item.id} className="hover:bg-soft">
-                                    <td className="max-w-sm px-5 py-3.5">
-                                        <p className="font-semibold">{item.indikator.kode}</p>
-                                        <p className="mt-1 text-muted">{item.indikator.nama}</p>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        <p className="font-medium">{item.unit.nama}</p>
-                                        <p className="mt-1 text-muted">PIC: {item.pic?.nama || '—'}</p>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-right font-semibold">
-                                        {item.nilai === null ? '—' : `${formatNilai(item.nilai, item.desimal_tampilan)} ${item.satuan}`}
-                                    </td>
-                                    <td className="px-5 py-3.5 text-muted">{statusPerhitungan[item.status_perhitungan]}</td>
-                                    <td className="px-5 py-3.5 text-center">
-                                        <Badge status={item.status} />
-                                        {item.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
-                                        {item.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
-                                    </td>
-                                    <td className="px-5 py-3.5 text-center">
-                                        {item.action && <Link href={item.action.href} className="inline-flex rounded-lg border border-border bg-surface px-3 py-2 font-medium hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary">{item.action.label}</Link>}
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-14 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            {/* Custom Document with info circle badge */}
+                                            <div className="relative mb-3">
+                                                <svg width="46" height="52" viewBox="0 0 48 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                    <path d="M6 0C2.68629 0 0 2.68629 0 6V48C0 51.3137 2.68629 54 6 54H42C45.3137 54 48 51.3137 48 48V14L34 0H6Z" className="fill-border" />
+                                                    <path d="M34 0V14H48L34 0Z" className="fill-muted/30" />
+                                                    <rect x="10" y="20" width="22" height="3" rx="1.5" className="fill-muted/30" />
+                                                    <rect x="10" y="26" width="16" height="3" rx="1.5" className="fill-muted/30" />
+                                                    <circle cx="34" cy="38" r="9" className="fill-muted" />
+                                                    <path d="M34 33V35M34 37V42" className="stroke-surface" strokeWidth="2" strokeLinecap="round" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm font-bold text-ink">
+                                                {hasPeriode ? `Belum ada pengukuran untuk ${periodeLabel.toLowerCase()} ini.` : 'Belum ada periode pelaporan aktif.'}
+                                            </p>
+                                        </div>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                pengukurans.map((item) => (
+                                    <tr key={item.id} className="transition-colors hover:bg-soft">
+                                        <td className="max-w-sm px-6 py-4">
+                                            <p className="font-semibold text-ink text-xs">
+                                                {item.indikator.kode}
+                                            </p>
+                                            <p className="mt-0.5 text-muted leading-relaxed" title={item.indikator.nama}>
+                                                {item.indikator.nama}
+                                            </p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="font-medium text-ink">
+                                                {item.unit.nama}
+                                            </p>
+                                            <p className="mt-0.5 text-muted">
+                                                PIC: {item.pic?.nama || '—'}
+                                            </p>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-semibold text-ink">
+                                            {item.nilai === null
+                                                ? '—'
+                                                : `${formatNilai(item.nilai, item.desimal_tampilan)} ${item.satuan}`}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted">
+                                            {statusPerhitungan[item.status_perhitungan]}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Badge status={item.status} />
+                                                {item.self_approval && (
+                                                    <span className="text-[11px] font-medium text-info-dark">
+                                                        Persetujuan sendiri
+                                                    </span>
+                                                )}
+                                                {item.reviu_terlambat && (
+                                                    <span className="text-[11px] font-medium text-warning-dark">
+                                                        Reviu terlambat
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {item.action && (
+                                                <Link
+                                                    href={item.action.href}
+                                                    className="inline-flex items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-xs transition-colors hover:border-primary/30 hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                >
+                                                    {item.action.label}
+                                                </Link>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
         </AuthenticatedLayout>
     );
 }

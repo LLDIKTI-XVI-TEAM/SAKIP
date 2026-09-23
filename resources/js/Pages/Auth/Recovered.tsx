@@ -5,7 +5,7 @@ import { loginLink } from './AuthShell';
 
 export default function Recovered() {
     const { auth } = usePage<SharedPageProps>().props;
-    return <AuthenticatedLayout title="Sesi aktif">
+    return <AuthenticatedLayout title="Sesi aktif" hasCustomHeading>
         <Head title="Sesi aktif" />
         <section className="max-w-2xl space-y-4 rounded-xl border border-border bg-surface p-6">
             <h1 className="text-xl font-semibold">Sesi Anda aktif</h1>

@@ -5,6 +5,10 @@ services:
       dockerfile: Containerfile
     container_name: sakip_app
     restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - cd public && exec php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php
     ports:
       - "8000:8000"
       - "5173:5173"

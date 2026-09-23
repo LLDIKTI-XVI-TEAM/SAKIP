@@ -7,49 +7,56 @@ export type StatusKinerja = 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikas
 interface BadgeProps {
     status: StatusKinerja;
     className?: string;
+    children?: React.ReactNode;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ status, className }) => {
-    const statusMap: Record<string, { label: string; style: string }> = {
+export const Badge: React.FC<BadgeProps> = ({ status, className, children }) => {
+    const statusMap: Record<string, { label: string; style: string; dotColor: string }> = {
         draft: {
             label: 'Draft',
-            style: 'bg-slate-100 text-slate-700 border-slate-200',
+            style: 'bg-soft text-muted border-border',
+            dotColor: 'bg-muted',
         },
         diajukan: {
             label: 'Diajukan',
-            style: 'bg-blue-50 text-blue-700 border-blue-200',
-        },
-        dikembalikan: {
-            label: 'Dikembalikan',
-            style: 'bg-rose-50 text-rose-700 border-rose-200',
+            style: 'bg-warning/15 text-warning-dark border-warning/30',
+            dotColor: 'bg-warning',
         },
         diverifikasi: {
             label: 'Diverifikasi',
-            style: 'bg-amber-50 text-amber-700 border-amber-200',
+            style: 'bg-info/15 text-info-dark border-info/30',
+            dotColor: 'bg-info',
+        },
+        dikembalikan: {
+            label: 'Dikembalikan',
+            style: 'bg-danger/15 text-danger-dark border-danger/30',
+            dotColor: 'bg-danger',
         },
         disahkan: {
             label: 'Disahkan',
-            style: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            style: 'bg-success/15 text-success-dark border-success/30',
+            dotColor: 'bg-success',
         },
     };
 
-    const current = statusMap[status.toLowerCase()] || {
+    const current = statusMap[status?.toLowerCase?.()] || {
         label: status,
-        style: 'bg-slate-100 text-slate-700 border-slate-200',
+        style: 'bg-soft text-muted border-border',
+        dotColor: 'bg-muted',
     };
 
     return (
         <span
             className={twMerge(
                 clsx(
-                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border tracking-wide uppercase',
+                    'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border tracking-wide transition-colors',
                     current.style,
                     className
                 )
             )}
         >
-            <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-current opacity-75" />
-            {current.label}
+            <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', current.dotColor)} aria-hidden="true" />
+            {children || current.label}
         </span>
     );
 };

@@ -87,7 +87,7 @@ export default function ActivationIndex({ users, canActivate }: ActivationProps)
     };
 
     return (
-        <AuthenticatedLayout title="Aktivasi pengguna">
+        <AuthenticatedLayout title="Aktivasi pengguna" hasCustomHeading>
             <Head title="Aktivasi pengguna" />
             <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
                 <h1 ref={title} tabIndex={-1} className="text-lg font-semibold text-ink">Akun menunggu aktivasi</h1>

@@ -20,7 +20,7 @@ export default function RolePermissionResult({
         heading.current?.focus();
     }, []);
     return (
-        <AuthenticatedLayout title="Hasil Perubahan Izin Peran">
+        <AuthenticatedLayout title="Hasil Perubahan Izin Peran" hasCustomHeading>
             <Head title="Hasil Perubahan Izin Peran" />
             <section className="max-w-2xl rounded-xl border border-border bg-surface p-5 sm:p-6">
                 <h1
