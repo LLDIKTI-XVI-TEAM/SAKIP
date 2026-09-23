@@ -10,11 +10,14 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
+use App\Models\UserPermissionGrant;
 use App\Services\PermissionResolver;
 use App\Support\PermissionDecision;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -570,6 +573,79 @@ class MasterUnitOrganisasiTest extends TestCase
             'tindakan' => 'unit.ubah_ditolak',
             'objek_tipe' => 'unit',
             'objek_id' => (string) $unit->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Penonaktifan unit ditolak jika masih memiliki grant izin aktif.
+     */
+    public function test_update_unit_cannot_deactivate_unit_with_active_grants(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Dengan Grant Aktif',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $perm = Permission::where('kode', 'pengukuran:create')->firstOrFail();
+
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawai->id,
+            'permission_id' => $perm->id,
+            'unit_id' => $unit->id,
+            'alasan' => 'Grant aktif penugasan unit',
+            'diberikan_oleh' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Dengan Grant Aktif',
+            'status' => 'nonaktif',
+        ]);
+
+        $response->assertSessionHasErrors('status');
+        $unit->refresh();
+        $this->assertSame('aktif', $unit->status);
+    }
+
+    /**
+     * Codex Review: Migrasi membersihkan duplikasi nama unit (case-insensitive) sebelum membuat indeks unik.
+     */
+    public function test_migration_resolves_duplicate_names_before_creating_unique_index(): void
+    {
+        // Drop unique index sementara untuk mensimulasikan database warisan dengan duplikasi kapitalisasi
+        DB::statement('DROP INDEX IF EXISTS unit_nama_lower_unique');
+
+        // Buat duplikasi nama dengan kapitalisasi berbeda
+        $unit1 = Unit::create([
+            'nama' => 'Pusat Bahasa',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $unit2 = Unit::create([
+            'nama' => 'pusat bahasa',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        // Jalankan migrasi
+        $migration = require database_path('migrations/2026_09_23_000003_add_unique_lower_nama_to_unit_table.php');
+        $migration->up();
+
+        $unit1->refresh();
+        $unit2->refresh();
+
+        $this->assertSame('Pusat Bahasa', $unit1->nama);
+        $this->assertStringStartsWith('pusat bahasa (Duplikat ', $unit2->nama);
+
+        // Verifikasi bahwa indeks unik aktif dan mencegah duplikasi baru
+        $this->expectException(QueryException::class);
+        Unit::create([
+            'nama' => 'PUSAT BAHASA',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
         ]);
     }
 }

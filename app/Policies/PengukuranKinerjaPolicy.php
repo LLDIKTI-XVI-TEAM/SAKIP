@@ -29,7 +29,7 @@ class PengukuranKinerjaPolicy
             return false;
         }
         $decision = $this->resolver->decide($user, 'berkas:read', $p->targetUnitId());
-        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'invalid_scope'], true)) {
+        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'inactive_unit', 'invalid_scope'], true)) {
             return false;
         }
 
@@ -54,7 +54,7 @@ class PengukuranKinerjaPolicy
         // Allow berkas mengikuti akses induk kegiatan; deny dan katalog nonaktif tetap menang.
         return $this->viewClaims($user, $p)
             && ! in_array($this->resolver->decide($user, 'berkas:read', $p->targetUnitId())['reason'],
-                ['explicit_deny', 'unknown_permission', 'inactive_user', 'invalid_scope'], true);
+                ['explicit_deny', 'unknown_permission', 'inactive_user', 'inactive_unit', 'invalid_scope'], true);
     }
 
     public function update(User $user, PengukuranKinerja $p): Response
@@ -75,7 +75,7 @@ class PengukuranKinerjaPolicy
 
     public function uploadEvidence(User $user, PengukuranKinerja $p): bool
     {
-        return $this->update($user, $p)->allowed() && ! in_array($this->resolver->decide($user, 'berkas:upload', $p->targetUnitId())['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'invalid_scope'], true);
+        return $this->update($user, $p)->allowed() && ! in_array($this->resolver->decide($user, 'berkas:upload', $p->targetUnitId())['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'inactive_unit', 'invalid_scope'], true);
     }
 
     public function verify(User $user, PengukuranKinerja $p): Response

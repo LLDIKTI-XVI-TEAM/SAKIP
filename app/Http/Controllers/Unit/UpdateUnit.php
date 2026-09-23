@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Unit;
 use App\Http\Controllers\Controller;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
 use Illuminate\Database\QueryException;
@@ -44,7 +45,15 @@ class UpdateUnit extends Controller
                     }
                 },
             ],
-            'status' => ['required', 'in:aktif,nonaktif'],
+            'status' => [
+                'required',
+                'in:aktif,nonaktif',
+                function (string $attribute, mixed $value, \Closure $fail) use ($unit): void {
+                    if ($value === 'nonaktif' && UserPermissionGrant::where('unit_id', $unit->id)->exists()) {
+                        $fail('Unit tidak dapat dinonaktifkan karena masih memiliki grant izin aktif. Cabut semua grant unit terlebih dahulu.');
+                    }
+                },
+            ],
         ], [
             'nama.required' => 'Nama unit organisasi wajib diisi.',
             'nama.max' => 'Nama unit organisasi maksimal 255 karakter.',
@@ -79,6 +88,13 @@ class UpdateUnit extends Controller
 
                 /** @var Unit $lockedUnit */
                 $lockedUnit = Unit::whereKey($id)->lockForUpdate()->firstOrFail();
+
+                // Cegah penonaktifan unit jika masih memiliki grant izin aktif (anti-TOCTOU)
+                if ($validated['status'] === 'nonaktif' && UserPermissionGrant::where('unit_id', $lockedUnit->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Unit tidak dapat dinonaktifkan karena masih memiliki grant izin aktif. Cabut semua grant unit terlebih dahulu.',
+                    ]);
+                }
 
                 $oldValues = [
                     'nama' => $lockedUnit->nama,

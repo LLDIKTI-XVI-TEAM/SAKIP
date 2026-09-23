@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\PermissionResolver;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1310,6 +1311,71 @@ class GrantIzinTambahanUnitTest extends TestCase
             'tindakan' => 'user_permission_granted.ditolak',
             'objek_tipe' => 'user_permission_granted',
             'objek_id' => (string) $grant->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Hentikan efektivitas grant saat unit dinonaktifkan (PermissionResolver fail-closed).
+     */
+    public function test_grant_becomes_ineffective_when_unit_is_inactive(): void
+    {
+        $resolver = app(PermissionResolver::class);
+
+        // Buat grant awal yang sah pada unit aktif
+        $grant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant unit aktif',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // Verifikasi izin aktif saat unit aktif
+        $this->assertTrue($resolver->allows($this->pegawaiUser, 'pengukuran:create', $this->unitA->id));
+
+        // Nonaktifkan unit
+        $this->unitA->update(['status' => 'nonaktif']);
+
+        // Verifikasi izin menjadi tidak berlaku dan resolver fail-closed dengan reason 'inactive_unit'
+        $this->assertFalse($resolver->allows($this->pegawaiUser, 'pengukuran:create', $this->unitA->id));
+        $decision = $resolver->decide($this->pegawaiUser, 'pengukuran:create', $this->unitA->id);
+        $this->assertFalse($decision['allowed']);
+        $this->assertSame('inactive_unit', $decision['reason']);
+        $this->assertEmpty($decision['grants']);
+    }
+
+    /**
+     * Codex Review: Kunci role sumber sebelum otorisasi ulang grant di StoreGrant dan RevokeGrant.
+     */
+    public function test_grant_mutation_locks_active_source_roles_of_actor(): void
+    {
+        // 1. StoreGrant berhasil dengan role locking aktif
+        $responseStore = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Pemberian izin dengan role locking aktif',
+        ]);
+
+        $responseStore->assertRedirect('/akses/grant');
+        $this->assertDatabaseHas('user_permission_granted', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+        ]);
+
+        $newGrant = UserPermissionGrant::where('user_id', $this->pegawaiUser->id)
+            ->where('unit_id', $this->unitB->id)
+            ->firstOrFail();
+
+        // 2. RevokeGrant berhasil dengan role locking aktif
+        $responseRevoke = $this->actingAs($this->adminUser)->delete("/akses/grant/{$newGrant->id}", [
+            'alasan' => 'Pencabutan izin dengan role locking aktif',
+        ]);
+
+        $responseRevoke->assertRedirect('/akses/grant');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'id' => $newGrant->id,
         ]);
     }
 }

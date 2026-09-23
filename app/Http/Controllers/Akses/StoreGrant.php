@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Akses;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
@@ -175,6 +176,19 @@ class StoreGrant extends Controller
 
                 /** @var User $lockedTargetUser */
                 $lockedTargetUser = $lockedUsers->get($targetUser->id) ?? User::with('roles')->whereKey($targetUser->id)->sharedLock()->firstOrFail();
+
+                // Kunci role aktif sumber aktor dengan sharedLock (mengikuti hierarki User -> Role -> Permission)
+                // berurutan ID untuk mencegah race condition pencabutan wewenang role oleh ChangeRolePermission
+                $actorRoleIds = DB::table('user_roles')
+                    ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                    ->where('user_roles.user_id', $currentActor->id)
+                    ->where('roles.aktif', true)
+                    ->pluck('roles.id')
+                    ->all();
+                sort($actorRoleIds);
+                if (! empty($actorRoleIds)) {
+                    Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+                }
 
                 // Otorisasi ulang aktor di dalam transaksi untuk mencegah race condition pencabutan hak akses
                 $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
