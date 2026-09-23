@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Unit;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
@@ -69,6 +70,19 @@ class UpdateUnit extends Controller
             $result = DB::transaction(function () use ($id, $validated, $user, $auditLogger, $permissionResolver) {
                 /** @var User $currentActor */
                 $currentActor = User::with('roles')->whereKey($user->id)->sharedLock()->firstOrFail();
+
+                // Kunci role aktif sumber aktor dengan sharedLock (mengikuti hierarki User -> Role -> Permission)
+                // berurutan ID untuk mencegah race condition pencabutan wewenang role oleh ChangeRolePermission
+                $actorRoleIds = DB::table('user_roles')
+                    ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                    ->where('user_roles.user_id', $currentActor->id)
+                    ->where('roles.aktif', true)
+                    ->pluck('roles.id')
+                    ->all();
+                sort($actorRoleIds);
+                if (! empty($actorRoleIds)) {
+                    Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+                }
 
                 // Evaluasi ulang wewenang aktor di dalam transaksi
                 $currentDecision = $permissionResolver->resolve($currentActor, 'unit:update');

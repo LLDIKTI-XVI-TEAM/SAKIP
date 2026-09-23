@@ -648,4 +648,39 @@ class MasterUnitOrganisasiTest extends TestCase
             'created_by' => $this->superadmin->id,
         ]);
     }
+
+    /**
+     * Codex Review: Kunci role sumber sebelum otorisasi ulang mutasi unit (StoreUnit, UpdateUnit, DestroyUnit).
+     */
+    public function test_unit_mutation_locks_active_source_roles_of_actor(): void
+    {
+        // 1. StoreUnit mengunci role aktif dan berhasil menyimpan unit
+        $responseStore = $this->actingAs($this->admin)->post('/unit', [
+            'nama' => 'Unit Uji Kunci Role Sumber',
+            'status' => 'aktif',
+        ]);
+
+        $responseStore->assertRedirect('/unit');
+        $this->assertDatabaseHas('unit', ['nama' => 'Unit Uji Kunci Role Sumber']);
+
+        $createdUnit = Unit::where('nama', 'Unit Uji Kunci Role Sumber')->firstOrFail();
+
+        // 2. UpdateUnit mengunci role aktif dan berhasil memperbarui unit
+        $responseUpdate = $this->actingAs($this->admin)->post("/unit/{$createdUnit->id}", [
+            'nama' => 'Unit Uji Kunci Role Sumber Diperbarui',
+            'status' => 'aktif',
+        ]);
+
+        $responseUpdate->assertRedirect('/unit');
+        $createdUnit->refresh();
+        $this->assertSame('Unit Uji Kunci Role Sumber Diperbarui', $createdUnit->nama);
+
+        // 3. DestroyUnit mengunci role aktif dan berhasil menghapus unit kosong
+        $responseDestroy = $this->actingAs($this->superadmin)->delete("/unit/{$createdUnit->id}", [
+            'alasan' => 'Penghapusan unit uji kunci role sumber',
+        ]);
+
+        $responseDestroy->assertRedirect('/unit');
+        $this->assertDatabaseMissing('unit', ['id' => $createdUnit->id]);
+    }
 }

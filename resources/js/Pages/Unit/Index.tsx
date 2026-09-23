@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { 
     Building2, 
     Plus, 
@@ -42,8 +42,12 @@ interface UnitIndexProps {
 }
 
 export default function UnitIndex({ units, can }: UnitIndexProps) {
+    const page = usePage();
+    const pageErrors = (page.props as { errors?: Record<string, string> }).errors;
+
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+    const [statusError, setStatusError] = useState<string | null>(null);
 
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -81,6 +85,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const handleOpenCreate = () => {
         createForm.reset();
         createForm.clearErrors();
+        setStatusError(null);
         setIsCreateOpen(true);
     };
 
@@ -91,6 +96,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             status: unit.status,
         });
         editForm.clearErrors();
+        setStatusError(null);
     };
 
     const handleCreateSubmit = (e: React.FormEvent) => {
@@ -100,6 +106,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             onSuccess: () => {
                 setIsCreateOpen(false);
                 createForm.reset();
+                setStatusError(null);
             },
         });
     };
@@ -112,6 +119,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             preserveScroll: true,
             onSuccess: () => {
                 setEditingUnit(null);
+                setStatusError(null);
             },
         });
     };
@@ -119,11 +127,19 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const handleToggleStatus = (unit: UnitItem) => {
         const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
         if (confirm(`Ubah status unit '${unit.nama}' menjadi ${nextStatus === 'aktif' ? 'Aktif' : 'Nonaktif'}?`)) {
+            setStatusError(null);
             router.post(`/unit/${unit.id}`, {
                 nama: unit.nama,
                 status: nextStatus,
             }, {
                 preserveScroll: true,
+                onSuccess: () => {
+                    setStatusError(null);
+                },
+                onError: (errors: Record<string, string>) => {
+                    const message = errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
+                    setStatusError(message);
+                },
             });
         }
     };
@@ -191,6 +207,27 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         </Button>
                     )}
                 </div>
+
+                {/* Status / Global Error Notification */}
+                {(statusError || pageErrors?.status) && (
+                    <div
+                        role="alert"
+                        className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3.5 text-xs text-rose-800 shadow-2xs"
+                    >
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                        <div className="flex-1 font-medium">
+                            {statusError || pageErrors?.status}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setStatusError(null)}
+                            className="text-rose-500 hover:text-rose-700 p-0.5 rounded transition-colors"
+                            aria-label="Tutup pesan kesalahan"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Filter & Search Bar */}
                 <Card>
@@ -419,17 +456,27 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                        <input
-                            type="checkbox"
-                            id="create_is_active"
-                            checked={createForm.data.status === 'aktif'}
-                            onChange={(e) => createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
-                            className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                        />
-                        <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                            Status Langsung Aktif
-                        </label>
+                    <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="create_is_active"
+                                checked={createForm.data.status === 'aktif'}
+                                onChange={(e) => {
+                                    createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif');
+                                    if (createForm.errors.status) {
+                                        createForm.clearErrors('status');
+                                    }
+                                }}
+                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                            />
+                            <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
+                                Status Langsung Aktif
+                            </label>
+                        </div>
+                        {createForm.errors.status && (
+                            <p role="alert" className="text-[11px] font-medium text-rose-600">{createForm.errors.status}</p>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -481,17 +528,27 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                        <input
-                            type="checkbox"
-                            id="edit_is_active"
-                            checked={editForm.data.status === 'aktif'}
-                            onChange={(e) => editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
-                            className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                        />
-                        <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                            Unit Aktif
-                        </label>
+                    <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="edit_is_active"
+                                checked={editForm.data.status === 'aktif'}
+                                onChange={(e) => {
+                                    editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif');
+                                    if (editForm.errors.status) {
+                                        editForm.clearErrors('status');
+                                    }
+                                }}
+                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                            />
+                            <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
+                                Unit Aktif
+                            </label>
+                        </div>
+                        {editForm.errors.status && (
+                            <p role="alert" className="text-[11px] font-medium text-rose-600">{editForm.errors.status}</p>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
