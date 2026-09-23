@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Storage\StorageMetricsService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +63,9 @@ class StoragePolicyController extends Controller
         $existingSettings = Pengaturan::where('grup', 'berkas')
             ->pluck('nilai', 'kunci');
 
+        $maxUpdatedAt = Pengaturan::where('grup', 'berkas')->max('updated_at');
+        $expectedUpdatedAt = $maxUpdatedAt !== null ? Carbon::parse($maxUpdatedAt)->toISOString() : now()->toISOString();
+
         $settings = [
             'berkas_unggahan_aktif' => filter_var(
                 $existingSettings->get('berkas.unggahan_aktif', self::POLICY_KEYS['berkas.unggahan_aktif']['default']),
@@ -78,6 +83,7 @@ class StoragePolicyController extends Controller
                 $existingSettings->get('berkas.tautan_selalu_diizinkan', self::POLICY_KEYS['berkas.tautan_selalu_diizinkan']['default']),
                 FILTER_VALIDATE_BOOLEAN
             ),
+            'expected_updated_at' => $expectedUpdatedAt,
         ];
 
         $metrics = $metricsService->calculate();
@@ -108,13 +114,34 @@ class StoragePolicyController extends Controller
             'berkas.tautan_selalu_diizinkan' => $request->boolean('berkas_tautan_selalu_diizinkan') ? 'true' : 'false',
         ];
 
+        $expectedUpdatedAt = (string) $request->input('expected_updated_at');
         $alasan = (string) $request->input('alasan');
 
-        $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision) {
+        $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt) {
             $existing = Pengaturan::where('grup', 'berkas')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('kunci');
+
+            $maxCurrentTimestamp = $existing->max('updated_at');
+            if ($maxCurrentTimestamp !== null) {
+                try {
+                    $currentIso = Carbon::parse($maxCurrentTimestamp)->toISOString();
+                    $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
+                    if ($currentIso !== $expectedIso) {
+                        throw ValidationException::withMessages([
+                            'konflik' => 'Kebijakan storage telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    if ($e instanceof ValidationException) {
+                        throw $e;
+                    }
+                    throw ValidationException::withMessages([
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                    ]);
+                }
+            }
 
             $changedKeys = [];
 
@@ -138,6 +165,8 @@ class StoragePolicyController extends Controller
                 return ['changed' => false, 'count' => 0];
             }
 
+            $now = now();
+
             foreach ($changedKeys as $key => $change) {
                 $row = $change['row'];
                 if ($row === null) {
@@ -150,7 +179,7 @@ class StoragePolicyController extends Controller
 
                 $row->nilai = $change['new'];
                 $row->updated_by = $actor->id;
-                $row->updated_at = now();
+                $row->updated_at = $now;
                 $row->save();
 
                 $auditLogger->catat(

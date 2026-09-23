@@ -19,6 +19,7 @@ use App\Services\Storage\StorageMetricsService;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
@@ -94,6 +95,21 @@ class StoragePolicyTest extends TestCase
             ['kunci' => 'berkas.tautan_selalu_diizinkan'],
             ['nilai' => 'true', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
         );
+    }
+
+    protected function validPayload(array $overrides = []): array
+    {
+        $maxUpdatedAt = Pengaturan::where('grup', 'berkas')->max('updated_at');
+        $expectedUpdatedAt = $maxUpdatedAt ? Carbon::parse($maxUpdatedAt)->toISOString() : now()->toISOString();
+
+        return array_merge([
+            'berkas_unggahan_aktif' => true,
+            'berkas_ukuran_maks_kb' => 10240,
+            'berkas_format_diizinkan' => 'pdf,docx,xlsx,jpg,jpeg,png',
+            'berkas_tautan_selalu_diizinkan' => true,
+            'expected_updated_at' => $expectedUpdatedAt,
+            'alasan' => 'Penyesuaian konfigurasi storage berkas aplikasi.',
+        ], $overrides);
     }
 
     protected function userWithRole(string $kode): User
@@ -292,13 +308,13 @@ class StoragePolicyTest extends TestCase
         $this->assertTrue($settings['unggahan_aktif']);
 
         // Update nilai default di pengaturan
-        $this->actingAs($this->admin)->put('/pengaturan/storage', [
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => true,
             'berkas_ukuran_maks_kb' => 51200,
             'berkas_format_diizinkan' => 'pdf,docx,xlsx,png',
             'berkas_tautan_selalu_diizinkan' => true,
             'alasan' => 'Menaikkan batas default ukuran fallback menjadi 50MB untuk seluruh berkas.',
-        ])->assertSessionHasNoErrors();
+        ]))->assertSessionHasNoErrors();
 
         $updatedSettings = $evaluator->settings();
         $this->assertSame(51200, $updatedSettings['ukuran_maks_kb']);
@@ -310,13 +326,13 @@ class StoragePolicyTest extends TestCase
      */
     public function test_storage_policy_update_records_atomic_audit_log_with_reason_and_permission_basis(): void
     {
-        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', [
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => false,
             'berkas_ukuran_maks_kb' => 15360,
             'berkas_format_diizinkan' => 'pdf,jpg,png',
             'berkas_tautan_selalu_diizinkan' => true, // Tidak berubah (tetap true)
             'alasan' => 'Penyesuaian kebijakan storage operasional dan pembatasan unggahan sementara.',
-        ]);
+        ]));
 
         $response->assertSessionHasNoErrors();
         $response->assertRedirect('/pengaturan/storage');
@@ -360,13 +376,13 @@ class StoragePolicyTest extends TestCase
     {
         $oldUpdatedAt = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('updated_at');
 
-        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', [
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => true,
             'berkas_ukuran_maks_kb' => 10240,
             'berkas_format_diizinkan' => 'pdf,docx,xlsx,jpg,jpeg,png',
             'berkas_tautan_selalu_diizinkan' => true,
             'alasan' => 'Mencoba submit tanpa mengubah nilai apa pun.',
-        ]);
+        ]));
 
         $response->assertSessionHasNoErrors();
         $response->assertRedirect('/pengaturan/storage');
@@ -380,33 +396,43 @@ class StoragePolicyTest extends TestCase
     }
 
     /**
-     * TEST-6: Role tanpa pengaturan:update (Perencanaan/Pegawai) dilarang mengubah kebijakan storage (403 Forbidden).
+     * TEST-6: Role tanpa pengaturan:update (Perencanaan/Pegawai) dilarang mengubah kebijakan storage (403 Forbidden)
+     * dan insiden unauthorized dicatat ke audit log.
      */
     public function test_unauthorized_users_without_pengaturan_update_cannot_mutate_storage_policy(): void
     {
         // 1. Perencanaan mencoba update
-        $responsePerencanaan = $this->actingAs($this->perencanaan)->put('/pengaturan/storage', [
+        $responsePerencanaan = $this->actingAs($this->perencanaan)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => false,
             'berkas_ukuran_maks_kb' => 10240,
             'berkas_format_diizinkan' => 'pdf',
             'berkas_tautan_selalu_diizinkan' => true,
             'alasan' => 'Percobaan ilegal oleh tim perencanaan.',
-        ]);
+        ]));
         $responsePerencanaan->assertForbidden();
 
         // 2. Pegawai mencoba update
-        $responsePegawai = $this->actingAs($this->pegawai)->put('/pengaturan/storage', [
+        $responsePegawai = $this->actingAs($this->pegawai)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => false,
             'berkas_ukuran_maks_kb' => 10240,
             'berkas_format_diizinkan' => 'pdf',
             'berkas_tautan_selalu_diizinkan' => true,
             'alasan' => 'Percobaan ilegal oleh pegawai.',
-        ]);
+        ]));
         $responsePegawai->assertForbidden();
 
         // Nilai tetap tidak berubah
         $this->assertSame('true', Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai'));
-        $this->assertSame(0, AuditLog::where('objek_tipe', 'pengaturan')->count());
+
+        // Finding 3: Percobaan tidak berwenang dicatat dalam audit log sebagai tindakan 'pengaturan.ubah_ditolak'
+        $auditLogsDitolak = AuditLog::where('objek_tipe', 'pengaturan')
+            ->where('tindakan', 'pengaturan.ubah_ditolak')
+            ->get();
+        $this->assertCount(2, $auditLogsDitolak);
+        $this->assertEqualsCanonicalizing(
+            [$this->perencanaan->id, $this->pegawai->id],
+            $auditLogsDitolak->pluck('actor_id')->all()
+        );
     }
 
     /**
@@ -432,38 +458,131 @@ class StoragePolicyTest extends TestCase
     }
 
     /**
-     * TEST-8: Validasi input menolak batas ukuran < 100 KB, format kosong, atau alasan kosong/terlalu pendek.
+     * TEST-8: Validasi input menolak batas ukuran < 100 KB, format kosong/invalid, missing timestamp, atau alasan kosong/terlalu pendek.
      */
     public function test_validation_rejects_invalid_size_empty_format_or_empty_reason(): void
     {
         // 1. Ukuran < 100 KB
-        $responseSize = $this->actingAs($this->admin)->put('/pengaturan/storage', [
-            'berkas_unggahan_aktif' => true,
+        $responseSize = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_ukuran_maks_kb' => 50, // Kurang dari batas minimal 100 KB
-            'berkas_format_diizinkan' => 'pdf,docx',
-            'berkas_tautan_selalu_diizinkan' => true,
-            'alasan' => 'Alasan yang sah dan cukup panjang.',
-        ]);
+        ]));
         $responseSize->assertSessionHasErrors(['berkas_ukuran_maks_kb']);
 
         // 2. Format kosong
-        $responseFormat = $this->actingAs($this->admin)->put('/pengaturan/storage', [
-            'berkas_unggahan_aktif' => true,
-            'berkas_ukuran_maks_kb' => 10240,
+        $responseFormat = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_format_diizinkan' => '',
-            'berkas_tautan_selalu_diizinkan' => true,
-            'alasan' => 'Alasan yang sah dan cukup panjang.',
-        ]);
+        ]));
         $responseFormat->assertSessionHasErrors(['berkas_format_diizinkan']);
 
         // 3. Alasan terlalu pendek (< 10 karakter)
-        $responseReason = $this->actingAs($this->admin)->put('/pengaturan/storage', [
-            'berkas_unggahan_aktif' => true,
-            'berkas_ukuran_maks_kb' => 10240,
-            'berkas_format_diizinkan' => 'pdf,docx',
-            'berkas_tautan_selalu_diizinkan' => true,
+        $responseReason = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'alasan' => 'Pendek',
-        ]);
+        ]));
         $responseReason->assertSessionHasErrors(['alasan']);
+
+        // 4. Missing expected_updated_at
+        $payloadNoUpdatedAt = $this->validPayload();
+        unset($payloadNoUpdatedAt['expected_updated_at']);
+        $responseNoUpdatedAt = $this->actingAs($this->admin)->put('/pengaturan/storage', $payloadNoUpdatedAt);
+        $responseNoUpdatedAt->assertSessionHasErrors(['expected_updated_at']);
+    }
+
+    /**
+     * TEST-9: Concurrency conflict throws validation error when expected_updated_at is stale.
+     */
+    public function test_concurrency_conflict_throws_validation_error_on_stale_expected_updated_at(): void
+    {
+        $staleTimestamp = now()->subMinutes(10)->toISOString();
+
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'expected_updated_at' => $staleTimestamp,
+            'berkas_ukuran_maks_kb' => 20480,
+            'alasan' => 'Mencoba simpan dengan timestamp kedaluwarsa.',
+        ]));
+
+        $response->assertSessionHasErrors(['konflik']);
+    }
+
+    /**
+     * TEST-10: Format ekstensi yang mengandung karakter ilegal ditolak oleh regex.
+     */
+    public function test_invalid_format_regex_is_rejected(): void
+    {
+        $invalidFormats = [
+            'pdf;docx', // titik koma
+            'pdf/docx', // garis miring
+            'pdf*docx', // bintang
+            'pdf|docx', // pipe
+            'pdf@docx', // simbol @
+            'pdf#docx', // tag pagar
+        ];
+
+        foreach ($invalidFormats as $invalidFormat) {
+            $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+                'berkas_format_diizinkan' => $invalidFormat,
+            ]));
+            $response->assertSessionHasErrors(['berkas_format_diizinkan']);
+        }
+    }
+
+    /**
+     * TEST-11: Dynamic storage limits enforced on regulasi uploads.
+     */
+    public function test_dynamic_storage_limits_enforced_on_regulasi_uploads(): void
+    {
+        Storage::fake('local');
+
+        // Batasi ukuran maks menjadi 200 KB dan hanya perbolehkan txt
+        Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->update(['nilai' => '200', 'updated_at' => now()]);
+        Pengaturan::where('kunci', 'berkas.format_diizinkan')->update(['nilai' => 'txt', 'updated_at' => now()]);
+
+        // File berukuran 300 KB harus ditolak karena melebihi 200 KB
+        $responseOversize = $this->actingAs($this->perencanaan)->post('/regulasi', [
+            'jenis' => 'permen',
+            'nomor' => '999/OVERSIZE/2026',
+            'tahun' => 2026,
+            'tentang' => 'Uji File Terlalu Besar',
+            'aktif' => true,
+            'lampiran' => [
+                [
+                    'mode' => 'file',
+                    'file' => UploadedFile::fake()->create('dokumen.txt', 300, 'text/plain'),
+                ],
+            ],
+        ]);
+        $responseOversize->assertSessionHasErrors(['lampiran.0.file']);
+
+        // File ekstensi selain txt (misal pdf) harus ditolak
+        $responseWrongFormat = $this->actingAs($this->perencanaan)->post('/regulasi', [
+            'jenis' => 'permen',
+            'nomor' => '1000/WRONG-FORMAT/2026',
+            'tahun' => 2026,
+            'tentang' => 'Uji Format Tidak Sesuai Kebijakan Dinamis',
+            'aktif' => true,
+            'lampiran' => [
+                [
+                    'mode' => 'file',
+                    'file' => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
+                ],
+            ],
+        ]);
+        $responseWrongFormat->assertSessionHasErrors(['lampiran.0.file']);
+
+        // File txt 100 KB harus lolos
+        $responseSuccess = $this->actingAs($this->perencanaan)->post('/regulasi', [
+            'jenis' => 'permen',
+            'nomor' => '1001/SUCCESS-DYNAMIC/2026',
+            'tahun' => 2026,
+            'tentang' => 'Uji Berkas Sah Sesuai Batas Dinamis',
+            'aktif' => true,
+            'lampiran' => [
+                [
+                    'mode' => 'file',
+                    'file' => UploadedFile::fake()->create('dokumen.txt', 100, 'text/plain'),
+                ],
+            ],
+        ]);
+        $responseSuccess->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('regulasi', ['nomor' => '1001/SUCCESS-DYNAMIC/2026']);
     }
 }

@@ -23,6 +23,7 @@ export interface StorageSettings {
     berkas_ukuran_maks_kb: number;
     berkas_format_diizinkan: string;
     berkas_tautan_selalu_diizinkan: boolean;
+    expected_updated_at: string;
 }
 
 export interface IndukMetric {
@@ -70,6 +71,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
         berkas_ukuran_maks_kb: settings.berkas_ukuran_maks_kb,
         berkas_format_diizinkan: settings.berkas_format_diizinkan,
         berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
+        expected_updated_at: settings.expected_updated_at,
         alasan: '',
     });
 
@@ -102,6 +104,11 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             onError: (errors: Record<string, string>) => {
                 if (errors.alasan) {
                     setAuditError(errors.alasan);
+                } else {
+                    const firstError = Object.values(errors)[0];
+                    if (firstError) {
+                        setAuditError(firstError);
+                    }
                 }
             },
         });
@@ -344,32 +351,34 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                         </p>
                                     </div>
 
-                                    {can.update && (
-                                        <button
-                                            type="button"
-                                            role="switch"
-                                            aria-checked={form.data.berkas_unggahan_aktif}
-                                            aria-label="Toggle saklar unggahan berkas"
-                                            disabled={form.processing}
-                                            onClick={() =>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={form.data.berkas_unggahan_aktif}
+                                        aria-label={can.update ? 'Toggle saklar unggahan berkas' : 'Status saklar unggahan berkas (Hanya baca)'}
+                                        disabled={!can.update || form.processing}
+                                        onClick={() => {
+                                            if (can.update && !form.processing) {
                                                 form.setData(
                                                     'berkas_unggahan_aktif',
                                                     !form.data.berkas_unggahan_aktif
-                                                )
+                                                );
                                             }
-                                            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                                                form.data.berkas_unggahan_aktif ? 'bg-primary' : 'bg-border'
+                                        }}
+                                        className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                                            can.update ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                                        } ${
+                                            form.data.berkas_unggahan_aktif ? 'bg-primary' : 'bg-border'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${
+                                                form.data.berkas_unggahan_aktif
+                                                    ? 'translate-x-5'
+                                                    : 'translate-x-0'
                                             }`}
-                                        >
-                                            <span
-                                                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${
-                                                    form.data.berkas_unggahan_aktif
-                                                        ? 'translate-x-5'
-                                                        : 'translate-x-0'
-                                                }`}
-                                            />
-                                        </button>
-                                    )}
+                                        />
+                                    </button>
                                 </div>
                             </div>
 

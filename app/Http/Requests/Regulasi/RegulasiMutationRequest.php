@@ -27,6 +27,10 @@ abstract class RegulasiMutationRequest extends FormRequest
             $uniqueNomor->ignore($regulasiId);
         }
 
+        $maxKb = (int) (Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->value('nilai') ?? 10240);
+        $formats = (string) (Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png');
+        $formatsClean = str_replace(' ', '', $formats);
+
         return [
             'jenis' => ['required', Rule::in(['kepmen', 'permen', 'perpres', 'keputusan_lainnya'])],
             'nomor' => ['required', 'string', 'max:120', $uniqueNomor],
@@ -44,7 +48,7 @@ abstract class RegulasiMutationRequest extends FormRequest
                 : ['nullable', 'string', 'max:1000'],
             'lampiran' => ['sometimes', 'array'],
             'lampiran.*.mode' => ['required', Rule::in(['file', 'tautan', 'teks'])],
-            'lampiran.*.file' => ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:10240'],
+            'lampiran.*.file' => ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:'.$formatsClean, 'max:'.$maxKb],
             'lampiran.*.tautan' => ['exclude_unless:lampiran.*.mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
             'lampiran.*.isi_teks' => ['exclude_unless:lampiran.*.mode,teks', 'required', 'string', 'max:10000'],
         ];

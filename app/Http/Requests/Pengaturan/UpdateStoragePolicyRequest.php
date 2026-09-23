@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Pengaturan;
 
+use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class UpdateStoragePolicyRequest extends FormRequest
 {
@@ -17,6 +19,19 @@ class UpdateStoragePolicyRequest extends FormRequest
 
     protected function failedAuthorization(): void
     {
+        $user = $this->user();
+        if ($user !== null) {
+            $decision = app(PermissionResolver::class)->decide($user, 'pengaturan:update');
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'pengaturan.ubah_ditolak',
+                objekTipe: 'pengaturan',
+                objekId: (string) Str::uuid(),
+                alasan: 'Percobaan pembaruan kebijakan storage ditolak karena pengguna tidak memiliki izin pengaturan:update.',
+                dasarIzin: $decision,
+            );
+        }
+
         throw new AuthorizationException('Anda tidak memiliki wewenang untuk mengubah kebijakan storage aplikasi (memerlukan izin pengaturan:update).');
     }
 
@@ -28,8 +43,9 @@ class UpdateStoragePolicyRequest extends FormRequest
         return [
             'berkas_unggahan_aktif' => ['required', 'boolean'],
             'berkas_ukuran_maks_kb' => ['required', 'integer', 'min:100', 'max:102400'],
-            'berkas_format_diizinkan' => ['required', 'string', 'max:255'],
+            'berkas_format_diizinkan' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'berkas_tautan_selalu_diizinkan' => ['required', 'boolean'],
+            'expected_updated_at' => ['required', 'string'],
             'alasan' => ['required', 'string', 'min:10', 'max:1000'],
         ];
     }
@@ -63,6 +79,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'berkas_ukuran_maks_kb' => 'batas ukuran maksimum (KB)',
             'berkas_format_diizinkan' => 'format berkas yang diizinkan',
             'berkas_tautan_selalu_diizinkan' => 'ketersediaan jalur tautan & teks',
+            'expected_updated_at' => 'versi timestamp kebijakan',
             'alasan' => 'alasan audit',
         ];
     }
@@ -79,6 +96,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'min' => ':Attribute minimal :min karakter/KB.',
             'max' => ':Attribute maksimal :max karakter/KB.',
             'string' => ':Attribute harus berupa teks.',
+            'regex' => 'Format file yang diizinkan hanya boleh berupa daftar ekstensi alfanumerik dipisahkan koma (contoh: pdf,docx,xlsx).',
         ];
     }
 }
