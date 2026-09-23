@@ -293,44 +293,47 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
 
                 {/* Tabel Breakdown per Induk Bukti Dukung */}
                 <Card className="border-border">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <span>Rincian Penggunaan Berkas Berdasarkan Induk Dokumen</span>
-                            <span className="rounded-full bg-soft px-2.5 py-0.5 text-xs font-normal text-muted">
+                    <CardHeader className="border-b border-slate-200 bg-white px-6 py-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
+                                <span>Distribusi Bukti Dukung per Induk Dokumen SAKIP</span>
+                            </CardTitle>
+                            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
                                 {metrics.total_evidence_count.toLocaleString('id-ID')} Total Bukti
                             </span>
-                        </CardTitle>
+                        </div>
                     </CardHeader>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="px-6 py-3">Induk Dokumen</TableHead>
-                                <TableHead className="px-6 py-3 text-right">Berkas File</TableHead>
-                                <TableHead className="px-6 py-3 text-right">Ukuran Disk</TableHead>
-                                <TableHead className="px-6 py-3 text-right">Bukti Tautan</TableHead>
-                                <TableHead className="px-6 py-3 text-right">Bukti Teks</TableHead>
-                                <TableHead className="px-6 py-3 text-right font-bold">Total Bukti</TableHead>
+                                <TableHead className="px-6 py-3.5">INDUK DOKUMEN</TableHead>
+                                <TableHead className="px-6 py-3.5 text-right">BERKAS FILE</TableHead>
+                                <TableHead className="px-6 py-3.5 text-right">UKURAN DISK</TableHead>
+                                <TableHead className="px-6 py-3.5 text-right">BUKTI TAUTAN</TableHead>
+                                <TableHead className="px-6 py-3.5 text-right">BUKTI TEKS</TableHead>
+                                <TableHead className="px-6 py-3.5 text-right font-bold">TOTAL BUKTI</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {Object.values(metrics.by_induk).map((item) => (
                                 <TableRow key={item.induk}>
-                                    <TableCell className="font-medium text-ink">
+                                    <TableCell className="font-semibold text-slate-900">
                                         {item.label}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right font-medium text-slate-700">
                                         {item.file_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-muted">
+                                    <TableCell className="text-right font-mono text-xs text-slate-500">
                                         {formatBytes(item.file_bytes)}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right font-medium text-slate-700">
                                         {item.link_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right font-medium text-slate-700">
                                         {item.text_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-semibold text-ink">
+                                    <TableCell className="text-right font-bold text-slate-900">
                                         {item.total_count.toLocaleString('id-ID')}
                                     </TableCell>
                                 </TableRow>
