@@ -61,8 +61,22 @@ class RevokeGrant extends Controller
         ]);
 
         $result = DB::transaction(function () use ($id, $actor, $validated, $auditLogger, $permissionResolver) {
+            /** @var UserPermissionGrant $grant */
+            $grant = UserPermissionGrant::with(['permission', 'unit'])
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // Kunci aktor dan pengguna target dengan urutan ID konsisten untuk menghindari deadlock
+            $userIds = [$actor->id, $grant->user_id];
+            sort($userIds);
+            $lockedUsers = User::with('roles')->whereIn('id', $userIds)->orderBy('id')->sharedLock()->get()->keyBy('id');
+
             /** @var User $currentActor */
-            $currentActor = User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
+            $currentActor = $lockedUsers->get($actor->id) ?? User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
+
+            /** @var User $lockedTargetUser */
+            $lockedTargetUser = $lockedUsers->get($grant->user_id) ?? User::with('roles')->whereKey($grant->user_id)->sharedLock()->firstOrFail();
 
             $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
             if (! $currentDecision->allowed || ! $currentActor->hasAnyRole(['admin', 'superadmin'])) {
@@ -78,19 +92,13 @@ class RevokeGrant extends Controller
                 ];
             }
 
-            /** @var UserPermissionGrant $grant */
-            $grant = UserPermissionGrant::with(['user.roles', 'permission', 'unit'])
-                ->whereKey($id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
             // Temuan 1: Tolak pencabutan grant global melalui endpoint unit
             if ($grant->permission?->butuh_scope !== Permission::SCOPE_UNIT || $grant->unit_id === null) {
                 abort(422, 'Endpoint ini hanya dapat mencabut grant yang berscope unit.');
             }
 
             // Admin tidak dapat merubah/mencabut izin dari Admin dan Superadmin
-            if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
+            if ($lockedTargetUser->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
                 return [
                     'status' => 'denied',
                     'actor' => $currentActor,
@@ -106,7 +114,7 @@ class RevokeGrant extends Controller
             $oldValues = [
                 'id' => $grant->id,
                 'user_id' => $grant->user_id,
-                'user_nama' => $grant->user?->nama,
+                'user_nama' => $lockedTargetUser->nama,
                 'permission_id' => $grant->permission_id,
                 'permission_kode' => $grant->permission?->kode,
                 'unit_id' => $grant->unit_id,
@@ -116,7 +124,7 @@ class RevokeGrant extends Controller
             ];
 
             $grantId = $grant->id;
-            $userName = $grant->user?->nama ?? 'Pengguna';
+            $userName = $lockedTargetUser->nama;
             $permName = $grant->permission?->kode ?? 'Izin';
 
             $grant->delete();

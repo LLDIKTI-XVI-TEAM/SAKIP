@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class PermissionCatalogSeeder extends Seeder
 {
@@ -245,31 +244,18 @@ class PermissionCatalogSeeder extends Seeder
                     'keterangan' => $data['keterangan'],
                     'butuh_scope' => $data['butuh_scope'],
                     'sensitif' => $data['sensitif'],
-                    'aktif' => true,
                 ]
             );
         }
 
-        // Pastikan role superadmin dan admin memiliki izin akses:update
-        $superadmin = Role::firstOrCreate(
+        // Rerun tidak mengaktifkan ulang peran/permission atau menimpa izin yang dikelola.
+        Role::firstOrCreate(
             ['kode' => 'superadmin'],
             ['nama' => 'Super Admin', 'urutan' => 1, 'is_sistem' => true, 'aktif' => true]
         );
-        $admin = Role::firstOrCreate(
+        Role::firstOrCreate(
             ['kode' => 'admin'],
             ['nama' => 'Admin Pengelola', 'urutan' => 2, 'is_sistem' => true, 'aktif' => true]
         );
-
-        $aksesUpdatePerm = Permission::where('kode', 'akses:update')->first();
-        if ($aksesUpdatePerm) {
-            foreach ([$superadmin, $admin] as $role) {
-                if (! $role->permissions()->where('permissions.id', $aksesUpdatePerm->id)->exists()) {
-                    $role->permissions()->attach($aksesUpdatePerm->id, [
-                        'id' => (string) Str::uuid(),
-                        'created_at' => now(),
-                    ]);
-                }
-            }
-        }
     }
 }

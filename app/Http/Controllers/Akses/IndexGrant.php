@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\PermissionCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -117,6 +118,7 @@ class IndexGrant extends Controller
 
         $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
             ->where('aktif', true)
+            ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
             ->select('id', 'kode', 'entitas', 'aksi', 'keterangan')
             ->orderBy('kode')
             ->get()

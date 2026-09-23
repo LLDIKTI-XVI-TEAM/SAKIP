@@ -8,6 +8,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionCatalog;
 use App\Services\PermissionResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -55,7 +56,16 @@ class StoreGrant extends Controller
                 'uuid',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
             ],
-            'permission_id' => ['required', 'bail', 'uuid', 'exists:permissions,id'],
+            'permission_id' => [
+                'required',
+                'bail',
+                'uuid',
+                Rule::exists('permissions', 'id')->where(
+                    fn ($query) => $query->where('aktif', true)
+                        ->where('butuh_scope', Permission::SCOPE_UNIT)
+                        ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
+                ),
+            ],
             'unit_id' => [
                 'nullable',
                 'bail',
@@ -112,9 +122,9 @@ class StoreGrant extends Controller
 
         /** @var Permission $permission */
         $permission = Permission::find($validated['permission_id']);
-        if (! $permission || ! $permission->aktif) {
+        if (! $permission || ! $permission->aktif || ! in_array($permission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
             throw ValidationException::withMessages([
-                'permission_id' => 'Permission tidak ditemukan atau sudah dinonaktifkan.',
+                'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
             ]);
         }
 
@@ -215,9 +225,9 @@ class StoreGrant extends Controller
                 // Kunci permission dengan sharedLock dan validasi ulang status aktif serta butuh_scope di dalam transaksi
                 /** @var Permission|null $lockedPermission */
                 $lockedPermission = Permission::whereKey($permission->id)->sharedLock()->first();
-                if (! $lockedPermission || ! $lockedPermission->aktif) {
+                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
                     throw ValidationException::withMessages([
-                        'permission_id' => 'Permission tidak ditemukan atau sudah dinonaktifkan.',
+                        'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
                     ]);
                 }
 

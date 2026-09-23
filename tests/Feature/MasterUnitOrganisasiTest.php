@@ -10,6 +10,8 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
+use App\Services\PermissionResolver;
+use App\Support\PermissionDecision;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -438,6 +440,134 @@ class MasterUnitOrganisasiTest extends TestCase
         $this->assertDatabaseHas('audit_log', [
             'actor_id' => $this->superadmin->id,
             'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Penambahan unit menolak duplikasi nama tanpa membedakan kapitalisasi (case-insensitive).
+     */
+    public function test_store_unit_rejects_duplicate_name_case_insensitive(): void
+    {
+        Unit::create([
+            'nama' => 'Bagian Perencanaan dan Kerjasama',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // Coba input dengan huruf kecil semua
+        $responseLower = $this->actingAs($this->admin)->post('/unit', [
+            'nama' => 'bagian perencanaan dan kerjasama',
+            'status' => 'aktif',
+        ]);
+
+        $responseLower->assertSessionHasErrors('nama');
+
+        // Coba input dengan huruf kapital semua dan spasi tambahan
+        $responseUpper = $this->actingAs($this->admin)->post('/unit', [
+            'nama' => '  BAGIAN PERENCANAAN DAN KERJASAMA  ',
+            'status' => 'aktif',
+        ]);
+
+        $responseUpper->assertSessionHasErrors('nama');
+    }
+
+    /**
+     * Codex Review: Pembaruan unit menolak duplikasi nama dari unit lain tanpa membedakan kapitalisasi.
+     */
+    public function test_update_unit_rejects_duplicate_name_case_insensitive(): void
+    {
+        $unitA = Unit::create([
+            'nama' => 'Bagian Keuangan',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $unitB = Unit::create([
+            'nama' => 'Bagian Umum',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // Unit B mencoba menggunakan nama Unit A dengan huruf kapital berbeda
+        $responseDuplicate = $this->actingAs($this->admin)->post("/unit/{$unitB->id}", [
+            'nama' => 'bagian keuangan',
+            'status' => 'aktif',
+        ]);
+
+        $responseDuplicate->assertSessionHasErrors('nama');
+
+        // Unit B memperbarui namanya sendiri dengan perubahan kapitalisasi diperbolehkan
+        $responseSelf = $this->actingAs($this->admin)->post("/unit/{$unitB->id}", [
+            'nama' => 'BAGIAN UMUM',
+            'status' => 'aktif',
+        ]);
+
+        $responseSelf->assertSessionHasNoErrors();
+        $unitB->refresh();
+        $this->assertSame('BAGIAN UMUM', $unitB->nama);
+    }
+
+    /**
+     * Codex Review: Penambahan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
+     */
+    public function test_store_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
+    {
+        $mockResolver = $this->mock(PermissionResolver::class);
+        $mockResolver->shouldReceive('resolve')
+            ->with(\Mockery::any(), 'unit:create')
+            ->andReturn(new PermissionDecision(false, 'unit:create', [
+                'alasan' => 'no_allow',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]));
+
+        $response = $this->actingAs($this->admin)->post('/unit', [
+            'nama' => 'Unit Uji Reotorisasi Store',
+            'status' => 'aktif',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('unit', ['nama' => 'Unit Uji Reotorisasi Store']);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->admin->id,
+            'tindakan' => 'unit.tambah_ditolak',
+            'objek_tipe' => 'unit',
+        ]);
+    }
+
+    /**
+     * Codex Review: Pembaruan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
+     */
+    public function test_update_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Awal Update Reotorisasi',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $mockResolver = $this->mock(PermissionResolver::class);
+        $mockResolver->shouldReceive('resolve')
+            ->with(\Mockery::any(), 'unit:update')
+            ->andReturn(new PermissionDecision(false, 'unit:update', [
+                'alasan' => 'no_allow',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]));
+
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Berubah Nama',
+            'status' => 'aktif',
+        ]);
+
+        $response->assertStatus(403);
+        $unit->refresh();
+        $this->assertSame('Unit Awal Update Reotorisasi', $unit->nama);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->admin->id,
+            'tindakan' => 'unit.ubah_ditolak',
             'objek_tipe' => 'unit',
             'objek_id' => (string) $unit->id,
         ]);

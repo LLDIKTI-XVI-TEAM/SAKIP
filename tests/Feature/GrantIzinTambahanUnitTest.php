@@ -10,8 +10,10 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use Database\Seeders\AccessCatalogSeeder;
+use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class GrantIzinTambahanUnitTest extends TestCase
@@ -1201,6 +1203,113 @@ class GrantIzinTambahanUnitTest extends TestCase
             'tindakan' => 'user_permission_granted.ditolak',
             'objek_tipe' => 'user_permission_granted',
             'objek_id' => (string) $pegawaiGrant->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Batasi grant pada kode permission yang masih ada di katalog UNIT_SCOPED.
+     */
+    public function test_grant_creation_and_dropdown_rejects_unit_permission_not_in_catalog_scoped(): void
+    {
+        $nonCatalogPermission = Permission::create([
+            'id' => (string) Str::uuid(),
+            'kode' => 'custom_entity:custom_action',
+            'entitas' => 'custom_entity',
+            'aksi' => 'custom_action',
+            'keterangan' => 'Izin uji di luar PermissionCatalog::UNIT_SCOPED',
+            'butuh_scope' => Permission::SCOPE_UNIT,
+            'aktif' => true,
+        ]);
+
+        // 1. Dropdown di IndexGrant tidak boleh memuat permission ini
+        $responseIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $responseIndex->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Akses/GrantIndex')
+            ->where('unitPermissions', fn ($permissions) => ! collect($permissions)->pluck('kode')->contains('custom_entity:custom_action'))
+        );
+
+        // 2. StoreGrant menolak permission ini dengan validasi 422
+        $responseStore = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $nonCatalogPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba memberikan izin unit di luar katalog resmi',
+        ]);
+
+        $responseStore->assertSessionHasErrors('permission_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'permission_id' => $nonCatalogPermission->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Jangan aktifkan ulang permission melalui seeder katalog saat dijalankan ulang.
+     */
+    public function test_permission_catalog_seeder_does_not_reactivate_deactivated_permission(): void
+    {
+        // Nonaktifkan salah satu permission secara sengaja
+        $permission = Permission::where('kode', 'pengukuran:create')->firstOrFail();
+        $permission->update(['aktif' => false]);
+        $this->assertFalse($permission->fresh()->aktif);
+
+        // Jalankan ulang seeder PermissionCatalogSeeder
+        $this->seed(PermissionCatalogSeeder::class);
+
+        // Status aktif harus tetap false (tidak dipaksa aktif kembali)
+        $this->assertFalse($permission->fresh()->aktif);
+    }
+
+    /**
+     * Codex Review: Kunci pengguna target sebelum memeriksa hierarki pencabutan agar menghormati promosi peran konkuren.
+     */
+    public function test_revoke_grant_locks_target_and_prevents_admin_from_revoking_promoted_user_grant(): void
+    {
+        // Target awalnya pegawai biasa yang menerima grant
+        $targetUser = User::factory()->create([
+            'nama' => 'Pegawai Calon Admin',
+            'email' => 'calon.admin@sakip.test',
+            'is_active' => true,
+        ]);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $targetUser->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $grant = UserPermissionGrant::create([
+            'user_id' => $targetUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Izin awal sebelum promosi',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // Target dipromosikan menjadi Admin
+        $adminRole = Role::where('kode', 'admin')->firstOrFail();
+        $targetUser->roles()->detach();
+        $targetUser->roles()->attach($adminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadminUser->id,
+            'created_at' => now(),
+        ]);
+
+        // Admin biasa mencoba mencabut grant milik pengguna yang sekarang sudah berstatus Admin
+        $response = $this->actingAs($this->adminUser)->delete("/akses/grant/{$grant->id}", [
+            'alasan' => 'Mencoba cabut grant pengguna yang sudah dipromosikan',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('user_permission_granted', [
+            'id' => $grant->id,
+        ]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => (string) $grant->id,
         ]);
     }
 }

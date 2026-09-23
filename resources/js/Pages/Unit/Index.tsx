@@ -16,6 +16,7 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
+import { Modal } from '@/Components/Modal';
 
 interface UnitItem {
     id: string;
@@ -388,200 +389,197 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             </div>
 
             {/* Modal Tambah Unit */}
-            {isCreateOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                                <Plus className="w-4 h-4 text-[#D6AC48]" />
-                                Tambah Unit Organisasi Baru
-                            </h3>
-                            <button
-                                onClick={() => setIsCreateOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleCreateSubmit} className="p-5 space-y-4 text-xs">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Nama Unit Organisasi <span className="text-rose-500">*</span></label>
-                                <Input
-                                    type="text"
-                                    value={createForm.data.nama}
-                                    onChange={(e) => createForm.setData('nama', e.target.value)}
-                                    placeholder="Contoh: Bagian Umum / Pokja Kelembagaan"
-                                    required
-                                />
-                                {createForm.errors.nama && (
-                                    <p className="text-[11px] text-rose-600">{createForm.errors.nama}</p>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2 pt-1">
-                                <input
-                                    type="checkbox"
-                                    id="create_is_active"
-                                    checked={createForm.data.status === 'aktif'}
-                                    onChange={(e) => createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
-                                    className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                                />
-                                <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                                    Status Langsung Aktif
-                                </label>
-                            </div>
-
-                            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setIsCreateOpen(false)}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={createForm.processing}
-                                    className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
-                                >
-                                    {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
-                                </Button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                size="lg"
+                title={
+                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
+                        <Plus className="w-4 h-4 text-[#D6AC48]" />
+                        <span>Tambah Unit Organisasi Baru</span>
                     </div>
-                </div>
-            )}
+                }
+                description="Tambahkan unit kerja atau unit organisasi baru ke dalam master data SAKIP."
+            >
+                <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                        <label htmlFor="create_unit_nama" className="font-semibold text-slate-700">
+                            Nama Unit Organisasi <span className="text-rose-500">*</span>
+                        </label>
+                        <Input
+                            id="create_unit_nama"
+                            type="text"
+                            value={createForm.data.nama}
+                            onChange={(e) => createForm.setData('nama', e.target.value)}
+                            placeholder="Contoh: Bagian Umum / Pokja Kelembagaan"
+                            required
+                        />
+                        {createForm.errors.nama && (
+                            <p className="text-[11px] text-rose-600">{createForm.errors.nama}</p>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                            type="checkbox"
+                            id="create_is_active"
+                            checked={createForm.data.status === 'aktif'}
+                            onChange={(e) => createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
+                            className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                        />
+                        <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
+                            Status Langsung Aktif
+                        </label>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsCreateOpen(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={createForm.processing}
+                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
+                        >
+                            {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Modal Edit Unit */}
-            {editingUnit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                                <Edit2 className="w-4 h-4 text-[#122E92]" />
-                                Edit Unit: {editingUnit.nama}
-                            </h3>
-                            <button
-                                onClick={() => setEditingUnit(null)}
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleEditSubmit} className="p-5 space-y-4 text-xs">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-slate-700">Nama Unit Organisasi <span className="text-rose-500">*</span></label>
-                                <Input
-                                    type="text"
-                                    value={editForm.data.nama}
-                                    onChange={(e) => editForm.setData('nama', e.target.value)}
-                                    required
-                                />
-                                {editForm.errors.nama && (
-                                    <p className="text-[11px] text-rose-600">{editForm.errors.nama}</p>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2 pt-1">
-                                <input
-                                    type="checkbox"
-                                    id="edit_is_active"
-                                    checked={editForm.data.status === 'aktif'}
-                                    onChange={(e) => editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
-                                    className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                                />
-                                <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                                    Unit Aktif
-                                </label>
-                            </div>
-
-                            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setEditingUnit(null)}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={editForm.processing}
-                                    className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
-                                >
-                                    {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
-                                </Button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={!!editingUnit}
+                onClose={() => setEditingUnit(null)}
+                size="lg"
+                title={
+                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
+                        <Edit2 className="w-4 h-4 text-[#122E92]" />
+                        <span>Edit Unit: {editingUnit?.nama}</span>
                     </div>
-                </div>
-            )}
+                }
+                description="Perbarui informasi nama atau status keaktifan unit organisasi."
+            >
+                <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                        <label htmlFor="edit_unit_nama" className="font-semibold text-slate-700">
+                            Nama Unit Organisasi <span className="text-rose-500">*</span>
+                        </label>
+                        <Input
+                            id="edit_unit_nama"
+                            type="text"
+                            value={editForm.data.nama}
+                            onChange={(e) => editForm.setData('nama', e.target.value)}
+                            required
+                        />
+                        {editForm.errors.nama && (
+                            <p className="text-[11px] text-rose-600">{editForm.errors.nama}</p>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                            type="checkbox"
+                            id="edit_is_active"
+                            checked={editForm.data.status === 'aktif'}
+                            onChange={(e) => editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif')}
+                            className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                        />
+                        <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
+                            Unit Aktif
+                        </label>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setEditingUnit(null)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={editForm.processing}
+                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
+                        >
+                            {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Modal Konfirmasi Hapus Unit Kosong (Superadmin) */}
-            {deletingUnit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-rose-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="p-5 flex items-start gap-3 bg-rose-50 border-b border-rose-100">
-                            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                            <div>
-                                <h3 className="font-bold text-rose-900 text-sm">
-                                    Hapus Unit: {deletingUnit.nama}?
-                                </h3>
-                                <p className="text-xs text-rose-700 mt-1">
-                                    Aksi ini hanya dapat dilakukan oleh Superadmin untuk unit yang tidak memiliki keterkaitan data. Tindakan ini bersifat permanen.
-                                </p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleDeleteSubmit} className="p-5 space-y-4 text-xs">
-                            <div className="space-y-1.5">
-                                <label htmlFor="delete_alasan" className="block font-semibold text-slate-700">
-                                    Alasan Penghapusan <span className="text-rose-600">*</span>
-                                </label>
-                                <textarea
-                                    id="delete_alasan"
-                                    rows={3}
-                                    value={deleteReason}
-                                    onChange={(e) => {
-                                        setDeleteReason(e.target.value);
-                                        if (e.target.value.trim().length >= 5) {
-                                            setDeleteError('');
-                                        }
-                                    }}
-                                    placeholder="Masukkan dasar administratif penghapusan unit (minimal 5 karakter)..."
-                                    className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-colors"
-                                    required
-                                    minLength={5}
-                                />
-                                {deleteError && (
-                                    <p className="text-[11px] text-rose-600">{deleteError}</p>
-                                )}
-                                <p className="text-[11px] text-slate-500">
-                                    Alasan tertulis diwajibkan sebagai rekaman permanen pada audit trail SAKIP.
-                                </p>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setDeletingUnit(null)}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={isDeleting || deleteReason.trim().length < 5}
-                                    className="bg-rose-600 hover:bg-rose-700 text-white"
-                                >
-                                    {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}
-                                </Button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={!!deletingUnit}
+                onClose={() => {
+                    setDeletingUnit(null);
+                    setDeleteReason('');
+                    setDeleteError('');
+                }}
+                size="md"
+                title={
+                    <div className="flex items-center gap-2 text-rose-900 font-semibold text-base">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                        <span>Hapus Unit: {deletingUnit?.nama}?</span>
                     </div>
-                </div>
-            )}
+                }
+                description="Aksi ini hanya dapat dilakukan oleh Superadmin untuk unit yang tidak memiliki keterkaitan data. Tindakan ini bersifat permanen."
+            >
+                <form onSubmit={handleDeleteSubmit} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                        <label htmlFor="delete_alasan" className="block font-semibold text-slate-700">
+                            Alasan Penghapusan <span className="text-rose-600">*</span>
+                        </label>
+                        <textarea
+                            id="delete_alasan"
+                            rows={3}
+                            value={deleteReason}
+                            onChange={(e) => {
+                                setDeleteReason(e.target.value);
+                                if (e.target.value.trim().length >= 5) {
+                                    setDeleteError('');
+                                }
+                            }}
+                            placeholder="Masukkan dasar administratif penghapusan unit (minimal 5 karakter)..."
+                            className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-colors"
+                            required
+                            minLength={5}
+                        />
+                        {deleteError && (
+                            <p className="text-[11px] text-rose-600">{deleteError}</p>
+                        )}
+                        <p className="text-[11px] text-slate-500">
+                            Alasan tertulis diwajibkan sebagai rekaman permanen pada audit trail SAKIP.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setDeletingUnit(null);
+                                setDeleteReason('');
+                                setDeleteError('');
+                            }}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isDeleting || deleteReason.trim().length < 5}
+                            className="bg-rose-600 hover:bg-rose-700 text-white"
+                        >
+                            {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </AuthenticatedLayout>
     );
 }
