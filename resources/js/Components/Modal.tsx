@@ -14,6 +14,7 @@ export interface ModalProps {
     showCloseButton?: boolean;
     className?: string;
     bodyClassName?: string;
+    hideScrollbar?: boolean;
     scrollable?: boolean;
     ariaLabel?: string;
 }
@@ -32,6 +33,7 @@ export const Modal: React.FC<ModalProps> = ({
     showCloseButton = true,
     className,
     bodyClassName,
+    hideScrollbar = false,
     scrollable = true,
     ariaLabel,
 }) => {
@@ -158,8 +160,7 @@ export const Modal: React.FC<ModalProps> = ({
                 tabIndex={-1}
                 className={twMerge(
                     clsx(
-                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col transition-all transform duration-200 outline-none',
-                        scrollable ? 'max-h-[90vh]' : 'max-h-[96vh]',
+                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] transition-all transform duration-200 outline-none',
                         sizeClasses[size],
                         className
                     )
@@ -195,10 +196,9 @@ export const Modal: React.FC<ModalProps> = ({
                 <div
                     className={twMerge(
                         clsx(
-                            'p-6 flex-1',
-                            scrollable
-                                ? 'overflow-y-auto'
-                                : 'overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+                            'p-6 flex-1 overflow-y-auto',
+                            (hideScrollbar || !scrollable) &&
+                                '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:bg-transparent',
                             bodyClassName
                         )
                     )}

@@ -53,26 +53,27 @@ describe('Modal Accessibility', () => {
         expect(dialog.getAttribute('aria-modal')).toBe('true');
     });
 
-    it('menerapkan kelas overflow-hidden dan menyembunyikan scrollbar ketika scrollable bernilai false', () => {
+    it('menerapkan kelas overflow-y-auto dan menyembunyikan scrollbar visual ketika hideScrollbar bernilai true', () => {
         const onClose = vi.fn();
         render(
             <Modal
                 isOpen={true}
                 onClose={onClose}
-                title="Modal Tanpa Scroll"
-                scrollable={false}
+                title="Modal Tanpa Scrollbar Visual"
+                hideScrollbar={true}
                 bodyClassName="p-4"
             >
-                <div data-testid="modal-content">Isi Tanpa Scroll</div>
+                <div data-testid="modal-content">Isi Modal</div>
             </Modal>
         );
 
         const content = screen.getByTestId('modal-content');
         const contentContainer = content.parentElement;
         expect(contentContainer).not.toBeNull();
-        expect(contentContainer?.className).toContain('overflow-hidden');
+        expect(contentContainer?.className).toContain('overflow-y-auto');
         expect(contentContainer?.className).toContain('[scrollbar-width:none]');
+        expect(contentContainer?.className).toContain('[&::-webkit-scrollbar]:hidden');
         expect(contentContainer?.className).toContain('p-4');
-        expect(contentContainer?.className).not.toContain('overflow-y-auto');
+        expect(contentContainer?.className).not.toContain('overflow-hidden');
     });
 });
