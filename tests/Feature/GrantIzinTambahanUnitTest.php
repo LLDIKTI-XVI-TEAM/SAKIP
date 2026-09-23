@@ -1093,5 +1093,114 @@ class GrantIzinTambahanUnitTest extends TestCase
             'user_id' => $this->pegawaiUser->id,
             'unit_id' => $this->unitA->id,
         ]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'user_permission_granted',
+        ]);
+    }
+
+    /**
+     * Codex Review: Kunci dan validasi ulang permission di dalam transaksi menolak permission yang dinonaktifkan dengan 422.
+     */
+    public function test_grant_creation_locks_and_revalidates_permission_inside_transaction(): void
+    {
+        // Nonaktifkan permission
+        $this->unitPermission->update(['aktif' => false]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Mencoba memberi permission nonaktif',
+            ]);
+
+        $response->assertSessionHasErrors('permission_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Penolakan otorisasi di dalam transaksi tetap mempertahankan catatan audit di luar transaksi.
+     */
+    public function test_grant_creation_and_revocation_preserves_rejection_audit_in_database(): void
+    {
+        // 1. StoreGrant: Admin mencoba memberi izin kepada Superadmin (ditolak hierarki)
+        $responseStore = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->superadminUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Admin mencoba memberi izin ke Superadmin',
+            ]);
+
+        $responseStore->assertStatus(403);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'users',
+            'objek_id' => (string) $this->superadminUser->id,
+        ]);
+
+        // 2. RevokeGrant: Admin mencoba mencabut izin milik Superadmin (ditolak hierarki)
+        $superadminGrant = UserPermissionGrant::create([
+            'user_id' => $this->superadminUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Izin awal superadmin',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $responseRevoke = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$superadminGrant->id}", [
+                'alasan' => 'Admin mencoba mencabut izin Superadmin',
+            ]);
+
+        $responseRevoke->assertStatus(403);
+        $this->assertDatabaseHas('user_permission_granted', [
+            'id' => $superadminGrant->id,
+        ]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => (string) $superadminGrant->id,
+        ]);
+
+        // 3. RevokeGrant: Otorisasi ulang aktor gagal di dalam transaksi
+        UserPermissionDeny::create([
+            'user_id' => $this->adminUser->id,
+            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'unit_id' => null,
+            'alasan' => 'Pencabutan akses kelola izin',
+            'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $pegawaiGrant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Izin awal pegawai',
+            'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $responseRevokeDenied = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$pegawaiGrant->id}", [
+                'alasan' => 'Mencoba mencabut saat wewenang dicabut',
+            ]);
+
+        $responseRevokeDenied->assertStatus(403);
+        $this->assertDatabaseHas('user_permission_granted', [
+            'id' => $pegawaiGrant->id,
+        ]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->adminUser->id,
+            'tindakan' => 'user_permission_granted.ditolak',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => (string) $pegawaiGrant->id,
+        ]);
     }
 }

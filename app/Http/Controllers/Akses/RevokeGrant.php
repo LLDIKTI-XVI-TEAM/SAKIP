@@ -66,18 +66,16 @@ class RevokeGrant extends Controller
 
             $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
             if (! $currentDecision->allowed || ! $currentActor->hasAnyRole(['admin', 'superadmin'])) {
-                $auditLogger->catat(
-                    actor: $currentActor,
-                    tindakan: 'user_permission_granted.ditolak',
-                    objekTipe: 'user_permission_granted',
-                    objekId: $id,
-                    nilaiLama: null,
-                    nilaiBaru: null,
-                    alasan: 'Anda tidak berwenang mengelola pencabutan izin unit.',
-                    dasarIzin: $currentDecision->toAuditBasis(),
-                );
-
-                abort(403, 'Anda tidak berwenang mengelola pencabutan izin unit.');
+                return [
+                    'status' => 'denied',
+                    'actor' => $currentActor,
+                    'tindakan' => 'user_permission_granted.ditolak',
+                    'objekTipe' => 'user_permission_granted',
+                    'objekId' => $id,
+                    'alasan' => 'Anda tidak berwenang mengelola pencabutan izin unit.',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
+                    'message' => 'Anda tidak berwenang mengelola pencabutan izin unit.',
+                ];
             }
 
             /** @var UserPermissionGrant $grant */
@@ -95,7 +93,12 @@ class RevokeGrant extends Controller
             if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
                 return [
                     'status' => 'denied',
-                    'grant_id' => $grant->id,
+                    'actor' => $currentActor,
+                    'tindakan' => 'user_permission_granted.ditolak',
+                    'objekTipe' => 'user_permission_granted',
+                    'objekId' => (string) $grant->id,
+                    'alasan' => 'Admin tidak memiliki wewenang untuk mencabut izin unit dari pengguna dengan peran Admin atau Superadmin.',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
                     'message' => 'Admin tidak memiliki wewenang untuk mencabut izin unit dari pengguna dengan peran Admin atau Superadmin.',
                 ];
             }
@@ -137,16 +140,16 @@ class RevokeGrant extends Controller
             ];
         });
 
-        if ($result['status'] === 'denied') {
+        if (is_array($result) && ($result['status'] ?? null) === 'denied') {
             $auditLogger->catat(
-                actor: $actor,
-                tindakan: 'user_permission_granted.ditolak',
-                objekTipe: 'user_permission_granted',
-                objekId: (string) $result['grant_id'],
+                actor: $result['actor'],
+                tindakan: $result['tindakan'],
+                objekTipe: $result['objekTipe'],
+                objekId: $result['objekId'],
                 nilaiLama: null,
                 nilaiBaru: null,
-                alasan: $result['message'],
-                dasarIzin: $decision->toAuditBasis(),
+                alasan: $result['alasan'],
+                dasarIzin: $result['dasarIzin'],
             );
 
             abort(403, $result['message']);

@@ -38,16 +38,50 @@ class DestroyUnit extends Controller
             abort(403, 'Hanya peran Superadmin yang berwenang menghapus unit organisasi.');
         }
 
+        $rawAlasan = $request->input('alasan');
+        if (is_string($rawAlasan)) {
+            $request->merge(['alasan' => trim($rawAlasan)]);
+        }
+
         $validated = $request->validate([
-            'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'alasan' => [
+                'required',
+                'string',
+                'min:5',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (trim((string) $value) === '' || mb_strlen(trim((string) $value)) < 5) {
+                        $fail('Alasan penghapusan unit minimal 5 karakter.');
+                    }
+                },
+            ],
         ], [
             'alasan.required' => 'Alasan penghapusan unit wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan penghapusan unit minimal 5 karakter.',
         ]);
-        $alasan = trim($validated['alasan']);
+        $alasan = trim((string) $validated['alasan']);
 
         try {
-            $result = DB::transaction(function () use ($id, $actor, $alasan, $auditLogger, $decision) {
+            $result = DB::transaction(function () use ($id, $actor, $alasan, $auditLogger, $permissionResolver) {
+                /** @var User $currentActor */
+                $currentActor = User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
+
+                // Otorisasi ulang aktor di dalam transaksi sebelum mutasi sensitif
+                $currentDecision = $permissionResolver->resolve($currentActor, 'unit:delete');
+                if (! $currentDecision->allowed || ! $currentActor->hasRole('superadmin')) {
+                    return [
+                        'status' => 'denied',
+                        'actor' => $currentActor,
+                        'tindakan' => 'unit.hapus_ditolak',
+                        'objekTipe' => 'unit',
+                        'objekId' => $id,
+                        'nilaiLama' => null,
+                        'alasan' => 'Hanya peran Superadmin yang berwenang menghapus unit organisasi.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
+                        'message' => 'Hanya peran Superadmin yang berwenang menghapus unit organisasi.',
+                    ];
+                }
+
                 /** @var Unit $unit */
                 $unit = Unit::whereKey($id)->lockForUpdate()->firstOrFail();
 
@@ -55,7 +89,17 @@ class DestroyUnit extends Controller
                 if (! $unit->isDeletable()) {
                     return [
                         'status' => 'denied',
-                        'unit' => $unit,
+                        'actor' => $currentActor,
+                        'tindakan' => 'unit.hapus_ditolak',
+                        'objekTipe' => 'unit',
+                        'objekId' => (string) $unit->id,
+                        'nilaiLama' => [
+                            'id' => $unit->id,
+                            'nama' => $unit->nama,
+                            'status' => $unit->status,
+                        ],
+                        'alasan' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
                         'message' => 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, atau izin terkait.',
                     ];
                 }
@@ -71,14 +115,14 @@ class DestroyUnit extends Controller
                 $unit->delete();
 
                 $auditLogger->catat(
-                    actor: $actor,
+                    actor: $currentActor,
                     tindakan: 'unit.hapus',
                     objekTipe: 'unit',
                     objekId: (string) $unit->id,
                     nilaiLama: $oldValues,
                     nilaiBaru: null,
                     alasan: $alasan,
-                    dasarIzin: $decision->toAuditBasis(),
+                    dasarIzin: $currentDecision->toAuditBasis(),
                 );
 
                 return [
@@ -108,18 +152,14 @@ class DestroyUnit extends Controller
 
         if ($result['status'] === 'denied') {
             $auditLogger->catat(
-                actor: $actor,
-                tindakan: 'unit.hapus_ditolak',
-                objekTipe: 'unit',
-                objekId: (string) $result['unit']->id,
-                nilaiLama: [
-                    'id' => $result['unit']->id,
-                    'nama' => $result['unit']->nama,
-                    'status' => $result['unit']->status,
-                ],
+                actor: $result['actor'],
+                tindakan: $result['tindakan'],
+                objekTipe: $result['objekTipe'],
+                objekId: $result['objekId'],
+                nilaiLama: $result['nilaiLama'],
                 nilaiBaru: null,
-                alasan: $result['message'],
-                dasarIzin: $decision->toAuditBasis(),
+                alasan: $result['alasan'],
+                dasarIzin: $result['dasarIzin'],
             );
 
             abort(403, $result['message']);

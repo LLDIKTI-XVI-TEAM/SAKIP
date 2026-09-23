@@ -389,4 +389,57 @@ class MasterUnitOrganisasiTest extends TestCase
         $unit->refresh();
         $this->assertSame('Unit Valid Awal', $unit->nama);
     }
+
+    /**
+     * Codex Review: Penghapusan unit dengan alasan hanya berisi spasi ditolak dengan validasi 422.
+     */
+    public function test_delete_unit_rejects_whitespace_only_reason(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Uji Alasan Spasi',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => '     ',
+        ]);
+
+        $response->assertSessionHasErrors('alasan');
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+    }
+
+    /**
+     * Codex Review: Otorisasi ulang aktor di dalam transaksi penghapusan unit mencatat audit penolakan di luar transaksi.
+     */
+    public function test_delete_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Uji Otorisasi Ulang',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        // Berikan deny eksplisit pada superadmin untuk unit:delete
+        UserPermissionDeny::create([
+            'user_id' => $this->superadmin->id,
+            'permission_id' => Permission::where('kode', 'unit:delete')->firstOrFail()->id,
+            'unit_id' => null,
+            'alasan' => 'Pencabutan izin hapus unit',
+            'ditetapkan_oleh' => $this->superadmin->id,
+        ]);
+
+        $response = $this->actingAs($this->superadmin)->delete("/unit/{$unit->id}", [
+            'alasan' => 'Mencoba menghapus unit dengan izin dicabut',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('unit', ['id' => $unit->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->superadmin->id,
+            'tindakan' => 'unit.hapus_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
+    }
 }
