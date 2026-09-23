@@ -71,8 +71,7 @@ describe('Modal Accessibility', () => {
         const contentContainer = content.parentElement;
         expect(contentContainer).not.toBeNull();
         expect(contentContainer?.className).toContain('overflow-y-auto');
-        expect(contentContainer?.className).toContain('[scrollbar-width:none]');
-        expect(contentContainer?.className).toContain('[&::-webkit-scrollbar]:hidden');
+        expect(contentContainer?.className).toContain('no-scrollbar');
         expect(contentContainer?.className).toContain('p-4');
         expect(contentContainer?.className).not.toContain('overflow-hidden');
     });

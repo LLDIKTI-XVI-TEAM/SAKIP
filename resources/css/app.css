@@ -59,3 +59,24 @@ body {
     background-color: var(--color-page);
     color: var(--color-ink);
 }
+
+/* Utilitas untuk menyembunyikan scrollbar visual */
+@utility no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none !important; /* IE dan Edge */
+    scrollbar-width: none !important; /* Firefox */
+}

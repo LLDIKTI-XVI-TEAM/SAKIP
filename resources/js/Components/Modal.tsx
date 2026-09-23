@@ -160,14 +160,14 @@ export const Modal: React.FC<ModalProps> = ({
                 tabIndex={-1}
                 className={twMerge(
                     clsx(
-                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] transition-all transform duration-200 outline-none',
+                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] transition-all transform duration-200 outline-none',
                         sizeClasses[size],
                         className
                     )
                 )}
             >
                 {(title || showCloseButton) && (
-                    <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-start justify-between px-5 py-3 sm:px-6 sm:py-3.5 border-b border-slate-100 bg-slate-50/50">
                         <div>
                             {title && (
                                 <h3 id={titleId} className="text-base font-bold text-slate-900 leading-tight">
@@ -197,12 +197,29 @@ export const Modal: React.FC<ModalProps> = ({
                     className={twMerge(
                         clsx(
                             'p-6 flex-1 overflow-y-auto',
-                            (hideScrollbar || !scrollable) &&
-                                '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:bg-transparent',
+                            (hideScrollbar || !scrollable) && 'no-scrollbar',
                             bodyClassName
                         )
                     )}
+                    style={
+                        hideScrollbar || !scrollable
+                            ? {
+                                  scrollbarWidth: 'none',
+                                  msOverflowStyle: 'none',
+                              }
+                            : undefined
+                    }
                 >
+                    {(hideScrollbar || !scrollable) && (
+                        <style>{`
+                            .no-scrollbar::-webkit-scrollbar {
+                                display: none !important;
+                                width: 0 !important;
+                                height: 0 !important;
+                                background: transparent !important;
+                            }
+                        `}</style>
+                    )}
                     {children}
                 </div>
 
