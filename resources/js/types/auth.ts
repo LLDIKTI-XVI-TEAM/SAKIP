@@ -20,9 +20,16 @@ export interface SharedPageProps extends PageProps {
             assignRole: boolean;
             manageDeny: boolean;
             manageRolePermissions: boolean;
+            jenisBerkas?: boolean;
         };
     };
-    flash?: { success?: string | null; error?: string | null };
+    flash?: {
+        success?: string | null;
+        error?: string | null;
+        warning?: string | null;
+        message?: string | null;
+        [key: string]: unknown;
+    };
 }
 
 declare module '@inertiajs/core' {

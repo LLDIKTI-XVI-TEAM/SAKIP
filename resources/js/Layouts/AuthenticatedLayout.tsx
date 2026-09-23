@@ -2,7 +2,7 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Fragment, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { LayoutDashboard, FileSpreadsheet, CheckCircle2, LogOut, ChevronRight, CheckCircle, AlertCircle, UserCheck, Menu, X, BookOpen } from 'lucide-react';
+import { LayoutDashboard, FileSpreadsheet, CheckCircle2, LogOut, ChevronRight, CheckCircle, AlertCircle, UserCheck, Menu, X, BookOpen, FileText } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
 interface AuthenticatedLayoutProps {
@@ -22,6 +22,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
+        { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
@@ -96,6 +97,9 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     </header>
                     {flash?.success && <div role="status" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-ink sm:mx-6">
                         <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.success}</span>
+                    </div>}
+                    {flash?.warning && <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-dark sm:mx-6">
+                        <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark" /><span>{flash.warning}</span>
                     </div>}
                     {flash?.error && <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger sm:mx-6">
                         <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.error}</span>
