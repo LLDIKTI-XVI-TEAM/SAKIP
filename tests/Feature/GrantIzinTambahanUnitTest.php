@@ -539,14 +539,14 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         // Aktor Admin: grant admin terkunci (can_revoke = false), grant pegawai bisa dicabut (can_revoke = true)
         $adminIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
-        $adminGrants = collect($adminIndex->viewData('page')['props']['grants'])->keyBy('id');
+        $adminGrants = collect($adminIndex->viewData('page')['props']['grants']['data'] ?? $adminIndex->viewData('page')['props']['grants'])->keyBy('id');
 
         $this->assertFalse($adminGrants[$adminGrant->id]['can_revoke']);
         $this->assertTrue($adminGrants[$pegawaiGrant->id]['can_revoke']);
 
         // Aktor Superadmin: kedua grant bisa dicabut (can_revoke = true)
         $superIndex = $this->actingAs($this->superadminUser)->get('/akses/grant');
-        $superGrants = collect($superIndex->viewData('page')['props']['grants'])->keyBy('id');
+        $superGrants = collect($superIndex->viewData('page')['props']['grants']['data'] ?? $superIndex->viewData('page')['props']['grants'])->keyBy('id');
 
         $this->assertTrue($superGrants[$adminGrant->id]['can_revoke']);
         $this->assertTrue($superGrants[$pegawaiGrant->id]['can_revoke']);
@@ -655,9 +655,9 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Akses/GrantIndex')
-            ->has('grants', 1)
-            ->where('grants.0.id', $unitGrant->id)
-            ->where('grants.0.unit_id', $this->unitA->id)
+            ->has('grants.data', 1)
+            ->where('grants.data.0.id', $unitGrant->id)
+            ->where('grants.data.0.unit_id', $this->unitA->id)
         );
     }
 
@@ -858,6 +858,119 @@ class GrantIzinTambahanUnitTest extends TestCase
             'tindakan' => 'user_permission_granted.ditolak',
             'objek_tipe' => 'user_permission_granted',
             'objek_id' => (string) $grantAdmin->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Index grant mendukung server pagination dan filtering (search dan unit_id).
+     */
+    public function test_grant_index_supports_server_pagination_and_filtering(): void
+    {
+        $pegawai2 = User::factory()->create([
+            'nama' => 'Budi Santoso',
+            'email' => 'budi@sakip.test',
+            'is_active' => true,
+        ]);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $pegawai2->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        $grant1 = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant untuk pegawai staf di unit A',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $grant2 = UserPermissionGrant::create([
+            'user_id' => $pegawai2->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id,
+            'alasan' => 'Grant untuk budi di unit B',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        // 1. Filter pencarian nama
+        $resSearch = $this->actingAs($this->adminUser)
+            ->get('/akses/grant?search=Budi');
+        $resSearch->assertOk();
+        $resSearch->assertInertia(fn ($page) => $page
+            ->component('Akses/GrantIndex')
+            ->has('grants.data', 1)
+            ->where('grants.data.0.id', $grant2->id)
+            ->where('filters.search', 'Budi')
+        );
+
+        // 2. Filter unit A
+        $resUnit = $this->actingAs($this->adminUser)
+            ->get("/akses/grant?unit_id={$this->unitA->id}");
+        $resUnit->assertOk();
+        $resUnit->assertInertia(fn ($page) => $page
+            ->component('Akses/GrantIndex')
+            ->has('grants.data', 1)
+            ->where('grants.data.0.id', $grant1->id)
+            ->where('filters.unit_id', $this->unitA->id)
+        );
+    }
+
+    /**
+     * Codex Review: Pencegahan TOCTOU jika pengguna atau unit dinonaktifkan di dalam transaksi.
+     */
+    public function test_grant_creation_fails_if_target_becomes_inactive_during_transaction(): void
+    {
+        // 1. Target user berstatus nonaktif
+        $userTarget = User::factory()->create([
+            'nama' => 'Target Nonaktif Konkuren',
+            'email' => 'target.nonaktif@sakip.test',
+            'is_active' => true,
+        ]);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $userTarget->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        // Simulasi status user menjadi nonaktif tepat sebelum lock didapat
+        $userTarget->update(['is_active' => false]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $userTarget->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Pemberian izin ke pengguna yang nonaktif',
+            ]);
+
+        $response->assertSessionHasErrors('user_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $userTarget->id,
+        ]);
+
+        // 2. Unit berstatus nonaktif
+        $unitNonaktif = Unit::create([
+            'nama' => 'Unit Nonaktif Konkuren',
+            'status' => 'nonaktif',
+            'created_by' => $this->superadminUser->id,
+        ]);
+
+        $responseUnit = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $unitNonaktif->id,
+                'alasan' => 'Pemberian izin ke unit yang dinonaktifkan',
+            ]);
+
+        $responseUnit->assertSessionHasErrors('unit_id');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'unit_id' => $unitNonaktif->id,
         ]);
     }
 }

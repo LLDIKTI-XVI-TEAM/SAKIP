@@ -140,12 +140,28 @@ class StoreGrant extends Controller
 
         try {
             DB::transaction(function () use ($targetUser, $permission, $unit, $validated, $actor, $auditLogger, $decision) {
-                // Kunci unit dengan sharedLock agar urutan penguncian konsisten terhadap lockForUpdate di penghapusan unit
+                // Kunci dan validasi ulang target user di dalam transaksi untuk mencegah TOCTOU
+                /** @var User $lockedUser */
+                $lockedUser = User::whereKey($targetUser->id)->sharedLock()->firstOrFail();
+                if (! $lockedUser->is_active) {
+                    throw ValidationException::withMessages([
+                        'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+                    ]);
+                }
+
+                // Kunci unit dengan sharedLock agar urutan penguncian konsisten terhadap lockForUpdate di penghapusan unit,
+                // dan validasi ulang status aktif unit di dalam transaksi untuk mencegah TOCTOU
+                /** @var Unit $lockedUnit */
                 $lockedUnit = Unit::whereKey($unit->id)->sharedLock()->firstOrFail();
+                if ($lockedUnit->status !== 'aktif') {
+                    throw ValidationException::withMessages([
+                        'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+                    ]);
+                }
 
                 // AC-1 & AC-5: Simpan grant
                 $grant = UserPermissionGrant::create([
-                    'user_id' => $targetUser->id,
+                    'user_id' => $lockedUser->id,
                     'permission_id' => $permission->id,
                     'unit_id' => $lockedUnit->id,
                     'alasan' => $validated['alasan'],
@@ -160,8 +176,8 @@ class StoreGrant extends Controller
                     objekId: (string) $grant->id,
                     nilaiLama: null,
                     nilaiBaru: [
-                        'user_id' => $targetUser->id,
-                        'user_nama' => $targetUser->nama,
+                        'user_id' => $lockedUser->id,
+                        'user_nama' => $lockedUser->nama,
                         'permission_id' => $permission->id,
                         'permission_kode' => $permission->kode,
                         'unit_id' => $lockedUnit->id,

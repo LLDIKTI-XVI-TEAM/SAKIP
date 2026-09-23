@@ -26,7 +26,10 @@ class IndexGrant extends Controller
 
         $actorIsSuperadmin = $actor->hasRole('superadmin');
 
-        $grants = UserPermissionGrant::with([
+        $search = trim($request->string('search')->toString());
+        $unitId = $request->query('unit_id');
+
+        $grantsQuery = UserPermissionGrant::with([
             'user:id,nama,email',
             'user.roles:id,nama,kode',
             'permission:id,kode,keterangan,butuh_scope',
@@ -34,10 +37,32 @@ class IndexGrant extends Controller
             'diberikanOleh:id,nama',
         ])
             ->whereNotNull('unit_id')
-            ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT))
-            ->latest()
-            ->get()
-            ->map(function (UserPermissionGrant $grant) use ($actorIsSuperadmin) {
+            ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT));
+
+        if ($search !== '') {
+            $grantsQuery->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($uq) use ($search) {
+                    $uq->where('nama', 'ilike', "%{$search}%")
+                        ->orWhere('email', 'ilike', "%{$search}%");
+                })
+                    ->orWhereHas('permission', function ($pq) use ($search) {
+                        $pq->where('kode', 'ilike', "%{$search}%")
+                            ->orWhere('keterangan', 'ilike', "%{$search}%");
+                    })
+                    ->orWhereHas('unit', function ($uq) use ($search) {
+                        $uq->where('nama', 'ilike', "%{$search}%");
+                    });
+            });
+        }
+
+        if (! empty($unitId) && $unitId !== 'all') {
+            $grantsQuery->where('unit_id', $unitId);
+        }
+
+        $grants = $grantsQuery->latest()
+            ->paginate(15)
+            ->withQueryString()
+            ->through(function (UserPermissionGrant $grant) use ($actorIsSuperadmin) {
                 $targetIsAdminOrSuperadmin = $grant->user?->hasAnyRole(['admin', 'superadmin']) ?? false;
 
                 return [
@@ -99,6 +124,10 @@ class IndexGrant extends Controller
 
         return Inertia::render('Akses/GrantIndex', [
             'grants' => $grants,
+            'filters' => [
+                'search' => $search,
+                'unit_id' => $unitId ?? 'all',
+            ],
             'users' => $users,
             'units' => $units,
             'unitPermissions' => $unitPermissions,

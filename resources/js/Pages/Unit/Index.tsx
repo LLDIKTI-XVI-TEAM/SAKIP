@@ -142,11 +142,17 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 alasan: deleteReason.trim(),
             },
             preserveScroll: true,
-            onFinish: () => {
-                setIsDeleting(false);
+            onSuccess: () => {
                 setDeletingUnit(null);
                 setDeleteReason('');
                 setDeleteError('');
+            },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.alasan || errors.error || Object.values(errors)[0] || 'Gagal menghapus unit organisasi.';
+                setDeleteError(message);
+            },
+            onFinish: () => {
+                setIsDeleting(false);
             },
         });
     };

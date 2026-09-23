@@ -1,20 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { Head, useForm } from '@inertiajs/react';
-import { 
-    ShieldCheck, 
-    Plus, 
-    Trash2, 
-    Search, 
-    AlertTriangle, 
-    X, 
-    Building2, 
-    KeyRound, 
-    Info
+import React, { useState, useRef } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import {
+    ShieldCheck,
+    Plus,
+    Trash2,
+    Search,
+    AlertTriangle,
+    Building2,
+    KeyRound,
+    Info,
+    RotateCcw,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
+import { Modal } from '@/Components/Modal';
 
 interface GrantItem {
     id: string;
@@ -53,8 +54,24 @@ interface PermissionOption {
     keterangan: string | null;
 }
 
+interface PaginatedGrants {
+    data: GrantItem[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+}
+
 interface GrantIndexProps {
-    grants: GrantItem[];
+    grants: PaginatedGrants;
+    filters?: {
+        search?: string;
+        unit_id?: string;
+    };
     users: UserOption[];
     units: UnitOption[];
     unitPermissions: PermissionOption[];
@@ -67,16 +84,20 @@ interface GrantIndexProps {
 
 export default function GrantIndex({
     grants,
+    filters,
     users,
     units,
     unitPermissions,
     is_superadmin = false,
     can,
 }: GrantIndexProps) {
-    const [search, setSearch] = useState('');
-    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+    const [search, setSearch] = useState(filters?.search || '');
+    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>(filters?.unit_id || 'all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [grantToRevoke, setGrantToRevoke] = useState<GrantItem | null>(null);
+
+    const createTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const revokeTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     // Form Tambah Grant
     const createForm = useForm({
@@ -91,41 +112,88 @@ export default function GrantIndex({
         alasan: '',
     });
 
-    // Filter daftar grant aktif
-    const filteredGrants = useMemo(() => {
-        return grants.filter((grant) => {
-            const matchSearch =
-                grant.user_name.toLowerCase().includes(search.toLowerCase()) ||
-                grant.user_email.toLowerCase().includes(search.toLowerCase()) ||
-                grant.permission_kode.toLowerCase().includes(search.toLowerCase()) ||
-                (grant.unit_nama && grant.unit_nama.toLowerCase().includes(search.toLowerCase()));
-
-            const matchUnit =
-                selectedUnitFilter === 'all' ||
-                grant.unit_id === selectedUnitFilter;
-
-            return matchSearch && matchUnit;
+    const executeFilter = (newSearch: string, newUnitId: string) => {
+        router.get('/akses/grant', {
+            search: newSearch.trim() || undefined,
+            unit_id: newUnitId !== 'all' ? newUnitId : undefined,
+        }, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
         });
-    }, [grants, search, selectedUnitFilter]);
+    };
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        executeFilter(search, selectedUnitFilter);
+    };
+
+    const handleUnitFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newUnitId = e.target.value;
+        setSelectedUnitFilter(newUnitId);
+        executeFilter(search, newUnitId);
+    };
+
+    const handleResetFilters = () => {
+        setSearch('');
+        setSelectedUnitFilter('all');
+        router.get('/akses/grant', {}, { preserveState: true, replace: true });
+    };
+
+    const handleOpenCreate = (e: React.MouseEvent<HTMLButtonElement>) => {
+        createTriggerRef.current = e.currentTarget;
+        createForm.clearErrors();
+        createForm.reset();
+        setIsCreateOpen(true);
+    };
+
+    const handleCloseCreate = () => {
+        setIsCreateOpen(false);
+        createForm.clearErrors();
+        createTriggerRef.current?.focus();
+    };
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         createForm.post('/akses/grant', {
+            preserveScroll: true,
             onSuccess: () => {
                 createForm.reset();
                 setIsCreateOpen(false);
+                createTriggerRef.current?.focus();
             },
         });
+    };
+
+    const handleOpenRevoke = (grant: GrantItem, el: HTMLButtonElement | null) => {
+        revokeTriggerRefs.current[grant.id] = el;
+        revokeForm.clearErrors();
+        revokeForm.reset();
+        setGrantToRevoke(grant);
+    };
+
+    const handleCloseRevoke = () => {
+        const grantId = grantToRevoke?.id;
+        setGrantToRevoke(null);
+        revokeForm.clearErrors();
+        if (grantId && revokeTriggerRefs.current[grantId]) {
+            revokeTriggerRefs.current[grantId]?.focus();
+        }
     };
 
     const handleRevokeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!grantToRevoke) return;
 
-        revokeForm.delete(`/akses/grant/${grantToRevoke.id}`, {
+        const grantId = grantToRevoke.id;
+        revokeForm.delete(`/akses/grant/${grantId}`, {
+            preserveScroll: true,
             onSuccess: () => {
                 revokeForm.reset();
                 setGrantToRevoke(null);
+                if (revokeTriggerRefs.current[grantId]) {
+                    revokeTriggerRefs.current[grantId]?.focus();
+                }
             },
         });
     };
@@ -158,11 +226,7 @@ export default function GrantIndex({
 
                     {can.create_grant && (
                         <Button
-                            onClick={() => {
-                                createForm.clearErrors();
-                                createForm.reset();
-                                setIsCreateOpen(true);
-                            }}
+                            onClick={handleOpenCreate}
                             className="bg-[#D6AC48] hover:bg-[#c49a37] text-slate-900 font-semibold shadow-sm shrink-0 flex items-center gap-2"
                         >
                             <Plus className="w-4 h-4" />
@@ -171,26 +235,26 @@ export default function GrantIndex({
                     )}
                 </div>
 
-                {/* Filter & Kontrol */}
+                {/* Filter & Kontrol Server-Side */}
                 <Card className="border-slate-200">
                     <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
                             <div className="flex-1 relative">
                                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                                 <Input
                                     type="text"
-                                    placeholder="Cari nama pegawai, email, permission, atau unit..."
+                                    placeholder="Cari nama pegawai, email, kode permission, keterangan, atau nama unit..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-9 text-sm"
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Filter Unit:</span>
                                 <select
                                     value={selectedUnitFilter}
-                                    onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                                    onChange={handleUnitFilterChange}
                                     className="text-xs rounded-md border-slate-200 py-1.5 px-2.5 bg-white text-slate-700 focus:border-[#122E92] focus:ring-[#122E92]"
                                 >
                                     <option value="all">Semua Unit</option>
@@ -200,8 +264,30 @@ export default function GrantIndex({
                                         </option>
                                     ))}
                                 </select>
+
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                >
+                                    Cari
+                                </Button>
+
+                                {(search || selectedUnitFilter !== 'all') && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleResetFilters}
+                                        className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        Reset
+                                    </Button>
+                                )}
                             </div>
-                        </div>
+                        </form>
                     </CardContent>
                 </Card>
 
@@ -212,7 +298,7 @@ export default function GrantIndex({
                             <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <span>Daftar Grant Izin Unit Aktif</span>
                                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-[#122E92] font-semibold border border-blue-200">
-                                    {filteredGrants.length} data
+                                    {grants.total} data
                                 </span>
                             </CardTitle>
                         </div>
@@ -230,7 +316,7 @@ export default function GrantIndex({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredGrants.length === 0 ? (
+                                {grants.data.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                                             <div className="flex flex-col items-center justify-center space-y-2">
@@ -245,7 +331,7 @@ export default function GrantIndex({
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredGrants.map((grant) => (
+                                    grants.data.map((grant) => (
                                         <tr key={grant.id} className="hover:bg-slate-50/60 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -300,11 +386,7 @@ export default function GrantIndex({
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
-                                                        onClick={() => {
-                                                            revokeForm.clearErrors();
-                                                            revokeForm.reset();
-                                                            setGrantToRevoke(grant);
-                                                        }}
+                                                        onClick={(e) => handleOpenRevoke(grant, e.currentTarget)}
                                                         className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs flex items-center gap-1.5 ml-auto"
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5" />
@@ -322,216 +404,257 @@ export default function GrantIndex({
                             </tbody>
                         </table>
                     </CardContent>
+
+                    {/* Navigasi Paginasi Server-side */}
+                    {grants.last_page > 1 && (
+                        <div className="px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                            <div>
+                                Menampilkan <span className="font-semibold text-slate-800">{grants.from ?? 0}</span> sampai{' '}
+                                <span className="font-semibold text-slate-800">{grants.to ?? 0}</span> dari{' '}
+                                <span className="font-semibold text-slate-800">{grants.total}</span> data
+                            </div>
+                            <nav aria-label="Navigasi halaman grant izin unit" className="flex items-center gap-2">
+                                {grants.prev_page_url ? (
+                                    <Link
+                                        href={grants.prev_page_url}
+                                        preserveScroll
+                                        preserveState
+                                        className="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium transition-colors"
+                                    >
+                                        Sebelumnya
+                                    </Link>
+                                ) : (
+                                    <span className="px-3 py-1.5 rounded border border-slate-200 text-slate-300 cursor-not-allowed">
+                                        Sebelumnya
+                                    </span>
+                                )}
+
+                                <span className="px-2 font-semibold text-slate-700">
+                                    Halaman {grants.current_page} dari {grants.last_page}
+                                </span>
+
+                                {grants.next_page_url ? (
+                                    <Link
+                                        href={grants.next_page_url}
+                                        preserveScroll
+                                        preserveState
+                                        className="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium transition-colors"
+                                    >
+                                        Berikutnya
+                                    </Link>
+                                ) : (
+                                    <span className="px-3 py-1.5 rounded border border-slate-200 text-slate-300 cursor-not-allowed">
+                                        Berikutnya
+                                    </span>
+                                )}
+                            </nav>
+                        </div>
+                    )}
                 </Card>
             </div>
 
-            {/* MODAL: Beri Grant Baru */}
-            {isCreateOpen && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-6 py-4 bg-[#122E92] text-white flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <ShieldCheck className="w-5 h-5 text-[#D6AC48]" />
-                                <h3 className="font-semibold text-base">Beri Izin Tambahan per Unit</h3>
-                            </div>
-                            <button
-                                onClick={() => setIsCreateOpen(false)}
-                                className="text-white/80 hover:text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+            {/* MODAL: Beri Grant Baru (Accessible Dialog with Focus Trap & Escape) */}
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={handleCloseCreate}
+                size="lg"
+                title={
+                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
+                        <ShieldCheck className="w-5 h-5 text-[#122E92]" />
+                        <span>Beri Izin Tambahan per Unit</span>
+                    </div>
+                }
+                description="Berikan pengecualian izin operasional berscope unit kepada pengguna tanpa mengubah peran utama."
+            >
+                <form onSubmit={handleCreateSubmit} className="space-y-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
+                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                            <p>
+                                Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
+                            </p>
+                            {!is_superadmin && (
+                                <p className="font-semibold text-amber-800">
+                                    Catatan: Admin berwenang mengelola izin unit pegawai non-Admin dan non-Superadmin.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Pilih Pengguna */}
+                    <div>
+                        <label htmlFor="grant-user-select" className="block text-xs font-semibold text-slate-700 mb-1">
+                            Pilih Pengguna Target <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            id="grant-user-select"
+                            value={createForm.data.user_id}
+                            onChange={(e) => createForm.setData('user_id', e.target.value)}
+                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                            required
+                        >
+                            <option value="">-- Pilih Pengguna --</option>
+                            {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.nama} ({u.roles.join(', ')}) - {u.email}
+                                </option>
+                            ))}
+                        </select>
+                        {createForm.errors.user_id && (
+                            <p className="text-xs text-red-600 mt-1">{createForm.errors.user_id}</p>
+                        )}
+                    </div>
+
+                    {/* Pilih Permission (Hanya butuh_scope = unit) */}
+                    <div>
+                        <label htmlFor="grant-permission-select" className="block text-xs font-semibold text-slate-700 mb-1">
+                            Permission Unit-Scoped <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            id="grant-permission-select"
+                            value={createForm.data.permission_id}
+                            onChange={(e) => createForm.setData('permission_id', e.target.value)}
+                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                            required
+                        >
+                            <option value="">-- Pilih Permission Berscope Unit --</option>
+                            {unitPermissions.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.kode} - {p.keterangan || p.name}
+                                </option>
+                            ))}
+                        </select>
+                        {createForm.errors.permission_id && (
+                            <p className="text-xs text-red-600 mt-1">{createForm.errors.permission_id}</p>
+                        )}
+                    </div>
+
+                    {/* Pilih Unit Target */}
+                    <div>
+                        <label htmlFor="grant-unit-select" className="block text-xs font-semibold text-slate-700 mb-1">
+                            Unit Organisasi Target <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            id="grant-unit-select"
+                            value={createForm.data.unit_id}
+                            onChange={(e) => createForm.setData('unit_id', e.target.value)}
+                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                            required
+                        >
+                            <option value="">-- Pilih Unit Target --</option>
+                            {units.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.nama}
+                                </option>
+                            ))}
+                        </select>
+                        {createForm.errors.unit_id && (
+                            <p className="text-xs text-red-600 mt-1">{createForm.errors.unit_id}</p>
+                        )}
+                    </div>
+
+                    {/* Alasan Pemberian (Wajib Audit) */}
+                    <div>
+                        <label htmlFor="grant-alasan-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                            Alasan Pemberian Izin (Audit) <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            id="grant-alasan-input"
+                            value={createForm.data.alasan}
+                            onChange={(e) => createForm.setData('alasan', e.target.value)}
+                            rows={3}
+                            placeholder="Contoh: Penugasan koordinasi pengisian indikator lintas pokja sesuai SK penugasan..."
+                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                            required
+                        />
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            Wajib diisi. Catatan ini disimpan permanen pada audit trail SAKIP.
+                        </p>
+                        {createForm.errors.alasan && (
+                            <p className="text-xs text-red-600 mt-1">{createForm.errors.alasan}</p>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCloseCreate}
+                            disabled={createForm.processing}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={createForm.processing}
+                            className="bg-[#122E92] hover:bg-[#0d226b] text-white"
+                        >
+                            {createForm.processing ? 'Menyimpan...' : 'Simpan & Catat Audit'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* MODAL: Cabut Grant (Accessible Dialog with Focus Trap & Escape) */}
+            <Modal
+                isOpen={Boolean(grantToRevoke)}
+                onClose={handleCloseRevoke}
+                size="md"
+                title={
+                    <div className="flex items-center gap-2 text-rose-700 font-semibold text-base">
+                        <AlertTriangle className="w-5 h-5 text-rose-600" />
+                        <span>Konfirmasi Pencabutan Izin</span>
+                    </div>
+                }
+                description="Pencabutan izin unit bersifat permanen dan dicatat dalam audit trail."
+            >
+                {grantToRevoke && (
+                    <form onSubmit={handleRevokeSubmit} className="space-y-4">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
+                            <p className="font-semibold mb-1">Perhatian:</p>
+                            <p>
+                                Anda akan mencabut izin <strong className="font-mono">{grantToRevoke.permission_kode}</strong> pada unit <strong>{grantToRevoke.unit_nama}</strong> dari pegawai <strong>{grantToRevoke.user_name}</strong>.
+                            </p>
                         </div>
 
-                        <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
-                                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                                <div className="space-y-1">
-                                    <p>
-                                        Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
-                                    </p>
-                                    {!is_superadmin && (
-                                        <p className="font-semibold text-amber-800">
-                                            Catatan: Admin berwenang mengelola izin unit pegawai non-Admin dan non-Superadmin.
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Pilih Pengguna */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Pilih Pengguna Target <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={createForm.data.user_id}
-                                    onChange={(e) => createForm.setData('user_id', e.target.value)}
-                                    className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                                    required
-                                >
-                                    <option value="">-- Pilih Pengguna --</option>
-                                    {users.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.nama} ({u.roles.join(', ')}) - {u.email}
-                                        </option>
-                                    ))}
-                                </select>
-                                {createForm.errors.user_id && (
-                                    <p className="text-xs text-red-600 mt-1">{createForm.errors.user_id}</p>
-                                )}
-                            </div>
-
-                            {/* Pilih Permission (Hanya butuh_scope = unit) */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Permission Unit-Scoped <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={createForm.data.permission_id}
-                                    onChange={(e) => createForm.setData('permission_id', e.target.value)}
-                                    className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                                    required
-                                >
-                                    <option value="">-- Pilih Permission Berscope Unit --</option>
-                                    {unitPermissions.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.kode} - {p.keterangan || p.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {createForm.errors.permission_id && (
-                                    <p className="text-xs text-red-600 mt-1">{createForm.errors.permission_id}</p>
-                                )}
-                            </div>
-
-                            {/* Pilih Unit Target */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Unit Organisasi Target <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={createForm.data.unit_id}
-                                    onChange={(e) => createForm.setData('unit_id', e.target.value)}
-                                    className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                                    required
-                                >
-                                    <option value="">-- Pilih Unit Target --</option>
-                                    {units.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.nama}
-                                        </option>
-                                    ))}
-                                </select>
-                                {createForm.errors.unit_id && (
-                                    <p className="text-xs text-red-600 mt-1">{createForm.errors.unit_id}</p>
-                                )}
-                            </div>
-
-                            {/* Alasan Pemberian (Wajib Audit) */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Alasan Pemberian Izin (Audit) <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    value={createForm.data.alasan}
-                                    onChange={(e) => createForm.setData('alasan', e.target.value)}
-                                    rows={3}
-                                    placeholder="Contoh: Penugasan koordinasi pengisian indikator lintas pokja sesuai SK penugasan..."
-                                    className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                                    required
-                                />
-                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                    Wajib diisi. Catatan ini disimpan permanen pada audit trail SAKIP.
-                                </p>
-                                {createForm.errors.alasan && (
-                                    <p className="text-xs text-red-600 mt-1">{createForm.errors.alasan}</p>
-                                )}
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setIsCreateOpen(false)}
-                                    disabled={createForm.processing}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={createForm.processing}
-                                    className="bg-[#122E92] hover:bg-[#0d226b] text-white"
-                                >
-                                    {createForm.processing ? 'Menyimpan...' : 'Simpan & Catat Audit'}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* MODAL: Cabut Grant (Modal Alasan Audit) */}
-            {grantToRevoke && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-6 py-4 bg-red-600 text-white flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-red-100" />
-                                <h3 className="font-semibold text-base">Konfirmasi Pencabutan Izin</h3>
-                            </div>
-                            <button
-                                onClick={() => setGrantToRevoke(null)}
-                                className="text-white/80 hover:text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                        <div>
+                            <label htmlFor="revoke-alasan-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                                Alasan Pencabutan Izin (Wajib Audit) <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                id="revoke-alasan-input"
+                                value={revokeForm.data.alasan}
+                                onChange={(e) => revokeForm.setData('alasan', e.target.value)}
+                                rows={3}
+                                placeholder="Contoh: Penugasan penyusunan laporan telah selesai / pergantian personel..."
+                                className="w-full text-sm rounded-md border-slate-300 focus:border-red-600 focus:ring-red-600"
+                                required
+                            />
+                            {revokeForm.errors.alasan && (
+                                <p className="text-xs text-red-600 mt-1">{revokeForm.errors.alasan}</p>
+                            )}
                         </div>
 
-                        <form onSubmit={handleRevokeSubmit} className="p-6 space-y-4">
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
-                                <p className="font-semibold mb-1">Perhatian:</p>
-                                <p>
-                                    Anda akan mencabut izin <strong className="font-mono">{grantToRevoke.permission_kode}</strong> pada unit <strong>{grantToRevoke.unit_nama}</strong> dari pegawai <strong>{grantToRevoke.user_name}</strong>.
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                    Alasan Pencabutan Izin (Wajib Audit) <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    value={revokeForm.data.alasan}
-                                    onChange={(e) => revokeForm.setData('alasan', e.target.value)}
-                                    rows={3}
-                                    placeholder="Contoh: Penugasan penyusunan laporan telah selesai / pergantian personel..."
-                                    className="w-full text-sm rounded-md border-slate-300 focus:border-red-600 focus:ring-red-600"
-                                    required
-                                />
-                                {revokeForm.errors.alasan && (
-                                    <p className="text-xs text-red-600 mt-1">{revokeForm.errors.alasan}</p>
-                                )}
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setGrantToRevoke(null)}
-                                    disabled={revokeForm.processing}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={revokeForm.processing}
-                                    className="bg-red-600 hover:bg-red-700 text-white"
-                                >
-                                    {revokeForm.processing ? 'Mencabut...' : 'Cabut Izin Sekarang'}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleCloseRevoke}
+                                disabled={revokeForm.processing}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={revokeForm.processing}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                {revokeForm.processing ? 'Mencabut...' : 'Cabut Izin Sekarang'}
+                            </Button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
         </AuthenticatedLayout>
     );
 }
