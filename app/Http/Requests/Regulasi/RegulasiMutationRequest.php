@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Regulasi;
 
+use App\Models\Pengaturan;
 use App\Models\Regulasi;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -59,6 +60,8 @@ abstract class RegulasiMutationRequest extends FormRequest
                 return;
             }
 
+            $isUploadActive = filter_var(Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true, FILTER_VALIDATE_BOOLEAN);
+
             foreach ($lampiran as $index => $item) {
                 if (! is_array($item)) {
                     continue;
@@ -66,8 +69,12 @@ abstract class RegulasiMutationRequest extends FormRequest
 
                 $mode = $item['mode'] ?? null;
 
-                if ($mode === 'file' && ! $this->hasFile("lampiran.{$index}.file")) {
-                    $validator->errors()->add("lampiran.{$index}.file", 'Pilih file yang akan dilampirkan.');
+                if ($mode === 'file') {
+                    if (! $isUploadActive) {
+                        $validator->errors()->add("lampiran.{$index}.file", 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.');
+                    } elseif (! $this->hasFile("lampiran.{$index}.file")) {
+                        $validator->errors()->add("lampiran.{$index}.file", 'Pilih file yang akan dilampirkan.');
+                    }
                 }
 
                 if ($mode === 'tautan' && blank($item['tautan'] ?? null)) {
