@@ -32,10 +32,17 @@ class User extends Authenticatable
     public function hasRole(string $kode): bool
     {
         if ($this->relationLoaded('roles')) {
-            return $this->roles->contains('kode', $kode);
+            return $this->roles->contains(function (Role $role) use ($kode): bool {
+                if ($role->kode !== $kode) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
         }
 
-        return $this->roles()->where('kode', $kode)->exists();
+        return $this->roles()->where('kode', $kode)->where('roles.aktif', true)->exists();
     }
 
     /**
@@ -44,10 +51,17 @@ class User extends Authenticatable
     public function hasAnyRole(array $kodes): bool
     {
         if ($this->relationLoaded('roles')) {
-            return $this->roles->contains(fn (Role $role) => in_array($role->kode, $kodes, true));
+            return $this->roles->contains(function (Role $role) use ($kodes): bool {
+                if (! in_array($role->kode, $kodes, true)) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
         }
 
-        return $this->roles()->whereIn('kode', $kodes)->exists();
+        return $this->roles()->whereIn('kode', $kodes)->where('roles.aktif', true)->exists();
     }
 
     /** @return HasMany<PenugasanIndikator, $this> */

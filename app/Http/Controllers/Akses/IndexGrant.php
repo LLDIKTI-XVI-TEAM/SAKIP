@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +32,7 @@ class IndexGrant extends Controller
 
         $grantsQuery = UserPermissionGrant::with([
             'user:id,nama,email',
-            'user.roles:id,nama,kode',
+            'user.roles:id,nama,kode,aktif',
             'permission:id,kode,keterangan,butuh_scope',
             'unit:id,nama',
             'diberikanOleh:id,nama',
@@ -56,7 +57,11 @@ class IndexGrant extends Controller
         }
 
         if (! empty($unitId) && $unitId !== 'all') {
-            $grantsQuery->where('unit_id', $unitId);
+            if (is_string($unitId) && Str::isUuid($unitId) && Unit::where('id', $unitId)->where('status', 'aktif')->exists()) {
+                $grantsQuery->where('unit_id', $unitId);
+            } else {
+                $unitId = 'all';
+            }
         }
 
         $grants = $grantsQuery->latest()
@@ -84,14 +89,14 @@ class IndexGrant extends Controller
             });
 
         $usersQuery = User::where('is_active', true)
-            ->with('roles:id,nama,kode')
+            ->with('roles:id,nama,kode,aktif')
             ->select('id', 'nama', 'email')
             ->orderBy('nama');
 
         if (! $actorIsSuperadmin) {
-            // Admin tidak dapat merubah izin untuk Admin dan Superadmin
+            // Admin tidak dapat merubah izin untuk Admin dan Superadmin dengan peran aktif
             $usersQuery->whereDoesntHave('roles', function ($q) {
-                $q->whereIn('kode', ['admin', 'superadmin']);
+                $q->whereIn('kode', ['admin', 'superadmin'])->where('roles.aktif', true);
             });
         }
 

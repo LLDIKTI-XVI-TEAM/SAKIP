@@ -38,14 +38,48 @@ class RevokeGrant extends Controller
             abort(403, 'Anda tidak berwenang mengelola pencabutan izin unit.');
         }
 
+        $rawAlasan = $request->input('alasan');
+        if (is_string($rawAlasan)) {
+            $request->merge(['alasan' => trim($rawAlasan)]);
+        }
+
         $validated = $request->validate([
-            'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'alasan' => [
+                'required',
+                'string',
+                'min:5',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (trim((string) $value) === '' || mb_strlen(trim((string) $value)) < 5) {
+                        $fail('Alasan pencabutan izin tidak boleh kosong atau hanya berisi spasi.');
+                    }
+                },
+            ],
         ], [
             'alasan.required' => 'Alasan pencabutan izin wajib diisi sebagai dasar audit.',
             'alasan.min' => 'Alasan pencabutan izin minimal 5 karakter.',
         ]);
 
-        $result = DB::transaction(function () use ($id, $actor, $validated, $auditLogger, $decision) {
+        $result = DB::transaction(function () use ($id, $actor, $validated, $auditLogger, $permissionResolver) {
+            /** @var User $currentActor */
+            $currentActor = User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
+
+            $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
+            if (! $currentDecision->allowed || ! $currentActor->hasAnyRole(['admin', 'superadmin'])) {
+                $auditLogger->catat(
+                    actor: $currentActor,
+                    tindakan: 'user_permission_granted.ditolak',
+                    objekTipe: 'user_permission_granted',
+                    objekId: $id,
+                    nilaiLama: null,
+                    nilaiBaru: null,
+                    alasan: 'Anda tidak berwenang mengelola pencabutan izin unit.',
+                    dasarIzin: $currentDecision->toAuditBasis(),
+                );
+
+                abort(403, 'Anda tidak berwenang mengelola pencabutan izin unit.');
+            }
+
             /** @var UserPermissionGrant $grant */
             $grant = UserPermissionGrant::with(['user.roles', 'permission', 'unit'])
                 ->whereKey($id)
@@ -58,7 +92,7 @@ class RevokeGrant extends Controller
             }
 
             // Admin tidak dapat merubah/mencabut izin dari Admin dan Superadmin
-            if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {
+            if ($grant->user?->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
                 return [
                     'status' => 'denied',
                     'grant_id' => $grant->id,
@@ -86,14 +120,14 @@ class RevokeGrant extends Controller
 
             // AC-6: Audit Trail Pencabutan Izin
             $auditLogger->catat(
-                actor: $actor,
+                actor: $currentActor,
                 tindakan: 'user_permission_granted.hapus',
                 objekTipe: 'user_permission_granted',
                 objekId: (string) $grantId,
                 nilaiLama: $oldValues,
                 nilaiBaru: null,
                 alasan: $validated['alasan'],
-                dasarIzin: $decision->toAuditBasis(),
+                dasarIzin: $currentDecision->toAuditBasis(),
             );
 
             return [

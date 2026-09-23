@@ -973,4 +973,125 @@ class GrantIzinTambahanUnitTest extends TestCase
             'unit_id' => $unitNonaktif->id,
         ]);
     }
+
+    /**
+     * Codex Review: Request dengan unit_id non-UUID ditangani secara aman tanpa SQL error 500.
+     */
+    public function test_index_grant_handles_non_uuid_unit_id_gracefully(): void
+    {
+        $response = $this->actingAs($this->adminUser)
+            ->get('/akses/grant?unit_id=not-a-uuid');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Akses/GrantIndex')
+            ->where('filters.unit_id', 'all')
+        );
+    }
+
+    /**
+     * Codex Review: Request dengan alasan hanya berisi spasi ditolak dengan validasi 422, bukan 500.
+     */
+    public function test_grant_creation_and_revocation_rejects_whitespace_only_reason(): void
+    {
+        // 1. Store grant dengan alasan spasi saja
+        $responseStore = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => '     ',
+            ]);
+
+        $responseStore->assertSessionHasErrors('alasan');
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $this->pegawaiUser->id,
+            'unit_id' => $this->unitA->id,
+        ]);
+
+        // 2. Revoke grant dengan alasan spasi saja
+        $grant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Alasan awal valid',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $responseRevoke = $this->actingAs($this->adminUser)
+            ->delete("/akses/grant/{$grant->id}", [
+                'alasan' => '     ',
+            ]);
+
+        $responseRevoke->assertSessionHasErrors('alasan');
+        $this->assertDatabaseHas('user_permission_granted', [
+            'id' => $grant->id,
+        ]);
+    }
+
+    /**
+     * Codex Review: Pemeriksaan hierarki mengabaikan role yang nonaktif (roles.aktif = false).
+     */
+    public function test_inactive_role_is_ignored_in_hierarchy_and_access_checks(): void
+    {
+        $inactiveRole = Role::create([
+            'kode' => 'admin_nonaktif',
+            'nama' => 'Admin Nonaktif',
+            'keterangan' => 'Peran nonaktif untuk pengujian',
+            'is_sistem' => false,
+            'urutan' => 99,
+            'aktif' => false,
+        ]);
+
+        $testUser = User::factory()->create([
+            'nama' => 'Pengguna Role Nonaktif',
+            'email' => 'user.inactive.role@sakip.test',
+            'is_active' => true,
+        ]);
+
+        $testUser->roles()->attach($inactiveRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->superadminUser->id,
+            'created_at' => now(),
+        ]);
+
+        // hasRole dan hasAnyRole harus mengabaikan role nonaktif
+        $this->assertFalse($testUser->hasRole('admin_nonaktif'));
+        $this->assertFalse($testUser->hasAnyRole(['admin_nonaktif']));
+
+        // Ketika role dimuat eager load
+        $testUser->load('roles');
+        $this->assertFalse($testUser->hasRole('admin_nonaktif'));
+        $this->assertFalse($testUser->hasAnyRole(['admin_nonaktif']));
+    }
+
+    /**
+     * Codex Review: Otorisasi ulang aktor di dalam transaksi grant menolak mutasi jika izin dicabut saat transaksi.
+     */
+    public function test_grant_creation_reauthorizes_actor_inside_transaction(): void
+    {
+        // Berikan deny eksplisit pada aktor untuk akses:update
+        UserPermissionDeny::create([
+            'user_id' => $this->adminUser->id,
+            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'unit_id' => null,
+            'alasan' => 'Pencabutan wewenang kelola akses',
+            'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => 'Mencoba membuat grant saat izin dicabut',
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'user_id' => $this->pegawaiUser->id,
+            'unit_id' => $this->unitA->id,
+        ]);
+    }
 }
