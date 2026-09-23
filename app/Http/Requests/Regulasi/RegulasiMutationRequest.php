@@ -10,6 +10,8 @@ use Illuminate\Validation\Validator;
 
 abstract class RegulasiMutationRequest extends FormRequest
 {
+    protected ?bool $isUploadActiveCached = null;
+
     /**
      * @return array<string, mixed>
      */
@@ -27,9 +29,16 @@ abstract class RegulasiMutationRequest extends FormRequest
             $uniqueNomor->ignore($regulasiId);
         }
 
-        $maxKb = (int) (Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->value('nilai') ?? 10240);
-        $formats = (string) (Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,docx,xlsx,jpg,jpeg,png');
+        $settings = Pengaturan::where('grup', 'berkas')->pluck('nilai', 'kunci');
+        $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
+        $this->isUploadActiveCached = $isUploadActive;
+        $maxKb = (int) $settings->get('berkas.ukuran_maks_kb', 10240);
+        $formats = (string) $settings->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png');
         $formatsClean = str_replace(' ', '', $formats);
+
+        $fileRules = $isUploadActive
+            ? ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:'.$formatsClean, 'max:'.$maxKb]
+            : ['exclude_unless:lampiran.*.mode,file'];
 
         return [
             'jenis' => ['required', Rule::in(['kepmen', 'permen', 'perpres', 'keputusan_lainnya'])],
@@ -48,7 +57,7 @@ abstract class RegulasiMutationRequest extends FormRequest
                 : ['nullable', 'string', 'max:1000'],
             'lampiran' => ['sometimes', 'array'],
             'lampiran.*.mode' => ['required', Rule::in(['file', 'tautan', 'teks'])],
-            'lampiran.*.file' => ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:'.$formatsClean, 'max:'.$maxKb],
+            'lampiran.*.file' => $fileRules,
             'lampiran.*.tautan' => ['exclude_unless:lampiran.*.mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
             'lampiran.*.isi_teks' => ['exclude_unless:lampiran.*.mode,teks', 'required', 'string', 'max:10000'],
         ];
@@ -64,7 +73,8 @@ abstract class RegulasiMutationRequest extends FormRequest
                 return;
             }
 
-            $isUploadActive = filter_var(Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true, FILTER_VALIDATE_BOOLEAN);
+            $isUploadActive = $this->isUploadActiveCached
+                ?? filter_var(Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true, FILTER_VALIDATE_BOOLEAN);
 
             foreach ($lampiran as $index => $item) {
                 if (! is_array($item)) {

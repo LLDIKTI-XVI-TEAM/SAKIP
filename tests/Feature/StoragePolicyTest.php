@@ -275,7 +275,28 @@ class StoragePolicyTest extends TestCase
                 ],
             ],
         ]);
-        $responseFile->assertSessionHasErrors(['lampiran.0.file']);
+        $responseFile->assertSessionHasErrors([
+            'lampiran.0.file' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
+        ]);
+
+        // 1b. Kirim file dengan format ilegal (.exe) dan ukuran besar (50 MB) saat saklar mati:
+        // Pesan error HARUS spesifik menyatakan saklar mati, BUKAN format atau ukuran!
+        $responseIllegalFile = $this->actingAs($this->perencanaan)->post('/regulasi', [
+            'jenis' => 'permen',
+            'nomor' => '99B/FAIL/2026',
+            'tahun' => 2026,
+            'tentang' => 'Percobaan Unggah File Ilegal Saat Saklar Mati',
+            'aktif' => true,
+            'lampiran' => [
+                [
+                    'mode' => 'file',
+                    'file' => UploadedFile::fake()->create('virus.exe', 50000, 'application/x-msdownload'),
+                ],
+            ],
+        ]);
+        $responseIllegalFile->assertSessionHasErrors([
+            'lampiran.0.file' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
+        ]);
 
         // 2. Kirim regulasi dengan mode tautan TETAP DIIZINKAN
         $responseLink = $this->actingAs($this->perencanaan)->post('/regulasi', [

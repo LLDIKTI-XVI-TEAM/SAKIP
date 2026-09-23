@@ -25,7 +25,7 @@ class StoragePolicyController extends Controller
      *
      * @var array<string, array{tipe: string, default: string}>
      */
-    protected const POLICY_KEYS = [
+    public const POLICY_KEYS = [
         'berkas.unggahan_aktif' => [
             'tipe' => 'boolean',
             'default' => 'true',
@@ -45,6 +45,24 @@ class StoragePolicyController extends Controller
     ];
 
     /**
+     * Pastikan keempat kunci kebijakan storage terinisialisasi secara idempoten di database.
+     */
+    protected function ensureDefaultRowsExist(): void
+    {
+        foreach (self::POLICY_KEYS as $key => $meta) {
+            Pengaturan::firstOrCreate(
+                ['kunci' => $key],
+                [
+                    'nilai' => $meta['default'],
+                    'tipe' => $meta['tipe'],
+                    'grup' => 'berkas',
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
+    /**
      * Tampilkan panel metrik dan formulir kebijakan storage bukti dukung.
      */
     public function index(Request $request, StorageMetricsService $metricsService): Response
@@ -59,6 +77,8 @@ class StoragePolicyController extends Controller
         if (! $canRead) {
             abort(403, 'Anda tidak memiliki hak akses untuk melihat kebijakan storage aplikasi.');
         }
+
+        $this->ensureDefaultRowsExist();
 
         $berkasSettings = Pengaturan::where('grup', 'berkas')->get();
         $existingSettings = $berkasSettings->pluck('nilai', 'kunci');
@@ -118,6 +138,8 @@ class StoragePolicyController extends Controller
         $alasan = (string) $request->input('alasan');
 
         $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt) {
+            $this->ensureDefaultRowsExist();
+
             $existing = Pengaturan::where('grup', 'berkas')
                 ->lockForUpdate()
                 ->get()
