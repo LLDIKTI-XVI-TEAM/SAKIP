@@ -20,7 +20,7 @@ export default function DenyIndex({ denies, pagination, filters, can }: DenyInde
         if (modal || !trigger.current) return;
         if (trigger.current.isConnected) trigger.current.focus(); else title.current?.focus();
     }, [modal]);
-    return <AuthenticatedLayout title="Pembatasan Izin">
+    return <AuthenticatedLayout title="Pembatasan Izin" hasCustomHeading>
         <Head title="Pembatasan Izin" />
         {message && dismissed !== flash && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg"><CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" /><p role="status" className="flex-1 text-sm font-medium">{message}</p><button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissed(flash)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button></div>}
         <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">

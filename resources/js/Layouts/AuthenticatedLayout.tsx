@@ -26,9 +26,18 @@ interface AuthenticatedLayoutProps {
     children: ReactNode;
     title?: string;
     breadcrumbs?: { label: string; href?: string }[];
+    renderTitleHeading?: boolean;
+    hasCustomHeading?: boolean;
 }
 
-export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: AuthenticatedLayoutProps) {
+export function AuthenticatedLayout({
+    children,
+    title,
+    breadcrumbs = [],
+    renderTitleHeading = true,
+    hasCustomHeading = false,
+}: AuthenticatedLayoutProps) {
+    const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
     const { props: { auth, flash }, url } = usePage<SharedPageProps>();
     const [navigationOpen, setNavigationOpen] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
@@ -347,7 +356,13 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                                 ))}
                             </nav>
                         )}
-                        {title && <h1 className="text-lg font-bold text-ink">{title}</h1>}
+                        {title && (
+                            shouldRenderH1 ? (
+                                <h1 className="text-lg font-bold text-ink">{title}</h1>
+                            ) : (
+                                <p className="text-lg font-bold text-ink">{title}</p>
+                            )
+                        )}
                     </header>
                 )}
 
