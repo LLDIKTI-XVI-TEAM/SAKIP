@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ShieldCheck,
@@ -36,10 +36,185 @@ interface GrantItem {
 
 interface UserOption {
     id: string;
-    name: string;
+    name?: string;
     nama: string;
     email: string;
-    roles: string[];
+    roles?: string[];
+    is_active?: boolean;
+}
+
+interface UserOptionPage {
+    items: UserOption[];
+    page: number;
+    hasMore: boolean;
+}
+
+function GrantUserLookup({
+    id,
+    label,
+    value,
+    onChange,
+    disabled,
+    error,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (id: string) => void;
+    disabled?: boolean;
+    error?: string;
+}) {
+    const [search, setSearch] = useState('');
+    const [query, setQuery] = useState({ q: '', page: 1 });
+    const [result, setResult] = useState<UserOptionPage>({ items: [], page: 1, hasMore: false });
+    const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [failure, setFailure] = useState('');
+
+    useEffect(() => {
+        const controller = new AbortController();
+        let current = true;
+        setLoading(true);
+        setFailure('');
+
+        const params = new URLSearchParams({
+            q: query.q,
+            page: String(query.page),
+        });
+
+        void fetch(`/akses/grant/opsi/pengguna?${params.toString()}`, {
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        })
+            .then(async (response) => {
+                if (!current) return;
+                if (!response.ok) {
+                    throw new Error('Daftar pengguna belum dapat dimuat. Coba cari kembali.');
+                }
+                const data: UserOptionPage = await response.json();
+                if (current) {
+                    setResult(data);
+                }
+            })
+            .catch((err: unknown) => {
+                if (current && !(err instanceof DOMException && err.name === 'AbortError')) {
+                    setFailure(err instanceof Error ? err.message : 'Daftar pengguna belum dapat dimuat.');
+                }
+            })
+            .finally(() => {
+                if (current) setLoading(false);
+            });
+
+        return () => {
+            current = false;
+            controller.abort();
+        };
+    }, [query]);
+
+    const options = selectedUser && !result.items.some((item) => item.id === selectedUser.id)
+        ? [selectedUser, ...result.items]
+        : result.items;
+
+    const applySearch = () => {
+        setQuery({ q: search, page: 1 });
+    };
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                    <label htmlFor={`${id}-search`} className="block text-xs font-semibold text-slate-700 mb-1">
+                        Cari Pengguna Target
+                    </label>
+                    <input
+                        id={`${id}-search`}
+                        type="search"
+                        maxLength={100}
+                        placeholder="Ketik nama atau email pengguna..."
+                        value={search}
+                        disabled={disabled}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                applySearch();
+                            }
+                        }}
+                        className="w-full text-xs rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                    />
+                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={disabled || loading}
+                    aria-label="Cari pengguna target"
+                    onClick={applySearch}
+                    className="text-xs"
+                >
+                    Cari
+                </Button>
+            </div>
+
+            <label htmlFor={id} className="block text-xs font-semibold text-slate-700 mb-1">
+                {label} <span className="text-red-500">*</span>
+            </label>
+            <select
+                id={id}
+                required
+                value={value}
+                disabled={disabled || loading || Boolean(failure)}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? `${id}-error` : `${id}-status`}
+                className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
+                onChange={(e) => {
+                    const found = options.find((item) => item.id === e.target.value) ?? null;
+                    setSelectedUser(found);
+                    onChange(e.target.value);
+                }}
+            >
+                <option value="">-- Pilih Pengguna Target --</option>
+                {options.map((user) => (
+                    <option key={user.id} value={user.id}>
+                        {user.nama} ({user.roles && user.roles.length > 0 ? user.roles.join(', ') : 'Tanpa Role'}) - {user.email}
+                    </option>
+                ))}
+            </select>
+
+            {error && (
+                <p id={`${id}-error`} role="alert" className="text-xs text-red-600">
+                    {error}
+                </p>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-slate-500">
+                <p id={`${id}-status`} role={failure ? 'alert' : 'status'} className={failure ? 'text-red-600' : 'text-slate-500'}>
+                    {failure || (loading ? 'Memuat pilihan pengguna…' : result.items.length === 0 ? 'Tidak ada pengguna yang cocok.' : `Halaman ${result.page}`)}
+                </p>
+                {(result.page > 1 || result.hasMore) && (
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            disabled={disabled || loading || result.page <= 1}
+                            onClick={() => setQuery((prev) => ({ ...prev, page: result.page - 1 }))}
+                            className="text-xs text-[#122E92] hover:underline disabled:opacity-40 disabled:no-underline"
+                        >
+                            Sebelumnya
+                        </button>
+                        <span>·</span>
+                        <button
+                            type="button"
+                            disabled={disabled || loading || !result.hasMore}
+                            onClick={() => setQuery((prev) => ({ ...prev, page: result.page + 1 }))}
+                            className="text-xs text-[#122E92] hover:underline disabled:opacity-40 disabled:no-underline"
+                        >
+                            Berikutnya
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 interface UnitOption {
@@ -72,7 +247,7 @@ interface GrantIndexProps {
         search?: string;
         unit_id?: string;
     };
-    users: UserOption[];
+    users?: UserOption[];
     units: UnitOption[];
     unitPermissions: PermissionOption[];
     is_superadmin?: boolean;
@@ -85,7 +260,7 @@ interface GrantIndexProps {
 export default function GrantIndex({
     grants,
     filters,
-    users,
+    users = [],
     units,
     unitPermissions,
     is_superadmin = false,
@@ -379,7 +554,15 @@ export default function GrantIndex({
                                             </td>
                                             <td className="px-6 py-4 text-xs text-slate-500">
                                                 <div className="font-medium text-slate-700">{grant.diberikan_oleh_nama}</div>
-                                                <div className="text-slate-400 mt-0.5">{grant.created_at}</div>
+                                                <time dateTime={grant.created_at} className="text-slate-400 mt-0.5 block">
+                                                    {grant.created_at
+                                                        ? `${new Intl.DateTimeFormat('id-ID', {
+                                                              dateStyle: 'medium',
+                                                              timeStyle: 'short',
+                                                              timeZone: 'Asia/Makassar',
+                                                          }).format(new Date(grant.created_at))} WITA`
+                                                        : '-'}
+                                                </time>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 {can.revoke_grant && (grant.can_revoke ?? true) ? (
@@ -394,7 +577,7 @@ export default function GrantIndex({
                                                     </Button>
                                                 ) : (
                                                     <span className="text-[11px] text-slate-400 italic font-medium px-2 py-0.5 rounded bg-slate-100/80">
-                                                        Hanya Superadmin
+                                                        Tidak dapat dicabut
                                                     </span>
                                                 )}
                                             </td>
@@ -473,37 +656,18 @@ export default function GrantIndex({
                             <p>
                                 Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
                             </p>
-                            {!is_superadmin && (
-                                <p className="font-semibold text-amber-800">
-                                    Catatan: Admin berwenang mengelola izin unit pegawai non-Admin dan non-Superadmin.
-                                </p>
-                            )}
                         </div>
                     </div>
 
                     {/* Pilih Pengguna */}
-                    <div>
-                        <label htmlFor="grant-user-select" className="block text-xs font-semibold text-slate-700 mb-1">
-                            Pilih Pengguna Target <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="grant-user-select"
-                            value={createForm.data.user_id}
-                            onChange={(e) => createForm.setData('user_id', e.target.value)}
-                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                            required
-                        >
-                            <option value="">-- Pilih Pengguna --</option>
-                            {users.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.nama} ({u.roles.join(', ')}) - {u.email}
-                                </option>
-                            ))}
-                        </select>
-                        {createForm.errors.user_id && (
-                            <p className="text-xs text-red-600 mt-1">{createForm.errors.user_id}</p>
-                        )}
-                    </div>
+                    <GrantUserLookup
+                        id="grant-user-select"
+                        label="Pilih Pengguna Target"
+                        value={createForm.data.user_id}
+                        onChange={(id) => createForm.setData('user_id', id)}
+                        disabled={createForm.processing}
+                        error={createForm.errors.user_id}
+                    />
 
                     {/* Pilih Permission (Hanya butuh_scope = unit) */}
                     <div>

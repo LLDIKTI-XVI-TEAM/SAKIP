@@ -66,11 +66,10 @@ class IndexGrant extends Controller
         }
 
         $grants = $grantsQuery->latest()
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString()
-            ->through(function (UserPermissionGrant $grant) use ($actorIsSuperadmin) {
-                $targetIsAdminOrSuperadmin = $grant->user?->hasAnyRole(['admin', 'superadmin']) ?? false;
-
+            ->through(function (UserPermissionGrant $grant) {
                 return [
                     'id' => $grant->id,
                     'user_id' => $grant->user_id,
@@ -84,32 +83,10 @@ class IndexGrant extends Controller
                     'unit_nama' => $grant->unit?->nama,
                     'alasan' => $grant->alasan,
                     'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
-                    'created_at' => $grant->created_at?->format('d M Y H:i'),
-                    'can_revoke' => $actorIsSuperadmin || ! $targetIsAdminOrSuperadmin,
+                    'created_at' => $grant->created_at?->toISOString(),
+                    'can_revoke' => true,
                 ];
             });
-
-        $usersQuery = User::where('is_active', true)
-            ->with('roles:id,nama,kode,aktif')
-            ->select('id', 'nama', 'email')
-            ->orderBy('nama');
-
-        if (! $actorIsSuperadmin) {
-            // Admin tidak dapat merubah izin untuk Admin dan Superadmin dengan peran aktif
-            $usersQuery->whereDoesntHave('roles', function ($q) {
-                $q->whereIn('kode', ['admin', 'superadmin'])->where('roles.aktif', true);
-            });
-        }
-
-        $users = $usersQuery
-            ->get()
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->nama,
-                'nama' => $user->nama,
-                'email' => $user->email,
-                'roles' => $user->roles->pluck('nama')->all(),
-            ]);
 
         $units = Unit::where('status', 'aktif')
             ->select('id', 'nama')
@@ -135,7 +112,7 @@ class IndexGrant extends Controller
                 'search' => $search,
                 'unit_id' => $unitId ?? 'all',
             ],
-            'users' => $users,
+            'users' => [],
             'units' => $units,
             'unitPermissions' => $unitPermissions,
             'is_superadmin' => $actorIsSuperadmin,

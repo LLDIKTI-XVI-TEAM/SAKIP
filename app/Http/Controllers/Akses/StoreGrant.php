@@ -105,22 +105,6 @@ class StoreGrant extends Controller
             ]);
         }
 
-        // Admin tidak dapat merubah/memberikan izin kepada Admin dan Superadmin
-        if ($targetUser->hasAnyRole(['admin', 'superadmin']) && ! $actor->hasRole('superadmin')) {
-            $auditLogger->catat(
-                actor: $actor,
-                tindakan: 'user_permission_granted.ditolak',
-                objekTipe: 'users',
-                objekId: (string) $targetUser->id,
-                nilaiLama: null,
-                nilaiBaru: null,
-                alasan: 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.',
-                dasarIzin: $decision->toAuditBasis(),
-            );
-
-            abort(403, 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.');
-        }
-
         /** @var Permission $permission */
         $permission = Permission::find($validated['permission_id']);
         if (! $permission || ! $permission->aktif || ! in_array($permission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
@@ -202,20 +186,6 @@ class StoreGrant extends Controller
                         'alasan' => 'Anda tidak berwenang mengelola pemberian izin unit.',
                         'dasarIzin' => $currentDecision->toAuditBasis(),
                         'message' => 'Anda tidak berwenang mengelola pemberian izin unit.',
-                    ];
-                }
-
-                // Periksa hierarki: Admin tidak dapat memberikan izin kepada Admin atau Superadmin
-                if ($lockedTargetUser->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
-                    return [
-                        'status' => 'denied',
-                        'actor' => $currentActor,
-                        'tindakan' => 'user_permission_granted.ditolak',
-                        'objekTipe' => 'users',
-                        'objekId' => (string) $lockedTargetUser->id,
-                        'alasan' => 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.',
-                        'dasarIzin' => $currentDecision->toAuditBasis(),
-                        'message' => 'Admin tidak memiliki wewenang untuk memberikan izin unit kepada pengguna dengan peran Admin atau Superadmin.',
                     ];
                 }
 

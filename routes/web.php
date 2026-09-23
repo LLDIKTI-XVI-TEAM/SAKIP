@@ -5,6 +5,7 @@ use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
 use App\Http\Controllers\Akses\IndexGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
+use App\Http\Controllers\Akses\SearchGrantUsers;
 use App\Http\Controllers\Akses\StoreGrant;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\ProcessLogout;
@@ -108,6 +109,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Manajemen Hak Akses: Grant Izin per Unit
     Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
+    Route::get('/akses/grant/opsi/pengguna', SearchGrantUsers::class)->name('akses.grant.users');
     Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
     Route::delete('/akses/grant/{id}', RevokeGrant::class)->whereUuid('id')->name('akses.grant.destroy');
 

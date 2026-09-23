@@ -111,20 +111,6 @@ class RevokeGrant extends Controller
                 abort(422, 'Endpoint ini hanya dapat mencabut grant yang berscope unit.');
             }
 
-            // Admin tidak dapat merubah/mencabut izin dari Admin dan Superadmin
-            if ($lockedTargetUser->hasAnyRole(['admin', 'superadmin']) && ! $currentActor->hasRole('superadmin')) {
-                return [
-                    'status' => 'denied',
-                    'actor' => $currentActor,
-                    'tindakan' => 'user_permission_granted.ditolak',
-                    'objekTipe' => 'user_permission_granted',
-                    'objekId' => (string) $grant->id,
-                    'alasan' => 'Admin tidak memiliki wewenang untuk mencabut izin unit dari pengguna dengan peran Admin atau Superadmin.',
-                    'dasarIzin' => $currentDecision->toAuditBasis(),
-                    'message' => 'Admin tidak memiliki wewenang untuk mencabut izin unit dari pengguna dengan peran Admin atau Superadmin.',
-                ];
-            }
-
             $oldValues = [
                 'id' => $grant->id,
                 'user_id' => $grant->user_id,
