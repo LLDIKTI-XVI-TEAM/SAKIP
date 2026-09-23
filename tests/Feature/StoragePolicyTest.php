@@ -183,7 +183,19 @@ class StoragePolicyTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // 4. File evidence yang telah dihapus (soft-deleted) - tidak boleh dihitung dalam metrik aktif
+        // 4. File evidence via relasi morph produksi Regulasi::berkas()->create()
+        $regulasi->berkas()->create([
+            'id' => (string) Str::uuid(),
+            'mode' => 'file',
+            'nama_asli' => 'regulasi_morph.pdf',
+            'path' => 'berkas/regulasi/regulasi_morph.pdf',
+            'mime' => 'application/pdf',
+            'ukuran_bytes' => 102400, // 100 KB
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // 5. File evidence yang telah dihapus (soft-deleted) - tidak boleh dihitung dalam metrik aktif
         BuktiDukung::create([
             'id' => (string) Str::uuid(),
             'berkasable_type' => 'regulasi',
@@ -203,11 +215,19 @@ class StoragePolicyTest extends TestCase
         $service = app(StorageMetricsService::class);
         $metrics = $service->calculate();
 
-        $this->assertSame(1, $metrics['file_count']);
-        $this->assertSame(204800, $metrics['file_total_bytes']);
+        $this->assertSame(2, $metrics['file_count']);
+        $this->assertSame(307200, $metrics['file_total_bytes']);
         $this->assertSame(1, $metrics['link_count']);
         $this->assertSame(1, $metrics['text_count']);
-        $this->assertSame(3, $metrics['total_evidence_count']);
+        $this->assertSame(4, $metrics['total_evidence_count']);
+
+        // Verifikasi pemetaan morph class ke rincian by_induk regulasi
+        $this->assertArrayHasKey('regulasi', $metrics['by_induk']);
+        $this->assertSame(2, $metrics['by_induk']['regulasi']['file_count']);
+        $this->assertSame(307200, $metrics['by_induk']['regulasi']['file_bytes']);
+        $this->assertSame(1, $metrics['by_induk']['regulasi']['link_count']);
+        $this->assertSame(1, $metrics['by_induk']['regulasi']['text_count']);
+        $this->assertSame(4, $metrics['by_induk']['regulasi']['total_count']);
 
         // Test Endpoint via Inertia
         $response = $this->actingAs($this->admin)->get('/pengaturan/storage');
@@ -215,11 +235,12 @@ class StoragePolicyTest extends TestCase
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Pengaturan/StorageIndex')
             ->has('metrics')
-            ->where('metrics.file_count', 1)
-            ->where('metrics.file_total_bytes', 204800)
+            ->where('metrics.file_count', 2)
+            ->where('metrics.file_total_bytes', 307200)
             ->where('metrics.link_count', 1)
             ->where('metrics.text_count', 1)
-            ->where('metrics.total_evidence_count', 3)
+            ->where('metrics.total_evidence_count', 4)
+            ->where('metrics.by_induk.regulasi.total_count', 4)
             ->has('settings')
             ->where('settings.berkas_unggahan_aktif', true)
             ->where('settings.berkas_ukuran_maks_kb', 10240)
@@ -485,6 +506,12 @@ class StoragePolicyTest extends TestCase
         unset($payloadNoUpdatedAt['expected_updated_at']);
         $responseNoUpdatedAt = $this->actingAs($this->admin)->put('/pengaturan/storage', $payloadNoUpdatedAt);
         $responseNoUpdatedAt->assertSessionHasErrors(['expected_updated_at']);
+
+        // 5. Invariant anti-blocking: berkas_tautan_selalu_diizinkan bernilai false harus ditolak
+        $responseNonFileFalse = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_tautan_selalu_diizinkan' => false,
+        ]));
+        $responseNonFileFalse->assertSessionHasErrors(['berkas_tautan_selalu_diizinkan']);
     }
 
     /**
@@ -584,5 +611,23 @@ class StoragePolicyTest extends TestCase
         ]);
         $responseSuccess->assertSessionHasNoErrors();
         $this->assertDatabaseHas('regulasi', ['nomor' => '1001/SUCCESS-DYNAMIC/2026']);
+
+        // Uji fallback default tanpa baris pengaturan berkas: .doc harus ditolak (karena default hanya pdf,docx,xlsx,jpg,jpeg,png)
+        Pengaturan::where('kunci', 'berkas.format_diizinkan')->delete();
+
+        $responseDocFallback = $this->actingAs($this->perencanaan)->post('/regulasi', [
+            'jenis' => 'permen',
+            'nomor' => '1002/DOC-REJECT/2026',
+            'tahun' => 2026,
+            'tentang' => 'Uji Berkas DOC Ditolak pada Fallback Default',
+            'aktif' => true,
+            'lampiran' => [
+                [
+                    'mode' => 'file',
+                    'file' => UploadedFile::fake()->create('dokumen.doc', 100, 'application/msword'),
+                ],
+            ],
+        ]);
+        $responseDocFallback->assertSessionHasErrors(['lampiran.0.file']);
     }
 }

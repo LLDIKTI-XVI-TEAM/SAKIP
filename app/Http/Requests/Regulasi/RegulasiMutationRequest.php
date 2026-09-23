@@ -28,7 +28,7 @@ abstract class RegulasiMutationRequest extends FormRequest
         }
 
         $maxKb = (int) (Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->value('nilai') ?? 10240);
-        $formats = (string) (Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png');
+        $formats = (string) (Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,docx,xlsx,jpg,jpeg,png');
         $formatsClean = str_replace(' ', '', $formats);
 
         return [

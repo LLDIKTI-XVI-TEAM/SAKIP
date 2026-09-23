@@ -44,7 +44,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'berkas_unggahan_aktif' => ['required', 'boolean'],
             'berkas_ukuran_maks_kb' => ['required', 'integer', 'min:100', 'max:102400'],
             'berkas_format_diizinkan' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
-            'berkas_tautan_selalu_diizinkan' => ['required', 'boolean'],
+            'berkas_tautan_selalu_diizinkan' => ['required', 'accepted'],
             'expected_updated_at' => ['required', 'string'],
             'alasan' => ['required', 'string', 'min:10', 'max:1000'],
         ];
@@ -92,6 +92,7 @@ class UpdateStoragePolicyRequest extends FormRequest
         return [
             'required' => ':Attribute wajib diisi.',
             'boolean' => ':Attribute harus bernilai benar atau salah.',
+            'accepted' => ':Attribute harus selalu bernilai aktif (true) sebagai jaminan anti-blocking pengumpulan bukti.',
             'integer' => ':Attribute harus berupa angka bilangan bulat.',
             'min' => ':Attribute minimal :min karakter/KB.',
             'max' => ':Attribute maksimal :max karakter/KB.',

@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from 'react';
+import React, { useState, useEffect, type FormEvent } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/Card';
@@ -75,6 +75,25 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
         alasan: '',
     });
 
+    useEffect(() => {
+        form.setData({
+            berkas_unggahan_aktif: settings.berkas_unggahan_aktif,
+            berkas_ukuran_maks_kb: settings.berkas_ukuran_maks_kb,
+            berkas_format_diizinkan: settings.berkas_format_diizinkan,
+            berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
+            expected_updated_at: settings.expected_updated_at,
+            alasan: '',
+        });
+        form.setDefaults({
+            berkas_unggahan_aktif: settings.berkas_unggahan_aktif,
+            berkas_ukuran_maks_kb: settings.berkas_ukuran_maks_kb,
+            berkas_format_diizinkan: settings.berkas_format_diizinkan,
+            berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
+            expected_updated_at: settings.expected_updated_at,
+            alasan: '',
+        });
+    }, [settings.expected_updated_at]);
+
     const handleOpenModal = (e?: FormEvent) => {
         if (e) {
             e.preventDefault();
@@ -96,10 +115,18 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
         }));
 
         form.put('/pengaturan/storage', {
-            onSuccess: () => {
+            onSuccess: (page) => {
                 setIsAuditModalOpen(false);
                 setAuditReason('');
                 setAuditError('');
+                const newSettings = (page.props as unknown as StorageIndexProps)?.settings;
+                if (newSettings?.expected_updated_at) {
+                    form.setData((prev) => ({
+                        ...prev,
+                        expected_updated_at: newSettings.expected_updated_at,
+                        alasan: '',
+                    }));
+                }
             },
             onError: (errors: Record<string, string>) => {
                 if (errors.alasan) {

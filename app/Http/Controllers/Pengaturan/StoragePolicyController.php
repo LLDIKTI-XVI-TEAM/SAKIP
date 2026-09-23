@@ -60,10 +60,10 @@ class StoragePolicyController extends Controller
             abort(403, 'Anda tidak memiliki hak akses untuk melihat kebijakan storage aplikasi.');
         }
 
-        $existingSettings = Pengaturan::where('grup', 'berkas')
-            ->pluck('nilai', 'kunci');
+        $berkasSettings = Pengaturan::where('grup', 'berkas')->get();
+        $existingSettings = $berkasSettings->pluck('nilai', 'kunci');
 
-        $maxUpdatedAt = Pengaturan::where('grup', 'berkas')->max('updated_at');
+        $maxUpdatedAt = $berkasSettings->max('updated_at');
         $expectedUpdatedAt = $maxUpdatedAt !== null ? Carbon::parse($maxUpdatedAt)->toISOString() : now()->toISOString();
 
         $settings = [

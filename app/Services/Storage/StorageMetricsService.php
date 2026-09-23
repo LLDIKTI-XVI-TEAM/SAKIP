@@ -2,7 +2,8 @@
 
 namespace App\Services\Storage;
 
-use App\Models\BuktiDukung;
+use App\Models\Regulasi;
+use Illuminate\Support\Facades\DB;
 
 class StorageMetricsService
 {
@@ -41,7 +42,7 @@ class StorageMetricsService
     public function calculate(): array
     {
         // 1. Agregasi global lintas mode (hanya bukti aktif: dihapus_pada IS NULL)
-        $summary = BuktiDukung::query()
+        $summary = DB::table('berkas')
             ->whereNull('dihapus_pada')
             ->selectRaw("
                 COUNT(CASE WHEN mode = 'file' THEN 1 END) as file_count,
@@ -59,7 +60,7 @@ class StorageMetricsService
         $totalCount = (int) ($summary->total_evidence_count ?? 0);
 
         // 2. Breakdown per berkasable_type (6 induk resmi)
-        $rows = BuktiDukung::query()
+        $rows = DB::table('berkas')
             ->whereNull('dihapus_pada')
             ->groupBy('berkasable_type')
             ->selectRaw("
@@ -70,21 +71,39 @@ class StorageMetricsService
                 COUNT(CASE WHEN mode = 'teks' THEN 1 END) as text_count,
                 COUNT(*) as total_count
             ")
-            ->get()
-            ->keyBy('berkasable_type');
+            ->get();
 
         $byInduk = [];
         foreach (self::INDUK_LABELS as $type => $label) {
-            $row = $rows->get($type);
             $byInduk[$type] = [
                 'induk' => $type,
                 'label' => $label,
-                'file_count' => (int) ($row->file_count ?? 0),
-                'file_bytes' => (int) ($row->file_bytes ?? 0),
-                'link_count' => (int) ($row->link_count ?? 0),
-                'text_count' => (int) ($row->text_count ?? 0),
-                'total_count' => (int) ($row->total_count ?? 0),
+                'file_count' => 0,
+                'file_bytes' => 0,
+                'link_count' => 0,
+                'text_count' => 0,
+                'total_count' => 0,
             ];
+        }
+
+        foreach ($rows as $row) {
+            $canonicalType = match ($row->berkasable_type) {
+                'regulasi', Regulasi::class => 'regulasi',
+                'pengukuran', 'App\Models\PengukuranKinerja', 'App\Models\Pengukuran' => 'pengukuran',
+                'rencana_aksi', 'App\Models\RencanaAksi' => 'rencana_aksi',
+                'kegiatan', 'App\Models\Kegiatan' => 'kegiatan',
+                'renstra', 'App\Models\Renstra' => 'renstra',
+                'renstra_pk', 'App\Models\PerjanjianKinerja' => 'renstra_pk',
+                default => $row->berkasable_type,
+            };
+
+            if (isset($byInduk[$canonicalType])) {
+                $byInduk[$canonicalType]['file_count'] += (int) $row->file_count;
+                $byInduk[$canonicalType]['file_bytes'] += (int) $row->file_bytes;
+                $byInduk[$canonicalType]['link_count'] += (int) $row->link_count;
+                $byInduk[$canonicalType]['text_count'] += (int) $row->text_count;
+                $byInduk[$canonicalType]['total_count'] += (int) $row->total_count;
+            }
         }
 
         return [

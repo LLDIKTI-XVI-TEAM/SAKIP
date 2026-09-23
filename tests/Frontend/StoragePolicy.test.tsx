@@ -209,4 +209,22 @@ describe('StorageIndex Component', () => {
         expect(screen.getByText(/Saklar Unggahan File Global Sedang Dinonaktifkan/i)).toBeTruthy();
         expect(screen.getByText(/Unggahan Nonaktif/i)).toBeTruthy();
     });
+
+    it('menyinkronkan formulir saat expected_updated_at pada props diperbarui', () => {
+        const { rerender } = render(<StorageIndex {...defaultProps} />);
+
+        const updatedProps: StorageIndexProps = {
+            ...defaultProps,
+            settings: {
+                ...defaultProps.settings,
+                berkas_ukuran_maks_kb: 20480,
+                expected_updated_at: '2026-09-23T11:00:00.000Z',
+            },
+        };
+
+        rerender(<StorageIndex {...updatedProps} />);
+
+        const sizeInput = screen.getByLabelText(/Batas Ukuran Berkas Default/i) as HTMLInputElement;
+        expect(sizeInput.value).toBe('20480');
+    });
 });
