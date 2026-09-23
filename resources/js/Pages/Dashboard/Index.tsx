@@ -308,13 +308,13 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                         <div className="flex flex-col items-center justify-center">
                                             {/* Custom Document with info circle badge */}
                                             <div className="relative mb-3">
-                                                <svg width="46" height="52" viewBox="0 0 48 54" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M6 0C2.68629 0 0 2.68629 0 6V48C0 51.3137 2.68629 54 6 54H42C45.3137 54 48 51.3137 48 48V14L34 0H6Z" fill="#E2E8F0"/>
-                                                    <path d="M34 0V14H48L34 0Z" fill="#CBD5E1"/>
-                                                    <rect x="10" y="20" width="22" height="3" rx="1.5" fill="#CBD5E1"/>
-                                                    <rect x="10" y="26" width="16" height="3" rx="1.5" fill="#CBD5E1"/>
-                                                    <circle cx="34" cy="38" r="9" fill="#64748B"/>
-                                                    <path d="M34 33V35M34 37V42" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                                                <svg width="46" height="52" viewBox="0 0 48 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                    <path d="M6 0C2.68629 0 0 2.68629 0 6V48C0 51.3137 2.68629 54 6 54H42C45.3137 54 48 51.3137 48 48V14L34 0H6Z" className="fill-border" />
+                                                    <path d="M34 0V14H48L34 0Z" className="fill-muted/30" />
+                                                    <rect x="10" y="20" width="22" height="3" rx="1.5" className="fill-muted/30" />
+                                                    <rect x="10" y="26" width="16" height="3" rx="1.5" className="fill-muted/30" />
+                                                    <circle cx="34" cy="38" r="9" className="fill-muted" />
+                                                    <path d="M34 33V35M34 37V42" className="stroke-surface" strokeWidth="2" strokeLinecap="round" />
                                                 </svg>
                                             </div>
                                             <p className="text-sm font-bold text-ink">
@@ -330,7 +330,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                                             <p className="font-semibold text-ink text-xs">
                                                 {item.indikator.kode}
                                             </p>
-                                            <p className="mt-0.5 text-muted line-clamp-2 leading-relaxed">
+                                            <p className="mt-0.5 text-muted leading-relaxed" title={item.indikator.nama}>
                                                 {item.indikator.nama}
                                             </p>
                                         </td>
