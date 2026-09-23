@@ -25,16 +25,15 @@ class PermissionResolver
         if (! $permission) {
             return [...$result, 'reason' => 'unknown_permission'];
         }
-        if ($unitId !== null) {
-            if (! Str::isUuid($unitId)) {
+        if ($permission->butuh_scope === 'unit') {
+            if ($unitId === null || ! Str::isUuid($unitId)) {
                 return [...$result, 'reason' => 'invalid_scope'];
             }
             $unitActive = DB::table('unit')->where('id', $unitId)->where('status', 'aktif')->exists();
             if (! $unitActive) {
                 return [...$result, 'reason' => 'inactive_unit'];
             }
-        }
-        if ($permission->butuh_scope === 'unit' && $unitId === null) {
+        } elseif ($unitId !== null && ! Str::isUuid($unitId)) {
             return [...$result, 'reason' => 'invalid_scope'];
         }
         $roles = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
