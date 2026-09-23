@@ -6,7 +6,7 @@ import type { SharedPageProps } from '@/types/auth';
 export default function RoleAssignmentResult({ status, canReturn }: { status: 'assigned' | 'changed' | 'unchanged' | null; canReturn: boolean }) {
     const { props: { auth } } = usePage<SharedPageProps>();
     const message = status === 'assigned' ? 'Peran berhasil ditetapkan.' : status === 'changed' ? 'Peran berhasil diubah.' : status === 'unchanged' ? 'Peran tidak berubah.' : 'Tidak ada hasil penetapan peran untuk ditampilkan.';
-    return <AuthenticatedLayout title="Hasil penetapan peran">
+    return <AuthenticatedLayout title="Hasil penetapan peran" hasCustomHeading>
         <Head title="Hasil penetapan peran" />
         <section className="max-w-2xl rounded-xl border border-border bg-surface p-6">
             <h1 className="text-lg font-semibold" role="status">{message}</h1>

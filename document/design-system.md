@@ -75,6 +75,9 @@ Warna dan font **tetap sama persis** dengan identitas visual institusi:
 | Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
 |-------|-------------|---------------|-----------|---------------------|
 | Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#0F2A6B` | Brand utama, CTA, active state sidebar, header resmi |
+| Primary Dark | `--color-primary-dark` | `bg-primary-dark` | `#081A4A` | Aksen/gradien hero institusi (sisi gelap) |
+| Primary Mid | `--color-primary-mid` | `bg-primary-mid` | `#0D286D` | Aksen/gradien hero institusi (sisi tengah) |
+| Primary Light | `--color-primary-light` | `bg-primary-light` | `#1546B8` | Aksen/gradien hero institusi (sisi terang) |
 | Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#C09A43` | Aksen emas, badge sekunder, highlight target khusus |
 
 ### Surface Colors
@@ -117,6 +120,7 @@ Warna dan font **tetap sama persis** dengan identitas visual institusi:
 
 ```
 bg-primary        text-primary        border-primary
+bg-primary-dark   bg-primary-mid      bg-primary-light
 bg-secondary      text-secondary      border-secondary
 bg-page           bg-surface
 text-ink          text-muted
