@@ -10,6 +10,7 @@ use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Services\Authorization\RolePermissionPresets;
 use App\Services\Storage\StorageMetricsService;
 use Database\Seeders\AccessCatalogSeeder;
+use Database\Seeders\StoragePolicySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -45,6 +47,7 @@ class StoragePolicyTest extends TestCase
     {
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
+        $this->seed(StoragePolicySeeder::class);
 
         $this->superadmin = $this->userWithRole('superadmin');
         $this->admin = $this->userWithRole('admin');
@@ -211,15 +214,38 @@ class StoragePolicyTest extends TestCase
             'dihapus_oleh' => $this->perencanaan->id,
         ]);
 
+        // 6. File evidence pada PK menggunakan FQCN RenstraPk::class
+        $renstra = Renstra::firstOrFail();
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK/STORAGE/01',
+            'tanggal_pk' => now()->toDateString(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        BuktiDukung::create([
+            'id' => (string) Str::uuid(),
+            'berkasable_type' => RenstraPk::class,
+            'berkasable_id' => $pk->id,
+            'mode' => 'file',
+            'nama_asli' => 'pk_document.pdf',
+            'path' => 'berkas/renstra_pk/pk_document.pdf',
+            'mime' => 'application/pdf',
+            'ukuran_bytes' => 102400, // 100 KB
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
         // Test langsung Service
         $service = app(StorageMetricsService::class);
         $metrics = $service->calculate();
 
-        $this->assertSame(2, $metrics['file_count']);
-        $this->assertSame(307200, $metrics['file_total_bytes']);
+        $this->assertSame(3, $metrics['file_count']);
+        $this->assertSame(409600, $metrics['file_total_bytes']);
         $this->assertSame(1, $metrics['link_count']);
         $this->assertSame(1, $metrics['text_count']);
-        $this->assertSame(4, $metrics['total_evidence_count']);
+        $this->assertSame(5, $metrics['total_evidence_count']);
 
         // Verifikasi pemetaan morph class ke rincian by_induk regulasi
         $this->assertArrayHasKey('regulasi', $metrics['by_induk']);
@@ -229,18 +255,25 @@ class StoragePolicyTest extends TestCase
         $this->assertSame(1, $metrics['by_induk']['regulasi']['text_count']);
         $this->assertSame(4, $metrics['by_induk']['regulasi']['total_count']);
 
+        // Verifikasi pemetaan FQCN RenstraPk::class ke rincian by_induk renstra_pk
+        $this->assertArrayHasKey('renstra_pk', $metrics['by_induk']);
+        $this->assertSame(1, $metrics['by_induk']['renstra_pk']['file_count']);
+        $this->assertSame(102400, $metrics['by_induk']['renstra_pk']['file_bytes']);
+        $this->assertSame(1, $metrics['by_induk']['renstra_pk']['total_count']);
+
         // Test Endpoint via Inertia
         $response = $this->actingAs($this->admin)->get('/pengaturan/storage');
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Pengaturan/StorageIndex')
             ->has('metrics')
-            ->where('metrics.file_count', 2)
-            ->where('metrics.file_total_bytes', 307200)
+            ->where('metrics.file_count', 3)
+            ->where('metrics.file_total_bytes', 409600)
             ->where('metrics.link_count', 1)
             ->where('metrics.text_count', 1)
-            ->where('metrics.total_evidence_count', 4)
+            ->where('metrics.total_evidence_count', 5)
             ->where('metrics.by_induk.regulasi.total_count', 4)
+            ->where('metrics.by_induk.renstra_pk.total_count', 1)
             ->has('settings')
             ->where('settings.berkas_unggahan_aktif', true)
             ->where('settings.berkas_ukuran_maks_kb', 10240)

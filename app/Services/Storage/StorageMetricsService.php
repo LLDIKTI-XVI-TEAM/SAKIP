@@ -2,7 +2,12 @@
 
 namespace App\Services\Storage;
 
+use App\Models\Kegiatan;
+use App\Models\PengukuranKinerja;
 use App\Models\Regulasi;
+use App\Models\RencanaAksi;
+use App\Models\Renstra;
+use App\Models\RenstraPk;
 use Illuminate\Support\Facades\DB;
 
 class StorageMetricsService
@@ -89,11 +94,11 @@ class StorageMetricsService
         foreach ($rows as $row) {
             $canonicalType = match ($row->berkasable_type) {
                 'regulasi', Regulasi::class => 'regulasi',
-                'pengukuran', 'App\Models\PengukuranKinerja', 'App\Models\Pengukuran' => 'pengukuran',
-                'rencana_aksi', 'App\Models\RencanaAksi' => 'rencana_aksi',
-                'kegiatan', 'App\Models\Kegiatan' => 'kegiatan',
-                'renstra', 'App\Models\Renstra' => 'renstra',
-                'renstra_pk', 'App\Models\PerjanjianKinerja' => 'renstra_pk',
+                'pengukuran', PengukuranKinerja::class, 'App\Models\Pengukuran' => 'pengukuran',
+                'rencana_aksi', RencanaAksi::class => 'rencana_aksi',
+                'kegiatan', Kegiatan::class => 'kegiatan',
+                'renstra', Renstra::class => 'renstra',
+                'renstra_pk', RenstraPk::class, 'App\Models\PerjanjianKinerja' => 'renstra_pk',
                 default => $row->berkasable_type,
             };
 

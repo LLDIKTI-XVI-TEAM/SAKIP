@@ -3,6 +3,15 @@ import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/Card';
 import { Button } from '@/Components/Button';
+import { Switch } from '@/Components/Switch';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/Components/Table';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import {
     HardDrive,
@@ -158,14 +167,9 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             <div className="space-y-6">
                 {/* Header Information */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-                            Kebijakan Storage & Saklar Unggahan
-                        </h1>
-                        <p className="mt-1 text-sm text-muted">
-                            Pengendalian kapasitas penyimpanan VPS dan kebijakan teknis bukti dukung aplikasi SAKIP.
-                        </p>
-                    </div>
+                    <p className="text-sm text-muted">
+                        Pengendalian kapasitas penyimpanan VPS dan kebijakan teknis bukti dukung aplikasi SAKIP.
+                    </p>
 
                     {!can.update && (
                         <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-soft px-3 py-1.5 text-xs font-medium text-muted">
@@ -297,44 +301,42 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                             </span>
                         </CardTitle>
                     </CardHeader>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-ink">
-                            <thead className="border-b border-border bg-soft text-xs font-semibold uppercase tracking-wider text-muted">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3">Induk Dokumen</th>
-                                    <th scope="col" className="px-6 py-3 text-right">Berkas File</th>
-                                    <th scope="col" className="px-6 py-3 text-right">Ukuran Disk</th>
-                                    <th scope="col" className="px-6 py-3 text-right">Bukti Tautan</th>
-                                    <th scope="col" className="px-6 py-3 text-right">Bukti Teks</th>
-                                    <th scope="col" className="px-6 py-3 text-right font-bold">Total Bukti</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {Object.values(metrics.by_induk).map((item) => (
-                                    <tr key={item.induk} className="hover:bg-soft/40 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-ink">
-                                            {item.label}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {item.file_count.toLocaleString('id-ID')}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-mono text-xs text-muted">
-                                            {formatBytes(item.file_bytes)}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {item.link_count.toLocaleString('id-ID')}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {item.text_count.toLocaleString('id-ID')}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-semibold text-ink">
-                                            {item.total_count.toLocaleString('id-ID')}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="px-6 py-3">Induk Dokumen</TableHead>
+                                <TableHead className="px-6 py-3 text-right">Berkas File</TableHead>
+                                <TableHead className="px-6 py-3 text-right">Ukuran Disk</TableHead>
+                                <TableHead className="px-6 py-3 text-right">Bukti Tautan</TableHead>
+                                <TableHead className="px-6 py-3 text-right">Bukti Teks</TableHead>
+                                <TableHead className="px-6 py-3 text-right font-bold">Total Bukti</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.values(metrics.by_induk).map((item) => (
+                                <TableRow key={item.induk}>
+                                    <TableCell className="font-medium text-ink">
+                                        {item.label}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {item.file_count.toLocaleString('id-ID')}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-muted">
+                                        {formatBytes(item.file_bytes)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {item.link_count.toLocaleString('id-ID')}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {item.text_count.toLocaleString('id-ID')}
+                                    </TableCell>
+                                    <TableCell className="text-right font-semibold text-ink">
+                                        {item.total_count.toLocaleString('id-ID')}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </Card>
 
                 {/* Form Kebijakan Storage */}
@@ -378,34 +380,16 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                         </p>
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={form.data.berkas_unggahan_aktif}
-                                        aria-label={can.update ? 'Toggle saklar unggahan berkas' : 'Status saklar unggahan berkas (Hanya baca)'}
-                                        disabled={!can.update || form.processing}
-                                        onClick={() => {
+                                    <Switch
+                                        checked={form.data.berkas_unggahan_aktif}
+                                        onChange={(checked) => {
                                             if (can.update && !form.processing) {
-                                                form.setData(
-                                                    'berkas_unggahan_aktif',
-                                                    !form.data.berkas_unggahan_aktif
-                                                );
+                                                form.setData('berkas_unggahan_aktif', checked);
                                             }
                                         }}
-                                        className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                                            can.update ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                                        } ${
-                                            form.data.berkas_unggahan_aktif ? 'bg-primary' : 'bg-border'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${
-                                                form.data.berkas_unggahan_aktif
-                                                    ? 'translate-x-5'
-                                                    : 'translate-x-0'
-                                            }`}
-                                        />
-                                    </button>
+                                        disabled={!can.update || form.processing}
+                                        aria-label={can.update ? 'Toggle saklar unggahan berkas' : 'Status saklar unggahan berkas (Hanya baca)'}
+                                    />
                                 </div>
                             </div>
 
