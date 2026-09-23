@@ -27,7 +27,9 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Expose PHP-FPM / Artisan serve port
+# Expose PHP development server ports
 EXPOSE 8000 5173
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Run the PHP server directly so DB_* values from Compose stay on the serving
+# process instead of being filtered by `artisan serve` when it creates a child.
+CMD ["sh", "-c", "cd public && exec php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"]

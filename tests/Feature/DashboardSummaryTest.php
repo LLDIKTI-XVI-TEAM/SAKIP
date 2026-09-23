@@ -54,7 +54,7 @@ class DashboardSummaryTest extends TestCase
             'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
         $this->travelTo(now()->setDate(2026, 4, 1));
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('stats.total', 1)->has('pengukurans', 1));
+            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('stats.total', 1)->has('pengukurans', 1));
 
         $this->travelTo(now()->setDate(2026, 2, 15));
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
@@ -62,7 +62,7 @@ class DashboardSummaryTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-02-28 16:00:00', 'UTC'));
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('stats.total', 1));
+            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'aktif')->where('stats.total', 1));
     }
 
     public function test_dashboard_does_not_fall_back_to_old_data_without_an_active_renstra_schedule(): void

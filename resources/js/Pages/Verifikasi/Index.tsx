@@ -23,44 +23,50 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
             <Head title="Verifikasi Kinerja" />
 
             <div className="mb-6">
-                <h2 className="text-sm font-semibold text-slate-700">
+                <h2 className="text-sm font-semibold text-ink">
                     Antrean Verifikasi Capaian Kinerja
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-muted">
                     Daftar capaian kinerja yang diajukan oleh PIC Unit Kerja dan memerlukan reviu substansi serta pengesahan resmi oleh Tim Perencanaan.
                 </p>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-[#122E92]" />
+                    <CardTitle className="flex items-center gap-2 text-ink">
+                        <Clock className="w-4 h-4 text-primary" />
                         Daftar Pengajuan Masuk ({pagination.total})
                     </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-700">
-                        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                    <table className="w-full text-left text-xs text-ink">
+                        <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
                             <tr>
-                                <th className="px-5 py-3.5">KODE & INDIKATOR</th>
-                                <th className="px-5 py-3.5">UNIT KERJA & PIC</th>
-                                <th className="px-5 py-3.5 text-right">TARGET</th>
-                                <th className="px-5 py-3.5 text-right">REALISASI</th>
-                                <th className="px-5 py-3.5 text-right">HASIL PERHITUNGAN</th>
-                                <th className="px-5 py-3.5 text-center">BUKTI DUKUNG</th>
-                                <th className="px-5 py-3.5 text-center">STATUS</th>
-                                <th className="px-5 py-3.5 text-center">AKSI</th>
+                                <th className="px-6 py-3.5">KODE & INDIKATOR</th>
+                                <th className="px-6 py-3.5">UNIT KERJA & PIC</th>
+                                <th className="px-6 py-3.5 text-right">TARGET</th>
+                                <th className="px-6 py-3.5 text-right">REALISASI</th>
+                                <th className="px-6 py-3.5 text-right">HASIL PERHITUNGAN</th>
+                                <th className="px-6 py-3.5 text-center">BUKTI DUKUNG</th>
+                                <th className="px-6 py-3.5 text-center">STATUS</th>
+                                <th className="px-6 py-3.5 text-center">AKSI</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-border">
                             {pengukurans.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
-                                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-60" />
-                                        <p className="text-sm font-medium text-slate-600">Semua pengajuan telah diproses!</p>
-                                        <p className="text-xs text-slate-400 mt-0.5">
-                                            Tidak ada antrean capaian yang menunggu verifikasi saat ini.
-                                        </p>
+                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success border border-success/20">
+                                                <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+                                            </div>
+                                            <p className="text-sm font-semibold text-ink">
+                                                Semua pengajuan telah diproses
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted max-w-sm">
+                                                Tidak ada antrean capaian yang menunggu verifikasi saat ini.
+                                            </p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
@@ -70,33 +76,33 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                     const pic = p.penugasan_indikator?.pic;
 
                                     return (
-                                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="px-5 py-3.5 max-w-xs">
-                                                <div className="font-bold text-slate-900 text-xs">
+                                        <tr key={p.id} className="hover:bg-soft transition-colors">
+                                            <td className="px-6 py-4 max-w-xs">
+                                                <div className="font-bold text-ink text-xs">
                                                     {iku?.kode}
                                                 </div>
-                                                <div className="text-slate-600 mt-0.5 line-clamp-2">
+                                                <div className="text-muted mt-0.5 line-clamp-2 leading-relaxed">
                                                     {iku?.nama}
                                                 </div>
                                             </td>
-                                            <td className="px-5 py-3.5">
-                                                <div className="font-medium text-slate-800">{unit?.nama}</div>
-                                                <div className="text-[11px] text-slate-400">
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium text-ink">{unit?.nama}</div>
+                                                <div className="text-[11px] text-muted mt-0.5">
                                                     PIC: {pic?.nama || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-5 py-3.5 text-right font-medium">
+                                            <td className="px-6 py-4 text-right font-medium text-ink">
                                                 {p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
-                                            <td className="px-5 py-3.5 text-right font-semibold">
+                                            <td className="px-6 py-4 text-right font-semibold text-ink">
                                                 {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
-                                            <td className="px-5 py-3.5 text-right">
+                                            <td className="px-6 py-4 text-right font-semibold text-ink">
                                                 {statusPerhitungan[p.status_perhitungan]}
                                             </td>
-                                            <td className="px-5 py-3.5 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 {p.bukti_count > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 font-semibold text-[#122E92]">
+                                                    <span className="inline-flex items-center gap-1 font-semibold text-primary">
                                                         <Paperclip className="w-3.5 h-3.5" />
                                                         {p.bukti_count} Dokumen
                                                     </span>
@@ -104,13 +110,23 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                                     <span className="text-muted">Tanpa bukti</span>
                                                 )}
                                             </td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                <Badge status={p.status} />
-                                                {p.self_approval && <p className="mt-2 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
-                                                {p.reviu_terlambat && <p className="mt-2 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Badge status={p.status} />
+                                                    {p.self_approval && <span className="text-[11px] font-medium text-info-dark">Persetujuan sendiri</span>}
+                                                    {p.reviu_terlambat && <span className="text-[11px] font-medium text-warning-dark">Reviu terlambat</span>}
+                                                </div>
                                             </td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                {p.can.view && <Link href={`/verifikasi/${p.id}`} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-primary"><Eye aria-hidden="true" className="h-3.5 w-3.5" />Lihat pengajuan</Link>}
+                                            <td className="px-6 py-4 text-center">
+                                                {p.can.view && (
+                                                    <Link
+                                                        href={`/verifikasi/${p.id}`}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-xs"
+                                                    >
+                                                        <Eye aria-hidden="true" className="h-3.5 w-3.5" />
+                                                        Lihat pengajuan
+                                                    </Link>
+                                                )}
                                             </td>
                                         </tr>
                                     );

@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 
-export const primaryButton = 'bg-primary text-white hover:bg-primary/90 focus:ring-primary';
-export const secondaryButton = 'border border-border bg-surface text-ink hover:bg-soft focus:ring-primary';
-export const loginLink = 'inline-flex justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2';
+export const primaryButton = 'bg-primary text-white hover:bg-primary/90 focus:ring-primary shadow-xs';
+export const secondaryButton = 'border border-border bg-surface text-ink hover:bg-soft focus:ring-primary shadow-xs';
+export const loginLink = 'inline-flex justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 shadow-xs';
 
 export default function AuthShell({ title, children }: { title: string; children: ReactNode }) {
     return (
