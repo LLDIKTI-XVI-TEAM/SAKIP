@@ -1,4 +1,4 @@
-import type { PageProps } from '@inertiajs/core';
+import type { PageProps } from "@inertiajs/core";
 
 export interface AuthUser {
     id: string;
@@ -19,6 +19,7 @@ export interface SharedPageProps extends PageProps {
             regulasi: boolean;
             assignRole: boolean;
             manageDeny: boolean;
+            manageRolePermissions: boolean;
             jenisBerkas?: boolean;
         };
     };
@@ -29,4 +30,8 @@ export interface SharedPageProps extends PageProps {
         message?: string | null;
         [key: string]: unknown;
     };
+}
+
+declare module '@inertiajs/core' {
+    interface PageFlashData { authRecoveryNotice?: 'no_replay' }
 }

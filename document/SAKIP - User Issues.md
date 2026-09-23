@@ -232,54 +232,54 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [ ] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [ ] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [ ] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [ ] **AC-6 (Q31):** Given Form Assign Peran dimuat, When daftar role ditampilkan, Then `PIC` tersedia sebagai pilihan resmi keenam dan user dapat ditetapkan ke role tersebut tanpa melanggar constraint satu user satu role.
+- [x] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
+- [x] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
+- [x] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
+- [x] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
+- [x] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
+- [x] **AC-6 (Q31):** Given Form Assign Peran dimuat, When daftar role ditampilkan, Then `PIC` tersedia sebagai pilihan resmi keenam dan user dapat ditetapkan ke role tersebut tanpa melanggar constraint satu user satu role.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `roles`, `user_roles`, `audit_log`.
-- [ ] Pastikan seed/migration katalog role memuat tepat enam kode sistem termasuk `pic` dan role tersebut tidak dapat dihapus melalui operasi normal.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `roles`, `user_roles`, `audit_log`.
+- [x] Pastikan seed/migration katalog role memuat tepat enam kode sistem termasuk `pic` dan role tersebut tidak dapat dihapus melalui operasi normal.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Penetapan Peran Utama Pengguna (Assign Peran)** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Penetapan `role = pic` hanya menetapkan role utama; jangan otomatis membuat grant scoped, `penanggung_jawab`, atau permission sintetis.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Penetapan Peran Utama Pengguna (Assign Peran)** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Penetapan `role = pic` hanya menetapkan role utama; jangan otomatis membuat grant scoped, `penanggung_jawab`, atau permission sintetis.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update` dan `pengguna:read`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update` dan `pengguna:read`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penetapan Peran Utama Pengguna (Assign Peran)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Dropdown role menampilkan **Superadmin, Admin, Perencanaan, PIC, Pimpinan, Pegawai**.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Penetapan Peran Utama Pengguna (Assign Peran)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Dropdown role menampilkan **Superadmin, Admin, Perencanaan, PIC, Pimpinan, Pegawai**.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — role `pic` dapat di-assign; keenam role tersedia; `user_roles.unique(user_id)` tetap mencegah multi-role pada MVP.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — role `pic` dapat di-assign; keenam role tersedia; `user_roles.unique(user_id)` tetap mencegah multi-role pada MVP.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-01.04 · [Feature] Pemberian Grant Izin Tambahan per Unit
 
@@ -381,11 +381,11 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [ ] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [ ] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [ ] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [ ] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [x] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [x] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [x] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [x] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [x] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
 
 #### Implementation Tasks
 
@@ -394,37 +394,37 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan resolver deny global/unit dengan presedens **deny menang** terhadap allow role maupun grant.
-- [ ] Pastikan pencabutan deny langsung tercermin pada request berikutnya tanpa cache izin statis yang stale.
+- [x] Implementasikan resolver deny global/unit dengan presedens **deny menang** terhadap allow role maupun grant.
+- [x] Pastikan pencabutan deny langsung tercermin pada request berikutnya tanpa cache izin statis yang stale.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pencabutan Izin Eksplisit (Deny)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Pencabutan Izin Eksplisit (Deny)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
-- [ ] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-01.06 · [Security] Transparansi Izin Pengguna — Jelaskan Izin
 

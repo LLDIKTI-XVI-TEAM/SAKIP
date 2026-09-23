@@ -1,3 +1,5 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -24,6 +26,7 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
     const reasonInput = useRef<HTMLTextAreaElement>(null);
     const alert = useRef<HTMLParagraphElement>(null);
     const [message, setMessage] = useState('');
+    const recovery = useAuthRecovery();
     const form = useForm<{ role_id: string; alasan: string; expected_assignment: AssignmentState | null }>({
         role_id: roles.some((role) => role.id === user.current_role?.id) ? user.current_role!.id : '',
         alasan: '', expected_assignment: user.assignment,
@@ -44,7 +47,7 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
     }, [form.processing, form.errors, needsReload, message]);
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        if (form.processing || needsReload) return;
+        if (form.processing || recovery.recovery || needsReload) return;
         form.post(`/akses/peran/${user.id}`, {
             preserveScroll: true,
             onSuccess: (page) => {
@@ -54,12 +57,13 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
                     setMessage('Hasil penetapan peran belum diketahui. Muat ulang data sebelum mencoba kembali.');
                 }
             },
+            onCancel: () => { setMessage('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
             onNetworkError: () => {
                 setMessage('Koneksi terputus. Hasil penetapan peran belum diketahui. Muat ulang data sebelum mencoba kembali.');
                 return false;
             },
-            onHttpException: () => {
-                setMessage('Hasil belum dapat dipastikan. Sesi atau izin mungkin berubah. Muat ulang data sebelum mencoba kembali.');
+            onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/akses/peran/${user.id}`, mutation: true })) return false;
+                setMessage(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
                 return false;
             },
         });
@@ -88,13 +92,14 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
                 <textarea ref={reasonInput} id="role-reason" required maxLength={2000} rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} disabled={form.processing} aria-invalid={Boolean(form.errors.alasan)} aria-describedby={form.errors.alasan ? 'reason-error' : 'reason-help'} className={fieldClass} />
                 {form.errors.alasan ? <p id="reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="reason-help" className="mt-1 text-xs text-muted">Wajib diisi, maksimal 2.000 karakter. Dicatat dalam jejak audit.</p>}
             </div>
-            {needsReload && <div className="space-y-2 rounded-lg bg-soft p-3">
+            <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
+            {needsReload && !recovery.recovery && <div className="space-y-2 rounded-lg bg-soft p-3">
                 <p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger">{conflict || message}</p>
                 <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/peran', {}, { replace: true, preserveState: false })}>Muat ulang data</Button>
             </div>}
             <div className="flex flex-wrap justify-end gap-3">
                 <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={onClose}>Batal</Button>
-                <Button type="submit" className={primaryButton} isLoading={form.processing} disabled={needsReload || roles.length === 0}>Simpan peran</Button>
+                <Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || roles.length === 0}>Simpan peran</Button>
             </div>
         </form>
     </dialog>;

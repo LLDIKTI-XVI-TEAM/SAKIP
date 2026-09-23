@@ -140,12 +140,12 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [ ] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [ ] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [ ] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [ ] **AC-6:** Given form Assign Peran dibuka, When daftar role dimuat, Then **PIC** tampil sebagai pilihan resmi keenam dan penetapan role PIC tetap memenuhi constraint satu user satu role.
+- [x] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
+- [x] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
+- [x] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
+- [x] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
+- [x] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
+- [x] **AC-6:** Given form Assign Peran dibuka, When daftar role dimuat, Then **PIC** tampil sebagai pilihan resmi keenam dan penetapan role PIC tetap memenuhi constraint satu user satu role.
 
 
 **Business Rules / Catatan Q31**
@@ -203,11 +203,11 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [ ] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [ ] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [ ] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [ ] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [x] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [x] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [x] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [x] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [x] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
 
 ### US-01.06 · Transparansi Izin Pengguna — Jelaskan Izin
 

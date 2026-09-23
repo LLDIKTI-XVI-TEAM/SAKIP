@@ -1,3 +1,5 @@
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Button } from '@/Components/Button';
@@ -14,6 +16,7 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
     const dialog = useRef<HTMLDialogElement>(null);
     const reason = useRef<HTMLTextAreaElement>(null);
     const [message, setMessage] = useState('');
+    const recovery = useAuthRecovery();
     const { data, setData, transform, post, processing, errors } = useForm({ versi: pengukuran.versi, catatan: '' });
     const action = decisions[decision];
     useEffect(() => {
@@ -23,7 +26,7 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
     }, []);
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        if (processing) return;
+        if (processing || recovery.recovery || message) return;
         setMessage('');
         transform((values) => decision === 'kembalikan' ? values : { versi: values.versi });
         post(`/verifikasi/${pengukuran.id}/${decision}`, {
@@ -39,17 +42,18 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
                     setMessage('Hasil tindakan belum terkonfirmasi. Periksa status pengukuran sebelum mencoba kembali.');
                 }
             },
+            onCancel: () => { setMessage('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
             onNetworkError: () => {
                 setMessage('Koneksi terputus. Hasil tindakan belum diketahui; periksa status pengukuran sebelum mencoba kembali.');
                 return false;
             },
-            onHttpException: () => {
-                setMessage('Tindakan belum dapat dipastikan. Sesi atau izin mungkin berubah. Periksa status pengukuran sebelum mencoba kembali.');
+            onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/verifikasi/${pengukuran.id}/${decision}`, mutation: true })) return false;
+                setMessage(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
                 return false;
             },
         });
     };
-    return <dialog ref={dialog} aria-labelledby="decision-title" aria-describedby="decision-description" onCancel={(event) => { if (processing) event.preventDefault(); }} onClose={onClose} className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
+    return <dialog ref={dialog} aria-labelledby="decision-title" aria-describedby="decision-description" onCancel={(event) => { if (processing) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] overflow-y-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
         <h2 id="decision-title" className="text-lg font-semibold">{action.title}</h2>
         <p id="decision-description" className="mt-2 text-sm text-muted">{action.description}</p>
         <form onSubmit={submit} className="mt-5 space-y-4" aria-busy={processing}>
@@ -59,10 +63,11 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
                 {errors.catatan && <p id="review-reason-error" role="alert" className="mt-1 text-sm text-danger">{errors.catatan}</p>}
             </div>}
             {Object.entries(errors).filter(([field]) => field !== 'catatan').map(([field, error]) => <p key={field} role="alert" className="text-sm text-danger">{error}</p>)}
-            {message && <p role="alert" className="text-sm text-danger">{message}</p>}
+            <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
+            {message && !recovery.recovery && <p role="alert" className="text-sm text-danger">{message}</p>}
             <div className="flex flex-wrap justify-end gap-3">
                 <Button type="button" variant="outline" disabled={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary" onClick={onClose}>Batal</Button>
-                <Button type="submit" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary">Konfirmasi</Button>
+                <Button disabled={Boolean(recovery.recovery || message)} type="submit" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary">Konfirmasi</Button>
             </div>
         </form>
     </dialog>;
