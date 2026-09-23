@@ -135,41 +135,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         >
             <Head title="Pengaturan Sistem" />
 
-            <div className="space-y-6">
-                {/* Header Banner */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-ink font-sans">
-                            Pengaturan Sistem
-                        </h1>
-                        <p className="mt-1 text-sm text-muted">
-                            Konfigurasi identitas lembaga, branding aplikasi, preferensi tampilan, dan format laporan resmi SAKIP.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {hasChanges && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning-dark border border-warning/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-warning" aria-hidden="true" />
-                                Ada Perubahan Belum Disimpan
-                            </span>
-                        )}
-                        {latestUpdateItem?.updated_at && (
-                            <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted bg-surface px-3 py-1.5 rounded-lg border border-border">
-                                <Clock className="w-3.5 h-3.5 text-primary" />
-                                <span>Terakhir diubah: {new Date(latestUpdateItem.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                {latestUpdateItem.updated_by && (
-                                    <>
-                                        <span className="text-border">|</span>
-                                        <User className="w-3.5 h-3.5 text-primary" />
-                                        <span>{latestUpdateItem.updated_by.nama}</span>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
+            <div className="space-y-5">
                 {/* Flash Success Notification */}
                 {flash?.success && (
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/20 text-success-dark">
@@ -193,27 +159,53 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                     </div>
                 )}
 
-                {/* Tab Navigation */}
-                <div className="flex border-b border-border overflow-x-auto no-scrollbar gap-2">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
-                                    isActive
-                                        ? 'border-primary text-primary bg-primary/5 rounded-t-lg'
-                                        : 'border-transparent text-muted hover:text-ink hover:border-border'
-                                }`}
-                            >
-                                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted'}`} />
-                                <span>{tab.label}</span>
-                            </button>
-                        );
-                    })}
+                {/* Tab Navigation & Status Info */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border gap-2 pb-px">
+                    <div className="flex overflow-x-auto no-scrollbar gap-1 sm:gap-2">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.key;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${
+                                        isActive
+                                            ? 'border-primary text-primary bg-primary/5 rounded-t-lg'
+                                            : 'border-transparent text-muted hover:text-ink hover:border-border'
+                                    }`}
+                                >
+                                    <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted'}`} />
+                                    <span>{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {(hasChanges || latestUpdateItem?.updated_at) && (
+                        <div className="flex items-center gap-2 pb-1.5 sm:pb-0 shrink-0">
+                            {hasChanges && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning-dark border border-warning/30">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-warning" aria-hidden="true" />
+                                    Ada Perubahan Belum Disimpan
+                                </span>
+                            )}
+                            {latestUpdateItem?.updated_at && (
+                                <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted bg-surface px-2.5 py-1 rounded-lg border border-border shadow-2xs">
+                                    <Clock className="w-3.5 h-3.5 text-primary" />
+                                    <span>Terakhir diubah: {new Date(latestUpdateItem.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                    {latestUpdateItem.updated_by && (
+                                        <>
+                                            <span className="text-border">|</span>
+                                            <User className="w-3.5 h-3.5 text-primary" />
+                                            <span>{latestUpdateItem.updated_by.nama}</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <form onSubmit={handleSaveClick}>
@@ -303,9 +295,8 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                             {/* Live Preview Card */}
                             <div className="lg:col-span-5">
                                 <Card className="p-6 bg-gradient-to-br from-surface to-soft border-border sticky top-6">
-                                    <div className="mb-4 pb-3 border-b border-border flex items-center justify-between">
+                                    <div className="mb-4 pb-3 border-b border-border">
                                         <h3 className="text-sm font-semibold text-ink">Pratinjau Identitas</h3>
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-soft text-muted border border-border">Live Preview</span>
                                     </div>
 
                                     <div className="space-y-4">

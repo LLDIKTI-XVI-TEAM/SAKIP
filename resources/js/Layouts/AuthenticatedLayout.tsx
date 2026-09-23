@@ -347,9 +347,16 @@ export function AuthenticatedLayout({
                 </header>
 
                 {(title || breadcrumbs.length > 0) && (
-                    <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
+                    <header className="px-4 pt-4 pb-0 sm:px-6 sm:pt-5 lg:px-8 max-w-7xl w-full mx-auto">
+                        {title && (
+                            shouldRenderH1 ? (
+                                <h1 className="text-lg font-bold text-ink">{title}</h1>
+                            ) : (
+                                <p className="text-lg font-bold text-ink">{title}</p>
+                            )
+                        )}
                         {breadcrumbs.length > 0 && (
-                            <nav aria-label="Jejak navigasi" className="mb-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                            <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
                                 {auth.can.dashboard ? <Link href="/dashboard" className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">SAKIP</Link> : <span>SAKIP</span>}
                                 {breadcrumbs.map((item, index) => (
                                     <Fragment key={`${index}-${item.label}`}>
@@ -359,19 +366,12 @@ export function AuthenticatedLayout({
                                 ))}
                             </nav>
                         )}
-                        {title && (
-                            shouldRenderH1 ? (
-                                <h1 className="text-lg font-bold text-ink">{title}</h1>
-                            ) : (
-                                <p className="text-lg font-bold text-ink">{title}</p>
-                            )
-                        )}
                     </header>
                 )}
 
                 {/* Alerts */}
                 {flash?.success && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="status" className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-sm text-ink shadow-2xs">
                             <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-success mt-0.5" />
                             <span>{flash.success}</span>
@@ -379,7 +379,7 @@ export function AuthenticatedLayout({
                     </div>
                 )}
                 {flash?.warning && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning-dark shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark mt-0.5" />
                             <span>{flash.warning}</span>
@@ -387,7 +387,7 @@ export function AuthenticatedLayout({
                     </div>
                 )}
                 {flash?.error && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-danger mt-0.5" />
                             <span>{flash.error}</span>
@@ -396,7 +396,11 @@ export function AuthenticatedLayout({
                 )}
 
                 {/* Main Viewport */}
-                <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto outline-none">
+                <main
+                    id="main-content"
+                    tabIndex={-1}
+                    className={`flex-1 px-4 sm:px-6 lg:px-8 pb-8 ${title || breadcrumbs.length > 0 ? 'pt-3 sm:pt-4' : 'pt-5 sm:pt-6 lg:pt-8'} max-w-7xl w-full mx-auto outline-none`}
+                >
                     {children}
                 </main>
             </div>

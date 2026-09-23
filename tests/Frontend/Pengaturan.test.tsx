@@ -20,7 +20,12 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 });
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, title }: { children: ReactNode; title?: string }) => (
+        <main>
+            {title && <h1>{title}</h1>}
+            {children}
+        </main>
+    ),
 }));
 
 const mockProps: PengaturanIndexProps = {
