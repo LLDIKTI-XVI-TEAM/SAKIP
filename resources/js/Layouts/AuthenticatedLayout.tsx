@@ -25,6 +25,7 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
+        { href: '/akses/izin-peran', label: 'Izin Peran', icon: UserCheck, visible: auth.can.manageRolePermissions },
     ];
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();
