@@ -1741,4 +1741,193 @@ class JenisBerkasTest extends TestCase
         ]);
         $deleteResponse->assertSessionHasErrors('konflik');
     }
+
+    /**
+     * TEST-41: Menghapus/mengosongkan override format_diizinkan memicu peringatan grandfathering jika fallback global lebih sempit dari berkas lama.
+     */
+    public function test_clearing_explicit_format_override_triggers_grandfathering_warning_when_old_files_exist(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+
+        // Atur fallback global hanya mengizinkan pdf
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.format_diizinkan'],
+            ['nilai' => 'pdf', 'tipe' => 'string', 'grup' => 'berkas', 'updated_at' => now()]
+        );
+
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Khusus Override',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx',
+            'created_by' => $superadmin->id,
+        ]);
+
+        // Buat file bukti lama dengan ekstensi docx yang tidak tercakup dalam fallback global (pdf)
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => Str::uuid()->toString(),
+            'mode' => 'file',
+            'nama_asli' => 'arsip_lama.docx',
+            'path' => 'evidence/arsip_lama.docx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'ukuran_bytes' => 4096,
+            'uploaded_by' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        // Superadmin mengosongkan format_diizinkan (override dihilangkan, aktifkan fallback global)
+        $response = $this->actingAs($superadmin)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Laporan Khusus Override',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => '',
+            'alasan' => 'Mengembalikan batas format ke setelan global',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+        $response->assertSessionHas('warning', 'Peringatan: Format diizinkan dipersempit dan terdapat berkas bukti dukung lama yang formatnya tidak lagi tercakup dalam daftar baru. Bukti lama tetap sah (grandfathered), batas baru hanya berlaku untuk unggahan berikutnya.');
+
+        $this->assertNull($jb->fresh()->format_diizinkan);
+    }
+
+    /**
+     * TEST-42: Mengosongkan override format_diizinkan tidak memicu peringatan jika fallback global mencakup seluruh ekstensi berkas lama.
+     */
+    public function test_clearing_explicit_format_override_does_not_trigger_warning_when_fallback_covers_files(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+
+        // Atur fallback global mencakup pdf, docx, xlsx
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.format_diizinkan'],
+            ['nilai' => 'pdf,docx,xlsx', 'tipe' => 'string', 'grup' => 'berkas', 'updated_at' => now()]
+        );
+
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Multiformat',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx',
+            'created_by' => $superadmin->id,
+        ]);
+
+        BuktiDukung::create([
+            'jenis_berkas_id' => $jb->id,
+            'berkasable_type' => 'pengukuran',
+            'berkasable_id' => Str::uuid()->toString(),
+            'mode' => 'file',
+            'nama_asli' => 'arsip.docx',
+            'path' => 'evidence/arsip.docx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'ukuran_bytes' => 4096,
+            'uploaded_by' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($superadmin)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Laporan Multiformat',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => '',
+            'alasan' => 'Mengembalikan batas format ke setelan global',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+        $response->assertSessionMissing('warning');
+    }
+
+    /**
+     * TEST-43: Mutasi tanpa perubahan (no-op) pada update substantif tidak mengubah updated_at dan tidak mencatat audit_log.
+     */
+    public function test_noop_substantive_update_does_not_bump_updated_at_or_record_audit_log(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Tetap',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => false,
+            'urutan' => 0,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $originalUpdatedAt = $jb->fresh()->updated_at;
+        $initialAuditCount = AuditLog::where('objek_id', $jb->id)->count();
+
+        // Kirim update dengan data yang sama persis (hanya alasan dan expected_updated_at disediakan)
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Tetap',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'wajib' => false,
+            'urutan' => 0,
+            'alasan' => 'Konfirmasi dialog ubah tanpa modifikasi field',
+            'expected_updated_at' => $originalUpdatedAt->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+
+        $refreshed = $jb->fresh();
+        $this->assertEquals($originalUpdatedAt->toISOString(), $refreshed->updated_at->toISOString());
+        $this->assertSame($initialAuditCount, AuditLog::where('objek_id', $jb->id)->count());
+    }
+
+    /**
+     * TEST-44: Mutasi tanpa perubahan (no-op) pada batas teknis tidak mengubah updated_at dan tidak mencatat audit_log.
+     */
+    public function test_noop_batas_teknis_update_does_not_bump_updated_at_or_record_audit_log(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Batas Tetap',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 4096,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $originalUpdatedAt = $jb->fresh()->updated_at;
+        $initialAuditCount = AuditLog::where('objek_id', $jb->id)->count();
+
+        $response = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+            'format_diizinkan' => 'pdf,docx',
+            'ukuran_maks_kb' => 4096,
+            'alasan' => 'Konfirmasi modal batas teknis tanpa ubah nilai',
+            'expected_updated_at' => $originalUpdatedAt->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+
+        $refreshed = $jb->fresh();
+        $this->assertEquals($originalUpdatedAt->toISOString(), $refreshed->updated_at->toISOString());
+        $this->assertSame($initialAuditCount, AuditLog::where('objek_id', $jb->id)->count());
+    }
+
+    /**
+     * TEST-45: Hook model static::saving tidak mengubah updated_at jika model tidak dirty.
+     */
+    public function test_model_saving_hook_does_not_bump_updated_at_when_not_dirty(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Model Tetap',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $originalUpdatedAt = $jb->fresh()->updated_at;
+
+        // Panggil save() langsung pada model yang tidak mengalami perubahan field
+        $jb->save();
+
+        $refreshed = $jb->fresh();
+        $this->assertEquals($originalUpdatedAt->toISOString(), $refreshed->updated_at->toISOString());
+    }
 }

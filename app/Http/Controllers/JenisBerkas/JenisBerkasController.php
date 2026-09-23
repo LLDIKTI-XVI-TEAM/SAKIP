@@ -172,7 +172,13 @@ class JenisBerkasController extends Controller
                 $formatWarning = $this->checkFormatNarrowingWarning($jb, $data['format_diizinkan']);
             }
 
-            $jb->update($data);
+            $jb->fill($data);
+
+            if (! $jb->isDirty()) {
+                return;
+            }
+
+            $jb->save();
             $nilaiBaru = $jb->fresh()->toArray();
 
             $isFormatOrSizeChanged = ($nilaiBaru['format_diizinkan'] !== $nilaiLama['format_diizinkan'])
@@ -324,7 +330,13 @@ class JenisBerkasController extends Controller
                 $formatWarning = $this->checkFormatNarrowingWarning($jb, $data['format_diizinkan']);
             }
 
-            $jb->update($data);
+            $jb->fill($data);
+
+            if (! $jb->isDirty()) {
+                return;
+            }
+
+            $jb->save();
 
             $this->auditLogger->catat(
                 actor: $actor,
@@ -349,11 +361,12 @@ class JenisBerkasController extends Controller
 
     private function checkFormatNarrowingWarning(JenisBerkas $jb, ?string $newFormatStr): ?string
     {
-        if ($newFormatStr === null) {
-            return null;
+        $effectiveNewFormatStr = $newFormatStr;
+        if ($effectiveNewFormatStr === null || trim($effectiveNewFormatStr) === '') {
+            $effectiveNewFormatStr = Pengaturan::where('kunci', 'berkas.format_diizinkan')->value('nilai') ?? 'pdf,docx,xlsx,jpg,jpeg,png';
         }
 
-        $newFormats = array_filter(array_map('trim', explode(',', strtolower($newFormatStr))));
+        $newFormats = array_filter(array_map('trim', explode(',', strtolower($effectiveNewFormatStr))));
         if (empty($newFormats)) {
             return null;
         }

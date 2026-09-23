@@ -47,6 +47,9 @@ class JenisBerkas extends Model
     protected static function booted(): void
     {
         static::saving(function (JenisBerkas $model) {
+            if ($model->exists && ! $model->isDirty()) {
+                return;
+            }
             $now = Carbon::now();
             if ($model->exists && $model->getOriginal('updated_at')) {
                 $orig = Carbon::parse($model->getOriginal('updated_at'));
