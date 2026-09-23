@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -17,7 +18,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => function () use ($request) {
                 $user = $request->user()?->fresh();
-                $can = $this->capabilities($user);
+                $can = $this->capabilities($user, $request);
 
                 return [
                     'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'is_active' => $user->is_active, 'role' => $user->is_active ? $user->roles()->value('kode') : null] : null,
@@ -31,22 +32,25 @@ class HandleInertiaRequests extends Middleware
                         'manageDeny' => $can['manageDeny'],
                         'unit' => $can['unit'],
                         'grant' => $can['grant'],
+                        'manageRolePermissions' => $can['manageRolePermissions'],
+                        'jenisBerkas' => $can['jenisBerkas'],
                     ],
                 ];
             },
-            'can' => fn () => $this->capabilities($request->user()?->fresh()),
+            'can' => fn () => $this->capabilities($request->user()?->fresh(), $request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
                 'message' => fn () => $request->session()->get('message'),
             ],
         ];
     }
 
     /** @return array<string, bool> */
-    private function capabilities(?User $user): array
+    private function capabilities(?User $user, ?Request $request = null): array
     {
-        $capabilities = [
+        $defaultCapabilities = [
             'dashboard' => false,
             'pengukuran' => false,
             'verifikasi' => false,
@@ -55,22 +59,30 @@ class HandleInertiaRequests extends Middleware
             'manageDeny' => false,
             'unit' => false,
             'grant' => false,
+            'manageRolePermissions' => false,
             'regulasi' => false,
             'regulasi:create' => false,
             'regulasi:read' => false,
             'regulasi:update' => false,
             'regulasi:delete' => false,
             'berkas:delete' => false,
+            'jenisBerkas' => false,
         ];
 
         if ($user === null || ! $user->is_active) {
-            return $capabilities;
+            return $defaultCapabilities;
+        }
+
+        if ($request && $request->attributes->has('inertia_capabilities_'.$user->id)) {
+            /** @var array<string, bool> */
+            return $request->attributes->get('inertia_capabilities_'.$user->id);
         }
 
         $resolver = app(PermissionResolver::class);
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
+        $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
 
-        return [
+        $computed = [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),
             'pengukuran' => $resolver->allows($user, 'pengukuran:read'),
             'verifikasi' => $resolver->allows($user, 'pengukuran:read')
@@ -84,12 +96,20 @@ class HandleInertiaRequests extends Middleware
             'unit' => $resolver->allows($user, 'unit:read'),
             'grant' => $resolver->allows($user, 'akses:update')
                 && $user->hasAnyRole(['admin', 'superadmin']),
+            'manageRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
             'regulasi:read' => $regulasiRead,
             'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
             'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
             'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
+            'jenisBerkas' => $jenisBerkasRead,
         ];
+
+        if ($request) {
+            $request->attributes->set('inertia_capabilities_'.$user->id, $computed);
+        }
+
+        return $computed;
     }
 }

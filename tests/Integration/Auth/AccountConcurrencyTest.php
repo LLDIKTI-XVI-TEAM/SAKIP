@@ -2,13 +2,19 @@
 
 namespace Tests\Integration\Auth;
 
+use App\Actions\Access\AssignRole;
+use App\Actions\Access\ChangeRolePermission;
+use App\Actions\Access\CreateDeny;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\Authorization\RolePermissionReceipt;
+use App\Services\Authorization\RolePermissionState;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -98,13 +104,121 @@ class AccountConcurrencyTest extends TestCase
         return [[false], [true]];
     }
 
+    public function test_role_permission_concurrent_actors_have_one_delta_and_one_stale_conflict(): void
+    {
+        [$first, $second, $source, $target] = $this->roleEditors();
+        $a = $this->rolePayload($first, $target);
+        $b = $this->rolePayload($second, $target);
+        $b['permission_id'] = Permission::where('kode', 'audit:read')->value('id');
+        $results = $this->race('change-role-permission', $target->id, '', [$a, $b], barrierTable: 'roles');
+        $this->assertEqualsCanonicalizing(['added', 'conflict'], $results);
+        $this->assertSame(1, DB::table('role_permissions')->where('role_id', $target->id)->count());
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'role_permissions.ubah')->count());
+    }
+
+    #[DataProvider('authorizationRaces')]
+    public function test_role_permission_rechecks_after_source_assignment_or_deny_commits(string $case): void
+    {
+        [$first, $second, $source, $target] = $this->roleEditors();
+        $payload = $this->rolePayload($second, $target);
+        $sourceToken = $this->rolePayload($first, $source)['expected_state'];
+        $expected = (array) DB::table('user_roles')->where('user_id', $second->id)->first(['id', 'role_id', 'audit_id']);
+        $prepare = function () use ($case, $first, $second, $source, $target, $sourceToken, $expected): void {
+            $accessId = Permission::where('kode', 'akses:update')->value('id');
+            match ($case) {
+                'source' => app(ChangeRolePermission::class)->handle($first, $source->id, $accessId, 'revoke', 'Cabut sumber', $sourceToken),
+                'assignment' => app(AssignRole::class)->handle($first, $second->id, $target->id, 'Ganti role aktor', $expected),
+                'deny' => app(CreateDeny::class)->handle($first, $second->id, $accessId, null, 'Cabut izin aktor'),
+            };
+            // Action bersarang tidak melepas lock sebelum transaksi parent commit.
+            $this->assertSame(1, DB::transactionLevel());
+        };
+        $this->assertSame(['denied'], $this->race('change-role-permission', $target->id, '', [$payload], $prepare));
+        $this->assertSame(0, DB::table('role_permissions')->where('role_id', $target->id)->count());
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'role_permissions.ditolak')->count());
+    }
+
+    public static function authorizationRaces(): array
+    {
+        return [['source'], ['assignment'], ['deny']];
+    }
+
+    public function test_role_permission_waits_for_target_lock_without_writing_pivot_or_audit(): void
+    {
+        [$actor, , $source, $target] = $this->roleEditors();
+        $this->assertNotSame($source->id, $target->id);
+        $payload = $this->rolePayload($actor, $target);
+        $prepare = function () use ($target): void {
+            // KEY SHARE dari FK pivot tetap boleh lewat; hanya lock eksplisit target yang ditahan.
+            $locked = DB::selectOne('select id from roles where id = ? for no key update', [$target->id]);
+            $this->assertSame($target->id, $locked->id);
+        };
+        $assertBlocked = function (array $pids, int $parentPid) use ($target): void {
+            $this->assertCount(1, $pids);
+            $this->assertNotContains($parentPid, $pids);
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringEndsWith('for update', $query);
+            $this->assertSame(0, DB::table('role_permissions')->where('role_id', $target->id)->count());
+            $this->assertDatabaseCount('audit_log', 0);
+        };
+        $this->assertSame(['added'], $this->race('change-role-permission', $target->id, '', [$payload], prepare: $prepare, assertBlocked: $assertBlocked));
+        $this->assertSame(1, DB::table('role_permissions')->where('role_id', $target->id)->count());
+        $this->assertDatabaseHas('role_permissions', ['role_id' => $target->id, 'permission_id' => $payload['permission_id']]);
+        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseHas('audit_log', ['objek_id' => $target->id, 'actor_id' => $actor->id, 'tindakan' => 'role_permissions.ubah']);
+    }
+
+    public function test_role_permission_receipt_lock_is_nonblocking_and_consumes_only_once(): void
+    {
+        // DatabaseMigrations tanpa outer transaction: DatabaseLock menangani unique collision
+        // PostgreSQL dalam autocommit, sama dengan request receipt setelah domain commit.
+        $receipts = app(RolePermissionReceipt::class);
+        $actor = (string) Str::uuid();
+        $ref = $receipts->issue($actor, 'receipt-session', 'added');
+        $this->assertNotNull($ref);
+        $key = 'role-permission:receipt:'.hash('sha256', 'receipt-session').':'.$actor.':'.$ref;
+        $lock = Cache::store('database')->lock($key.':consume', 300);
+        $this->assertTrue($lock->get());
+        try {
+            $this->assertNull($receipts->consume($actor, 'receipt-session', $ref));
+        } finally {
+            $lock->release();
+        }
+        $this->assertSame(['receipt_id' => $ref, 'status' => 'added'], $receipts->consume($actor, 'receipt-session', $ref));
+        $this->assertNull($receipts->consume($actor, 'receipt-session', $ref));
+    }
+
+    private function roleEditors(): array
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $source = Role::where('kode', 'superadmin')->sole();
+        foreach (Permission::whereIn('kode', ['akses:update', 'pengguna:read'])->get() as $permission) {
+            $source->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        }
+        $actors = User::factory()->count(2)->create(['is_active' => true]);
+        foreach ($actors as $actor) {
+            $actor->roles()->attach($source->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        }
+
+        return [$actors[0], $actors[1], $source, Role::where('kode', 'pic')->sole()];
+    }
+
+    private function rolePayload(User $actor, Role $role): array
+    {
+        $state = DB::transaction(fn () => app(RolePermissionState::class)->capture(Role::whereKey($role->id)->sharedLock()->firstOrFail()));
+
+        return ['actor_id' => $actor->id, 'role_id' => $role->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
+            'operation' => 'add', 'alasan' => 'Konkurensi izin peran', 'expected_state' => $state['token']];
+    }
+
     /**
      * Kedua proses harus terbukti menunggu lock PostgreSQL yang sama sebelum dilepas.
      * Fixture sudah committed; ini tidak memakai transaksi luar RefreshDatabase.
      *
      * @return list<string|bool>
      */
-    private function race(string $operation, string $subject, string $lock, array $assignments = []): array
+    private function race(string $operation, string $subject, string $lock, array $assignments = [], ?callable $prepare = null, string $barrierTable = 'users', ?callable $assertBlocked = null): array
     {
         $connection = DB::connection();
         $environment = [
@@ -122,12 +236,17 @@ class AccountConcurrencyTest extends TestCase
         $inputs = [];
         DB::beginTransaction();
         try {
-            if (in_array($operation, ['assign-role', 'create-deny', 'revoke-deny'], true)) {
+            if ($prepare !== null) {
+                $prepare();
+            } elseif ($barrierTable === 'roles') {
+                Role::whereKey($subject)->lockForUpdate()->firstOrFail();
+            } elseif (in_array($operation, ['assign-role', 'create-deny', 'revoke-deny'], true)) {
                 User::whereKey($subject)->lockForUpdate()->firstOrFail();
             } else {
                 DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
             }
-            for ($index = 0; $index < 2; $index++) {
+            $workers = $assignments === [] ? 2 : count($assignments);
+            for ($index = 0; $index < $workers; $index++) {
                 $input = new InputStream;
                 $arguments = [PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $operation, $subject];
                 if ($assignments !== []) {
@@ -139,8 +258,7 @@ class AccountConcurrencyTest extends TestCase
                 $inputs[] = $input;
             }
             $this->until(function () use ($processes): bool {
-                return preg_match('/READY:(\d+)/', $processes[0]->getOutput()) === 1
-                    && preg_match('/READY:(\d+)/', $processes[1]->getOutput()) === 1;
+                return collect($processes)->every(fn ($process) => preg_match('/READY:(\d+)/', $process->getOutput()) === 1);
             }, $processes);
             $pids = [];
             foreach ($processes as $index => $process) {
@@ -149,12 +267,21 @@ class AccountConcurrencyTest extends TestCase
                 $inputs[$index]->write("GO\n");
                 $inputs[$index]->close();
             }
-            $this->assertNotSame($pids[0], $pids[1]);
+            $this->assertCount(count($pids), array_unique($pids));
             $this->until(function () use ($pids): bool {
                 DB::select('select pg_stat_clear_snapshot()');
 
-                return DB::table('pg_stat_activity')->whereIn('pid', $pids)->where('wait_event_type', 'Lock')->count() === 2;
+                return DB::table('pg_stat_activity')->whereIn('pid', $pids)->where('wait_event_type', 'Lock')->count() === count($pids);
             }, $processes);
+            $parentPid = DB::selectOne('select pg_backend_pid() as pid')->pid;
+            $directlyBlocked = 0;
+            foreach ($pids as $pid) {
+                $directlyBlocked += DB::selectOne('select ? = any(pg_blocking_pids(?)) as blocked', [$parentPid, $pid])->blocked ? 1 : 0;
+            }
+            $this->assertGreaterThan(0, $directlyBlocked, 'Worker harus benar-benar menunggu lock parent PostgreSQL.');
+            if ($assertBlocked !== null) {
+                $assertBlocked($pids, (int) $parentPid);
+            }
             DB::commit();
             $results = [];
             foreach ($processes as $process) {
@@ -186,7 +313,7 @@ class AccountConcurrencyTest extends TestCase
                 return;
             }
             foreach ($processes as $process) {
-                $this->assertTrue($process->isRunning(), $process->getErrorOutput());
+                $this->assertTrue($process->isRunning(), 'Worker selesai sebelum barrier PostgreSQL: '.$process->getOutput().$process->getErrorOutput());
             }
             usleep(10000);
         } while (microtime(true) < $deadline);

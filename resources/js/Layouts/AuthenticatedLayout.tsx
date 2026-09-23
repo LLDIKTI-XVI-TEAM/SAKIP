@@ -16,6 +16,7 @@ import {
     Building2,
     ShieldCheck,
     BookOpen,
+    FileText,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -36,11 +37,13 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth?.can?.pengukuran ?? true },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth?.can?.verifikasi ?? true },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth?.can?.regulasi ?? false },
+        { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth?.can?.jenisBerkas ?? false },
         { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth?.can?.unit ?? false },
         { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth?.can?.grant ?? false },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth?.can?.manageDeny ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth?.can?.aktivasi ?? false },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCheck, visible: auth?.can?.assignRole ?? false },
+        { href: '/akses/izin-peran', label: 'Izin Peran', icon: UserCheck, visible: auth?.can?.manageRolePermissions ?? false },
     ];
     const handleLogout = (event: FormEvent) => {
         event.preventDefault();
@@ -122,6 +125,11 @@ export function AuthenticatedLayout({ children, title, breadcrumbs = [] }: Authe
                     {flash?.success && (
                         <div role="status" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-ink sm:mx-6">
                             <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{flash.success}</span>
+                        </div>
+                    )}
+                    {flash?.warning && (
+                        <div role="alert" className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-dark sm:mx-6">
+                            <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark" /><span>{flash.warning}</span>
                         </div>
                     )}
                     {flash?.error && (
