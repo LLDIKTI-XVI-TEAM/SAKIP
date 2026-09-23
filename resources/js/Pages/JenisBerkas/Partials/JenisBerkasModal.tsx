@@ -139,11 +139,10 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         onChange={(e) => onChange('tahap', e.target.value)}
                         disabled={isLoading || isBatasTeknisOnly}
                         error={errors.tahap}
+                        helperText="Tahap saat ini mendukung Pengukuran Kinerja sesuai alur gerbang bukti SAKIP."
                         className="py-1.5 sm:py-2 text-xs sm:text-sm"
                         options={[
-                            { value: 'rencana_aksi', label: 'Rencana Aksi' },
                             { value: 'pengukuran', label: 'Pengukuran Kinerja' },
-                            { value: 'kegiatan', label: 'Pelaksanaan Kegiatan (SPJ)' },
                         ]}
                     />
 

@@ -69,7 +69,7 @@ class UpdateJenisBerkasRequest extends FormRequest
 
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan'],
+            'tahap' => ['required', 'in:pengukuran'],
             'indikator_id' => [
                 'nullable',
                 'uuid',
@@ -99,6 +99,7 @@ class UpdateJenisBerkasRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'tahap.in' => 'Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.',
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah dinonaktifkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
             'expected_updated_at.date' => 'Format timestamp versi tidak valid.',

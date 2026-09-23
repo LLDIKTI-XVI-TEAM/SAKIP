@@ -345,7 +345,7 @@ class JenisBerkasTest extends TestCase
     {
         $payload = [
             'nama' => 'Mencoba Menyusup',
-            'tahap' => 'rencana_aksi',
+            'tahap' => 'pengukuran',
             'izinkan_file' => true,
         ];
 
@@ -759,7 +759,7 @@ class JenisBerkasTest extends TestCase
     {
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Uji Konflik Delete',
-            'tahap' => 'rencana_aksi',
+            'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'created_by' => $this->perencanaan->id,
         ]);
@@ -780,7 +780,7 @@ class JenisBerkasTest extends TestCase
     {
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Uji Format Delete',
-            'tahap' => 'rencana_aksi',
+            'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'created_by' => $this->perencanaan->id,
         ]);
@@ -801,14 +801,14 @@ class JenisBerkasTest extends TestCase
     {
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Uji Format Update',
-            'tahap' => 'rencana_aksi',
+            'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'created_by' => $this->perencanaan->id,
         ]);
 
         $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
             'nama' => 'Update Nama Baru',
-            'tahap' => 'rencana_aksi',
+            'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'alasan' => 'Alasan yang sah untuk pembaruan',
             'expected_updated_at' => 'string-bukan-tanggal',
@@ -1624,5 +1624,121 @@ class JenisBerkasTest extends TestCase
             'Data persyaratan telah diperbarui oleh pengguna lain',
             session('errors')->first('konflik')
         );
+    }
+
+    /**
+     * TEST-37: Admin dapat mengubah hanya ukuran_maks_kb pada item dengan format_diizinkan default (null) tanpa error 422.
+     */
+    public function test_admin_can_update_only_ukuran_maks_kb_when_format_diizinkan_is_default_null(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Format Default',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'format_diizinkan' => null,
+            'ukuran_maks_kb' => null,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+            'ukuran_maks_kb' => 10240,
+            'alasan' => 'Menaikkan batas ukuran berkas ke 10MB',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertRedirect(route('jenis-berkas.index'));
+        $response->assertSessionHasNoErrors();
+
+        $jb->refresh();
+        $this->assertSame(10240, $jb->ukuran_maks_kb);
+        $this->assertNull($jb->format_diizinkan);
+    }
+
+    /**
+     * TEST-38: Store jenis berkas menolak tahap selain 'pengukuran' karena belum memiliki gerbang bukti.
+     */
+    public function test_store_jenis_berkas_rejects_unsupported_tahap(): void
+    {
+        $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Persyaratan Tahap Rencana Aksi',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+        ]);
+
+        $response->assertSessionHasErrors('tahap');
+
+        $responseKegiatan = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Persyaratan Tahap Kegiatan',
+            'tahap' => 'kegiatan',
+            'izinkan_file' => true,
+        ]);
+
+        $responseKegiatan->assertSessionHasErrors('tahap');
+    }
+
+    /**
+     * TEST-39: Update jenis berkas menolak tahap selain 'pengukuran'.
+     */
+    public function test_update_jenis_berkas_rejects_unsupported_tahap(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Valid Tahap',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Ubah Ke Rencana Aksi',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'alasan' => 'Mencoba memindahkan tahap',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors('tahap');
+    }
+
+    /**
+     * TEST-40: Optimistic locking menolak mutasi (update/delete/batas-teknis) jika timestamps record bernilai null.
+     */
+    public function test_optimistic_lock_fails_safely_if_record_timestamp_is_null(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Tanpa Timestamp',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        DB::table('jenis_berkas')->where('id', $jb->id)->update([
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
+
+        // Uji Update ditolak
+        $updateResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Coba Update Row Lama',
+            'tahap' => 'pengukuran',
+            'izinkan_file' => true,
+            'alasan' => 'Alasan update row tanpa timestamp',
+            'expected_updated_at' => now()->toISOString(),
+        ]);
+        $updateResponse->assertSessionHasErrors('konflik');
+
+        // Uji Batas Teknis ditolak
+        $batasTeknisResponse = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+            'ukuran_maks_kb' => 8192,
+            'alasan' => 'Alasan ubah batas teknis row tanpa timestamp',
+            'expected_updated_at' => now()->toISOString(),
+        ]);
+        $batasTeknisResponse->assertSessionHasErrors('konflik');
+
+        // Uji Delete ditolak
+        $deleteResponse = $this->actingAs($this->perencanaan)->delete("/jenis-berkas/{$jb->id}", [
+            'alasan' => 'Alasan hapus row tanpa timestamp',
+            'expected_updated_at' => now()->toISOString(),
+        ]);
+        $deleteResponse->assertSessionHasErrors('konflik');
     }
 }

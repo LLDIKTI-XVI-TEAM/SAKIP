@@ -188,4 +188,43 @@ class JenisBerkasRequestValidationTest extends TestCase
         $this->assertSame(0, $request->input('urutan'));
         $this->assertSame('jpg,jpeg,png', $request->input('format_diizinkan'));
     }
+
+    public function test_store_validation_rejects_unsupported_tahap(): void
+    {
+        $request = new StoreJenisBerkasRequest;
+        $validator = Validator::make([
+            'nama' => 'Laporan Akuntabilitas',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+        ], $request->rules(), $request->messages());
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('tahap', $validator->errors()->messages());
+        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
+
+        $validatorKegiatan = Validator::make([
+            'nama' => 'Laporan Akuntabilitas',
+            'tahap' => 'kegiatan',
+            'izinkan_file' => true,
+        ], $request->rules(), $request->messages());
+
+        $this->assertTrue($validatorKegiatan->fails());
+        $this->assertArrayHasKey('tahap', $validatorKegiatan->errors()->messages());
+    }
+
+    public function test_update_validation_rejects_unsupported_tahap(): void
+    {
+        $request = new UpdateJenisBerkasRequest;
+        $validator = Validator::make([
+            'nama' => 'Laporan Baru',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+            'alasan' => 'Pembaruan alasan audit yang valid',
+            'expected_updated_at' => now()->toISOString(),
+        ], $request->rules(), $request->messages());
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('tahap', $validator->errors()->messages());
+        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
+    }
 }

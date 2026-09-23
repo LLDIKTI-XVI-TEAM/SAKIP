@@ -127,6 +127,7 @@ export default function JenisBerkasIndex({
     const handleOpenEdit = (item: JenisBerkasItem, batasTeknisOnly: boolean = false) => {
         setIsEditing(true);
         setIsBatasTeknisOnly(batasTeknisOnly);
+        setTargetItem(item);
         setFormData({
             id: item.id,
             nama: item.nama,
@@ -212,12 +213,27 @@ export default function JenisBerkasIndex({
         setAuditError(null);
         if (auditAction === 'update-batas-teknis' && formData.id) {
             setIsSubmitting(true);
-            router.patch(`/jenis-berkas/${formData.id}/batas-teknis`, {
-                format_diizinkan: formData.format_diizinkan || null,
-                ukuran_maks_kb: formData.ukuran_maks_kb ? Number(formData.ukuran_maks_kb) : null,
+            const patchPayload: Record<string, any> = {
                 alasan,
                 expected_updated_at: formData.expected_updated_at,
-            }, {
+            };
+
+            const trimmedFormat = (formData.format_diizinkan || '').trim();
+            const originalFormat = (targetItem?.format_diizinkan || '').trim();
+
+            if (trimmedFormat !== '') {
+                patchPayload.format_diizinkan = trimmedFormat;
+            } else if (originalFormat !== '') {
+                patchPayload.format_diizinkan = null;
+            }
+
+            if (formData.ukuran_maks_kb !== '' && formData.ukuran_maks_kb !== null && formData.ukuran_maks_kb !== undefined) {
+                patchPayload.ukuran_maks_kb = Number(formData.ukuran_maks_kb);
+            } else if (targetItem && targetItem.ukuran_maks_kb !== null && targetItem.ukuran_maks_kb !== undefined) {
+                patchPayload.ukuran_maks_kb = null;
+            }
+
+            router.patch(`/jenis-berkas/${formData.id}/batas-teknis`, patchPayload, {
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setIsFormModalOpen(false);
