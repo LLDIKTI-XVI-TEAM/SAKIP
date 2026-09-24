@@ -12,6 +12,8 @@ class AuditLogger
     protected const SENSITIVE_ACTIONS = [
         'jenis_berkas.ubah',
         'jenis_berkas.hapus',
+        'komponen.ubah',
+        'komponen.hapus',
     ];
 
     public function __construct(private readonly WriteAuditLog $writeAuditLog) {}

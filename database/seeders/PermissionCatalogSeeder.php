@@ -233,6 +233,38 @@ class PermissionCatalogSeeder extends Seeder
                 'butuh_scope' => Permission::SCOPE_GLOBAL,
                 'sensitif' => true,
             ],
+            [
+                'kode' => 'komponen:read',
+                'entitas' => 'komponen',
+                'aksi' => 'read',
+                'keterangan' => 'Melihat konfigurasi komponen indikator',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
+            ],
+            [
+                'kode' => 'komponen:create',
+                'entitas' => 'komponen',
+                'aksi' => 'create',
+                'keterangan' => 'Menambah komponen indikator',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
+            ],
+            [
+                'kode' => 'komponen:update',
+                'entitas' => 'komponen',
+                'aksi' => 'update',
+                'keterangan' => 'Mengubah komponen indikator',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => true,
+            ],
+            [
+                'kode' => 'komponen:delete',
+                'entitas' => 'komponen',
+                'aksi' => 'delete',
+                'keterangan' => 'Menghapus/menonaktifkan komponen indikator',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => true,
+            ],
         ];
 
         foreach ($permissions as $data) {

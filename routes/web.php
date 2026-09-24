@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
@@ -124,4 +125,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Kebijakan Storage & Saklar Unggah Berkas
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
+
+    // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
+    Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');
+    Route::post('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'store'])->whereUuid('indikator')->name('indikator.komponen.store');
+    Route::put('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'update'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.update');
+    Route::delete('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'destroy'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.destroy');
 });
