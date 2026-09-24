@@ -3,6 +3,7 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Fragment, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import {
+    LayoutDashboard,
     FileSpreadsheet,
     CheckCircle2,
     LogOut,
@@ -13,6 +14,8 @@ import {
     UserPlus,
     Menu,
     X,
+    Building2,
+    ShieldCheck,
     BookOpen,
     FileText,
     Search,
@@ -118,6 +121,8 @@ export function AuthenticatedLayout({
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
+        { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },
+        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth.can.grant ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },

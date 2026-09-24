@@ -416,4 +416,29 @@ class VerticalSlice1Test extends TestCase
         $errors = app(PengukuranKinerjaPolicy::class)->businessErrors($this->actor, $this->pengukuran, 'verifikasi');
         $this->assertContains('Jendela reviu periode ini belum dimulai.', $errors);
     }
+
+    /**
+     * Review Codex: Guard bisnis menolak mutasi pengukuran saat unit berstatus nonaktif.
+     */
+    public function test_pengukuran_mutation_rejected_by_business_errors_when_unit_is_inactive(): void
+    {
+        $policy = app(PengukuranKinerjaPolicy::class);
+
+        // Saat unit masih aktif, error nonaktif tidak ada
+        $errorsAktif = $policy->businessErrors($this->actor, $this->pengukuran->fresh(), 'draft');
+        $this->assertNotContains('Unit organisasi pengukuran berstatus nonaktif.', $errorsAktif);
+
+        // Nonaktifkan unit organisasi pengukuran
+        $unit = Unit::findOrFail($this->context->unit_id);
+        $unit->update(['status' => 'nonaktif']);
+
+        // Guard bisnis mengembalikan pesan penolakan
+        $errorsNonaktif = $policy->businessErrors($this->actor, $this->pengukuran->fresh(), 'draft');
+        $this->assertContains('Unit organisasi pengukuran berstatus nonaktif.', $errorsNonaktif);
+
+        // Capability update ditolak dengan pesan yang sesuai
+        $response = $policy->update($this->actor, $this->pengukuran->fresh());
+        $this->assertFalse($response->allowed());
+        $this->assertStringContainsString('Unit organisasi pengukuran berstatus nonaktif.', (string) $response->message());
+    }
 }

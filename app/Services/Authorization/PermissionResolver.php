@@ -25,15 +25,26 @@ class PermissionResolver
         if (! $permission) {
             return [...$result, 'reason' => 'unknown_permission'];
         }
-        if (($unitId !== null && ! Str::isUuid($unitId)) || ($permission->butuh_scope === 'unit' && $unitId === null)) {
+        if ($permission->butuh_scope === 'unit') {
+            if ($unitId === null || ! Str::isUuid($unitId)) {
+                return [...$result, 'reason' => 'invalid_scope'];
+            }
+        } elseif ($unitId !== null && ! Str::isUuid($unitId)) {
             return [...$result, 'reason' => 'invalid_scope'];
         }
         $roles = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
             ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)
             ->where('role_permissions.permission_id', $permission->id)->pluck('roles.id')->all();
-        $grants = DB::table('user_permission_granted')->where('user_id', $user->id)->where('permission_id', $permission->id)
-            ->when($permission->butuh_scope === 'unit', fn ($query) => $query->where('unit_id', $unitId), fn ($query) => $query->whereNull('unit_id'))->pluck('id')->all();
+        $grants = DB::table('user_permission_granted')
+            ->where('user_permission_granted.user_id', $user->id)
+            ->where('user_permission_granted.permission_id', $permission->id)
+            ->when($permission->butuh_scope === 'unit', function ($query) use ($unitId) {
+                $query->join('unit', 'unit.id', '=', 'user_permission_granted.unit_id')
+                    ->where('unit.status', 'aktif')
+                    ->where('user_permission_granted.unit_id', $unitId);
+            }, fn ($query) => $query->whereNull('user_permission_granted.unit_id'))
+            ->pluck('user_permission_granted.id')->all();
         $denies = DB::table('user_permission_denied')->where('user_id', $user->id)->where('permission_id', $permission->id)
             ->where(function ($query) use ($unitId) {
                 $query->whereNull('unit_id');
@@ -43,7 +54,22 @@ class PermissionResolver
             })->pluck('id')->all();
         $allowed = $denies === [] && ($roles !== [] || $grants !== []);
 
-        return ['allowed' => $allowed, 'permission' => $kode, 'reason' => $denies !== [] ? 'explicit_deny' : ($allowed ? 'allow' : 'no_allow'), 'roles' => $roles, 'grants' => $grants, 'denies' => $denies];
+        $reason = 'no_allow';
+        if ($denies !== []) {
+            $reason = 'explicit_deny';
+        } elseif ($allowed) {
+            $reason = 'allow';
+        } elseif ($permission->butuh_scope === 'unit' && $unitId !== null && DB::table('user_permission_granted')
+            ->join('unit', 'unit.id', '=', 'user_permission_granted.unit_id')
+            ->where('user_permission_granted.user_id', $user->id)
+            ->where('user_permission_granted.permission_id', $permission->id)
+            ->where('user_permission_granted.unit_id', $unitId)
+            ->where('unit.status', '!=', 'aktif')
+            ->exists()) {
+            $reason = 'inactive_unit';
+        }
+
+        return ['allowed' => $allowed, 'permission' => $kode, 'reason' => $reason, 'roles' => $roles, 'grants' => $grants, 'denies' => $denies];
     }
 
     public function allows(User $user, string $kode, ?string $unitId = null): bool
