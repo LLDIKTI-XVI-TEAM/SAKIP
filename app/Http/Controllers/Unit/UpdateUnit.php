@@ -1,0 +1,289 @@
+<?php
+
+namespace App\Http\Controllers\Unit;
+
+use App\Http\Controllers\Controller;
+use App\Models\Role;
+use App\Models\Unit;
+use App\Models\User;
+use App\Models\UserPermissionGrant;
+use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+
+class UpdateUnit extends Controller
+{
+    public function __invoke(Request $request, string $id, AuditLogger $auditLogger, PermissionResolver $permissionResolver): RedirectResponse
+    {
+        /** @var Unit $unit */
+        $unit = Unit::findOrFail($id);
+        Gate::authorize('update', $unit);
+
+        $rawNama = $request->input('nama');
+        if (is_string($rawNama)) {
+            $request->merge(['nama' => trim($rawNama)]);
+        }
+
+        $validated = $request->validate([
+            'nama' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail) use ($unit): void {
+                    $trimmed = trim((string) $value);
+                    if ($trimmed === '') {
+                        $fail('Nama unit organisasi tidak boleh kosong atau hanya berisi spasi.');
+
+                        return;
+                    }
+                    if (Unit::where('id', '!=', $unit->id)->whereRaw('LOWER(nama) = ?', [mb_strtolower($trimmed)])->exists()) {
+                        $fail('Nama unit organisasi sudah digunakan.');
+                    }
+                },
+            ],
+            'status' => [
+                'required',
+                'in:aktif,nonaktif',
+                function (string $attribute, mixed $value, \Closure $fail) use ($unit): void {
+                    if ($value === 'nonaktif' && UserPermissionGrant::where('unit_id', $unit->id)->exists()) {
+                        $fail('Unit tidak dapat dinonaktifkan karena masih memiliki grant izin aktif. Cabut semua grant unit terlebih dahulu.');
+                    }
+                },
+            ],
+            'version_token' => ['nullable', 'string'],
+            'versi_token' => ['nullable', 'string'],
+            'expected_nama' => ['nullable', 'string'],
+            'expected_status' => ['nullable', 'string', 'in:aktif,nonaktif'],
+            'snapshot' => ['nullable'],
+        ], [
+            'nama.required' => 'Nama unit organisasi wajib diisi.',
+            'nama.max' => 'Nama unit organisasi maksimal 255 karakter.',
+        ]);
+
+        $versionToken = $request->input('version_token')
+            ?? $request->input('versi_token')
+            ?? $request->input('token')
+            ?? $request->input('expected_state');
+
+        $expectedNama = $request->input('expected_nama')
+            ?? $request->input('initial_nama')
+            ?? $request->input('snapshot.nama')
+            ?? $request->input('expected_snapshot.nama');
+
+        $expectedStatus = $request->input('expected_status')
+            ?? $request->input('initial_status')
+            ?? $request->input('snapshot.status')
+            ?? $request->input('expected_snapshot.status');
+
+        $snapshotInput = $request->input('snapshot') ?? $request->input('expected_snapshot');
+        if (is_string($snapshotInput)) {
+            $decoded = json_decode($snapshotInput, true);
+            if (is_array($decoded)) {
+                if (! $expectedNama && isset($decoded['nama']) && is_string($decoded['nama'])) {
+                    $expectedNama = $decoded['nama'];
+                }
+                if (! $expectedStatus && isset($decoded['status']) && is_string($decoded['status'])) {
+                    $expectedStatus = $decoded['status'];
+                }
+            }
+        } elseif (is_array($snapshotInput)) {
+            if (! $expectedNama && isset($snapshotInput['nama']) && is_string($snapshotInput['nama'])) {
+                $expectedNama = $snapshotInput['nama'];
+            }
+            if (! $expectedStatus && isset($snapshotInput['status']) && is_string($snapshotInput['status'])) {
+                $expectedStatus = $snapshotInput['status'];
+            }
+        }
+
+        $hasFullVersionToken = is_string($versionToken) && trim($versionToken) !== '';
+        $hasCompleteSnapshot = is_string($expectedNama) && trim($expectedNama) !== ''
+            && is_string($expectedStatus) && trim($expectedStatus) !== '';
+
+        if (! $hasFullVersionToken && ! $hasCompleteSnapshot) {
+            throw ValidationException::withMessages([
+                'version_token' => 'Pembaruan unit organisasi mewajibkan token versi yang valid atau snapshot lengkap berisi nama dan status awal.',
+            ]);
+        }
+
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        try {
+            $result = DB::transaction(function () use ($id, $validated, $user, $auditLogger, $permissionResolver, $request) {
+                /** @var User $currentActor */
+                $currentActor = User::with('roles')->whereKey($user->id)->sharedLock()->firstOrFail();
+
+                // Kunci role aktif sumber aktor dengan sharedLock (mengikuti hierarki User -> Role -> Permission)
+                // berurutan ID untuk mencegah race condition pencabutan wewenang role oleh ChangeRolePermission
+                $actorRoleIds = DB::table('user_roles')
+                    ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                    ->where('user_roles.user_id', $currentActor->id)
+                    ->where('roles.aktif', true)
+                    ->pluck('roles.id')
+                    ->all();
+                sort($actorRoleIds);
+                if (! empty($actorRoleIds)) {
+                    Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+                }
+
+                // Evaluasi ulang wewenang aktor di dalam transaksi
+                $currentDecision = $permissionResolver->resolve($currentActor, 'unit:update');
+                if (! $currentDecision->allowed) {
+                    return [
+                        'status' => 'denied',
+                        'actor' => $currentActor,
+                        'tindakan' => 'unit.ubah_ditolak',
+                        'objekTipe' => 'unit',
+                        'objekId' => $id,
+                        'nilaiLama' => null,
+                        'alasan' => 'Anda tidak berwenang mengubah unit organisasi.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
+                        'message' => 'Anda tidak berwenang mengubah unit organisasi.',
+                    ];
+                }
+
+                /** @var Unit $lockedUnit */
+                $lockedUnit = Unit::whereKey($id)->lockForUpdate()->firstOrFail();
+
+                // Deteksi form / snapshot usang (optimistic concurrency control)
+                $versionToken = $request->input('version_token')
+                    ?? $request->input('versi_token')
+                    ?? $request->input('token')
+                    ?? $request->input('expected_state');
+
+                $expectedNama = $request->input('expected_nama')
+                    ?? $request->input('initial_nama')
+                    ?? $request->input('snapshot.nama')
+                    ?? $request->input('expected_snapshot.nama');
+
+                $expectedStatus = $request->input('expected_status')
+                    ?? $request->input('initial_status')
+                    ?? $request->input('snapshot.status')
+                    ?? $request->input('expected_snapshot.status');
+
+                $snapshot = $request->input('snapshot') ?? $request->input('expected_snapshot');
+                if (is_string($snapshot)) {
+                    $decoded = json_decode($snapshot, true);
+                    if (is_array($decoded)) {
+                        $snapshot = $decoded;
+                    }
+                }
+
+                if ($lockedUnit->isSnapshotStale(
+                    is_string($versionToken) ? $versionToken : null,
+                    is_string($expectedNama) ? $expectedNama : null,
+                    is_string($expectedStatus) ? $expectedStatus : null,
+                    is_array($snapshot) ? $snapshot : null
+                )) {
+                    return [
+                        'status' => 'stale',
+                        'actor' => $currentActor,
+                        'tindakan' => 'unit.ubah_ditolak',
+                        'objekTipe' => 'unit',
+                        'objekId' => (string) $lockedUnit->id,
+                        'nilaiLama' => [
+                            'id' => $lockedUnit->id,
+                            'nama' => $lockedUnit->nama,
+                            'status' => $lockedUnit->status,
+                        ],
+                        'alasan' => 'Data unit organisasi telah diubah oleh pengguna lain. Muat ulang data terbaru sebelum menyimpan perubahan.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
+                    ];
+                }
+
+                // Cegah penonaktifan unit jika masih memiliki grant izin aktif (anti-TOCTOU)
+                if ($validated['status'] === 'nonaktif' && UserPermissionGrant::where('unit_id', $lockedUnit->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Unit tidak dapat dinonaktifkan karena masih memiliki grant izin aktif. Cabut semua grant unit terlebih dahulu.',
+                    ]);
+                }
+
+                $oldValues = [
+                    'nama' => $lockedUnit->nama,
+                    'status' => $lockedUnit->status,
+                ];
+
+                $lockedUnit->update([
+                    'nama' => trim($validated['nama']),
+                    'status' => $validated['status'],
+                ]);
+
+                $auditLogger->catat(
+                    actor: $currentActor,
+                    tindakan: 'unit.ubah',
+                    objekTipe: 'unit',
+                    objekId: (string) $lockedUnit->id,
+                    nilaiLama: $oldValues,
+                    nilaiBaru: [
+                        'nama' => $lockedUnit->nama,
+                        'status' => $lockedUnit->status,
+                    ],
+                    alasan: "Perubahan data unit organisasi '{$lockedUnit->nama}'.",
+                    dasarIzin: $currentDecision->toAuditBasis(),
+                );
+
+                return [
+                    'status' => 'updated',
+                    'nama' => $lockedUnit->nama,
+                ];
+            });
+        } catch (QueryException $exception) {
+            if (($exception->errorInfo[0] ?? null) === '23505') {
+                throw ValidationException::withMessages([
+                    'nama' => 'Nama unit organisasi sudah digunakan.',
+                ]);
+            }
+
+            throw $exception;
+        }
+
+        if (is_array($result) && ($result['status'] ?? null) === 'denied') {
+            $auditLogger->catat(
+                actor: $result['actor'],
+                tindakan: $result['tindakan'],
+                objekTipe: $result['objekTipe'],
+                objekId: $result['objekId'],
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: $result['alasan'],
+                dasarIzin: $result['dasarIzin'],
+            );
+
+            abort(403, $result['message']);
+        }
+
+        if (is_array($result) && ($result['status'] ?? null) === 'stale') {
+            $auditLogger->catat(
+                actor: $result['actor'],
+                tindakan: $result['tindakan'],
+                objekTipe: $result['objekTipe'],
+                objekId: $result['objekId'],
+                nilaiLama: $result['nilaiLama'],
+                nilaiBaru: null,
+                alasan: $result['alasan'],
+                dasarIzin: $result['dasarIzin'],
+            );
+
+            throw ValidationException::withMessages([
+                'status' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'nama' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'version_token' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'snapshot' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'expected_state' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'konflik' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+            ]);
+        }
+
+        $nama = $result['nama'];
+
+        return redirect()->route('unit.index')->with('success', "Data unit '{$nama}' berhasil diperbarui.");
+    }
+}

@@ -31,12 +31,48 @@ class User extends Authenticatable
     /** Pemeriksaan label peran bukan pengganti resolver permission. */
     public function hasRole(string $kode): bool
     {
-        return $this->roles()->where('kode', $kode)->exists();
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(function (Role $role) use ($kode): bool {
+                if ($role->kode !== $kode) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
+        }
+
+        return $this->roles()->where('kode', $kode)->where('roles.aktif', true)->exists();
+    }
+
+    /**
+     * @param  list<string>  $kodes
+     */
+    public function hasAnyRole(array $kodes): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(function (Role $role) use ($kodes): bool {
+                if (! in_array($role->kode, $kodes, true)) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
+        }
+
+        return $this->roles()->whereIn('kode', $kodes)->where('roles.aktif', true)->exists();
     }
 
     /** @return HasMany<PenugasanIndikator, $this> */
     public function penugasanIndikators(): HasMany
     {
         return $this->hasMany(PenugasanIndikator::class, 'user_id');
+    }
+
+    /** @return HasMany<UserPermissionGrant, $this> */
+    public function permissionGrants(): HasMany
+    {
+        return $this->hasMany(UserPermissionGrant::class, 'user_id');
     }
 }

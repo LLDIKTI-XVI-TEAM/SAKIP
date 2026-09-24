@@ -165,7 +165,7 @@ class ChangePengukuran
             return;
         }
         $decision = $this->resolver->decide($actor, 'berkas:upload', $p->targetUnitId());
-        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'invalid_scope'], true)) {
+        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'inactive_unit', 'invalid_scope'], true)) {
             $denialDecision = $decision;
             throw new AuthorizationException('Izin unggah bukti telah dicabut.');
         }

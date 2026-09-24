@@ -48,6 +48,7 @@ class AuditLog extends Model
         static::deleting(fn () => throw new LogicException('Audit bersifat append-only.'));
     }
 
+    /** @return BelongsTo<User, $this> */
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');

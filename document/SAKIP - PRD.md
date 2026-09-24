@@ -1,11 +1,15 @@
 # PRD — SAKIP LLDIKTI Wilayah XVI
 ## Product Requirements Document
 
+> **Klarifikasi final LLDIKTI Wilayah XVI — 24 September 2026**  
+> Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
+
+
 **Nama proyek:** SAKIP (Sistem Akuntabilitas Kinerja) — LLDIKTI Wilayah XVI
 **Sifat proyek:** Aplikasi baru, terpisah dari sistem informasi lain yang sudah berjalan di LLDIKTI Wilayah XVI
 
 
-> **Penyelarasan role — 20 September 2026 (Q31):** berdasarkan informasi langsung dari pihak LLDIKTI Wilayah XVI yang disampaikan kepada tim, SAKIP memiliki **enam role resmi**: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Dokumen ini mempertahankan requirement resmi yang sudah ada dan hanya menyesuaikan bagian yang terdampak langsung oleh penambahan role `pic`. Hubungan final antara role `pic`, preset `role_permissions`, eligibility menjadi `penanggung_jawab`, dan migrasi user existing **belum dinyatakan dalam dokumen resmi yang diterima** dan karena itu tetap ditandai **OPEN** sampai ada konfirmasi. Rujukan keputusan: [SAKIP - Keputusan Penyelarasan.md](SAKIP%20-%20Keputusan%20Penyelarasan.md).
+> **Q32 aktif:** Q31 dipertahankan hanya sebagai histori pada dokumen Keputusan Penyelarasan. Seluruh kontrak implementasi PRD ini menggunakan klarifikasi final 24 September 2026.
 
 ---
 
@@ -111,14 +115,14 @@ Setiap indikator harus dapat ditelusuri balik ke Sasaran, Renstra, dan pada akhi
 ### 5.1 Termasuk (Fase Awal — MVP)
 
 - Autentikasi via Keycloak (SSO existing LLDIKTI) menggunakan client baru khusus SAKIP.
-- Katalog **enam role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. Preset permission final role `pic` mengikuti keputusan Q31 dan tetap OPEN sampai dikonfirmasi.
+- Katalog **lima role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. Preset permission final PIC operasional (bukan role) mengikuti keputusan Q31 dan tetap OPEN sampai dikonfirmasi.
 - Pengelolaan **Dasar Aturan** (`regulasi`): CRUD produk hukum (Kepmen/Permen/Perpres/keputusan lainnya) beserta lampiran dokumen sumbernya, dirujuk oleh Renstra dan/atau Indikator (§9).
 - Manajemen Renstra (CRUD, siklus status draft/aktif/nonaktif/diarsipkan) beserta Sasaran dan Indikator turunannya, termasuk revisi Renstra akibat terbitnya Kepmen IKU baru (edit in place, teraudit), rujukan `regulasi_id`, dan lampiran dokumen Renstra.
 - Pengelolaan Perjanjian Kinerja (renstra_pk) per tahun per Renstra, termasuk koreksi beralasan dan lampiran dokumen PK.
 - Pengelolaan Target Tahunan per indikator per tahun, termasuk kolom baseline sebagai acuan penyusunan.
 - Pengelolaan definisi Komponen Indikator (`indikator_komponen`) dan mesin perhitungan otomatis berbasis komponen (`tipe_perhitungan`: rasio_persen, penjumlahan, manual) — pembilang majemuk berbobot, maksimal satu tingkat perhitungan.
 - Pengelolaan Periode (mis. Triwulan I–IV, Semester, Tahunan), Jadwal Tahunan (level tahun, termasuk jendela penyusunan Rencana Aksi), dan Jadwal Periode (jendela pengisian/reviu per periode di dalam suatu jadwal tahunan), termasuk aktivasi jadwal yang memicu pembuatan snapshot otomatis dan idempoten (termasuk snapshot cara hitung dan definisi komponen).
-- Mekanisme buka kembali jadwal (`jadwal:buka_kembali`) sebagai jalur standar untuk: koreksi setelah penutupan, penambahan indikator IKU baru di tengah tahun, dan backfill data historis via jadwal retroaktif.
+- Mekanisme buka kembali jadwal (`jadwal:buka_kembali`) sebagai jalur standar untuk: koreksi setelah penutupan, penambahan indikator IKU baru di tengah tahun, dan pengisian periode lampau 2026.
 - Penugasan dan riwayat Penanggung Jawab per indikator.
 - Penyusunan dan pengesahan Rencana Aksi per indikator per tahun: target dipecah per periode per komponen, bersifat kumulatif, melalui alur Draft → Diajukan → Diverifikasi → Disahkan (dengan Dikembalikan sebagai jalur revisi dan `rencana_aksi:buka_kembali` sebagai jalur koreksi setelah pengesahan).
 - Penyusunan Kegiatan per periode per unit (status rencana/terlaksana/tidak terlaksana/ditunda/batal, termasuk penggeseran periode) dan Klaim Kegiatan yang mengaitkan kegiatan ke Rencana Aksi/komponen indikator, baik pada tahap penyusunan rencana aksi maupun tahap pengisian pengukuran.
@@ -175,130 +179,131 @@ Prinsip arsitektural:
 
 ### 7.1 Model Dasar
 
-Hak akses SAKIP memakai **RBAC (Role-Based Access Control) dengan grant dan deny**, dievaluasi hidup pada setiap permintaan — bukan disalin ke baris izin statis per pengguna saat akun dibuat. Enam tabel menyusun model ini:
+SAKIP memakai **RBAC + explicit grant + explicit deny** yang dievaluasi pada setiap request. Baseline final LLDIKTI 24 September 2026:
 
-1. **`permissions`** — katalog permission (§7.2), sumbernya konstanta aplikasi yang di-seed ke basis data.
-2. **`roles`** — enam peran bawaan (§7.3): `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`.
-3. **`role_permissions`** — isi tiap peran sebagai data (§7.3): daftar permission yang melekat pada suatu peran. Permission yang berasal dari peran **selalu bersifat global** — tabel ini tidak memiliki kolom `unit_id`.
-4. **`user_roles`** — peran yang dipegang tiap pengguna. Pada Fase Awal, satu pengguna memegang **tepat satu** peran (`unique(user_id)`); struktur pivot ini disiapkan agar multi-peran dapat dibuka di Fase Lanjutan hanya dengan melepas constraint tersebut.
-5. **`user_permission_granted`** — pemberian izin tambahan di luar isi peran, opsional di-scope ke satu `unit_id` (`NULL` = global). Ini satu-satunya tempat scope unit hidup dalam model ini — mis. hak isi pengukuran/rencana aksi/kegiatan milik PIC diberikan di sini, bukan lewat isi peran.
-6. **`user_permission_denials`** — pencabutan izin eksplisit, opsional di-scope ke satu `unit_id` (`NULL` = pencabutan menyeluruh). Dapat mencabut permission yang berasal dari peran maupun dari grant.
+1. `permissions` — katalog permission source-controlled dan di-seed.
+2. `roles` — **5 role bawaan**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
+3. `role_permissions` — preset permission global per role; **tidak memiliki `unit_id`**.
+4. `user_roles` — zero-or-one role utama per user pada Fase Awal. User baru hasil JIT SSO boleh belum memiliki baris role sampai Admin menetapkannya.
+5. `user_permission_granted` — grant eksplisit, termasuk grant per unit untuk hak kerja operasional.
+6. `user_permission_denials` — deny eksplisit global/per-unit; deny selalu menang.
 
-Permintaan otorisasi dijawab lewat algoritma resolusi izin (§7.4): himpunan izin dari peran + grant dibandingkan terhadap himpunan pencabutan, dengan **presedens deny menang** — bila ada pencabutan yang cocok, permintaan ditolak terlepas dari peran atau grant apa pun yang dimiliki pengguna. Pembedaan "tidak pernah diberi" dari "sengaja dicabut" ini dibutuhkan saat evaluasi AKIP/ZI mempertanyakan mengapa seseorang tidak dapat melakukan sesuatu meski perannya memungkinkan.
+**PIC bukan role sistem.** Istilah PIC pada workflow berarti pengguna operasional yang ditugaskan dan memiliki hak kerja yang sesuai. Role, assignment `penanggung_jawab`, dan grant unit adalah tiga data yang berbeda.
 
-Sejumlah permission memiliki aturan scope kondisional (kolom `permissions.butuh_scope = unit`, §7.2), bukan seragam — polanya sama pada ketiganya:
+### 7.2 Katalog Permission dan Scope
 
-- **`pengukuran:create`/`pengukuran:update`** — hak PIC diberikan lewat grant per unit (§7.5), **wajib** mengisi `unit_id` (tidak boleh NULL) dan tunduk pada batas jendela pengisian periode (§12.3). Hak Perencanaan bersumber dari isi peran `perencanaan` — selalu global — dan tidak tunduk pada jendela periode, hanya pada `penutupan` jadwal tahunan.
-- **`rencana_aksi:create`/`rencana_aksi:update`/`rencana_aksi:ajukan`** — mengikuti pola identik: grant per unit dan dibatasi jendela `rencana_aksi_mulai`/`rencana_aksi_selesai` (§12.2) bagi PIC; global lewat isi peran dan dibatasi `penutupan` saja bagi Perencanaan.
-- **`kegiatan:create`/`kegiatan:update`** — grant per unit bagi PIC (unit pelaksana kegiatan), global lewat isi peran bagi Perencanaan, tanpa jendela waktu eksplisit selain batas `penutupan` jadwal tahunan.
+Katalog permission didefinisikan sebagai konstanta aplikasi dan disinkronkan melalui seeder. Permission tidak dikenal/tidak aktif harus fail closed.
 
-**Catatan Q31:** istilah PIC pada aturan scoped di atas kini juga merupakan nama role resmi. Namun aturan scoped yang sudah ada tidak otomatis berubah menjadi permission global pada role `pic`; preset final role `pic` masih OPEN sebagaimana §7.3.
+Hanya **7 permission** yang `butuh_scope = unit`:
 
-Seluruh permission lain bersifat `global` (`butuh_scope = global`) dan tidak pernah menerima `unit_id` pada grant maupun deny-nya.
+```text
+pengukuran:create
+pengukuran:update
+rencana_aksi:create
+rencana_aksi:update
+rencana_aksi:ajukan
+kegiatan:create
+kegiatan:update
+```
 
-### 7.2 Katalog Permission Lengkap
+Permission baca `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, dan `dashboard:read` bersifat global sesuai preset role yang berlaku.
 
-Katalog permission didefinisikan sebagai **konstanta aplikasi** (kode permission bertipe aman, tidak bisa salah ketik), lalu **di-seed** ke tabel `permissions`. Tabel hanya dibaca aplikasi; penambahan atau penghapusan permission dilakukan lewat rilis kode dan seeder — **bukan** lewat UI. Setiap baris permission memiliki kolom `butuh_scope` (`global` atau `unit`) dan `sensitif` (boolean) selain kolom `kode`/`entitas`/`aksi`/`keterangan` dasarnya:
+Tambahan permission governance:
 
-- `butuh_scope = unit` hanya untuk tujuh permission: `pengukuran:create`, `pengukuran:update`, `rencana_aksi:create`, `rencana_aksi:update`, `rencana_aksi:ajukan`, `kegiatan:create`, `kegiatan:update`. Permission lain seluruhnya `global`.
-- `sensitif = true` untuk: `pengukuran:sahkan`, `pengukuran:buka_kembali`, `pengukuran:verifikasi`, `rencana_aksi:verifikasi`, `rencana_aksi:sahkan`, `rencana_aksi:buka_kembali`, `jadwal:aktivasi`, `jadwal:tutup`, `jadwal:buka_kembali`, `status_capaian:update`, `rekomendasi:tetapkan`, `komponen:update`, `komponen:delete`, `jenis_berkas:update`, `jenis_berkas:delete`, `regulasi:update`, `regulasi:delete`, `akses:update`, `pengaturan:update`, `berkas:delete`, `kegiatan:delete` — aksi dengan permission ini wajib mencatat **dasar izin** di `audit_log` (§7.4, §25.2).
+- `delegasi:update` — mengelola create/revoke Grant Unit; preset: Perencanaan, Admin, Superadmin.
+- `akses:update` — Assign Peran dan Explicit Deny.
+- `pengguna:read` — melihat pengguna serta halaman **Peran & Izin** read-only.
 
-| Entitas | Aksi tersedia |
+| Entitas | Aksi utama |
 |---|---|
 | Renstra | `renstra:create`, `renstra:read`, `renstra:update`, `renstra:delete` |
 | Sasaran | `sasaran:create`, `sasaran:update`, `sasaran:delete` |
 | Indikator | `indikator:create`, `indikator:read`, `indikator:update`, `indikator:delete` |
 | Target | `target:update` |
-| PK (Perjanjian Kinerja) | `pk:create`, `pk:update` |
-| Dasar Aturan | `regulasi:create`, `regulasi:read`, `regulasi:update`, `regulasi:delete` |
-| Periode & Jadwal | `periode:create`, `periode:update`, `jadwal:create`, `jadwal:update`, `jadwal:aktivasi`, `jadwal:tutup`, `jadwal:buka_kembali` |
-| Penugasan | `penanggung_jawab:update` |
-| Rencana Aksi | `rencana_aksi:read`, `rencana_aksi:create` *(scoped unit untuk PIC, global untuk Perencanaan)*, `rencana_aksi:update` *(idem)*, `rencana_aksi:ajukan` *(idem)*, `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`, `rencana_aksi:sahkan`, `rencana_aksi:buka_kembali` |
-| Kegiatan | `kegiatan:read`, `kegiatan:create` *(scoped unit untuk PIC, global untuk Perencanaan)*, `kegiatan:update` *(idem)*, `kegiatan:delete` |
-| Komponen Indikator | `komponen:create`, `komponen:read`, `komponen:update`, `komponen:delete` |
-| Berkas Persyaratan | `jenis_berkas:create`, `jenis_berkas:read`, `jenis_berkas:update`, `jenis_berkas:delete`, `berkas:read`, `berkas:upload`, `berkas:delete` |
-| Alur Pengukuran | `pengukuran:create` *(scoped unit untuk PIC, global untuk Perencanaan)*, `pengukuran:update` *(idem)*, `pengukuran:read`, `pengukuran:verifikasi`, `pengukuran:kembalikan`, `pengukuran:sahkan`, `pengukuran:buka_kembali`, `pengukuran:setujui` *(Fase Lanjutan)* |
-| Status Capaian | `status_capaian:update` |
-| Rekomendasi Pimpinan | `rekomendasi:tetapkan` |
+| PK | `pk:create`, `pk:update` |
+| Regulasi | `regulasi:create`, `regulasi:read`, `regulasi:update`, `regulasi:delete` |
+| Periode/Jadwal | `periode:create`, `periode:update`, `jadwal:create`, `jadwal:update`, `jadwal:aktivasi`, `jadwal:tutup`, `jadwal:buka_kembali` |
+| Penanggung Jawab | `penanggung_jawab:update` |
+| Rencana Aksi | `rencana_aksi:read`, `rencana_aksi:create`, `rencana_aksi:update`, `rencana_aksi:ajukan`, `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`, `rencana_aksi:sahkan`, `rencana_aksi:buka_kembali` |
+| Kegiatan | `kegiatan:read`, `kegiatan:create`, `kegiatan:update`, `kegiatan:delete` |
+| Komponen | `komponen:create`, `komponen:read`, `komponen:update`, `komponen:delete` |
+| Jenis/Berkas | `jenis_berkas:create`, `jenis_berkas:read`, `jenis_berkas:update`, `jenis_berkas:delete`, `berkas:read`, `berkas:upload`, `berkas:delete` |
+| Pengukuran | `pengukuran:create`, `pengukuran:update`, `pengukuran:read`, `pengukuran:verifikasi`, `pengukuran:kembalikan`, `pengukuran:sahkan`, `pengukuran:buka_kembali`, `pengukuran:setujui` |
+| Status/Rekomendasi | `status_capaian:update`, `rekomendasi:tetapkan` |
 | Unit | `unit:create`, `unit:read`, `unit:update`, `unit:delete` |
-| Pengguna & Akses | `pengguna:read`, `akses:update` |
-| Dashboard & Laporan | `dashboard:read`, `laporan:read`, `laporan:ekspor` |
-| Audit | `audit:read` |
-| Setelan Aplikasi | `pengaturan:update` |
-
-Catatan perbedaan dua permission koreksi: `pengukuran:kembalikan`/`rencana_aksi:kembalikan` menangani jalur normal (Diajukan/Diverifikasi → Dikembalikan) sebagai bagian alur reviu biasa; `pengukuran:buka_kembali`/`rencana_aksi:buka_kembali` menangani jalur khusus (Disahkan → Dikembalikan) — lihat §19.5 dan §14.6.
+| Pengguna/Akses | `pengguna:read`, `akses:update`, `delegasi:update` |
+| Dashboard/Laporan | `dashboard:read`, `laporan:read`, `laporan:ekspor` |
+| Audit/Pengaturan | `audit:read`, `pengaturan:update` |
 
 ### 7.3 Isi Peran (`role_permissions`)
 
-Isi tiap peran adalah **data**, disimpan sebagai baris `role_permissions` (pasangan `role_id`–`permission_id`, `unique(role_id, permission_id)`), bukan daftar hardcode di kode aplikasi. Perubahan isi peran berlaku langsung bagi seluruh pemegangnya begitu disimpan — konsekuensi yang disadari, sehingga setiap perubahan **wajib tercatat di `audit_log`** dengan `nilai_lama`/`nilai_baru` (daftar permission sebelum/sesudah) dan `alasan`.
+Preset role adalah **source-controlled**. Tidak ada UI yang mengubah isi role, termasuk untuk Superadmin.
 
-Enam peran bawaan (`roles.is_sistem = true`, tidak dapat dihapus) dan isi permission masing-masing:
+- perubahan preset dilakukan melalui rilis kode + seeder;
+- seeder harus idempoten;
+- bila ada delta, audit menyimpan daftar before/after dan alasan/sumber rilis;
+- permission unit-scoped tidak boleh dijadikan role-global untuk menggantikan Grant Unit.
 
-| Peran | Permission yang diberikan |
+Baseline role:
+
+| Peran | Baseline kewenangan |
 |---|---|
-| **Superadmin** | Seluruh permission di katalog (§7.2), tanpa kecuali, termasuk `pengaturan:update`, `komponen:*`, `jenis_berkas:*`, `regulasi:*`, `rekomendasi:tetapkan`. Diposisikan sebagai akses penuh/*break-glass* untuk keperluan teknis darurat (mis. pemulihan konfigurasi, penanganan insiden akses) — bukan akun operasional harian. Tindakan substantif apa pun yang dilakukan lewat Superadmin (mis. mengubah data kinerja, menyahkan pengukuran) bersifat pengecualian dan tetap sepenuhnya ter-audit seperti peran lain. |
-| **Admin** | `pengguna:read`, `akses:update`, `unit:create`, `unit:read`, `unit:update`, `unit:delete`, `pengaturan:update`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `audit:read`, `dashboard:read`, `laporan:read`. **Tidak** termasuk: seluruh `renstra:*`/`sasaran:*`/`indikator:*`/`target:update`/`pk:*`/`periode:*`/`jadwal:*`, `penanggung_jawab:update`, permission alur Rencana Aksi (`rencana_aksi:*`), Kegiatan (`kegiatan:*`), `komponen:create`/`update`/`delete`, `jenis_berkas:create`/`update`/`delete`, `regulasi:create`/`update`/`delete`, `berkas:*`, permission alur Pengukuran (`create`/`update`/`verifikasi`/`kembalikan`/`sahkan`/`buka_kembali`), `status_capaian:update`, `rekomendasi:tetapkan`, dan `laporan:ekspor`. Peran ini mengelola akun pengguna, unit, dan setelan aplikasi (termasuk halaman "Batas unggahan berkas", §26.4) — bukan data kinerja dan bukan substansi persyaratan bukti dukung atau dasar aturan. |
-| **Perencanaan** | `renstra:*`, `sasaran:*`, `indikator:*`, `target:update`, `pk:*`, `regulasi:*`, `periode:*`, `jadwal:*`, `penanggung_jawab:update`, seluruh `rencana_aksi:*` **(global — isi peran tidak memiliki kolom `unit_id`, untuk `create`/`update`/`ajukan`)**, `kegiatan:read`/`create`/`update`/`delete` **(global)**, `komponen:*`, `jenis_berkas:*`, `berkas:read`/`upload`/`delete`, `pengukuran:create`/`pengukuran:update` **(global)**, `pengukuran:read`, `pengukuran:verifikasi`, `pengukuran:kembalikan`, `pengukuran:sahkan`, `pengukuran:buka_kembali`, `status_capaian:update`, `rekomendasi:tetapkan`, `dashboard:read`, `laporan:read`, `laporan:ekspor`, `audit:read` |
-| **PIC** | **OPEN — preset permission bawaan role `pic` belum dikonfirmasi dalam dokumen resmi yang diterima.** Penambahan role `pic` tidak boleh secara otomatis membuat permission yang bertipe `unit` menjadi global melalui `role_permissions`. Sampai ada keputusan final, mekanisme operasional PIC yang sudah tertulis pada §7.1/§7.5 (grant per unit untuk permission scoped dan aturan bisnis penanggung jawab) tetap menjadi baseline proses, tanpa menyimpulkan eligibility `penanggung_jawab` hanya dari nama role. |
-| **Pimpinan** | `pengukuran:read`, `pengukuran:setujui` *(disiapkan untuk Fase Lanjutan, belum dipakai pada alur Fase Awal — lihat §19.2)*, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `berkas:read`, pembacaan Rekomendasi Pimpinan, `dashboard:read`, `laporan:read`, `laporan:ekspor`, `audit:read` |
-| **Pegawai** | `pengukuran:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`. Hak `pengukuran:create`/`update`, `rencana_aksi:read`/`create`/`update`/`ajukan`, dan `kegiatan:read`/`create`/`update` **tidak** termasuk dalam isi peran ini — harus diberikan eksplisit per unit lewat grant (§7.5), dan tunduk pada batas jendela masing-masing (§12.2, §12.3) |
-
-
-> **Catatan Q31 — role PIC:** keberadaan `pic` sebagai role keenam sudah dikonfirmasi. Yang belum dikonfirmasi adalah paket permission bawaan role tersebut dan apakah hanya user ber-role `pic` yang boleh menjadi `penanggung_jawab`. Karena `role_permissions` selalu global sedangkan sejumlah aksi PIC pada baseline ini bertipe scoped-unit, implementasi tidak boleh menebak preset PIC dengan memasukkan permission scoped sebagai allow global. Keputusan final wajib diselaraskan kembali setelah konfirmasi LLDIKTI/Tim Perencanaan.
-
-Pada Fase Awal, Pimpinan tidak berperan aktif dalam alur pengesahan rencana aksi maupun pengukuran — perannya murni pemantauan (dashboard, laporan, audit read-only, serta pembacaan Rekomendasi Pimpinan yang diisikan Perencanaan). Permission `pengukuran:setujui` tetap didefinisikan di katalog dan di isi peran Pimpinan agar skema serta kode sudah siap saat Fase Lanjutan mengaktifkan alur approval, meski belum ada UI yang memanggilnya sekarang.
-
-Pemisahan Admin dari Perencanaan menegakkan segregasi tugas (*segregation of duties*): pengelola akun, unit, dan setelan aplikasi tidak otomatis memegang wewenang substantif atas data kinerja (Renstra, indikator, komponen, target, rencana aksi, kegiatan, pengukuran, dasar aturan). Permission `pengaturan:update` dimiliki **Admin dan Superadmin** — bukan Superadmin saja (§26.4) — dan mencakup kewenangan mengubah halaman "Batas unggahan berkas" (§26.4), tetap tanpa wewenang atas substansi persyaratan (`jenis_berkas:*`) maupun dasar aturan (`regulasi:*`) yang tetap dipegang Perencanaan.
+| **Superadmin** | Akses teknis penuh/break-glass sesuai katalog; seluruh aksi tetap tunduk audit dan business guard yang tidak dapat dibypass hanya karena role. |
+| **Admin** | Pengelolaan teknis pengguna/unit/setelan/akses sesuai permission preset; tidak memperoleh kewenangan substantif kinerja secara otomatis. Memiliki `delegasi:update` untuk administrasi grant unit. |
+| **Perencanaan** | Kewenangan substantif perencanaan, jadwal, review/pengesahan sesuai katalog, termasuk `delegasi:update`; permission kerja yang berasal dari role bersifat global. |
+| **Pimpinan** | Baseline read-only/monitoring sesuai permission preset; approval fase lanjutan tidak dianggap aktif hanya karena role. |
+| **Pegawai** | Hak baca: `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`; akses berkas mengikuti ownership/parent authorization. Hak kerja unit tidak berasal dari role Pegawai, melainkan Grant Unit. |
 
 ### 7.4 Algoritma Resolusi Izin
 
-Setiap permintaan otorisasi menjawab pertanyaan **"boleh(kode_permission, unit_target?)"** untuk aktor yang sedang login. Pertanyaan tanpa `unit_target` hanya sah diajukan untuk permission bertipe `global`. Resolusi dijalankan sebagai berikut:
+Resolver server-side menerima user, permission, dan unit opsional:
 
-1. **Fail closed.** Bila tidak ada baris `permissions` aktif dengan `kode` tersebut, jawabannya langsung **tolak** — kode permission yang tidak dikenal tidak pernah dianggap "diizinkan secara default".
-2. **Susun himpunan allow**: (a) seluruh permission dari peran pengguna (`user_roles` → `role_permissions`), diperlakukan **global**; (b) baris `user_permission_granted` milik pengguna yang cocok.
-3. **Susun himpunan deny**: baris `user_permission_denials` milik pengguna yang cocok.
-4. **Pencocokan scope.** Untuk pertanyaan dengan `unit_target = U`: deny cocok bila `unit_id IS NULL` **atau** `unit_id = U`; grant cocok bila `unit_id = U`. Untuk pertanyaan tanpa `unit_target`: deny ber-`unit_id` **tidak** menghalangi (izin untuk unit lain tetap berlaku); deny dengan `unit_id IS NULL` selalu menghalangi.
-5. **Presedens: deny menang.** Ada deny yang cocok → **tolak**. Tidak ada deny yang cocok tetapi ada allow yang cocok → **izinkan**. Tidak ada allow yang cocok → **tolak**.
-6. **Terpisah dari validasi bisnis.** Jendela waktu (periode, rencana aksi) dan kepemilikan unit adalah validasi bisnis yang berjalan **setelah** izin dinyatakan "boleh" — bukan bagian dari resolusi izin. Izin menjawab "apakah boleh"; validasi bisnis menjawab "apakah masih dalam waktunya, untuk record yang benar, dan lewat gerbang kelengkapan yang benar" (§12.3, §14.7, §19.4).
-7. **Tidak ada evaluasi izin di sisi klien.** Resolusi hanya dijalankan di server (Policy/Gate/service layer Laravel). Halaman React menyembunyikan tombol berdasarkan hasil yang dikirim server, tetapi server tetap mengevaluasi ulang setiap permintaan — modifikasi tampilan di klien tidak pernah melewati gerbang ini.
+1. permission harus dikenal dan aktif;
+2. user harus terautentikasi dan, untuk route aplikasi aktif, berstatus `aktif`;
+3. kumpulkan allow global dari `role_permissions` bila user memiliki role;
+4. kumpulkan grant yang cocok;
+5. evaluasi explicit deny — **deny menang**;
+6. untuk permission unit-scoped, unit request harus cocok dengan grant yang sah kecuali allow global memang berasal dari role yang secara eksplisit memiliki kewenangan global;
+7. setelah permission lolos, jalankan business guard: status data, assignment, jendela waktu, F1/F2, penutupan, dan rule domain lain.
 
-Untuk aksi dengan `permissions.sensitif = true` (§7.2), hasil resolusi — sumber allow yang mengizinkan (peran mana/grant mana) atau deny yang memicu penolakan — dicatat sebagai **`dasar_izin`** pada `audit_log` (§25.2).
+User tanpa role menghasilkan **nol permission** (fail closed).
 
-### 7.5 UI Pengelolaan Akses (Fase Awal)
+### 7.5 Grant Unit dan PIC Operasional
 
-Pada Fase Awal, UI pengelolaan akses disederhanakan menjadi tiga form dan satu halaman:
+PIC operasional dibentuk oleh kombinasi konteks bisnis, bukan role baru:
 
-1. **Assign Peran** — Superadmin/Admin memilih pengguna dan menetapkan satu peran (Superadmin/Admin/Perencanaan/PIC/Pimpinan/Pegawai). Menyimpan baris di `user_roles` (constraint `unique(user_id)` pada Fase Awal).
-2. **Kelola Grant Izin per Unit** — Superadmin/Admin memilih pengguna, permission bertipe `unit` (`pengukuran:create`/`update`, `rencana_aksi:create`/`update`/`ajukan`, `kegiatan:create`/`update`), unit target, dan alasan (wajib), lalu menyimpan baris `user_permission_granted`. Form ini adalah satu-satunya jalur baku pemberian hak isi pengukuran, rencana aksi, dan kegiatan bagi Pegawai/PIC — konsisten dengan pola bahwa seluruh hak isi data kinerja tingkat unit diberikan lewat satu form grant, bukan form terpisah per entitas. `berkas:read`/`upload`/`delete` mengikuti otomatis lewat kepemilikan induk (rencana aksi/pengukuran/kegiatan) yang menjadi hak akses PIC unit tersebut, tanpa baris grant tersendiri.
-3. **Kelola Deny Izin** — Superadmin/Admin memilih pengguna, permission (global atau ber-unit), unit target (opsional — kosong berarti pencabutan menyeluruh), dan alasan (wajib), lalu menyimpan baris `user_permission_denials`.
-4. **"Jelaskan izin pengguna"** — pilih pengguna, sistem menampilkan daftar izin efektif per unit lengkap dengan **asal tiap izin** (peran/grant) dan deny yang berlaku. Halaman ini digerbangi permission `pengguna:read` (Admin/Superadmin) — tidak ada permission baru yang dibuat untuk halaman ini.
+```text
+user aktif
++ assignment penanggung_jawab bila relevan
++ grant unit yang diperlukan
++ jendela/status/business guard valid
+```
 
-Ketiga form digerbangi permission `akses:update`, yang hanya dimiliki Superadmin dan Admin — konsisten dengan segregasi tugas pada §7.3: pengelolaan akun/akses terpisah dari kewenangan atas data kinerja yang dipegang Perencanaan.
+Grant unit hanya menerima 7 permission unit-scoped pada §7.2. Form Grant digerbangi `delegasi:update` dan tersedia untuk Perencanaan, Admin, Superadmin sesuai permission efektif. Grant tidak mengubah role dan tidak otomatis membuat assignment PJ.
 
-Di luar form-form ini, permission individual ad-hoc (kasus edge di luar isi peran standar) ditulis lewat seeder atau query manual database oleh tim teknis pada Fase Awal, bukan lewat UI. UI matrix permission penuh — mencentang bebas seluruh permission per pengguna — ditunda ke Fase Lanjutan.
+### 7.6 Penanggung Jawab dan Role
 
-### 7.6 Pemisahan Tugas
+`penanggung_jawab` adalah assignment historis user terhadap indikator. User aktif mana pun dapat ditunjuk; assignment tidak memberi permission.
 
-Dua aturan bisnis keras berikut ditegakkan di luar resolusi izin (§7.4) — tidak dapat "dinonaktifkan" lewat pemberian permission apa pun, karena keduanya membandingkan identitas aktor terhadap data, bukan sekadar memeriksa kepemilikan permission:
+Jika calon PJ belum mempunyai hak isi yang cocok, UI memberi **peringatan, bukan blokir**. Sistem menyediakan daftar **PJ aktif tanpa hak isi** untuk ditindaklanjuti Perencanaan.
 
-- **Jalur PIC tidak boleh menilai pekerjaannya sendiri.** Pengaju Pengukuran yang mengisi lewat grant scope unit (jalur PIC) **tidak dapat** memverifikasi atau mengesahkan Pengukuran yang sama — ditegakkan dengan membandingkan aktor terhadap `pengukuran.created_by` pada transisi `diajukan → diverifikasi` dan `diverifikasi → disahkan` (§19.1, §19.5).
-- **Jalur Perencanaan boleh mengesahkan sendiri, dengan penanda.** Perencanaan yang mengisi Pengukuran atas nama unit (permission global, dipakai saat tenggat PIC terlewat atau untuk backfill, §12.6) **diizinkan** memverifikasi/mengesahkan pengukuran yang diisinya sendiri. Aksi ini diberi penanda **`self_approval`** di `audit_log` dan tampil sebagai penanda pada dashboard/laporan Perencanaan (§23, §25.2) — bukan disembunyikan. Alasan keputusan ini: bila jalur ini diblokir sepenuhnya, LLDIKTI XVI wajib menugaskan minimal dua akun Perencanaan agar pengisian yang terlambat masih dapat disahkan — kondisi yang belum tentu terpenuhi pada Fase Awal.
+Perubahan role tidak mengakhiri assignment PJ dan tidak mencabut grant. Pencabutan grant harus eksplisit dan beralasan.
 
-Kedua aturan ini tidak menggantikan resolusi izin (§7.4): aktor tetap harus memiliki permission `pengukuran:verifikasi`/`pengukuran:sahkan` terlebih dahulu sebelum aturan pemisahan tugas ini dievaluasi.
+### 7.7 UI Pengelolaan Akses
 
-### 7.7 Unit
+Fase Awal menyediakan:
 
-`unit` menggantikan istilah "tim kerja" pada seluruh lapisan sistem — nama tabel, kolom FK (`unit_id` pada `indikator`, `jadwal_snapshot`, `user_permission_granted`, `user_permission_denials`, `rencana_aksi`, `kegiatan`), permission (`unit:create/read/update/delete`), audit event (`unit.hapus`, dst.), dan seluruh teks aplikasi.
+1. Assign Peran — 5 role final; gate `pengguna:read` + `akses:update`.
+2. Grant Unit — gate `delegasi:update`.
+3. Explicit Deny — gate `akses:update`.
+4. Jelaskan Izin Pengguna — read/explain effective permission.
+5. **Peran & Izin** — read-only; gate `pengguna:read`.
 
-Definisi baku: `unit` adalah kelompok organisasi pemilik indikator dan penentu scope grant/deny permission pengukuran/rencana aksi/kegiatan — **bukan** satuan ukur (itu `indikator.satuan`). Penamaan sengaja tidak memakai "unit kerja" agar tidak bertabrakan dengan kosakata evaluasi ZI/SAKIP yang sudah punya makna berbeda. Label tampilan di UI (mis. jika institusi ingin menyebutnya "Bagian"/"Bidang") dapat disetel lewat modul Setelan Aplikasi (§7.7, §26.3) tanpa mengubah struktur data.
+Tidak ada editor `role_permissions` melalui browser.
 
-- `unit` adalah master global (bukan sub-organisasi bertingkat), tanpa tabel keanggotaan eksplisit — keterkaitan pengguna ke unit terjadi melalui scope pada `user_permission_granted.unit_id` (dan pencabutannya pada `user_permission_denials.unit_id`), dan keterkaitan indikator/kegiatan/rencana aksi ke unit melalui kolom `unit_id` masing-masing.
-- Unit berstatus `aktif` atau `nonaktif`.
-- Unit yang masih memiliki indikator, rencana aksi, atau kegiatan terkait tidak dapat dihapus.
-- Unit kosong (tanpa keterkaitan) dapat dihapus, hanya oleh Superadmin.
-- Perpindahan indikator antar unit adalah tindakan yang dicatat di audit log (lihat §25).
+### 7.8 Unit
 
----
+Unit adalah scope organisasi untuk indikator, kegiatan, grant, deny, laporan, dan business guard. Tidak boleh membuat role per-unit seperti `pic_akademik`; cakupan unit tetap direpresentasikan pada grant dan data domain.
 
 ## 8. Struktur Informasi
 
@@ -505,15 +510,25 @@ Setiap `pengukuran` merujuk ke `jadwal_snapshot_id`, bukan langsung ke `indikato
 
 Implikasi operasional dari keputusan ini dijabarkan di §34 (Catatan Risiko).
 
-### 12.6 Buka Kembali Jadwal: Koreksi, Penambahan Indikator, dan Backfill
+### 12.6 Penggunaan Pertama 2026, Periode Lampau, dan Koreksi
 
-`jadwal:buka_kembali` (`ditutup → aktif`) adalah satu-satunya jalur setelah penutupan untuk melakukan hal berikut, seluruhnya teraudit:
+Penggunaan pertama SAKIP adalah **Jadwal Tahunan 2026**. Master periode operasional 2026 adalah TW I, TW II, TW III, dan TW IV.
 
-- **Koreksi data setelah penutupan** — jadwal dibuka kembali, data pengukuran/snapshot yang relevan dikoreksi, lalu `jadwal:tutup` dijalankan kembali untuk membekukannya. Sebelum penutupan, koreksi status pengesahan pengukuran cukup memakai `pengukuran:buka_kembali` (§19.5), dan koreksi status pengesahan rencana aksi cukup memakai `rencana_aksi:buka_kembali` (§14.6), tanpa perlu membuka jadwal.
-- **Penambahan indikator IKU baru di tengah tahun** (§10.5) — mekanisme standar, bukan pengecualian: snapshot baru dibuat secara idempoten hanya untuk indikator yang belum memiliki baris snapshot, sehingga indikator lama yang sudah berjalan tidak terganggu. Indikator baru ini tetap memerlukan Rencana Aksi tersendiri sebelum pengukurannya dapat diajukan.
-- **Backfill data historis** — Perencanaan membuat **jadwal retroaktif** untuk tahun lampau di dalam rentang Renstra (dengan `renstra_pk` tahun tersebut wajib dicatat lebih dulu), mengaktifkannya, lalu mengisi sendiri pengukurannya. PIC otomatis terkunci dari jadwal ini karena deadline periode-periode di dalamnya sudah lewat (§12.3). Jadwal retroaktif **dikecualikan** dari gerbang kelengkapan rencana aksi/komponen/berkas pada pengajuan pengukuran (§19.4) — tujuannya memang mengisi data historis yang lazimnya tidak melalui proses rencana aksi/berkas normal pada masanya. `activated_at` tetap mencatat waktu aktivasi yang sebenarnya (jujur, bukan tanggal retroaktif yang direkayasa).
+- TW I–II 2026: saat jadwal diaktifkan, jendela pengisiannya sudah lewat sehingga berstatus **periode lampau** dan pengisian dilakukan Perencanaan.
+- TW III–IV 2026: berjalan melalui workflow normal PIC operasional.
+- 2025: **tidak dibuat sebagai baris pengukuran/jadwal historis**; hanya digunakan sebagai baseline indikator.
 
-Revisi target antar-tahun (mis. menaikkan target 2027–2029 setelah 2026 terlampaui) tidak memerlukan `jadwal:buka_kembali` — cukup mengubah master `target_tahunan`; snapshot tahun tersebut baru terbentuk saat aktivasi jadwal tahun itu dan otomatis membawa nilai revisi. Tahun yang sudah beku (snapshot sudah terbentuk dan dirujuk) tidak tersentuh oleh revisi ini.
+Sistem **tidak memiliki flag/kolom khusus `is_backfill`**. Status periode lampau dihitung dari jendela pengisian terhadap waktu aktivasi jadwal. Tahun aktif juga tidak di-hardcode; tahun aktif adalah tahun dengan `jadwal_tahunan.status = aktif`.
+
+Pada periode lampau, ketika flow aktivasi dijalankan:
+
+- gerbang RA telah disahkan dikecualikan;
+- kelengkapan komponen dikecualikan;
+- bukti wajib dikecualikan;
+- gerbang PK tahun berjalan tetap wajib;
+- Perencanaan melakukan pengisian.
+
+Koreksi setelah penutupan tetap memakai mekanisme buka-kembali beraudit. Mekanisme versioning/snapshot tidak boleh memalsukan tanggal aktivasi historis.
 
 ### 12.7 Asumsi Operasional Revisi Target & PK
 
@@ -527,15 +542,23 @@ Revisi target antar-tahun (mis. menaikkan target 2027–2029 setelah 2026 terlam
 
 ## 13. Penanggung Jawab Indikator
 
-- Setiap Indikator memiliki riwayat penanggung jawab (`penanggung_jawab`), bukan satu kolom tunggal — setiap baris memiliki `tanggal_mulai_berlaku`.
-- Penugasan efektif pada suatu tanggal acuan dihitung sebagai baris dengan `tanggal_mulai_berlaku` terbaru yang ≤ tanggal acuan. Ini memungkinkan penelusuran "siapa penanggung jawab indikator X pada tanggal Y" secara historis akurat, termasuk untuk periode yang sudah lewat.
-- Riwayat penanggung jawab tidak pernah dihapus — pergantian dicatat sebagai baris baru.
-- Pergantian penanggung jawab wajib mengisi `alasan` (nullable secara skema hanya untuk penugasan pertama kali; wajib diisi pada aplikasi setiap kali terjadi pergantian atas indikator yang sudah punya penanggung jawab sebelumnya).
-- Permission: `penanggung_jawab:update`.
-- **PIC Rencana Aksi = PIC indikator** yang tercatat pada `penanggung_jawab` — tidak ada penugasan penanggung jawab terpisah untuk Rencana Aksi (§14.8). Bila penanggung jawab indikator berganti di tengah tahun, hak pengisian Rencana Aksi mengikuti penanggung jawab yang berlaku pada tanggal acuan, sementara `rencana_aksi.penanggung_jawab_id` mencatat PIC yang berlaku saat rencana aksi disusun sebagai jejak historis.
-- **Penyelarasan Q31:** `pic` kini merupakan role resmi tersendiri, tetapi dokumen resmi yang diterima belum menetapkan bahwa `penanggung_jawab.user_id` **wajib** menunjuk user dengan role `pic`. Entitas dan histori `penanggung_jawab` tetap dipertahankan apa adanya; constraint eligibility berdasarkan role tidak boleh ditambahkan sebelum ada konfirmasi resmi.
+Penanggung Jawab adalah **assignment historis**, bukan role. Entitas mencatat indikator, user, tanggal mulai berlaku, aktor penetap, dan alasan.
 
----
+Aturan final:
+
+1. user target harus ada dan berstatus aktif;
+2. tidak ada syarat PIC operasional (bukan role) karena role tersebut tidak ada;
+3. Perencanaan dan Superadmin dapat menetapkan PJ sesuai permission efektif;
+4. assignment tidak memberikan permission;
+5. untuk melakukan pekerjaan unit, user tetap membutuhkan grant unit yang sesuai;
+6. calon PJ tanpa grant menimbulkan **warning**, bukan blokir;
+7. sistem menyediakan daftar **PJ aktif tanpa hak isi**;
+8. perubahan role user tidak mengakhiri assignment;
+9. revoke hak isi harus eksplisit, beralasan, dan teraudit.
+
+Penanggung jawab efektif pada tanggal T adalah assignment terakhir dengan `tanggal_mulai_berlaku <= T`. Histori lama tidak dihapus ketika terjadi pergantian.
+
+Untuk initial setup 2026, Rencana Aksi yang sudah disusun Perencanaan harus dicatat sebagai **disahkan** sebelum pengajuan TW III. Workflow PIC operasional normal untuk RA baru dimulai dari siklus berikutnya (2027).
 
 ## 14. Rencana Aksi
 
@@ -757,33 +780,49 @@ Pengajuan Pengukuran **ditolak** bila ada komponen aktif yang nilainya (`penguku
 
 ### 17.11 Lampiran: Pemetaan Indikator 2026 ke Definisi Komponen
 
-**Status lampiran ini adalah contoh pengisian awal, bukan aturan yang ditanam di kode.** Tabel berikut bersumber dari file kerja pengukuran kinerja institusi tahun 2026, disediakan sebagai (a) acuan pengisian awal `indikator_komponen` oleh Perencanaan saat data induk mulai dimasukkan ke aplikasi, dan (b) fixture test bagi mesin perhitungan (§17.11.3) — **bukan** logika yang dihardcode ke kode aplikasi. Tipe perhitungan dan komponen setiap indikator tetap sepenuhnya data-driven (§17.1): baris pada tabel ini dapat diubah, ditambah, atau diganti oleh Perencanaan lewat `komponen:create`/`update`/`delete` kapan pun tanpa rilis kode, termasuk untuk tahun-tahun setelah 2026.
+#### 17.11.1 IKU 3 — Formula Final
 
-#### 17.11.1 Tabel Pemetaan
+IKU 3 memakai **dua skor input**:
 
-| IKU | Tipe | Komponen (kode — label — peran — bobot) | Formula | Contoh angka 2026 |
-|---|---|---|---|---|
-| 1. Keunggulan Layanan | `rasio_persen` | `n` — jumlah respon pengguna layanan yang puas — pembilang — 1; `t` — total respon pengguna layanan — penyebut — 1 | `n / t × 100` | n=254, t=255 → 99,60784314 |
-| 2. Arsitektur PTS | `rasio_persen` | `a` — jumlah PTS terakreditasi — pembilang — 1; `b` — jumlah PTS yang melakukan penyatuan/penggabungan — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `(a + b) / t × 100` | a=79, b=0, t=84 → 94,04761905 |
-| 3. Predikat SAKIP dan Zona Integrasi (WBK/WBBM) | `penjumlahan` | `sakip` — Nilai SAKIP — penjumlah — 0,5; `zi` — Nilai ZI WBK/WBBM — penjumlah — 0,5 | `(sakip × 0,5) + (zi × 0,5)` | sakip=77,5; zi=75 → 76,25 |
-| 4. Fasilitasi Peningkatan Mutu PTS oleh LLDIKTI | `rasio_persen` | `n` — jumlah PTS yang menerima fasilitasi peningkatan mutu — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=50, t=84 → 59,52380952 |
-| 5. Pencegahan dan Penanganan Anti Kekerasan, Anti Narkoba, dan Anti Korupsi | `rasio_persen` | `n` — jumlah PTS yang memiliki kebijakan anti kekerasan/narkoba/korupsi — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=78, t=84 → 92,85714286 |
-| 6. Fasilitasi Pengembangan Kemahasiswaan dan Prestasi oleh LLDIKTI | `rasio_persen` | `n` — jumlah PTS yang menerima fasilitasi peningkatan mutu layanan kemahasiswaan — pembilang — 1; `t` — total PTS wilayah kerja — penyebut — 1 | `n / t × 100` | n=68, t=84 → 80,95238095 |
-| 7. Jumlah Dosen PTS yang Meningkat Jabatan Fungsionalnya | `penjumlahan` | `lektor` — jumlah dosen naik ke Lektor — penjumlah — 1; `lektor_kepala` — Lektor Kepala — penjumlah — 1; `guru_besar` — Guru Besar — penjumlah — 1 | `lektor + lektor_kepala + guru_besar` | 99 + 24 + 1 = 124 |
-| 8. Fasilitasi Peningkatan Kinerja Penelitian, Publikasi, dan Kemitraan PTS | `rasio_persen` | `n` — jumlah PTS yang memperoleh fasilitasi — pembilang — 1; `t` — penyebut (perlu penegasan definisi) — penyebut — 1 | `n / t × 100` | n=50, t=84 → 59,52380952 |
+| Kode | Label | Koefisien |
+|---|---|---:|
+| `sakip` | Skor SAKIP | 0,5 |
+| `zi_wbk` | Skor ZI-WBK | 0,5 |
 
-#### 17.11.2 Catatan Penting
+Formula final:
 
-- **IKU 3:** sub-skor di dalam Nilai SAKIP (Perencanaan Kinerja 30, Pengukuran Kinerja 30, Pelaporan Kinerja 15, Evaluasi Internal 25) **tidak** dimodelkan sebagai komponen — konsekuensi langsung dari batas satu tingkat perhitungan (§17.10); Nilai SAKIP diinput sebagai satu angka. Bila kelak ingin dirinci, mesin yang sama sudah menampungkannya lewat komponen berbobot tanpa perubahan struktur data.
-- **IKU 7:** komponen Tenaga Pengajar dan Asisten Ahli hanya berfungsi sebagai baseline dan **tidak** masuk penjumlahan target.
-- **IKU 8:** label penyebut pada sumber kerja institusi berbunyi "total publikasi", tetapi angka yang dipakai adalah 84 — sama dengan total PTS wilayah kerja. Definisi penyebut ini **wajib ditegaskan Tim Perencanaan** sebelum dipakai produksi; sampai ada penegasan, definisi komponen dicatat sebagai "perlu penegasan" pada `indikator_komponen.label`.
-- **Varian berbobot multi-pembilang** (`Σ(nᵢ × kᵢ) / t × 100`, mis. bobot 1 / 0,75 / 0,5 / 0,25 per jenis capaian) tertampung oleh `rasio_persen` dengan bobot komponen (§17.3) — dicatat sebagai kemampuan mesin yang tersedia tanpa pengembangan lanjutan, bukan indikator aktif pada lampiran ini.
+```text
+(sakip + zi_wbk) / 2
+```
 
-#### 17.11.3 Pemakaian sebagai Fixture Test
+Empat subskor lama (`perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`) **bukan input terpisah IKU 3** dalam kontrak final ini.
 
-Lampiran ini menjadi acuan fixture test mesin perhitungan: setiap baris pada §17.11.1 diuji dengan angka contoh 2026 dan hasilnya harus sama persis dengan hitungan manual, mencakup penanganan pembagian nol (§17.4) dan pembulatan sesuai `presisi`/`desimal_tampilan` (§10). Status lampiran tetap **contoh pengisian awal** — perubahan definisi komponen di kemudian hari (mis. penegasan definisi IKU 8) tidak memerlukan perubahan pada bab ini maupun pada kode mesin perhitungan, hanya pada baris `indikator_komponen` yang bersangkutan.
+Baseline IKU 3 tahun 2025 = **74,2** dan disimpan apa adanya karena berasal dari Nilai SAKIP saja. Target PK 2026 = **76,25** dan memakai basis gabungan SAKIP + ZI-WBK. Keduanya memiliki cakupan berbeda sehingga selisihnya tidak boleh ditampilkan sebagai tren/kenaikan kinerja.
 
----
+Data TW II yang tidak boleh dianggap realisasi:
+
+- `66,395` = skor komposit target revisi;
+- `87,08` = hasil formula workbook yang rusak.
+
+#### 17.11.2 IKU 8 — Formula Final
+
+IKU 8 bertipe `rasio_persen`:
+
+```text
+n / t × 100%
+```
+
+Komponen `t` berlabel **“total publikasi seluruh PTS wilayah kerja”**. Angka 84 tidak boleh menjadi default/konstanta penyebut IKU 8. Nilai aktual `t` diisi Perencanaan dari sumber resmi. Target PK 59,5 dipakai apa adanya.
+
+#### 17.11.3 Fixture dan Automated Test
+
+Fixture test wajib membuktikan:
+
+1. IKU 3 hanya memakai dua input final dan menghasilkan rata-rata berbobot 0,5 + 0,5;
+2. baseline 74,2 dan target 76,25 tidak otomatis menghasilkan label tren;
+3. 66,395 dan 87,08 tidak di-seed sebagai realisasi;
+4. IKU 8 menghitung `n/t × 100%` tanpa hardcode 84;
+5. division-by-zero mengikuti rule §17.4.
 
 ## 18. Bukti Dukung (Berkas Persyaratan)
 
@@ -1011,7 +1050,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 | **Tidak mengisi** | Ada baris `pengukuran` namun tetap berstatus Draft melewati `pengisian_selesai` periode yang bersangkutan pada `jadwal_periode` (dianggap gagal mengisi tepat waktu) |
 
 - Dashboard dapat difilter berdasarkan Renstra, Tahun, Periode, Sasaran, dan Unit.
-- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena role `pic` baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
+- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena PIC operasional (bukan role) baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
 
 ---
 
@@ -1224,7 +1263,7 @@ Ringkasan naratif (diagram lengkap ada di SAKIP - Workflow.md):
 15. Perencanaan/Superadmin menetapkan Status Capaian secara manual atas pengukuran yang telah Disahkan, dan Perencanaan menetapkan Rekomendasi Pimpinan atas indikator × periode terkait.
 16. Dashboard dan Laporan menampilkan capaian terkini secara otomatis begitu status berubah menjadi Disahkan dan Status Capaian ditetapkan; rekapitulasi indikator × periode dapat diekspor kapan pun.
 17. Pimpinan memantau melalui dashboard dan laporan (akses baca + ekspor Excel, termasuk pembacaan Rekomendasi Pimpinan), tanpa melakukan aksi persetujuan pada Fase Awal.
-18. Bila diperlukan, Perencanaan mengoreksi Rencana Aksi/Pengukuran yang sudah Disahkan lewat `rencana_aksi:buka_kembali`/`pengukuran:buka_kembali` (sebelum penutupan) atau `jadwal:buka_kembali` (setelah penutupan), atau menambahkan indikator IKU baru/backfill data historis melalui `jadwal:buka_kembali` — seluruhnya teraudit.
+18. Bila diperlukan, Perencanaan mengoreksi Rencana Aksi/Pengukuran yang sudah Disahkan lewat `rencana_aksi:buka_kembali`/`pengukuran:buka_kembali` (sebelum penutupan) atau `jadwal:buka_kembali` (setelah penutupan), atau menambahkan indikator IKU baru atau koreksi data melalui `jadwal:buka_kembali` — seluruhnya teraudit.
 
 ---
 
@@ -1254,9 +1293,9 @@ Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 20. **Ekspor Excel**: Laporan tabular terfilter dan rekapitulasi indikator × periode dapat diekspor ke berkas Excel yang valid dan dapat dibuka.
 21. **Tanpa approval Pimpinan**: Tidak ada langkah wajib yang memerlukan aksi `pengukuran:setujui` agar Pengukuran mencapai status Disahkan pada Fase Awal; Rekomendasi Pimpinan diisi Perencanaan, bukan Pimpinan.
 22. **Status capaian manual**: Seluruh baris `status_capaian` yang dibuat pada Fase Awal memiliki `sumber = 'manual'` dan `ditetapkan_oleh` terisi.
-23. **UI akses terbatas**: Hanya tiga form pengelolaan akses (assign peran, kelola grant izin per unit, kelola deny izin) beserta halaman "Jelaskan izin pengguna" yang tersedia di UI; tidak ada UI matrix permission penuh.
+23. **UI akses terbatas**: Hanya tiga form mutasi akses (Assign Peran, Grant Unit, Explicit Deny) beserta halaman “Jelaskan Izin Pengguna” dan halaman “Peran & Izin” read-only yang tersedia. Tidak ada editor `role_permissions` dari UI.
 24. **Setelan aplikasi terbatas dan teraudit**: Hanya Superadmin dan Admin yang dapat mengubah `pengaturan` (termasuk kunci grup `berkas`) dan mengubah `format_diizinkan`/`ukuran_maks_kb` lewat halaman "Batas unggahan berkas"; setiap perubahan menghasilkan baris `audit_log` dengan nilai lama/baru; tidak ada kunci `pengaturan` maupun halaman "Batas unggahan berkas" yang mengendalikan enum/status/permission/aturan bisnis maupun kolom substantif persyaratan bukti dukung.
-25. **Seed data**: Skrip seeder Laravel dapat dijalankan pada lingkungan pengembangan/testing dan menghasilkan minimal 1 Renstra, Sasaran, beberapa Indikator (termasuk minimal satu indikator berkomponen), Target, 1 PK, 1 Jadwal Tahunan beserta Jadwal Periode-nya, Rencana Aksi yang disahkan, dan Kegiatan yang valid untuk pengujian alur end-to-end, serta minimal 1 user uji untuk masing-masing dari enam role (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`).
+25. **Seed data**: Skrip seeder Laravel dapat dijalankan pada lingkungan pengembangan/testing dan menghasilkan minimal 1 Renstra, Sasaran, beberapa Indikator (termasuk minimal satu indikator berkomponen), Target, 1 PK, 1 Jadwal Tahunan beserta Jadwal Periode-nya, Rencana Aksi yang disahkan, dan Kegiatan yang valid untuk pengujian alur end-to-end, serta minimal 1 user uji untuk masing-masing dari lima role (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`) serta minimal 1 user nonaktif tanpa role untuk menguji onboarding.
 26. **Presedens deny**: Sistem menolak permintaan otorisasi bila ditemukan baris `user_permission_denials` yang cocok (unit maupun global), terlepas dari peran atau grant apa pun yang dimiliki pengguna.
 27. **Fail closed**: Sistem menolak permintaan otorisasi untuk kode permission yang tidak terdaftar aktif di tabel `permissions`.
 28. **Dasar izin tercatat**: Setiap aksi dengan `permissions.sensitif = true` menghasilkan baris `audit_log` yang memuat `dasar_izin` (sumber allow yang mengizinkan, atau deny yang menolak).
@@ -1268,7 +1307,7 @@ Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 34. **Lampiran enam induk**: Pengiriman/penghapusan `berkas` berhasil untuk keenam nilai `berkasable_type` (`rencana_aksi`/`pengukuran`/`kegiatan`/`renstra`/`renstra_pk`/`regulasi`); penghapusan ditolak sistem setelah induk masing-masing melewati batas imutabilitasnya (§18.8).
 35. **Halaman "Batas unggahan berkas" terbatas**: Permintaan ubah `jenis_berkas` lewat halaman ini yang menyertakan kolom substantif di luar `format_diizinkan`/`ukuran_maks_kb` ditolak sistem; halaman hanya dapat diakses pemegang `pengaturan:update`; setiap perubahan tercatat di `audit_log` per persyaratan (§26.4).
 36. **Lampiran pemetaan indikator sebagai fixture**: Kedelapan baris pada §17.11.1, saat diinput sebagai `indikator_komponen` dengan angka contoh 2026, menghasilkan nilai turunan yang sama persis dengan hitungan manual pada kolom "Contoh angka 2026" — dipakai sebagai test mesin perhitungan (§17.11.3), bukan nilai yang di-hardcode pada kode.
-37. **Enam role resmi (Q31)**: Tabel `roles` memuat tepat enam kode sistem (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`); Form Assign Peran menampilkan keenam pilihan dan user dapat ditetapkan ke role `pic` tanpa melanggar constraint satu role per user. Kriteria ini **tidak** menetapkan preset permission role `pic` maupun eligibility `penanggung_jawab`, karena keduanya masih OPEN sampai ada konfirmasi resmi.
+37. **Lima role resmi (Q32)**: Tabel `roles` memuat tepat lima kode sistem (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`); Form Assign Peran menampilkan kelima pilihan dan user dapat ditetapkan ke PIC operasional (bukan role) tanpa melanggar constraint satu role per user. Kriteria ini **tidak** menetapkan preset permission PIC operasional (bukan role) maupun eligibility `penanggung_jawab`, karena keduanya masih OPEN sampai ada konfirmasi resmi.
 
 
 ---
@@ -1298,21 +1337,12 @@ Detail pemecahan task granular per fitur ada di **SAKIP - Plan Pengembangan.md**
 
 ## 34. Catatan Risiko
 
-1. **Snapshot dan titik commit aktivasi jadwal.** `jadwal_snapshot` (beserta `jadwal_snapshot_komponen`) diterapkan penuh sejak Fase Awal, bersifat idempoten dan imutabel setelah dirujuk — begitu suatu Jadwal Tahunan diaktifkan, perubahan berikutnya pada master Indikator (nama, definisi, satuan, target, arah, cara hitung, definisi komponen) tidak lagi memengaruhi pengukuran tahun berjalan yang sudah merujuk snapshot tersebut. Ini memang disengaja, untuk menjaga integritas historis capaian yang telah atau akan disahkan. Konsekuensinya, aktivasi jadwal menjadi titik commit penting: kesalahan pada master data atau definisi komponen yang belum diperbaiki sebelum aktivasi ikut terbekukan ke snapshot dan sulit dikoreksi tanpa `jadwal:buka_kembali` atau koreksi manual pada baris snapshot yang belum dirujuk. Validasi kelengkapan dan kebenaran Renstra/Indikator/Komponen/Target sebelum aktivasi jadwal (lihat §10.3, §12.4) karena itu perlu ditegakkan ketat, idealnya lewat checklist yang ditegakkan aplikasi maupun SOP manual Perencanaan.
-2. **Rencana Aksi sebagai gerbang baru berisiko menghambat pengisian bila keterlambatan penyusunannya tidak dikelola.** Karena pengajuan Pengukuran ditolak selama Rencana Aksi belum `disahkan` (§19.4), keterlambatan penyusunan atau pengesahan Rencana Aksi berdampak langsung memblokir seluruh pengukuran periode berjalan pada indikator tersebut. Disarankan alert dini (§28) menjelang `rencana_aksi_selesai` dan pemantauan proaktif Perencanaan atas indikator yang belum menyusun Rencana Aksi.
-3. **Mesin perhitungan satu tingkat membatasi indikator yang dapat diotomasi.** Indikator dengan struktur formula bertingkat (mis. Predikat SAKIP/ZI) tetap harus diketik manual (§17.10), sehingga manfaat mesin perhitungan tidak merata ke seluruh indikator — perlu SOP terpisah untuk indikator-indikator ini agar tetap konsisten dan terverifikasi meski tidak dihitung sistem.
-4. **Klaim kegiatan yang tidak mengubah nilai komponen berisiko disalahpahami pengguna sebagai bug** bila tidak dijelaskan jelas di UI — perlu penegasan tampilan bahwa klaim adalah dokumentasi keterkaitan, sementara nilai komponen tetap harus diisi manual terpisah (§16.3).
-5. **Makna "Disahkan" pada Fase Awal.** Status ini dicapai murni oleh keputusan internal Perencanaan, tanpa jenjang persetujuan pimpinan unit — berlaku untuk Rencana Aksi maupun Pengukuran. Organisasi perlu menyesuaikan ekspektasi: "Disahkan" di sini setara "sah secara administratif teknis", bukan "disetujui pimpinan". Pelaporan formal (mis. LKj) sebaiknya memperhitungkan konteks ini sampai Fase Lanjutan mengaktifkan approval Pimpinan.
-6. **Ketergantungan pada kedisiplinan Perencanaan sebagai pihak yang dikecualikan dari tenggat.** Karena permission pengisian Rencana Aksi dan Pengukuran milik Perencanaan bersifat global dan tidak tunduk pada jendela periode/tahun, kedisiplinan menjaga kelengkapan data sebelum `penutupan` sepenuhnya bergantung pada SOP internal, bukan penegakan sistem. Disarankan pengingat/alert (§28) menjelang tanggal `penutupan` sebagai kompensasi.
-7. **`jadwal:buka_kembali` sebagai jalur serbaguna berisiko disalahgunakan bila SOP longgar.** Karena mekanisme yang sama dipakai untuk beberapa tujuan berbeda (koreksi, penambahan IKU baru, backfill), penting agar setiap penggunaannya disertai alasan yang spesifik dan dapat dibedakan lewat audit log, bukan sekadar "buka jadwal" generik.
-8. Penetapan status capaian dan Rekomendasi Pimpinan sepenuhnya manual pada Fase Awal, sehingga rawan human error dan keterlambatan — dashboard bisa menampilkan banyak baris "Belum ditetapkan" meski data sudah Disahkan. SOP yang disarankan: tetapkan status capaian dan Rekomendasi Pimpinan segera setelah pengesahan, idealnya dalam satu alur kerja yang sama.
-9. Permission individual di luar tiga form pengelolaan akses (§7.5) hanya bisa diberikan lewat seeder atau query manual, yang berisiko human error dan tidak terdokumentasi lewat UI. Mitigasi minimalnya: perubahan manual semacam ini tetap harus melalui jalur yang menulis ke `audit_log` — misalnya Artisan command yang mencatat audit, bukan `UPDATE` SQL langsung tanpa jejak.
-10. Penyimpanan file di disk VPS memerlukan kapasitas dan strategi cadangan yang memadai seiring bertambahnya volume unggahan tiap periode. Panel "Penggunaan penyimpanan bukti dukung" (§18.9) membantu memantau tren ini, tetapi keputusan menaikkan kapasitas atau mendorong persyaratan baru memakai mode `tautan`/`teks` tetap SOP manual Perencanaan dan pemegang `pengaturan:update` — perlu dipantau sejak awal operasional agar tidak menjadi kendala kapasitas di kemudian hari.
-11. Selama ekspor PDF belum tersedia (Fase Lanjutan), kebutuhan lampiran dokumen resmi (LKj, laporan ke Kemen PANRB) tetap memerlukan proses manual di luar sistem, misalnya menyalin data Excel ke template dokumen, sampai Fase Lanjutan direalisasikan.
-12. **Penanda `self_approval` membutuhkan pemantauan aktif.** Karena jalur Perencanaan boleh mengesahkan pengisiannya sendiri (§7.6), volume penanda `self_approval` yang tinggi adalah sinyal beban kerja atau keterlambatan PIC yang perlu ditindaklanjuti secara organisasi, bukan sekadar catatan administratif yang dibiarkan menumpuk di audit log.
-13. **Gerbang lampiran PK dapat "dilonggarkan" lewat mode teks.** Karena gerbang lampiran PK pada aktivasi jadwal (§12.4) menerima mode apa pun termasuk keterangan teks bebas, ada risiko Perencanaan mengisi lampiran seadanya (teks singkat) hanya untuk melewati gerbang, alih-alih mengunggah naskah PK yang sesungguhnya. Mitigasi: SOP internal Perencanaan menegaskan bahwa lampiran PK idealnya berupa salinan naskah resmi (mode file/tautan), bukan sekadar teks — gerbang sistem hanya menjamin *ada* lampiran, bukan menjamin *mutu* lampiran.
-14. **Pemisahan kewenangan `format_diizinkan`/`ukuran_maks_kb` antara dua jalur berisiko tumpang tindih tanpa koordinasi.** Karena kedua kolom ini dapat diubah baik lewat form persyaratan (Perencanaan, §18.2) maupun halaman "Batas unggahan berkas" (Admin/Superadmin, §26.4), perubahan oleh satu pihak dapat menimpa nilai yang baru saja ditetapkan pihak lain tanpa keduanya menyadari. Mitigasi: SOP operasional menetapkan bahwa perubahan format/ukuran rutin (kapasitas, dukungan format baru) lewat halaman Admin, sedangkan perubahan yang menyertai perubahan substansi persyaratan lain lewat form Perencanaan — dan audit log (§26.4) dipantau berkala untuk mendeteksi tumpang tindih.
-15. **Lampiran pemetaan indikator (§17.11) berisiko dibaca sebagai aturan final oleh implementator** meski berstatus contoh pengisian awal. Mitigasi: penegasan definisi IKU 8 (§17.11.2) wajib diselesaikan Tim Perencanaan sebelum data produksi tahun 2026 diinput, dan setiap turunan indikator baru (2027 dst.) harus melalui verifikasi ulang terhadap Kepmen yang berlaku saat itu, bukan menyalin lampiran ini secara membuta.
-16. **Role PIC sudah resmi, tetapi preset permission dan eligibility assignment belum final.** Risiko terbesar adalah implementasi langsung memberi permission scoped sebagai permission global lewat `role_permissions`, atau menambahkan constraint `penanggung_jawab` hanya boleh role PIC tanpa keputusan bisnis. Mitigasi: implementasikan keberadaan role/Assign Peran/seeder/test enam role terlebih dahulu, tetapi pertahankan status OPEN untuk preset permission dan constraint eligibility sampai LLDIKTI/Tim Perencanaan memberi konfirmasi eksplisit.
+1. **Stale requirement Q31:** kode/dokumen lama dapat masih menganggap `pic` sebagai role. Mitigasi: Q32 wajib menjadi baseline; test katalog role harus tepat 5.
+2. **Grant scope bocor:** permission scoped dapat tanpa sengaja menjadi global. Mitigasi: katalog final hanya 7 scoped, gate Grant Unit `delegasi:update`, test cross-unit wajib.
+3. **Onboarding memberi akses terlalu awal:** user JIT tidak boleh otomatis mendapat role. Mitigasi: status nonaktif + tanpa role + fail closed.
+4. **Logout SSO terlalu agresif:** realm dipakai aplikasi lain. Mitigasi: logout lokal default; end-session hanya aksi eksplisit terpisah.
+5. **Interpretasi data IKU salah:** 66,395/87,08 dapat keliru dianggap realisasi dan 84 keliru dipakai pada IKU 8. Mitigasi: fixture final Q32 dan automated test formula/data awal.
+6. **Periode lampau disalahimplementasikan sebagai backfill generik:** mitigasi: status dihitung dari jendela, tanpa `is_backfill`; 2025 hanya baseline.
+7. **PJ dianggap permission:** mitigasi: assignment, grant, dan role tetap terpisah; warning PJ tanpa hak isi.
 
 ---

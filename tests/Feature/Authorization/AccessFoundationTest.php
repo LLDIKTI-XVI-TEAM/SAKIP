@@ -39,7 +39,7 @@ class AccessFoundationTest extends TestCase
         $this->assertDatabaseHas('roles', ['kode' => 'pic', 'aktif' => true, 'is_sistem' => true, 'urutan' => 6]);
         $this->assertDatabaseCount('role_permissions', 0);
         $this->assertSame(9, Permission::where('butuh_scope', 'unit')->count());
-        $this->assertSame(21, Permission::where('sensitif', true)->count());
+        $this->assertSame(22, Permission::where('sensitif', true)->count());
         $this->assertEqualsCanonicalizing(['pengukuran:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read'], RolePermissionPresets::forRole('pegawai'));
         $this->assertEqualsCanonicalizing(['pengguna:read', 'akses:update', 'unit:create', 'unit:read', 'unit:update', 'unit:delete', 'pengaturan:update', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'audit:read', 'dashboard:read', 'laporan:read'], RolePermissionPresets::forRole('admin'));
         $this->assertCount(70, RolePermissionPresets::forRole('superadmin'));
