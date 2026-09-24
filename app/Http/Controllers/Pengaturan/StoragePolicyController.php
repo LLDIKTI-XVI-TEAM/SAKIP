@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pengaturan;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pengaturan\UpdateStoragePolicyRequest;
+use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -42,23 +43,27 @@ class StoragePolicyController extends Controller
             'tipe' => 'boolean',
             'default' => 'true',
         ],
+        'berkas.versi' => [
+            'tipe' => 'integer',
+            'default' => '1',
+        ],
     ];
 
     /**
-     * Pastikan keempat kunci kebijakan storage terinisialisasi secara idempoten di database.
+     * Pastikan seluruh kunci kebijakan storage terinisialisasi secara idempoten dan atomik di database.
      */
     protected function ensureDefaultRowsExist(): void
     {
+        $now = now();
         foreach (self::POLICY_KEYS as $key => $meta) {
-            Pengaturan::firstOrCreate(
-                ['kunci' => $key],
-                [
-                    'nilai' => $meta['default'],
-                    'tipe' => $meta['tipe'],
-                    'grup' => 'berkas',
-                    'updated_at' => now(),
-                ]
-            );
+            DB::table('pengaturan')->insertOrIgnore([
+                'id' => (string) Str::uuid(),
+                'kunci' => $key,
+                'nilai' => $meta['default'],
+                'tipe' => $meta['tipe'],
+                'grup' => 'berkas',
+                'updated_at' => $now,
+            ]);
         }
     }
 
@@ -104,6 +109,7 @@ class StoragePolicyController extends Controller
                 FILTER_VALIDATE_BOOLEAN
             ),
             'expected_updated_at' => $expectedUpdatedAt,
+            'expected_version' => (int) $existingSettings->get('berkas.versi', self::POLICY_KEYS['berkas.versi']['default']),
         ];
 
         $metrics = $metricsService->calculate();
@@ -135,9 +141,10 @@ class StoragePolicyController extends Controller
         ];
 
         $expectedUpdatedAt = (string) $request->input('expected_updated_at');
+        $expectedVersion = $request->has('expected_version') ? (int) $request->input('expected_version') : null;
         $alasan = (string) $request->input('alasan');
 
-        $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt) {
+        $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt, $expectedVersion) {
             $this->ensureDefaultRowsExist();
 
             $existing = Pengaturan::where('grup', 'berkas')
@@ -145,8 +152,19 @@ class StoragePolicyController extends Controller
                 ->get()
                 ->keyBy('kunci');
 
+            // Optimistic locking prioritas 1: Versi Monotonik (kebal terhadap tabrakan detik yang sama)
+            $versiRow = $existing->get('berkas.versi');
+            $currentVersion = (int) ($versiRow?->nilai ?? self::POLICY_KEYS['berkas.versi']['default']);
+
+            if ($expectedVersion !== null && $expectedVersion !== $currentVersion) {
+                throw ValidationException::withMessages([
+                    'konflik' => 'Kebijakan storage telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                ]);
+            }
+
+            // Optimistic locking prioritas 2: Timestamp ISO
             $maxCurrentTimestamp = $existing->max('updated_at');
-            if ($maxCurrentTimestamp !== null) {
+            if ($maxCurrentTimestamp !== null && $expectedUpdatedAt !== '') {
                 try {
                     $currentIso = Carbon::parse($maxCurrentTimestamp)->toISOString();
                     $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
@@ -216,7 +234,55 @@ class StoragePolicyController extends Controller
                 );
             }
 
-            return ['changed' => true, 'count' => count($changedKeys)];
+            // Naikkan versi counter monotonik pada setiap pembaruan
+            if ($versiRow === null) {
+                $versiRow = new Pengaturan;
+                $versiRow->id = (string) Str::uuid();
+                $versiRow->kunci = 'berkas.versi';
+                $versiRow->tipe = 'integer';
+                $versiRow->grup = 'berkas';
+            }
+            $versiRow->nilai = (string) ($currentVersion + 1);
+            $versiRow->updated_by = $actor->id;
+            $versiRow->updated_at = $now;
+            $versiRow->save();
+
+            // PRD §18.7: Saat unggahan file dinonaktifkan (true -> false), catat jejak audit
+            // penanda tidak_dapat_dipenuhi untuk setiap persyaratan wajib yang hanya menerima file.
+            if (isset($changedKeys['berkas.unggahan_aktif']) && $changedKeys['berkas.unggahan_aktif']['new'] === 'false') {
+                $fileOnlyRequirements = JenisBerkas::query()
+                    ->where('aktif', true)
+                    ->where('wajib', true)
+                    ->where('izinkan_file', true)
+                    ->where('izinkan_tautan', false)
+                    ->where('izinkan_teks', false)
+                    ->get();
+
+                foreach ($fileOnlyRequirements as $persyaratan) {
+                    $auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'jenis_berkas.tidak_dapat_dipenuhi',
+                        objekTipe: 'jenis_berkas',
+                        objekId: $persyaratan->id,
+                        nilaiLama: [
+                            'nama' => $persyaratan->nama,
+                            'tahap' => $persyaratan->tahap,
+                            'status_pemenuhan' => 'normal',
+                        ],
+                        nilaiBaru: [
+                            'nama' => $persyaratan->nama,
+                            'tahap' => $persyaratan->tahap,
+                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                            'sebab' => 'saklar_unggahan_global_nonaktif',
+                            'kunci_setelan' => 'berkas.unggahan_aktif',
+                        ],
+                        alasan: $alasan,
+                        dasarIzin: $decision
+                    );
+                }
+            }
+
+            return ['changed' => true, 'count' => count($changedKeys), 'new_version' => $currentVersion + 1];
         });
 
         if (! $result['changed']) {

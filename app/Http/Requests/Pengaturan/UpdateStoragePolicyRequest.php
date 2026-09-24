@@ -46,6 +46,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'berkas_format_diizinkan' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'berkas_tautan_selalu_diizinkan' => ['required', 'accepted'],
             'expected_updated_at' => ['required', 'string'],
+            'expected_version' => ['nullable', 'integer', 'min:1'],
             'alasan' => ['required', 'string', 'min:10', 'max:1000'],
         ];
     }
@@ -80,6 +81,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'berkas_format_diizinkan' => 'format berkas yang diizinkan',
             'berkas_tautan_selalu_diizinkan' => 'ketersediaan jalur tautan & teks',
             'expected_updated_at' => 'versi timestamp kebijakan',
+            'expected_version' => 'versi sekuensial kebijakan',
             'alasan' => 'alasan audit',
         ];
     }

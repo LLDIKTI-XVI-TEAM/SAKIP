@@ -56,6 +56,7 @@ const defaultProps: StorageIndexProps = {
         berkas_format_diizinkan: 'pdf,docx,xlsx,jpg,jpeg,png',
         berkas_tautan_selalu_diizinkan: true,
         expected_updated_at: '2026-09-23T10:00:00.000Z',
+        expected_version: 1,
     },
     metrics: {
         file_count: 42,

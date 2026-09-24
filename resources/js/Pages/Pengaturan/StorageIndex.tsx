@@ -33,6 +33,7 @@ export interface StorageSettings {
     berkas_format_diizinkan: string;
     berkas_tautan_selalu_diizinkan: boolean;
     expected_updated_at: string;
+    expected_version?: number;
 }
 
 export interface IndukMetric {
@@ -81,6 +82,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
         berkas_format_diizinkan: settings.berkas_format_diizinkan,
         berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
         expected_updated_at: settings.expected_updated_at,
+        expected_version: settings.expected_version ?? 1,
         alasan: '',
     });
 
@@ -91,6 +93,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             berkas_format_diizinkan: settings.berkas_format_diizinkan,
             berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
             expected_updated_at: settings.expected_updated_at,
+            expected_version: settings.expected_version ?? 1,
             alasan: '',
         });
         form.setDefaults({
@@ -99,9 +102,10 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             berkas_format_diizinkan: settings.berkas_format_diizinkan,
             berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
             expected_updated_at: settings.expected_updated_at,
+            expected_version: settings.expected_version ?? 1,
             alasan: '',
         });
-    }, [settings.expected_updated_at]);
+    }, [settings.expected_updated_at, settings.expected_version]);
 
     const handleOpenModal = (e?: FormEvent) => {
         if (e) {
@@ -133,6 +137,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                     form.setData((prev) => ({
                         ...prev,
                         expected_updated_at: newSettings.expected_updated_at,
+                        expected_version: newSettings.expected_version ?? ((prev.expected_version || 1) + 1),
                         alasan: '',
                     }));
                 }
@@ -291,49 +296,54 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                     </div>
                 </div>
 
+                {/* Header Bagian Tabel Distribusi */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
+                            <span>Distribusi Bukti Dukung per Induk Dokumen SAKIP</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Rincian akumulasi bukti fisik file, tautan, dan teks pada seluruh modul kinerja.
+                        </p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+                        {metrics.total_evidence_count.toLocaleString('id-ID')} Total Bukti
+                    </span>
+                </div>
+
                 {/* Tabel Breakdown per Induk Bukti Dukung */}
-                <Card className="border-border">
-                    <CardHeader className="border-b border-slate-200 bg-white px-6 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-                            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-                                <span>Distribusi Bukti Dukung per Induk Dokumen SAKIP</span>
-                            </CardTitle>
-                            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
-                                {metrics.total_evidence_count.toLocaleString('id-ID')} Total Bukti
-                            </span>
-                        </div>
-                    </CardHeader>
+                <Card className="overflow-hidden border-border">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="px-6 py-3.5">INDUK DOKUMEN</TableHead>
-                                <TableHead className="px-6 py-3.5 text-right">BERKAS FILE</TableHead>
-                                <TableHead className="px-6 py-3.5 text-right">UKURAN DISK</TableHead>
-                                <TableHead className="px-6 py-3.5 text-right">BUKTI TAUTAN</TableHead>
-                                <TableHead className="px-6 py-3.5 text-right">BUKTI TEKS</TableHead>
-                                <TableHead className="px-6 py-3.5 text-right font-bold">TOTAL BUKTI</TableHead>
+                                <TableHead className="px-4 py-3.5">INDUK DOKUMEN</TableHead>
+                                <TableHead className="px-4 py-3.5 text-right">BERKAS FILE</TableHead>
+                                <TableHead className="px-4 py-3.5 text-right">UKURAN DISK</TableHead>
+                                <TableHead className="px-4 py-3.5 text-right">BUKTI TAUTAN</TableHead>
+                                <TableHead className="px-4 py-3.5 text-right">BUKTI TEKS</TableHead>
+                                <TableHead className="px-4 py-3.5 text-right">TOTAL BUKTI</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {Object.values(metrics.by_induk).map((item) => (
                                 <TableRow key={item.induk}>
-                                    <TableCell className="font-semibold text-slate-900">
+                                    <TableCell className="font-semibold text-slate-900 px-4 py-3.5">
                                         {item.label}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700">
+                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
                                         {item.file_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-slate-500">
+                                    <TableCell className="text-right font-mono text-xs text-slate-500 px-4 py-3.5">
                                         {formatBytes(item.file_bytes)}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700">
+                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
                                         {item.link_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700">
+                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
                                         {item.text_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-slate-900">
+                                    <TableCell className="text-right font-bold text-slate-900 px-4 py-3.5">
                                         {item.total_count.toLocaleString('id-ID')}
                                     </TableCell>
                                 </TableRow>
