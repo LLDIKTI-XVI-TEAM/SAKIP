@@ -56,3 +56,16 @@ body {
     -ms-overflow-style: none !important; /* IE dan Edge */
     scrollbar-width: none !important; /* Firefox */
 }
+
+@keyframes tickerLoop {
+    0%, 15% {
+        transform: translateX(0);
+    }
+    75%, 90% {
+        transform: translateX(var(--ticker-offset, -100px));
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
