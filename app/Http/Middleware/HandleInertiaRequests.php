@@ -92,7 +92,6 @@ class HandleInertiaRequests extends Middleware
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
         $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
         $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
-        $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
 
         $computed = [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),

@@ -5,6 +5,8 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 let mockPengaturan: Record<string, unknown> = {
     'aplikasi.nama': 'SAKIP LLDIKTI XVI',
 };
+let mockUrl = '/pengaturan';
+let mockCan: Record<string, boolean> = { dashboard: true, pengaturan: true };
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
@@ -19,12 +21,12 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
             props: {
                 auth: {
                     user: { id: 'admin-id', nama: 'Superadmin', email: 'admin@example.test', is_active: true, role: 'admin' },
-                    can: { dashboard: true, pengaturan: true },
+                    can: mockCan,
                 },
                 flash: {},
                 pengaturan: mockPengaturan,
             },
-            url: '/pengaturan',
+            url: mockUrl,
         }),
         useForm: () => ({
             post: vi.fn(),
@@ -61,6 +63,8 @@ afterEach(() => {
     mockPengaturan = {
         'aplikasi.nama': 'SAKIP LLDIKTI XVI',
     };
+    mockUrl = '/pengaturan';
+    mockCan = { dashboard: true, pengaturan: true };
 });
 
 describe('AuthenticatedLayout Breadcrumbs', () => {
@@ -204,5 +208,43 @@ describe('AuthenticatedLayout Logo Rendering', () => {
         imgs.forEach((img) => {
             expect(img.getAttribute('src')).toBe('https://example.com/logo.png');
         });
+    });
+});
+
+describe('AuthenticatedLayout Navigation Active State', () => {
+    it('hanya menandai Kebijakan Storage dan bukan Pengaturan ketika url adalah /pengaturan/storage', () => {
+        mockUrl = '/pengaturan/storage';
+        mockCan = { dashboard: true, pengaturan: true, storagePolicy: true };
+
+        render(
+            <AuthenticatedLayout title="Kebijakan Storage">
+                <div>Konten Storage</div>
+            </AuthenticatedLayout>
+        );
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        const pengaturanLink = within(nav).getByRole('link', { name: 'Pengaturan' });
+        const storageLink = within(nav).getByRole('link', { name: 'Kebijakan Storage' });
+
+        expect(storageLink.getAttribute('aria-current')).toBe('page');
+        expect(pengaturanLink.getAttribute('aria-current')).toBeNull();
+    });
+
+    it('hanya menandai Pengaturan dan bukan Kebijakan Storage ketika url adalah /pengaturan', () => {
+        mockUrl = '/pengaturan';
+        mockCan = { dashboard: true, pengaturan: true, storagePolicy: true };
+
+        render(
+            <AuthenticatedLayout title="Pengaturan Sistem">
+                <div>Konten Pengaturan</div>
+            </AuthenticatedLayout>
+        );
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        const pengaturanLink = within(nav).getByRole('link', { name: 'Pengaturan' });
+        const storageLink = within(nav).getByRole('link', { name: 'Kebijakan Storage' });
+
+        expect(pengaturanLink.getAttribute('aria-current')).toBe('page');
+        expect(storageLink.getAttribute('aria-current')).toBeNull();
     });
 });

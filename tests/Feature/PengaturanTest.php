@@ -361,6 +361,27 @@ test('deteksi konflik konkurensi (optimistic locking) menolak stale update', fun
     $response->assertJsonValidationErrors(['instansi.nama']);
 });
 
+test('deteksi konflik konkurensi (optimistic locking) mendeteksi perbedaan sub-detik (mikrodetik)', function (): void {
+    $now = Carbon::parse('2026-09-24 10:00:00.123456');
+    $setting = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+    $setting->updated_at = $now;
+    $setting->save();
+
+    // Admin B mengirim token yang berbeda hanya pada mikrodetik (misal selisih 456 mikrodetik)
+    $subsecondStale = Carbon::parse('2026-09-24 10:00:00.123000')->toISOString();
+
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Konflik Subdetik',
+        'alasan' => 'Pembaruan dalam detik yang sama dengan selisih mikrodetik',
+        'expected_updated_at' => [
+            'instansi.nama' => $subsecondStale,
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['instansi.nama']);
+});
+
 test('validasi token konkurensi menolak format tanggal invalid dan kunci non-whitelist', function (): void {
     // 1. Format tanggal tidak valid -> 422, bukan 500
     $responseInvalidDate = $this->actingAs($this->admin)->putJson('/pengaturan', [

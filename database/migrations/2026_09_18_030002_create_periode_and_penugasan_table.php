@@ -180,7 +180,7 @@ return new class extends Migration
             $t->string('tipe');
             $t->string('grup');
             $t->foreignUuid('updated_by')->nullable()->constrained('users')->restrictOnDelete();
-            $t->timestamp('updated_at');
+            $t->timestamp('updated_at', 6)->default(DB::raw('CURRENT_TIMESTAMP'));
         });
     }
 

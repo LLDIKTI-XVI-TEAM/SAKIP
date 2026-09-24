@@ -271,7 +271,10 @@ export function AuthenticatedLayout({
                     <div className="px-3 py-3">
                         <nav aria-label="Navigasi utama" className="space-y-1.5">
                             {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
-                                const active = url.split('?')[0].startsWith(href);
+                                const currentPath = url.split('?')[0];
+                                const active = href === '/pengaturan'
+                                    ? currentPath === '/pengaturan'
+                                    : currentPath === href || currentPath.startsWith(`${href}/`);
                                 return (
                                     <Link
                                         key={href}
