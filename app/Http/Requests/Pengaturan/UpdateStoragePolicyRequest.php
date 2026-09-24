@@ -46,7 +46,7 @@ class UpdateStoragePolicyRequest extends FormRequest
             'berkas_format_diizinkan' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'berkas_tautan_selalu_diizinkan' => ['required', 'accepted'],
             'expected_updated_at' => ['required', 'string'],
-            'expected_version' => ['nullable', 'integer', 'min:1'],
+            'expected_version' => ['required', 'integer', 'min:1'],
             'alasan' => ['required', 'string', 'min:10', 'max:1000'],
         ];
     }

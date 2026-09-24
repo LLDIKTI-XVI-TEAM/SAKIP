@@ -141,7 +141,7 @@ class StoragePolicyController extends Controller
         ];
 
         $expectedUpdatedAt = (string) $request->input('expected_updated_at');
-        $expectedVersion = $request->has('expected_version') ? (int) $request->input('expected_version') : null;
+        $expectedVersion = (int) $request->input('expected_version');
         $alasan = (string) $request->input('alasan');
 
         $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt, $expectedVersion) {
@@ -156,7 +156,7 @@ class StoragePolicyController extends Controller
             $versiRow = $existing->get('berkas.versi');
             $currentVersion = (int) ($versiRow?->nilai ?? self::POLICY_KEYS['berkas.versi']['default']);
 
-            if ($expectedVersion !== null && $expectedVersion !== $currentVersion) {
+            if ($expectedVersion !== $currentVersion) {
                 throw ValidationException::withMessages([
                     'konflik' => 'Kebijakan storage telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
                 ]);

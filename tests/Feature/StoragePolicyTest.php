@@ -104,6 +104,7 @@ class StoragePolicyTest extends TestCase
     {
         $maxUpdatedAt = Pengaturan::where('grup', 'berkas')->max('updated_at');
         $expectedUpdatedAt = $maxUpdatedAt ? Carbon::parse($maxUpdatedAt)->toISOString() : now()->toISOString();
+        $currentVersion = (int) (Pengaturan::where('kunci', 'berkas.versi')->value('nilai') ?? 1);
 
         return array_merge([
             'berkas_unggahan_aktif' => true,
@@ -111,6 +112,7 @@ class StoragePolicyTest extends TestCase
             'berkas_format_diizinkan' => 'pdf,docx,xlsx,jpg,jpeg,png',
             'berkas_tautan_selalu_diizinkan' => true,
             'expected_updated_at' => $expectedUpdatedAt,
+            'expected_version' => $currentVersion,
             'alasan' => 'Penyesuaian konfigurasi storage berkas aplikasi.',
         ], $overrides);
     }
@@ -561,6 +563,12 @@ class StoragePolicyTest extends TestCase
         $responseNoUpdatedAt = $this->actingAs($this->admin)->put('/pengaturan/storage', $payloadNoUpdatedAt);
         $responseNoUpdatedAt->assertSessionHasErrors(['expected_updated_at']);
 
+        // 4b. Missing expected_version
+        $payloadNoVersion = $this->validPayload();
+        unset($payloadNoVersion['expected_version']);
+        $responseNoVersion = $this->actingAs($this->admin)->put('/pengaturan/storage', $payloadNoVersion);
+        $responseNoVersion->assertSessionHasErrors(['expected_version']);
+
         // 5. Invariant anti-blocking: berkas_tautan_selalu_diizinkan bernilai false harus ditolak
         $responseNonFileFalse = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_tautan_selalu_diizinkan' => false,
@@ -579,6 +587,20 @@ class StoragePolicyTest extends TestCase
             'expected_updated_at' => $staleTimestamp,
             'berkas_ukuran_maks_kb' => 20480,
             'alasan' => 'Mencoba simpan dengan timestamp kedaluwarsa.',
+        ]));
+
+        $response->assertSessionHasErrors(['konflik']);
+    }
+
+    /**
+     * TEST-9b: Concurrency conflict throws validation error when expected_version is stale.
+     */
+    public function test_concurrency_conflict_throws_validation_error_on_stale_expected_version(): void
+    {
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'expected_version' => 9999, // Versi salah/basi
+            'berkas_ukuran_maks_kb' => 20480,
+            'alasan' => 'Mencoba simpan dengan versi monotonik kedaluwarsa.',
         ]));
 
         $response->assertSessionHasErrors(['konflik']);
