@@ -75,8 +75,9 @@ export function FormulaCard({
 
             const rawPenyebut = simulasiValues[penyebutKomponen.kode];
             const valPenyebut = typeof rawPenyebut === 'number' ? rawPenyebut : 0;
+            const effectivePenyebut = valPenyebut * Number(penyebutKomponen.bobot || 1);
 
-            if (valPenyebut === 0) {
+            if (effectivePenyebut === 0) {
                 return { value: null, note: 'Nilai tidak dapat dihitung (pembagian dengan nol / penyebut 0)' };
             }
 
@@ -86,8 +87,8 @@ export function FormulaCard({
                 sumPembilang += (val as number) * Number(k.bobot || 1);
             });
 
-            const hasil = (sumPembilang / valPenyebut) * 100;
-            return { value: hasil, note: `${sumPembilang} / ${valPenyebut} × 100%` };
+            const hasil = (sumPembilang / effectivePenyebut) * 100;
+            return { value: hasil, note: `${sumPembilang} / ${effectivePenyebut} × 100%` };
         }
 
         if (tipePerhitungan === 'penjumlahan') {
@@ -95,11 +96,7 @@ export function FormulaCard({
             aktifKomponen.forEach(k => {
                 const val = typeof simulasiValues[k.kode] === 'number' ? simulasiValues[k.kode] : 0;
                 const bobot = Number(k.bobot || 1);
-                if (k.peran === 'pengurang') {
-                    total -= (val as number) * bobot;
-                } else {
-                    total += (val as number) * bobot;
-                }
+                total += (val as number) * bobot;
             });
             return { value: total, note: 'Penjumlahan tertimbang komponen aktif' };
         }

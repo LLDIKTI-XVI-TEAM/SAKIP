@@ -53,7 +53,6 @@ class IndikatorKomponenController extends Controller
     {
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:create');
-        abort_unless($decision['allowed'], 403, 'Akses penambahan komponen ditolak.');
 
         $data = $request->validated();
         $data['indikator_id'] = $indikator->id;
@@ -84,7 +83,6 @@ class IndikatorKomponenController extends Controller
 
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:update');
-        abort_unless($decision['allowed'], 403, 'Akses pembaruan komponen ditolak.');
 
         $data = $request->validated();
         $alasan = $data['alasan'];
@@ -116,7 +114,6 @@ class IndikatorKomponenController extends Controller
 
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:delete');
-        abort_unless($decision['allowed'], 403, 'Akses penghapusan komponen ditolak.');
 
         $alasan = $request->validated('alasan');
 

@@ -4,18 +4,16 @@ import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Switch } from '@/Components/Switch';
-import { Textarea } from '@/Components/Textarea';
 
 export interface KomponenFormData {
     id?: string;
     kode: string;
     label: string;
     satuan: string;
-    peran: 'pembilang' | 'penyebut' | 'pengurang' | 'penjumlah' | 'faktor';
+    peran: 'pembilang' | 'penyebut' | 'penjumlah';
     bobot: number | string;
     urutan: number | string;
     aktif: boolean;
-    keterangan: string;
 }
 
 interface KomponenModalProps {
@@ -111,8 +109,6 @@ export function KomponenModal({
                                 { value: 'pembilang', label: 'Pembilang (Numerator)' },
                                 { value: 'penyebut', label: 'Penyebut (Denominator)' },
                                 { value: 'penjumlah', label: 'Penjumlah (Additive)' },
-                                { value: 'pengurang', label: 'Pengurang (Subtractive)' },
-                                { value: 'faktor', label: 'Faktor Pengali (Factor)' },
                             ]}
                         />
                     </div>
@@ -190,18 +186,6 @@ export function KomponenModal({
                         checked={formData.aktif}
                         onChange={val => handleChange('aktif', val)}
                         aria-label="Status Komponen Aktif"
-                    />
-                </div>
-
-                {/* Keterangan */}
-                <div>
-                    <Textarea
-                        label="Keterangan / Catatan Teknis"
-                        placeholder="Catatan tambahan mengenai sumber data atau metode input..."
-                        value={formData.keterangan}
-                        onChange={e => handleChange('keterangan', e.target.value)}
-                        error={errors.keterangan}
-                        rows={3}
                     />
                 </div>
             </form>

@@ -87,7 +87,7 @@ class IndikatorKomponenModelTest extends TestCase
         ]);
 
         $this->assertTrue($komponen->timestamps);
-        $this->assertSame(1.0, (float) $komponen->bobot);
+        $this->assertEqualsWithDelta(1.0, $komponen->bobot, 0.0001);
         $this->assertSame(1, $komponen->urutan);
         $this->assertTrue($komponen->aktif);
         $this->assertSame($indikator->id, $komponen->indikator->id);

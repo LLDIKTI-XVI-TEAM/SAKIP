@@ -2,39 +2,22 @@ import React, { useState, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { 
     Plus, 
-    Layers, 
-    Target, 
-    Edit2, 
-    Trash2, 
     Search,
     AlertCircle,
     CheckCircle2,
-    SlidersHorizontal,
-    ArrowLeft,
     TrendingUp,
     TrendingDown,
     Building2,
-    Hash,
-    Sparkles,
-    Check,
     X
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/Card';
 import { Button } from '@/Components/Button';
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableRow,
-    TableHead,
-    TableCell,
-} from '@/Components/Table';
 import { Badge } from '@/Components/Badge';
-import { Input } from '@/Components/Input';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { FormulaCard } from './Partials/FormulaCard';
 import { KomponenModal, KomponenFormData } from './Partials/KomponenModal';
+import { KomponenTable, KomponenItem } from './Partials/KomponenTable';
 
 export interface IndikatorKinerjaData {
     id: string;
@@ -61,21 +44,6 @@ export interface IndikatorKinerjaData {
         id: string;
         nama: string;
     };
-}
-
-export interface KomponenItem {
-    id: string;
-    indikator_id: string;
-    kode: string;
-    label: string;
-    peran: 'pembilang' | 'penyebut' | 'pengurang' | 'penjumlah' | 'faktor';
-    bobot: number;
-    urutan: number;
-    satuan: string | null;
-    aktif: boolean;
-    keterangan?: string | null;
-    created_at?: string;
-    updated_at?: string;
 }
 
 export interface FormulaContractData {
@@ -118,7 +86,6 @@ const defaultFormData: KomponenFormData = {
     bobot: 1.0,
     urutan: 1,
     aktif: true,
-    keterangan: '',
 };
 
 export default function KomponenIndex({
@@ -151,8 +118,7 @@ export default function KomponenIndex({
         return komponen.filter(k => {
             const matchesSearch = 
                 k.kode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                k.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (k.keterangan && k.keterangan.toLowerCase().includes(searchQuery.toLowerCase()));
+                k.label.toLowerCase().includes(searchQuery.toLowerCase());
             
             const matchesPeran = filterPeran === 'semua' || k.peran === filterPeran;
 
@@ -184,7 +150,6 @@ export default function KomponenIndex({
             bobot: Number(item.bobot),
             urutan: item.urutan,
             aktif: item.aktif,
-            keterangan: item.keterangan || '',
         });
         setFormErrors({});
         setIsFormModalOpen(true);
@@ -193,7 +158,6 @@ export default function KomponenIndex({
     // Submit form (create directly, or open audit modal if editing)
     const handleFormSubmit = (data: KomponenFormData) => {
         if (isEditing && data.id) {
-            // Edit sensitif -> buka modal alasan audit
             setTargetKomponen(komponen.find(k => k.id === data.id) || null);
             setAuditAction('update');
             setAuditReason('');
@@ -201,7 +165,6 @@ export default function KomponenIndex({
             setIsFormModalOpen(false);
             setIsAuditModalOpen(true);
         } else {
-            // Create baru langsung submit
             setIsSubmitting(true);
             router.post(`/indikator/${indikator.id}/komponen`, data as any, {
                 onSuccess: () => {
@@ -282,30 +245,13 @@ export default function KomponenIndex({
         }
     };
 
-    const getPeranBadge = (peran: string) => {
-        switch (peran) {
-            case 'pembilang':
-                return <Badge variant="primary" size="sm">Pembilang</Badge>;
-            case 'penyebut':
-                return <Badge variant="info" size="sm">Penyebut</Badge>;
-            case 'penjumlah':
-                return <Badge variant="success" size="sm">Penjumlah (+)</Badge>;
-            case 'pengurang':
-                return <Badge variant="danger" size="sm">Pengurang (-)</Badge>;
-            case 'faktor':
-                return <Badge variant="warning" size="sm">Faktor (×)</Badge>;
-            default:
-                return <Badge variant="muted" size="sm">{peran}</Badge>;
-        }
-    };
-
     return (
         <AuthenticatedLayout
             title={`Konfigurasi Komponen - ${indikator.kode}`}
             breadcrumbs={[
-                { label: 'Perencanaan', href: '#' },
-                { label: 'Indikator Kinerja', href: '#' },
-                { label: indikator.kode, href: '#' },
+                { label: 'Perencanaan' },
+                { label: 'Indikator Kinerja' },
+                { label: indikator.kode },
                 { label: 'Komponen Angka' },
             ]}
         >
@@ -447,7 +393,7 @@ export default function KomponenIndex({
                                     )}
                                 </div>
 
-                                {/* Filter Peran */}
+                                {/* Filter Peran (3 roles) */}
                                 <select
                                     value={filterPeran}
                                     onChange={e => setFilterPeran(e.target.value)}
@@ -457,143 +403,19 @@ export default function KomponenIndex({
                                     <option value="pembilang">Pembilang</option>
                                     <option value="penyebut">Penyebut</option>
                                     <option value="penjumlah">Penjumlah</option>
-                                    <option value="pengurang">Pengurang</option>
-                                    <option value="faktor">Faktor</option>
                                 </select>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-soft/50">
-                                        <TableHead className="w-12 text-center">#</TableHead>
-                                        <TableHead className="w-28">Kode</TableHead>
-                                        <TableHead>Label Komponen</TableHead>
-                                        <TableHead className="w-32">Peran</TableHead>
-                                        <TableHead className="w-24 text-right">Bobot</TableHead>
-                                        <TableHead className="w-24">Satuan</TableHead>
-                                        <TableHead className="w-24 text-center">Status</TableHead>
-                                        {(can.update || can.delete) && (
-                                            <TableHead className="w-28 text-right pr-4">Aksi</TableHead>
-                                        )}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredKomponen.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={can.update || can.delete ? 8 : 7}
-                                                className="py-12 text-center"
-                                            >
-                                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-soft text-muted">
-                                                    <Layers className="h-6 w-6" aria-hidden="true" />
-                                                </div>
-                                                <h3 className="mt-3 text-sm font-semibold text-ink">
-                                                    Tidak ada komponen ditemukan
-                                                </h3>
-                                                <p className="mt-1 text-xs text-muted max-w-sm mx-auto">
-                                                    {searchQuery || filterPeran !== 'semua'
-                                                        ? 'Tidak ada komponen yang cocok dengan kriteria pencarian atau filter.'
-                                                        : 'Indikator ini belum memiliki komponen angka terdefinisi. Tambahkan komponen untuk memulai.'}
-                                                </p>
-                                                {can.create && !searchQuery && filterPeran === 'semua' && (
-                                                    <div className="mt-4">
-                                                        <Button
-                                                            variant="primary"
-                                                            size="sm"
-                                                            onClick={handleOpenCreate}
-                                                        >
-                                                            <Plus className="h-4 w-4 mr-1.5" />
-                                                            Tambah Komponen Pertama
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredKomponen.map((item) => (
-                                            <TableRow 
-                                                key={item.id}
-                                                className="hover:bg-soft/40 transition-colors"
-                                            >
-                                                <TableCell className="text-center font-mono text-xs text-muted">
-                                                    {item.urutan}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-soft text-ink border border-border">
-                                                        {item.kode}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-0.5">
-                                                        <span className="text-sm font-medium text-ink block">
-                                                            {item.label}
-                                                        </span>
-                                                        {item.keterangan && (
-                                                            <span className="text-xs text-muted block line-clamp-1">
-                                                                {item.keterangan}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {getPeranBadge(item.peran)}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono text-sm font-medium text-ink">
-                                                    {Number(item.bobot).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 4 })}
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted">
-                                                    {item.satuan || '-'}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {item.aktif ? (
-                                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
-                                                            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                                                            Aktif
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
-                                                            <span className="h-1.5 w-1.5 rounded-full bg-muted" />
-                                                            Nonaktif
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                {(can.update || can.delete) && (
-                                                    <TableCell className="text-right pr-4">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            {can.update && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleOpenEdit(item)}
-                                                                    title="Ubah Komponen"
-                                                                    className="h-8 w-8 p-0"
-                                                                >
-                                                                    <Edit2 className="h-3.5 w-3.5 text-muted hover:text-ink" />
-                                                                </Button>
-                                                            )}
-                                                            {can.delete && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleOpenDelete(item)}
-                                                                    title="Hapus Komponen"
-                                                                    className="h-8 w-8 p-0 hover:bg-danger/10 hover:text-danger"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5 text-muted hover:text-danger" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <KomponenTable
+                            komponen={filteredKomponen}
+                            can={can}
+                            hasFilterOrSearch={Boolean(searchQuery || filterPeran !== 'semua')}
+                            onOpenCreate={handleOpenCreate}
+                            onOpenEdit={handleOpenEdit}
+                            onOpenDelete={handleOpenDelete}
+                        />
                     </CardContent>
                 </Card>
             </div>
