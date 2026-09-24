@@ -132,7 +132,6 @@ class StoragePolicyController extends Controller
         /** @var User $actor */
         $actor = $request->user();
         $resolver = app(PermissionResolver::class);
-        $decision = $resolver->decide($actor, 'pengaturan:update');
 
         $submitted = [
             'berkas.unggahan_aktif' => $request->boolean('berkas_unggahan_aktif') ? 'true' : 'false',
@@ -145,7 +144,14 @@ class StoragePolicyController extends Controller
         $expectedVersion = (int) $request->input('expected_version');
         $alasan = (string) $request->input('alasan');
 
-        $result = DB::transaction(function () use ($submitted, $actor, $auditLogger, $alasan, $decision, $expectedUpdatedAt, $expectedVersion) {
+        $result = DB::transaction(function () use ($submitted, $actor, $resolver, $auditLogger, $alasan, $expectedUpdatedAt, $expectedVersion) {
+            // Pemeriksaan ulang izin di dalam transaksi (mengunci row actor) untuk mencegah race condition
+            $currentActor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            $decision = $resolver->decide($currentActor, 'pengaturan:update');
+            if (! ($decision['allowed'] ?? false)) {
+                return ['unauthorized' => true, 'decision' => $decision];
+            }
+
             $this->ensureDefaultRowsExist();
 
             $existing = Pengaturan::where('grup', 'berkas')
@@ -251,28 +257,59 @@ class StoragePolicyController extends Controller
             // PRD §18.7 & Plan Pengembangan §10.6: Penandaan otomatis dan pencabutan penanda
             // saat status saklar global unggahan file (berkas.unggahan_aktif) berubah.
             if (isset($changedKeys['berkas.unggahan_aktif'])) {
-                $fileOnlyRequirements = JenisBerkas::query()
-                    ->where('aktif', true)
-                    ->where('wajib', true)
-                    ->where('izinkan_file', true)
-                    ->where('izinkan_tautan', false)
-                    ->where('izinkan_teks', false)
-                    ->get();
-
-                // Gerbang keempat lampiran PK (§2.15, §10.6): PK yang belum memiliki lampiran mode tautan/teks
-                $pkWithoutNonFile = RenstraPk::query()
-                    ->whereNotExists(function ($query) {
-                        $query->select(DB::raw(1))
-                            ->from('berkas')
-                            ->whereColumn('berkas.berkasable_id', 'renstra_pk.id')
-                            ->whereIn('berkas.berkasable_type', ['renstra_pk', RenstraPk::class, 'App\\Models\\PerjanjianKinerja'])
-                            ->whereIn('berkas.mode', ['tautan', 'teks'])
-                            ->whereNull('berkas.dihapus_pada');
+                // Tracking penanda aktif: ambil ID objek yang saat ini memiliki penanda tanpa pencabutan setelahnya
+                $activeMarkedJbIds = DB::table('audit_log')
+                    ->where('objek_tipe', 'jenis_berkas')
+                    ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                    ->whereNotExists(function ($q) {
+                        $q->select(DB::raw(1))
+                            ->from('audit_log as a2')
+                            ->whereColumn('a2.objek_id', 'audit_log.objek_id')
+                            ->where('a2.objek_tipe', 'jenis_berkas')
+                            ->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
+                            ->whereColumn('a2.waktu', '>=', 'audit_log.waktu');
                     })
-                    ->get();
+                    ->pluck('objek_id')
+                    ->unique();
+
+                $activeMarkedPkIds = DB::table('audit_log')
+                    ->where('objek_tipe', 'renstra_pk')
+                    ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                    ->whereNotExists(function ($q) {
+                        $q->select(DB::raw(1))
+                            ->from('audit_log as a2')
+                            ->whereColumn('a2.objek_id', 'audit_log.objek_id')
+                            ->where('a2.objek_tipe', 'renstra_pk')
+                            ->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
+                            ->whereColumn('a2.waktu', '>=', 'audit_log.waktu');
+                    })
+                    ->pluck('objek_id')
+                    ->unique();
 
                 if ($changedKeys['berkas.unggahan_aktif']['new'] === 'false') {
-                    // Transisi true -> false: tandai tidak_dapat_dipenuhi dengan tindakan kanonik berkas.tandai_tidak_dapat_dipenuhi
+                    // Transisi true -> false: tandai persyaratan wajib file-only yang belum aktif ditandai
+                    $fileOnlyRequirements = JenisBerkas::query()
+                        ->where('aktif', true)
+                        ->where('wajib', true)
+                        ->where('izinkan_file', true)
+                        ->where('izinkan_tautan', false)
+                        ->where('izinkan_teks', false)
+                        ->whereNotIn('id', $activeMarkedJbIds)
+                        ->get();
+
+                    // Gerbang keempat lampiran PK (§2.15, §10.6): PK yang belum memiliki lampiran mode tautan/teks dan belum ditandai
+                    $pkWithoutNonFile = RenstraPk::query()
+                        ->whereNotExists(function ($query) {
+                            $query->select(DB::raw(1))
+                                ->from('berkas')
+                                ->whereColumn('berkas.berkasable_id', 'renstra_pk.id')
+                                ->whereIn('berkas.berkasable_type', ['renstra_pk', RenstraPk::class, 'App\\Models\\PerjanjianKinerja'])
+                                ->whereIn('berkas.mode', ['tautan', 'teks'])
+                                ->whereNull('berkas.dihapus_pada');
+                        })
+                        ->whereNotIn('id', $activeMarkedPkIds)
+                        ->get();
+
                     foreach ($fileOnlyRequirements as $persyaratan) {
                         $auditLogger->catat(
                             actor: $actor,
@@ -320,8 +357,11 @@ class StoragePolicyController extends Controller
                         );
                     }
                 } elseif ($changedKeys['berkas.unggahan_aktif']['new'] === 'true') {
-                    // Transisi false -> true: catat pencabutan penanda tidak_dapat_dipenuhi (Plan Pengembangan §10.6)
-                    foreach ($fileOnlyRequirements as $persyaratan) {
+                    // Transisi false -> true: catat pencabutan HANYA untuk objek yang benar-benar aktif bertanda
+                    $jbToRevoke = JenisBerkas::whereIn('id', $activeMarkedJbIds)->get();
+                    $pkToRevoke = RenstraPk::whereIn('id', $activeMarkedPkIds)->get();
+
+                    foreach ($jbToRevoke as $persyaratan) {
                         $auditLogger->catat(
                             actor: $actor,
                             tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
@@ -345,7 +385,7 @@ class StoragePolicyController extends Controller
                         );
                     }
 
-                    foreach ($pkWithoutNonFile as $pk) {
+                    foreach ($pkToRevoke as $pk) {
                         $auditLogger->catat(
                             actor: $actor,
                             tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
@@ -374,6 +414,18 @@ class StoragePolicyController extends Controller
 
             return ['changed' => true, 'count' => count($changedKeys), 'new_version' => $currentVersion + 1];
         });
+
+        if ($result['unauthorized'] ?? false) {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'pengaturan.ubah_ditolak',
+                objekTipe: 'pengaturan',
+                objekId: (string) Str::uuid(),
+                alasan: 'Pemeriksaan ulang izin di dalam transaksi mendeteksi izin pengaturan:update telah dicabut.',
+                dasarIzin: $result['decision'] ?? null,
+            );
+            abort(403, 'Izin pengaturan:update telah dicabut.');
+        }
 
         if (! $result['changed']) {
             return redirect()

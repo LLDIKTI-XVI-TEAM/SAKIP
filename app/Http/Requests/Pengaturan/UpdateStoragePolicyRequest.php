@@ -7,6 +7,7 @@ use App\Services\Authorization\PermissionResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Validator;
 
 class UpdateStoragePolicyRequest extends FormRequest
 {
@@ -36,6 +37,23 @@ class UpdateStoragePolicyRequest extends FormRequest
     }
 
     /**
+     * Whitelist nama field payload transport yang diizinkan (Workflow.md §18, baris 1423-1424).
+     *
+     * @var list<string>
+     */
+    public const ALLOWED_FIELDS = [
+        'berkas_unggahan_aktif',
+        'berkas_ukuran_maks_kb',
+        'berkas_format_diizinkan',
+        'berkas_tautan_selalu_diizinkan',
+        'expected_updated_at',
+        'expected_version',
+        'alasan',
+        '_token',
+        '_method',
+    ];
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -49,6 +67,21 @@ class UpdateStoragePolicyRequest extends FormRequest
             'expected_version' => ['required', 'integer', 'min:1'],
             'alasan' => ['required', 'string', 'min:10', 'max:1000'],
         ];
+    }
+
+    /**
+     * Pastikan tidak ada field di luar whitelist yang dikirimkan.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $unknownKeys = array_diff(array_keys($this->all()), self::ALLOWED_FIELDS);
+            if (! empty($unknownKeys)) {
+                foreach ($unknownKeys as $key) {
+                    $validator->errors()->add($key, "Field '{$key}' tidak diizinkan pada pembaruan kebijakan storage.");
+                }
+            }
+        });
     }
 
     /**

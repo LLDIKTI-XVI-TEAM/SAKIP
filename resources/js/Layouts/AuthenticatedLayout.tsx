@@ -9,6 +9,7 @@ import {
     ChevronRight,
     CheckCircle,
     AlertCircle,
+    Info,
     UserCheck,
     UserPlus,
     Menu,
@@ -390,6 +391,14 @@ export function AuthenticatedLayout({
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-danger mt-0.5" />
                             <span>{flash.error}</span>
+                        </div>
+                    </div>
+                )}
+                {flash?.message && (
+                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                        <div role="status" className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 p-3.5 text-sm text-ink shadow-2xs">
+                            <Info aria-hidden="true" className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                            <span>{flash.message}</span>
                         </div>
                     </div>
                 )}

@@ -16,6 +16,7 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
 use App\Services\Storage\StorageMetricsService;
 use Database\Seeders\AccessCatalogSeeder;
@@ -819,11 +820,13 @@ class StoragePolicyTest extends TestCase
      * TEST-13: Mengaktifkan kembali berkas.unggahan_aktif menjadi true mencatat pencabutan penanda
      * berkas.cabut_tidak_dapat_dipenuhi sebagai baris audit tersendiri (Plan Pengembangan §10.6).
      */
+    /**
+     * TEST-13: Mengaktifkan kembali berkas.unggahan_aktif menjadi true mencatat pencabutan penanda
+     * berkas.cabut_tidak_dapat_dipenuhi sebagai baris audit tersendiri (Plan Pengembangan §10.6)
+     * hanya untuk objek yang memiliki penanda aktif.
+     */
     public function test_re_enabling_upload_switch_records_canonical_revocation_audits(): void
     {
-        // 1. Kondisi awal: saklar mati (false)
-        Pengaturan::where('kunci', 'berkas.unggahan_aktif')->update(['nilai' => 'false', 'updated_at' => now()]);
-
         $fileOnly = JenisBerkas::create([
             'nama' => 'Laporan Fisik Pemulihan',
             'tahap' => 'pengukuran',
@@ -844,6 +847,16 @@ class StoragePolicyTest extends TestCase
             'tanggal_pk' => now()->toDateString(),
             'created_by' => $this->perencanaan->id,
         ]);
+
+        // 1. Matikan saklar (true -> false) via controller sehingga penandaan tercatat di audit_log
+        $disableResponse = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => false,
+            'alasan' => 'Penonaktifan sementara unggahan file.',
+        ]));
+        $disableResponse->assertSessionHasNoErrors();
+
+        $markingAudits = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->get();
+        $this->assertCount(2, $markingAudits);
 
         // 2. Aktifkan kembali saklar (false -> true)
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
@@ -870,5 +883,91 @@ class StoragePolicyTest extends TestCase
         $this->assertSame('normal', $pkRevoke->nilai_baru['status_gerbang']);
         $this->assertSame('lampiran_pk', $pkRevoke->nilai_baru['gerbang']);
         $this->assertSame('saklar_unggahan_global_aktif', $pkRevoke->nilai_baru['sebab']);
+    }
+
+    /**
+     * TEST-14: Payload dengan field asing di luar whitelist ditolak secara utuh (Workflow §18: 1423-1424).
+     */
+    public function test_update_storage_policy_rejects_unwhitelisted_fields(): void
+    {
+        $payload = $this->validPayload([
+            'berkas_retensi_hari' => 30, // Field asing yang tidak didukung
+        ]);
+
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $payload);
+
+        $response->assertSessionHasErrors('berkas_retensi_hari');
+        $this->assertSame(
+            "Field 'berkas_retensi_hari' tidak diizinkan pada pembaruan kebijakan storage.",
+            session('errors')->first('berkas_retensi_hari')
+        );
+    }
+
+    /**
+     * TEST-15: Pemeriksaan ulang izin di dalam transaksi membatalkan mutasi dan mencatat audit penolakan jika izin dicabut secara konkuren.
+     */
+    public function test_update_storage_policy_aborts_and_audits_denial_when_permission_revoked(): void
+    {
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        // FormRequest::authorize() memanggil allows() -> lolos (true)
+        $mockResolver->method('allows')->willReturn(true);
+        // Re-check di dalam transaksi controller memanggil decide() -> dicabut (false)
+        $mockResolver->method('decide')->willReturn([
+            'allowed' => false,
+            'permission' => 'pengaturan:update',
+            'reason' => 'revoked_concurrently',
+            'roles' => [],
+            'grants' => [],
+            'denies' => [],
+        ]);
+
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => false,
+        ]));
+
+        $response->assertStatus(403);
+
+        $deniedAudit = AuditLog::where('tindakan', 'pengaturan.ubah_ditolak')->latest('waktu')->first();
+        $this->assertNotNull($deniedAudit);
+        $this->assertSame('revoked_concurrently', $deniedAudit->dasar_izin['reason']);
+    }
+
+    /**
+     * TEST-16: Objek yang tidak memiliki penanda aktif tidak ikut dicabut saat saklar kembali true.
+     */
+    public function test_unmarked_items_are_not_revoked_on_upload_re_enable(): void
+    {
+        // Kondisi saklar false tanpa ada audit penandaan yang pernah dicatat
+        Pengaturan::where('kunci', 'berkas.unggahan_aktif')->update(['nilai' => 'false', 'updated_at' => now()]);
+
+        // Jenis berkas dibuat tanpa penanda
+        $unmarkedJb = JenisBerkas::create([
+            'nama' => 'Persyaratan Tanpa Penanda',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Aktifkan saklar: false -> true
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => true,
+            'alasan' => 'Aktifkan kembali saklar.',
+        ]));
+
+        $response->assertSessionHasNoErrors();
+
+        // Tidak boleh ada pencabutan untuk $unmarkedJb karena tidak pernah aktif bertanda di audit_log
+        $revocationAudits = AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
+            ->where('objek_id', $unmarkedJb->id)
+            ->get();
+
+        $this->assertCount(0, $revocationAudits);
     }
 }
