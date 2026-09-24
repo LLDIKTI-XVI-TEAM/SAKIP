@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 
 interface UnitItem {
     id: string;
@@ -53,6 +55,7 @@ interface UnitIndexProps {
 export default function UnitIndex({ units, can }: UnitIndexProps) {
     const page = usePage();
     const pageErrors = (page.props as { errors?: Record<string, string> }).errors;
+    const recovery = useAuthRecovery();
 
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
@@ -128,6 +131,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (createForm.processing || Boolean(recovery.recovery)) return;
+
         createForm.post('/unit', {
             preserveScroll: true,
             onSuccess: () => {
@@ -135,12 +140,25 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 createForm.reset();
                 setStatusError(null);
             },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/unit', mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk menambahkan unit organisasi.'
+                    : 'Gagal menambahkan unit organisasi.');
+                createForm.setError('nama', message);
+                return false;
+            },
         });
     };
 
     const handleEditSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingUnit) return;
+        if (!editingUnit || editForm.processing || Boolean(recovery.recovery)) return;
 
         editForm.post(`/unit/${editingUnit.id}`, {
             preserveScroll: true,
@@ -152,10 +170,24 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal menyimpan perubahan unit organisasi.';
                 setStatusError(message);
             },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${editingUnit.id}`, mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah unit organisasi.'
+                    : 'Gagal menyimpan perubahan unit organisasi.');
+                setStatusError(message);
+                return false;
+            },
         });
     };
 
     const handleToggleStatus = (unit: UnitItem) => {
+        if (Boolean(recovery.recovery)) return;
         const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
         if (confirm(`Ubah status unit '${unit.nama}' menjadi ${nextStatus === 'aktif' ? 'Aktif' : 'Nonaktif'}?`)) {
             setStatusError(null);
@@ -178,13 +210,26 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                     const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
                     setStatusError(message);
                 },
+                onHttpException: (response) => {
+                    if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${unit.id}`, mutation: true })) {
+                        return false;
+                    }
+                    const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                        ? response.data.message
+                        : null;
+                    const message = serverMsg || (response.status === 403
+                        ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah status unit organisasi.'
+                        : 'Gagal mengubah status unit organisasi.');
+                    setStatusError(message);
+                    return false;
+                },
             });
         }
     };
 
     const handleDeleteSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!deletingUnit) return;
+        if (!deletingUnit || isDeleting || Boolean(recovery.recovery)) return;
 
         if (deleteReason.trim().length < 5) {
             setDeleteError('Alasan penghapusan unit wajib diisi minimal 5 karakter.');
@@ -205,6 +250,19 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             onError: (errors: Record<string, string>) => {
                 const message = errors.alasan || errors.error || Object.values(errors)[0] || 'Gagal menghapus unit organisasi.';
                 setDeleteError(message);
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'delete', path: `/unit/${deletingUnit.id}`, mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator kinerja, rencana aksi, kegiatan, snapshot jadwal, atau izin terkait.'
+                    : 'Gagal menghapus unit organisasi. Silakan coba kembali.');
+                setDeleteError(message);
+                return false;
             },
             onFinish: () => {
                 setIsDeleting(false);
@@ -517,17 +575,20 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         )}
                     </div>
 
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
+
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => setIsCreateOpen(false)}
+                            disabled={createForm.processing}
                         >
                             Batal
                         </Button>
                         <Button
                             type="submit"
-                            disabled={createForm.processing}
+                            disabled={createForm.processing || Boolean(recovery.recovery)}
                             className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                         >
                             {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
@@ -601,17 +662,20 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         )}
                     </div>
 
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={editForm.processing} />
+
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => setEditingUnit(null)}
+                            disabled={editForm.processing}
                         >
                             Batal
                         </Button>
                         <Button
                             type="submit"
-                            disabled={editForm.processing}
+                            disabled={editForm.processing || Boolean(recovery.recovery)}
                             className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                         >
                             {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
@@ -638,6 +702,18 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 description="Aksi ini hanya dapat dilakukan oleh Superadmin untuk unit yang tidak memiliki keterkaitan data. Tindakan ini bersifat permanen."
             >
                 <form onSubmit={handleDeleteSubmit} className="space-y-4 text-xs">
+                    {deleteError && (
+                        <div
+                            role="alert"
+                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
+                        >
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            <div className="flex-1 font-medium">
+                                {deleteError}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-1.5">
                         <label htmlFor="delete_alasan" className="block font-semibold text-slate-700">
                             Alasan Penghapusan <span className="text-rose-600">*</span>
@@ -656,6 +732,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                             className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-colors"
                             required
                             minLength={5}
+                            disabled={isDeleting}
                         />
                         {deleteError && (
                             <p className="text-[11px] text-rose-600">{deleteError}</p>
@@ -664,6 +741,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                             Alasan tertulis diwajibkan sebagai rekaman permanen pada audit trail SAKIP.
                         </p>
                     </div>
+
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={isDeleting} />
 
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                         <Button
@@ -674,12 +753,13 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                 setDeleteReason('');
                                 setDeleteError('');
                             }}
+                            disabled={isDeleting}
                         >
                             Batal
                         </Button>
                         <Button
                             type="submit"
-                            disabled={isDeleting || deleteReason.trim().length < 5}
+                            disabled={isDeleting || deleteReason.trim().length < 5 || Boolean(recovery.recovery)}
                             className="bg-rose-600 hover:bg-rose-700 text-white"
                         >
                             {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}

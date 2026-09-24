@@ -43,6 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 && $exception->getPrevious() instanceof TokenMismatchException) {
                 return $recovery($request, 419, 'csrf_mismatch', true);
             }
+
+            if ($request->header('X-Inertia') && $exception->getStatusCode() === 403) {
+                return response()->json([
+                    'message' => $exception->getMessage() ?: 'Akses ditolak.',
+                ], 403, ['Cache-Control' => 'no-store, private']);
+            }
         });
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
         $exceptions->dontFlash(['password', 'password_confirmation', 'current_password', 'code', 'state', 'id_token', 'access_token', 'refresh_token', 'client_secret']);

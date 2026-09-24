@@ -16,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 
 interface GrantItem {
     id: string;
@@ -111,9 +113,10 @@ function GrantUserLookup({
         };
     }, [query]);
 
-    const options = selectedUser && !result.items.some((item) => item.id === selectedUser.id)
-        ? [selectedUser, ...result.items]
-        : result.items;
+    const items = Array.isArray(result?.items) ? result.items : [];
+    const options = selectedUser && !items.some((item) => item.id === selectedUser.id)
+        ? [selectedUser, ...items]
+        : items;
 
     const applySearch = () => {
         setQuery({ q: search, page: 1 });
@@ -270,6 +273,10 @@ export default function GrantIndex({
     const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>(filters?.unit_id || 'all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [grantToRevoke, setGrantToRevoke] = useState<GrantItem | null>(null);
+    const [createError, setCreateError] = useState<string | null>(null);
+    const [revokeError, setRevokeError] = useState<string | null>(null);
+
+    const recovery = useAuthRecovery();
 
     const createTriggerRef = useRef<HTMLButtonElement | null>(null);
     const revokeTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -319,23 +326,47 @@ export default function GrantIndex({
         createTriggerRef.current = e.currentTarget;
         createForm.clearErrors();
         createForm.reset();
+        setCreateError(null);
         setIsCreateOpen(true);
     };
 
     const handleCloseCreate = () => {
         setIsCreateOpen(false);
+        setCreateError(null);
         createForm.clearErrors();
         createTriggerRef.current?.focus();
     };
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (createForm.processing || Boolean(recovery.recovery)) return;
+        setCreateError(null);
+
         createForm.post('/akses/grant', {
             preserveScroll: true,
             onSuccess: () => {
                 createForm.reset();
+                setCreateError(null);
                 setIsCreateOpen(false);
                 createTriggerRef.current?.focus();
+            },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.permission_id || errors.user_id || errors.unit_id || errors.alasan || Object.values(errors)[0] || 'Validasi pemberian izin unit gagal.';
+                setCreateError(message);
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/akses/grant', mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Wewenang Anda untuk mengelola pemberian izin unit telah dicabut atau ditolak. Periksa akses sebelum mencoba kembali.'
+                    : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setCreateError(message);
+                createForm.setError('alasan', message);
+                return false;
             },
         });
     };
@@ -344,12 +375,14 @@ export default function GrantIndex({
         revokeTriggerRefs.current[grant.id] = el;
         revokeForm.clearErrors();
         revokeForm.reset();
+        setRevokeError(null);
         setGrantToRevoke(grant);
     };
 
     const handleCloseRevoke = () => {
         const grantId = grantToRevoke?.id;
         setGrantToRevoke(null);
+        setRevokeError(null);
         revokeForm.clearErrors();
         if (grantId && revokeTriggerRefs.current[grantId]) {
             revokeTriggerRefs.current[grantId]?.focus();
@@ -358,17 +391,38 @@ export default function GrantIndex({
 
     const handleRevokeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!grantToRevoke) return;
+        if (!grantToRevoke || revokeForm.processing || Boolean(recovery.recovery)) return;
 
         const grantId = grantToRevoke.id;
+        setRevokeError(null);
+
         revokeForm.delete(`/akses/grant/${grantId}`, {
             preserveScroll: true,
             onSuccess: () => {
                 revokeForm.reset();
+                setRevokeError(null);
                 setGrantToRevoke(null);
                 if (revokeTriggerRefs.current[grantId]) {
                     revokeTriggerRefs.current[grantId]?.focus();
                 }
+            },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.alasan || errors.error || Object.values(errors)[0] || 'Validasi pencabutan izin unit gagal.';
+                setRevokeError(message);
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'delete', path: `/akses/grant/${grantId}`, mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Wewenang Anda untuk mengelola pencabutan izin unit telah dicabut atau ditolak. Periksa akses sebelum mencoba kembali.'
+                    : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                setRevokeError(message);
+                revokeForm.setError('alasan', message);
+                return false;
             },
         });
     };
@@ -569,6 +623,8 @@ export default function GrantIndex({
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
+                                                        title="Cabut Izin Unit"
+                                                        aria-label={`Cabut izin unit ${grant.permission_kode} untuk ${grant.user_name}`}
                                                         onClick={(e) => handleOpenRevoke(grant, e.currentTarget)}
                                                         className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs flex items-center gap-1.5 ml-auto"
                                                     >
@@ -650,6 +706,18 @@ export default function GrantIndex({
                 description="Berikan pengecualian izin operasional berscope unit kepada pengguna tanpa mengubah peran utama."
             >
                 <form onSubmit={handleCreateSubmit} className="space-y-4">
+                    {createError && (
+                        <div
+                            role="alert"
+                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
+                        >
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            <div className="flex-1 font-medium">
+                                {createError}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
                         <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div className="space-y-1">
@@ -739,6 +807,8 @@ export default function GrantIndex({
                         )}
                     </div>
 
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
+
                     <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                         <Button
                             type="button"
@@ -750,7 +820,7 @@ export default function GrantIndex({
                         </Button>
                         <Button
                             type="submit"
-                            disabled={createForm.processing}
+                            disabled={createForm.processing || Boolean(recovery.recovery)}
                             className="bg-[#122E92] hover:bg-[#0d226b] text-white"
                         >
                             {createForm.processing ? 'Menyimpan...' : 'Simpan & Catat Audit'}
@@ -774,6 +844,18 @@ export default function GrantIndex({
             >
                 {grantToRevoke && (
                     <form onSubmit={handleRevokeSubmit} className="space-y-4">
+                        {revokeError && (
+                            <div
+                                role="alert"
+                                className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
+                            >
+                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                                <div className="flex-1 font-medium">
+                                    {revokeError}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
                             <p className="font-semibold mb-1">Perhatian:</p>
                             <p>
@@ -799,6 +881,8 @@ export default function GrantIndex({
                             )}
                         </div>
 
+                        <AuthRecoveryNotice recovery={recovery.recovery} pending={revokeForm.processing} />
+
                         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                             <Button
                                 type="button"
@@ -810,7 +894,7 @@ export default function GrantIndex({
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={revokeForm.processing}
+                                disabled={revokeForm.processing || Boolean(recovery.recovery)}
                                 className="bg-red-600 hover:bg-red-700 text-white"
                             >
                                 {revokeForm.processing ? 'Mencabut...' : 'Cabut Izin Sekarang'}
