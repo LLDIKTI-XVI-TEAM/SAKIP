@@ -23,6 +23,8 @@ export interface SharedPageProps extends PageProps {
             grant: boolean;
             manageRolePermissions: boolean;
             jenisBerkas?: boolean;
+            storagePolicy?: boolean;
+            storagePolicyUpdate?: boolean;
         };
     };
     flash?: {

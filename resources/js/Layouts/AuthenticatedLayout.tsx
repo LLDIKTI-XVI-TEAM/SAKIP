@@ -10,6 +10,7 @@ import {
     ChevronRight,
     CheckCircle,
     AlertCircle,
+    Info,
     UserCheck,
     UserPlus,
     Menu,
@@ -22,6 +23,7 @@ import {
     Bell,
     User,
     Home,
+    HardDrive,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -121,6 +123,7 @@ export function AuthenticatedLayout({
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
+        { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
         { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },
         { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth.can.grant ?? false },
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
@@ -286,9 +289,9 @@ export function AuthenticatedLayout({
                             <button
                                 type="submit"
                                 disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-400/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+                                <LogOut aria-hidden="true" className="h-3.5 w-3.5 transition-colors" />
                                 <span>{logout.processing ? 'Keluar…' : 'Keluar sistem'}</span>
                             </button>
                         </form>
@@ -393,6 +396,14 @@ export function AuthenticatedLayout({
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-danger mt-0.5" />
                             <span>{flash.error}</span>
+                        </div>
+                    </div>
+                )}
+                {flash?.message && (
+                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                        <div role="status" className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 p-3.5 text-sm text-ink shadow-2xs">
+                            <Info aria-hidden="true" className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                            <span>{flash.message}</span>
                         </div>
                     </div>
                 )}
