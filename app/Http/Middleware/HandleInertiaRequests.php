@@ -37,6 +37,8 @@ class HandleInertiaRequests extends Middleware
                         'pengaturan:update' => $can['pengaturan:update'],
                         'manageRolePermissions' => $can['manageRolePermissions'],
                         'jenisBerkas' => $can['jenisBerkas'],
+                        'storagePolicy' => $can['storagePolicy'],
+                        'storagePolicyUpdate' => $can['storagePolicyUpdate'],
                     ],
                 ];
             },
@@ -73,6 +75,8 @@ class HandleInertiaRequests extends Middleware
             'pengaturan' => false,
             'pengaturan:update' => false,
             'jenisBerkas' => false,
+            'storagePolicy' => false,
+            'storagePolicyUpdate' => false,
         ];
 
         if ($user === null || ! $user->is_active) {
@@ -88,6 +92,7 @@ class HandleInertiaRequests extends Middleware
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
         $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
         $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
+        $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
 
         $computed = [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),
@@ -113,6 +118,8 @@ class HandleInertiaRequests extends Middleware
             'pengaturan' => $pengaturanUpdate,
             'pengaturan:update' => $pengaturanUpdate,
             'jenisBerkas' => $jenisBerkasRead,
+            'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
+            'storagePolicyUpdate' => $pengaturanUpdate,
         ];
 
         if ($request) {

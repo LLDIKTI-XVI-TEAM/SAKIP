@@ -21,7 +21,9 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\Authorization\RolePermissionPresets;
+use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -1929,5 +1931,196 @@ class JenisBerkasTest extends TestCase
 
         $refreshed = $jb->fresh();
         $this->assertEquals($originalUpdatedAt->toISOString(), $refreshed->updated_at->toISOString());
+    }
+
+    /**
+     * TEST-46: Pembuatan persyaratan wajib file-only saat saklar unggahan nonaktif mencatat audit berkas.tandai_tidak_dapat_dipenuhi.
+     */
+    public function test_store_file_only_requirement_when_upload_disabled_creates_marking_audit(): void
+    {
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.unggahan_aktif'],
+            ['nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
+        );
+
+        $payload = [
+            'nama' => 'Bukti Wajib File Saat Saklar Mati',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'keterangan' => 'Uji penandaan saat saklar mati',
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'urutan' => 1,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 2048,
+        ];
+
+        $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', $payload);
+        $response->assertRedirect('/jenis-berkas');
+
+        $jb = JenisBerkas::where('nama', 'Bukti Wajib File Saat Saklar Mati')->firstOrFail();
+
+        $markingAudit = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+            ->where('objek_id', $jb->id)
+            ->first();
+
+        $this->assertNotNull($markingAudit);
+        $this->assertSame('tidak_dapat_dipenuhi', $markingAudit->nilai_baru['status_pemenuhan']);
+        $this->assertSame('saklar_unggahan_global_nonaktif', $markingAudit->nilai_baru['sebab']);
+    }
+
+    /**
+     * TEST-47: Pembaruan persyaratan dari file-only ke multi-mode saat saklar nonaktif mencatat pencabutan penanda.
+     */
+    public function test_update_file_only_requirement_transitions_marking_when_upload_disabled(): void
+    {
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.unggahan_aktif'],
+            ['nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
+        );
+
+        // Buat file-only (akan bertanda)
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Transisi Mode',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Simulasikan marker aktif awal di audit_log
+        app(AuditLogger::class)->catat(
+            actor: $this->perencanaan,
+            tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+            objekTipe: 'jenis_berkas',
+            objekId: $jb->id,
+            nilaiLama: ['status_pemenuhan' => 'normal'],
+            nilaiBaru: ['status_pemenuhan' => 'tidak_dapat_dipenuhi'],
+            alasan: 'Penandaan awal simulasi',
+        );
+
+        // Ubah menjadi izinkan_tautan = true
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Transisi Mode',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'alasan' => 'Mengizinkan tautan agar dapat dipenuhi PIC',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ]);
+
+        $response->assertRedirect('/jenis-berkas');
+
+        // Harus tercatat pencabutan penanda
+        $revocationAudit = AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
+            ->where('objek_id', $jb->id)
+            ->first();
+
+        $this->assertNotNull($revocationAudit);
+        $this->assertSame('normal', $revocationAudit->nilai_baru['status_pemenuhan']);
+    }
+
+    /**
+     * TEST-48: Transisi berulang file-only -> multi-mode -> file-only -> multi-mode saat saklar mati dengan frozen clock.
+     */
+    public function test_rapid_mode_transition_with_frozen_clock_correctly_tracks_lifecycle(): void
+    {
+        Carbon::setTestNow(now());
+
+        Pengaturan::updateOrCreate(
+            ['kunci' => 'berkas.unggahan_aktif'],
+            ['nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
+        );
+
+        // 1. Buat file-only (marking 1)
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan Uji Siklus Cepat',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $m1 = app(AuditLogger::class)->catat(
+            actor: $this->perencanaan,
+            tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+            objekTipe: 'jenis_berkas',
+            objekId: $jb->id,
+            nilaiLama: ['status_pemenuhan' => 'normal'],
+            nilaiBaru: ['status_pemenuhan' => 'tidak_dapat_dipenuhi', 'siklus_penandaan' => 1],
+            alasan: 'Penandaan awal',
+        );
+
+        // 2. Ubah ke tautan (revocation 1)
+        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Uji Siklus Cepat',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'alasan' => 'Izinkan tautan 1',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ])->assertRedirect('/jenis-berkas');
+
+        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
+
+        // 3. Ubah kembali ke file-only (marking 2)
+        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Uji Siklus Cepat',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'alasan' => 'Kembali ke file only',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ])->assertRedirect('/jenis-berkas');
+
+        $this->assertCount(2, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
+
+        // 4. Ubah lagi ke tautan (revocation 2)
+        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Persyaratan Uji Siklus Cepat',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'alasan' => 'Izinkan tautan 2',
+            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
+        ])->assertRedirect('/jenis-berkas');
+
+        // Total pencabutan harus 2 (tidak tertahan oleh timestamp yang identik)
+        $this->assertCount(2, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
+
+        Carbon::setTestNow(null);
     }
 }

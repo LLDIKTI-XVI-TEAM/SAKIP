@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Berkas;
+use App\Models\Pengaturan;
 use App\Models\Regulasi;
 use App\Models\User;
 use App\Support\PermissionCodes;
@@ -354,6 +355,38 @@ class RegulasiService
         PermissionDecision $decision,
         array &$storedPaths,
     ): void {
+        $adaFile = false;
+        foreach ($lampiran as $item) {
+            if (($item['mode'] ?? null) === 'file') {
+                $adaFile = true;
+                break;
+            }
+        }
+
+        $isUploadActive = true;
+        $maxKb = 10240;
+        $allowedExtensions = [];
+        $allowedFormatsStr = '';
+
+        if ($adaFile) {
+            $settings = Pengaturan::whereIn('kunci', [
+                'berkas.unggahan_aktif',
+                'berkas.ukuran_maks_kb',
+                'berkas.format_diizinkan',
+            ])->pluck('nilai', 'kunci');
+
+            $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
+            if (! $isUploadActive) {
+                throw ValidationException::withMessages([
+                    'lampiran' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
+                ]);
+            }
+
+            $maxKb = (int) $settings->get('berkas.ukuran_maks_kb', 10240);
+            $allowedFormatsStr = (string) $settings->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png');
+            $allowedExtensions = array_filter(array_map('trim', explode(',', strtolower($allowedFormatsStr))));
+        }
+
         foreach ($lampiran as $item) {
             $attributes = [
                 'jenis_berkas_id' => null,
@@ -366,6 +399,25 @@ class RegulasiService
 
                 if (! $file instanceof UploadedFile) {
                     throw new RuntimeException('Lampiran file tidak valid.');
+                }
+
+                if (! $isUploadActive) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
+                    ]);
+                }
+
+                if ($maxKb > 0 && ($file->getSize() > $maxKb * 1024)) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => "Ukuran file lampiran ({$file->getClientOriginalName()}) melebihi batas maksimum yang diizinkan ({$maxKb} KB).",
+                    ]);
+                }
+
+                $ext = strtolower($file->getClientOriginalExtension());
+                if (! empty($allowedExtensions) && ! in_array($ext, $allowedExtensions, true)) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => "Format file lampiran ({$file->getClientOriginalName()}) tidak diizinkan. Format yang diperbolehkan: {$allowedFormatsStr}.",
+                    ]);
                 }
 
                 $path = $file->store("berkas/regulasi/{$regulasi->id}", 'local');

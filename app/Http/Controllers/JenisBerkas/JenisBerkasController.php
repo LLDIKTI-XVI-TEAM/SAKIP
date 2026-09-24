@@ -71,11 +71,6 @@ class JenisBerkasController extends Controller
         abort_unless($decision['allowed'], 403);
 
         $data = $request->validated();
-        $isUnggahanAktif = filter_var(
-            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
-            FILTER_VALIDATE_BOOLEAN
-        );
-
         $hasBatasTeknis = array_key_exists('format_diizinkan', $data) || array_key_exists('ukuran_maks_kb', $data);
 
         if (! $resolver->allows($actor, 'pengaturan:update')) {
@@ -91,7 +86,14 @@ class JenisBerkasController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($data, $actor, $dasarIzin) {
+        $isUnggahanAktif = true;
+
+        DB::transaction(function () use ($data, $actor, $dasarIzin, &$isUnggahanAktif) {
+            // Serialisasikan pembacaan saklar dengan sharedLock di dalam transaksi
+            // untuk mencegah race condition saat admin menonaktifkan unggahan global
+            $saklarRow = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->first();
+            $isUnggahanAktif = filter_var($saklarRow?->nilai ?? true, FILTER_VALIDATE_BOOLEAN);
+
             $data['created_by'] = $actor->id;
 
             $jb = JenisBerkas::create($data);
@@ -106,6 +108,44 @@ class JenisBerkasController extends Controller
                 alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
                 dasarIzin: $dasarIzin
             );
+
+            if (! $isUnggahanAktif) {
+                $isFileOnly = (bool) ($jb->aktif ?? true)
+                    && (bool) ($jb->wajib ?? false)
+                    && (bool) ($jb->izinkan_file ?? false)
+                    && ! (bool) ($jb->izinkan_tautan ?? false)
+                    && ! (bool) ($jb->izinkan_teks ?? false);
+
+                if ($isFileOnly) {
+                    $prevCount = DB::table('audit_log')
+                        ->where('objek_tipe', 'jenis_berkas')
+                        ->where('objek_id', $jb->id)
+                        ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                        ->count();
+
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+                        objekTipe: 'jenis_berkas',
+                        objekId: $jb->id,
+                        nilaiLama: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'normal',
+                        ],
+                        nilaiBaru: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                            'sebab' => 'saklar_unggahan_global_nonaktif',
+                            'kunci_setelan' => 'berkas.unggahan_aktif',
+                            'siklus_penandaan' => $prevCount + 1,
+                        ],
+                        alasan: 'Penandaan otomatis saat persyaratan wajib file-only dibuat ketika saklar unggahan global dinonaktifkan.',
+                        dasarIzin: $dasarIzin
+                    );
+                }
+            }
         });
 
         $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil ditambahkan.');
@@ -132,13 +172,15 @@ class JenisBerkasController extends Controller
         }
 
         $data = $request->validated();
-        $isUnggahanAktif = filter_var(
-            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
-            FILTER_VALIDATE_BOOLEAN
-        );
+        $isUnggahanAktif = true;
         $formatWarning = null;
 
-        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver, &$formatWarning) {
+        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver, &$isUnggahanAktif, &$formatWarning) {
+            // Serialisasikan pembacaan saklar dengan sharedLock di dalam transaksi
+            // untuk mencegah race condition saat admin menonaktifkan unggahan global
+            $saklarRow = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->first();
+            $isUnggahanAktif = filter_var($saklarRow?->nilai ?? true, FILTER_VALIDATE_BOOLEAN);
+
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
             $expectedUpdatedAt = (string) $data['expected_updated_at'];
@@ -202,6 +244,117 @@ class JenisBerkasController extends Controller
                 alasan: $alasan,
                 dasarIzin: $dasarIzin
             );
+
+            // Lifecycle penanda saat saklar unggahan nonaktif (§18.7 & Plan Pengembangan §10.6)
+            // Menggunakan relasi eksplisit penanda_audit_id agar urutan total lifecycle
+            // tidak bergantung pada keunikan timestamp (bebas race condition saat frozen clock / rapid toggle)
+            $activeMarking = DB::table('audit_log as a')
+                ->where('a.objek_tipe', 'jenis_berkas')
+                ->where('a.objek_id', $jb->id)
+                ->where('a.tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                ->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('audit_log as a2')
+                        ->whereColumn('a2.objek_id', 'a.objek_id')
+                        ->whereColumn('a2.objek_tipe', 'a.objek_tipe')
+                        ->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
+                        ->where(function ($sub) {
+                            $sub->whereRaw("(a2.nilai_lama->>'penanda_audit_id') = a.id::text")
+                                ->orWhereRaw("(a2.nilai_baru->>'penanda_audit_id') = a.id::text")
+                                ->orWhere(function ($fallback) {
+                                    $fallback->whereNull(DB::raw("a2.nilai_lama->>'penanda_audit_id'"))
+                                        ->whereNull(DB::raw("a2.nilai_baru->>'penanda_audit_id'"))
+                                        ->whereColumn('a2.waktu', '>', 'a.waktu');
+                                });
+                        });
+                })
+                ->first(['a.id']);
+
+            $isCurrentlyMarked = $activeMarking !== null;
+
+            $isNowFileOnly = (bool) ($nilaiBaru['aktif'] ?? false)
+                && (bool) ($nilaiBaru['wajib'] ?? false)
+                && (bool) ($nilaiBaru['izinkan_file'] ?? false)
+                && ! (bool) ($nilaiBaru['izinkan_tautan'] ?? false)
+                && ! (bool) ($nilaiBaru['izinkan_teks'] ?? false);
+
+            if (! $isUnggahanAktif) {
+                if ($isNowFileOnly && ! $isCurrentlyMarked) {
+                    $prevCount = DB::table('audit_log')
+                        ->where('objek_tipe', 'jenis_berkas')
+                        ->where('objek_id', $jb->id)
+                        ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                        ->count();
+
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+                        objekTipe: 'jenis_berkas',
+                        objekId: $jb->id,
+                        nilaiLama: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'normal',
+                        ],
+                        nilaiBaru: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                            'sebab' => 'saklar_unggahan_global_nonaktif',
+                            'kunci_setelan' => 'berkas.unggahan_aktif',
+                            'siklus_penandaan' => $prevCount + 1,
+                        ],
+                        alasan: 'Penandaan otomatis saat persyaratan wajib diubah menjadi file-only ketika saklar unggahan global dinonaktifkan.',
+                        dasarIzin: $dasarIzin
+                    );
+                } elseif (! $isNowFileOnly && $isCurrentlyMarked) {
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                        objekTipe: 'jenis_berkas',
+                        objekId: $jb->id,
+                        nilaiLama: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                            'sebab' => 'saklar_unggahan_global_nonaktif',
+                            'penanda_audit_id' => $activeMarking->id,
+                        ],
+                        nilaiBaru: [
+                            'nama' => $jb->nama,
+                            'tahap' => $jb->tahap,
+                            'status_pemenuhan' => 'normal',
+                            'sebab' => 'persyaratan_diperbarui_non_file_only',
+                            'penanda_audit_id' => $activeMarking->id,
+                        ],
+                        alasan: 'Pencabutan penanda tidak dapat dipenuhi karena persyaratan jenis berkas diperbarui menjadi tidak wajib atau mendukung mode non-file.',
+                        dasarIzin: $dasarIzin
+                    );
+                }
+            } elseif ($isCurrentlyMarked) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                    objekTipe: 'jenis_berkas',
+                    objekId: $jb->id,
+                    nilaiLama: [
+                        'nama' => $jb->nama,
+                        'tahap' => $jb->tahap,
+                        'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                        'sebab' => 'saklar_unggahan_global_nonaktif',
+                        'penanda_audit_id' => $activeMarking->id,
+                    ],
+                    nilaiBaru: [
+                        'nama' => $jb->nama,
+                        'tahap' => $jb->tahap,
+                        'status_pemenuhan' => 'normal',
+                        'sebab' => 'saklar_unggahan_global_aktif',
+                        'penanda_audit_id' => $activeMarking->id,
+                    ],
+                    alasan: 'Pencabutan penanda tidak dapat dipenuhi karena saklar unggahan global aktif.',
+                    dasarIzin: $dasarIzin
+                );
+            }
         });
 
         $redirect = redirect()->route('jenis-berkas.index')->with('success', 'Persyaratan jenis berkas berhasil diperbarui.');
