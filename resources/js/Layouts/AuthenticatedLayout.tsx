@@ -283,9 +283,9 @@ export function AuthenticatedLayout({
                             <button
                                 type="submit"
                                 disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-400/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+                                <LogOut aria-hidden="true" className="h-3.5 w-3.5 transition-colors" />
                                 <span>{logout.processing ? 'Keluar…' : 'Keluar sistem'}</span>
                             </button>
                         </form>
