@@ -1,6 +1,10 @@
 # USER ISSUES — SAKIP LLDIKTI WILAYAH XVI
 
-> **Status:** Revisi lengkap berdasarkan baseline 74 User Issues pada branch `development` yang dianalisis 18 September 2026, lalu diselaraskan kembali pada **20 September 2026** terhadap PRD, Data Model, Workflow, Plan Pengembangan, User Stories, dan keputusan **Q31 — enam role resmi**. Role resmi sekarang adalah `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Preset permission role `pic`, eligibility menjadi `penanggung_jawab`, serta mapping user existing tetap **OPEN / decision-gated** sampai dikonfirmasi LLDIKTI/Tim Perencanaan.
+> **Klarifikasi final LLDIKTI Wilayah XVI — 24 September 2026**  
+> Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
+
+
+**Status:** Revisi Q32 — 24 September 2026. Seluruh issue mengikuti jawaban resmi LLDIKTI terbaru; Q31 hanya histori dan tidak lagi menjadi kontrak implementasi.
 
 ## 1. Tujuan
 
@@ -26,46 +30,41 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 - UI mengikuti canonical `design-system.md`; tidak menggunakan raw hex/warna default di luar token.
 - Automated test developer tidak menggantikan walkthrough/UAT dan bukti readiness operasional.
 
-- **Role PIC terpisah dari Pegawai.** Jangan lagi memakai model mental “PIC = Pegawai”. `pic` adalah role resmi keenam.
-- **PIC operasional ≠ otomatis role PIC.** Pada issue RA/Pengukuran/Kegiatan/Notifikasi, istilah PIC berarti Penanggung Jawab/jalur operasional yang lolos permission efektif, scope, assignment, jendela, status, dan business guard. Dokumen resmi belum menetapkan bahwa hanya role `pic` yang boleh menjadi `penanggung_jawab`.
-- **Preset permission role PIC masih OPEN.** Karena `role_permissions` selalu global sedangkan sejumlah permission kerja PIC berscope unit, jangan memberi permission scoped sebagai allow global hanya karena role PIC sudah ada.
-- **Satu user satu role tetap berlaku pada MVP.** Penambahan `pic` tidak membuka multi-role.
-- **Issue decision-gated tidak boleh “diselesaikan dengan asumsi”.** Subtask yang bergantung pada preset PIC/eligibility Penanggung Jawab hanya dapat ditutup setelah ada keputusan tertulis dan sinkronisasi lintas dokumen.
+- **Q32 role final:** hanya `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`; PIC bukan role.
+- **PIC operasional:** konteks user/assignment/grant; bukan nilai `roles.kode`.
+- **Grant Unit:** hanya 7 permission scoped dan digerbangi `delegasi:update`.
+- **PJ:** assignment historis; tidak memberi permission dan tidak berakhir otomatis ketika role berubah.
+- **Role permissions:** halaman read-only; preset berubah via code/seeder/release.
+- **Issue tidak boleh diselesaikan dengan asumsi yang bertentangan dengan Q32.**
 
 ## 4. Format Issue
 
 Setiap issue memuat: **Terkait User Story, Prioritas/Story Point, Traceability, Labels, Scope, Acceptance Criteria, Implementation Tasks, Automated Tests/UAT, dan Definition of Done**. Nomor `ISS-XX.YY` selalu mengikuti `US-XX.YY`.
 
-### 4.1 Kontrak Penyelarasan Q31 untuk Development Issue
+### 4.1 Kontrak Penyelarasan Q32 untuk Development Issue
 
-Hal yang **sudah final** dan boleh langsung dikerjakan:
+Semua issue wajib mengikuti keputusan final 24 September 2026:
 
-- migration/seeder katalog role memuat enam role termasuk `pic`;
-- Assign Peran menampilkan enam pilihan;
-- `user_roles` tetap satu role per user;
-- resolver tetap data-driven melalui `role_permissions`, grant, deny, dan scope;
-- `penanggung_jawab` tetap menjadi histori assignment indikator;
-- F1/F2 tetap memakai provenance versi;
-- React tidak menjadi authorization engine.
+- 5 role final: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`;
+- tidak ada role `pic`; PIC tetap ada sebagai konteks operasional;
+- PIC operasional = user aktif + assignment bila relevan + Grant Unit + business guard;
+- PJ bukan role dan tidak memberi permission;
+- 7 permission unit-scoped final;
+- Grant Unit menggunakan `delegasi:update`;
+- Assign Role/Deny menggunakan `akses:update`;
+- role-permission UI read-only; preset via code/seeder/release;
+- onboarding SSO nonaktif + tanpa role;
+- logout lokal default, logout SSO terpisah;
+- Jadwal pertama 2026, TW I–II periode lampau, TW III–IV normal, tanpa `is_backfill`;
+- IKU 3/IKU 8 mengikuti formula final Q32.
 
-Hal yang **masih OPEN / decision-gated**:
-
-1. preset `role_permissions` bawaan role `pic`;
-2. apakah hanya role `pic` yang eligible menjadi `penanggung_jawab`;
-3. mapping user existing `pegawai` menjadi `pic`;
-4. dampak perubahan role terhadap assignment PIC aktif;
-5. permission default dashboard/audit/read lain untuk role PIC.
-
-Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk development/testing jalur scoped, tetapi **tidak boleh** mengubahnya menjadi keputusan bisnis final atau seeder permission produksi.
-
-
-
-
----
+Bila body issue lama bertentangan dengan poin di atas, **Q32 mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
 ### ISS-01.01 · [Feature] Login Terpusat Menggunakan Single Sign-On (SSO) Keycloak
+
+> **Q32 FINAL:** JIT SSO membuat user `nonaktif` **tanpa role**. Admin mengaktifkan dan assign salah satu 5 role. Logout lokal default; logout SSO aksi terpisah.
 
 **Terkait User Story:** `US-01.01`  
 **Prioritas:** 🔴 P0  
@@ -212,149 +211,82 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 **Terkait User Story:** `US-01.03`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
-**Labels:** `feature`, `auth-rbac`, `P1`, `audit-sensitive`, `frontend`  
-**Plan:** Modul 1: 1.6–1.7, 1.13  
-**PRD:** §7.1–7.5  
-**Workflow:** §21  
-**Data Model/Entitas:** `roles`, `user_roles`
-
-#### User Story
-
-> **Sebagai** Admin atau Superadmin,  
-> **Saya ingin** menetapkan satu peran utama kepada pengguna dengan alasan yang dapat diaudit,  
-> **Sehingga** paket permission bawaan pengguna mengikuti tanggung jawab formalnya.
+**Labels:** `feature`, `auth-rbac`, `audit-sensitive`, `frontend`
 
 #### Kontrak Teknis
 
-- **Dependensi:** Pengguna target telah ada pada `users`; enam role sistem tersedia (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`).
-- **Otorisasi:** `akses:update` dan `pengguna:read`.
-- **Dampak Data:** `user_roles`, `audit_log`.
+- Role final tepat 5: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
+- User JIT boleh belum memiliki role.
+- Gate: `pengguna:read` + `akses:update`.
+- Satu user maksimal satu role pada MVP.
+- Role change tidak mengubah grant/deny/PJ/provenance historis.
 
-#### Acceptance Criteria (QA/UAT)
+#### Acceptance Criteria
 
-- [x] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [x] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [x] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [x] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [x] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [x] **AC-6 (Q31):** Given Form Assign Peran dimuat, When daftar role ditampilkan, Then `PIC` tersedia sebagai pilihan resmi keenam dan user dapat ditetapkan ke role tersebut tanpa melanggar constraint satu user satu role.
+- [ ] Assign role pertama berhasil dengan alasan.
+- [ ] Change role mempertahankan constraint satu role.
+- [ ] `pic` tidak muncul dan tidak dapat disimpan.
+- [ ] Direct request tanpa permission 403.
+- [ ] Grant/deny/PJ tidak berubah sebagai side effect.
+- [ ] PJ aktif tetap aktif setelah role change dan dapat diberi warning monitoring.
 
 #### Implementation Tasks
 
-**A. Persistence / Data Model**
-- [x] Implementasikan/validasi persistence untuk dampak data: `roles`, `user_roles`, `audit_log`.
-- [x] Pastikan seed/migration katalog role memuat tepat enam kode sistem termasuk `pic` dan role tersebut tidak dapat dihapus melalui operasi normal.
-- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-
-**B. Backend / Domain**
-- [x] Implementasikan use-case **Penetapan Peran Utama Pengguna (Assign Peran)** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [x] Penetapan `role = pic` hanya menetapkan role utama; jangan otomatis membuat grant scoped, `penanggung_jawab`, atau permission sintetis.
-- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
-
-**C. Authorization & Audit**
-- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update` dan `pengguna:read`.
-- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
-
-**D. Frontend / UX**
-- [x] Buat/rapikan page dan reusable component React untuk **Penetapan Peran Utama Pengguna (Assign Peran)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [x] Dropdown role menampilkan **Superadmin, Admin, Perencanaan, PIC, Pimpinan, Pegawai**.
-- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [ ] Selaraskan RoleCatalog/seeder/dropdown/test ke 5 role.
+- [ ] Dukung user tanpa role dari onboarding.
+- [ ] Implementasikan transaction + stale-state/concurrency guard + audit.
+- [ ] Pastikan React hanya memakai capability server.
 
 #### Automated Tests / Verification
 
-- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — role `pic` dapat di-assign; keenam role tersedia; `user_roles.unique(user_id)` tetap mencegah multi-role pada MVP.
+- [ ] Assign pertama, change role, invalid role, missing reason, unauthorized, concurrency, no-side-effect.
 
 #### Definition of Done
 
-- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] Semua AC/test lulus; UI sesuai Design System; corrective code Q31 lama sudah diselaraskan.
 
 ### ISS-01.04 · [Feature] Pemberian Grant Izin Tambahan per Unit
 
 **Terkait User Story:** `US-01.04`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
-**Labels:** `feature`, `auth-rbac`, `P1`, `audit-sensitive`, `frontend`  
-**Plan:** Modul 1: 1.8, 1.14  
-**PRD:** §7.1–7.5  
-**Workflow:** §19, §21  
-**Data Model/Entitas:** `user_permission_granted`
-
-#### User Story
-
-> **Sebagai** Admin atau Superadmin,  
-> **Saya ingin** memberikan grant eksplisit beralasan untuk permission berscope unit kepada pengguna tertentu,  
-> **Sehingga** pengecualian akses dapat diberikan secara presisi tanpa mengubah role utama.
+**Labels:** `feature`, `auth-rbac`, `audit-sensitive`, `frontend`
 
 #### Kontrak Teknis
 
-- **Dependensi:** Pengguna target aktif; unit target aktif; permission ada pada katalog.
-- **Otorisasi:** `akses:update`.
-- **Dampak Data:** `user_permission_granted`, `audit_log`.
-- **Rule:** Grant unit bukan pengganti penugasan PIC.
-- **Rule:** Permission dari role tetap global; grant unit dipakai untuk pengecualian operasional yang memerlukan scope.
-- **Rule Q31:** keberadaan role `pic` tidak memindahkan scope unit ke `role_permissions`; grant tetap mekanisme scope selama permission katalog bertipe `unit`.
+Gate Form Grant = **`delegasi:update`**. Pemegang baseline: Perencanaan, Admin, Superadmin.
 
-#### Acceptance Criteria (QA/UAT)
+Hanya 7 permission unit-scoped:
 
-- [ ] **AC-1:** Given permission berkatalog `butuh_scope = unit`, When grant dibuat dengan user, unit, dan alasan valid, Then baris `user_permission_granted` terbentuk dengan `unit_id` terisi.
-- [ ] **AC-2:** Given permission bertipe global, When dicoba diberikan melalui Form Grant Unit, Then validasi menolak karena form ini khusus permission unit-scoped.
-- [ ] **AC-3:** Given permission unit-scoped tanpa unit, When submit dilakukan, Then validasi menolak.
-- [ ] **AC-4:** Given kombinasi user-permission-unit identik sudah ada, When disimpan ulang, Then duplikasi ditolak.
-- [ ] **AC-5:** Given pengguna memiliki role valid apa pun (termasuk `pic`), When Admin memberi grant eksplisit yang valid, Then grant dapat tersimpan sesuai katalog/scope; namun seluruh guard bisnis lain seperti PIC efektif, waktu, F1/F2 dan deny tetap berlaku.
-- [ ] **AC-6:** Given grant dicabut, When pencabutan selesai, Then audit mencatat aktor, alasan, dan grant yang dicabut.
+```text
+pengukuran:create
+pengukuran:update
+rencana_aksi:create
+rencana_aksi:update
+rencana_aksi:ajukan
+kegiatan:create
+kegiatan:update
+```
+
+#### Acceptance Criteria
+
+- [ ] Create/revoke grant valid dengan user aktif, unit aktif, alasan.
+- [ ] Permission global, termasuk `rencana_aksi:read` dan `kegiatan:read`, ditolak oleh Form Grant Unit.
+- [ ] Missing unit/reason/duplicate ditolak.
+- [ ] Direct request tanpa `delegasi:update` 403.
+- [ ] Grant/revoke tidak mengubah role atau assignment PJ.
+- [ ] Deny tetap menang.
 
 #### Implementation Tasks
 
-**A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `user_permission_granted`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-
-**B. Backend / Domain**
-- [ ] Validasi permission dari katalog: Form Grant Unit hanya menerima permission `butuh_scope = unit`, `unit_id` wajib, dan alasan wajib.
-- [ ] Jangan membatasi grant berdasarkan nama role target; guard domain (PIC efektif/waktu/F1/F2) tetap berjalan terpisah.
-
-**C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
-
-**D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pemberian Grant Izin Tambahan per Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
-
-#### Automated Tests / Verification
-
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given permission berkatalog `butuh_scope = unit`, When grant dibuat dengan user, unit, dan alasan valid, Then baris `user_permission_granted` terbentuk dengan `unit_id` terisi.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given permission bertipe global, When dicoba diberikan melalui Form Grant Unit, Then validasi menolak karena form ini khusus permission unit-scoped.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given permission unit-scoped tanpa unit, When submit dilakukan, Then validasi menolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kombinasi user-permission-unit identik sudah ada, When disimpan ulang, Then duplikasi ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengguna memiliki role valid apa pun termasuk `pic`, When Admin memberi grant eksplisit yang valid, Then grant dapat tersimpan sesuai scope; seluruh guard bisnis lain tetap berlaku.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given grant dicabut, When pencabutan selesai, Then audit mencatat aktor, alasan, dan grant yang dicabut.
-- [ ] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
+- [ ] Tambahkan/sinkronkan `delegasi:update`.
+- [ ] Ubah `UNIT_SCOPED` menjadi tepat 7 kode.
+- [ ] Ubah policy/controller/UI/tests dari `akses:update` ke `delegasi:update` untuk grant.
+- [ ] Audit create/revoke dengan actor, reason, permission, unit, dasar izin.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] Resolver, UI, audit, test, dan seeder konsisten dengan Q32.
 
 ### ISS-01.05 · [Security] Pencabutan Izin Eksplisit (Deny)
 
@@ -381,11 +313,11 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 #### Acceptance Criteria (QA/UAT)
 
-- [x] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [x] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [x] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [x] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [x] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [ ] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [ ] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [ ] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [ ] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [ ] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
 
 #### Implementation Tasks
 
@@ -394,37 +326,37 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [x] Implementasikan resolver deny global/unit dengan presedens **deny menang** terhadap allow role maupun grant.
-- [x] Pastikan pencabutan deny langsung tercermin pada request berikutnya tanpa cache izin statis yang stale.
+- [ ] Implementasikan resolver deny global/unit dengan presedens **deny menang** terhadap allow role maupun grant.
+- [ ] Pastikan pencabutan deny langsung tercermin pada request berikutnya tanpa cache izin statis yang stale.
 
 **C. Authorization & Audit**
-- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update`.
-- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `akses:update`.
+- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [x] Buat/rapikan page dan reusable component React untuk **Pencabutan Izin Eksplisit (Deny)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [ ] Buat/rapikan page dan reusable component React untuk **Pencabutan Izin Eksplisit (Deny)**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
-- [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
+- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [ ] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
 
-- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-01.06 · [Security] Transparansi Izin Pengguna — Jelaskan Izin
 
@@ -455,7 +387,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
 - [ ] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
 - [ ] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
-- [ ] **AC-5 (Q31):** Given target user ber-role `pic`, When halaman dimuat, Then sistem menampilkan izin efektif aktual berdasarkan `role_permissions`/grant/deny yang benar-benar ada; tidak ada permission sintetis hanya karena nama role PIC.
+- [ ] **AC-5 (Q31):** Given target user ber-PIC operasional (bukan role), When halaman dimuat, Then sistem menampilkan izin efektif aktual berdasarkan `role_permissions`/grant/deny yang benar-benar ada; tidak ada permission sintetis hanya karena nama role PIC.
 
 #### Implementation Tasks
 
@@ -481,7 +413,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
 
-- [ ] TEST-Q31: Buat Pest Feature/Unit test untuk user role `pic` dengan kombinasi role/grant/deny berbeda dan pastikan halaman menjelaskan permission efektif aktual tanpa hardcode role.
+- [ ] TEST-Q31: Buat Pest Feature/Unit test untuk user PIC operasional (bukan role) dengan kombinasi role/grant/deny berbeda dan pastikan halaman menjelaskan permission efektif aktual tanpa hardcode role.
 
 #### Definition of Done
 
@@ -491,81 +423,42 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
-### ISS-01.07 · [Security] Perubahan Isi Role Permissions Secara Terkendali
+### ISS-01.07 · [Security] Peran & Izin Read-Only + Preset Permission via Seeder
 
 **Terkait User Story:** `US-01.07`  
-**Prioritas:** 🟠 P2  
+**Prioritas:** 🔴 P0 corrective alignment  
 **Story Points:** 5  
-**Labels:** `security`, `auth-rbac`, `P2`, `audit-sensitive`, `frontend`  
-**Plan:** Modul 1: 1.22–1.23  
-**PRD:** §7.3–7.5, §25  
-**Workflow:** §19, §21–23  
-**Data Model/Entitas:** `role_permissions`
-
-#### User Story
-
-> **Sebagai** Superadmin / pengelola teknis berwenang,  
-> **Saya ingin** menambah atau mencabut permission dari role sistem secara terkontrol,  
-> **Sehingga** perubahan hak seluruh pemegang role dapat dilakukan tanpa query SQL manual dan tetap dapat diaudit.
+**Labels:** `security`, `auth-rbac`, `audit-sensitive`, `frontend`
 
 #### Kontrak Teknis
 
-- **Dependensi:** Enam role sistem dan katalog permission tersedia; audit log aktif. Untuk preset role PIC final, keputusan bisnis Q31 wajib tersedia.
-- **Otorisasi:** Mekanisme administratif terproteksi untuk perubahan `role_permissions` dengan alasan wajib.
-- **Dampak Data:** `role_permissions`, `audit_log`.
+- UI `Peran & Izin` read-only, gate `pengguna:read`.
+- Tidak ada mutation endpoint role-permission.
+- Preset 5 role berasal dari code/seeder/release.
+- Seeder delta wajib audit before/after + alasan/sumber rilis.
+- Seeder tanpa delta idempoten.
+- 7 permission unit-scoped tidak masuk role-global untuk mengganti grant.
 
-#### Acceptance Criteria (QA/UAT)
+#### Acceptance Criteria
 
-- [ ] **AC-1:** Given role dan permission valid, When permission ditambahkan dengan alasan, Then `role_permissions` berubah dan audit menyimpan daftar sebelum/sesudah.
-- [ ] **AC-2:** Given permission dicabut dari role, When perubahan disimpan, Then seluruh pemegang role langsung kehilangan allow tersebut pada request berikutnya tanpa re-assign individual.
-- [ ] **AC-3:** Given alasan kosong, When perubahan dicoba, Then ditolak.
-- [ ] **AC-4:** Given role memiliki dua pengguna berbeda, When isi role berubah, Then resolver menunjukkan perubahan efektif pada keduanya.
-- [ ] **AC-5:** Given deny individual masih ada, When permission baru ditambahkan ke role, Then deny yang cocok tetap menang.
-- [ ] **AC-6 (Q31):** Given role target `pic` dan permission berkatalog `butuh_scope = unit`, When permission hendak dimasukkan ke preset role, Then perubahan tidak boleh dianggap valid hanya karena PIC adalah role resmi; harus ada keputusan eksplisit bila permission tersebut memang dimaksudkan global.
+- [ ] User berizin dapat melihat 5 role dan presetnya.
+- [ ] User tanpa `pengguna:read` 403.
+- [ ] Tidak ada tombol/form add/revoke/edit permission role.
+- [ ] Mutation route/controller/service lama dihapus/nonaktif.
+- [ ] Perubahan preset via release menghasilkan audit delta.
+- [ ] Tidak ada role `pic` di katalog/fixture/test.
 
 #### Implementation Tasks
 
-**A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `role_permissions`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-
-**B. Backend / Domain**
-- [ ] Perubahan `role_permissions` harus melalui service/command/form terproteksi dengan alasan wajib dan audit before/after; tidak melalui query SQL manual.
-- [ ] **Decision gate PIC:** jangan seed/menetapkan preset permission produksi role `pic` sebelum daftar final disahkan LLDIKTI/Tim Perencanaan.
-- [ ] Setelah keputusan tersedia, implementasikan daftar PIC **persis** dari keputusan dan sinkronkan seeder, resolver test, dokumentasi, dan fixture.
-
-**C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Mekanisme administratif terproteksi untuk perubahan `role_permissions` dengan alasan wajib.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
-
-**D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Perubahan Isi Role Permissions Secara Terkendali**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
-
-#### Automated Tests / Verification
-
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given role dan permission valid, When permission ditambahkan dengan alasan, Then `role_permissions` berubah dan audit menyimpan daftar sebelum/sesudah.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given permission dicabut dari role, When perubahan disimpan, Then seluruh pemegang role langsung kehilangan allow tersebut pada request berikutnya tanpa re-assign individual.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given alasan kosong, When perubahan dicoba, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given role memiliki dua pengguna berbeda, When isi role berubah, Then resolver menunjukkan perubahan efektif pada keduanya.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given deny individual masih ada, When permission baru ditambahkan ke role, Then deny yang cocok tetap menang.
-- [ ] TEST-6 (Q31): Sebelum preset PIC diputuskan, test memastikan seeder tidak mengarang permission PIC. Setelah keputusan tersedia, fixture/test membandingkan preset PIC seeded dengan daftar keputusan final dan memastikan permission unit-scoped tidak menjadi global tanpa dasar eksplisit.
+- [ ] Hapus editor yang sebelumnya diimplementasikan PR #23.
+- [ ] Implementasikan read-only page.
+- [ ] Hapus mutation endpoints.
+- [ ] Sinkronkan seeder + audit delta.
+- [ ] Update test/fixture ke 5 role dan 7 scoped permissions.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Subtask preset PIC hanya dapat ditutup bila keputusan tertulis tersedia; status OPEN tidak boleh dianggap selesai dengan preset kosong/tebakan.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
-
-
----
+- [ ] Corrective PR ke `development` lulus review/QA dan tidak ada editor role-permission tersisa.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 
@@ -774,6 +667,8 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 ### ISS-02.04 · [Feature] Penyusunan Sasaran Strategis & Indikator Kinerja
 
+> **Q32 FINAL:** IKU 8 = `n/t × 100%`, t total publikasi seluruh PTS; jangan hardcode 84. IKU 3 harus mendukung formula dua input.
+
 **Terkait User Story:** `US-02.04`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 8  
@@ -906,6 +801,8 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 ### ISS-02.06 · [Feature] Konfigurasi Komponen Angka Indikator (Data-Driven)
 
+> **Q32 FINAL:** AC lima komponen IKU 3 superseded. Gunakan tepat dua input `sakip` + `zi_wbk`, koefisien 0,5 masing-masing.
+
 **Terkait User Story:** `US-02.06`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 8  
@@ -931,7 +828,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 - [ ] **AC-1:** Given indikator `rasio_persen`, When definisi disimpan, Then sistem mensyaratkan minimal satu pembilang dan tepat satu penyebut efektif.
 - [ ] **AC-2:** Given indikator `penjumlahan`, When definisi disimpan, Then minimal satu komponen penjumlah tersedia.
-- [ ] **AC-3:** Given IKU 3 memakai keputusan Q5, Then tersedia lima komponen datar `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi`, masing-masing koefisien 0,5; subtotal SAKIP hanya nilai turunan tampilan.
+- [ ] **AC-3:** Given IKU 3 dikonfigurasi, Then tersedia tepat dua input `sakip` dan `zi_wbk` dengan koefisien 0,5 dan formula `(sakip + zi_wbk) / 2`.
 - [ ] **AC-4:** Given kode komponen sama pada indikator yang sama, When submit, Then constraint unik menolak.
 - [ ] **AC-5:** Given definisi komponen diubah setelah snapshot historis dirujuk, Then snapshot lama tidak berubah.
 
@@ -974,6 +871,8 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-02.07 · [Feature] Penetapan Baseline & Target Tahunan
+
+> **Q32 FINAL:** baseline IKU 3 2025 = 74,2; target 2026 = 76,25; jangan anggap selisih sebagai tren; 66,395/87,08 bukan realisasi.
 
 **Terkait User Story:** `US-02.07`  
 **Prioritas:** 🟡 P1  
@@ -1179,6 +1078,8 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 ## Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill
 
 ### ISS-03.01 · [Feature] Penyusunan Master Periode, Jadwal Tahunan, dan Jendela Periode
+
+> **Q32 FINAL:** Jadwal pertama 2026; TW I–II periode lampau oleh Perencanaan, TW III–IV normal; tidak ada flag backfill.
 
 **Terkait User Story:** `US-03.01`  
 **Prioritas:** 🟡 P1  
@@ -1451,65 +1352,31 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
-### ISS-03.05 · [Feature] Aktivasi Retroaktif dan Backfill Tahun Historis
+### ISS-03.05 · [Feature] Pengisian Periode Lampau 2026 oleh Perencanaan
 
 **Terkait User Story:** `US-03.05`  
-**Prioritas:** 🟠 P2  
-**Story Points:** 8  
-**Labels:** `feature`, `schedule-snapshot`, `P2`, `backend`  
-**Plan:** Modul 3: 3.11; Modul 5: 5.17  
-**PRD:** §12.6, §17.6  
-**Workflow:** §15  
-**Data Model/Entitas:** historical backfill
+**Prioritas:** 🟡 P1  
+**Story Points:** 5  
+**Labels:** `feature`, `schedule`, `P1`, `audit-sensitive`
 
-#### User Story
+#### Scope
 
-> **Sebagai** Tim Perencanaan,  
-> **Saya ingin** membentuk konteks jadwal historis dan memasukkan data final masa lalu secara eksplisit,  
-> **Sehingga** data tahun lampau dapat dimigrasikan tanpa memalsukan waktu aktivasi atau membuat komponen rekaan.
+Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai < activated_at`, tanpa flag/backfill mode khusus. Perencanaan mengisi periode lampau; PK 2026 tetap wajib; gerbang RA/komponen/bukti normal dikecualikan pada jalur ini.
 
-#### Kontrak Teknis
+#### Acceptance Criteria
 
-- **Dependensi:** Sumber data historis resmi tersedia; Perencanaan menetapkan periode dan indikator yang dibackfill.
-- **Otorisasi:** Permission Perencanaan global + mekanisme jadwal/backfill yang teraudit.
-- **Dampak Data:** `jadwal_tahunan`, snapshot, pengukuran historis, versi, `audit_log`.
+- [ ] TW I–II terdeteksi otomatis sebagai periode lampau.
+- [ ] Tidak ada `is_backfill`/`retroaktif` sebagai state domain baru.
+- [ ] Perencanaan dapat mengisi periode lampau; user scoped tetap tunduk jendela.
+- [ ] Tahun 2025 tidak dibuat sebagai Jadwal/Pengukuran.
+- [ ] Aktivasi dan pengisian tetap teraudit.
 
-#### Acceptance Criteria (QA/UAT)
+#### Automated Tests
 
-- [ ] **AC-1:** Given jadwal tahun lampau diaktifkan, When aktivasi retroaktif dilakukan, Then `activated_at` mencatat waktu aktivasi sebenarnya, bukan tanggal palsu tahun lampau.
-- [ ] **AC-2:** Given skor final historis resmi tidak memiliki rincian komponen, When jalur backfill digunakan, Then nilai disimpan dengan `sumber_nilai = historis`, sumber dan alasan wajib.
-- [ ] **AC-3:** Given jalur historis digunakan, Then tipe indikator master/snapshot tidak diubah menjadi manual dan tidak dibuat komponen dummy.
-- [ ] **AC-4:** Given backfill tanpa RA digunakan sebagai pengecualian, Then alasan/sumber dan pengecualian gerbang dibekukan ke `pengukuran_versi` dan audit.
-- [ ] **AC-5:** Given data historis tidak memiliki sumber yang dapat dibuktikan, When backfill dicoba, Then ditolak.
-
-#### Implementation Tasks
-
-**A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`, snapshot, pengukuran historis, versi, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-
-**B. Backend / Domain**
-- [ ] Jalur backfill historis harus membekukan `sumber_nilai = historis`, sumber, alasan, dan pengecualian gerbang; jangan membuat komponen dummy atau memalsukan `activated_at`.
-
-**C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Permission Perencanaan global + mekanisme jadwal/backfill yang teraudit.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
-
-#### Automated Tests / Verification
-
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahun lampau diaktifkan, When aktivasi retroaktif dilakukan, Then `activated_at` mencatat waktu aktivasi sebenarnya, bukan tanggal palsu tahun lampau.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given skor final historis resmi tidak memiliki rincian komponen, When jalur backfill digunakan, Then nilai disimpan dengan `sumber_nilai = historis`, sumber dan alasan wajib.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur historis digunakan, Then tipe indikator master/snapshot tidak diubah menjadi manual dan tidak dibuat komponen dummy.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given backfill tanpa RA digunakan sebagai pengecualian, Then alasan/sumber dan pengecualian gerbang dibekukan ke `pengukuran_versi` dan audit.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given data historis tidak memiliki sumber yang dapat dibuktikan, When backfill dicoba, Then ditolak.
-
-#### Definition of Done
-
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Uji tanggal untuk TW I–II vs TW III–IV.
+- [ ] Uji bypass hanya jalur Perencanaan yang memang diizinkan.
+- [ ] Uji PK 2026 tetap menjadi gerbang.
+- [ ] Uji tidak ada flag backfill.
 
 ### ISS-03.06 · [Feature] Revisi Resmi Jendela PIC
 
@@ -1582,86 +1449,45 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 ## Bagian 4 — Penugasan Penanggung Jawab (PIC)
 
-### ISS-04.01 · [Feature] Penetapan, Pergantian, dan Resolusi PIC Efektif
+### ISS-04.01 · [Feature] Penetapan & Pergantian Penanggung Jawab Indikator
 
 **Terkait User Story:** `US-04.01`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 8  
-**Labels:** `feature`, `pic`, `P1`, `audit-sensitive`, `frontend`  
-**Plan:** Modul 4: 4.1–4.5  
-**PRD:** §13  
-**Workflow:** §6, §23  
-**Data Model/Entitas:** `penanggung_jawab`
+**Labels:** `feature`, `assignment`, `audit-sensitive`, `frontend`
 
-#### User Story
+#### Kontrak Teknis Final Q32
 
-> **Sebagai** Tim Perencanaan atau Superadmin,  
-> **Saya ingin** menetapkan dan mengganti PIC indikator secara append-only dengan tanggal mulai berlaku,  
-> **Sehingga** hak kerja mengikuti penanggung jawab efektif tanpa menghapus sejarah penugasan.
+- Target PJ dapat berupa **user aktif mana pun**; tidak ada syarat role `pic`.
+- Penetapan dilakukan Perencanaan/Superadmin sesuai `penanggung_jawab:update`.
+- Assignment tidak memberikan permission.
+- User tetap membutuhkan Grant Unit yang cocok untuk hak kerja scoped.
+- Calon PJ tanpa grant: **warning, bukan blokir**.
+- Sistem menyediakan daftar **PJ aktif tanpa hak isi**.
+- Pergantian menambah histori baru; baris lama tidak ditimpa.
+- Perubahan role user tidak mengakhiri assignment.
 
-#### Kontrak Teknis
+#### Acceptance Criteria
 
-- **Dependensi:** Indikator dan pengguna aktif. Validasi eligibility berdasarkan role bersifat **decision-gated Q31** dan menunggu keputusan resmi.
-- **Otorisasi:** `penanggung_jawab:update` (sensitif).
-- **Dampak Data:** `penanggung_jawab`, `audit_log`.
+- [ ] Penugasan awal user aktif berhasil.
+- [ ] User nonaktif ditolak.
+- [ ] User tanpa grant tetap dapat ditetapkan dengan warning.
+- [ ] Pergantian PJ wajib alasan dan menjaga histori.
+- [ ] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
+- [ ] Role change tidak menonaktifkan PJ.
+- [ ] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
 
-#### Acceptance Criteria (QA/UAT)
+#### Automated Tests
 
-- [ ] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
-- [ ] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
-- [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
-- [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
-- [ ] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
-- [ ] **AC-6 (Q31-OPEN):** Given keputusan eligibility role terhadap `penanggung_jawab` belum tersedia, When assignment diimplementasikan, Then tidak boleh ada constraint hardcoded yang hanya menerima role `pic`; rule tersebut baru menjadi final setelah keputusan resmi.
-
-#### Implementation Tasks
-
-**A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `penanggung_jawab`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-
-**B. Backend / Domain**
-- [ ] Resolver PIC efektif harus memilih penugasan terbaru dengan `tanggal_mulai_berlaku <= tanggal tindakan`; hak kerja tidak boleh mengandalkan `penanggung_jawab_id` historis pada header saja.
-- [ ] **Decision gate Q31:** jangan menambahkan validation/DB constraint `penanggung_jawab.user_id -> role pic` sebelum keputusan eligibility tersedia.
-- [ ] Setelah keputusan eligibility diterbitkan, implementasikan rule di service/Form Request dan test perubahan role terhadap assignment aktif tanpa menulis ulang histori.
-
-**C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `penanggung_jawab:update` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
-
-**D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penetapan, Pergantian, dan Resolusi PIC Efektif**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
-
-#### Automated Tests / Verification
-
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
-- [ ] TEST-6 (Q31): Selama eligibility masih OPEN, test memastikan assignment tidak gagal karena hardcode role PIC. Setelah keputusan final, test diperbarui sesuai rule resmi (mis. hanya PIC jika memang diputuskan demikian).
+- [ ] Assignment awal/pergantian/histori.
+- [ ] User nonaktif.
+- [ ] Warning tanpa grant.
+- [ ] Monitoring PJ tanpa hak isi.
+- [ ] Regression role change tidak menghapus assignment.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Subtask eligibility role hanya ditutup setelah keputusan Q31 tersedia dan dokumen sumber telah disinkronkan.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
-
-
----
-
-
-> **Catatan Q31 untuk Bagian 5–14:** istilah **PIC** pada issue operasional berarti PIC/Penanggung Jawab efektif pada konteks indikator atau pekerjaan terkait. Jangan mengotorisasi hanya dengan `role === 'pic'`. Authorization tetap: permission efektif + scope/grant bila diperlukan + assignment PIC efektif bila relevan + deny + jendela + status + business guard. Preset permission role PIC dan eligibility `penanggung_jawab` tetap decision-gated sampai dikonfirmasi.
-
-## Bagian 5 — Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi
+- [ ] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
 
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 
@@ -2822,72 +2648,22 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
-### ISS-07.05 · [Feature] Backfill Nilai Historis Final
+### ISS-07.05 · [Feature] Pengisian Nilai Periode Lampau oleh Perencanaan
 
 **Terkait User Story:** `US-07.05`  
-**Prioritas:** 🟠 P2  
-**Story Points:** 8  
-**Labels:** `feature`, `pengukuran`, `P2`, `frontend`  
-**Plan:** Modul 3: 3.11; Modul 5: 5.17  
-**PRD:** §12.6, §17.6, §19  
-**Workflow:** §15  
-**Data Model/Entitas:** historical measurement
+**Prioritas:** 🟡 P1  
+**Story Points:** 5
 
-#### User Story
+#### Scope
 
-> **Sebagai** Tim Perencanaan,  
-> **Saya ingin** memasukkan nilai final historis tanpa memalsukan komponen yang tidak tersedia,  
-> **Sehingga** arsip capaian lama dapat dimuat secara jujur dan dapat diaudit.
+Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela normal telah lewat. Tidak membangun tipe pengukuran/backfill khusus.
 
-#### Kontrak Teknis
+#### Acceptance Criteria
 
-- **Dependensi:** Data historis final memiliki sumber resmi dan alasan; dijalankan oleh Perencanaan pada jalur backfill.
-- **Otorisasi:** Permission global Perencanaan + guard backfill.
-- **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`.
-
-#### Acceptance Criteria (QA/UAT)
-
-- [ ] **AC-1:** Given nilai historis final tersedia tetapi rincian komponen tidak ada, When backfill dilakukan, Then `sumber_nilai = historis` dengan nilai non-NULL, `alasan_historis`, dan `sumber_historis` wajib.
-- [ ] **AC-2:** Given backfill memakai nilai final, Then tipe perhitungan master/snapshot tidak diubah.
-- [ ] **AC-3:** Given RA historis tidak tersedia, When pengecualian backfill digunakan, Then alasan dan jenis pengecualian dibekukan dalam `pengukuran_versi` dan audit.
-- [ ] **AC-4:** Given sumber resmi tidak tersedia, When submit backfill, Then ditolak.
-- [ ] **AC-5:** Given backfill disahkan, Then laporan menandai sumber historis dan tetap menggunakan versi resmi.
-
-#### Implementation Tasks
-
-**A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
-
-**B. Backend / Domain**
-- [ ] Backfill final historis wajib sumber/alasan dan tidak mengubah tipe indikator/snapshot; pengecualian RA harus eksplisit dan dibekukan pada versi.
-
-**C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Permission global Perencanaan + guard backfill.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
-
-**D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Backfill Nilai Historis Final**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-
-#### Automated Tests / Verification
-
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nilai historis final tersedia tetapi rincian komponen tidak ada, When backfill dilakukan, Then `sumber_nilai = historis` dengan nilai non-NULL, `alasan_historis`, dan `sumber_historis` wajib.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given backfill memakai nilai final, Then tipe perhitungan master/snapshot tidak diubah.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given RA historis tidak tersedia, When pengecualian backfill digunakan, Then alasan dan jenis pengecualian dibekukan dalam `pengukuran_versi` dan audit.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given sumber resmi tidak tersedia, When submit backfill, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given backfill disahkan, Then laporan menandai sumber historis dan tetap menggunakan versi resmi.
-
-#### Definition of Done
-
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Pengisian periode lampau menggunakan data Jadwal/Snapshot yang sah.
+- [ ] Tidak ada flag backfill pada Pengukuran.
+- [ ] 66,395 dan 87,08 tidak digunakan sebagai realisasi IKU 3 TW II.
+- [ ] Audit merekam aktor dan dasar izin.
 
 ### ISS-07.06 · [Feature] Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -3348,7 +3124,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
 - [ ] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
 - [ ] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
-- [ ] **AC-6 (Q31):** Given user ber-role `pic`, When membuka dashboard, Then akses ditentukan oleh `dashboard:read` efektif. Issue tidak mengasumsikan permission tersebut berasal dari role PIC sampai preset PIC dikonfirmasi.
+- [ ] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When membuka dashboard, Then akses ditentukan oleh `dashboard:read` efektif. Issue tidak mengasumsikan permission tersebut berasal dari role PIC sampai preset PIC dikonfirmasi.
 
 #### Implementation Tasks
 
@@ -3375,7 +3151,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator arsip, Then tidak menjadi kewajiban baru.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
 
-- [ ] TEST-6 (Q31): Uji user role `pic` dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
+- [ ] TEST-6 (Q31): Uji user PIC operasional (bukan role) dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
 
 #### Definition of Done
 
@@ -3979,7 +3755,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 ## Bagian 12 — Alert Kontekstual & Notifikasi
 
 
-> **Aturan Q31 penerima notifikasi PIC:** “PIC terkait” berarti penerima efektif berdasarkan assignment/work item yang relevan, bukan seluruh akun yang memiliki role `pic`. Pemilihan penerima harus menggunakan data domain yang benar; tautan notifikasi tetap melewati authorization saat dibuka.
+> **Aturan Q31 penerima notifikasi PIC:** “PIC terkait” berarti penerima efektif berdasarkan assignment/work item yang relevan, bukan seluruh akun yang memiliki PIC operasional (bukan role). Pemilihan penerima harus menggunakan data domain yang benar; tautan notifikasi tetap melewati authorization saat dibuka.
 
 ### ISS-12.01 · [Feature] Banner Pengingat Kontekstual
 
@@ -4069,7 +3845,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - **Otorisasi:** Seluruh pengguna autentikasi sesuai event yang berhak dilihat.
 - **Dampak Data:** Penyimpanan notifikasi/read-state sesuai implementasi.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user role `pic`.
+- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -4137,7 +3913,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - **Otorisasi:** Event sistem setelah waktu `pengisian_mulai`/pembukaan resmi.
 - **Dampak Data:** Queue/job dan log status pengiriman tanpa secret.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user role `pic`.
+- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -4200,7 +3976,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - **Otorisasi:** Scheduler sistem.
 - **Dampak Data:** Queue/log pengiriman.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user role `pic`.
+- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -4325,7 +4101,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - **Otorisasi:** Dipicu event bisnis setelah commit.
 - **Dampak Data:** Queue WA/Email dan log status.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user role `pic`.
+- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -4938,7 +4714,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 - [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
 - [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then tersedia minimal satu akun uji untuk masing-masing dari enam role resmi; skenario authorization PIC yang bergantung preset/eligibility tidak dianggap final sampai keputusan OPEN ditutup.
+- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then tersedia minimal satu akun uji untuk masing-masing dari lima role resmi; skenario authorization PIC yang bergantung preset/eligibility tidak dianggap final sampai keputusan OPEN ditutup.
 
 #### Implementation Tasks
 
@@ -5092,7 +4868,7 @@ Selama OPEN, developer **boleh** memakai grant eksplisit yang valid untuk develo
 
 ### 5.1 Issue yang Dapat Berjalan Sekarang
 
-- `ISS-01.03` — katalog/Assign Peran enam role.
+- `ISS-01.03` — katalog/Assign Peran lima role.
 - `ISS-01.04`/`ISS-01.05`/`ISS-01.06` — grant, deny, explain-permission tetap generic.
 - Issue domain RA/Pengukuran/Kegiatan dapat dikembangkan dengan resolver permission + scope + assignment + business guard.
 - Notification issue dapat memakai PIC efektif dari assignment/work item.
@@ -5115,7 +4891,7 @@ Decision gate dianggap selesai bila:
 3. PRD, Data Model, Workflow, Plan, User Stories, dan User Issues konsisten;
 4. seeder/fixture/test diperbarui;
 5. tidak ada permission unit-scoped yang berubah menjadi global tanpa keputusan eksplisit;
-6. akun UAT enam role dan skenario PIC telah didefinisikan.
+6. akun UAT lima role final dan skenario PIC operasional telah didefinisikan.
 
 ---
 

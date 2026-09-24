@@ -13,7 +13,7 @@ Commit branch saat pembaruan terakhir: `6307164c39b084a81e9827499c26f692e1d27576
 
 Pengguna menyampaikan bahwa PM telah memperbarui Q4 pada branch `development` dan menyetujui penggunaan rekomendasi per pertanyaan grill untuk sisanya, lalu meminta dokumen diselaraskan. Dokumen ini mencatat hasil penyelarasan tersebut; bukan klaim bahwa implementasi, UAT, penyediaan layanan, atau pengesahan setiap angka operasional sudah selesai.
 
-Pembaruan **20 September 2026** menambahkan keputusan baru berdasarkan informasi langsung dari pihak **LLDIKTI Wilayah XVI** yang disampaikan kepada tim bahwa SAKIP menggunakan **enam role resmi**:
+Pembaruan **20 September 2026 (Q31)** sempat mencatat enam role berdasarkan klarifikasi awal. **Klarifikasi final 24 September 2026 (Q32) menggantikan Q31 untuk implementasi aktif:** role bawaan final berjumlah lima dan PIC bukan role sistem. Histori Q31 dipertahankan untuk traceability.
 
 1. `superadmin`
 2. `admin`
@@ -22,25 +22,13 @@ Pembaruan **20 September 2026** menambahkan keputusan baru berdasarkan informasi
 5. `pimpinan`
 6. `pegawai`
 
-Empat dokumen resmi yang diterima dari LLDIKTI (PRD, Workflow, Data Model, dan Plan Pengembangan) masih memuat baseline lama lima role (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`). Karena itu, Q31 diperlakukan sebagai **keputusan pengganti yang harus diselaraskan ke dokumen-dokumen tersebut**, bukan alasan untuk mengubah aturan lain yang belum dikonfirmasi.
-
-Yang sudah dipastikan oleh Q31 hanya:
-- jumlah role resmi menjadi enam;
-- `pic` adalah role tersendiri;
-- katalog role, Assign Peran, seeder, test, dan penyebutan jumlah role harus diperbarui.
-
-Yang **belum** dipastikan dan tidak boleh diasumsikan:
-- apakah hanya user role `pic` yang boleh dipilih pada `penanggung_jawab`;
-- preset permission bawaan role `pic`;
-- apakah permission kerja PIC tetap seluruhnya melalui grant unit atau sebagian melekat pada role;
-- mapping/migrasi user existing dari `pegawai` ke `pic`;
-- perubahan lain pada workflow/domain di luar konsekuensi langsung penambahan role.
+Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`).
 
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
 - Q5 mengikuti rekomendasi terbaru setelah analisis Excel: **empat subskor SAKIP dan satu nilai ZI**, dengan subtotal SAKIP dan hasil gabungan ditampilkan. Ini menggantikan rekomendasi awal dua nilai final.
-- Q31 menetapkan enam role resmi dan menambahkan `pic` sebagai role sistem tersendiri. Mekanisme `penanggung_jawab` indikator **tetap dipertahankan sebagaimana dokumen resmi**, tetapi hubungan final role `pic` dengan eligibility assignment dan preset permission masih menunggu konfirmasi.
+- Q31 menetapkan enam role resmi dan menambahkan `pic` sebagai role sistem. Keputusan ini **tidak menghapus mekanisme `penanggung_jawab` indikator** karena role dan penugasan indikator menjawab dua hal yang berbeda.
 - PRD menetapkan perilaku, Data Model menetapkan struktur/integritas, Workflow menetapkan alur, Plan menetapkan task/Dependency/DoD. Perubahan pada satu sumber harus diselaraskan ke sumber terdampak; tanggal file bukan hierarki pengesahan otomatis.
 - PM mengelola baseline dan keputusan pengganti; Tim Perencanaan mengesahkan aturan bisnis/definisi angka serta UAT; penanggung jawab teknis menetapkan implementasi. Nama penerima walkthrough/UAT dan pemilik layanan tetap harus dicatat.
 - Parameter yang belum tersedia tetap terbuka. Persetujuan rekomendasi untuk meminta definisi/pihak/tanggal tidak otomatis menyediakan jawabannya.
@@ -64,8 +52,8 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q10 | Koreksi salah input terhadap sumber resmi menerbitkan versi snapshot pengganti beralasan/bukti, mempertahankan versi lama dan memerlukan pengesahan baru untuk hasil resmi yang dikoreksi. | PRD §12.5–12.7; Model jadwal_snapshot |
 | Q11 | Laporan disahkan mempertahankan target RA, klaim, narasi dan bukti yang diperiksa; perubahan kerja tidak memperbarui laporan historis diam-diam. | PRD §14.6, §22.4; Model tabel versi |
 | Q12 | Detail RA/kegiatan dan bukti PIC dibatasi unit berizin, termasuk deny; ringkasan umum tetap sesuai baseline. | PRD §7; Model permission; Workflow §19 |
-| Q13 | Grant unit dan PIC efektif sama-sama diperlukan untuk menangani RA/pengukuran indikator. Perencanaan memakai pengecualian global; kegiatan tetap kolaboratif per unit. | PRD §13, §14.8, §19.3 |
-| Q14 | Admin tidak memiliki izin substantif secara bawaan; grant eksplisit beralasan dapat memberi pengecualian, tetap tunduk deny/scope/PIC/waktu/F1. | PRD §7.3–7.6 |
+| Q13 | Jalur kerja PIC atas RA/pengukuran memerlukan cakupan unit yang sah dan PIC indikator efektif; setelah Q31, jalur operasional normal juga menggunakan role `pic`. Perencanaan tetap memakai kewenangan global; kegiatan tetap kolaboratif sesuai permission unit. | PRD §7, §13, §14.8, §19.3; Q31 |
+| Q14 | Admin tidak memiliki izin substantif secara bawaan; grant eksplisit beralasan dapat memberi pengecualian sesuai katalog, tetap tunduk deny/scope/business guard/waktu/F1. Grant tidak otomatis mengubah role seseorang menjadi PIC dan tidak otomatis menjadikannya penanggung jawab indikator. | PRD §7.3–7.6; Q31 |
 | Q15 | F1/F2 berlaku untuk RA dan Pengukuran. Gunakan identitas/jalur pengaju yang dibekukan saat pengajuan, bukan pembuat draft atau role terkini; self-approval Perencanaan ditandai. | PRD §7.6; Workflow §20; Model versi |
 | Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. | PRD §12.3; Plan 3.4 |
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. | PRD §12.3, §31 |
@@ -82,26 +70,122 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q28 | Anggaran kegiatan tidak diinput/ditampilkan/divalidasi pada MVP; kolom nullable untuk fase lanjutan. | PRD §5.2, §15.1; Model kegiatan |
 | Q29 | Perencanaan mengesahkan satu contoh keluaran Excel untuk UAT. Pisahkan baseline/target/realisasi/persentase; kesetaraan informasi tidak mewajibkan menyalin susunan sumber yang ambigu. | PRD §22.4, §24; Plan ekspor |
 | Q30 | PM/pengelola infrastruktur menetapkan pemilik dan kesiapan Keycloak, UAT/produksi, domain/HTTPS, storage, backup/pemulihan, notifikasi dan pemeliharaan. Seed konfigurasi terpisah dari data uji. | PRD pembuka/§6; Plan P.4 |
-| **Q31** | **LLDIKTI Wilayah XVI menetapkan enam role resmi SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Role `pic` merupakan role tersendiri dan karena itu katalog role, UI Assign Peran, seeder, test, dan seluruh penyebutan “lima/kelima peran” harus diselaraskan. Mekanisme `penanggung_jawab` indikator tetap dipertahankan karena sudah merupakan bagian dari dokumen resmi. Namun hubungan final antara role `pic`, eligibility menjadi `penanggung_jawab`, preset permission role `pic`, grant unit, serta migrasi user existing belum dinyatakan dalam dokumen resmi yang diterima dan **tidak boleh diasumsikan** sebelum dikonfirmasi.** | Klarifikasi langsung pihak LLDIKTI XVI yang disampaikan kepada tim, 20 Sep 2026; dokumen resmi PRD/Workflow/Data Model/Plan yang diterima masih memakai baseline lima role dan perlu diselaraskan |
+| **Q31** | **LLDIKTI XVI menetapkan enam role resmi: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`. Role `pic` adalah role sistem tersendiri dan tidak lagi diperlakukan sebagai Pegawai yang “menjadi PIC” hanya karena grant. Namun role `pic` tidak menggantikan `penanggung_jawab`: user role PIC tetap harus ditugaskan ke indikator yang relevan dan lolos scope/grant, deny, jadwal, status, serta business guard lain sebelum dapat mengerjakan RA/Pengukuran. Permission mutasi PIC yang membutuhkan scope unit tidak boleh menjadi akses global hanya karena berasal dari role.** | Klarifikasi langsung LLDIKTI XVI 20 Sep 2026; sinkronisasi wajib PRD §7/§13, Data Model §2.4/§2.19, Workflow §19/§21/§23, Plan Modul 1/4, User Stories/Issues |
 
 ---
 
-# Keputusan Q31 — Enam Role Resmi SAKIP
+# Keputusan Q31 — Enam Role Resmi SAKIP *(SUPERSEDED oleh Q32)*
 
-## 31.1 Keputusan yang Sudah Dikonfirmasi
+## Status Q31 setelah klarifikasi 24 September 2026
 
-Berdasarkan informasi langsung dari pihak LLDIKTI Wilayah XVI yang disampaikan kepada tim pada **20 September 2026**, role resmi SAKIP berjumlah **enam**:
+Q31 dipertahankan sebagai **histori keputusan** karena memang pernah digunakan tim pada 20 September 2026. Namun jawaban resmi lanjutan LLDIKTI pada 24 September 2026 menetapkan baseline yang berbeda. Sejak Q32, seluruh ketentuan Q31 yang menyatakan `pic` sebagai role keenam, preset role PIC, migrasi Pegawai→PIC, atau eligibility PJ berbasis role **tidak lagi berlaku sebagai requirement implementasi**.
 
-| Kode Role | Label |
-|---|---|
-| `superadmin` | Super Admin |
-| `admin` | Admin |
-| `perencanaan` | Perencanaan |
-| `pic` | PIC |
-| `pimpinan` | Pimpinan |
-| `pegawai` | Pegawai |
+## 31.1 Daftar role sistem
 
-Keputusan ini menggantikan daftar lima role yang masih tertulis pada dokumen resmi sebelumnya:
+Role sistem pada Fase Awal ditetapkan menjadi **enam**:
+
+| Kode Role | Label | Fungsi utama |
+|---|---|---|
+| `superadmin` | Super Admin | Akses penuh/break-glass, pemulihan teknis, dan seluruh permission katalog; tindakan substantif tetap diaudit. |
+| `admin` | Admin | Pengelolaan akun, unit, akses, dan setelan aplikasi; bukan pengelola utama substansi kinerja. |
+| `perencanaan` | Perencanaan | Pengelola substansi SAKIP: Renstra, Sasaran, Indikator, Target, PK, Jadwal, penugasan PIC, verifikasi/pengesahan, status capaian, laporan, dan domain terkait sesuai permission. |
+| `pic` | PIC | Pengguna operasional yang dapat menyusun/mengajukan Rencana Aksi dan Pengukuran untuk indikator yang menjadi tanggung jawabnya, setelah seluruh scope dan business guard terpenuhi. |
+| `pimpinan` | Pimpinan | Pemantauan dashboard/laporan dan akses baca sesuai scope MVP; approval aktif Pimpinan tetap fase lanjutan kecuali diputuskan lain. |
+| `pegawai` | Pegawai | Pengguna umum dengan akses baca/fitur dasar sesuai preset; bukan otomatis PIC dan tidak otomatis memiliki hak mutasi RA/Pengukuran. |
+
+Semua role di atas merupakan role sistem (`roles.is_sistem = true`) dan tidak dapat dihapus melalui operasi normal aplikasi.
+
+---
+
+## 31.2 Role PIC berbeda dari Penanggung Jawab Indikator
+
+Dua konsep berikut **harus tetap dipisahkan**:
+
+### Role PIC
+
+Menjawab:
+
+> “Jenis/peran utama pengguna ini di dalam aplikasi SAKIP apa?”
+
+Contoh:
+
+```text
+User: Budi
+Role: PIC
+```
+
+### `penanggung_jawab`
+
+Menjawab:
+
+> “User tersebut bertanggung jawab atas indikator yang mana dan sejak kapan?”
+
+Contoh:
+
+```text
+Budi
+Role: PIC
+
+Penanggung Jawab:
+- Indikator A, mulai 1 Januari 2026
+- Indikator B, mulai 1 Januari 2026
+```
+
+Karena itu:
+
+```text
+role = pic
+```
+
+**tidak berarti** user tersebut otomatis boleh mengubah seluruh indikator.
+
+Sebaliknya, jalur PIC normal harus mempertimbangkan:
+
+```text
+Role PIC
+    +
+Penanggung Jawab indikator efektif
+    +
+Scope/grant unit yang sesuai
+    +
+Tidak ada deny yang cocok
+    +
+Jendela waktu masih sah
+    +
+Status objek memungkinkan
+    +
+Gerbang kelengkapan terpenuhi
+    =
+Aksi PIC diizinkan
+```
+
+`penanggung_jawab` tetap append-only dan historis. Pergantian PIC membuat baris penugasan baru; histori lama tidak ditimpa.
+
+---
+
+## 31.3 Dampak pada model RBAC
+
+Baseline RBAC tetap mempertahankan:
+
+- `permissions`
+- `roles`
+- `role_permissions`
+- `user_roles`
+- `user_permission_granted`
+- `user_permission_denied`
+
+Keputusan Q31 **tidak mengubah** prinsip:
+
+- deny menang atas allow;
+- permission tidak dikenal/tidak aktif fail closed;
+- permission dan business rule adalah lapisan berbeda;
+- React tidak mengevaluasi permission sendiri;
+- SSO/Keycloak hanya menentukan identitas, bukan permission;
+- satu user tetap memegang tepat satu role pada MVP (`unique(user_id)` di `user_roles`) sampai ada keputusan resmi membuka multi-role.
+
+Perubahan utama adalah katalog role:
+
+Sebelum Q31:
 
 ```text
 superadmin
@@ -111,7 +195,7 @@ pimpinan
 pegawai
 ```
 
-menjadi:
+Sesudah Q31:
 
 ```text
 superadmin
@@ -122,158 +206,93 @@ pimpinan
 pegawai
 ```
 
-Role `pic` adalah **role tersendiri** dan tidak boleh lagi hilang dari katalog role, dropdown Assign Peran, seeder, fixture, data demo, maupun automated test.
+---
+
+## 31.4 Scope permission PIC
+
+Karena `role_permissions` pada baseline tidak mempunyai `unit_id`, permission dari role diperlakukan global. Oleh sebab itu, permission mutasi yang secara bisnis harus terikat unit/indikator **tidak boleh menjadi global hanya karena user memiliki role PIC**.
+
+Permission operasional yang membutuhkan scope, antara lain:
+
+- `pengukuran:create`
+- `pengukuran:update`
+- `rencana_aksi:read`
+- `rencana_aksi:create`
+- `rencana_aksi:update`
+- `rencana_aksi:ajukan`
+- `kegiatan:read`
+- `kegiatan:create`
+- `kegiatan:update`
+
+tetap mengikuti mekanisme scope unit/grant yang berlaku.
+
+Dengan demikian:
+
+```text
+Role PIC
+```
+
+memberikan klasifikasi/peran operasional, tetapi **bukan bypass scope**.
+
+Untuk Rencana Aksi dan Pengukuran, sistem tetap memeriksa `penanggung_jawab` indikator efektif.
+
+Untuk Kegiatan, sifat kolaboratif per unit tetap mengikuti permission/scope unit dan tidak harus selalu mensyaratkan PIC indikator tertentu, sesuai baseline Q13.
 
 ---
 
-## 31.2 Status Dokumen Resmi yang Diterima
+## 31.5 Pemisahan Pegawai dan PIC
 
-Empat dokumen yang diterima dari pihak LLDIKTI — **PRD, Workflow, Data Model, dan Plan Pengembangan** — masih merepresentasikan baseline lima role.
+Setelah Q31, konsep lama berikut tidak lagi menjadi baseline:
 
-Karena itu penyelarasan Q31 dilakukan dengan prinsip:
+```text
+Pegawai
++ grant unit
++ penanggung_jawab
+= PIC
+```
 
-> **Pertahankan isi resmi terlebih dahulu. Ubah hanya bagian yang memang terdampak keputusan enam role. Jangan menyisipkan aturan baru yang belum dinyatakan LLDIKTI.**
+Baseline baru:
 
-Konsekuensi langsung yang aman untuk diterapkan:
+```text
+PIC
++ penanggung_jawab indikator
++ scope/grant unit
++ business guard
+= jalur kerja PIC
+```
 
-1. semua teks “lima peran” / “kelima peran” menjadi “enam peran” / “keenam peran”;
-2. kode `pic` ditambahkan ke katalog role;
-3. `pic` ditambahkan ke UI Assign Peran;
-4. seeder role memasukkan `pic`;
-5. data pengembangan/testing menyediakan user role `pic`;
-6. test keberadaan role memperhitungkan enam role;
-7. tabel/matriks role yang secara eksplisit mencantumkan role harus menyediakan kolom/baris PIC;
-8. istilah yang secara eksplisit menyamakan PIC dengan Pegawai harus direview dan disesuaikan tanpa mengubah aturan bisnis yang belum dikonfirmasi.
+Role `pegawai` tetap role tersendiri dan tidak otomatis memperoleh:
+
+- hak membuat/mengubah/mengajukan Rencana Aksi;
+- hak membuat/mengubah Pengukuran;
+- status sebagai penanggung jawab indikator.
+
+Grant eksplisit tetap dapat digunakan untuk pengecualian administratif sesuai katalog dan audit, tetapi **grant tidak mengubah role** dan **grant tidak menciptakan histori `penanggung_jawab`**.
 
 ---
 
-## 31.3 `penanggung_jawab` Tetap Dipertahankan
+## 31.6 Penetapan PIC terhadap indikator
 
-Dokumen resmi telah memiliki entitas/alur `penanggung_jawab` untuk mencatat penugasan user terhadap indikator dan histori pergantiannya.
+Penetapan PIC operasional tetap dilakukan melalui entitas `penanggung_jawab`.
 
-Q31 **tidak menghapus atau mengganti** mekanisme tersebut.
+Aturan baseline setelah Q31:
 
-Secara konseptual ada dua data berbeda:
+1. Perencanaan/Superadmin yang berwenang menetapkan atau mengganti PIC indikator.
+2. Penugasan menyimpan `user_id`, `indikator_id`, dan `tanggal_mulai_berlaku`.
+3. Pergantian tidak menimpa baris lama; dibuat baris baru.
+4. PIC efektif pada tanggal T adalah penugasan terbaru dengan `tanggal_mulai_berlaku <= T`.
+5. Perubahan role/PIC setelah suatu versi RA/Pengukuran diajukan tidak mengubah provenance historis versi tersebut.
+6. Jalur operasional normal PIC menggunakan user dengan role `pic`.
+7. Perencanaan tetap memiliki jalur globalnya sendiri dan tidak harus berpura-pura menjadi PIC untuk melakukan kewenangan Perencanaan.
+8. Superadmin tetap break-glass sesuai permission dan audit.
 
-```text
-roles / user_roles
-    ↓
-mencatat role utama user
-
-penanggung_jawab
-    ↓
-mencatat user yang ditugaskan
-ke indikator pada tanggal tertentu
-```
-
-Namun dokumen resmi yang diterima **belum menetapkan** constraint baru berikut:
-
-```text
-penanggung_jawab.user_id
-WAJIB user dengan role = pic
-```
-
-Karena itu constraint tersebut **belum boleh dimasukkan sebagai keputusan final** hanya berdasarkan penambahan role `pic`.
-
-Hal yang sudah pasti:
-
-- `penanggung_jawab` tetap dibutuhkan;
-- histori assignment tetap dipertahankan;
-- penambahan role PIC tidak otomatis menghapus assignment per indikator.
-
-Hal yang masih membutuhkan konfirmasi:
-
-- apakah user yang dapat dipilih sebagai `penanggung_jawab` dibatasi hanya role `pic`;
-- apa yang terjadi bila role user berubah setelah ia menjadi `penanggung_jawab`;
-- apakah ada masa transisi untuk user existing yang sekarang diperlakukan sebagai PIC melalui mekanisme lama.
+Jika di masa depan LLDIKTI menetapkan bahwa role lain juga boleh menjadi `penanggung_jawab` indikator secara formal, perubahan tersebut harus dicatat sebagai keputusan baru dan diselaraskan lintas dokumen; jangan diasumsikan oleh implementasi.
 
 ---
 
-## 31.4 Preset Permission Role `pic` Belum Boleh Ditebak
+## 31.7 Dampak pada UI pengelolaan akses
 
-Dokumen resmi lama menjelaskan model akses melalui:
-
-- `permissions`
-- `roles`
-- `role_permissions`
-- `user_roles`
-- `user_permission_granted`
-- `user_permission_denials`
-
-dan menyatakan bahwa permission yang berasal dari `role_permissions` bersifat global karena tabel tersebut tidak memiliki `unit_id`.
-
-Dokumen lama juga mendeskripsikan pekerjaan PIC melalui kombinasi permission scoped per unit dan penugasan PIC efektif.
-
-Setelah Q31, **belum ada ketentuan resmi yang menyatakan permission apa saja yang harus dimasukkan langsung ke preset role `pic`**.
-
-Karena itu penyelarasan dokumen tidak boleh langsung menyimpulkan:
-
-```text
-role pic
-= otomatis memiliki seluruh
-rencana_aksi:* dan pengukuran:* secara global
-```
-
-dan juga belum boleh menyimpulkan kebalikannya tanpa dasar bahwa:
-
-```text
-role pic
-= selalu kosong dan semua izin
-harus berasal dari grant
-```
-
-Keputusan final preset `role_permissions` untuk `pic` harus dikonfirmasi dengan pihak LLDIKTI/Tim Perencanaan sebelum dianggap kontrak implementasi.
-
-Sambil menunggu, prinsip existing yang tidak berubah tetap dipertahankan:
-
-- deny menang atas allow;
-- permission tidak dikenal/tidak aktif fail closed;
-- scope unit tetap dihormati;
-- permission dan aturan bisnis adalah lapisan berbeda;
-- keputusan authorization ada di server;
-- React hanya menerima hasil evaluasi seperti `can.*`.
-
----
-
-## 31.5 Pegawai dan PIC Tidak Lagi Boleh Dicantumkan sebagai Satu Role
-
-Karena PIC kini dikonfirmasi sebagai role tersendiri, penyebutan seperti:
-
-```text
-Pegawai (Penanggung Jawab)
-```
-
-atau:
-
-```text
-PIC (Pegawai)
-```
-
-harus direview pada dokumen yang menyajikan daftar/matriks role.
-
-Namun perubahan teks tersebut tidak otomatis menentukan seluruh kewenangan PIC.
-
-Contoh penyelarasan aman:
-
-Sebelum:
-
-```text
-Superadmin | Admin | Perencanaan | Pimpinan | Pegawai
-```
-
-Sesudah:
-
-```text
-Superadmin | Admin | Perencanaan | PIC | Pimpinan | Pegawai
-```
-
-Untuk tabel “Role vs Aksi”, nilai izin pada kolom PIC harus ditentukan dari kontrak permission yang telah dikonfirmasi, bukan diisi berdasarkan asumsi.
-
----
-
-## 31.6 Form Assign Peran
-
-UI **Assign Peran** pada MVP harus menampilkan enam pilihan:
+Form **Assign Peran** wajib menampilkan enam pilihan:
 
 ```text
 Super Admin
@@ -284,109 +303,347 @@ Pimpinan
 Pegawai
 ```
 
-Aturan existing satu user satu role pada MVP tetap dipertahankan **selama belum ada keputusan baru yang mengubahnya**.
+Tidak boleh lagi hanya menampilkan lima pilihan lama.
 
-Q31 tidak membuka multi-role.
+Halaman “Jelaskan izin pengguna” harus mampu menjelaskan:
 
-Perubahan role tetap wajib mengikuti mekanisme audit existing:
+- role utama user;
+- permission dari `role_permissions`;
+- grant per unit;
+- deny yang berlaku;
+- untuk konteks Rencana Aksi/Pengukuran, status penugasan PIC efektif bila relevan.
 
-- aktor pemberi;
-- alasan;
-- nilai lama;
-- nilai baru;
-- waktu perubahan.
+Contoh:
+
+```text
+User: Budi
+Role: PIC
+
+Indikator A
+- Role PIC: ya
+- Penanggung jawab efektif: ya
+- Grant unit: ya
+- Deny: tidak
+- Jendela pengisian: aktif
+=> boleh mengisi
+
+Indikator B
+- Role PIC: ya
+- Penanggung jawab efektif: tidak
+=> tidak boleh mengisi
+```
 
 ---
 
-## 31.7 Dampak Minimal pada Seeder dan Testing
+## 31.8 Dampak pada dashboard dan navigasi
 
-Seluruh seed/test yang masih mengasumsikan lima role harus diselaraskan menjadi enam role.
+Role PIC dapat memiliki pengalaman kerja yang berbeda dari Pegawai.
 
-Minimal:
+Contoh informasi/fitur yang relevan bagi PIC:
+
+- indikator yang menjadi tanggung jawabnya;
+- Rencana Aksi yang perlu dibuat/diperbaiki;
+- Pengukuran periode aktif;
+- Kegiatan unit yang dapat diakses;
+- bukti dukung;
+- deadline/jendela pengisian;
+- notifikasi pengembalian;
+- status “menunggu verifikasi”.
+
+Role Pegawai tidak otomatis memperoleh seluruh menu kerja PIC.
+
+Detail final sidebar/menu tetap mengikuti permission efektif (`can.*`) dari server, bukan hardcode role di React.
+
+---
+
+## 31.9 Dampak pada audit dan provenance
+
+Q31 tidak mengubah aturan provenance yang sudah disepakati.
+
+Untuk Rencana Aksi dan Pengukuran:
+
+- `diajukan_by`
+- `diajukan_at`
+- `jalur_pengajuan`
+- `dasar_izin_pengajuan`
+
+tetap dibekukan pada versi.
+
+`jalur_pengajuan = pic` berarti pengajuan dilakukan melalui jalur operasional PIC yang sah pada saat submit.
+
+Perubahan user dari `pic` ke role lain setelah submit tidak:
+
+- mengubah `diajukan_by`;
+- mengubah `jalur_pengajuan`;
+- menghapus F1;
+- mengubah siapa PIC historis pada versi tersebut.
+
+Aturan F1 tetap berlaku:
+
+> Pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan versi yang diajukannya sendiri.
+
+---
+
+## 31.10 Dokumen yang wajib diselaraskan setelah Q31
+
+Keputusan Q31 berdampak langsung pada:
+
+1. `SAKIP - PRD.md`
+   - daftar role;
+   - preset permission;
+   - Form Assign Peran;
+   - hubungan role PIC dengan grant/scope;
+   - hubungan PIC dengan `penanggung_jawab`;
+   - tabel/matriks role.
+
+2. `SAKIP - Data Model.md`
+   - `roles.kode`;
+   - narasi lima role → enam role;
+   - preset `role_permissions`;
+   - aturan `penanggung_jawab`;
+   - contoh dan constraint/test terkait role.
+
+3. `SAKIP - Workflow.md`
+   - Form Assign Peran;
+   - flow PIC;
+   - teks lama “PIC (peran Pegawai)”;
+   - tabel Role vs Aksi;
+   - flow notifikasi dan task list bila role disebut eksplisit.
+
+4. `SAKIP - Plan Pengembangan.md`
+   - migrasi/seed role;
+   - seeder `role_permissions`;
+   - UI Assign Peran;
+   - test per role;
+   - demo seeder;
+   - test dashboard/read permission;
+   - seluruh DoD yang masih menyebut “kelima role”.
+
+5. `SAKIP - User Stories.md`
+   - US-01.03 Assign Peran;
+   - US-01.04 Grant;
+   - US-04.01 Penetapan PIC;
+   - story RA/Pengukuran yang mengandalkan jalur PIC.
+
+6. `SAKIP - User Issues.md`
+   - ISS-01.03;
+   - ISS-04.01;
+   - issue Rencana Aksi/Pengukuran/PIC;
+   - automated test dan dependency yang masih menyebut lima role atau PIC sebagai Pegawai.
+
+7. `design-system.md`
+   - hanya perlu penyesuaian bila navigasi/dashboard role ditulis secara eksplisit; prinsip desain visual tidak berubah.
+
+Dokumen lain tidak boleh diperbarui secara parsial sehingga sebagian masih menganggap PIC sebagai Pegawai dan sebagian sudah menganggap PIC role tersendiri.
+
+---
+
+# Keputusan Q32 — Klarifikasi Final LLDIKTI 24 September 2026
+
+Q32 merupakan keputusan final berdasarkan jawaban klarifikasi resmi LLDIKTI Wilayah XVI kepada tim magang pada **24 September 2026**. Bila Q32 bertentangan dengan Q31 atau teks sebelumnya, **Q32 yang berlaku**.
+
+## 32.1 Lima Role Bawaan — PIC Bukan Role
+
+Role bawaan SAKIP adalah:
 
 ```text
 superadmin
 admin
 perencanaan
-pic
 pimpinan
 pegawai
 ```
 
-Data development/testing harus memiliki minimal satu user untuk setiap role agar UI dan authorization dapat diuji.
+Tidak ada role `pic`. Istilah **PIC** tetap dipakai pada proses bisnis untuk menyebut pengguna yang diberi tanggung jawab dan hak kerja pada unit/indikator tertentu, tetapi bukan nilai pada `roles.kode`.
 
-Automated test minimal perlu membuktikan:
+Konsekuensi:
 
-- role `pic` dapat disimpan;
-- role `pic` muncul dalam Assign Peran;
-- constraint satu user satu role tetap berlaku;
-- perubahan role tetap teraudit;
-- resolver tidak crash ketika user memiliki role `pic`.
+1. hapus `pic` dari katalog role, seeder, dropdown Assign Peran, fixture, demo user, dan automated test;
+2. tidak ada preset `role_permissions` untuk `pic`;
+3. tidak ada migrasi `pegawai → pic`;
+4. tidak boleh membuat role per-unit seperti `pic_akademik`;
+5. teks “PIC” pada workflow harus dibaca sebagai **aktor operasional**, bukan role database.
 
-Test mengenai **hak substantif role PIC** baru boleh dijadikan final setelah preset permission dan hubungannya dengan `penanggung_jawab` dikonfirmasi.
+## 32.2 PIC Operasional, Grant Unit, dan Penanggung Jawab
 
----
+Tiga konsep harus dipisahkan:
 
-## 31.8 Bagian yang Belum Boleh Diasumsikan
+```text
+Role utama user
+    ↓
+Pegawai / Perencanaan / dst.
 
-Sampai ada klarifikasi lanjutan dari LLDIKTI, hal berikut tetap **OPEN**:
+Penanggung Jawab
+    ↓
+assignment historis user ↔ indikator
 
-| Item | Status |
-|---|---|
-| Apakah hanya role `pic` yang eligible menjadi `penanggung_jawab` | Belum dikonfirmasi |
-| Preset `role_permissions` untuk role `pic` | Belum dikonfirmasi |
-| Apakah grant unit tetap wajib untuk semua aksi kerja PIC | Belum dikonfirmasi sebagai konsekuensi role baru |
-| Dampak perubahan role PIC terhadap assignment `penanggung_jawab` aktif | Belum dikonfirmasi |
-| Mapping user existing `pegawai` → `pic` | Belum dikonfirmasi |
-| Menu/dashboard khusus PIC | Belum dikonfirmasi sebagai kontrak; harus mengikuti permission efektif |
-| Perubahan workflow bisnis selain penambahan role | Tidak ada keputusan baru; jangan diubah |
+Grant Unit
+    ↓
+hak kerja eksplisit pada unit tertentu
+```
 
-Ketika jawaban resmi tersedia, keputusan tersebut harus dicatat sebagai Q32 atau revisi eksplisit Q31, lalu diselaraskan ke PRD, Workflow, Data Model, Plan, User Stories, dan User Issues.
+`penanggung_jawab` adalah penugasan data beriwayat. Siapa pun dapat ditunjuk selama user ada dan berstatus aktif. Penetapan dilakukan oleh **Perencanaan** atau **Superadmin**.
 
----
+Assignment PJ **tidak memberikan izin**. Agar dapat mengerjakan Rencana Aksi/Kegiatan/Pengukuran, user harus memiliki grant unit yang sesuai. UI penugasan wajib memberi **peringatan, bukan blokir**, ketika calon PJ belum memiliki grant yang diperlukan, dan sistem menyediakan daftar **“PJ aktif tanpa hak isi”**.
 
-## 31.9 Dokumen yang Wajib Diselaraskan
+Perubahan role user tidak menghapus assignment PJ dan tidak mencabut grant secara otomatis. Pencabutan hak isi harus menjadi aksi eksplisit, beralasan, dan teraudit.
 
-Q31 berdampak langsung minimal pada:
+## 32.3 Permission Unit-Scoped Final dan `delegasi:update`
 
-1. **SAKIP - PRD.md**
-   - daftar role;
-   - teks lima/kelima role;
-   - Assign Peran;
-   - tabel role;
-   - penyebutan PIC yang masih dilekatkan ke Pegawai;
-   - scope/permission PIC setelah mendapat keputusan final.
+Hanya **7 permission** berikut yang boleh diberikan sebagai grant per unit:
 
-2. **SAKIP - Data Model.md**
-   - `roles.kode`;
-   - uraian role;
-   - seeder/constraint/test role;
-   - jangan menambah constraint eligibility `penanggung_jawab` sebelum dikonfirmasi.
+```text
+pengukuran:create
+pengukuran:update
+rencana_aksi:create
+rencana_aksi:update
+rencana_aksi:ajukan
+kegiatan:create
+kegiatan:update
+```
 
-3. **SAKIP - Workflow.md**
-   - aktor/label PIC;
-   - Form Assign Peran;
-   - tabel Role vs Aksi;
-   - teks yang menyamakan PIC dan Pegawai.
+`rencana_aksi:read` dan `kegiatan:read` adalah permission global, bukan permission unit-scoped.
 
-4. **SAKIP - Plan Pengembangan.md**
-   - migrasi role;
-   - seeder role;
-   - UI Assign Peran;
-   - demo data;
-   - automated test;
-   - DoD yang masih menyebut kelima role.
+Form Grant Unit digerbangi permission **`delegasi:update`**. Preset pemegangnya:
 
-5. **User Stories / User Issues**
-   - dependency jumlah role;
-   - acceptance criteria Assign Peran;
-   - issue/test role PIC;
-   - kontrak PIC baru hanya setelah kewenangan final dikonfirmasi.
+- Perencanaan;
+- Admin;
+- Superadmin.
 
-6. **design-system.md**
-   - hanya bila ada komponen/menu yang eksplisit mengunci tampilan berdasarkan daftar role.
+Form Assign Peran dan Explicit Deny tetap digerbangi **`akses:update`**. Deny selalu menang atas allow; permission tidak dikenal atau user tanpa role harus fail closed.
 
-Penyelarasan tidak boleh membuat sebagian dokumen menganggap PIC sebagai role terpisah sementara dokumen lain masih menganggap PIC identik dengan Pegawai.
+## 32.4 Isi Role Tidak Diedit dari UI
+
+Tidak ada UI mutasi `role_permissions`, termasuk untuk Superadmin. Isi role adalah preset yang didefinisikan di kode dan disinkronkan melalui seeder/release.
+
+UI yang tersedia hanya **“Peran & Izin” read-only**, digerbangi `pengguna:read`, untuk menampilkan daftar role beserta permission bawaannya.
+
+Jika preset role berubah melalui rilis, seeder harus:
+
+- membandingkan nilai lama dan nilai baru;
+- menyinkronkan secara idempoten;
+- mencatat audit perubahan dengan before/after dan alasan/sumber rilis;
+- tidak menghasilkan audit palsu bila tidak ada perubahan.
+
+## 32.5 Onboarding SSO Final
+
+Onboarding akun SSO menggunakan pola **just-in-time, status belum aktif**:
+
+```text
+Login Keycloak valid
+        ↓
+create/update users berdasarkan keycloak_id
+        ↓
+status = nonaktif
+        ↓
+TANPA ROLE
+        ↓
+halaman "Akun belum diaktifkan"
+        ↓
+Admin mengaktifkan + menetapkan role
+```
+
+Kontrak data yang diminta stakeholder adalah `users.status` enum(`aktif`,`nonaktif`) default `nonaktif`. User tanpa role memiliki **nol permission**.
+
+Login tidak ditolak di Keycloak hanya karena user belum aktif di SAKIP; identitas boleh diprovisikan, tetapi akses aplikasi tetap fail closed sampai aktivasi dan assign role selesai.
+
+## 32.6 Logout Final
+
+Logout dipisahkan menjadi dua aksi:
+
+1. **Keluar** — POST + CSRF, mengakhiri session Laravel (`invalidate` + regenerate token). Setelah itu tampilkan pesan bahwa sesi SSO LLDIKTI masih aktif.
+2. **Keluar dari semua aplikasi (SSO)** — aksi POST terpisah yang juga memanggil Keycloak `end_session_endpoint`.
+
+Tombol keluar biasa tidak boleh otomatis mengakhiri sesi Keycloak karena realm digunakan bersama aplikasi lain.
+
+## 32.7 Penggunaan Pertama: Jadwal 2026
+
+Penggunaan pertama SAKIP adalah **Jadwal Tahunan 2026**.
+
+```text
+2026
+├── TW I  → periode lampau, diisi Perencanaan
+├── TW II → periode lampau, diisi Perencanaan
+├── TW III → workflow normal PIC operasional
+└── TW IV  → workflow normal PIC operasional
+```
+
+Tahun 2025 **tidak di-backfill sebagai pengukuran**; 2025 hanya menjadi baseline indikator.
+
+Tidak boleh dibuat kolom/flag khusus `is_backfill`. Status periode lampau dihitung dari jendela pengisian yang sudah berakhir ketika Jadwal Tahunan diaktifkan.
+
+Untuk periode lampau:
+
+- gerbang RA sudah disahkan dikecualikan;
+- kelengkapan komponen dikecualikan;
+- berkas wajib dikecualikan;
+- **PK tahun berjalan tetap wajib**;
+- pengisian dilakukan oleh Perencanaan.
+
+Tahun aktif tidak boleh di-hardcode; tahun aktif adalah tahun yang mempunyai Jadwal Tahunan berstatus aktif.
+
+## 32.8 Rencana Aksi 2026
+
+Rencana Aksi 2026 sudah disusun oleh Perencanaan. Data tersebut harus dicatat di aplikasi dengan status **disahkan** sebelum pengajuan TW III karena gerbang pengajuan mensyaratkan RA yang sah.
+
+Penetapan PIC operasional melalui workflow normal per periode dimulai pada Rencana Aksi berikutnya (2027). Initial setup 2026 diperlakukan sebagai data awal yang diverifikasi Perencanaan, bukan migrasi role PIC.
+
+## 32.9 IKU 8 — Definisi Final
+
+IKU 8 bertipe `rasio_persen` dengan formula:
+
+```text
+n / t × 100%
+```
+
+Penyebut `t` adalah **total publikasi seluruh PTS di wilayah kerja**. Angka 84 adalah jumlah PTS wilayah kerja dan **bukan** penyebut IKU 8; angka tersebut berasal dari indikator lain.
+
+Target PK 59,5 tetap digunakan apa adanya. Nilai `t` diisi Perencanaan dari sumber resmi dan tidak boleh di-hardcode.
+
+## 32.10 IKU 3 — Baseline, Target, dan Formula Final
+
+IKU 3 menggunakan dua skor input:
+
+```text
+sakip  = Skor SAKIP
+zi_wbk = Skor ZI-WBK
+```
+
+Formula:
+
+```text
+(sakip + zi_wbk) / 2
+```
+
+Baseline 2025 = **74,2**, berasal dari Nilai SAKIP saja dan disimpan apa adanya. Target PK 2026 = **76,25**, berasal dari gabungan SAKIP + ZI-WBK. Karena cakupannya berbeda, selisih `76,25 - 74,2` **tidak boleh dipresentasikan sebagai kenaikan/penurunan kinerja atau tren yang sebanding**.
+
+Data TW II:
+
+- `76,25` = target resmi;
+- `66,395` = skor komposit target revisi, **bukan realisasi**;
+- `87,08` = hasil rumus workbook yang rusak, **bukan capaian**.
+
+`66,395` dan `87,08` tidak boleh di-seed/import sebagai pengukuran/realisasi.
+
+## 32.11 Dampak Minimum ke Dokumen dan Kode
+
+Q32 wajib diselaraskan minimal ke:
+
+1. PRD;
+2. Data Model;
+3. Workflow;
+4. Plan Pengembangan;
+5. User Stories;
+6. User Issues;
+7. Design System;
+8. katalog role/permission/seeder;
+9. Assign Role;
+10. Grant Unit;
+11. Role & Permission UI;
+12. SSO provisioning/logout;
+13. fixture dan automated test.
+
+Dokumen, issue, dan kode yang masih menyatakan `pic` sebagai role keenam dinyatakan **stale** sampai diselaraskan dengan Q32.
 
 ---
 
@@ -402,25 +659,36 @@ Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `
 | Pengukuran Triwulan II H14/H15 | H14 = 76,25 tetap; H15 = F14/H14 × 100 = 87,0754098… | Persamaan tersimpan, bukan bukti pengesahan makna target/realisasi |
 | PK 2026 H10/I10 | Baseline 74,2 dari SAKIP saja; target 76,25 dari gabungan | Cakupan baseline dan target berbeda |
 
-Lima komponen datar `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi` masing-masing penjumlah dengan bobot 0,5. Rumus bukan rata-rata lima angka; subtotal SAKIP tidak menjadi komponen tambahan. Bobot 30/30/15/25 pada penilaian sumber tidak dikalikan ulang pada skor input tersebut.
+**Interpretasi final Q32:** bukti workbook di atas dipertahankan hanya sebagai bukti historis/aritimethic. Implementasi **tidak** memakai lima komponen tersebut sebagai input IKU 3. Kontrak final adalah dua skor input: `sakip` dan `zi_wbk`, masing-masing koefisien 0,5, dengan formula `(sakip + zi_wbk) / 2`. Nilai 66,395 adalah skor komposit target revisi TW II dan 87,08 adalah hasil formula workbook yang rusak; keduanya bukan realisasi.
 
 ---
 
 # Tindak lanjut yang masih membutuhkan data atau penetapan
 
-| Item | Pemilik keputusan | Yang belum boleh diasumsikan |
+Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 telah ditutup oleh Q32. Yang masih memerlukan penetapan operasional/eksternal adalah:
+
+| Item | Pemilik keputusan | Status / yang masih diperlukan |
 |---|---|---|
-| Penerima walkthrough/UAT, tanggal penerimaan dan produksi | PM bersama Perencanaan | Nama pihak dan tanggal belum tercatat; 9 November bukan otomatis go-live |
-| Tahun/periode penggunaan pertama dan daftar data historis wajib | PM/Perencanaan | Tahun 2026 pada workbook bukan otomatis tahun aktivasi aplikasi |
-| Definisi IKU 8 | Perencanaan | Penyebut 84 belum disahkan sebagai jumlah PTS/publikasi; blokir produksi indikator tersebut |
-| Q5a: label target/realisasi TW II | Perencanaan | Interpretasi 76,25 target dan 66,395 realisasi belum disahkan sebagai data produksi |
-| Q5b: baseline SAKIP saja dibanding gabungan | Perencanaan | Jangan menerbitkan tren/selisih seolah cakupannya setara tanpa keterangan/penetapan |
-| Contoh keluaran Excel penerimaan | Perencanaan | Kolom/urutan/presisi/narasi/format final masih harus ditandatangani/disetujui |
-| Pemilik dan konfigurasi layanan/deployment | PM/pengelola infrastruktur | Nama owner, provider, realm/client, domain, backup/pemulihan, nomor kontak dan template belum dibuktikan |
-| Detail operasional notifikasi | Pemilik layanan/Perencanaan | Kontrak provider, jam kirim/zona waktu operasional serta bukti sampai penerima belum ditetapkan |
-| Eligibility `penanggung_jawab` terhadap role `pic` | LLDIKTI/Tim Perencanaan | Belum dikonfirmasi apakah hanya user role `pic` yang boleh dipilih sebagai `penanggung_jawab`; jangan tambahkan constraint ini sebelum keputusan resmi |
-| Preset final permission role `pic` | LLDIKTI/Tim Perencanaan + penanggung jawab teknis | Daftar permission bawaan role `pic` belum dinyatakan dalam dokumen resmi yang diterima; jangan menebak allow global maupun grant scoped final |
-| Migrasi user existing ke role `pic` | LLDIKTI/PM/Perencanaan/Admin | User mana yang harus berubah dari `pegawai` menjadi `pic` belum boleh disimpulkan dari grant atau assignment existing |
+| Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
+| Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
+| Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. |
+| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. |
+| Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW III. |
+
+## Item klarifikasi yang sudah RESOLVED oleh Q32
+
+- tahun penggunaan pertama = 2026;
+- TW I–II = periode lampau oleh Perencanaan; TW III–IV normal;
+- IKU 8 penyebut = total publikasi seluruh PTS;
+- 76,25 = target; 66,395/87,08 bukan realisasi;
+- baseline IKU 3 = 74,2 dan tidak dibandingkan sebagai tren terhadap target gabungan;
+- tidak ada role PIC;
+- Grant Unit tetap wajib untuk hak kerja PIC operasional;
+- PJ dapat menunjuk user aktif mana pun dan tidak memberi permission;
+- role-permission tidak diedit dari UI;
+- tidak ada migrasi Pegawai→PIC;
+- onboarding JIT = nonaktif + tanpa role;
+- logout lokal default + logout SSO terpisah.
 
 ---
 
@@ -428,6 +696,6 @@ Lima komponen datar `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kine
 
 Pilihan engineering seperti constraint, provenance pengajuan, tabel versi, dan validasi merupakan kontrak implementasi untuk memenuhi keputusan yang disetujui; tidak berarti kode atau migrasinya sudah tersedia.
 
-Pembaruan Q31 mengubah **daftar role resmi** dari lima menjadi enam, tetapi **tidak otomatis menetapkan preset permission role `pic`, eligibility `penanggung_jawab`, strategi migrasi user, maupun perubahan workflow lain**. Kode, seeder, migration, UI, automated test, dan issue GitHub juga belum dianggap diperbarui hanya karena keputusan ini dicatat. Sebelum implementasi dianggap konsisten, dokumen terdampak pada §31.9 harus diselaraskan menggunakan keputusan yang sudah terkonfirmasi dan bagian yang masih terbuka harus tetap ditandai OPEN.
+Pembaruan Q31 mengubah baseline role, tetapi **tidak otomatis membuktikan bahwa kode, seeder, migration, UI, automated test, maupun issue GitHub sudah diperbarui**. Sebelum implementasi dianggap konsisten, seluruh dokumen terdampak pada §31.10 harus diselaraskan dan perubahan kode harus mengikuti baseline baru.
 
 Tidak ada aplikasi, workbook, data produksi, panduan agent lokal, atau pengaturan Git yang diubah hanya dengan penyelarasan isi dokumen ini.

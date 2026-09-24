@@ -1,11 +1,15 @@
 # SAKIP Design System — Implementation Guide
 
+> **Klarifikasi final LLDIKTI Wilayah XVI — 24 September 2026**  
+> Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
+
+
 > Panduan implementasi antarmuka dan design system aplikasi **SAKIP** (Sistem Akuntabilitas Kinerja Instansi Pemerintah) LLDIKTI Wilayah XVI.
 > Dokumen ini adalah panduan kanonis untuk pengembangan UI SAKIP berbasis arsitektur **Laravel 13 + Inertia 3 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui**, dengan toolchain **Bun**.
 >
 > Gunakan panduan ini saat membuat atau memodifikasi komponen antarmuka React (`resources/js/pages/`, `resources/js/components/`, `resources/js/layouts/`). Jangan menggunakan kelas ad-hoc atau raw hex apabila token dan komponen reusable yang sesuai sudah tersedia.
 
-> **Penyelarasan role — 20 September 2026 (Q31):** SAKIP menggunakan **enam role resmi**: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`. Design system **tidak** menetapkan permission bisnis berdasarkan nama role. UI hanya menampilkan menu, tombol, form, dan aksi berdasarkan capability/permission yang sudah dihitung server melalui props `can.*`. Role `pic` juga tidak boleh disamakan dengan assignment `penanggung_jawab` indikator. Preset permission bawaan PIC dan eligibility menjadi `penanggung_jawab` masih **OPEN** sampai dikonfirmasi LLDIKTI/Tim Perencanaan.
+ > **Q32 berlaku:** role bawaan final adalah `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. PIC bukan role sistem. UI hanya menggunakan capability server dan mempresentasikan PIC sebagai konteks operasional/assignment + grant bila relevan.
 
 
 ---
@@ -31,7 +35,7 @@ Design system dan panduan implementasi UI untuk aplikasi **SAKIP LLDIKTI Wilayah
 
 ## 🎯 Prinsip Desain
 
-**Physical scene:** pengguna SAKIP di lingkungan LLDIKTI Wilayah XVI mencakup enam role resmi — **Super Admin, Admin, Perencanaan, PIC, Pimpinan, dan Pegawai** — serta konteks bisnis **Penanggung Jawab indikator/PIC operasional**. Role PIC dan assignment Penanggung Jawab adalah konsep berbeda: role menggambarkan klasifikasi utama pengguna, sedangkan assignment menentukan konteks indikator yang menjadi tanggung jawabnya. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
+**Physical scene:** pengguna SAKIP di lingkungan LLDIKTI Wilayah XVI mencakup lima role resmi — **Super Admin, Admin, Perencanaan, Pimpinan, dan Pegawai** — serta konteks bisnis **Penanggung Jawab/PIC operasional**. PIC bukan role; ia adalah konteks pekerjaan yang dibentuk oleh assignment dan grant. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
 
 Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data kinerja tinggi**, andal, dan fungsional — bukan dekoratif.
 
@@ -45,25 +49,18 @@ Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data k
 - ✅ Semua halaman wajib **mobile responsive** dan rapi di layar desktop
 - ✅ **Single Page Application Feel** — Navigasi instan tanpa reload halaman via `<Link>` dari `@inertiajs/react`
 
-### Prinsip UI untuk Role, Permission, dan Q31
+### Prinsip UI untuk Role, Permission, dan Q32
 
-Design system hanya mengatur **presentasi hasil authorization**, bukan menentukan authorization itu sendiri.
+Design System tidak boleh memperkenalkan aturan authorization baru. Baseline final:
 
-- ✅ Backend menghitung hak akses melalui Policy/Gate/resolver dan mengirim hasil sebagai props `can.*`.
-- ✅ React boleh memakai `can.*` untuk menentukan visibilitas atau disabled state.
-- ✅ Route/controller tetap melakukan authorization ulang; menyembunyikan tombol **bukan** mekanisme keamanan.
-- ✅ Form **Assign Peran** menampilkan enam pilihan: **Super Admin, Admin, Perencanaan, PIC, Pimpinan, Pegawai**.
-- ✅ Label role boleh dipakai untuk identitas/presentasi, misalnya badge profil atau kolom tabel.
-- ✅ UI Penanggung Jawab harus menampilkan konteks assignment indikator secara terpisah dari label role.
-- ❌ Jangan menulis authorization seperti `if (user.role === 'pic')` untuk membuka aksi bisnis.
-- ❌ Jangan menganggap role `pic` otomatis memberi akses ke semua indikator, unit, Rencana Aksi, atau Pengukuran.
-- ❌ Jangan menganggap seluruh user role `pic` adalah penerima notifikasi untuk semua indikator; penerima mengikuti konteks domain yang dikirim server.
-- ❌ Jangan membuat menu khusus PIC dengan permission default yang belum dikonfirmasi.
-
-> **OPEN Q31:** preset permission bawaan role `pic`, eligibility menjadi `penanggung_jawab`, mapping user existing, dan beberapa hak baca default PIC belum final. Frontend harus tetap netral terhadap keputusan tersebut.
-
-
----
+- role resmi: Superadmin, Admin, Perencanaan, Pimpinan, Pegawai;
+- tidak ada role PIC;
+- label “PIC” pada UI berarti **konteks operasional**, bukan role database;
+- visibilitas aksi selalu berasal dari capability server (`can.*`), bukan hardcode nama role;
+- Grant Unit hanya 7 permission scoped dan dikelola melalui `delegasi:update`;
+- halaman **Peran & Izin** bersifat read-only;
+- user SSO baru dapat berada pada status nonaktif/tanpa role;
+- UI harus mampu menampilkan keadaan “Belum memiliki peran” tanpa error.
 
 ## 🎨 Referensi Token Desain
 
@@ -74,11 +71,8 @@ Warna dan font **tetap sama persis** dengan identitas visual institusi:
 
 | Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
 |-------|-------------|---------------|-----------|---------------------|
-| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#0F2A6B` | Brand utama, CTA, active state sidebar, header resmi |
-| Primary Dark | `--color-primary-dark` | `bg-primary-dark` | `#081A4A` | Aksen/gradien hero institusi (sisi gelap) |
-| Primary Mid | `--color-primary-mid` | `bg-primary-mid` | `#0D286D` | Aksen/gradien hero institusi (sisi tengah) |
-| Primary Light | `--color-primary-light` | `bg-primary-light` | `#1546B8` | Aksen/gradien hero institusi (sisi terang) |
-| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#C09A43` | Aksen emas, badge sekunder, highlight target khusus |
+| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#122E92` | Brand utama, CTA, active state sidebar, header resmi |
+| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#D6AC48` | Aksen emas, badge sekunder, highlight target khusus |
 
 ### Surface Colors
 
@@ -120,7 +114,6 @@ Warna dan font **tetap sama persis** dengan identitas visual institusi:
 
 ```
 bg-primary        text-primary        border-primary
-bg-primary-dark   bg-primary-mid      bg-primary-light
 bg-secondary      text-secondary      border-secondary
 bg-page           bg-surface
 text-ink          text-muted
@@ -674,100 +667,60 @@ Prinsip yang sama berlaku pada tombol **Tambah**, **Edit**, **Ajukan**, **Verifi
 
 ### UI Assign Peran
 
-Form Assign Peran menampilkan enam opsi resmi:
-
-```tsx
-const roleOptions = [
-    { value: 'superadmin', label: 'Super Admin' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'perencanaan', label: 'Perencanaan' },
-    { value: 'pic', label: 'PIC' },
-    { value: 'pimpinan', label: 'Pimpinan' },
-    { value: 'pegawai', label: 'Pegawai' },
-];
-```
-
-Aturan:
-
-- hanya tampil kepada pengguna yang menerima capability akses dari server;
-- satu user tetap satu role pada MVP;
-- mengganti role tidak boleh mengubah provenance RA/Pengukuran lama;
-- memilih role PIC tidak otomatis membuat assignment `penanggung_jawab`;
-- memilih role PIC tidak otomatis membuat grant unit;
-- frontend tidak menampilkan daftar permission bawaan PIC sebagai fakta final selama preset Q31 masih OPEN.
-
-### Presentasi Role PIC vs Penanggung Jawab
-
-Jika layar perlu menampilkan keduanya, gunakan label yang tidak ambigu.
-
-Contoh:
+Dropdown role hanya memuat:
 
 ```text
-Role Utama
-PIC
-
-Penanggung Jawab Indikator
-- IKU 1 — aktif mulai 1 Jan 2026
-- IKU 3 — aktif mulai 1 Jul 2026
+Superadmin
+Admin
+Perencanaan
+Pimpinan
+Pegawai
 ```
 
-Jangan menampilkan:
+Tidak ada pilihan PIC. Form menampilkan role saat ini, alasan wajib, loading/disabled/error/success states, dan warning bila perubahan menyentuh user yang sedang menjadi Penanggung Jawab aktif. Perubahan role tidak boleh digambarkan seolah otomatis mengubah grant atau assignment.
 
-```text
-PIC semua indikator
-```
+### Presentasi PIC Operasional vs Penanggung Jawab
 
-hanya karena role pengguna adalah `pic`.
+Jangan tampilkan PIC sebagai badge role resmi. Gunakan istilah yang menjelaskan konteks:
 
----
+- **Role:** Pegawai / Perencanaan / dst.
+- **Penanggung Jawab:** Ya/Tidak + indikator aktif.
+- **Hak isi unit:** berasal dari Grant Unit.
 
-## 🔐 Kontrak UI Authorization Q31
+Jika PJ belum punya grant yang dibutuhkan, tampilkan warning non-blocking dan status **“PJ aktif tanpa hak isi”**. Jangan membuat komponen yang menyiratkan assignment PJ otomatis memberi permission.
 
-Frontend harus memperlakukan tiga konsep berikut secara terpisah:
-
-| Konsep | Sumber | Digunakan UI untuk |
-|---|---|---|
-| **Role utama** | `user_roles` / props identitas | Label/profil dan Form Assign Peran |
-| **Capability efektif** | hasil resolver server, `can.*` | Visibilitas menu, tombol, aksi, disabled state |
-| **Penanggung Jawab/PIC efektif** | konteks domain server | Menampilkan indikator/tugas yang menjadi tanggung jawab pengguna |
+## 🔐 Kontrak UI Authorization Q32
 
 ### Yang Boleh Dilakukan React
 
-- menampilkan/menyembunyikan UI berdasarkan `can.*`;
-- menampilkan badge/label role;
-- menampilkan daftar indikator/tugas yang sudah difilter server;
-- memberikan disabled/loading/error state;
-- menampilkan alasan 403/validation yang aman;
-- menampilkan konteks Penanggung Jawab yang dikirim server.
+- menampilkan capability yang sudah dihitung server (`can.*`);
+- menyembunyikan/disable aksi berdasarkan capability;
+- menampilkan 5 role final;
+- menampilkan status akun aktif/nonaktif dan “belum memiliki peran”;
+- menampilkan Grant Unit dan scope secara eksplisit;
+- menampilkan warning PJ tanpa hak isi;
+- menampilkan halaman Peran & Izin read-only;
+- menyediakan dua aksi logout dengan label yang tidak ambigu.
 
 ### Yang Tidak Boleh Dilakukan React
 
-```tsx
-// ❌ SALAH — authorization berdasarkan role
-if (auth.user.role === 'pic') {
-    showApproveButton();
-}
+- menentukan authorization hanya dari nama role;
+- menganggap PIC sebagai role keenam;
+- membuat grant otomatis ketika seseorang menjadi PJ;
+- mengubah preset role dari UI;
+- menganggap `rencana_aksi:read`/`kegiatan:read` sebagai unit-scoped;
+- menampilkan tren IKU 3 dari perbedaan baseline 74,2 dan target 76,25;
+- menampilkan 66,395 atau 87,08 sebagai realisasi TW II;
+- hardcode angka 84 sebagai penyebut IKU 8.
 
-// ❌ SALAH — menganggap PIC dapat semua indikator
-const editable = auth.user.role === 'pic';
+### UI Peran & Izin
 
-// ❌ SALAH — menghitung izin dari unit di client
-const canEdit = user.unit_id === indikator.unit_id;
-```
+Halaman read-only menampilkan card/table per role dengan permission preset. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
 
-Gunakan hasil server:
+### UI Logout
 
-```tsx
-// ✅ BENAR
-const { can } = usePage<PageProps>().props;
-
-{can.update && <Button>Edit</Button>}
-```
-
-> **Catatan:** server tetap harus memverifikasi ulang authorization pada request mutasi. `can.*` pada UI adalah alat presentasi dan UX, bukan pengganti Policy/Gate/resolver.
-
-
----
+- **Keluar**: label utama; session SAKIP saja.
+- **Keluar dari semua aplikasi (SSO)**: secondary/destructive contextual action dengan penjelasan dampak sesi bersama.
 
 ## ✅ Review Checklist Pengembangan UI SAKIP (Inertia 3 + React 19)
 
@@ -775,20 +728,19 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 
 - [ ] **Font Poppins**: Menggunakan `font-sans` (Poppins)
 - [ ] **Design Tokens**: Menggunakan token resmi (`bg-primary`, `text-primary`, `bg-secondary`, `bg-surface`, `bg-page`, `text-ink`, `text-muted`)
-- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#0F2A6B` atau warna Tailwind default di luar token
+- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#122E92` atau warna Tailwind default di luar token
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
 - [ ] **Modal Alasan Audit**: Aksi sensitif (permission `sensitif=true`) memicu modal input alasan sebelum request dikirim
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
 
-- [ ] **Enam Role Q31**: UI yang menampilkan pilihan/label role mengenal `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`
-- [ ] **PIC ≠ Pegawai**: Tidak ada label/logic frontend yang menyamakan role PIC dengan Pegawai
+- [ ] **Lima Role Q32**: UI yang menampilkan pilihan/label role hanya mengenal `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`
+- [ ] **PIC bukan role**: Tidak ada label/logic frontend yang memperlakukan PIC sebagai role keenam; konteks PIC ditampilkan terpisah dari role utama
 - [ ] **PIC ≠ Penanggung Jawab**: Assignment indikator ditampilkan sebagai konteks terpisah dari role utama
 - [ ] **Tidak Ada Role-Based Authorization**: Tidak ada `if (role === 'pic')`, `if (role === 'admin')`, atau pola sejenis untuk memberikan akses bisnis
 - [ ] **Capability-Based Navigation**: Sidebar, tombol, dan aksi sensitif mengikuti `can.*` dari server
-- [ ] **Preset PIC OPEN**: Tidak ada permission default PIC yang di-hardcode sebelum keputusan Q31 ditutup
-- [ ] **Assign Peran Lengkap**: Form Assign Peran menampilkan keenam role dan tetap satu role per user pada MVP
+- [ ] **Assign Peran Lengkap**: Form Assign Peran menampilkan tepat lima role dan mendukung user baru yang belum memiliki role
 - [ ] **Toolchain Bun**: Tidak ada `package-lock.json` atau referensi npm; lockfile yang sah adalah `bun.lock`/`bun.lockb`
 - [ ] **shadcn/ui Konsisten**: Komponen shadcn/ui dikustomisasi menggunakan token design system ini, bukan warna default-nya
 - [ ] **Aksesibilitas & Kontras**: Kontras teks body terhadap background ≥ 4.5:1
