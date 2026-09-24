@@ -464,7 +464,15 @@ class PengaturanService
                 ? (string) Carbon::parse($maxUpdatedAt)->format('YmdHisu')
                 : (string) (int) (microtime(true) * 1000000);
 
-            Cache::forever('pengaturan.revision', $initialRevision);
+            // Inisialisasi atomik create-if-absent: hanya simpan jika key belum ada di cache store
+            Cache::add('pengaturan.revision', $initialRevision, 86400 * 365);
+
+            // Selalu baca ulang token efektif yang benar-benar tersimpan di cache store untuk
+            // mencegah initializer yang tertunda mengembalikan kandidat lokal yang kalah bersaing
+            $effectiveRevision = Cache::get('pengaturan.revision');
+            if (is_string($effectiveRevision) && $effectiveRevision !== '') {
+                return $effectiveRevision;
+            }
 
             return $initialRevision;
         } catch (\Throwable) {

@@ -604,3 +604,46 @@ test('token versi berupa array kosong menghasilkan respons validasi HTTP 422 ali
         'alasan' => 'Pengujian validasi token array kosong',
     ]);
 });
+
+test('inisialisasi revisi cache yang tertunda tidak menimpa revisi baru dari mutasi yang telah commit', function (): void {
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+
+    // Pastikan token revisi dan cache pengaturan dalam kondisi kosong (cold cache)
+    Cache::forget('pengaturan.revision');
+    Cache::forget('pengaturan.all');
+    Cache::forget('pengaturan.all_values');
+
+    // Initializer A membaca timestamp lama sebelum token dibuat
+    $maxUpdatedAt = Pengaturan::query()->max('updated_at');
+    $staleCandidateA = $maxUpdatedAt !== null
+        ? (string) Carbon::parse($maxUpdatedAt)->format('YmdHisu')
+        : '20260901000000000000';
+
+    // Initializer B tiba dan menginisialisasi cache dengan nilai lama
+    $service->allValues();
+    $service->get('instansi.nama');
+
+    // Writer C menjalankan update sampai commit dan invalidasi selesai menerbitkan revisi baru
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+    $service->update(
+        $this->admin,
+        ['instansi.nama' => 'Nama Instansi Hasil Writer C'],
+        'Pembaruan mutasi writer C',
+        ['instansi.nama' => $token]
+    );
+
+    $revisionAfterWriter = Cache::get('pengaturan.revision');
+    expect($revisionAfterWriter)->not->toBeNull();
+
+    // Initializer A yang tertunda melanjutkan operasi dan mencoba menuliskan kandidat lamanya
+    Cache::add('pengaturan.revision', $staleCandidateA, 86400 * 365);
+
+    // Revisi writer tidak boleh tertimpa oleh kandidat A
+    expect(Cache::get('pengaturan.revision'))->toBe($revisionAfterWriter);
+
+    // Pembacaan berikutnya harus menghasilkan nilai BARU dari writer C, baik pada get() maupun allValues()
+    expect($service->get('instansi.nama'))->toBe('Nama Instansi Hasil Writer C');
+    $values = $service->allValues();
+    expect($values['instansi.nama'])->toBe('Nama Instansi Hasil Writer C');
+});
