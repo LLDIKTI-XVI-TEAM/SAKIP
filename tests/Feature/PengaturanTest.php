@@ -510,3 +510,97 @@ test('allValues dan get tetap mengembalikan data database jika cache store menga
     $val = $service->get('instansi.nama');
     expect($val)->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
 });
+
+test('pembaca lama tidak menimpa cache dengan data stale setelah mutasi dan invalidasi commit', function (): void {
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+
+    // Isi cache awal
+    $service->get('instansi.nama');
+    $service->allValues();
+
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+
+    // Simulasikan pembacaan snapshot lama sebelum mutasi commit
+    $oldSnapshot = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+    $staleRevision = $service->getCacheRevision();
+
+    // Jalankan mutasi sampai commit dan invalidasi selesai
+    $service->update(
+        $this->admin,
+        ['instansi.nama' => 'Nama Baru Terverifikasi Cache'],
+        'Uji perlindungan cache race condition',
+        ['instansi.nama' => $token]
+    );
+
+    // Simulasikan pembaca lama yang lambat mencoba menulis kembali snapshot lama ke cache revisi lama
+    Cache::put("pengaturan.{$staleRevision}.instansi.nama", $oldSnapshot->nilai, 3600);
+    Cache::put("pengaturan.{$staleRevision}.all_values", ['instansi.nama' => $oldSnapshot->nilai], 3600);
+
+    // Pembacaan request berikutnya harus menghasilkan nilai BARU, bukan nilai LAMA
+    expect($service->get('instansi.nama'))->toBe('Nama Baru Terverifikasi Cache');
+    $values = $service->allValues();
+    expect($values['instansi.nama'])->toBe('Nama Baru Terverifikasi Cache');
+});
+
+test('penolakan otorisasi pada evaluasi ulang di dalam transaksi tercatat dalam audit trail', function (): void {
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+
+    $actor = buatUserDenganRole('admin', 'admin-evaluasi-transaksi@example.test');
+    $actor->is_active = false;
+    $actor->save();
+
+    try {
+        $service->update(
+            $actor,
+            ['instansi.nama' => 'Nilai Gagal Karena Akun Nonaktif'],
+            'Mencoba ubah pengaturan dengan akun nonaktif',
+            ['instansi.nama' => $token]
+        );
+        test()->fail('Harus melempar AuthorizationException');
+    } catch (AuthorizationException $e) {
+        expect($e->getMessage())->toContain('Akun pengguna tidak aktif');
+    }
+
+    // Pastikan mutasi tidak tersimpan di database
+    $this->assertDatabaseMissing('pengaturan', [
+        'nilai' => 'Nilai Gagal Karena Akun Nonaktif',
+    ]);
+
+    // Pastikan audit log penolakan tercatat setelah rollback transaksi
+    $audit = AuditLog::query()
+        ->where('actor_id', $actor->id)
+        ->where('tindakan', 'pengaturan.ubah_ditolak')
+        ->latest('id')
+        ->first();
+
+    expect($audit)->not->toBeNull();
+    expect($audit->alasan)->toBe('Mencoba ubah pengaturan dengan akun nonaktif');
+    expect($audit->dasar_izin['keputusan'])->toBe('ditolak');
+});
+
+test('token versi berupa array kosong menghasilkan respons validasi HTTP 422 alih-alih HTTP 500', function (): void {
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'Nama Instansi Uji Array Token',
+        'alasan' => 'Pengujian validasi token array kosong',
+        'expected_updated_at' => [
+            'instansi.nama' => [],
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['expected_updated_at.instansi.nama']);
+
+    // Pastikan tidak ada data yang berubah di database
+    $this->assertDatabaseMissing('pengaturan', [
+        'nilai' => 'Nama Instansi Uji Array Token',
+    ]);
+
+    // Pastikan tidak ada audit log keberhasilan mutasi
+    $this->assertDatabaseMissing('audit_log', [
+        'tindakan' => 'pengaturan:update',
+        'alasan' => 'Pengujian validasi token array kosong',
+    ]);
+});

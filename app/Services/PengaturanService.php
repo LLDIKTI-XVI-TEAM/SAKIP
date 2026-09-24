@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PengaturanService
@@ -114,8 +115,14 @@ class PengaturanService
      */
     public function get(string $kunci, mixed $default = null): mixed
     {
-        $loader = function () use ($kunci, $default) {
+        $revision = $this->getCacheRevision();
+        $loader = function () use ($kunci, $default, $revision) {
             $setting = Pengaturan::query()->where('kunci', $kunci)->first();
+
+            // Jika revisi telah berubah selama pembacaan database, muat ulang nilai terkini
+            if ($this->getCacheRevision() !== $revision) {
+                $setting = Pengaturan::query()->where('kunci', $kunci)->first();
+            }
 
             if ($setting === null) {
                 return $default ?? $this->getDefault($kunci);
@@ -125,7 +132,7 @@ class PengaturanService
         };
 
         try {
-            return Cache::remember("pengaturan.{$kunci}", 3600, $loader);
+            return Cache::remember("pengaturan.{$revision}.{$kunci}", 3600, $loader);
         } catch (\Throwable) {
             return $loader();
         }
@@ -191,11 +198,20 @@ class PengaturanService
      */
     public function allValues(): array
     {
-        $loader = function () {
+        $revision = $this->getCacheRevision();
+        $loader = function () use ($revision) {
             $records = Pengaturan::query()
                 ->whereIn('kunci', array_keys(self::WHITELIST))
                 ->get()
                 ->keyBy('kunci');
+
+            // Jika revisi telah berubah selama pembacaan database, muat ulang snapshot terkini
+            if ($this->getCacheRevision() !== $revision) {
+                $records = Pengaturan::query()
+                    ->whereIn('kunci', array_keys(self::WHITELIST))
+                    ->get()
+                    ->keyBy('kunci');
+            }
 
             $values = [];
             foreach (self::WHITELIST as $kunci => $meta) {
@@ -209,7 +225,7 @@ class PengaturanService
         };
 
         try {
-            return Cache::remember('pengaturan.all_values', 3600, $loader);
+            return Cache::remember("pengaturan.{$revision}.all_values", 3600, $loader);
         } catch (\Throwable) {
             return $loader();
         }
@@ -249,10 +265,18 @@ class PengaturanService
         $changedCount = 0;
         $changedKeys = [];
 
-        DB::transaction(function () use ($actor, $data, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
+        $result = DB::transaction(function () use ($actor, $data, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
             $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->first();
             if (! $lockedActor || ! $lockedActor->is_active) {
-                throw new AuthorizationException('Akun pengguna tidak aktif atau tidak ditemukan.');
+                return [
+                    'status' => 'denied',
+                    'denialReason' => 'Akun pengguna tidak aktif atau tidak ditemukan.',
+                    'denialBasis' => [
+                        'permission' => PermissionCodes::PENGATURAN_UPDATE,
+                        'keputusan' => 'ditolak',
+                        'alasan' => 'Akun pengguna tidak aktif atau tidak ditemukan.',
+                    ],
+                ];
             }
 
             // Kunci relasi peran pengguna
@@ -272,7 +296,11 @@ class PengaturanService
 
             $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PENGATURAN_UPDATE);
             if (! $decision->allowed) {
-                throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah pengaturan sistem.');
+                return [
+                    'status' => 'denied',
+                    'denialReason' => 'Anda tidak memiliki izin untuk mengubah pengaturan sistem.',
+                    'denialBasis' => $decision->toAuditBasis(),
+                ];
             }
 
             $now = Carbon::now();
@@ -291,7 +319,7 @@ class PengaturanService
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
 
                 if ($setting->exists) {
-                    if (! array_key_exists($kunci, $expectedUpdatedAt) || $expectedUpdatedAt[$kunci] === null || trim((string) $expectedUpdatedAt[$kunci]) === '') {
+                    if (! array_key_exists($kunci, $expectedUpdatedAt) || ! is_string($expectedUpdatedAt[$kunci]) || trim($expectedUpdatedAt[$kunci]) === '') {
                         throw ValidationException::withMessages([
                             $kunci => "Token versi untuk pengaturan '{$kunci}' wajib disertakan.",
                         ]);
@@ -312,7 +340,7 @@ class PengaturanService
                         ]);
                     }
                 } else {
-                    if (array_key_exists($kunci, $expectedUpdatedAt) && $expectedUpdatedAt[$kunci] !== null && trim((string) $expectedUpdatedAt[$kunci]) !== '') {
+                    if (array_key_exists($kunci, $expectedUpdatedAt) && is_string($expectedUpdatedAt[$kunci]) && trim($expectedUpdatedAt[$kunci]) !== '') {
                         throw ValidationException::withMessages([
                             $kunci => "Pengaturan '{$kunci}' belum tersimpan di basis data sehingga tidak memiliki token versi sebelumnya.",
                         ]);
@@ -358,6 +386,9 @@ class PengaturanService
 
             DB::afterCommit(function () use ($changedKeys) {
                 try {
+                    $newRevision = (string) Carbon::now()->format('YmdHisu').'_'.bin2hex(random_bytes(4));
+                    Cache::forever('pengaturan.revision', $newRevision);
+
                     foreach ($changedKeys as $kunci) {
                         Cache::forget("pengaturan.{$kunci}");
                     }
@@ -372,6 +403,9 @@ class PengaturanService
                     // Jadwalkan retry invalidasi setelah respons selesai dikirim ke pengguna
                     try {
                         dispatch(function () use ($changedKeys) {
+                            $newRevision = (string) Carbon::now()->format('YmdHisu').'_'.bin2hex(random_bytes(4));
+                            Cache::forever('pengaturan.revision', $newRevision);
+
                             foreach ($changedKeys as $kunci) {
                                 Cache::forget("pengaturan.{$kunci}");
                             }
@@ -383,7 +417,17 @@ class PengaturanService
                     }
                 }
             });
+
+            return [
+                'status' => 'success',
+                'count' => $changedCount,
+            ];
         });
+
+        if (is_array($result) && ($result['status'] ?? null) === 'denied') {
+            $this->catatAuditPenolakan($actor, $data, $auditReason, $result['denialBasis']);
+            throw new AuthorizationException($result['denialReason']);
+        }
 
         return $changedCount;
     }
@@ -394,6 +438,9 @@ class PengaturanService
     public function flushCache(): void
     {
         try {
+            $newRevision = (string) Carbon::now()->format('YmdHisu').'_'.bin2hex(random_bytes(4));
+            Cache::forever('pengaturan.revision', $newRevision);
+
             foreach (array_keys(self::WHITELIST) as $kunci) {
                 Cache::forget("pengaturan.{$kunci}");
             }
@@ -401,6 +448,72 @@ class PengaturanService
             Cache::forget('pengaturan.all_values');
         } catch (\Throwable $e) {
             Log::warning('Gagal mengosongkan seluruh cache pengaturan: '.$e->getMessage(), [
+                'exception' => $e,
+            ]);
+        }
+    }
+
+    /**
+     * Ambil token revisi cache pengaturan terkini.
+     */
+    public function getCacheRevision(): string
+    {
+        try {
+            $revision = Cache::get('pengaturan.revision');
+            if (is_string($revision) && $revision !== '') {
+                return $revision;
+            }
+
+            $maxUpdatedAt = Pengaturan::query()->max('updated_at');
+            $initialRevision = $maxUpdatedAt !== null
+                ? (string) Carbon::parse($maxUpdatedAt)->format('YmdHisu')
+                : (string) (int) (microtime(true) * 1000000);
+
+            Cache::forever('pengaturan.revision', $initialRevision);
+
+            return $initialRevision;
+        } catch (\Throwable) {
+            return '1';
+        }
+    }
+
+    /**
+     * Catat percobaan pembaruan pengaturan yang ditolak ke dalam audit trail di luar transaksi.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $dasarIzin
+     */
+    private function catatAuditPenolakan(User $actor, array $data, string $alasan, array $dasarIzin): void
+    {
+        try {
+            $targetKey = null;
+            foreach (array_keys($data) as $key) {
+                if ($key !== 'alasan' && ! str_starts_with($key, 'expected_updated_at')) {
+                    $targetKey = $key;
+                    break;
+                }
+            }
+
+            $objekId = $targetKey ? Pengaturan::query()->where('kunci', $targetKey)->value('id') : null;
+            if (! $objekId) {
+                $objekId = (string) Str::uuid();
+            }
+
+            $alasanAudit = trim($alasan) !== ''
+                ? mb_substr(trim($alasan), 0, 255)
+                : 'Percobaan pembaruan pengaturan sistem ditolak karena tidak memiliki izin.';
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'pengaturan.ubah_ditolak',
+                objekTipe: 'pengaturan',
+                objekId: (string) $objekId,
+                alasan: $alasanAudit,
+                dasarIzin: $dasarIzin,
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mencatat audit penolakan otorisasi pengaturan: '.$e->getMessage(), [
+                'actor_id' => $actor->id,
                 'exception' => $e,
             ]);
         }

@@ -140,7 +140,8 @@ class UpdatePengaturanRequest extends FormRequest
                 $expectedDot = is_array($expectedInput) ? Arr::dot($expectedInput) : [];
 
                 foreach ($validDirtyKeys as $key) {
-                    $hasToken = array_key_exists($key, $expectedDot) && $expectedDot[$key] !== null && trim((string) $expectedDot[$key]) !== '';
+                    $tokenVal = $expectedDot[$key] ?? null;
+                    $hasToken = is_string($tokenVal) && trim($tokenVal) !== '';
                     if (in_array($key, $existingKeys, true)) {
                         if (! $hasToken) {
                             $validator->errors()->add($key, "Token versi untuk pengaturan '{$key}' wajib disertakan.");
