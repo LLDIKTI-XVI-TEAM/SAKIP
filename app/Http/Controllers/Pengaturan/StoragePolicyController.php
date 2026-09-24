@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pengaturan\UpdateStoragePolicyRequest;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\Permission;
 use App\Models\RenstraPk;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -145,8 +147,36 @@ class StoragePolicyController extends Controller
         $alasan = (string) $request->input('alasan');
 
         $result = DB::transaction(function () use ($submitted, $actor, $resolver, $auditLogger, $alasan, $expectedUpdatedAt, $expectedVersion) {
-            // Pemeriksaan ulang izin di dalam transaksi (mengunci row actor) untuk mencegah race condition
-            $currentActor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            // Pemeriksaan ulang izin di dalam transaksi: kunci seluruh sumber keputusan otorisasi
+            // (mengikuti hierarki User -> Role -> Grants/Denies) dengan urutan konsisten ID untuk mencegah race condition
+            /** @var User $currentActor */
+            $currentActor = User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
+
+            $actorRoleIds = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('user_roles.user_id', $currentActor->id)
+                ->where('roles.aktif', true)
+                ->pluck('roles.id')
+                ->all();
+            sort($actorRoleIds);
+            if (! empty($actorRoleIds)) {
+                Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+            }
+
+            Permission::where('kode', 'pengaturan:update')->sharedLock()->first();
+
+            DB::table('user_permission_granted')
+                ->where('user_id', $currentActor->id)
+                ->orderBy('id')
+                ->sharedLock()
+                ->get();
+
+            DB::table('user_permission_denied')
+                ->where('user_id', $currentActor->id)
+                ->orderBy('id')
+                ->sharedLock()
+                ->get();
+
             $decision = $resolver->decide($currentActor, 'pengaturan:update');
             if (! ($decision['allowed'] ?? false)) {
                 return ['unauthorized' => true, 'decision' => $decision];

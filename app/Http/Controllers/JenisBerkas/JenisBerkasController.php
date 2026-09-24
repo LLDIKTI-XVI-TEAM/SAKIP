@@ -71,11 +71,6 @@ class JenisBerkasController extends Controller
         abort_unless($decision['allowed'], 403);
 
         $data = $request->validated();
-        $isUnggahanAktif = filter_var(
-            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
-            FILTER_VALIDATE_BOOLEAN
-        );
-
         $hasBatasTeknis = array_key_exists('format_diizinkan', $data) || array_key_exists('ukuran_maks_kb', $data);
 
         if (! $resolver->allows($actor, 'pengaturan:update')) {
@@ -91,7 +86,14 @@ class JenisBerkasController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($data, $actor, $dasarIzin, $isUnggahanAktif) {
+        $isUnggahanAktif = true;
+
+        DB::transaction(function () use ($data, $actor, $dasarIzin, &$isUnggahanAktif) {
+            // Serialisasikan pembacaan saklar dengan sharedLock di dalam transaksi
+            // untuk mencegah race condition saat admin menonaktifkan unggahan global
+            $saklarRow = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->first();
+            $isUnggahanAktif = filter_var($saklarRow?->nilai ?? true, FILTER_VALIDATE_BOOLEAN);
+
             $data['created_by'] = $actor->id;
 
             $jb = JenisBerkas::create($data);
@@ -163,13 +165,15 @@ class JenisBerkasController extends Controller
         }
 
         $data = $request->validated();
-        $isUnggahanAktif = filter_var(
-            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
-            FILTER_VALIDATE_BOOLEAN
-        );
+        $isUnggahanAktif = true;
         $formatWarning = null;
 
-        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver, $isUnggahanAktif, &$formatWarning) {
+        DB::transaction(function () use ($data, $id, $actor, $decision, $resolver, &$isUnggahanAktif, &$formatWarning) {
+            // Serialisasikan pembacaan saklar dengan sharedLock di dalam transaksi
+            // untuk mencegah race condition saat admin menonaktifkan unggahan global
+            $saklarRow = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->first();
+            $isUnggahanAktif = filter_var($saklarRow?->nilai ?? true, FILTER_VALIDATE_BOOLEAN);
+
             $jb = JenisBerkas::where('id', $id)->lockForUpdate()->firstOrFail();
 
             $expectedUpdatedAt = (string) $data['expected_updated_at'];
