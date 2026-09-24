@@ -4,6 +4,8 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Switch } from '@/Components/Switch';
+import { Badge } from '@/Components/Badge';
+import { Input } from '@/Components/Input';
 import {
     Table,
     TableHeader,
@@ -299,17 +301,17 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                 {/* Header Bagian Tabel Distribusi */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
                             <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
                             <span>Distribusi Bukti Dukung per Induk Dokumen SAKIP</span>
                         </h2>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-muted mt-0.5">
                             Rincian akumulasi bukti fisik file, tautan, dan teks pada seluruh modul kinerja.
                         </p>
                     </div>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+                    <Badge variant="primary">
                         {metrics.total_evidence_count.toLocaleString('id-ID')} Total Bukti
-                    </span>
+                    </Badge>
                 </div>
 
                 {/* Tabel Breakdown per Induk Bukti Dukung */}
@@ -317,33 +319,33 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="px-4 py-3.5">INDUK DOKUMEN</TableHead>
-                                <TableHead className="px-4 py-3.5 text-right">BERKAS FILE</TableHead>
-                                <TableHead className="px-4 py-3.5 text-right">UKURAN DISK</TableHead>
-                                <TableHead className="px-4 py-3.5 text-right">BUKTI TAUTAN</TableHead>
-                                <TableHead className="px-4 py-3.5 text-right">BUKTI TEKS</TableHead>
-                                <TableHead className="px-4 py-3.5 text-right">TOTAL BUKTI</TableHead>
+                                <TableHead>INDUK DOKUMEN</TableHead>
+                                <TableHead className="text-right">BERKAS FILE</TableHead>
+                                <TableHead className="text-right">UKURAN DISK</TableHead>
+                                <TableHead className="text-right">BUKTI TAUTAN</TableHead>
+                                <TableHead className="text-right">BUKTI TEKS</TableHead>
+                                <TableHead className="text-right">TOTAL BUKTI</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {Object.values(metrics.by_induk).map((item) => (
                                 <TableRow key={item.induk}>
-                                    <TableCell className="font-semibold text-slate-900 px-4 py-3.5">
+                                    <TableCell className="font-semibold text-ink">
                                         {item.label}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
+                                    <TableCell className="text-right font-medium text-ink">
                                         {item.file_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-slate-500 px-4 py-3.5">
+                                    <TableCell className="text-right font-mono text-xs text-muted">
                                         {formatBytes(item.file_bytes)}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
+                                    <TableCell className="text-right font-medium text-ink">
                                         {item.link_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-slate-700 px-4 py-3.5">
+                                    <TableCell className="text-right font-medium text-ink">
                                         {item.text_count.toLocaleString('id-ID')}
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-slate-900 px-4 py-3.5">
+                                    <TableCell className="text-right font-bold text-ink">
                                         {item.total_count.toLocaleString('id-ID')}
                                     </TableCell>
                                 </TableRow>
@@ -376,15 +378,9 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                             <span className="font-semibold text-ink text-sm sm:text-base">
                                                 Saklar Unggahan Berkas Global
                                             </span>
-                                            <span
-                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                    form.data.berkas_unggahan_aktif
-                                                        ? 'bg-success/10 text-success border border-success/30'
-                                                        : 'bg-warning/10 text-warning-dark border border-warning/30'
-                                                }`}
-                                            >
+                                            <Badge variant={form.data.berkas_unggahan_aktif ? 'success' : 'warning'}>
                                                 {form.data.berkas_unggahan_aktif ? 'Unggahan Aktif' : 'Unggahan Nonaktif'}
-                                            </span>
+                                            </Badge>
                                         </div>
                                         <p className="text-xs text-muted max-w-2xl leading-relaxed">
                                             Mengendalikan penerimaan berkas file fisik di seluruh aplikasi (Regulasi, Rencana
@@ -409,54 +405,31 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                             {/* Field 2: Batas Ukuran Fallback (KB) */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <label
-                                        htmlFor="berkas_ukuran_maks_kb"
-                                        className="block text-sm font-semibold text-ink"
-                                    >
-                                        Batas Ukuran Berkas Default (KB)
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            id="berkas_ukuran_maks_kb"
-                                            type="number"
-                                            min={100}
-                                            max={102400}
-                                            step={100}
-                                            disabled={!can.update || form.processing}
-                                            value={form.data.berkas_ukuran_maks_kb}
-                                            onChange={(e) =>
-                                                form.setData(
-                                                    'berkas_ukuran_maks_kb',
-                                                    parseInt(e.target.value, 10) || 0
-                                                )
-                                            }
-                                            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-soft"
-                                        />
-                                        <span className="absolute right-3 top-2 text-xs font-medium text-muted">
-                                            KB
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-muted flex items-center justify-between">
-                                        <span>Setara dengan sekitar <strong className="text-ink">{sizeInMB} MB</strong> per file.</span>
-                                        <span>Batas minimal: 100 KB</span>
-                                    </p>
-                                    {form.errors.berkas_ukuran_maks_kb && (
-                                        <p className="text-xs text-danger" role="alert">
-                                            {form.errors.berkas_ukuran_maks_kb}
-                                        </p>
-                                    )}
+                                    <Input
+                                        id="berkas_ukuran_maks_kb"
+                                        label="Batas Ukuran Berkas Default (KB)"
+                                        type="number"
+                                        min={100}
+                                        max={102400}
+                                        step={100}
+                                        disabled={!can.update || form.processing}
+                                        value={form.data.berkas_ukuran_maks_kb}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'berkas_ukuran_maks_kb',
+                                                parseInt(e.target.value, 10) || 0
+                                            )
+                                        }
+                                        error={form.errors.berkas_ukuran_maks_kb}
+                                        helperText={`Setara dengan sekitar ${sizeInMB} MB per file. Batas minimal: 100 KB.`}
+                                    />
                                 </div>
 
                                 {/* Field 3: Format File Diizinkan */}
                                 <div className="space-y-2">
-                                    <label
-                                        htmlFor="berkas_format_diizinkan"
-                                        className="block text-sm font-semibold text-ink"
-                                    >
-                                        Daftar Format File Default (Dipisahkan koma)
-                                    </label>
-                                    <input
+                                    <Input
                                         id="berkas_format_diizinkan"
+                                        label="Daftar Format File Default (Dipisahkan koma)"
                                         type="text"
                                         disabled={!can.update || form.processing}
                                         value={form.data.berkas_format_diizinkan}
@@ -464,24 +437,21 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                             form.setData('berkas_format_diizinkan', e.target.value)
                                         }
                                         placeholder="pdf,docx,xlsx,jpg,jpeg,png"
-                                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-soft"
+                                        error={form.errors.berkas_format_diizinkan}
                                     />
                                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                                         <span className="text-xs text-muted">Format aktif:</span>
                                         {formatList.map((ext) => (
-                                            <span
+                                            <Badge
                                                 key={ext}
-                                                className="inline-flex items-center rounded bg-soft px-1.5 py-0.5 font-mono text-xs font-medium text-ink border border-border"
+                                                variant="muted"
+                                                size="sm"
+                                                className="font-mono text-xs"
                                             >
                                                 .{ext}
-                                            </span>
+                                            </Badge>
                                         ))}
                                     </div>
-                                    {form.errors.berkas_format_diizinkan && (
-                                        <p className="text-xs text-danger" role="alert">
-                                            {form.errors.berkas_format_diizinkan}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
 

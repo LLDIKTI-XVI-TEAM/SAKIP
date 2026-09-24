@@ -4,6 +4,7 @@ import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
+import { Switch } from '@/Components/Switch';
 
 export interface IndikatorOption {
     id: string;
@@ -105,11 +106,11 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
         >
             <form onSubmit={onSubmit} className="space-y-2 sm:space-y-2.5">
                 {isBatasTeknisOnly && (
-                    <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2 text-xs text-blue-800" role="alert">
-                        <Settings2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="p-2 bg-info/10 border border-info/20 rounded-lg flex items-start gap-2 text-xs text-info-dark" role="alert">
+                        <Settings2 className="w-4 h-4 text-info-dark shrink-0 mt-0.5" />
                         <div>
-                            <span className="font-semibold text-blue-900">Mode Batas Teknis Pengaturan</span>
-                            <p className="mt-0.5 text-blue-700 leading-relaxed text-[11px]">
+                            <span className="font-semibold text-info-dark">Mode Batas Teknis Pengaturan</span>
+                            <p className="mt-0.5 text-muted leading-relaxed text-[11px]">
                                 Anda sedang mengubah batas teknis format dan ukuran berkas. Kolom substantif persyaratan hanya dapat diubah oleh tim Perencanaan.
                             </p>
                         </div>
@@ -165,137 +166,144 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 </div>
 
                 {/* Mode Bukti yang Diizinkan */}
-                <div className="p-2 sm:p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-1.5">
+                <div className="p-2 sm:p-2.5 rounded-lg border border-border bg-soft/50 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
                             <CheckSquare className="w-3.5 h-3.5 text-primary" />
-                            Mode Bukti yang Diizinkan <span className="text-rose-600">*</span>
+                            Mode Bukti yang Diizinkan <span className="text-danger">*</span>
                         </span>
                         {!atLeastOneMode && (
-                            <span className="text-[11px] font-semibold text-rose-600">
+                            <span className="text-[11px] font-semibold text-danger">
                                 Minimal 1 mode harus aktif
                             </span>
                         )}
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        <label className="flex items-center gap-2 p-1.5 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
-                            <input
-                                type="checkbox"
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${data.izinkan_file ? 'border-primary/40 bg-surface' : 'border-border bg-surface/60'}`}>
+                            <label htmlFor="jb-mode-file" className="font-medium text-xs text-ink cursor-pointer select-none">
+                                File / Dokumen
+                            </label>
+                            <Switch
+                                id="jb-mode-file"
                                 checked={data.izinkan_file}
-                                onChange={(e) => onChange('izinkan_file', e.target.checked)}
+                                onChange={(checked) => onChange('izinkan_file', checked)}
                                 disabled={isLoading || isBatasTeknisOnly}
-                                className="rounded border-slate-300 text-primary focus:ring-primary"
+                                aria-label="Izinkan Mode File / Dokumen"
                             />
-                            <span className="font-medium text-[11px] sm:text-xs">File / Dokumen</span>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center gap-2 p-1.5 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
-                            <input
-                                type="checkbox"
+                        <div className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${data.izinkan_tautan ? 'border-primary/40 bg-surface' : 'border-border bg-surface/60'}`}>
+                            <label htmlFor="jb-mode-tautan" className="font-medium text-xs text-ink cursor-pointer select-none">
+                                Tautan / URL
+                            </label>
+                            <Switch
+                                id="jb-mode-tautan"
                                 checked={data.izinkan_tautan}
-                                onChange={(e) => onChange('izinkan_tautan', e.target.checked)}
+                                onChange={(checked) => onChange('izinkan_tautan', checked)}
                                 disabled={isLoading || isBatasTeknisOnly}
-                                className="rounded border-slate-300 text-primary focus:ring-primary"
+                                aria-label="Izinkan Mode Tautan / URL"
                             />
-                            <span className="font-medium text-[11px] sm:text-xs">Tautan / URL</span>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center gap-2 p-1.5 rounded-md bg-white border border-slate-200 text-xs text-slate-700 cursor-pointer hover:bg-slate-50">
-                            <input
-                                type="checkbox"
+                        <div className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${data.izinkan_teks ? 'border-primary/40 bg-surface' : 'border-border bg-surface/60'}`}>
+                            <label htmlFor="jb-mode-teks" className="font-medium text-xs text-ink cursor-pointer select-none">
+                                Teks / Narasi
+                            </label>
+                            <Switch
+                                id="jb-mode-teks"
                                 checked={data.izinkan_teks}
-                                onChange={(e) => onChange('izinkan_teks', e.target.checked)}
+                                onChange={(checked) => onChange('izinkan_teks', checked)}
                                 disabled={isLoading || isBatasTeknisOnly}
-                                className="rounded border-slate-300 text-primary focus:ring-primary"
+                                aria-label="Izinkan Mode Teks / Narasi"
                             />
-                            <span className="font-medium text-[11px] sm:text-xs">Teks / Narasi</span>
-                        </label>
+                        </div>
                     </div>
                     {errors.modes && (
-                        <p className="text-[11px] font-medium text-rose-600">{errors.modes}</p>
+                        <p className="text-[11px] font-medium text-danger">{errors.modes}</p>
                     )}
                 </div>
 
                 {/* Pengaturan Kewajiban */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-lg border border-slate-200 bg-slate-50/50">
-                    <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={data.wajib}
-                            onChange={(e) => onChange('wajib', e.target.checked)}
-                            disabled={isLoading || isBatasTeknisOnly}
-                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
-                        />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-lg border border-border bg-soft/50">
+                    <div className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-surface border border-border">
                         <div>
-                            <span className="font-semibold text-slate-900">Bukti Wajib</span>
-                            <p className="text-[10.5px] leading-tight text-slate-500">
+                            <label htmlFor="jb-wajib" className="font-semibold text-xs text-ink cursor-pointer select-none">
+                                Bukti Wajib
+                            </label>
+                            <p className="text-[11px] leading-relaxed text-muted mt-0.5">
                                 Harus dipenuhi sebelum pengajuan rencana aksi, pengukuran, atau penyelesaian kegiatan.
                             </p>
                         </div>
-                    </label>
-
-                    <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={data.semua_mode_wajib}
-                            onChange={(e) => onChange('semua_mode_wajib', e.target.checked)}
+                        <Switch
+                            id="jb-wajib"
+                            checked={data.wajib}
+                            onChange={(checked) => onChange('wajib', checked)}
                             disabled={isLoading || isBatasTeknisOnly}
-                            className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
+                            aria-label="Bukti Wajib"
                         />
+                    </div>
+
+                    <div className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-surface border border-border">
                         <div>
-                            <span className="font-semibold text-slate-900">Semua Mode Wajib</span>
-                            <p className="text-[10.5px] leading-tight text-slate-500">
+                            <label htmlFor="jb-semua-mode-wajib" className="font-semibold text-xs text-ink cursor-pointer select-none">
+                                Semua Mode Wajib
+                            </label>
+                            <p className="text-[11px] leading-relaxed text-muted mt-0.5">
                                 Jika aktif, setiap mode yang diizinkan harus dipenuhi oleh pengunggah.
                             </p>
                         </div>
-                    </label>
+                        <Switch
+                            id="jb-semua-mode-wajib"
+                            checked={data.semua_mode_wajib}
+                            onChange={(checked) => onChange('semua_mode_wajib', checked)}
+                            disabled={isLoading || isBatasTeknisOnly}
+                            aria-label="Semua Mode Wajib"
+                        />
+                    </div>
                 </div>
 
                 {/* Status Aktif / Nonaktif Persyaratan (Khusus saat Edit) */}
                 {isEditing && (
-                    <div className={`p-2 sm:p-2.5 rounded-lg border transition-colors ${data.aktif !== false ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'}`}>
-                        <label className="flex items-start gap-2 text-xs cursor-pointer">
-                            <input
-                                type="checkbox"
-                                id="jb-aktif"
-                                checked={data.aktif !== false}
-                                onChange={(e) => onChange('aktif', e.target.checked)}
-                                disabled={isLoading || isBatasTeknisOnly}
-                                className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
-                            />
-                            <div>
-                                <span className={`font-semibold ${data.aktif !== false ? 'text-emerald-900' : 'text-rose-900'}`}>
-                                    {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
-                                </span>
-                                <p className="text-[10.5px] text-slate-600 mt-0.5 leading-tight">
-                                    {data.aktif !== false 
-                                        ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
-                                        : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
-                                </p>
-                            </div>
-                        </label>
+                    <div className={`p-2.5 rounded-lg border transition-colors flex items-start justify-between gap-3 ${data.aktif !== false ? 'border-success/30 bg-success/10' : 'border-danger/30 bg-danger/10'}`}>
+                        <div>
+                            <label htmlFor="jb-aktif" className={`font-semibold text-xs cursor-pointer select-none ${data.aktif !== false ? 'text-success-dark' : 'text-danger'}`}>
+                                {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
+                            </label>
+                            <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+                                {data.aktif !== false 
+                                    ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
+                                    : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
+                            </p>
+                        </div>
+                        <Switch
+                            id="jb-aktif"
+                            checked={data.aktif !== false}
+                            onChange={(checked) => onChange('aktif', checked)}
+                            disabled={isLoading || isBatasTeknisOnly}
+                            aria-label="Status Keaktifan Persyaratan"
+                        />
                     </div>
                 )}
 
                 {/* Peringatan jika berkas.unggahan_aktif = false dan syarat wajib hanya mode file */}
                 {!unggahanAktif && data.wajib && data.izinkan_file && !data.izinkan_tautan && !data.izinkan_teks && (
-                    <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-800" role="alert">
-                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="p-2 bg-warning/10 border border-warning/25 rounded-lg flex items-start gap-2 text-xs text-warning-dark" role="alert">
+                        <AlertCircle className="w-4 h-4 text-warning-dark shrink-0 mt-0.5" />
                         <div>
-                            <span className="font-semibold text-amber-900">Peringatan: Mode Unggahan File Dinonaktifkan Global</span>
-                            <p className="mt-0.5 text-amber-700 leading-tight text-[10.5px]">
-                                Setelan aplikasi saat ini menonaktifkan mode unggahan file (<code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-[10px]">berkas.unggahan_aktif = false</code>). 
-                                Persyaratan wajib dengan hanya mode file ini berpotensi tidak dapat dipenuhi oleh PIC dan akan ditandai <span className="font-semibold">tidak dapat dipenuhi</span> pada alur kerja. Disarankan mengaktifkan mode tautan atau teks.
+                            <span className="font-semibold text-warning-dark">Peringatan: Mode Unggahan File Dinonaktifkan Global</span>
+                            <p className="mt-0.5 text-muted leading-tight text-[10.5px]">
+                                Setelan aplikasi saat ini menonaktifkan mode unggahan file (<code className="bg-warning/15 px-1 py-0.5 rounded font-mono text-[10px] text-ink">berkas.unggahan_aktif = false</code>). 
+                                Persyaratan wajib dengan hanya mode file ini berpotensi tidak dapat dipenuhi oleh PIC dan akan ditandai <span className="font-semibold text-ink">tidak dapat dipenuhi</span> pada alur kerja. Disarankan mengaktifkan mode tautan atau teks.
                             </p>
                         </div>
                     </div>
                 )}
 
                 {/* Batasan Teknis File (Hanya relevan jika izinkan_file = true) */}
-                <div className={`p-2 sm:p-2.5 rounded-lg border transition-colors ${data.izinkan_file ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-100 opacity-60'}`}>
+                <div className={`p-2 sm:p-2.5 rounded-lg border transition-colors ${data.izinkan_file ? 'border-border bg-surface' : 'border-border bg-soft opacity-60'}`}>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                        <Settings2 className="w-3.5 h-3.5 text-slate-500" />
-                        <span className="text-xs font-semibold text-slate-800">
+                        <Settings2 className="w-3.5 h-3.5 text-muted" />
+                        <span className="text-xs font-semibold text-ink">
                             Batasan Teknis File {data.izinkan_file ? '' : '(Nonaktif karena mode file tidak diizinkan)'}
                         </span>
                     </div>
@@ -361,7 +369,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-border">
                     <Button
                         type="button"
                         variant="outline"

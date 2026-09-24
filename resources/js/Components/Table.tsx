@@ -7,7 +7,7 @@ export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTM
         <div className="relative w-full overflow-x-auto">
             <table
                 ref={ref}
-                className={twMerge(clsx('w-full caption-bottom text-left text-xs text-slate-700', className))}
+                className={twMerge(clsx('w-full caption-bottom text-left text-xs text-ink', className))}
                 {...props}
             />
         </div>
@@ -19,7 +19,7 @@ export const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLA
     ({ className, ...props }, ref) => (
         <thead
             ref={ref}
-            className={twMerge(clsx('border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-700', className))}
+            className={twMerge(clsx('border-b border-border bg-soft text-xs font-semibold uppercase tracking-wider text-ink', className))}
             {...props}
         />
     )
@@ -30,7 +30,7 @@ export const TableBody = React.forwardRef<HTMLTableSectionElement, React.HTMLAtt
     ({ className, ...props }, ref) => (
         <tbody
             ref={ref}
-            className={twMerge(clsx('divide-y divide-slate-100 bg-surface', className))}
+            className={twMerge(clsx('divide-y divide-border bg-surface', className))}
             {...props}
         />
     )
@@ -41,7 +41,7 @@ export const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLA
     ({ className, ...props }, ref) => (
         <tfoot
             ref={ref}
-            className={twMerge(clsx('border-t border-slate-200 bg-slate-50/50 font-medium text-slate-800', className))}
+            className={twMerge(clsx('border-t border-border bg-soft/60 font-medium text-ink', className))}
             {...props}
         />
     )
@@ -52,7 +52,7 @@ export const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttribut
     ({ className, ...props }, ref) => (
         <tr
             ref={ref}
-            className={twMerge(clsx('transition-colors hover:bg-slate-50/60 data-[state=selected]:bg-slate-50', className))}
+            className={twMerge(clsx('transition-colors hover:bg-soft/70 data-[state=selected]:bg-soft', className))}
             {...props}
         />
     )
@@ -64,7 +64,7 @@ export const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttr
         <th
             ref={ref}
             scope="col"
-            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-semibold uppercase tracking-wider text-slate-700 [&:has([role=checkbox])]:pr-0', className))}
+            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-semibold uppercase tracking-wider text-ink [&:has([role=checkbox])]:pr-0', className))}
             {...props}
         />
     )
@@ -75,7 +75,7 @@ export const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttr
     ({ className, ...props }, ref) => (
         <td
             ref={ref}
-            className={twMerge(clsx('px-4 py-3.5 align-middle text-xs text-slate-700 [&:has([role=checkbox])]:pr-0', className))}
+            className={twMerge(clsx('px-4 py-3.5 align-middle text-xs text-ink [&:has([role=checkbox])]:pr-0', className))}
             {...props}
         />
     )
@@ -92,3 +92,4 @@ export const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTML
     )
 );
 TableCaption.displayName = 'TableCaption';
+
