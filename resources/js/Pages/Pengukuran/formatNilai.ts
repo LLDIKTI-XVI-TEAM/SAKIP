@@ -19,8 +19,13 @@ export function formatNilai(
 
 /** Hook untuk memformat nilai angka sesuai preferensi tampilan yang aktif. */
 export function useFormatNilai(): (nilai: string | number, desimalTampilan: number) => string {
-    const { props } = usePage<SharedPageProps>();
-    const formatAngka = (props.pengaturan?.['tampilan.format_angka'] as string) || 'id_ID';
+    let formatAngka = 'id_ID';
+    try {
+        const { props } = usePage<SharedPageProps>();
+        formatAngka = (props?.pengaturan?.['tampilan.format_angka'] as string) || 'id_ID';
+    } catch {
+        // Fallback jika komponen dirender di luar context Inertia (misal unit test)
+    }
 
     return (nilai: string | number, desimalTampilan: number) => {
         return formatNilai(nilai, desimalTampilan, formatAngka);

@@ -49,6 +49,7 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "@php artisan db:seed --class=AccessCatalogSeeder --force",
+            "@php artisan db:seed --class=PengaturanSeeder --force",
             "bun install --frozen-lockfile",
             "bun run build"
         ],

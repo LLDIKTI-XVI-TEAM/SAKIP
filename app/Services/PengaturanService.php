@@ -164,7 +164,7 @@ class PengaturanService
                 'tipe' => $meta['tipe'],
                 'grup' => $meta['grup'],
                 'label' => $meta['label'],
-                'updated_at' => $record?->updated_at?->toIso8601String(),
+                'updated_at' => $record?->updated_at?->toISOString(),
                 'updated_by' => ($record?->updatedBy instanceof User) ? [
                     'id' => $record->updatedBy->id,
                     'nama' => $record->updatedBy->nama,
@@ -253,9 +253,9 @@ class PengaturanService
 
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
 
-                if (isset($expectedUpdatedAt[$kunci]) && $setting->exists && $setting->updated_at !== null) {
+                if (isset($expectedUpdatedAt[$kunci]) && $expectedUpdatedAt[$kunci] !== null && $setting->exists && $setting->updated_at !== null) {
                     $expected = Carbon::parse($expectedUpdatedAt[$kunci]);
-                    if ($setting->updated_at->greaterThan($expected)) {
+                    if ($setting->updated_at->toISOString() !== $expected->toISOString()) {
                         $updaterName = $setting->updatedBy?->nama ?? 'pengguna lain';
                         throw ValidationException::withMessages([
                             $kunci => "Pengaturan '{$kunci}' telah diperbarui oleh {$updaterName} saat Anda sedang mengedit. Silakan muat ulang halaman.",

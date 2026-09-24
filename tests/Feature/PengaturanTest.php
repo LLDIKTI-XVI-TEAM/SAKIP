@@ -289,6 +289,30 @@ test('deteksi konflik konkurensi (optimistic locking) menolak stale update', fun
     $response->assertJsonValidationErrors(['instansi.nama']);
 });
 
+test('validasi token konkurensi menolak format tanggal invalid dan kunci non-whitelist', function (): void {
+    // 1. Format tanggal tidak valid -> 422, bukan 500
+    $responseInvalidDate = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Valid',
+        'alasan' => 'Pembaruan alasan validasi',
+        'expected_updated_at' => [
+            'instansi.nama' => 'bukan-tanggal',
+        ],
+    ]);
+    $responseInvalidDate->assertUnprocessable();
+    $responseInvalidDate->assertJsonValidationErrors(['expected_updated_at.instansi.nama']);
+
+    // 2. Kunci tidak ada di whitelist -> 422
+    $responseInvalidKey = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Valid',
+        'alasan' => 'Pembaruan alasan validasi',
+        'expected_updated_at' => [
+            'kunci.ilegal' => now()->toISOString(),
+        ],
+    ]);
+    $responseInvalidKey->assertUnprocessable();
+    $responseInvalidKey->assertJsonValidationErrors(['expected_updated_at.kunci.ilegal']);
+});
+
 test('pembaruan parsial hanya memperbarui kunci yang dikirim dan tidak mengubah kunci lain', function (): void {
     $namaAwal = Pengaturan::query()->where('kunci', 'instansi.nama')->value('nilai');
 

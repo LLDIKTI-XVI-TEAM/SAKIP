@@ -8,6 +8,7 @@ use App\Services\PengaturanService;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Validator;
 
 class UpdatePengaturanRequest extends FormRequest
@@ -48,12 +49,52 @@ class UpdatePengaturanRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $allowedKeys = array_merge(array_keys(PengaturanService::WHITELIST), ['alasan']);
-            $inputKeys = array_keys(Arr::dot($this->all()));
+            $allowedKeys = array_keys(PengaturanService::WHITELIST);
+            $allInputDot = Arr::dot($this->all());
+
+            // Validasi setiap token expected_updated_at dan batasi pada kunci whitelist
+            $expectedInput = $this->input('expected_updated_at');
+            if ($expectedInput !== null) {
+                if (! is_array($expectedInput)) {
+                    $validator->errors()->add('expected_updated_at', 'Format token konkurensi harus berupa array.');
+                } else {
+                    $expectedDot = Arr::dot($expectedInput);
+                    foreach ($expectedDot as $key => $val) {
+                        if (! in_array($key, $allowedKeys, true)) {
+                            $validator->errors()->add(
+                                "expected_updated_at.{$key}",
+                                "Kunci token konkurensi '{$key}' tidak valid."
+                            );
+
+                            continue;
+                        }
+
+                        if ($val !== null) {
+                            if (! is_string($val)) {
+                                $validator->errors()->add(
+                                    "expected_updated_at.{$key}",
+                                    "Token konkurensi untuk '{$key}' harus berupa string tanggal."
+                                );
+                            } else {
+                                try {
+                                    Carbon::parse($val);
+                                } catch (\Throwable) {
+                                    $validator->errors()->add(
+                                        "expected_updated_at.{$key}",
+                                        "Token konkurensi untuk '{$key}' harus berformat tanggal/waktu yang valid."
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Abaikan metadata penanganan konkurensi dari pengecekan whitelist pengaturan
+            $inputKeys = array_keys($allInputDot);
             $checkedKeys = array_filter($inputKeys, fn ($k) => ! str_starts_with($k, 'expected_updated_at'));
-            $disallowed = array_diff($checkedKeys, $allowedKeys);
+            $allowedFormKeys = array_merge($allowedKeys, ['alasan']);
+            $disallowed = array_diff($checkedKeys, $allowedFormKeys);
             foreach ($disallowed as $key) {
                 $validator->errors()->add(
                     $key,

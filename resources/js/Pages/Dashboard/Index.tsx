@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
-import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -46,6 +46,7 @@ interface DashboardProps {
 
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
     const { auth, pengaturan } = usePage<SharedPageProps>().props;
+    const formatNilai = useFormatNilai();
     const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP LLDIKTI XVI';
     const [currentDate, setCurrentDate] = useState<string>('');
     const hasPeriode = activePeriode !== null;

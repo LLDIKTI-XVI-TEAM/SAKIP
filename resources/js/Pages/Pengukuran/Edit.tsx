@@ -12,7 +12,7 @@ import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
 import EvidenceList from './EvidenceList';
-import { formatNilai } from './formatNilai';
+import { useFormatNilai } from './formatNilai';
 import CalculationPreview from './CalculationPreview';
 
 interface PengukuranEditProps { pengukuran: Pengukuran }
@@ -22,6 +22,7 @@ export default function PengukuranEdit(props: PengukuranEditProps) {
 }
 
 function PengukuranForm({ pengukuran }: PengukuranEditProps) {
+    const formatNilai = useFormatNilai();
     const { can } = pengukuran;
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
     const historical = pengukuran.sumber_nilai === 'historis';

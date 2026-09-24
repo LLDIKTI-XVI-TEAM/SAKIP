@@ -7,7 +7,6 @@ import {
     FileText,
     Save,
     RotateCcw,
-    CheckCircle2,
     Clock,
     User,
     Globe,
@@ -187,14 +186,6 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             <Head title="Pengaturan Sistem" />
 
             <div className="space-y-5">
-                {/* Flash Success Notification */}
-                {flash?.success && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/20 text-success-dark">
-                        <CheckCircle2 className="w-5 h-5 shrink-0 text-success" />
-                        <span className="text-sm font-medium">{flash.success}</span>
-                    </div>
-                )}
-
                 {/* Form General Error Notification */}
                 {Object.keys(form.errors).length > 0 && (
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-danger/10 border border-danger/20 text-danger-dark">

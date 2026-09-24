@@ -6,11 +6,12 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
-import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import DecisionDialog, { type ReviewDecision } from './DecisionDialog';
 import ClaimedActivities from './ClaimedActivities';
 
 export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran }) {
+    const formatNilai = useFormatNilai();
     const { can } = pengukuran;
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);

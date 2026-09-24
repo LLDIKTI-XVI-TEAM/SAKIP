@@ -7,7 +7,7 @@ import { Badge } from '@/Components/Badge';
 import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
 import { statusPerhitungan } from '@/Pages/Pengukuran/types';
 import Pagination from '@/Pages/Pengukuran/Pagination';
-import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 
 interface VerifikasiIndexProps {
     pengukurans: Pengukuran[];
@@ -15,6 +15,8 @@ interface VerifikasiIndexProps {
 }
 
 export default function VerifikasiIndex({ pengukurans = [], pagination }: VerifikasiIndexProps) {
+    const formatNilai = useFormatNilai();
+
     return (
         <AuthenticatedLayout
             title="Verifikasi & Pengesahan Kinerja"
