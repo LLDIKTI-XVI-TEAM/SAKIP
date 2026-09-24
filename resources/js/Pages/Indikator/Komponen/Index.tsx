@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { 
     Plus, 
@@ -127,6 +127,54 @@ const defaultFormData: KomponenFormData = {
     aktif: true,
 };
 
+const HoverScrollText: React.FC<{
+    icon: React.ReactNode;
+    text: string;
+    isCardHovered: boolean;
+}> = ({ icon, text, isCardHovered }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLSpanElement>(null);
+    const [overflowDistance, setOverflowDistance] = useState(0);
+
+    useEffect(() => {
+        const checkOverflow = () => {
+            if (containerRef.current && textRef.current) {
+                const diff = textRef.current.scrollWidth - containerRef.current.clientWidth;
+                setOverflowDistance(diff > 0 ? diff : 0);
+            }
+        };
+        checkOverflow();
+        window.addEventListener('resize', checkOverflow);
+        return () => window.removeEventListener('resize', checkOverflow);
+    }, [text]);
+
+    const shouldScroll = isCardHovered && overflowDistance > 0;
+    const duration = Math.max(2.5, overflowDistance / 28);
+
+    return (
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-ink overflow-hidden">
+            <span className="shrink-0 z-10">{icon}</span>
+            <div ref={containerRef} className="overflow-hidden relative w-full flex items-center">
+                <span
+                    ref={textRef}
+                    className="inline-block whitespace-nowrap select-none"
+                    style={{
+                        transform: shouldScroll ? `translateX(-${overflowDistance + 6}px)` : 'translateX(0)',
+                        transitionProperty: 'transform',
+                        transitionDuration: shouldScroll ? `${duration}s` : '0.35s',
+                        transitionTimingFunction: shouldScroll ? 'linear' : 'ease-out',
+                    }}
+                >
+                    {text}
+                </span>
+                {!shouldScroll && overflowDistance > 0 && (
+                    <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface to-transparent z-10" />
+                )}
+            </div>
+        </div>
+    );
+};
+
 export default function KomponenIndex({
     indikator,
     komponen = [],
@@ -137,6 +185,7 @@ export default function KomponenIndex({
     const { flash } = usePage<{ flash?: { success?: string; error?: string } }>().props;
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPeran, setFilterPeran] = useState<string>('semua');
+    const [isUnitHovered, setIsUnitHovered] = useState(false);
 
     // Simulator State
     const [showSimulator, setShowSimulator] = useState(false);
@@ -350,13 +399,13 @@ export default function KomponenIndex({
     const getPeranBadge = (peran: string) => {
         switch (peran) {
             case 'pembilang':
-                return <Badge variant="info" size="sm">Pembilang</Badge>;
+                return <Badge variant="info" size="sm" className="whitespace-nowrap">Pembilang</Badge>;
             case 'penyebut':
-                return <Badge variant="warning" size="sm">Penyebut</Badge>;
+                return <Badge variant="warning" size="sm" className="whitespace-nowrap">Penyebut</Badge>;
             case 'penjumlah':
-                return <Badge variant="success" size="sm">Penjumlah (+)</Badge>;
+                return <Badge variant="success" size="sm" className="whitespace-nowrap">Penjumlah (+)</Badge>;
             default:
-                return <Badge variant="muted" size="sm">{peran}</Badge>;
+                return <Badge variant="muted" size="sm" className="whitespace-nowrap">{peran}</Badge>;
         }
     };
 
@@ -421,15 +470,15 @@ export default function KomponenIndex({
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         {can.create && (
                             <Button
                                 variant="primary"
                                 onClick={handleOpenCreate}
-                                className="shadow-sm"
+                                className="shadow-sm whitespace-nowrap shrink-0"
                             >
-                                <Plus className="h-4 w-4 mr-1.5" />
-                                Tambah Komponen
+                                <Plus className="h-4 w-4 mr-1.5 shrink-0" />
+                                <span className="whitespace-nowrap">Tambah Komponen</span>
                             </Button>
                         )}
                     </div>
@@ -463,14 +512,20 @@ export default function KomponenIndex({
                             )}
                         </div>
                     </div>
-                    <div className="rounded-lg border border-border bg-surface p-3 space-y-1">
+                    <div 
+                        onMouseEnter={() => setIsUnitHovered(true)}
+                        onMouseLeave={() => setIsUnitHovered(false)}
+                        className="rounded-lg border border-border bg-surface p-3 space-y-1 group relative overflow-hidden transition-all duration-200 hover:border-primary/40 hover:shadow-xs cursor-default"
+                        title={indikator.unit?.nama || '-'}
+                    >
                         <span className="text-[11px] font-medium text-muted uppercase tracking-wider block">
                             Unit Penanggung Jawab
                         </span>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-ink truncate">
-                            <Building2 className="h-4 w-4 text-muted shrink-0" />
-                            <span className="truncate">{indikator.unit?.nama || '-'}</span>
-                        </div>
+                        <HoverScrollText
+                            icon={<Building2 className="h-4 w-4 text-muted shrink-0" />}
+                            text={indikator.unit?.nama || '-'}
+                            isCardHovered={isUnitHovered}
+                        />
                     </div>
                     <div className="rounded-lg border border-border bg-surface p-3 space-y-1">
                         <span className="text-[11px] font-medium text-muted uppercase tracking-wider block">
@@ -690,14 +745,14 @@ export default function KomponenIndex({
                                 <TableHeader>
                                     <TableRow className="bg-soft/50">
                                         <TableHead className="w-12 text-center">#</TableHead>
-                                        <TableHead className="w-28">Kode</TableHead>
-                                        <TableHead>Label Komponen</TableHead>
-                                        <TableHead className="w-32">Peran</TableHead>
-                                        <TableHead className="w-24 text-right">Bobot</TableHead>
+                                        <TableHead className="w-24">Kode</TableHead>
+                                        <TableHead className="w-1/3 min-w-[180px]">Label Komponen</TableHead>
+                                        <TableHead className="w-48 whitespace-nowrap">Peran</TableHead>
+                                        <TableHead className="w-20 text-right">Bobot</TableHead>
                                         <TableHead className="w-24">Satuan</TableHead>
                                         <TableHead className="w-24 text-center">Status</TableHead>
                                         {(can.update || can.delete) && (
-                                            <TableHead className="w-28 text-right pr-4">Aksi</TableHead>
+                                            <TableHead className="w-24 text-right pr-4">Aksi</TableHead>
                                         )}
                                     </TableRow>
                                 </TableHeader>
@@ -752,7 +807,7 @@ export default function KomponenIndex({
                                                         {item.label}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="whitespace-nowrap">
                                                     {getPeranBadge(item.peran)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono text-sm font-medium text-ink">
