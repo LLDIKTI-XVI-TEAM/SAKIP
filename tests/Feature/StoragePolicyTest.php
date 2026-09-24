@@ -6,6 +6,7 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
+use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Regulasi;
@@ -705,5 +706,169 @@ class StoragePolicyTest extends TestCase
             ],
         ]);
         $responseDocFallback->assertSessionHasErrors(['lampiran.0.file']);
+    }
+
+    /**
+     * TEST-12: Mengubah berkas.unggahan_aktif menjadi false mencatat audit berkas.tandai_tidak_dapat_dipenuhi
+     * untuk persyaratan wajib file-only dan gerbang lampiran PK yang belum berlampiran tautan/teks (Plan Pengembangan §10.6, Data Model §2.15/§2.32).
+     */
+    public function test_disabling_upload_switch_records_canonical_waiver_audits_for_file_only_requirements_and_pk_gate(): void
+    {
+        // 1. Siapkan 2 persyaratan wajib yang hanya mengizinkan mode file
+        $fileOnly1 = JenisBerkas::create([
+            'nama' => 'Laporan Akhir Fisik 1',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $fileOnly2 = JenisBerkas::create([
+            'nama' => 'Dokumen Verifikasi Lapangan 2',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Persyaratan opsional atau yang mengizinkan tautan/teks tidak boleh ditandai
+        $nonFileAllowed = JenisBerkas::create([
+            'nama' => 'Persyaratan Bebas Mode',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => true,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 2. Siapkan PK yang belum memiliki lampiran mode tautan/teks
+        $renstra = Renstra::firstOrFail();
+        $pkWithoutNonFile = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK/WAIVER/01',
+            'tanggal_pk' => now()->toDateString(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // PK lain yang SUDAH memiliki lampiran mode tautan tidak boleh ditandai
+        $pkWithLink = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'nomor_pk' => 'PK/WITH-LINK/02',
+            'tanggal_pk' => now()->toDateString(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+        BuktiDukung::create([
+            'id' => (string) Str::uuid(),
+            'berkasable_type' => 'renstra_pk',
+            'berkasable_id' => $pkWithLink->id,
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-link',
+            'uploaded_by' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // 3. Matikan saklar global unggahan file (true -> false)
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => false,
+            'alasan' => 'Penonaktifan saklar unggahan file untuk pengujian penandaan tidak_dapat_dipenuhi.',
+        ]));
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect('/pengaturan/storage');
+
+        // Pastikan 1 baris audit untuk perubahan setelan berkas.unggahan_aktif
+        $settingAudit = AuditLog::where('objek_tipe', 'pengaturan')
+            ->where('tindakan', 'pengaturan.ubah')
+            ->whereJsonContains('nilai_baru->kunci', 'berkas.unggahan_aktif')
+            ->first();
+        $this->assertNotNull($settingAudit);
+
+        // Pastikan penandaan memakai tindakan kanonik berkas.tandai_tidak_dapat_dipenuhi
+        $waiverAudits = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->get();
+
+        // 2 untuk jenis_berkas + 1 untuk renstra_pk = 3 baris audit penandaan
+        $this->assertCount(3, $waiverAudits);
+
+        $jbWaiverIds = $waiverAudits->where('objek_tipe', 'jenis_berkas')->pluck('objek_id')->all();
+        $this->assertEqualsCanonicalizing([$fileOnly1->id, $fileOnly2->id], $jbWaiverIds);
+        $this->assertNotContains($nonFileAllowed->id, $jbWaiverIds);
+
+        $pkWaiverIds = $waiverAudits->where('objek_tipe', 'renstra_pk')->pluck('objek_id')->all();
+        $this->assertEqualsCanonicalizing([$pkWithoutNonFile->id], $pkWaiverIds);
+        $this->assertNotContains($pkWithLink->id, $pkWaiverIds);
+
+        $pkAudit = $waiverAudits->firstWhere('objek_id', $pkWithoutNonFile->id);
+        $this->assertSame('tidak_dapat_dipenuhi', $pkAudit->nilai_baru['status_gerbang']);
+        $this->assertSame('lampiran_pk', $pkAudit->nilai_baru['gerbang']);
+        $this->assertSame('saklar_unggahan_global_nonaktif', $pkAudit->nilai_baru['sebab']);
+    }
+
+    /**
+     * TEST-13: Mengaktifkan kembali berkas.unggahan_aktif menjadi true mencatat pencabutan penanda
+     * berkas.cabut_tidak_dapat_dipenuhi sebagai baris audit tersendiri (Plan Pengembangan §10.6).
+     */
+    public function test_re_enabling_upload_switch_records_canonical_revocation_audits(): void
+    {
+        // 1. Kondisi awal: saklar mati (false)
+        Pengaturan::where('kunci', 'berkas.unggahan_aktif')->update(['nilai' => 'false', 'updated_at' => now()]);
+
+        $fileOnly = JenisBerkas::create([
+            'nama' => 'Laporan Fisik Pemulihan',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $renstra = Renstra::firstOrFail();
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2029,
+            'nomor_pk' => 'PK/RESTORE/01',
+            'tanggal_pk' => now()->toDateString(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 2. Aktifkan kembali saklar (false -> true)
+        $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => true,
+            'alasan' => 'Pengaktifan kembali unggahan file setelah perbaikan storage.',
+        ]));
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect('/pengaturan/storage');
+
+        // Pastikan baris audit pencabutan penanda tercatat dengan kode kanonik berkas.cabut_tidak_dapat_dipenuhi
+        $revocationAudits = AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->get();
+        $this->assertCount(2, $revocationAudits);
+
+        $jbRevoke = $revocationAudits->firstWhere('objek_tipe', 'jenis_berkas');
+        $this->assertNotNull($jbRevoke);
+        $this->assertSame($fileOnly->id, $jbRevoke->objek_id);
+        $this->assertSame('normal', $jbRevoke->nilai_baru['status_pemenuhan']);
+        $this->assertSame('saklar_unggahan_global_aktif', $jbRevoke->nilai_baru['sebab']);
+
+        $pkRevoke = $revocationAudits->firstWhere('objek_tipe', 'renstra_pk');
+        $this->assertNotNull($pkRevoke);
+        $this->assertSame($pk->id, $pkRevoke->objek_id);
+        $this->assertSame('normal', $pkRevoke->nilai_baru['status_gerbang']);
+        $this->assertSame('lampiran_pk', $pkRevoke->nilai_baru['gerbang']);
+        $this->assertSame('saklar_unggahan_global_aktif', $pkRevoke->nilai_baru['sebab']);
     }
 }

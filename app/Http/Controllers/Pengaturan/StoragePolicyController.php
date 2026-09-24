@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pengaturan\UpdateStoragePolicyRequest;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -247,9 +248,9 @@ class StoragePolicyController extends Controller
             $versiRow->updated_at = $now;
             $versiRow->save();
 
-            // PRD §18.7: Saat unggahan file dinonaktifkan (true -> false), catat jejak audit
-            // penanda tidak_dapat_dipenuhi untuk setiap persyaratan wajib yang hanya menerima file.
-            if (isset($changedKeys['berkas.unggahan_aktif']) && $changedKeys['berkas.unggahan_aktif']['new'] === 'false') {
+            // PRD §18.7 & Plan Pengembangan §10.6: Penandaan otomatis dan pencabutan penanda
+            // saat status saklar global unggahan file (berkas.unggahan_aktif) berubah.
+            if (isset($changedKeys['berkas.unggahan_aktif'])) {
                 $fileOnlyRequirements = JenisBerkas::query()
                     ->where('aktif', true)
                     ->where('wajib', true)
@@ -258,27 +259,116 @@ class StoragePolicyController extends Controller
                     ->where('izinkan_teks', false)
                     ->get();
 
-                foreach ($fileOnlyRequirements as $persyaratan) {
-                    $auditLogger->catat(
-                        actor: $actor,
-                        tindakan: 'jenis_berkas.tidak_dapat_dipenuhi',
-                        objekTipe: 'jenis_berkas',
-                        objekId: $persyaratan->id,
-                        nilaiLama: [
-                            'nama' => $persyaratan->nama,
-                            'tahap' => $persyaratan->tahap,
-                            'status_pemenuhan' => 'normal',
-                        ],
-                        nilaiBaru: [
-                            'nama' => $persyaratan->nama,
-                            'tahap' => $persyaratan->tahap,
-                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
-                            'sebab' => 'saklar_unggahan_global_nonaktif',
-                            'kunci_setelan' => 'berkas.unggahan_aktif',
-                        ],
-                        alasan: $alasan,
-                        dasarIzin: $decision
-                    );
+                // Gerbang keempat lampiran PK (§2.15, §10.6): PK yang belum memiliki lampiran mode tautan/teks
+                $pkWithoutNonFile = RenstraPk::query()
+                    ->whereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('berkas')
+                            ->whereColumn('berkas.berkasable_id', 'renstra_pk.id')
+                            ->whereIn('berkas.berkasable_type', ['renstra_pk', RenstraPk::class, 'App\\Models\\PerjanjianKinerja'])
+                            ->whereIn('berkas.mode', ['tautan', 'teks'])
+                            ->whereNull('berkas.dihapus_pada');
+                    })
+                    ->get();
+
+                if ($changedKeys['berkas.unggahan_aktif']['new'] === 'false') {
+                    // Transisi true -> false: tandai tidak_dapat_dipenuhi dengan tindakan kanonik berkas.tandai_tidak_dapat_dipenuhi
+                    foreach ($fileOnlyRequirements as $persyaratan) {
+                        $auditLogger->catat(
+                            actor: $actor,
+                            tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+                            objekTipe: 'jenis_berkas',
+                            objekId: $persyaratan->id,
+                            nilaiLama: [
+                                'nama' => $persyaratan->nama,
+                                'tahap' => $persyaratan->tahap,
+                                'status_pemenuhan' => 'normal',
+                            ],
+                            nilaiBaru: [
+                                'nama' => $persyaratan->nama,
+                                'tahap' => $persyaratan->tahap,
+                                'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                                'sebab' => 'saklar_unggahan_global_nonaktif',
+                                'kunci_setelan' => 'berkas.unggahan_aktif',
+                            ],
+                            alasan: $alasan,
+                            dasarIzin: $decision
+                        );
+                    }
+
+                    foreach ($pkWithoutNonFile as $pk) {
+                        $auditLogger->catat(
+                            actor: $actor,
+                            tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+                            objekTipe: 'renstra_pk',
+                            objekId: $pk->id,
+                            nilaiLama: [
+                                'nomor_pk' => $pk->nomor_pk,
+                                'tahun' => $pk->tahun,
+                                'status_gerbang' => 'normal',
+                            ],
+                            nilaiBaru: [
+                                'nomor_pk' => $pk->nomor_pk,
+                                'tahun' => $pk->tahun,
+                                'status_gerbang' => 'tidak_dapat_dipenuhi',
+                                'gerbang' => 'lampiran_pk',
+                                'sebab' => 'saklar_unggahan_global_nonaktif',
+                                'kunci_setelan' => 'berkas.unggahan_aktif',
+                            ],
+                            alasan: $alasan,
+                            dasarIzin: $decision
+                        );
+                    }
+                } elseif ($changedKeys['berkas.unggahan_aktif']['new'] === 'true') {
+                    // Transisi false -> true: catat pencabutan penanda tidak_dapat_dipenuhi (Plan Pengembangan §10.6)
+                    foreach ($fileOnlyRequirements as $persyaratan) {
+                        $auditLogger->catat(
+                            actor: $actor,
+                            tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                            objekTipe: 'jenis_berkas',
+                            objekId: $persyaratan->id,
+                            nilaiLama: [
+                                'nama' => $persyaratan->nama,
+                                'tahap' => $persyaratan->tahap,
+                                'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                                'sebab' => 'saklar_unggahan_global_nonaktif',
+                            ],
+                            nilaiBaru: [
+                                'nama' => $persyaratan->nama,
+                                'tahap' => $persyaratan->tahap,
+                                'status_pemenuhan' => 'normal',
+                                'sebab' => 'saklar_unggahan_global_aktif',
+                                'kunci_setelan' => 'berkas.unggahan_aktif',
+                            ],
+                            alasan: $alasan,
+                            dasarIzin: $decision
+                        );
+                    }
+
+                    foreach ($pkWithoutNonFile as $pk) {
+                        $auditLogger->catat(
+                            actor: $actor,
+                            tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                            objekTipe: 'renstra_pk',
+                            objekId: $pk->id,
+                            nilaiLama: [
+                                'nomor_pk' => $pk->nomor_pk,
+                                'tahun' => $pk->tahun,
+                                'status_gerbang' => 'tidak_dapat_dipenuhi',
+                                'gerbang' => 'lampiran_pk',
+                            ],
+                            nilaiBaru: [
+                                'nomor_pk' => $pk->nomor_pk,
+                                'tahun' => $pk->tahun,
+                                'status_gerbang' => 'normal',
+                                'gerbang' => 'lampiran_pk',
+                                'sebab' => 'saklar_unggahan_global_aktif',
+                                'kunci_setelan' => 'berkas.unggahan_aktif',
+                            ],
+                            alasan: $alasan,
+                            dasarIzin: $decision
+                        );
+                    }
                 }
             }
 
