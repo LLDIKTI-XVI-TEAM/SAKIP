@@ -173,7 +173,6 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
         'actor_id' => $this->perencanaan->id,
         'tindakan' => 'pengaturan.ubah_ditolak',
         'objek_tipe' => 'pengaturan',
-        'objek_id' => 'system',
         'alasan' => 'Mencoba ubah tanpa hak akses',
     ]);
 
@@ -191,7 +190,6 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
         'actor_id' => $this->pegawai->id,
         'tindakan' => 'pengaturan.ubah_ditolak',
         'objek_tipe' => 'pengaturan',
-        'objek_id' => 'system',
     ]);
 });
 
