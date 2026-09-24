@@ -203,6 +203,21 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
         'tindakan' => 'pengaturan.ubah_ditolak',
         'objek_tipe' => 'pengaturan',
     ]);
+
+    // Role non-administratif mengirim alasan masif (> 255 karakter) dipotong ke 255 karakter
+    $longAlasan = str_repeat('A', 500);
+    $resLongAlasan = $this->actingAs($this->perencanaan)->put('/pengaturan', [
+        'instansi.nama' => 'Pembobolan Alasan Masif',
+        'alasan' => $longAlasan,
+    ]);
+    $resLongAlasan->assertForbidden();
+
+    $this->assertDatabaseHas('audit_log', [
+        'actor_id' => $this->perencanaan->id,
+        'tindakan' => 'pengaturan.ubah_ditolak',
+        'objek_tipe' => 'pengaturan',
+        'alasan' => str_repeat('A', 255),
+    ]);
 });
 
 test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): void {

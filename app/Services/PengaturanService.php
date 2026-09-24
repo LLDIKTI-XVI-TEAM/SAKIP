@@ -276,6 +276,9 @@ class PengaturanService
 
             $now = Carbon::now();
 
+            // Urutkan kunci secara deterministik untuk mencegah potensi deadlock konkurensi antar transaksi
+            ksort($data);
+
             foreach ($data as $kunci => $nilaiBaru) {
                 $nilaiBaruStr = $nilaiBaru !== null ? (string) $nilaiBaru : null;
 

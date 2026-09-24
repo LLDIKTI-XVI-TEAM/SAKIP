@@ -34,7 +34,7 @@ class UpdatePengaturanRequest extends FormRequest
             $decision = app(PermissionResolver::class)->decide($user, PermissionCodes::PENGATURAN_UPDATE);
             $rawAlasan = $this->input('alasan');
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
-                ? trim($rawAlasan)
+                ? mb_substr(trim($rawAlasan), 0, 255)
                 : 'Percobaan pembaruan pengaturan sistem ditolak karena tidak memiliki izin.';
 
             $dotInput = Arr::dot($this->all());
