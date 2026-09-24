@@ -14,6 +14,8 @@ class Pengaturan extends Model
 
     public $timestamps = false;
 
+    protected $dateFormat = 'Y-m-d H:i:s.u';
+
     protected $fillable = ['kunci', 'nilai', 'tipe', 'grup', 'updated_by', 'updated_at'];
 
     protected $casts = [

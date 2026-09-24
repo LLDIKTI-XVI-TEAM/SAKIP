@@ -367,6 +367,10 @@ test('deteksi konflik konkurensi (optimistic locking) mendeteksi perbedaan sub-d
     $setting->updated_at = $now;
     $setting->save();
 
+    // Pastikan mikrodetik benar-benar tersimpan di basis data melalui model Pengaturan ($dateFormat)
+    $reloaded = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+    expect($reloaded->updated_at?->format('u'))->toBe('123456');
+
     // Admin B mengirim token yang berbeda hanya pada mikrodetik (misal selisih 456 mikrodetik)
     $subsecondStale = Carbon::parse('2026-09-24 10:00:00.123000')->toISOString();
 

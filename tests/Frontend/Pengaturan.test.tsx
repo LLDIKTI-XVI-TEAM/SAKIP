@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import PengaturanIndex from '@/Pages/Pengaturan/Index';
 import type { PengaturanIndexProps } from '@/types/pengaturan';
@@ -302,5 +303,70 @@ describe('PengaturanIndex Frontend', () => {
 
         // Nilai lokal tetap dipertahankan dan tidak ter-overwrite oleh server
         expect(inputNama.value).toBe('Nama Baru Diedit');
+    });
+
+    it('memajukan token versi dan baseline untuk field yang berhasil disubmit meski pengguna mengedit kembali nilainya selama in-flight', async () => {
+        let capturedOptions: any = null;
+        vi.spyOn(router, 'put').mockImplementation((_url, _data, options) => {
+            capturedOptions = options;
+            return undefined as any;
+        });
+
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama A1');
+
+        const saveButton = screen.getByRole('button', { name: /Simpan Pengaturan/ });
+        await user.click(saveButton);
+
+        const inputAlasan = screen.getByLabelText<HTMLInputElement>(/Alasan perubahan/i);
+        await user.type(inputAlasan, 'Alasan pembaruan pertama');
+
+        const confirmButton = screen.getByRole('button', { name: 'Konfirmasi & Simpan' });
+        await user.click(confirmButton);
+
+        // Simulasi in-flight edit: pengguna mengetik 'Nama A2' sebelum respons kembali
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama A2');
+
+        // Server merespons sukses dengan baseline baru dan timestamp baru
+        const serverPage = {
+            props: {
+                values: {
+                    ...mockProps.values,
+                    'instansi.nama': 'Nama A1',
+                },
+                grouped: {
+                    ...mockProps.grouped,
+                    instansi: mockProps.grouped.instansi.map((item) =>
+                        item.kunci === 'instansi.nama'
+                            ? { ...item, nilai: 'Nama A1', updated_at: '2026-09-24T12:00:00.123456Z' }
+                            : item
+                    ),
+                },
+            },
+        };
+
+        await act(async () => {
+            capturedOptions?.onSuccess?.(serverPage);
+        });
+
+        // Input nama tetap mempertahankan ketikan in-flight 'Nama A2'
+        expect(inputNama.value).toBe('Nama A2');
+
+        // Klik Simpan lagi untuk mengirim A2
+        await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
+        const inputAlasanKedua = screen.getByLabelText<HTMLInputElement>(/Alasan perubahan/i);
+        await user.type(inputAlasanKedua, 'Alasan pembaruan kedua');
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
+
+        // Cek data yang dikirim pada put kedua: token expected_updated_at harus sudah T1 (2026-09-24T12:00:00.123456Z)
+        const secondCall = vi.mocked(router.put).mock.calls[1];
+        const submittedData = secondCall[1] as any;
+        expect(submittedData['instansi.nama']).toBe('Nama A2');
+        expect(submittedData.expected_updated_at['instansi.nama']).toBe('2026-09-24T12:00:00.123456Z');
     });
 });

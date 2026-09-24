@@ -82,6 +82,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     const baselineRef = useRef(savedBaseline);
     const timestampsRef = useRef(savedTimestamps);
     const submittedSnapshotRef = useRef<Omit<PengaturanFormData, 'alasan'> | null>(null);
+    const submittedKeysRef = useRef<Set<keyof typeof savedBaseline>>(new Set());
 
     const form = useForm<PengaturanFormData>({
         ...savedBaseline,
@@ -159,10 +160,12 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             alasan: trimmedReason,
         };
         const expectedTimestamps: Record<string, string | null> = {};
+        const submittedKeys = new Set<keyof typeof savedBaseline>();
 
         formKeys.forEach((key) => {
             if (form.data[key] !== savedBaseline[key]) {
                 dirtyData[key] = form.data[key];
+                submittedKeys.add(key);
                 if (savedTimestamps[key]) {
                     expectedTimestamps[key] = savedTimestamps[key];
                 }
@@ -173,6 +176,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             dirtyData.expected_updated_at = expectedTimestamps;
         }
 
+        submittedKeysRef.current = submittedKeys;
         submittedSnapshotRef.current = { ...form.data };
         form.transform(() => dirtyData);
 
@@ -188,23 +192,37 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 const nextServerBaseline = buildBaseline(serverValues);
                 const nextServerTimestamps = extractTimestamps(serverGrouped);
                 const snapshot = submittedSnapshotRef.current;
+                const submittedKeys = submittedKeysRef.current;
 
                 const currentBaseline = baselineRef.current;
                 const currentTimestamps = timestampsRef.current;
                 const updatedBaseline = { ...currentBaseline };
                 const updatedTimestamps = { ...currentTimestamps };
 
-                // Preservasi in-flight edits: hanya perbarui field yang nilainya tidak berubah sejak snapshot submit
+                // Preservasi in-flight edits: majukan token dan baseline untuk field yang berhasil dikirim
                 form.setData((prev) => {
                     const nextData = { ...prev, alasan: '' };
                     formKeys.forEach((key) => {
-                        const wasUnchangedSinceSubmit = !snapshot || prev[key] === snapshot[key];
-                        const isNotDirty = prev[key] === currentBaseline[key];
+                        const wasSubmitted = submittedKeys.has(key);
 
-                        if (wasUnchangedSinceSubmit || isNotDirty) {
+                        if (wasSubmitted) {
+                            // Mutasi untuk field ini berhasil disimpan di server: selalu majukan baseline dan token
                             updatedBaseline[key] = nextServerBaseline[key];
                             updatedTimestamps[key] = nextServerTimestamps[key];
-                            nextData[key] = nextServerBaseline[key];
+
+                            // Jika pengguna tidak mengubahnya lagi saat in-flight, perbarui tampilan ke data server
+                            if (!snapshot || prev[key] === snapshot[key]) {
+                                nextData[key] = nextServerBaseline[key];
+                            }
+                            // Jika pengguna mengubahnya saat in-flight, nilai form tetap mempertahankan ketikan pengguna (prev[key])
+                        } else {
+                            // Field yang tidak dikirim: hanya sinkronkan jika sedang tidak dirty lokal
+                            const isNotDirty = prev[key] === currentBaseline[key];
+                            if (isNotDirty) {
+                                updatedBaseline[key] = nextServerBaseline[key];
+                                updatedTimestamps[key] = nextServerTimestamps[key];
+                                nextData[key] = nextServerBaseline[key];
+                            }
                         }
                     });
                     return nextData;
@@ -220,9 +238,11 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                     alasan: '',
                 });
                 submittedSnapshotRef.current = null;
+                submittedKeysRef.current = new Set();
             },
             onError: (errors) => {
                 submittedSnapshotRef.current = null;
+                submittedKeysRef.current = new Set();
                 if (errors.alasan) {
                     setAuditError(errors.alasan);
                     setIsConfirmOpen(true);
