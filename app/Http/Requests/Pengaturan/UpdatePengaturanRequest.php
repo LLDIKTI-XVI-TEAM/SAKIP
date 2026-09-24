@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Pengaturan;
 
+use App\Models\Pengaturan;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -10,6 +11,7 @@ use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
 
 class UpdatePengaturanRequest extends FormRequest
@@ -35,11 +37,25 @@ class UpdatePengaturanRequest extends FormRequest
                 ? trim($rawAlasan)
                 : 'Percobaan pembaruan pengaturan sistem ditolak karena tidak memiliki izin.';
 
+            $dotInput = Arr::dot($this->all());
+            $targetKey = null;
+            foreach (array_keys($dotInput) as $key) {
+                if ($key !== 'alasan' && ! str_starts_with($key, 'expected_updated_at')) {
+                    $targetKey = $key;
+                    break;
+                }
+            }
+
+            $objekId = $targetKey ? Pengaturan::query()->where('kunci', $targetKey)->value('id') : null;
+            if (! $objekId) {
+                $objekId = (string) Str::uuid();
+            }
+
             app(AuditLogger::class)->catat(
                 actor: $user,
                 tindakan: 'pengaturan.ubah_ditolak',
                 objekTipe: 'pengaturan',
-                objekId: 'system',
+                objekId: (string) $objekId,
                 alasan: $alasan,
                 dasarIzin: $decision,
             );
