@@ -130,8 +130,32 @@ class UpdatePengaturanRequest extends FormRequest
                 }
             }
 
-            // Abaikan metadata penanganan konkurensi dari pengecekan whitelist pengaturan
+            // Validasi bahwa setiap kunci pengaturan existing yang diperbarui wajib memiliki token versi
             $inputKeys = array_keys($allInputDot);
+            $dirtySettingKeys = array_values(array_filter($inputKeys, fn ($k) => ! str_starts_with($k, 'expected_updated_at') && $k !== 'alasan'));
+            $validDirtyKeys = array_intersect($dirtySettingKeys, $allowedKeys);
+
+            if ($validDirtyKeys !== []) {
+                $existingKeys = Pengaturan::query()->whereIn('kunci', $validDirtyKeys)->pluck('kunci')->all();
+                $expectedDot = is_array($expectedInput) ? Arr::dot($expectedInput) : [];
+
+                foreach ($validDirtyKeys as $key) {
+                    $hasToken = array_key_exists($key, $expectedDot) && $expectedDot[$key] !== null && trim((string) $expectedDot[$key]) !== '';
+                    if (in_array($key, $existingKeys, true)) {
+                        if (! $hasToken) {
+                            $validator->errors()->add($key, "Token versi untuk pengaturan '{$key}' wajib disertakan.");
+                            $validator->errors()->add("expected_updated_at.{$key}", "Token versi untuk pengaturan '{$key}' wajib disertakan.");
+                        }
+                    } else {
+                        if ($hasToken) {
+                            $validator->errors()->add($key, "Pengaturan '{$key}' belum tersimpan di basis data sehingga tidak memiliki token versi sebelumnya.");
+                            $validator->errors()->add("expected_updated_at.{$key}", "Pengaturan '{$key}' belum tersimpan di basis data sehingga tidak memiliki token versi sebelumnya.");
+                        }
+                    }
+                }
+            }
+
+            // Abaikan metadata penanganan konkurensi dari pengecekan whitelist pengaturan
             $checkedKeys = array_filter($inputKeys, fn ($k) => ! str_starts_with($k, 'expected_updated_at'));
             $allowedFormKeys = array_merge($allowedKeys, ['alasan']);
             $disallowed = array_diff($checkedKeys, $allowedFormKeys);

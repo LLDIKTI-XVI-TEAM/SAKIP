@@ -246,7 +246,19 @@ class PengaturanService
         $changedCount = 0;
         $changedKeys = [];
 
-        DB::transaction(function () use ($actor, $data, $decision, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
+        DB::transaction(function () use ($actor, $data, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
+            $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->first();
+            if (! $lockedActor || ! $lockedActor->is_active) {
+                throw new AuthorizationException('Akun pengguna tidak aktif atau tidak ditemukan.');
+            }
+
+            DB::table('user_roles')->where('user_id', $lockedActor->id)->lockForUpdate()->get();
+
+            $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PENGATURAN_UPDATE);
+            if (! $decision->allowed) {
+                throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah pengaturan sistem.');
+            }
+
             $now = Carbon::now();
 
             foreach ($data as $kunci => $nilaiBaru) {
@@ -254,12 +266,31 @@ class PengaturanService
 
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
 
-                if (isset($expectedUpdatedAt[$kunci]) && $expectedUpdatedAt[$kunci] !== null && $setting->exists && $setting->updated_at !== null) {
-                    $expected = Carbon::parse($expectedUpdatedAt[$kunci]);
-                    if ($setting->updated_at->toISOString() !== $expected->toISOString()) {
+                if ($setting->exists) {
+                    if (! array_key_exists($kunci, $expectedUpdatedAt) || $expectedUpdatedAt[$kunci] === null || trim((string) $expectedUpdatedAt[$kunci]) === '') {
+                        throw ValidationException::withMessages([
+                            $kunci => "Token versi untuk pengaturan '{$kunci}' wajib disertakan.",
+                        ]);
+                    }
+
+                    try {
+                        $expected = Carbon::parse($expectedUpdatedAt[$kunci]);
+                    } catch (\Throwable) {
+                        throw ValidationException::withMessages([
+                            $kunci => "Format token versi untuk pengaturan '{$kunci}' tidak valid.",
+                        ]);
+                    }
+
+                    if ($setting->updated_at !== null && $setting->updated_at->toISOString() !== $expected->toISOString()) {
                         $updaterName = $setting->updatedBy?->nama ?? 'pengguna lain';
                         throw ValidationException::withMessages([
                             $kunci => "Pengaturan '{$kunci}' telah diperbarui oleh {$updaterName} saat Anda sedang mengedit. Silakan muat ulang halaman.",
+                        ]);
+                    }
+                } else {
+                    if (array_key_exists($kunci, $expectedUpdatedAt) && $expectedUpdatedAt[$kunci] !== null && trim((string) $expectedUpdatedAt[$kunci]) !== '') {
+                        throw ValidationException::withMessages([
+                            $kunci => "Pengaturan '{$kunci}' belum tersimpan di basis data sehingga tidak memiliki token versi sebelumnya.",
                         ]);
                     }
                 }
@@ -273,14 +304,14 @@ class PengaturanService
                 $setting->nilai = $nilaiBaruStr;
                 $setting->tipe = self::WHITELIST[$kunci]['tipe'];
                 $setting->grup = self::WHITELIST[$kunci]['grup'];
-                $setting->updated_by = $actor->id;
+                $setting->updated_by = $lockedActor->id;
                 $setting->updated_at = $now;
                 $setting->save();
 
                 $changedKeys[] = $kunci;
 
                 $this->auditLogger->catat(
-                    actor: $actor,
+                    actor: $lockedActor,
                     tindakan: 'pengaturan:update',
                     objekTipe: 'pengaturan',
                     objekId: (string) $setting->id,

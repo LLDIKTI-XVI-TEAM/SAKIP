@@ -9,7 +9,9 @@ use App\Services\Authorization\RolePermissionPresets;
 use App\Services\PengaturanService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PengaturanSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -86,6 +88,12 @@ test('AC-1: admin dapat mengakses halaman pengaturan dan melihat grup konfiguras
 });
 
 test('AC-1 & AC-2: admin dapat memperbarui pengaturan dan menghasilkan pencatatan audit log lengkap', function (): void {
+    $seeded = Pengaturan::query()->pluck('updated_at', 'kunci')->all();
+    $expectedUpdatedAt = [];
+    foreach ($seeded as $key => $ts) {
+        $expectedUpdatedAt[$key] = Carbon::parse($ts)->toISOString();
+    }
+
     $response = $this->actingAs($this->admin)->put('/pengaturan', [
         'instansi.nama' => 'LLDIKTI Wilayah XVI Baru',
         'instansi.alamat' => 'Jl. Baru Kampus Barat, Gorontalo',
@@ -101,6 +109,7 @@ test('AC-1 & AC-2: admin dapat memperbarui pengaturan dan menghasilkan pencatata
         'laporan.header' => 'KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI',
         'laporan.footer' => 'Dicetak dari SAKIP Resmi',
         'alasan' => 'Pembaruan identitas dan kontak institusi periode 2026.',
+        'expected_updated_at' => $expectedUpdatedAt,
     ]);
 
     $response->assertRedirect(route('pengaturan.index'));
@@ -144,11 +153,14 @@ test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui',
     $val1 = $service->get('instansi.nama');
     expect($val1)->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
 
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+
     // Update via service
     $service->update(
         $this->admin,
         ['instansi.nama' => 'LLDIKTI Wilayah XVI Terverifikasi Cache'],
-        'Uji invalidasi cache'
+        'Uji invalidasi cache',
+        ['instansi.nama' => $token]
     );
 
     // Read kembali harus mengembalikan nilai baru yang sudah diinvalidasi
@@ -227,6 +239,22 @@ test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist d
 });
 
 test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function (): void {
+    $seeded = Pengaturan::query()->whereIn('kunci', [
+        'instansi.nama',
+        'aplikasi.nama',
+        'aplikasi.label_unit',
+        'tampilan.zona_waktu',
+        'tampilan.format_tanggal',
+        'tampilan.format_angka',
+        'instansi.surel',
+        'instansi.laman',
+    ])->pluck('updated_at', 'kunci')->all();
+
+    $expectedUpdatedAt = [];
+    foreach ($seeded as $key => $ts) {
+        $expectedUpdatedAt[$key] = Carbon::parse($ts)->toISOString();
+    }
+
     $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
         'alasan' => 'Uji validasi format input',
         'instansi.nama' => 'LLDIKTI Wilayah XVI',
@@ -237,6 +265,7 @@ test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function
         'tampilan.format_angka' => 'id_ID',
         'instansi.surel' => 'bukan-email-valid',
         'instansi.laman' => 'bukan-url-valid',
+        'expected_updated_at' => $expectedUpdatedAt,
     ]);
 
     $response->assertUnprocessable();
@@ -244,9 +273,14 @@ test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function
 });
 
 test('server mewajibkan alasan perubahan minimal 5 karakter untuk catatan audit', function (): void {
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+
     // Tanpa alasan
     $resNoReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
         'instansi.nama' => 'Nama Baru',
+        'expected_updated_at' => [
+            'instansi.nama' => $token,
+        ],
     ]);
     $resNoReason->assertUnprocessable();
     $resNoReason->assertJsonValidationErrors(['alasan']);
@@ -255,16 +289,24 @@ test('server mewajibkan alasan perubahan minimal 5 karakter untuk catatan audit'
     $resShortReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
         'instansi.nama' => 'Nama Baru',
         'alasan' => 'test',
+        'expected_updated_at' => [
+            'instansi.nama' => $token,
+        ],
     ]);
     $resShortReason->assertUnprocessable();
     $resShortReason->assertJsonValidationErrors(['alasan']);
 });
 
 test('nilai null yang disengaja dipertahankan dan tidak kembali ke nilai default seeder', function (): void {
+    $token = Pengaturan::query()->where('kunci', 'instansi.alamat')->value('updated_at')?->toISOString();
+
     // Admin mengosongkan alamat instansi (opsional)
     $response = $this->actingAs($this->admin)->put('/pengaturan', [
         'instansi.alamat' => null,
         'alasan' => 'Mengosongkan alamat instansi sementara',
+        'expected_updated_at' => [
+            'instansi.alamat' => $token,
+        ],
     ]);
     $response->assertRedirect(route('pengaturan.index'));
 
@@ -328,13 +370,69 @@ test('validasi token konkurensi menolak format tanggal invalid dan kunci non-whi
     $responseInvalidKey->assertJsonValidationErrors(['expected_updated_at.kunci.ilegal']);
 });
 
+test('pembaruan kunci yang sudah ada tanpa token versi ditolak dengan HTTP 422', function (): void {
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Tanpa Token',
+        'alasan' => 'Mencoba bypass optimistic lock tanpa token versi',
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['instansi.nama']);
+});
+
+test('pembaruan kunci yang sudah ada dengan token null ditolak dengan HTTP 422', function (): void {
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Token Null',
+        'alasan' => 'Mencoba bypass optimistic lock dengan token null',
+        'expected_updated_at' => [
+            'instansi.nama' => null,
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['instansi.nama']);
+});
+
+test('evaluasi ulang izin di dalam batas transaksi mutasi menolak aksi jika izin dicabut atau user dinonaktifkan', function (): void {
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+
+    // 1. Akun dinonaktifkan
+    $inactiveAdmin = buatUserDenganRole('admin', 'admin-nonaktif@example.test');
+    $inactiveAdmin->is_active = false;
+    $inactiveAdmin->save();
+
+    expect(fn () => $service->update(
+        $inactiveAdmin,
+        ['instansi.nama' => 'Nilai Baru Nonaktif'],
+        'Pembaruan oleh admin nonaktif',
+        ['instansi.nama' => $token]
+    ))->toThrow(AuthorizationException::class);
+
+    // 2. Role admin dicabut
+    $revokedAdmin = buatUserDenganRole('admin', 'admin-dicabut@example.test');
+    $revokedAdmin->roles()->detach();
+
+    expect(fn () => $service->update(
+        $revokedAdmin,
+        ['instansi.nama' => 'Nilai Baru Dicabut'],
+        'Pembaruan oleh user yang rolenya dicabut',
+        ['instansi.nama' => $token]
+    ))->toThrow(AuthorizationException::class);
+});
+
 test('pembaruan parsial hanya memperbarui kunci yang dikirim dan tidak mengubah kunci lain', function (): void {
     $namaAwal = Pengaturan::query()->where('kunci', 'instansi.nama')->value('nilai');
+    $tokenTelepon = Pengaturan::query()->where('kunci', 'instansi.telepon')->value('updated_at')?->toISOString();
 
     // Hanya kirim instansi.telepon
     $response = $this->actingAs($this->admin)->put('/pengaturan', [
         'instansi.telepon' => '(0435) 999111',
         'alasan' => 'Pembaruan nomor telepon saja',
+        'expected_updated_at' => [
+            'instansi.telepon' => $tokenTelepon,
+        ],
     ]);
     $response->assertRedirect(route('pengaturan.index'));
 

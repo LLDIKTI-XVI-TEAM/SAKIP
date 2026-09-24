@@ -32,7 +32,7 @@ export function formatTanggal(
     const formatter = new Intl.DateTimeFormat(dateLocale, {
         timeZone: effectiveTimeZone,
         weekday: options.withDay ? 'long' : undefined,
-        day: 'numeric',
+        day: '2-digit',
         month: isFullMonth ? 'long' : '2-digit',
         year: 'numeric',
         hour: options.withTime ? '2-digit' : undefined,
@@ -50,18 +50,17 @@ export function formatTanggal(
     const hour = getPart('hour');
     const minute = getPart('minute');
 
+    const paddedDay = day.padStart(2, '0');
+    const paddedMonth = month.padStart(2, '0');
+
     let dateStr = '';
     if (formatTanggalKey === 'Y-m-d') {
-        const paddedDay = day.padStart(2, '0');
-        const paddedMonth = month.padStart(2, '0');
         dateStr = `${year}-${paddedMonth}-${paddedDay}`;
     } else if (formatTanggalKey === 'd/m/Y') {
-        const paddedDay = day.padStart(2, '0');
-        const paddedMonth = month.padStart(2, '0');
         dateStr = `${paddedDay}/${paddedMonth}/${year}`;
     } else {
-        // Default: d F Y (misal 24 September 2026)
-        dateStr = `${day} ${month} ${year}`;
+        // Default: d F Y (misal 01 September 2026)
+        dateStr = `${paddedDay} ${month} ${year}`;
     }
 
     if (options.withDay && weekday) {
