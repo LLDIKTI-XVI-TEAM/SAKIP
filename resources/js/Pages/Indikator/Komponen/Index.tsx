@@ -158,7 +158,7 @@ const HoverScrollText: React.FC<{
 
     const activeHover = isCardHovered || isSelfHovered;
     const isScrolling = activeHover && overflow > 0;
-    const duration = Math.max(4, Math.round(overflow / 25));
+    const duration = Math.max(2.5, Math.round(overflow / 35));
 
     return (
         <div 
@@ -173,26 +173,22 @@ const HoverScrollText: React.FC<{
             <div ref={containerRef} className="overflow-hidden relative w-full flex items-center">
                 <span
                     ref={textRef}
-                    className={`inline-block whitespace-nowrap select-none ${
-                        !isScrolling && overflow > 0 ? 'truncate' : ''
-                    }`}
-                    style={
-                        isScrolling
-                            ? {
-                                  animation: `tickerLoop ${duration}s ease-in-out infinite`,
-                                  ['--ticker-offset' as any]: `-${overflow + 8}px`,
-                              }
-                            : {
-                                  transform: 'translateX(0)',
-                                  transition: 'transform 0.25s ease-out',
-                              }
-                    }
+                    className="inline-block whitespace-nowrap select-none"
+                    style={{
+                        transform: isScrolling ? `translateX(-${overflow + 6}px)` : 'translateX(0)',
+                        transitionProperty: 'transform',
+                        transitionDuration: isScrolling ? `${duration}s` : '0.35s',
+                        transitionTimingFunction: isScrolling ? 'linear' : 'cubic-bezier(0.25, 1, 0.5, 1)',
+                        transitionDelay: isScrolling ? '0.35s' : '0s',
+                    }}
                 >
                     {text}
                 </span>
-                {!isScrolling && overflow > 0 && (
-                    <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-surface to-transparent z-10" />
-                )}
+                <div 
+                    className={`pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface to-transparent z-10 transition-opacity duration-300 ${
+                        isScrolling ? 'opacity-0' : overflow > 0 ? 'opacity-100' : 'opacity-0'
+                    }`} 
+                />
             </div>
         </div>
     );
@@ -538,7 +534,7 @@ export default function KomponenIndex({
                     <div 
                         onMouseEnter={() => setIsUnitHovered(true)}
                         onMouseLeave={() => setIsUnitHovered(false)}
-                        className="rounded-lg border border-border bg-surface p-3 space-y-1 group relative overflow-hidden transition-all duration-200 hover:border-primary/40 hover:shadow-xs cursor-default"
+                        className="rounded-lg border border-border bg-surface p-3 space-y-1 relative overflow-hidden cursor-default"
                     >
                         <span className="text-[11px] font-medium text-muted uppercase tracking-wider block">
                             Unit Penanggung Jawab
