@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import PengaturanIndex from '@/Pages/Pengaturan/Index';
@@ -204,7 +204,7 @@ describe('PengaturanIndex Frontend', () => {
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
 
         const inputAlasan = screen.getByLabelText(/Alasan perubahan/i);
-        await user.type(inputAlasan, 'A'.repeat(256));
+        fireEvent.change(inputAlasan, { target: { value: 'A'.repeat(256) } });
 
         await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
 
@@ -222,7 +222,7 @@ describe('PengaturanIndex Frontend', () => {
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
 
         const inputAlasan = screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/i);
-        await user.type(inputAlasan, 'Alasan pembaruan valid untuk audit.');
+        fireEvent.change(inputAlasan, { target: { value: 'Alasan pembaruan valid untuk audit.' } });
 
         // Tutup modal dengan tombol Batal
         await user.click(screen.getByRole('button', { name: /Batal/i }));
