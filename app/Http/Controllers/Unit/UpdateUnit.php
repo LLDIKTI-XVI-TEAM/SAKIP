@@ -55,7 +55,11 @@ class UpdateUnit extends Controller
                     }
                 },
             ],
-            'version_token' => ['nullable', 'string'],
+            'version_token' => [
+                'required_without_all:versi_token,token,expected_state,snapshot,expected_snapshot,expected_nama,expected_status,initial_nama,initial_status',
+                'nullable',
+                'string',
+            ],
             'versi_token' => ['nullable', 'string'],
             'expected_nama' => ['nullable', 'string'],
             'expected_status' => ['nullable', 'string', 'in:aktif,nonaktif'],
@@ -63,7 +67,27 @@ class UpdateUnit extends Controller
         ], [
             'nama.required' => 'Nama unit organisasi wajib diisi.',
             'nama.max' => 'Nama unit organisasi maksimal 255 karakter.',
+            'version_token.required_without_all' => 'Token versi atau snapshot data unit wajib disertakan untuk mencegah penimpaan data yang usang.',
         ]);
+
+        $hasVersionMarker = ($request->filled('version_token') && trim((string) $request->input('version_token')) !== '')
+            || ($request->filled('versi_token') && trim((string) $request->input('versi_token')) !== '')
+            || ($request->filled('token') && trim((string) $request->input('token')) !== '')
+            || ($request->filled('expected_state') && trim((string) $request->input('expected_state')) !== '')
+            || ($request->filled('expected_nama') && trim((string) $request->input('expected_nama')) !== '')
+            || ($request->filled('expected_status') && trim((string) $request->input('expected_status')) !== '')
+            || ($request->filled('initial_nama') && trim((string) $request->input('initial_nama')) !== '')
+            || ($request->filled('initial_status') && trim((string) $request->input('initial_status')) !== '')
+            || (is_array($request->input('snapshot')) && ! empty(array_filter($request->input('snapshot'), fn ($v) => $v !== null && $v !== '')))
+            || (is_array($request->input('expected_snapshot')) && ! empty(array_filter($request->input('expected_snapshot'), fn ($v) => $v !== null && $v !== '')))
+            || (is_string($request->input('snapshot')) && trim((string) $request->input('snapshot')) !== '')
+            || (is_string($request->input('expected_snapshot')) && trim((string) $request->input('expected_snapshot')) !== '');
+
+        if (! $hasVersionMarker) {
+            throw ValidationException::withMessages([
+                'version_token' => 'Token versi atau snapshot data unit wajib disertakan untuk mencegah penimpaan data yang usang.',
+            ]);
+        }
 
         /** @var User|null $user */
         $user = $request->user();

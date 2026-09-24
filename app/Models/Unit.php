@@ -162,15 +162,26 @@ class Unit extends Model
         ?string $expectedStatus = null,
         ?array $snapshot = null
     ): bool {
+        $hasToken = $versionToken !== null && trim($versionToken) !== '';
+        $hasSnapshot = is_array($snapshot) && ! empty($snapshot);
+        $hasExpectedNama = $expectedNama !== null && trim($expectedNama) !== '';
+        $hasExpectedStatus = $expectedStatus !== null && trim($expectedStatus) !== '';
+
+        // Jika tidak ada satu pun penanda versi atau snapshot yang dikirimkan,
+        // tolak request karena kebaruan data awal tidak dapat diverifikasi (anti-bypass)
+        if (! $hasToken && ! $hasSnapshot && ! $hasExpectedNama && ! $hasExpectedStatus) {
+            return true;
+        }
+
         // 1. Jika token versi dikirimkan, cocokkan dengan token versi terkini baris
-        if ($versionToken !== null && $versionToken !== '') {
-            if (! hash_equals($this->getVersionToken(), $versionToken)) {
+        if ($hasToken) {
+            if (! hash_equals($this->getVersionToken(), (string) $versionToken)) {
                 return true;
             }
         }
 
         // 2. Jika snapshot array dikirimkan, periksa apakah ada field yang berbeda
-        if ($snapshot !== null) {
+        if ($hasSnapshot && is_array($snapshot)) {
             if (isset($snapshot['nama']) && trim((string) $snapshot['nama']) !== trim($this->nama)) {
                 return true;
             }
@@ -180,14 +191,14 @@ class Unit extends Model
         }
 
         // 3. Jika expected_nama dikirimkan, bandingkan nama yang diharapkan
-        if ($expectedNama !== null && $expectedNama !== '') {
-            if (trim($expectedNama) !== trim($this->nama)) {
+        if ($hasExpectedNama) {
+            if (trim((string) $expectedNama) !== trim($this->nama)) {
                 return true;
             }
         }
 
         // 4. Jika expected_status dikirimkan, bandingkan status yang diharapkan
-        if ($expectedStatus !== null && $expectedStatus !== '') {
+        if ($hasExpectedStatus) {
             if ((string) $expectedStatus !== (string) $this->status) {
                 return true;
             }

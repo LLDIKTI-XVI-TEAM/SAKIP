@@ -22,6 +22,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Tests\TestCase;
 
 class MasterUnitOrganisasiTest extends TestCase
@@ -484,6 +485,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
             'nama' => 'Bagian Umum Baru',
             'status' => 'nonaktif',
+            'version_token' => $unit->getVersionToken(),
         ]);
 
         $response->assertRedirect('/unit');
@@ -563,6 +565,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
             'nama' => '     ',
             'status' => 'aktif',
+            'version_token' => $unit->getVersionToken(),
         ]);
 
         $response->assertSessionHasErrors('nama');
@@ -672,6 +675,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $responseDuplicate = $this->actingAs($this->admin)->post("/unit/{$unitB->id}", [
             'nama' => 'bagian keuangan',
             'status' => 'aktif',
+            'version_token' => $unitB->getVersionToken(),
         ]);
 
         $responseDuplicate->assertSessionHasErrors('nama');
@@ -680,6 +684,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $responseSelf = $this->actingAs($this->admin)->post("/unit/{$unitB->id}", [
             'nama' => 'BAGIAN UMUM',
             'status' => 'aktif',
+            'version_token' => $unitB->getVersionToken(),
         ]);
 
         $responseSelf->assertSessionHasNoErrors();
@@ -738,6 +743,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
             'nama' => 'Unit Berubah Nama',
             'status' => 'aktif',
+            'version_token' => $unit->getVersionToken(),
         ]);
 
         $response->assertStatus(403);
@@ -775,6 +781,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
             'nama' => 'Unit Dengan Grant Aktif',
             'status' => 'nonaktif',
+            'version_token' => $unit->getVersionToken(),
         ]);
 
         $response->assertSessionHasErrors('status');
@@ -844,6 +851,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $responseUpdate = $this->actingAs($this->admin)->post("/unit/{$createdUnit->id}", [
             'nama' => 'Unit Uji Kunci Role Sumber Diperbarui',
             'status' => 'aktif',
+            'version_token' => $createdUnit->getVersionToken(),
         ]);
 
         $responseUpdate->assertRedirect('/unit');
@@ -926,6 +934,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $responseB = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
             'nama' => 'Unit Hubungan Masyarakat Concurrency',
             'status' => 'aktif',
+            'version_token' => $unit->getVersionToken(),
         ]);
         $responseB->assertRedirect('/unit');
         $unit->refresh();
@@ -1008,5 +1017,69 @@ class MasterUnitOrganisasiTest extends TestCase
             'objek_tipe' => 'unit',
             'objek_id' => (string) $unit->id,
         ]);
+    }
+
+    /**
+     * Review Codex: Wajibkan token versi atau snapshot untuk setiap pembaruan unit.
+     */
+    public function test_update_unit_rejects_request_without_version_token_or_snapshot(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Tanpa Token Awal',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // Request tanpa version_token, snapshot, atau expected values
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Tanpa Token Diubah',
+            'status' => 'aktif',
+        ]);
+
+        $response->assertSessionHasErrors('version_token');
+        $unit->refresh();
+        $this->assertSame('Unit Tanpa Token Awal', $unit->nama);
+    }
+
+    /**
+     * Review Codex: Batasi respons JSON 403 hanya untuk request mutasi Inertia, bukan kunjungan GET.
+     */
+    public function test_unauthorized_inertia_mutation_and_get_visit_exception_handling(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Uji Exception Inertia',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        // 1. Mutasi POST dengan header X-Inertia yang ditolak menghasilkan respons JSON 403 dengan pesan
+        $responseMutation = $this->actingAs($this->pegawai)
+            ->withHeader('X-Inertia', 'true')
+            ->post("/unit/{$unit->id}", [
+                'nama' => 'Unit Diubah Ilegal',
+                'status' => 'aktif',
+                'version_token' => $unit->getVersionToken(),
+            ]);
+
+        $responseMutation->assertStatus(403);
+        $this->assertTrue(
+            str_contains((string) $responseMutation->headers->get('Content-Type'), 'application/json'),
+            'Mutasi Inertia yang ditolak harus mengembalikan respons JSON.'
+        );
+        $this->assertNotEmpty($responseMutation->json('message'));
+
+        // 2. Kunjungan GET dengan header X-Inertia yang ditolak TIDAK menghasilkan plain JSON 403
+        $responseGet = $this->actingAs($this->pegawai)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => Inertia::getVersion(),
+            ])
+            ->get('/unit');
+
+        $responseGet->assertStatus(403);
+        $this->assertFalse(
+            str_contains((string) $responseGet->headers->get('Content-Type'), 'application/json'),
+            'Kunjungan GET Inertia yang ditolak tidak boleh mengembalikan respons JSON biasa.'
+        );
     }
 }

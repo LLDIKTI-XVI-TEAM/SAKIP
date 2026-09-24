@@ -45,9 +45,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->header('X-Inertia') && $exception->getStatusCode() === 403) {
-                return response()->json([
-                    'message' => $exception->getMessage() ?: 'Akses ditolak.',
-                ], 403, ['Cache-Control' => 'no-store, private']);
+                if (in_array(strtoupper($request->method()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+                    return response()->json([
+                        'message' => $exception->getMessage() ?: 'Akses ditolak.',
+                    ], 403, ['Cache-Control' => 'no-store, private']);
+                }
             }
         });
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
