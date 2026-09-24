@@ -172,7 +172,7 @@ export function AuthenticatedLayout({
 
             {/* Mobile Header Bar */}
             <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
-                <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
                     {logoUrl && (
                         <img
                             src={logoUrl}
@@ -182,8 +182,8 @@ export function AuthenticatedLayout({
                             className="h-9 w-9 shrink-0 object-contain rounded-md"
                         />
                     )}
-                    <div>
-                        <span className="text-base font-bold tracking-tight text-white leading-none">{appName}</span>
+                    <div className="min-w-0 flex-1">
+                        <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
                     </div>
                 </div>
                 <button
@@ -224,7 +224,7 @@ export function AuthenticatedLayout({
             >
                 {/* Brand Header */}
                 <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
                         {logoUrl && (
                             <img
                                 src={logoUrl}
@@ -234,9 +234,9 @@ export function AuthenticatedLayout({
                                 className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
                             />
                         )}
-                        <div>
-                            <span className="text-lg font-bold tracking-tight text-white leading-tight block">{appName}</span>
-                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight">
+                        <div className="min-w-0 flex-1">
+                            <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
+                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight truncate">
                                 {instansiNama}
                             </p>
                         </div>
@@ -389,7 +389,7 @@ export function AuthenticatedLayout({
                                                 {item.label}
                                             </Link>
                                         ) : (
-                                            <span aria-current="page" className="font-medium text-ink">
+                                            <span aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined} className="font-medium text-ink">
                                                 {item.label}
                                             </span>
                                         )}

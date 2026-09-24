@@ -111,6 +111,29 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
         expect(nav.textContent).toContain('Dashboard');
         expect(nav.textContent).toContain('Pengaturan');
     });
+
+    it('hanya menandai breadcrumb terakhir sebagai halaman aktif dengan aria-current=page', () => {
+        render(
+            <AuthenticatedLayout
+                title="Detail"
+                breadcrumbs={[
+                    { label: 'Induk' },
+                    { label: 'Detail' },
+                ]}
+            >
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const nav = screen.getByRole('navigation', { name: 'Jejak navigasi' });
+        const parentItem = within(nav).getByText('Induk');
+        const detailItem = within(nav).getByText('Detail');
+
+        // Induk bukan item terakhir sehingga tidak boleh memiliki aria-current="page"
+        expect(parentItem.getAttribute('aria-current')).toBeNull();
+        // Detail adalah item terakhir sehingga memiliki aria-current="page"
+        expect(detailItem.getAttribute('aria-current')).toBe('page');
+    });
 });
 
 describe('AuthenticatedLayout Logo Rendering', () => {
