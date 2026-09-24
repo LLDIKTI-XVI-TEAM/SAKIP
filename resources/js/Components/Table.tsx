@@ -19,7 +19,7 @@ export const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLA
     ({ className, ...props }, ref) => (
         <thead
             ref={ref}
-            className={twMerge(clsx('border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-800', className))}
+            className={twMerge(clsx('border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-700', className))}
             {...props}
         />
     )
@@ -64,7 +64,7 @@ export const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttr
         <th
             ref={ref}
             scope="col"
-            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-bold uppercase tracking-wider text-slate-800 [&:has([role=checkbox])]:pr-0', className))}
+            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-semibold uppercase tracking-wider text-slate-700 [&:has([role=checkbox])]:pr-0', className))}
             {...props}
         />
     )

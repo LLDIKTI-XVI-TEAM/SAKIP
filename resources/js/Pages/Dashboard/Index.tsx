@@ -257,9 +257,9 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
                         {auth.can.pengukuran && (
                             <Link
                                 href="/pengukuran"
-                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-3.5 text-xs font-semibold text-ink shadow-xs transition-colors hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/40 shrink-0 select-none"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-3.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/40 shrink-0 select-none"
                             >
-                                <BarChart2 className="h-4 w-4 shrink-0" />
+                                <BarChart2 className="h-4 w-4 shrink-0 text-white" />
                                 <span>Buka pengukuran</span>
                             </Link>
                         )}
