@@ -432,16 +432,16 @@ export default function JenisBerkasIndex({
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-12 text-center">NO</TableHead>
-                            <TableHead className="min-w-[220px]">NAMA PERSYARATAN</TableHead>
-                            <TableHead>TAHAP</TableHead>
-                            <TableHead className="min-w-[180px]">LINGKUP</TableHead>
-                            <TableHead className="text-center">MODE DIIZINKAN</TableHead>
-                            <TableHead className="text-center">KEWAJIBAN</TableHead>
-                            <TableHead className="text-center">STATUS</TableHead>
-                            <TableHead>BATAS TEKNIS</TableHead>
+                            <TableHead className="w-12 text-center whitespace-nowrap">NO</TableHead>
+                            <TableHead className="min-w-[220px] whitespace-nowrap">NAMA PERSYARATAN</TableHead>
+                            <TableHead className="whitespace-nowrap">TAHAP</TableHead>
+                            <TableHead className="min-w-[180px] whitespace-nowrap">LINGKUP</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">MODE DIIZINKAN</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">KEWAJIBAN</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">STATUS</TableHead>
+                            <TableHead className="whitespace-nowrap">BATAS TEKNIS</TableHead>
                             {(can.update || can.delete || can.pengaturan_update) && (
-                                <TableHead className="text-center w-28">AKSI</TableHead>
+                                <TableHead className="text-center w-28 whitespace-nowrap">AKSI</TableHead>
                             )}
                         </TableRow>
                     </TableHeader>

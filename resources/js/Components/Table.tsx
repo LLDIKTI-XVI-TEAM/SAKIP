@@ -64,7 +64,7 @@ export const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttr
         <th
             ref={ref}
             scope="col"
-            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-semibold uppercase tracking-wider text-ink [&:has([role=checkbox])]:pr-0', className))}
+            className={twMerge(clsx('h-11 px-4 py-3.5 text-left align-middle text-xs font-semibold uppercase tracking-wider text-ink whitespace-nowrap [&:has([role=checkbox])]:pr-0', className))}
             {...props}
         />
     )
