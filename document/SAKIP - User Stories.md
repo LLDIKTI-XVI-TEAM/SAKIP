@@ -1,5 +1,10 @@
 # USER STORIES — SAKIP LLDIKTI WILAYAH XVI
-> **Status dokumen:** Revisi lengkap berdasarkan baseline branch `development` yang dianalisis pada 18 September 2026 dan diselaraskan kembali pada **20 September 2026** terhadap keputusan Q31. Dokumen ini menyelaraskan PRD, Workflow, Data Model, Plan Pengembangan, Keputusan Penyelarasan, dan Design System. Q31 menetapkan **enam role resmi** (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`), tetapi preset permission role `pic`, eligibility menjadi `penanggung_jawab`, dan mapping user existing masih **OPEN** sampai dikonfirmasi LLDIKTI/Tim Perencanaan.
+
+> **Klarifikasi final LLDIKTI Wilayah XVI — 24 September 2026**  
+> Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
+
+**Status dokumen:** Revisi Q32 — 24 September 2026. Dokumen ini telah diselaraskan terhadap jawaban resmi LLDIKTI: 5 role, PIC bukan role, Grant Unit 7 permission, role-permission read-only, onboarding tanpa role, logout terpisah, Jadwal 2026, serta formula final IKU 3/8.
+
 ## 1. Tujuan Dokumen
 Dokumen ini mendefinisikan kebutuhan fungsional dan penerimaan (*acceptance*) SAKIP LLDIKTI Wilayah XVI dalam bentuk User Story yang dapat dipakai sebagai acuan UAT, refinement, pembuatan development issue, dan implementasi vertical slice.
 ### Hierarki sumber
@@ -11,60 +16,26 @@ Dokumen ini mendefinisikan kebutuhan fungsional dan penerimaan (*acceptance*) SA
 - **Design System** mengikat implementasi frontend React/Inertia.
 Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunakan keputusan penyelarasan terbaru lalu sinkronkan dokumen terdampak.
 ## 2. Aturan Global yang Mengikat Seluruh Story
-- **Otorisasi server-side.** React hanya menerima hasil `can.*`; tidak ada keputusan permission yang dipercaya dari klien.
-- **Fail closed.** Kode permission yang tidak dikenal selalu ditolak.
-- **Deny menang.** `user_permission_denials` yang cocok selalu mengalahkan allow dari role/grant.
-- **Permission role bersifat global.** Scope unit hidup pada grant/deny individual; permission unit-scoped untuk PIC tetap membutuhkan guard bisnis (unit target, PIC efektif, waktu).
-- **Grant tidak mengganti PIC.** Untuk RA/Pengukuran jalur PIC, grant unit dan PIC indikator efektif harus sama-sama valid.
-- **F1/F2 memakai pengaju versi.** Pemisahan tugas selalu membandingkan aktor review dengan `*_versi.diajukan_by` dan `jalur_pengajuan`, bukan `created_by` dan bukan role terkini.
-- **Versioning resmi.** Setiap submit RA/Pengukuran membuat baris baru `rencana_aksi_versi`/`pengukuran_versi`; payload/provenance versi immutable.
-- **Laporan resmi membaca versi disahkan.** Master/live data tidak boleh mengubah laporan historis diam-diam.
-- **Koreksi append-only/versioned.** Data/bukti yang telah menjadi dasar versi resmi tidak dihapus untuk 'memperbaiki' sejarah.
-- **Jadwal dibuka kembali ≠ PIC otomatis terbuka.** Pasca-penutupan, `jadwal:buka_kembali` membuka sesi koreksi Perencanaan; PIC perlu jendela resmi terpisah melalui `jadwal:update`.
-- **0 berbeda dari NULL.** `0` adalah angka sah; NULL dapat berarti belum diisi atau tidak dapat dihitung sesuai status eksplisit.
-- **Audit sensitif.** Aksi atas permission `sensitif=true` wajib merekam `dasar_izin`; percobaan penting yang ditolak harus dapat diaudit.
-- **Design System wajib.** Halaman/komponen React harus memakai token, komponen reusable, pola form Inertia, state loading/error/disabled, responsivitas, dan larangan kelas warna arbitrary sesuai `design-system.md`.
-- **Anggaran kegiatan di luar MVP.** Field anggaran tidak diinput, ditampilkan, atau divalidasi pada UI/API MVP walaupun kolom database boleh disiapkan nullable untuk fase lanjutan.
-- **Pimpinan read-only pada alur approval MVP.** Permission approval Pimpinan boleh tersedia untuk fase lanjutan tetapi tidak dipakai sebagai langkah aktif fase awal.
 
-- **Role PIC terpisah dari Pegawai.** `pic` adalah role resmi keenam; dokumen tidak lagi menyamakan `PIC` dengan `Pegawai`.
-- **PIC operasional ≠ otomatis role PIC.** Pada story RA/Pengukuran/Notifikasi, istilah **PIC** merujuk pada Penanggung Jawab efektif/jalur operasional yang lolos permission, scope, assignment, jendela, status, dan guard bisnis. Dokumen resmi belum menetapkan bahwa hanya user role `pic` yang boleh menjadi `penanggung_jawab`.
-- **Preset permission role PIC masih OPEN.** Karena `role_permissions` bersifat global sementara sejumlah permission kerja PIC bertipe unit-scoped, story tidak boleh mengasumsikan permission scoped otomatis melekat secara global pada role `pic`.
-- **Satu user satu role tetap berlaku pada MVP.** Penambahan role `pic` tidak membuka multi-role.
-
-## 3. Persona
-- **Superadmin:** Memegang seluruh permission melalui role sistem untuk kebutuhan teknis/break-glass, tetapi **tidak** melewati invariant bisnis, deny, F1/F2, versioning, waktu, atau audit.
-- **Admin:** Mengelola pengguna, unit, akses, setelan, audit/dashboard/laporan baca sesuai role. Tidak memiliki hak substantif data kinerja secara bawaan, namun dapat menerima grant eksplisit beralasan.
-- **Perencanaan:** Pemilik proses substantif global: Renstra, target, PK, jadwal, PIC, RA, kegiatan, pengukuran, review, pengesahan, status, rekomendasi, laporan.
-- **PIC:** Role resmi keenam menurut Q31. Untuk alur operasional RA/Pengukuran, aktor tetap harus memenuhi permission efektif, scope unit, penugasan PIC efektif, jendela, status, deny, dan guard bisnis. **Preset permission bawaan role `pic` dan eligibility menjadi `penanggung_jawab` masih OPEN.**
-- **Pegawai:** Pengguna umum/unit yang tidak lagi disamakan dengan PIC. Pegawai dapat memiliki akses sesuai preset/grant yang sah, termasuk akses kolaboratif kegiatan bila diberikan; grant tidak otomatis mengubah role Pegawai menjadi PIC maupun membuatnya Penanggung Jawab indikator.
-- **Pimpinan:** Pemantauan dan laporan read-only pada MVP.
-- **Sistem/Scheduler:** Queue, cron/scheduler, perhitungan, snapshot, dan notifikasi otomatis; tidak diperlakukan sebagai pengguna yang dapat melewati aturan domain.
-
-## 4. Daftar Isi
-1. [Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC](#bagian-1-fondasi-autentikasi-unit-organisasi-dan-model-akses-rbac)
-2. [Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK](#bagian-2-dokumen-dasar-hukum-renstra-sasaran-indikator-target-dan-pk)
-3. [Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill](#bagian-3-periode-jadwal-snapshot-efektivitas-dan-backfill)
-4. [Bagian 4 — Penugasan Penanggung Jawab (PIC)](#bagian-4-penugasan-penanggung-jawab-pic)
-5. [Bagian 5 — Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi](#bagian-5-penyusunan-pengajuan-verifikasi-dan-pengesahan-rencana-aksi)
-6. [Bagian 6 — Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan](#bagian-6-kegiatan-klaim-dampak-dan-bukti-pelaksanaan)
-7. [Bagian 7 — Pengisian Pengukuran Kinerja](#bagian-7-pengisian-pengukuran-kinerja)
-8. [Bagian 8 — Reviu, Verifikasi, Pengesahan, dan Koreksi Pengukuran](#bagian-8-reviu-verifikasi-pengesahan-dan-koreksi-pengukuran)
-9. [Bagian 9 — Rekomendasi Pimpinan & Status Capaian](#bagian-9-rekomendasi-pimpinan-status-capaian)
-10. [Bagian 10 — Dashboard, Rekapitulasi, dan Ekspor](#bagian-10-dashboard-rekapitulasi-dan-ekspor)
-11. [Bagian 11 — Bukti Dukung Multi-Mode & Integritas Lampiran](#bagian-11-bukti-dukung-multi-mode-integritas-lampiran)
-12. [Bagian 12 — Alert Kontekstual & Notifikasi](#bagian-12-alert-kontekstual-notifikasi)
-13. [Bagian 13 — Setelan Aplikasi, Audit, dan Kebijakan Operasional](#bagian-13-setelan-aplikasi-audit-dan-kebijakan-operasional)
-14. [Bagian 14 — Penutupan Tahunan & Koreksi Pasca-Penutupan](#bagian-14-penutupan-tahunan-koreksi-pasca-penutupan)
-15. [Bagian 15 — Kesiapan Operasional, UAT, dan Penggunaan Pertama](#bagian-15-kesiapan-operasional-uat-dan-penggunaan-pertama)
-16. [Matriks Ketertelusuran](#matriks-ketertelusuran)
-17. [Definition of Done Global](#definition-of-done-global)
-
----
+- **Otorisasi server-side.** React hanya menerima `can.*`.
+- **Fail closed.** Permission unknown/inactive dan user tanpa role ditolak.
+- **Deny menang** atas allow role/grant.
+- **Role final lima.** Tidak ada role `pic`.
+- **PIC operasional** berarti user aktif yang berada dalam konteks pekerjaan, assignment bila relevan, Grant Unit yang sesuai, jendela/status valid, dan business guard lolos.
+- **PJ tidak memberi permission.** Assignment dan grant adalah mekanisme terpisah.
+- **Grant Unit** hanya 7 permission scoped dan memakai `delegasi:update`.
+- **Role & Izin** read-only; preset role berubah melalui code/seeder/release.
+- **Onboarding SSO** membuat user nonaktif tanpa role; Admin mengaktifkan dan assign role.
+- **Logout lokal default**, logout SSO terpisah.
+- **Initial year 2026.** TW I–II periode lampau oleh Perencanaan; TW III–IV normal; tanpa `is_backfill`.
+- **Formula final:** IKU 3 = `(sakip + zi_wbk)/2`; IKU 8 = `n/t × 100%` dengan `t` total publikasi seluruh PTS.
+- **Audit append-only** dan F1/F2 tetap business guard terpisah dari permission.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
 ### US-01.01 · Login Terpusat Menggunakan Single Sign-On (SSO) Keycloak
+
+> **Q32:** login pertama membuat user `nonaktif` tanpa role. Admin mengaktifkan dan assign role. Logout lokal menjadi default; logout SSO adalah aksi terpisah.
 
 | Field | Detail |
 |---|---|
@@ -129,30 +100,19 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **ID** | `US-01.03` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna target telah ada pada `users`; enam role sistem tersedia (`superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`). |
-| **Otorisasi** | `akses:update` dan `pengguna:read`. |
-| **Dampak Data** | `user_roles`, `audit_log`. |
+| **Dependensi** | User tersedia; 5 role final tersedia. |
+| **Otorisasi** | `pengguna:read` + `akses:update`. |
 
-> **Sebagai** Admin atau Superadmin,  
-> **Saya ingin** menetapkan satu peran utama kepada pengguna dengan alasan yang dapat diaudit,  
-> **Sehingga** paket permission bawaan pengguna mengikuti tanggung jawab formalnya.
+> **Sebagai** Admin/Superadmin yang berwenang, **saya ingin** menetapkan satu role utama kepada user, **sehingga** klasifikasi akses formal tercatat dan teraudit.
 
 **Acceptance Criteria**
 
-- [x] **AC-1:** Given target pengguna dan role valid, When penetapan disimpan dengan alasan, Then `user_roles` diinsert/update dengan aktor pemberi.
-- [x] **AC-2:** Given pengguna telah memiliki role, When role diganti, Then constraint satu user satu role pada MVP tetap dipenuhi dan audit menyimpan nilai lama/nilai baru.
-- [x] **AC-3:** Given alasan kosong, When submit dilakukan, Then penyimpanan ditolak.
-- [x] **AC-4:** Given aktor tidak memiliki `akses:update`, When endpoint dipanggil langsung, Then 403.
-- [x] **AC-5:** Given perubahan role terjadi setelah suatu RA/Pengukuran diajukan, Then provenance versi lama (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) tidak berubah.
-- [x] **AC-6:** Given form Assign Peran dibuka, When daftar role dimuat, Then **PIC** tampil sebagai pilihan resmi keenam dan penetapan role PIC tetap memenuhi constraint satu user satu role.
-
-
-**Business Rules / Catatan Q31**
-
-- Role `pic` wajib tersedia dan dapat di-assign.
-- Penetapan role PIC **tidak** otomatis menetapkan permission scoped-unit apa pun.
-- Preset `role_permissions` PIC ditutup melalui keputusan bisnis Q31; sampai keputusan tersedia, UI/API tidak boleh mengarang permission berdasarkan nama role.
+- [ ] User dapat belum memiliki role setelah JIT onboarding.
+- [ ] Pilihan hanya `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
+- [ ] Assign/change role mewajibkan alasan dan audit before/after.
+- [ ] Role `pic` tidak tersedia dan tidak dapat disimpan.
+- [ ] Perubahan role tidak mengubah grant, deny, assignment PJ, atau provenance submission historis.
+- [ ] Bila user merupakan PJ aktif, assignment tetap aktif; UI dapat memberi warning/penanda untuk ditindaklanjuti Perencanaan.
 
 ### US-01.04 · Pemberian Grant Izin Tambahan per Unit
 
@@ -161,29 +121,19 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **ID** | `US-01.04` |
 | **Prioritas** | 🟡 P1 |
 | **Story Points** | 5 |
-| **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Pengguna target aktif; unit target aktif; permission ada pada katalog. |
-| **Otorisasi** | `akses:update`. |
+| **Otorisasi** | `delegasi:update`. |
 | **Dampak Data** | `user_permission_granted`, `audit_log`. |
 
-> **Sebagai** Admin atau Superadmin,  
-> **Saya ingin** memberikan grant eksplisit beralasan untuk permission berscope unit kepada pengguna tertentu,  
-> **Sehingga** pengecualian akses dapat diberikan secara presisi tanpa mengubah role utama.
+> **Sebagai** Perencanaan/Admin/Superadmin yang berwenang, **saya ingin** memberi atau mencabut Grant Unit, **sehingga** hak kerja unit dapat diberikan tanpa mengubah role utama.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given permission berkatalog `butuh_scope = unit`, When grant dibuat dengan user, unit, dan alasan valid, Then baris `user_permission_granted` terbentuk dengan `unit_id` terisi.
-- [ ] **AC-2:** Given permission bertipe global, When dicoba diberikan melalui Form Grant Unit, Then validasi menolak karena form ini khusus permission unit-scoped.
-- [ ] **AC-3:** Given permission unit-scoped tanpa unit, When submit dilakukan, Then validasi menolak.
-- [ ] **AC-4:** Given kombinasi user-permission-unit identik sudah ada, When disimpan ulang, Then duplikasi ditolak.
-- [ ] **AC-5:** Given pengguna memiliki role apa pun yang valid (termasuk `pic`), When Admin memberi grant eksplisit yang valid, Then grant dapat tersimpan sesuai katalog/scope; namun seluruh guard bisnis lain seperti PIC efektif, waktu, F1/F2 dan deny tetap berlaku.
-- [ ] **AC-6:** Given grant dicabut, When pencabutan selesai, Then audit mencatat aktor, alasan, dan grant yang dicabut.
-
-**Business Rules / Catatan**
-
-- Grant unit bukan pengganti penugasan PIC.
-- Permission dari role tetap global; grant unit dipakai untuk pengecualian operasional yang memerlukan scope.
-- Q31 tidak mengubah lokasi scope: adanya role `pic` tidak membuat grant unit menjadi tidak diperlukan untuk permission yang memang bertipe `unit`, kecuali ada keputusan resmi baru.
+- [ ] Hanya 7 permission unit-scoped dapat diberikan: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`.
+- [ ] `rencana_aksi:read` dan `kegiatan:read` tidak tersedia pada Form Grant Unit.
+- [ ] User target dan unit harus aktif; alasan wajib.
+- [ ] Grant/revoke tidak mengubah role atau assignment PJ.
+- [ ] Deny yang cocok tetap menang.
+- [ ] Perencanaan, Admin, Superadmin dapat menggunakan flow sesuai `delegasi:update` efektif.
 
 ### US-01.05 · Pencabutan Izin Eksplisit (Deny)
 
@@ -203,11 +153,11 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [x] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
-- [x] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
-- [x] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
-- [x] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
-- [x] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
+- [ ] **AC-1:** Given user, permission, alasan, dan scope valid, When deny disimpan, Then baris `user_permission_denials` terbentuk.
+- [ ] **AC-2:** Given allow berasal dari role atau grant dan terdapat deny yang cocok, When resolver mengevaluasi izin, Then **deny menang** dan akses ditolak.
+- [ ] **AC-3:** Given deny berscope unit A, When user meminta permission unit-scoped pada unit B, Then deny unit A tidak otomatis memblokir unit B.
+- [ ] **AC-4:** Given deny global (`unit_id = NULL`) cocok, When permission diminta, Then permintaan ditolak untuk seluruh scope yang relevan.
+- [ ] **AC-5:** Given deny dicabut, When resolusi dilakukan ulang, Then izin efektif kembali mengikuti role/grant yang masih sah.
 
 ### US-01.06 · Transparansi Izin Pengguna — Jelaskan Izin
 
@@ -231,41 +181,28 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
 - [ ] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
 - [ ] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
-- [ ] **AC-5:** Given target user memiliki role `pic`, When halaman dimuat, Then sistem menampilkan permission efektif aktual yang benar-benar berasal dari `role_permissions`/grant/deny; tidak ada permission sintetis hanya karena nama role PIC.
+- [ ] **AC-5:** Given target user memiliki PIC operasional (bukan role), When halaman dimuat, Then sistem menampilkan permission efektif aktual yang benar-benar berasal dari `role_permissions`/grant/deny; tidak ada permission sintetis hanya karena nama role PIC.
 
-### US-01.07 · Perubahan Isi Role Permissions Secara Terkendali
+### US-01.07 · Peran & Izin Read-Only + Preset Permission via Seeder
 
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.07` |
-| **Prioritas** | 🟠 P2 |
+| **Prioritas** | 🔴 P0 corrective alignment |
 | **Story Points** | 5 |
-| **Modul** | Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC |
-| **Dependensi** | Enam role sistem dan katalog permission tersedia; audit log aktif. Untuk preset PIC final, keputusan bisnis Q31 harus tersedia. |
-| **Otorisasi** | Mekanisme administratif terproteksi untuk perubahan `role_permissions` dengan alasan wajib. |
-| **Dampak Data** | `role_permissions`, `audit_log`. |
+| **Otorisasi UI** | `pengguna:read`. |
+| **Dampak Data** | `roles`, `role_permissions`, `audit_log`. |
 
-> **Sebagai** Superadmin / pengelola teknis berwenang,  
-> **Saya ingin** menambah atau mencabut permission dari role sistem secara terkontrol,  
-> **Sehingga** perubahan hak seluruh pemegang role dapat dilakukan tanpa query SQL manual dan tetap dapat diaudit.
+> **Sebagai** pengguna yang berhak membaca pengguna/akses, **saya ingin** melihat role dan permission bawaannya secara read-only, **sehingga** struktur akses transparan tanpa membuka editor preset dari aplikasi.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given role dan permission valid, When permission ditambahkan dengan alasan, Then `role_permissions` berubah dan audit menyimpan daftar sebelum/sesudah.
-- [ ] **AC-2:** Given permission dicabut dari role, When perubahan disimpan, Then seluruh pemegang role langsung kehilangan allow tersebut pada request berikutnya tanpa re-assign individual.
-- [ ] **AC-3:** Given alasan kosong, When perubahan dicoba, Then ditolak.
-- [ ] **AC-4:** Given role memiliki dua pengguna berbeda, When isi role berubah, Then resolver menunjukkan perubahan efektif pada keduanya.
-- [ ] **AC-5:** Given deny individual masih ada, When permission baru ditambahkan ke role, Then deny yang cocok tetap menang.
-- [ ] **AC-6 (Q31):** Given role target adalah `pic` dan permission bertipe `butuh_scope = unit`, When perubahan preset diusulkan, Then sistem/implementasi tidak boleh menjadikannya allow global tanpa keputusan eksplisit yang menyatakan demikian.
-
-
-**Business Rules / Catatan Q31**
-
-- Keberadaan role `pic` sudah final; **isi permission bawaannya belum final**.
-- Perubahan preset PIC adalah **decision-gated** dan harus bersumber dari keputusan LLDIKTI/Tim Perencanaan, bukan asumsi developer.
-- Sampai keputusan final, development/testing dapat memakai grant unit eksplisit untuk menguji jalur scoped tanpa mendefinisikan permission PIC secara global.
-
----
+- [ ] Halaman menampilkan tepat 5 role final dan preset permissionnya.
+- [ ] Tidak ada add/revoke/edit role-permission dari UI atau mutation endpoint aplikasi.
+- [ ] Preset role bersumber dari kode/seeder/release.
+- [ ] Perubahan preset menghasilkan audit before/after + alasan/sumber release.
+- [ ] Seeder rerun tanpa delta tidak menghasilkan audit palsu.
+- [ ] 7 permission unit-scoped tidak diglobalisasi melalui preset role.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 
@@ -388,6 +325,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-02.06 · Konfigurasi Komponen Angka Indikator (Data-Driven)
 
+> **Q32:** IKU 3 hanya dua komponen `sakip` + `zi_wbk` dengan formula rata-rata; IKU 8 memakai `n/t × 100%` dan t total publikasi seluruh PTS.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-02.06` |
@@ -406,11 +345,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 - [ ] **AC-1:** Given indikator `rasio_persen`, When definisi disimpan, Then sistem mensyaratkan minimal satu pembilang dan tepat satu penyebut efektif.
 - [ ] **AC-2:** Given indikator `penjumlahan`, When definisi disimpan, Then minimal satu komponen penjumlah tersedia.
-- [ ] **AC-3:** Given IKU 3 memakai keputusan Q5, Then tersedia lima komponen datar `perencanaan_kinerja`, `pengukuran_kinerja`, `pelaporan_kinerja`, `evaluasi_internal`, `zi`, masing-masing koefisien 0,5; subtotal SAKIP hanya nilai turunan tampilan.
+- [ ] **AC-3:** Given IKU 3 dikonfigurasi, Then tersedia tepat dua komponen input efektif `sakip` dan `zi_wbk`, masing-masing koefisien 0,5, dan nilai indikator dihitung `(sakip + zi_wbk) / 2`.
 - [ ] **AC-4:** Given kode komponen sama pada indikator yang sama, When submit, Then constraint unik menolak.
 - [ ] **AC-5:** Given definisi komponen diubah setelah snapshot historis dirujuk, Then snapshot lama tidak berubah.
 
 ### US-02.07 · Penetapan Baseline & Target Tahunan
+
+> **Q32:** baseline IKU 3 2025 = 74,2; target 2026 = 76,25; jangan tampilkan selisih sebagai tren. 66,395/87,08 bukan realisasi.
 
 | Field | Detail |
 |---|---|
@@ -489,6 +430,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 ## Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill
 
 ### US-03.01 · Penyusunan Master Periode, Jadwal Tahunan, dan Jendela Periode
+
+> **Q32:** initial schedule = 2026. TW I–II periode lampau oleh Perencanaan, TW III–IV normal. Tidak ada `is_backfill`.
 
 | Field | Detail |
 |---|---|
@@ -585,29 +528,28 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
 - [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
-### US-03.05 · Aktivasi Retroaktif dan Backfill Tahun Historis
+### US-03.05 · Pengisian Periode Lampau 2026 oleh Perencanaan
 
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.05` |
-| **Prioritas** | 🟠 P2 |
-| **Story Points** | 8 |
-| **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
-| **Dependensi** | Sumber data historis resmi tersedia; Perencanaan menetapkan periode dan indikator yang dibackfill. |
-| **Otorisasi** | Permission Perencanaan global + mekanisme jadwal/backfill yang teraudit. |
-| **Dampak Data** | `jadwal_tahunan`, snapshot, pengukuran historis, versi, `audit_log`. |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
+| **Modul** | Periode, Jadwal, Snapshot, Efektivitas |
+| **Dependensi** | Jadwal Tahunan 2026 dan Jadwal Periode tersedia. |
+| **Otorisasi** | Permission global Perencanaan untuk pengisian/koreksi. |
 
 > **Sebagai** Tim Perencanaan,  
-> **Saya ingin** membentuk konteks jadwal historis dan memasukkan data final masa lalu secara eksplisit,  
-> **Sehingga** data tahun lampau dapat dimigrasikan tanpa memalsukan waktu aktivasi atau membuat komponen rekaan.
+> **Saya ingin** mengisi periode 2026 yang jendela normalnya sudah lewat tanpa mekanisme backfill khusus,  
+> **Sehingga** TW I–II dapat dicatat secara benar tanpa memalsukan tanggal atau membuat flag historis baru.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given jadwal tahun lampau diaktifkan, When aktivasi retroaktif dilakukan, Then `activated_at` mencatat waktu aktivasi sebenarnya, bukan tanggal palsu tahun lampau.
-- [ ] **AC-2:** Given skor final historis resmi tidak memiliki rincian komponen, When jalur backfill digunakan, Then nilai disimpan dengan `sumber_nilai = historis`, sumber dan alasan wajib.
-- [ ] **AC-3:** Given jalur historis digunakan, Then tipe indikator master/snapshot tidak diubah menjadi manual dan tidak dibuat komponen dummy.
-- [ ] **AC-4:** Given backfill tanpa RA digunakan sebagai pengecualian, Then alasan/sumber dan pengecualian gerbang dibekukan ke `pengukuran_versi` dan audit.
-- [ ] **AC-5:** Given data historis tidak memiliki sumber yang dapat dibuktikan, When backfill dicoba, Then ditolak.
+- [ ] TW I–II teridentifikasi sebagai periode lampau dari jadwal, bukan flag `is_backfill`.
+- [ ] Perencanaan dapat mengisi periode lampau; user scoped mengikuti jendela dan tidak memperoleh bypass otomatis.
+- [ ] Gerbang RA/komponen/bukti normal dikecualikan untuk jalur periode lampau, sedangkan PK 2026 tetap wajib.
+- [ ] 2025 tidak dibuat sebagai baris Jadwal/Pengukuran; hanya baseline.
+- [ ] Audit tetap mencatat aktor dan perubahan.
 
 ### US-03.06 · Revisi Resmi Jendela PIC
 
@@ -639,6 +581,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-04.01 · Penetapan, Pergantian, dan Resolusi PIC Efektif
 
+> **Q32:** PJ dapat menunjuk user aktif mana pun. Assignment tidak memberi permission; calon PJ tanpa grant hanya diberi warning dan masuk daftar “PJ aktif tanpa hak isi”.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-04.01` |
@@ -660,14 +604,14 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
 - [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
 - [ ] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
-- [ ] **AC-6 (Q31-OPEN):** Given belum ada keputusan final eligibility role terhadap `penanggung_jawab`, When implementasi assignment dibangun, Then tidak boleh ada constraint hardcoded yang hanya menerima role `pic`; validasi tersebut baru menjadi final setelah keputusan bisnis diterbitkan.
+- [ ] **AC-6 (Q31-OPEN):** Given belum ada keputusan final eligibility role terhadap `penanggung_jawab`, When implementasi assignment dibangun, Then tidak boleh ada constraint hardcoded yang hanya menerima PIC operasional (bukan role); validasi tersebut baru menjadi final setelah keputusan bisnis diterbitkan.
 
 
 **Business Rules / Catatan Q31**
 
 - `penanggung_jawab` tetap menjadi sumber histori assignment indikator.
 - Role `pic` dan assignment `penanggung_jawab` adalah dua data yang berbeda.
-- Belum boleh diasumsikan bahwa `penanggung_jawab.user_id` wajib role `pic`.
+- Belum boleh diasumsikan bahwa `penanggung_jawab.user_id` wajib PIC operasional (bukan role).
 - Bila keputusan eligibility nanti ditetapkan, story ini wajib direvisi bersamaan dengan Data Model, Workflow, Plan, User Issues, dan test.
 
 ---
@@ -1095,29 +1039,26 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
 - [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat.
 
-### US-07.05 · Backfill Nilai Historis Final
+### US-07.05 · Pengisian Nilai Periode Lampau oleh Perencanaan
 
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.05` |
-| **Prioritas** | 🟠 P2 |
-| **Story Points** | 8 |
+| **Prioritas** | 🟡 P1 |
+| **Story Points** | 5 |
 | **Modul** | Pengisian Pengukuran Kinerja |
-| **Dependensi** | Data historis final memiliki sumber resmi dan alasan; dijalankan oleh Perencanaan pada jalur backfill. |
-| **Otorisasi** | Permission global Perencanaan + guard backfill. |
-| **Dampak Data** | `pengukuran`, `pengukuran_versi`, `audit_log`. |
+| **Dependensi** | Periode lampau 2026 terdeteksi dari Jadwal. |
 
 > **Sebagai** Tim Perencanaan,  
-> **Saya ingin** memasukkan nilai final historis tanpa memalsukan komponen yang tidak tersedia,  
-> **Sehingga** arsip capaian lama dapat dimuat secara jujur dan dapat diaudit.
+> **Saya ingin** mencatat nilai TW I–II 2026 yang periode pengisiannya telah lewat,  
+> **Sehingga** data awal 2026 tersedia tanpa membangun mode backfill generik.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nilai historis final tersedia tetapi rincian komponen tidak ada, When backfill dilakukan, Then `sumber_nilai = historis` dengan nilai non-NULL, `alasan_historis`, dan `sumber_historis` wajib.
-- [ ] **AC-2:** Given backfill memakai nilai final, Then tipe perhitungan master/snapshot tidak diubah.
-- [ ] **AC-3:** Given RA historis tidak tersedia, When pengecualian backfill digunakan, Then alasan dan jenis pengecualian dibekukan dalam `pengukuran_versi` dan audit.
-- [ ] **AC-4:** Given sumber resmi tidak tersedia, When submit backfill, Then ditolak.
-- [ ] **AC-5:** Given backfill disahkan, Then laporan menandai sumber historis dan tetap menggunakan versi resmi.
+- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau.
+- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
+- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -1297,7 +1238,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
 - [ ] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
 - [ ] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
-- [ ] **AC-6 (Q31):** Given user ber-role `pic`, When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
+- [ ] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
 
 ### US-10.02 · Matriks Rekapitulasi Indikator × Periode
 
@@ -1522,7 +1463,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 ## Bagian 12 — Alert Kontekstual & Notifikasi
 
 
-> **Aturan Q31 untuk penerima PIC:** frasa “PIC terkait” pada notifikasi berarti penerima efektif menurut konteks indikator/assignment/work item yang sah, **bukan seluruh user yang kebetulan memiliki role `pic`**. Query penerima harus menggunakan sumber data domain yang relevan dan permission/hak baca saat tautan dibuka.
+> **Aturan Q31 untuk penerima PIC:** frasa “PIC terkait” pada notifikasi berarti penerima efektif menurut konteks indikator/assignment/work item yang sah, **bukan seluruh user yang kebetulan memiliki PIC operasional (bukan role)**. Query penerima harus menggunakan sumber data domain yang relevan dan permission/hak baca saat tautan dibuka.
 
 
 ### US-12.01 · Banner Pengingat Kontekstual
@@ -1891,7 +1832,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
 - [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then minimal tersedia akun uji untuk enam role resmi; akun PIC tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi.
+- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then minimal tersedia akun uji untuk lima role resmi; akun PIC tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi.
 
 ### US-15.02 · Kesiapan Infrastruktur dan Layanan Eksternal
 
@@ -1943,46 +1884,35 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 ---
 
 
-## Q31 — Penyelarasan Enam Role pada User Stories
+## Q32 — Penyelarasan Final User Stories (24 September 2026)
 
-Bagian ini membedakan requirement yang sudah final dari hal yang masih **OPEN**, agar User Story tidak mengubah ketidakpastian menjadi acceptance criterion palsu.
+Semua User Story memakai kontrak berikut:
 
-### Q31.1 Sudah Final
+1. role final: Superadmin, Admin, Perencanaan, Pimpinan, Pegawai;
+2. PIC bukan role, melainkan aktor operasional dengan grant unit yang relevan;
+3. PJ adalah assignment historis, tidak memberi permission;
+4. Grant Unit hanya 7 permission scoped dan memakai `delegasi:update`;
+5. Role & Permission UI read-only;
+6. JIT SSO membuat user nonaktif tanpa role;
+7. logout lokal default + logout SSO terpisah;
+8. Jadwal pertama 2026; TW I–II periode lampau oleh Perencanaan, TW III–IV normal;
+9. tidak ada mekanisme/flag backfill khusus;
+10. IKU 3 = dua input SAKIP/ZI-WBK; IKU 8 = `n/t × 100%` dengan t total publikasi seluruh PTS.
 
-- Role resmi: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`.
-- Assign Peran menampilkan keenam role.
-- Satu user satu role tetap berlaku pada MVP.
-- `pic` tidak lagi boleh disamakan secara terminologi dengan `pegawai`.
-- `penanggung_jawab` tetap ada sebagai histori assignment indikator.
-- Scope unit tetap dinilai melalui mekanisme permission/grant/deny existing.
-- F1/F2 menggunakan provenance versi dan tidak hilang hanya karena role user berubah.
-- Authorization tetap server-side dan React hanya menggunakan `can.*`.
+### Dampak ke User Story
 
-### Q31.2 Masih OPEN / Decision-Gated
+- US-01.01: onboarding tanpa role + dua jenis logout.
+- US-01.03: Assign Peran hanya 5 role; perubahan role tidak mengubah grant/PJ.
+- US-01.04: Grant Unit memakai `delegasi:update` dan 7 permission.
+- US-01.07: menjadi **Peran & Izin read-only**; preset diubah via code/seeder/release.
+- US-02.04/02.06/02.07: formula/data IKU mengikuti keputusan final.
+- US-03.01/03.05: konsep backfill lama diganti periode lampau terhitung pada Jadwal 2026.
+- US-04.01: PJ dapat menunjuk user aktif mana pun; warning jika tanpa hak isi.
+- US-07.04/07.05: Perencanaan mengisi periode lampau; tidak ada flag backfill.
+- US-15.01: initial setup 2026 mencakup RA existing berstatus disahkan sebelum TW III.
 
-- preset permission bawaan role `pic`;
-- apakah hanya role `pic` yang eligible menjadi `penanggung_jawab`;
-- mapping user existing `pegawai` → `pic`;
-- perlakuan assignment aktif bila role user berubah;
-- permission default dashboard/audit/read lain untuk role PIC;
-- apakah sebagian grant scoped lama akan berubah setelah keputusan preset PIC.
+Acceptance Criteria yang bertentangan dengan Q32 dinyatakan superseded dan harus diperbarui pada issue implementasi sebelum coding/UAT.
 
-### Q31.3 Dampak ke Acceptance
-
-Story yang menyebut PIC tetap dapat dikembangkan selama authorization dibangun generik berdasarkan permission efektif, scope, assignment, waktu, dan business guard. Namun automated test yang mengklaim **“role PIC secara default boleh/tidak boleh X”** belum boleh dijadikan final sampai keputusan preset PIC diterbitkan.
-
-### Q31.4 Definition of Ready untuk Menutup OPEN
-
-Q31 dianggap siap ditutup pada User Stories apabila:
-
-1. ada keputusan tertulis preset permission PIC;
-2. ada keputusan eligibility `penanggung_jawab`;
-3. PRD, Data Model, Workflow, Plan, User Stories, dan User Issues memakai keputusan yang sama;
-4. seeder dan automated test telah diselaraskan;
-5. akun UAT enam role tersedia;
-6. tidak ada lagi istilah produksi yang menyamakan PIC dengan Pegawai.
-
----
 
 ## Matriks Ketertelusuran
 
@@ -2079,8 +2009,8 @@ Q31 dianggap siap ditutup pada User Stories apabila:
 - [ ] Dokumentasi User Issue yang diturunkan dari story harus menyebut endpoint/service, data mutation, audit, test, dan dependency nyata—bukan template Backend/Frontend generik semata.
 - [ ] Story dianggap selesai hanya jika implementasi, test, dan dokumentasi relevan telah sinkron dengan baseline terbaru.
 
-- [ ] Story yang menyentuh role/access telah diuji terhadap **enam role resmi** tanpa hardcode authorization di React.
-- [ ] Story PIC tidak menganggap role `pic` otomatis memiliki permission scoped/global yang belum dikonfirmasi.
+- [ ] Story yang menyentuh role/access telah diuji terhadap **lima role resmi** tanpa hardcode authorization di React.
+- [ ] Story PIC tidak menganggap PIC operasional (bukan role) otomatis memiliki permission scoped/global yang belum dikonfirmasi.
 - [ ] Story yang memakai `penanggung_jawab` tidak menambahkan constraint eligibility berdasarkan role sebelum keputusan Q31 tersedia.
 - [ ] Nama tabel akses konsisten dengan Data Model resmi: `user_permission_granted` dan `user_permission_denials`.
 
@@ -2089,10 +2019,10 @@ Q31 dianggap siap ditutup pada User Stories apabila:
 - Approval aktif oleh Pimpinan (`pengukuran:setujui`) belum menjadi langkah workflow MVP.
 - Anggaran kegiatan belum masuk UI/API MVP.
 - Formula bertingkat generik di luar mesin satu tingkat yang telah disepakati ditunda.
-- Multi-role per user ditunda; MVP mempertahankan satu role utama per pengguna meskipun katalog sekarang berisi enam role.
+- Multi-role per user ditunda; MVP mempertahankan maksimum satu role utama per pengguna dari lima role final, sementara user JIT dapat sementara belum memiliki role.
 - Integrasi sumber data otomatis untuk `status_capaian.sumber = data_sumber` ditunda.
 - Fitur yang dependency operasionalnya belum ditetapkan (provider, credential, owner, waktu kirim, tanggal go-live) tidak boleh diasumsikan siap hanya karena kode tersedia.
 
 ---
 
-**Catatan baseline:** Keputusan yang masih membutuhkan penetapan manusia—misalnya definisi IKU yang belum disahkan, tanggal penerimaan/go-live, provider notifikasi, jam kirim, owner infrastruktur, contoh keluaran Excel final, **preset permission role PIC, eligibility `penanggung_jawab`, dan mapping user existing ke role PIC**—tetap dinyatakan sebagai dependency terbuka dan tidak diisi dengan asumsi developer.
+**Catatan baseline Q32:** keputusan role/PIC, eligibility PJ, onboarding, logout, penggunaan 2026, dan formula IKU sudah final. Dependency terbuka yang tersisa terutama tanggal penerimaan/go-live, provider/owner operasional, notifikasi, infrastruktur, data penetapan awal 2026, dan contoh keluaran Excel UAT.

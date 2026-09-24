@@ -3,6 +3,10 @@
 use App\Http\Controllers\Access\DenyManagement;
 use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
+use App\Http\Controllers\Akses\IndexGrant;
+use App\Http\Controllers\Akses\RevokeGrant;
+use App\Http\Controllers\Akses\SearchGrantUsers;
+use App\Http\Controllers\Akses\StoreGrant;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
@@ -25,6 +29,10 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\Unit\DestroyUnit;
+use App\Http\Controllers\Unit\IndexUnit;
+use App\Http\Controllers\Unit\StoreUnit;
+use App\Http\Controllers\Unit\UpdateUnit;
 use App\Http\Controllers\Verifikasi\IndexVerifikasi;
 use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
@@ -67,6 +75,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
     Route::get('/akses/aktivasi', [UserActivation::class, 'index'])->name('activation.index');
     Route::post('/akses/aktivasi/{user}', [UserActivation::class, 'store'])->whereUuid('user')->name('activation.store');
+
+    // Regulasi
     Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');
     Route::get('/regulasi/create', CreateRegulasi::class)->name('regulasi.create');
     Route::post('/regulasi', StoreRegulasi::class)->name('regulasi.store');
@@ -76,17 +86,33 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/regulasi/{regulasi}/berkas/{berkas}', DestroyBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.destroy');
     Route::get('/regulasi/{regulasi}/berkas/{berkas}/download', DownloadBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.download');
     Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
+
+    // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
     Route::post('/pengukuran/{id}', UpdatePengukuran::class)->whereUuid('id')->name('pengukuran.update');
     Route::post('/pengukuran/{id}/pratinjau', PreviewPengukuran::class)->whereUuid('id')->name('pengukuran.preview');
     Route::get('/pengukuran/{id}/bukti/{buktiId}', [DownloadBuktiPengukuran::class, '__invoke'])->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti');
     Route::get('/pengukuran/{id}/bukti-klaim/{buktiId}', DownloadBuktiKlaimPengukuran::class)->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti-klaim');
+
+    // Verifikasi & Pengesahan Kinerja
     Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+
+    // Master Unit Organisasi
+    Route::get('/unit', IndexUnit::class)->name('unit.index');
+    Route::post('/unit', StoreUnit::class)->name('unit.store');
+    Route::post('/unit/{id}', UpdateUnit::class)->whereUuid('id')->name('unit.update');
+    Route::delete('/unit/{id}', DestroyUnit::class)->whereUuid('id')->name('unit.destroy');
+
+    // Manajemen Hak Akses: Grant Izin per Unit
+    Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
+    Route::get('/akses/grant/opsi/pengguna', SearchGrantUsers::class)->name('akses.grant.users');
+    Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
+    Route::delete('/akses/grant/{id}', RevokeGrant::class)->whereUuid('id')->name('akses.grant.destroy');
 
     // Konfigurasi Persyaratan Jenis Berkas (Alur Tim Perencanaan)
     Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');

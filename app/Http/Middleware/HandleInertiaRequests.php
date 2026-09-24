@@ -30,6 +30,8 @@ class HandleInertiaRequests extends Middleware
                         'regulasi' => $can['regulasi'],
                         'assignRole' => $can['assignRole'],
                         'manageDeny' => $can['manageDeny'],
+                        'unit' => $can['unit'],
+                        'grant' => $can['grant'],
                         'manageRolePermissions' => $can['manageRolePermissions'],
                         'jenisBerkas' => $can['jenisBerkas'],
                         'storagePolicy' => $can['storagePolicy'],
@@ -57,6 +59,8 @@ class HandleInertiaRequests extends Middleware
             'aktivasi' => false,
             'assignRole' => false,
             'manageDeny' => false,
+            'unit' => false,
+            'grant' => false,
             'manageRolePermissions' => false,
             'regulasi' => false,
             'regulasi:create' => false,
@@ -94,6 +98,9 @@ class HandleInertiaRequests extends Middleware
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),
             'manageDeny' => $resolver->allows($user, 'akses:update'),
+            'unit' => $resolver->allows($user, 'unit:read'),
+            'grant' => $resolver->allows($user, 'akses:update')
+                && $user->hasAnyRole(['admin', 'superadmin']),
             'manageRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
