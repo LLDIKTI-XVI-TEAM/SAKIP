@@ -10,8 +10,10 @@ use App\Services\PengaturanService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PengaturanSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -614,30 +616,40 @@ test('inisialisasi revisi cache yang tertunda tidak menimpa revisi baru dari mut
     Cache::forget('pengaturan.all');
     Cache::forget('pengaturan.all_values');
 
-    // Initializer A membaca timestamp lama sebelum token dibuat
-    $maxUpdatedAt = Pengaturan::query()->max('updated_at');
-    $staleCandidateA = $maxUpdatedAt !== null
-        ? (string) Carbon::parse($maxUpdatedAt)->format('YmdHisu')
-        : '20260901000000000000';
+    $interleaved = false;
+    $revisionAfterWriter = null;
 
-    // Initializer B tiba dan menginisialisasi cache dengan nilai lama
-    $service->allValues();
-    $service->get('instansi.nama');
+    // Tunda A setelah query timestamp selesai, sebelum service menerbitkan kandidat revisinya.
+    DB::listen(function (QueryExecuted $query) use ($service, &$interleaved, &$revisionAfterWriter): void {
+        if ($interleaved
+            || ! str_contains($query->sql, 'max("updated_at")')
+            || ! str_contains($query->sql, 'from "pengaturan"')) {
+            return;
+        }
 
-    // Writer C menjalankan update sampai commit dan invalidasi selesai menerbitkan revisi baru
-    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
-    $service->update(
-        $this->admin,
-        ['instansi.nama' => 'Nama Instansi Hasil Writer C'],
-        'Pembaruan mutasi writer C',
-        ['instansi.nama' => $token]
-    );
+        $interleaved = true;
 
-    $revisionAfterWriter = Cache::get('pengaturan.revision');
-    expect($revisionAfterWriter)->not->toBeNull();
+        // B mengisi cache nilai lama ketika A masih membawa hasil query timestamp lama.
+        $service->allValues();
+        $service->get('instansi.nama');
 
-    // Initializer A yang tertunda melanjutkan operasi dan mencoba menuliskan kandidat lamanya
-    Cache::add('pengaturan.revision', $staleCandidateA, 86400 * 365);
+        // C menyelesaikan mutasi dan invalidasi sebelum A melanjutkan initializer aslinya.
+        $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+        $service->update(
+            $this->admin,
+            ['instansi.nama' => 'Nama Instansi Hasil Writer C'],
+            'Pembaruan mutasi writer C',
+            ['instansi.nama' => $token]
+        );
+
+        $revisionAfterWriter = Cache::get('pengaturan.revision');
+    });
+
+    $revisionFromInitializer = $service->getCacheRevision();
+
+    expect($interleaved)->toBeTrue();
+    expect($revisionAfterWriter)->toBeString()->not->toBeEmpty();
+    expect($revisionFromInitializer)->toBe($revisionAfterWriter);
 
     // Revisi writer tidak boleh tertimpa oleh kandidat A
     expect(Cache::get('pengaturan.revision'))->toBe($revisionAfterWriter);
