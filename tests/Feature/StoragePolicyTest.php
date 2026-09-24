@@ -970,4 +970,64 @@ class StoragePolicyTest extends TestCase
 
         $this->assertCount(0, $revocationAudits);
     }
+
+    /**
+     * TEST-17: Urutan cepat nonaktif -> aktif -> nonaktif -> aktif dengan timestamp identik (frozen clock)
+     * mencatat pencabutan lengkap tanpa gagal mendeteksi penandaan aktif (Temuan Codex).
+     */
+    public function test_rapid_toggle_with_frozen_clock_correctly_tracks_lifecycle(): void
+    {
+        Carbon::setTestNow(now());
+
+        $fileOnly = JenisBerkas::create([
+            'nama' => 'Laporan Cepat Toggle',
+            'tahap' => 'pengukuran',
+            'wajib' => true,
+            'aktif' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // 1. Nonaktifkan (siklus 1)
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => false,
+            'alasan' => 'Nonaktifkan 1',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->get());
+        $this->assertCount(0, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->get());
+
+        // 2. Aktifkan (pencabutan 1)
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => true,
+            'alasan' => 'Aktifkan 1',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->get());
+        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->get());
+
+        // 3. Nonaktifkan lagi pada timestamp yang sama (siklus 2)
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => false,
+            'alasan' => 'Nonaktifkan 2',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertCount(2, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->get());
+        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->get());
+
+        // 4. Aktifkan lagi pada timestamp yang sama (pencabutan 2)
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_unggahan_aktif' => true,
+            'alasan' => 'Aktifkan 2',
+        ]))->assertSessionHasNoErrors();
+
+        // Harapannya: Pencabutan ke-2 HARUS tercatat sehingga total pencabutan adalah 2
+        $revocations = AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->get();
+        $this->assertCount(2, $revocations);
+
+        Carbon::setTestNow(null);
+    }
 }

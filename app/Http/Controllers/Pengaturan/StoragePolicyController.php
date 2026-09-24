@@ -287,34 +287,54 @@ class StoragePolicyController extends Controller
             // PRD §18.7 & Plan Pengembangan §10.6: Penandaan otomatis dan pencabutan penanda
             // saat status saklar global unggahan file (berkas.unggahan_aktif) berubah.
             if (isset($changedKeys['berkas.unggahan_aktif'])) {
-                // Tracking penanda aktif: ambil ID objek yang saat ini memiliki penanda tanpa pencabutan setelahnya
-                $activeMarkedJbIds = DB::table('audit_log')
-                    ->where('objek_tipe', 'jenis_berkas')
-                    ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                // Tracking penanda aktif: ambil baris penandaan yang belum dicabut
+                // Menggunakan relasi eksplisit penanda_audit_id agar urutan total lifecycle
+                // tidak bergantung pada keunikan timestamp (bebas race condition saat frozen clock / rapid toggle)
+                $activeMarkedJbAudits = DB::table('audit_log as a')
+                    ->where('a.objek_tipe', 'jenis_berkas')
+                    ->where('a.tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
                     ->whereNotExists(function ($q) {
                         $q->select(DB::raw(1))
                             ->from('audit_log as a2')
-                            ->whereColumn('a2.objek_id', 'audit_log.objek_id')
-                            ->where('a2.objek_tipe', 'jenis_berkas')
+                            ->whereColumn('a2.objek_id', 'a.objek_id')
+                            ->whereColumn('a2.objek_tipe', 'a.objek_tipe')
                             ->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
-                            ->whereColumn('a2.waktu', '>=', 'audit_log.waktu');
+                            ->where(function ($sub) {
+                                $sub->whereRaw("(a2.nilai_lama->>'penanda_audit_id') = a.id::text")
+                                    ->orWhereRaw("(a2.nilai_baru->>'penanda_audit_id') = a.id::text")
+                                    ->orWhere(function ($fallback) {
+                                        $fallback->whereNull(DB::raw("a2.nilai_lama->>'penanda_audit_id'"))
+                                            ->whereNull(DB::raw("a2.nilai_baru->>'penanda_audit_id'"))
+                                            ->whereColumn('a2.waktu', '>', 'a.waktu');
+                                    });
+                            });
                     })
-                    ->pluck('objek_id')
-                    ->unique();
+                    ->get(['a.id', 'a.objek_id']);
 
-                $activeMarkedPkIds = DB::table('audit_log')
-                    ->where('objek_tipe', 'renstra_pk')
-                    ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                $activeMarkedJbIds = $activeMarkedJbAudits->pluck('objek_id')->unique()->all();
+
+                $activeMarkedPkAudits = DB::table('audit_log as a')
+                    ->where('a.objek_tipe', 'renstra_pk')
+                    ->where('a.tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
                     ->whereNotExists(function ($q) {
                         $q->select(DB::raw(1))
                             ->from('audit_log as a2')
-                            ->whereColumn('a2.objek_id', 'audit_log.objek_id')
-                            ->where('a2.objek_tipe', 'renstra_pk')
+                            ->whereColumn('a2.objek_id', 'a.objek_id')
+                            ->whereColumn('a2.objek_tipe', 'a.objek_tipe')
                             ->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
-                            ->whereColumn('a2.waktu', '>=', 'audit_log.waktu');
+                            ->where(function ($sub) {
+                                $sub->whereRaw("(a2.nilai_lama->>'penanda_audit_id') = a.id::text")
+                                    ->orWhereRaw("(a2.nilai_baru->>'penanda_audit_id') = a.id::text")
+                                    ->orWhere(function ($fallback) {
+                                        $fallback->whereNull(DB::raw("a2.nilai_lama->>'penanda_audit_id'"))
+                                            ->whereNull(DB::raw("a2.nilai_baru->>'penanda_audit_id'"))
+                                            ->whereColumn('a2.waktu', '>', 'a.waktu');
+                                    });
+                            });
                     })
-                    ->pluck('objek_id')
-                    ->unique();
+                    ->get(['a.id', 'a.objek_id']);
+
+                $activeMarkedPkIds = $activeMarkedPkAudits->pluck('objek_id')->unique()->all();
 
                 if ($changedKeys['berkas.unggahan_aktif']['new'] === 'false') {
                     // Transisi true -> false: tandai persyaratan wajib file-only yang belum aktif ditandai
@@ -341,6 +361,12 @@ class StoragePolicyController extends Controller
                         ->get();
 
                     foreach ($fileOnlyRequirements as $persyaratan) {
+                        $prevCount = DB::table('audit_log')
+                            ->where('objek_tipe', 'jenis_berkas')
+                            ->where('objek_id', $persyaratan->id)
+                            ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                            ->count();
+
                         $auditLogger->catat(
                             actor: $actor,
                             tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
@@ -357,6 +383,7 @@ class StoragePolicyController extends Controller
                                 'status_pemenuhan' => 'tidak_dapat_dipenuhi',
                                 'sebab' => 'saklar_unggahan_global_nonaktif',
                                 'kunci_setelan' => 'berkas.unggahan_aktif',
+                                'siklus_penandaan' => $prevCount + 1,
                             ],
                             alasan: $alasan,
                             dasarIzin: $decision
@@ -364,6 +391,12 @@ class StoragePolicyController extends Controller
                     }
 
                     foreach ($pkWithoutNonFile as $pk) {
+                        $prevCount = DB::table('audit_log')
+                            ->where('objek_tipe', 'renstra_pk')
+                            ->where('objek_id', $pk->id)
+                            ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
+                            ->count();
+
                         $auditLogger->catat(
                             actor: $actor,
                             tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
@@ -381,6 +414,7 @@ class StoragePolicyController extends Controller
                                 'gerbang' => 'lampiran_pk',
                                 'sebab' => 'saklar_unggahan_global_nonaktif',
                                 'kunci_setelan' => 'berkas.unggahan_aktif',
+                                'siklus_penandaan' => $prevCount + 1,
                             ],
                             alasan: $alasan,
                             dasarIzin: $decision
@@ -388,56 +422,69 @@ class StoragePolicyController extends Controller
                     }
                 } elseif ($changedKeys['berkas.unggahan_aktif']['new'] === 'true') {
                     // Transisi false -> true: catat pencabutan HANYA untuk objek yang benar-benar aktif bertanda
-                    $jbToRevoke = JenisBerkas::whereIn('id', $activeMarkedJbIds)->get();
-                    $pkToRevoke = RenstraPk::whereIn('id', $activeMarkedPkIds)->get();
+                    $jbAuditsByObjek = $activeMarkedJbAudits->groupBy('objek_id');
+                    $jbToRevoke = JenisBerkas::whereIn('id', array_keys($jbAuditsByObjek->all()))->get();
 
                     foreach ($jbToRevoke as $persyaratan) {
-                        $auditLogger->catat(
-                            actor: $actor,
-                            tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
-                            objekTipe: 'jenis_berkas',
-                            objekId: $persyaratan->id,
-                            nilaiLama: [
-                                'nama' => $persyaratan->nama,
-                                'tahap' => $persyaratan->tahap,
-                                'status_pemenuhan' => 'tidak_dapat_dipenuhi',
-                                'sebab' => 'saklar_unggahan_global_nonaktif',
-                            ],
-                            nilaiBaru: [
-                                'nama' => $persyaratan->nama,
-                                'tahap' => $persyaratan->tahap,
-                                'status_pemenuhan' => 'normal',
-                                'sebab' => 'saklar_unggahan_global_aktif',
-                                'kunci_setelan' => 'berkas.unggahan_aktif',
-                            ],
-                            alasan: $alasan,
-                            dasarIzin: $decision
-                        );
+                        $audits = $jbAuditsByObjek->get($persyaratan->id, collect());
+                        foreach ($audits as $markedAudit) {
+                            $auditLogger->catat(
+                                actor: $actor,
+                                tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                                objekTipe: 'jenis_berkas',
+                                objekId: $persyaratan->id,
+                                nilaiLama: [
+                                    'nama' => $persyaratan->nama,
+                                    'tahap' => $persyaratan->tahap,
+                                    'status_pemenuhan' => 'tidak_dapat_dipenuhi',
+                                    'sebab' => 'saklar_unggahan_global_nonaktif',
+                                    'penanda_audit_id' => $markedAudit->id,
+                                ],
+                                nilaiBaru: [
+                                    'nama' => $persyaratan->nama,
+                                    'tahap' => $persyaratan->tahap,
+                                    'status_pemenuhan' => 'normal',
+                                    'sebab' => 'saklar_unggahan_global_aktif',
+                                    'kunci_setelan' => 'berkas.unggahan_aktif',
+                                    'penanda_audit_id' => $markedAudit->id,
+                                ],
+                                alasan: $alasan,
+                                dasarIzin: $decision
+                            );
+                        }
                     }
 
+                    $pkAuditsByObjek = $activeMarkedPkAudits->groupBy('objek_id');
+                    $pkToRevoke = RenstraPk::whereIn('id', array_keys($pkAuditsByObjek->all()))->get();
+
                     foreach ($pkToRevoke as $pk) {
-                        $auditLogger->catat(
-                            actor: $actor,
-                            tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
-                            objekTipe: 'renstra_pk',
-                            objekId: $pk->id,
-                            nilaiLama: [
-                                'nomor_pk' => $pk->nomor_pk,
-                                'tahun' => $pk->tahun,
-                                'status_gerbang' => 'tidak_dapat_dipenuhi',
-                                'gerbang' => 'lampiran_pk',
-                            ],
-                            nilaiBaru: [
-                                'nomor_pk' => $pk->nomor_pk,
-                                'tahun' => $pk->tahun,
-                                'status_gerbang' => 'normal',
-                                'gerbang' => 'lampiran_pk',
-                                'sebab' => 'saklar_unggahan_global_aktif',
-                                'kunci_setelan' => 'berkas.unggahan_aktif',
-                            ],
-                            alasan: $alasan,
-                            dasarIzin: $decision
-                        );
+                        $audits = $pkAuditsByObjek->get($pk->id, collect());
+                        foreach ($audits as $markedAudit) {
+                            $auditLogger->catat(
+                                actor: $actor,
+                                tindakan: 'berkas.cabut_tidak_dapat_dipenuhi',
+                                objekTipe: 'renstra_pk',
+                                objekId: $pk->id,
+                                nilaiLama: [
+                                    'nomor_pk' => $pk->nomor_pk,
+                                    'tahun' => $pk->tahun,
+                                    'status_gerbang' => 'tidak_dapat_dipenuhi',
+                                    'gerbang' => 'lampiran_pk',
+                                    'penanda_audit_id' => $markedAudit->id,
+                                ],
+                                nilaiBaru: [
+                                    'nomor_pk' => $pk->nomor_pk,
+                                    'tahun' => $pk->tahun,
+                                    'status_gerbang' => 'normal',
+                                    'gerbang' => 'lampiran_pk',
+                                    'sebab' => 'saklar_unggahan_global_aktif',
+                                    'kunci_setelan' => 'berkas.unggahan_aktif',
+                                    'penanda_audit_id' => $markedAudit->id,
+                                ],
+                                alasan: $alasan,
+                                dasarIzin: $decision
+                            );
+                        }
                     }
                 }
             }
