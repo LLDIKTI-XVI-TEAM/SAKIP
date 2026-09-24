@@ -242,11 +242,6 @@ class PengaturanService
      */
     public function update(User $actor, array $data, string $alasan, array $expectedUpdatedAt = []): int
     {
-        $decision = $this->permissionResolver->resolve($actor, PermissionCodes::PENGATURAN_UPDATE);
-        if (! $decision->allowed) {
-            throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah pengaturan sistem.');
-        }
-
         $auditReason = trim($alasan);
         if (mb_strlen($auditReason) < 5) {
             throw ValidationException::withMessages([
