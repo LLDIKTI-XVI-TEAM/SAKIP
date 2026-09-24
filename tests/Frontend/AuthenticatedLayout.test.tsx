@@ -2,6 +2,10 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 
+let mockPengaturan: Record<string, unknown> = {
+    'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+};
+
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
     return {
@@ -18,9 +22,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                     can: { dashboard: true, pengaturan: true },
                 },
                 flash: {},
-                pengaturan: {
-                    'aplikasi.nama': 'SAKIP LLDIKTI XVI',
-                },
+                pengaturan: mockPengaturan,
             },
             url: '/pengaturan',
         }),
@@ -54,7 +56,12 @@ beforeAll(() => {
     });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+    cleanup();
+    mockPengaturan = {
+        'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+    };
+});
 
 describe('AuthenticatedLayout Breadcrumbs', () => {
     it('merender jejak navigasi Dashboard > Pengaturan tanpa menambah SAKIP', () => {
@@ -103,5 +110,76 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
         expect(nav.textContent).not.toContain('SAKIP');
         expect(nav.textContent).toContain('Dashboard');
         expect(nav.textContent).toContain('Pengaturan');
+    });
+});
+
+describe('AuthenticatedLayout Logo Rendering', () => {
+    it('merender logo bawaan jika instansi.logo belum terkonfigurasi', () => {
+        mockPengaturan = {
+            'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+        };
+
+        const { container } = render(
+            <AuthenticatedLayout title="Test Layout">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const imgs = container.querySelectorAll('img');
+        expect(imgs.length).toBeGreaterThan(0);
+        imgs.forEach((img) => {
+            expect(img.getAttribute('src')).toBe('/img/dikti16-favicon-blue-150x150.png');
+        });
+    });
+
+    it('tidak merender tag img jika instansi.logo sengaja dikosongkan (null)', () => {
+        mockPengaturan = {
+            'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+            'instansi.logo': null,
+        };
+
+        const { container } = render(
+            <AuthenticatedLayout title="Test Layout">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const imgs = container.querySelectorAll('img');
+        expect(imgs.length).toBe(0);
+    });
+
+    it('tidak merender tag img jika instansi.logo berupa string kosong', () => {
+        mockPengaturan = {
+            'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+            'instansi.logo': '',
+        };
+
+        const { container } = render(
+            <AuthenticatedLayout title="Test Layout">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const imgs = container.querySelectorAll('img');
+        expect(imgs.length).toBe(0);
+    });
+
+    it('merender logo kustom jika instansi.logo terisi URL', () => {
+        mockPengaturan = {
+            'aplikasi.nama': 'SAKIP LLDIKTI XVI',
+            'instansi.logo': 'https://example.com/logo.png',
+        };
+
+        const { container } = render(
+            <AuthenticatedLayout title="Test Layout">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const imgs = container.querySelectorAll('img');
+        expect(imgs.length).toBeGreaterThan(0);
+        imgs.forEach((img) => {
+            expect(img.getAttribute('src')).toBe('https://example.com/logo.png');
+        });
     });
 });

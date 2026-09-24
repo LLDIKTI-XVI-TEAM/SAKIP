@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import {
     Building2,
@@ -69,6 +69,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     });
 
     const [savedBaseline, setSavedBaseline] = useState<Omit<PengaturanFormData, 'alasan'>>(() => buildBaseline(values));
+    const baselineRef = useRef(savedBaseline);
 
     const form = useForm<PengaturanFormData>({
         ...savedBaseline,
@@ -92,7 +93,21 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
     useEffect(() => {
         const nextBaseline = buildBaseline(values);
+        const prevBaseline = baselineRef.current;
+        baselineRef.current = nextBaseline;
         setSavedBaseline(nextBaseline);
+
+        // Sinkronkan form.data: perbarui field yang tidak sedang diedit lokal ke nilai server terbaru
+        form.setData((prev) => {
+            const nextData = { ...prev };
+            formKeys.forEach((key) => {
+                if (prev[key] === prevBaseline[key]) {
+                    nextData[key] = nextBaseline[key];
+                }
+            });
+            return nextData;
+        });
+
         form.setDefaults({
             ...nextBaseline,
             alasan: '',
@@ -142,12 +157,19 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
         form.put('/pengaturan', {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
                 setIsConfirmOpen(false);
                 setAuditReason('');
-                setSavedBaseline({ ...form.data });
+                const serverValues = (page?.props as unknown as PengaturanIndexProps)?.values || values;
+                const nextBaseline = buildBaseline(serverValues);
+                baselineRef.current = nextBaseline;
+                setSavedBaseline(nextBaseline);
+                form.setData({
+                    ...nextBaseline,
+                    alasan: '',
+                });
                 form.setDefaults({
-                    ...form.data,
+                    ...nextBaseline,
                     alasan: '',
                 });
             },

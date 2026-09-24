@@ -208,4 +208,29 @@ describe('PengaturanIndex Frontend', () => {
 
         expect(inputNama.value).toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
     });
+
+    it('menyinkronkan field yang tidak diedit ketika menerima props values terbaru dari server', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        const inputAlamat = screen.getByLabelText<HTMLTextAreaElement>(/Alamat Kantor/);
+
+        // Pengguna hanya mengedit Nama Instansi secara lokal
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama Diedit Lokal');
+
+        // Server mengirim props values baru di mana Alamat Instansi diperbarui oleh admin lain
+        const updatedValues = {
+            ...mockProps.values,
+            'instansi.alamat': 'Jl. Diperbarui Admin Lain',
+        };
+
+        rerender(<PengaturanIndex {...mockProps} values={updatedValues} />);
+
+        // Alamat Instansi harus tersinkronisasi ke nilai server terbaru
+        expect(inputAlamat.value).toBe('Jl. Diperbarui Admin Lain');
+        // Nama Instansi yang sedang diedit lokal tetap dipertahankan
+        expect(inputNama.value).toBe('Nama Diedit Lokal');
+    });
 });

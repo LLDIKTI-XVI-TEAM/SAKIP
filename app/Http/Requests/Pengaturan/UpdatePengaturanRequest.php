@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Pengaturan;
 
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\PengaturanService;
 use App\Support\PermissionCodes;
@@ -22,6 +23,29 @@ class UpdatePengaturanRequest extends FormRequest
         }
 
         return app(PermissionResolver::class)->allows($user, PermissionCodes::PENGATURAN_UPDATE);
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user()?->fresh();
+        if ($user) {
+            $decision = app(PermissionResolver::class)->decide($user, PermissionCodes::PENGATURAN_UPDATE);
+            $rawAlasan = $this->input('alasan');
+            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
+                ? trim($rawAlasan)
+                : 'Percobaan pembaruan pengaturan sistem ditolak karena tidak memiliki izin.';
+
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'pengaturan.ubah_ditolak',
+                objekTipe: 'pengaturan',
+                objekId: 'system',
+                alasan: $alasan,
+                dasarIzin: $decision,
+            );
+        }
+
+        parent::failedAuthorization();
     }
 
     protected function prepareForValidation(): void

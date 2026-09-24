@@ -44,7 +44,11 @@ export function AuthenticatedLayout({
     const instansiNama = (pengaturan?.['instansi.nama_pendek'] as string)
         || (pengaturan?.['instansi.nama'] as string)
         || 'LLDIKTI WILAYAH XVI';
-    const logoUrl = (pengaturan?.['instansi.logo'] as string) || '/img/dikti16-favicon-blue-150x150.png';
+    const rawLogo = pengaturan ? (pengaturan['instansi.logo'] as string | null | undefined) : undefined;
+    const hasLogoKey = Boolean(pengaturan && Object.prototype.hasOwnProperty.call(pengaturan, 'instansi.logo'));
+    const logoUrl = hasLogoKey
+        ? (rawLogo && rawLogo.trim() !== '' ? rawLogo : null)
+        : '/img/dikti16-favicon-blue-150x150.png';
     const [navigationOpen, setNavigationOpen] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
@@ -169,13 +173,15 @@ export function AuthenticatedLayout({
             {/* Mobile Header Bar */}
             <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
                 <div className="flex min-w-0 items-center gap-2.5">
-                    <img
-                        src={logoUrl}
-                        width={36}
-                        height={36}
-                        alt=""
-                        className="h-9 w-9 shrink-0 object-contain rounded-md"
-                    />
+                    {logoUrl && (
+                        <img
+                            src={logoUrl}
+                            width={36}
+                            height={36}
+                            alt=""
+                            className="h-9 w-9 shrink-0 object-contain rounded-md"
+                        />
+                    )}
                     <div>
                         <span className="text-base font-bold tracking-tight text-white leading-none">{appName}</span>
                     </div>
@@ -219,13 +225,15 @@ export function AuthenticatedLayout({
                 {/* Brand Header */}
                 <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
                     <div className="flex items-center gap-3">
-                        <img
-                            src={logoUrl}
-                            width={38}
-                            height={38}
-                            alt=""
-                            className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
-                        />
+                        {logoUrl && (
+                            <img
+                                src={logoUrl}
+                                width={38}
+                                height={38}
+                                alt=""
+                                className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
+                            />
+                        )}
                         <div>
                             <span className="text-lg font-bold tracking-tight text-white leading-tight block">{appName}</span>
                             <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight">

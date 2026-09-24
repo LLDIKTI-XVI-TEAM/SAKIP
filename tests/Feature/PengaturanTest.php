@@ -156,7 +156,7 @@ test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui',
     expect($val2)->toBe('LLDIKTI Wilayah XVI Terverifikasi Cache');
 });
 
-test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 403', function (): void {
+test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 403 dan dicatat dalam audit trail', function (): void {
     // Role perencanaan mencoba mengakses GET /pengaturan
     $resPerencanaanGet = $this->actingAs($this->perencanaan)->get('/pengaturan');
     $resPerencanaanGet->assertForbidden();
@@ -164,8 +164,18 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
     // Role perencanaan mencoba mutasi PUT /pengaturan
     $resPerencanaanPut = $this->actingAs($this->perencanaan)->put('/pengaturan', [
         'instansi.nama' => 'Pembobolan Oleh Perencanaan',
+        'alasan' => 'Mencoba ubah tanpa hak akses',
     ]);
     $resPerencanaanPut->assertForbidden();
+
+    // Pastikan percobaan mutasi yang ditolak dicatat dalam audit log
+    $this->assertDatabaseHas('audit_log', [
+        'actor_id' => $this->perencanaan->id,
+        'tindakan' => 'pengaturan.ubah_ditolak',
+        'objek_tipe' => 'pengaturan',
+        'objek_id' => 'system',
+        'alasan' => 'Mencoba ubah tanpa hak akses',
+    ]);
 
     // Role pegawai mencoba mengakses GET /pengaturan
     $resPegawaiGet = $this->actingAs($this->pegawai)->get('/pengaturan');
@@ -176,6 +186,13 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
         'instansi.nama' => 'Pembobolan Oleh Pegawai',
     ]);
     $resPegawaiPut->assertForbidden();
+
+    $this->assertDatabaseHas('audit_log', [
+        'actor_id' => $this->pegawai->id,
+        'tindakan' => 'pengaturan.ubah_ditolak',
+        'objek_tipe' => 'pengaturan',
+        'objek_id' => 'system',
+    ]);
 });
 
 test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): void {
