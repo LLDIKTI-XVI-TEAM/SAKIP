@@ -45,7 +45,8 @@ interface DashboardProps {
 }
 
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
-    const { auth } = usePage<SharedPageProps>().props;
+    const { auth, pengaturan } = usePage<SharedPageProps>().props;
+    const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP LLDIKTI XVI';
     const [currentDate, setCurrentDate] = useState<string>('');
     const hasPeriode = activePeriode !== null;
     const isActivePeriode = activePeriode?.status === 'aktif';
@@ -146,7 +147,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
                         {/* Title */}
                         <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-surface leading-tight">
-                            Selamat Datang di <span className="text-surface">SAKIP LLDIKTI XVI</span>
+                            Selamat Datang di <span className="text-surface">{appName}</span>
                         </h1>
 
                         {/* Description */}

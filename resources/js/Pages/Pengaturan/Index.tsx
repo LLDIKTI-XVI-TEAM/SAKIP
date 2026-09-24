@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import {
     Building2,
@@ -51,30 +51,54 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [auditReason, setAuditReason] = useState('');
     const [auditError, setAuditError] = useState<string | undefined>();
+    const [logoError, setLogoError] = useState(false);
 
-    const initialFormData: Omit<PengaturanFormData, 'alasan'> = {
-        'instansi.nama': values['instansi.nama'] || '',
-        'instansi.alamat': values['instansi.alamat'] || '',
-        'instansi.telepon': values['instansi.telepon'] || '',
-        'instansi.surel': values['instansi.surel'] || '',
-        'instansi.laman': values['instansi.laman'] || '',
-        'instansi.logo': values['instansi.logo'] || '',
-        'aplikasi.nama': values['aplikasi.nama'] || '',
-        'aplikasi.label_unit': values['aplikasi.label_unit'] || '',
-        'tampilan.zona_waktu': values['tampilan.zona_waktu'] || 'Asia/Makassar',
-        'tampilan.format_tanggal': values['tampilan.format_tanggal'] || 'd F Y',
-        'tampilan.format_angka': values['tampilan.format_angka'] || 'id_ID',
-        'laporan.header': values['laporan.header'] || '',
-        'laporan.footer': values['laporan.footer'] || '',
-    };
+    const buildBaseline = (vals: Record<string, string | null>): Omit<PengaturanFormData, 'alasan'> => ({
+        'instansi.nama': vals['instansi.nama'] || '',
+        'instansi.alamat': vals['instansi.alamat'] || '',
+        'instansi.telepon': vals['instansi.telepon'] || '',
+        'instansi.surel': vals['instansi.surel'] || '',
+        'instansi.laman': vals['instansi.laman'] || '',
+        'instansi.logo': vals['instansi.logo'] || '',
+        'aplikasi.nama': vals['aplikasi.nama'] || '',
+        'aplikasi.label_unit': vals['aplikasi.label_unit'] || '',
+        'tampilan.zona_waktu': vals['tampilan.zona_waktu'] || 'Asia/Makassar',
+        'tampilan.format_tanggal': vals['tampilan.format_tanggal'] || 'd F Y',
+        'tampilan.format_angka': vals['tampilan.format_angka'] || 'id_ID',
+        'laporan.header': vals['laporan.header'] || '',
+        'laporan.footer': vals['laporan.footer'] || '',
+    });
+
+    const [savedBaseline, setSavedBaseline] = useState<Omit<PengaturanFormData, 'alasan'>>(() => buildBaseline(values));
 
     const form = useForm<PengaturanFormData>({
-        ...initialFormData,
+        ...savedBaseline,
         alasan: '',
     });
 
-    const formKeys = Object.keys(initialFormData) as (keyof typeof initialFormData)[];
-    const hasChanges = formKeys.some((key) => form.data[key] !== initialFormData[key]);
+    const formKeys = Object.keys(savedBaseline) as (keyof typeof savedBaseline)[];
+    const hasChanges = formKeys.some((key) => form.data[key] !== savedBaseline[key]);
+
+    const updatedTimestamps = useMemo(() => {
+        const map: Record<string, string | null> = {};
+        Object.values(grouped).flat().forEach((item) => {
+            map[item.kunci] = item.updated_at || null;
+        });
+        return map;
+    }, [grouped]);
+
+    useEffect(() => {
+        setLogoError(false);
+    }, [form.data['instansi.logo']]);
+
+    useEffect(() => {
+        const nextBaseline = buildBaseline(values);
+        setSavedBaseline(nextBaseline);
+        form.setDefaults({
+            ...nextBaseline,
+            alasan: '',
+        });
+    }, [values]);
 
     const updateField = (field: keyof PengaturanFormData, value: string) => {
         form.setData((prev) => ({
@@ -91,18 +115,42 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     };
 
     const handleConfirmSubmit = () => {
-        if (auditReason.trim().length < 5) {
+        const trimmedReason = auditReason.trim();
+        if (trimmedReason.length < 5) {
             setAuditError('Harap berikan alasan pembaruan minimal 5 karakter untuk catatan audit.');
             return;
         }
 
-        form.setData('alasan', auditReason.trim());
+        const dirtyData: Record<string, unknown> = {
+            alasan: trimmedReason,
+        };
+        const expectedTimestamps: Record<string, string | null> = {};
+
+        formKeys.forEach((key) => {
+            if (form.data[key] !== savedBaseline[key]) {
+                dirtyData[key] = form.data[key];
+                if (updatedTimestamps[key]) {
+                    expectedTimestamps[key] = updatedTimestamps[key];
+                }
+            }
+        });
+
+        if (Object.keys(expectedTimestamps).length > 0) {
+            dirtyData.expected_updated_at = expectedTimestamps;
+        }
+
+        form.transform(() => dirtyData);
 
         form.put('/pengaturan', {
             preserveScroll: true,
             onSuccess: () => {
                 setIsConfirmOpen(false);
                 setAuditReason('');
+                setSavedBaseline({ ...form.data });
+                form.setDefaults({
+                    ...form.data,
+                    alasan: '',
+                });
             },
             onError: () => {
                 setIsConfirmOpen(false);
@@ -111,7 +159,10 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     };
 
     const handleReset = () => {
-        form.reset();
+        form.setData({
+            ...savedBaseline,
+            alasan: '',
+        });
         form.clearErrors();
     };
 
@@ -302,14 +353,13 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-4 p-4 rounded-xl bg-surface border border-border shadow-xs">
                                             <div className="w-14 h-14 rounded-xl bg-soft border border-border flex items-center justify-center p-2 shrink-0">
-                                                {form.data['instansi.logo'] ? (
+                                                {form.data['instansi.logo'] && !logoError ? (
                                                     <img
                                                         src={form.data['instansi.logo']}
-                                                        alt=""
+                                                        alt={`Logo ${form.data['instansi.nama'] || 'Instansi'}`}
                                                         className="max-w-full max-h-full object-contain"
-                                                        onError={(e) => {
-                                                            (e.target as HTMLElement).style.display = 'none';
-                                                        }}
+                                                        onError={() => setLogoError(true)}
+                                                        onLoad={() => setLogoError(false)}
                                                     />
                                                 ) : (
                                                     <Building2 className="w-6 h-6 text-muted" />

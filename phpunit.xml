@@ -32,7 +32,6 @@
         <env name="DB_DATABASE" value="sakip_test"/>
         <env name="DB_USERNAME" value="sakip_test"/>
         <env name="DB_PASSWORD" value="sakip_test"/>
-        <env name="SAKIP_TEST_ALLOW_DATABASE_RESET" value="1"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -32,6 +32,7 @@ export interface SharedPageProps extends PageProps {
         message?: string | null;
         [key: string]: unknown;
     };
+    pengaturan?: Record<string, string | number | boolean | null>;
 }
 
 declare module '@inertiajs/core' {

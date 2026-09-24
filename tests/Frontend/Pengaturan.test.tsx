@@ -173,4 +173,39 @@ describe('PengaturanIndex Frontend', () => {
         expect(screen.getByText('Konfirmasi Perubahan Pengaturan')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Konfirmasi & Simpan' })).toBeTruthy();
     });
+
+    it('menolak submit konfirmasi jika alasan audit kurang dari 5 karakter', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama Instansi Diperbarui');
+
+        await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
+
+        // Isi alasan kurang dari 5 karakter
+        const inputAlasan = screen.getByLabelText(/Alasan perubahan/i);
+        await user.type(inputAlasan, 'test');
+
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
+
+        expect(screen.getByText(/Harap berikan alasan pembaruan minimal 5 karakter/i)).toBeTruthy();
+    });
+
+    it('mereset input ke nilai baseline ketika tombol kembalikan diklik', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Perubahan Sementara');
+        expect(inputNama.value).toBe('Perubahan Sementara');
+
+        const resetButton = screen.getByRole('button', { name: /Kembalikan/ });
+        expect(resetButton.hasAttribute('disabled')).toBe(false);
+        await user.click(resetButton);
+
+        expect(inputNama.value).toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+    });
 });

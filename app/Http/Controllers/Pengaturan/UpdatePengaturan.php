@@ -21,13 +21,27 @@ class UpdatePengaturan extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $alasan = $validated['alasan'] ?? null;
-        $values = Arr::except(Arr::dot($validated), ['alasan']);
+        $alasan = (string) $validated['alasan'];
+        /** @var array<string, string|null> $expectedUpdatedAt */
+        $expectedUpdatedAt = $validated['expected_updated_at'] ?? [];
 
-        $this->pengaturanService->update($actor, $values, $alasan);
+        $dotData = Arr::dot($validated);
+        $values = [];
+        foreach ($dotData as $key => $val) {
+            if ($key === 'alasan' || str_starts_with($key, 'expected_updated_at')) {
+                continue;
+            }
+            $values[$key] = $val;
+        }
+
+        $changed = $this->pengaturanService->update($actor, $values, $alasan, $expectedUpdatedAt);
+
+        $message = $changed > 0
+            ? 'Pengaturan sistem berhasil diperbarui dan dicatat dalam audit trail.'
+            : 'Tidak ada perubahan pengaturan yang perlu disimpan.';
 
         return redirect()
             ->route('pengaturan.index')
-            ->with('success', 'Pengaturan sistem berhasil diperbarui dan dicatat dalam audit trail.');
+            ->with('success', $message);
     }
 }

@@ -8,7 +8,11 @@ window.addEventListener('pageshow', (event) => {
 });
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - SAKIP LLDIKTI XVI` : 'SAKIP LLDIKTI XVI'),
+    title: (title) => {
+        const defaultTitle = (typeof document !== 'undefined' && document.querySelector('meta[name="app-name"]')?.getAttribute('content'))
+            || 'SAKIP LLDIKTI XVI';
+        return title ? `${title} - ${defaultTitle}` : defaultTitle;
+    },
     resolve: (name) => {
         const pages = import.meta.glob<{ default: ResolvedComponent }>('./Pages/**/*.tsx', { eager: true });
         const page = pages[`./Pages/${name}.tsx`];

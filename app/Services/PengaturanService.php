@@ -148,7 +148,8 @@ class PengaturanService
 
         foreach (self::WHITELIST as $kunci => $meta) {
             $record = $records->get($kunci);
-            $nilai = $record?->nilai ?? $this->getDefault($kunci);
+            // Pertahankan nilai null yang disengaja jika record sudah tersimpan di database
+            $nilai = $record !== null ? $this->castValue($record->nilai, $meta['tipe']) : $this->getDefault($kunci);
             $values[$kunci] = $nilai;
 
             $item = [
@@ -174,22 +175,53 @@ class PengaturanService
     }
 
     /**
-     * Simpan pembaruan pengaturan dengan validasi whitelist, otorisasi, dan pencatatan audit.
+     * Ambil seluruh nilai pengaturan terkini dalam format key-value dengan caching.
+     *
+     * @return array<string, mixed>
+     */
+    public function allValues(): array
+    {
+        return Cache::remember('pengaturan.all_values', 86400, function () {
+            $records = Pengaturan::query()
+                ->whereIn('kunci', array_keys(self::WHITELIST))
+                ->get()
+                ->keyBy('kunci');
+
+            $values = [];
+            foreach (self::WHITELIST as $kunci => $meta) {
+                $record = $records->get($kunci);
+                $values[$kunci] = $record !== null
+                    ? $this->castValue($record->nilai, $meta['tipe'])
+                    : $this->getDefault($kunci);
+            }
+
+            return $values;
+        });
+    }
+
+    /**
+     * Simpan pembaruan pengaturan dengan validasi whitelist, otorisasi, alasan audit wajib, dan deteksi konflik.
      *
      * @param  array<string, mixed>  $data
+     * @param  array<string, string|null>  $expectedUpdatedAt
      *
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function update(User $actor, array $data, ?string $alasan = null): int
+    public function update(User $actor, array $data, string $alasan, array $expectedUpdatedAt = []): int
     {
-        // 1. Otorisasi aktor
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::PENGATURAN_UPDATE);
         if (! $decision->allowed) {
             throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah pengaturan sistem.');
         }
 
-        // 2. Strict Whitelist guard
+        $auditReason = trim($alasan);
+        if (mb_strlen($auditReason) < 5) {
+            throw ValidationException::withMessages([
+                'alasan' => 'Alasan pembaruan pengaturan minimal 5 karakter untuk catatan audit.',
+            ]);
+        }
+
         $disallowed = array_diff(array_keys($data), array_keys(self::WHITELIST));
         if ($disallowed !== []) {
             $invalidKey = array_values($disallowed)[0];
@@ -198,17 +230,27 @@ class PengaturanService
             ]);
         }
 
-        $auditReason = $alasan ?: 'Pembaruan identitas dan preferensi sistem.';
         $changedCount = 0;
+        $changedKeys = [];
 
-        DB::transaction(function () use ($actor, $data, $decision, $auditReason, &$changedCount) {
+        DB::transaction(function () use ($actor, $data, $decision, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
             $now = Carbon::now();
 
             foreach ($data as $kunci => $nilaiBaru) {
-                // Normalisasi string kosong menjadi null untuk field opsional jika relevan
                 $nilaiBaruStr = $nilaiBaru !== null ? (string) $nilaiBaru : null;
 
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
+
+                if (isset($expectedUpdatedAt[$kunci]) && $setting->exists && $setting->updated_at !== null) {
+                    $expected = Carbon::parse($expectedUpdatedAt[$kunci]);
+                    if ($setting->updated_at->greaterThan($expected)) {
+                        $updaterName = $setting->updatedBy?->nama ?? 'pengguna lain';
+                        throw ValidationException::withMessages([
+                            $kunci => "Pengaturan '{$kunci}' telah diperbarui oleh {$updaterName} saat Anda sedang mengedit. Silakan muat ulang halaman.",
+                        ]);
+                    }
+                }
+
                 $nilaiLama = $setting->nilai;
 
                 if ($setting->exists && $nilaiLama === $nilaiBaruStr) {
@@ -222,7 +264,7 @@ class PengaturanService
                 $setting->updated_at = $now;
                 $setting->save();
 
-                Cache::forget("pengaturan.{$kunci}");
+                $changedKeys[] = $kunci;
 
                 $this->auditLogger->catat(
                     actor: $actor,
@@ -238,7 +280,13 @@ class PengaturanService
                 $changedCount++;
             }
 
-            Cache::forget('pengaturan.all');
+            DB::afterCommit(function () use ($changedKeys) {
+                foreach ($changedKeys as $kunci) {
+                    Cache::forget("pengaturan.{$kunci}");
+                }
+                Cache::forget('pengaturan.all');
+                Cache::forget('pengaturan.all_values');
+            });
         });
 
         return $changedCount;
@@ -253,6 +301,7 @@ class PengaturanService
             Cache::forget("pengaturan.{$kunci}");
         }
         Cache::forget('pengaturan.all');
+        Cache::forget('pengaturan.all_values');
     }
 
     /**

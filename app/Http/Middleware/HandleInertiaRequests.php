@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,6 +45,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'message' => fn () => $request->session()->get('message'),
             ],
+            'pengaturan' => fn () => app(PengaturanService::class)->allValues(),
         ];
     }
 

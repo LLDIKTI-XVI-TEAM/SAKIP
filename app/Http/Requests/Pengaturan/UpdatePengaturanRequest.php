@@ -34,11 +34,12 @@ class UpdatePengaturanRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'alasan' => ['nullable', 'string', 'max:255'],
+            'alasan' => ['required', 'string', 'min:5', 'max:255'],
+            'expected_updated_at' => ['sometimes', 'nullable', 'array'],
         ];
 
         foreach (PengaturanService::WHITELIST as $kunci => $meta) {
-            $rules[$kunci] = $meta['aturan'];
+            $rules[$kunci] = array_merge(['sometimes'], $meta['aturan']);
         }
 
         return $rules;
@@ -50,7 +51,9 @@ class UpdatePengaturanRequest extends FormRequest
             $allowedKeys = array_merge(array_keys(PengaturanService::WHITELIST), ['alasan']);
             $inputKeys = array_keys(Arr::dot($this->all()));
 
-            $disallowed = array_diff($inputKeys, $allowedKeys);
+            // Abaikan metadata penanganan konkurensi dari pengecekan whitelist pengaturan
+            $checkedKeys = array_filter($inputKeys, fn ($k) => ! str_starts_with($k, 'expected_updated_at'));
+            $disallowed = array_diff($checkedKeys, $allowedKeys);
             foreach ($disallowed as $key) {
                 $validator->errors()->add(
                     $key,
@@ -66,6 +69,9 @@ class UpdatePengaturanRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'alasan.required' => 'Alasan pembaruan pengaturan wajib diisi untuk catatan audit.',
+            'alasan.min' => 'Alasan pembaruan pengaturan minimal :min karakter.',
+            'alasan.max' => 'Alasan pembaruan pengaturan maksimal :max karakter.',
             'instansi.nama.required' => 'Nama instansi wajib diisi.',
             'instansi.nama.max' => 'Nama instansi maksimal 255 karakter.',
             'instansi.surel.email' => 'Format surel instansi tidak valid.',

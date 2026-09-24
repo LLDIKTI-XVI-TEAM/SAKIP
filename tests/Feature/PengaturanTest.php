@@ -190,6 +190,7 @@ test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): vo
 
 test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist dengan HTTP 422', function (): void {
     $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'alasan' => 'Uji validasi whitelist sistem',
         'instansi.nama' => 'LLDIKTI XVI Valid',
         'status_alur_kerja' => 'bypass_approval', // Kunci berbahaya di luar whitelist
         'roles.superadmin' => 'semua_akses',       // Kunci berbahaya lain
@@ -212,6 +213,7 @@ test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist d
 
 test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function (): void {
     $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'alasan' => 'Uji validasi format input',
         'instansi.nama' => 'LLDIKTI Wilayah XVI',
         'aplikasi.nama' => 'SAKIP LLDIKTI XVI',
         'aplikasi.label_unit' => 'Unit Kerja',
@@ -224,4 +226,96 @@ test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function
 
     $response->assertUnprocessable();
     $response->assertJsonValidationErrors(['instansi.surel', 'instansi.laman', 'tampilan.zona_waktu']);
+});
+
+test('server mewajibkan alasan perubahan minimal 5 karakter untuk catatan audit', function (): void {
+    // Tanpa alasan
+    $resNoReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'Nama Baru',
+    ]);
+    $resNoReason->assertUnprocessable();
+    $resNoReason->assertJsonValidationErrors(['alasan']);
+
+    // Alasan terlalu pendek (< 5 karakter)
+    $resShortReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'Nama Baru',
+        'alasan' => 'test',
+    ]);
+    $resShortReason->assertUnprocessable();
+    $resShortReason->assertJsonValidationErrors(['alasan']);
+});
+
+test('nilai null yang disengaja dipertahankan dan tidak kembali ke nilai default seeder', function (): void {
+    // Admin mengosongkan alamat instansi (opsional)
+    $response = $this->actingAs($this->admin)->put('/pengaturan', [
+        'instansi.alamat' => null,
+        'alasan' => 'Mengosongkan alamat instansi sementara',
+    ]);
+    $response->assertRedirect(route('pengaturan.index'));
+
+    $this->assertDatabaseHas('pengaturan', [
+        'kunci' => 'instansi.alamat',
+        'nilai' => null,
+    ]);
+
+    /** @var PengaturanService $service */
+    $service = app(PengaturanService::class);
+    $all = $service->allGrouped();
+
+    expect($all['values']['instansi.alamat'])->toBeNull();
+
+    $itemAlamat = collect($all['grouped']['instansi'])->firstWhere('kunci', 'instansi.alamat');
+    expect($itemAlamat['nilai'])->toBeNull();
+});
+
+test('deteksi konflik konkurensi (optimistic locking) menolak stale update', function (): void {
+    $now = now();
+    $setting = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+    $setting->updated_at = $now;
+    $setting->save();
+
+    // Admin B mencoba mengupdate dengan expected_updated_at yang lebih lama (stale)
+    $staleTimestamp = $now->subMinutes(5)->toIso8601String();
+
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'LLDIKTI Konflik',
+        'alasan' => 'Pembaruan oleh admin lain yang terlambat',
+        'expected_updated_at' => [
+            'instansi.nama' => $staleTimestamp,
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['instansi.nama']);
+});
+
+test('pembaruan parsial hanya memperbarui kunci yang dikirim dan tidak mengubah kunci lain', function (): void {
+    $namaAwal = Pengaturan::query()->where('kunci', 'instansi.nama')->value('nilai');
+
+    // Hanya kirim instansi.telepon
+    $response = $this->actingAs($this->admin)->put('/pengaturan', [
+        'instansi.telepon' => '(0435) 999111',
+        'alasan' => 'Pembaruan nomor telepon saja',
+    ]);
+    $response->assertRedirect(route('pengaturan.index'));
+
+    $this->assertDatabaseHas('pengaturan', [
+        'kunci' => 'instansi.telepon',
+        'nilai' => '(0435) 999111',
+    ]);
+    $this->assertDatabaseHas('pengaturan', [
+        'kunci' => 'instansi.nama',
+        'nilai' => $namaAwal,
+    ]);
+});
+
+test('pengaturan dibagikan ke Inertia shared props via allValues', function (): void {
+    $response = $this->actingAs($this->admin)->get('/pengaturan');
+    $response->assertOk();
+
+    /** @var array<string, mixed> $props */
+    $props = $response->original->getData()['page']['props'];
+    expect($props)->toHaveKey('pengaturan');
+    expect($props['pengaturan']['instansi.nama'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+    expect($props['pengaturan']['aplikasi.nama'])->toBe('SAKIP LLDIKTI XVI');
 });
