@@ -858,4 +858,155 @@ class MasterUnitOrganisasiTest extends TestCase
         $responseDestroy->assertRedirect('/unit');
         $this->assertDatabaseMissing('unit', ['id' => $createdUnit->id]);
     }
+
+    /**
+     * Review Codex: Tolak pembaruan unit bila status unit telah berubah (snapshot/token usang).
+     */
+    public function test_update_unit_rejects_stale_request_when_status_was_changed_concurrently(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Kepegawaian Concurrency',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        // Admin A memuat form dan mencatat token versi awal
+        $tokenAwal = $unit->getVersionToken();
+
+        // Admin B mendahului menonaktifkan unit
+        $responseB = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Kepegawaian Concurrency',
+            'status' => 'nonaktif',
+            'version_token' => $tokenAwal,
+        ]);
+        $responseB->assertRedirect('/unit');
+        $unit->refresh();
+        $this->assertSame('nonaktif', $unit->status);
+
+        // Admin A yang masih memegang modal lama mencoba menyimpan perubahan nama dan status aktif
+        $responseA = $this->actingAs($this->superadmin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Kepegawaian Concurrency Diubah',
+            'status' => 'aktif',
+            'version_token' => $tokenAwal,
+            'expected_status' => 'aktif',
+            'expected_nama' => 'Unit Kepegawaian Concurrency',
+        ]);
+
+        // Request harus ditolak karena snapshot usang
+        $responseA->assertSessionHasErrors();
+
+        // Unit di basis data tidak boleh tertimpa / teraktifkan kembali secara tidak sengaja
+        $unit->refresh();
+        $this->assertSame('nonaktif', $unit->status);
+        $this->assertSame('Unit Kepegawaian Concurrency', $unit->nama);
+
+        // Penolakan dicatat di audit log
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'unit.ubah_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
+    }
+
+    /**
+     * Review Codex: Tolak pembaruan unit bila nama unit telah diubah pengguna lain (snapshot usang).
+     */
+    public function test_update_unit_rejects_stale_request_when_name_was_changed_concurrently(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Humas Concurrency',
+            'status' => 'aktif',
+            'created_by' => $this->superadmin->id,
+        ]);
+
+        // Admin A membaca nilai nama awal
+        $namaAwal = $unit->nama;
+
+        // Admin B mengubah nama unit
+        $responseB = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Hubungan Masyarakat Concurrency',
+            'status' => 'aktif',
+        ]);
+        $responseB->assertRedirect('/unit');
+        $unit->refresh();
+        $this->assertSame('Unit Hubungan Masyarakat Concurrency', $unit->nama);
+
+        // Admin A yang masih memegang form lama mencoba menonaktifkan unit dengan expected_nama lama
+        $responseA = $this->actingAs($this->superadmin)->post("/unit/{$unit->id}", [
+            'nama' => $namaAwal,
+            'status' => 'nonaktif',
+            'expected_nama' => $namaAwal,
+        ]);
+
+        $responseA->assertSessionHasErrors();
+
+        // Nama tidak boleh ter-revert kembali ke nama lama
+        $unit->refresh();
+        $this->assertSame('Unit Hubungan Masyarakat Concurrency', $unit->nama);
+        $this->assertSame('aktif', $unit->status);
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'unit.ubah_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
+    }
+
+    /**
+     * Review Codex: Tolak pembaruan bila array snapshot nilai awal tidak cocok.
+     */
+    public function test_update_unit_rejects_stale_snapshot_array_payload(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit TI Asli',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit TI Baru',
+            'status' => 'aktif',
+            'snapshot' => [
+                'nama' => 'Unit TI Usang',
+                'status' => 'aktif',
+            ],
+        ]);
+
+        $response->assertSessionHasErrors();
+        $unit->refresh();
+        $this->assertSame('Unit TI Asli', $unit->nama);
+    }
+
+    /**
+     * Review Codex: Pembaruan berhasil jika token versi dan snapshot cocok (fresh).
+     */
+    public function test_update_unit_succeeds_when_token_and_snapshot_are_fresh(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Sarana Awal',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Sarana dan Prasarana',
+            'status' => 'aktif',
+            'version_token' => $unit->getVersionToken(),
+            'expected_nama' => 'Unit Sarana Awal',
+            'expected_status' => 'aktif',
+            'snapshot' => $unit->toSnapshot(),
+        ]);
+
+        $response->assertRedirect('/unit');
+        $response->assertSessionHas('success');
+
+        $unit->refresh();
+        $this->assertSame('Unit Sarana dan Prasarana', $unit->nama);
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'unit.ubah',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
+    }
 }

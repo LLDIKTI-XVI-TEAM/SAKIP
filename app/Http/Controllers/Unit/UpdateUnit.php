@@ -55,6 +55,11 @@ class UpdateUnit extends Controller
                     }
                 },
             ],
+            'version_token' => ['nullable', 'string'],
+            'versi_token' => ['nullable', 'string'],
+            'expected_nama' => ['nullable', 'string'],
+            'expected_status' => ['nullable', 'string', 'in:aktif,nonaktif'],
+            'snapshot' => ['nullable'],
         ], [
             'nama.required' => 'Nama unit organisasi wajib diisi.',
             'nama.max' => 'Nama unit organisasi maksimal 255 karakter.',
@@ -67,7 +72,7 @@ class UpdateUnit extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($id, $validated, $user, $auditLogger, $permissionResolver) {
+            $result = DB::transaction(function () use ($id, $validated, $user, $auditLogger, $permissionResolver, $request) {
                 /** @var User $currentActor */
                 $currentActor = User::with('roles')->whereKey($user->id)->sharedLock()->firstOrFail();
 
@@ -102,6 +107,52 @@ class UpdateUnit extends Controller
 
                 /** @var Unit $lockedUnit */
                 $lockedUnit = Unit::whereKey($id)->lockForUpdate()->firstOrFail();
+
+                // Deteksi form / snapshot usang (optimistic concurrency control)
+                $versionToken = $request->input('version_token')
+                    ?? $request->input('versi_token')
+                    ?? $request->input('token')
+                    ?? $request->input('expected_state');
+
+                $expectedNama = $request->input('expected_nama')
+                    ?? $request->input('initial_nama')
+                    ?? $request->input('snapshot.nama')
+                    ?? $request->input('expected_snapshot.nama');
+
+                $expectedStatus = $request->input('expected_status')
+                    ?? $request->input('initial_status')
+                    ?? $request->input('snapshot.status')
+                    ?? $request->input('expected_snapshot.status');
+
+                $snapshot = $request->input('snapshot') ?? $request->input('expected_snapshot');
+                if (is_string($snapshot)) {
+                    $decoded = json_decode($snapshot, true);
+                    if (is_array($decoded)) {
+                        $snapshot = $decoded;
+                    }
+                }
+
+                if ($lockedUnit->isSnapshotStale(
+                    is_string($versionToken) ? $versionToken : null,
+                    is_string($expectedNama) ? $expectedNama : null,
+                    is_string($expectedStatus) ? $expectedStatus : null,
+                    is_array($snapshot) ? $snapshot : null
+                )) {
+                    return [
+                        'status' => 'stale',
+                        'actor' => $currentActor,
+                        'tindakan' => 'unit.ubah_ditolak',
+                        'objekTipe' => 'unit',
+                        'objekId' => (string) $lockedUnit->id,
+                        'nilaiLama' => [
+                            'id' => $lockedUnit->id,
+                            'nama' => $lockedUnit->nama,
+                            'status' => $lockedUnit->status,
+                        ],
+                        'alasan' => 'Data unit organisasi telah diubah oleh pengguna lain. Muat ulang data terbaru sebelum menyimpan perubahan.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
+                    ];
+                }
 
                 // Cegah penonaktifan unit jika masih memiliki grant izin aktif (anti-TOCTOU)
                 if ($validated['status'] === 'nonaktif' && UserPermissionGrant::where('unit_id', $lockedUnit->id)->exists()) {
@@ -162,6 +213,28 @@ class UpdateUnit extends Controller
             );
 
             abort(403, $result['message']);
+        }
+
+        if (is_array($result) && ($result['status'] ?? null) === 'stale') {
+            $auditLogger->catat(
+                actor: $result['actor'],
+                tindakan: $result['tindakan'],
+                objekTipe: $result['objekTipe'],
+                objekId: $result['objekId'],
+                nilaiLama: $result['nilaiLama'],
+                nilaiBaru: null,
+                alasan: $result['alasan'],
+                dasarIzin: $result['dasarIzin'],
+            );
+
+            throw ValidationException::withMessages([
+                'status' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'nama' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'version_token' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'snapshot' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'expected_state' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+                'konflik' => 'Data unit organisasi telah diubah oleh pengguna lain. Silakan muat ulang halaman untuk mendapatkan data terbaru.',
+            ]);
         }
 
         $nama = $result['nama'];

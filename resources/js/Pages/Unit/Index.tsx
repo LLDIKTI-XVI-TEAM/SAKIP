@@ -23,6 +23,13 @@ interface UnitItem {
     nama: string;
     status: 'aktif' | 'nonaktif';
     is_active: boolean;
+    version_token?: string;
+    snapshot?: {
+        nama: string;
+        status: string;
+    };
+    expected_nama?: string;
+    expected_status?: string;
     indikators_count: number;
     rencana_aksis_count: number;
     kegiatans_count: number;
@@ -66,9 +73,20 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     });
 
     // Form Edit Unit
-    const editForm = useForm({
+    const editForm = useForm<{
+        nama: string;
+        status: 'aktif' | 'nonaktif';
+        version_token: string;
+        expected_nama: string;
+        expected_status: string;
+        snapshot: { nama: string; status: string } | null;
+    }>({
         nama: '',
-        status: 'aktif' as 'aktif' | 'nonaktif',
+        status: 'aktif',
+        version_token: '',
+        expected_nama: '',
+        expected_status: '',
+        snapshot: null,
     });
 
     const filteredUnits = useMemo(() => {
@@ -96,6 +114,13 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         editForm.setData({
             nama: unit.nama,
             status: unit.status,
+            version_token: unit.version_token ?? '',
+            expected_nama: unit.nama,
+            expected_status: unit.status,
+            snapshot: {
+                nama: unit.nama,
+                status: unit.status,
+            },
         });
         editForm.clearErrors();
         setStatusError(null);
@@ -123,6 +148,10 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 setEditingUnit(null);
                 setStatusError(null);
             },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal menyimpan perubahan unit organisasi.';
+                setStatusError(message);
+            },
         });
     };
 
@@ -133,13 +162,20 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             router.post(`/unit/${unit.id}`, {
                 nama: unit.nama,
                 status: nextStatus,
+                version_token: unit.version_token ?? '',
+                expected_nama: unit.nama,
+                expected_status: unit.status,
+                snapshot: {
+                    nama: unit.nama,
+                    status: unit.status,
+                },
             }, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setStatusError(null);
                 },
                 onError: (errors: Record<string, string>) => {
-                    const message = errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
+                    const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
                     setStatusError(message);
                 },
             });
@@ -514,6 +550,18 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 description="Perbarui informasi nama atau status keaktifan unit organisasi."
             >
                 <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+                    {(editForm.errors.version_token || (editForm.errors as Record<string, string>).konflik || (editForm.errors as Record<string, string>).snapshot || (editForm.errors as Record<string, string>).expected_state) && (
+                        <div
+                            role="alert"
+                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
+                        >
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            <div className="flex-1 font-medium">
+                                {editForm.errors.version_token || (editForm.errors as Record<string, string>).konflik || (editForm.errors as Record<string, string>).snapshot || (editForm.errors as Record<string, string>).expected_state}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-1.5">
                         <label htmlFor="edit_unit_nama" className="font-semibold text-slate-700">
                             Nama Unit Organisasi <span className="text-rose-500">*</span>

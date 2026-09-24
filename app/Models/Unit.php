@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $permission_grants_count
  * @property int|null $permission_denies_count
  * @property int|null $jadwal_snapshots_count
+ * @property-read string $version_token
  * @property-read User|null $creator
  * @property-read Collection<int, UserPermissionDeny> $permissionDenies
  * @property-read Collection<int, JadwalSnapshot> $jadwalSnapshots
@@ -117,5 +118,81 @@ class Unit extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Snapshot nilai mutabel unit untuk deteksi konkurensi (optimistic concurrency control).
+     *
+     * @return array{nama: string, status: string}
+     */
+    public function toSnapshot(): array
+    {
+        return [
+            'nama' => $this->nama,
+            'status' => $this->status,
+        ];
+    }
+
+    /**
+     * Menghasilkan token versi deterministik berbasis id, nama, dan status unit.
+     */
+    public function getVersionToken(): string
+    {
+        $appKey = (string) config('app.key');
+
+        return hash_hmac('sha256', "{$this->id}:{$this->nama}:{$this->status}", $appKey !== '' ? $appKey : 'sakip');
+    }
+
+    /**
+     * Accessor untuk version_token agar dapat diakses sebagai atribut model.
+     */
+    public function getVersionTokenAttribute(): string
+    {
+        return $this->getVersionToken();
+    }
+
+    /**
+     * Memeriksa apakah token versi atau snapshot nilai awal telah usang (berbeda dari baris saat ini).
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     */
+    public function isSnapshotStale(
+        ?string $versionToken = null,
+        ?string $expectedNama = null,
+        ?string $expectedStatus = null,
+        ?array $snapshot = null
+    ): bool {
+        // 1. Jika token versi dikirimkan, cocokkan dengan token versi terkini baris
+        if ($versionToken !== null && $versionToken !== '') {
+            if (! hash_equals($this->getVersionToken(), $versionToken)) {
+                return true;
+            }
+        }
+
+        // 2. Jika snapshot array dikirimkan, periksa apakah ada field yang berbeda
+        if ($snapshot !== null) {
+            if (isset($snapshot['nama']) && trim((string) $snapshot['nama']) !== trim($this->nama)) {
+                return true;
+            }
+            if (isset($snapshot['status']) && (string) $snapshot['status'] !== (string) $this->status) {
+                return true;
+            }
+        }
+
+        // 3. Jika expected_nama dikirimkan, bandingkan nama yang diharapkan
+        if ($expectedNama !== null && $expectedNama !== '') {
+            if (trim($expectedNama) !== trim($this->nama)) {
+                return true;
+            }
+        }
+
+        // 4. Jika expected_status dikirimkan, bandingkan status yang diharapkan
+        if ($expectedStatus !== null && $expectedStatus !== '') {
+            if ((string) $expectedStatus !== (string) $this->status) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
