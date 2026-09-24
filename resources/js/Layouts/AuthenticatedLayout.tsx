@@ -60,7 +60,12 @@ export function AuthenticatedLayout({
     const drawerRef = useRef<HTMLElement>(null);
     const recovery = useAuthRecovery();
     const [logoutError, setLogoutError] = useState('');
+    const [logoFailed, setLogoFailed] = useState(false);
     const logout = useForm({});
+
+    useEffect(() => {
+        setLogoFailed(false);
+    }, [logoUrl]);
 
     const normalizedBreadcrumbs = breadcrumbs.length > 0
         ? (breadcrumbs[0]?.label.toLowerCase() === 'dashboard'
@@ -178,13 +183,14 @@ export function AuthenticatedLayout({
             {/* Mobile Header Bar */}
             <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
-                    {logoUrl && (
+                    {!logoFailed && logoUrl && (
                         <img
                             src={logoUrl}
                             width={36}
                             height={36}
                             alt=""
                             className="h-9 w-9 shrink-0 object-contain rounded-md"
+                            onError={() => setLogoFailed(true)}
                         />
                     )}
                     <div className="min-w-0 flex-1">
@@ -230,13 +236,14 @@ export function AuthenticatedLayout({
                 {/* Brand Header */}
                 <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
                     <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
-                        {logoUrl && (
+                        {!logoFailed && logoUrl && (
                             <img
                                 src={logoUrl}
                                 width={38}
                                 height={38}
                                 alt=""
                                 className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
+                                onError={() => setLogoFailed(true)}
                             />
                         )}
                         <div className="min-w-0 flex-1">

@@ -18,6 +18,7 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 
 interface GrantItem {
     id: string;
@@ -275,6 +276,8 @@ export default function GrantIndex({
     const [grantToRevoke, setGrantToRevoke] = useState<GrantItem | null>(null);
     const [createError, setCreateError] = useState<string | null>(null);
     const [revokeError, setRevokeError] = useState<string | null>(null);
+
+    const formatTanggal = useFormatTanggal();
 
     const recovery = useAuthRecovery();
 
@@ -610,11 +613,7 @@ export default function GrantIndex({
                                                 <div className="font-medium text-slate-700">{grant.diberikan_oleh_nama}</div>
                                                 <time dateTime={grant.created_at} className="text-slate-400 mt-0.5 block">
                                                     {grant.created_at
-                                                        ? `${new Intl.DateTimeFormat('id-ID', {
-                                                              dateStyle: 'medium',
-                                                              timeStyle: 'short',
-                                                              timeZone: 'Asia/Makassar',
-                                                          }).format(new Date(grant.created_at))} WITA`
+                                                        ? formatTanggal(grant.created_at, { withTime: true })
                                                         : '-'}
                                                 </time>
                                             </td>

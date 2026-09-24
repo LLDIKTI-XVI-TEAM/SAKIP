@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Pengaturan;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\PermissionCodes;
 use Database\Seeders\PengaturanSeeder as SeederPengaturan;
@@ -252,7 +254,20 @@ class PengaturanService
                 throw new AuthorizationException('Akun pengguna tidak aktif atau tidak ditemukan.');
             }
 
-            DB::table('user_roles')->where('user_id', $lockedActor->id)->lockForUpdate()->get();
+            // Kunci relasi peran pengguna
+            $roleIds = DB::table('user_roles')
+                ->where('user_id', $lockedActor->id)
+                ->lockForUpdate()
+                ->pluck('role_id')
+                ->all();
+
+            // Semua user lock mendahului role; role selalu UUID-sorted (selaras dengan ChangeRolePermission)
+            if ($roleIds !== []) {
+                Role::query()->whereIn('id', array_unique($roleIds))->orderBy('id')->lockForUpdate()->get();
+            }
+
+            // Shared lock permission pengaturan:update untuk menyelaraskan dengan mutasi hak akses
+            Permission::query()->where('kode', PermissionCodes::PENGATURAN_UPDATE)->orderBy('id')->sharedLock()->first();
 
             $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PENGATURAN_UPDATE);
             if (! $decision->allowed) {
