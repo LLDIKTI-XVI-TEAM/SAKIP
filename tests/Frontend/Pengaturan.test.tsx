@@ -233,4 +233,32 @@ describe('PengaturanIndex Frontend', () => {
         // Nama Instansi yang sedang diedit lokal tetap dipertahankan
         expect(inputNama.value).toBe('Nama Diedit Lokal');
     });
+
+    it('mempertahankan baseline dan token versi awal untuk field yang sedang diedit ketika server mengirim props baru', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama Baru Diedit');
+
+        // Props baru tiba dari server dengan timestamp dan nilai baru untuk instansi.nama
+        const newGrouped = {
+            ...mockProps.grouped,
+            instansi: mockProps.grouped.instansi.map((item) =>
+                item.kunci === 'instansi.nama'
+                    ? { ...item, nilai: 'Nama Dari Admin Lain', updated_at: '2026-09-24T12:00:00Z' }
+                    : item
+            ),
+        };
+        const newValues = {
+            ...mockProps.values,
+            'instansi.nama': 'Nama Dari Admin Lain',
+        };
+
+        rerender(<PengaturanIndex {...mockProps} grouped={newGrouped} values={newValues} />);
+
+        // Nilai lokal tetap dipertahankan dan tidak ter-overwrite oleh server
+        expect(inputNama.value).toBe('Nama Baru Diedit');
+    });
 });

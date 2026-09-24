@@ -14,7 +14,7 @@ export function formatTanggal(
     options: FormatTanggalOptions = {},
     timeZone: string = 'Asia/Makassar',
     formatTanggalKey: string = 'd F Y',
-    formatAngkaKey: string = 'id_ID'
+    locale: string = 'id-ID'
 ): string {
     if (!dateInput) return '—';
 
@@ -24,12 +24,12 @@ export function formatTanggal(
 
     if (isNaN(date.getTime())) return '—';
 
-    const locale = (formatAngkaKey || 'id_ID').replace('_', '-');
+    const dateLocale = locale || 'id-ID';
     const effectiveTimeZone = timeZone || 'Asia/Makassar';
 
     // Gunakan formatToParts untuk merakit komponen tanggal sesuai zona waktu dan format
     const isFullMonth = formatTanggalKey === 'd F Y';
-    const formatter = new Intl.DateTimeFormat(locale, {
+    const formatter = new Intl.DateTimeFormat(dateLocale, {
         timeZone: effectiveTimeZone,
         weekday: options.withDay ? 'long' : undefined,
         day: 'numeric',
@@ -82,7 +82,6 @@ export function useFormatTanggal(): (
 ) => string {
     let timeZone = 'Asia/Makassar';
     let formatTanggalKey = 'd F Y';
-    let formatAngkaKey = 'id_ID';
 
     try {
         const { props } = usePage<SharedPageProps>();
@@ -94,15 +93,12 @@ export function useFormatTanggal(): (
             if (typeof pengaturan['tampilan.format_tanggal'] === 'string') {
                 formatTanggalKey = pengaturan['tampilan.format_tanggal'];
             }
-            if (typeof pengaturan['tampilan.format_angka'] === 'string') {
-                formatAngkaKey = pengaturan['tampilan.format_angka'];
-            }
         }
     } catch {
         // Fallback jika di luar context Inertia
     }
 
     return (date, options) => {
-        return formatTanggal(date, options, timeZone, formatTanggalKey, formatAngkaKey);
+        return formatTanggal(date, options, timeZone, formatTanggalKey, 'id-ID');
     };
 }

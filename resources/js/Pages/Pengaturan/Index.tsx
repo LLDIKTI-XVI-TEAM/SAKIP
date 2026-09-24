@@ -69,8 +69,18 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         'laporan.footer': vals['laporan.footer'] || '',
     });
 
+    const extractTimestamps = (groups: Record<string, { kunci: string; updated_at?: string | null }[]>): Record<string, string | null> => {
+        const map: Record<string, string | null> = {};
+        Object.values(groups || {}).flat().forEach((item) => {
+            map[item.kunci] = item.updated_at || null;
+        });
+        return map;
+    };
+
     const [savedBaseline, setSavedBaseline] = useState<Omit<PengaturanFormData, 'alasan'>>(() => buildBaseline(values));
+    const [savedTimestamps, setSavedTimestamps] = useState<Record<string, string | null>>(() => extractTimestamps(grouped));
     const baselineRef = useRef(savedBaseline);
+    const timestampsRef = useRef(savedTimestamps);
     const submittedSnapshotRef = useRef<Omit<PengaturanFormData, 'alasan'> | null>(null);
 
     const form = useForm<PengaturanFormData>({
@@ -81,40 +91,44 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     const formKeys = Object.keys(savedBaseline) as (keyof typeof savedBaseline)[];
     const hasChanges = formKeys.some((key) => form.data[key] !== savedBaseline[key]);
 
-    const updatedTimestamps = useMemo(() => {
-        const map: Record<string, string | null> = {};
-        Object.values(grouped).flat().forEach((item) => {
-            map[item.kunci] = item.updated_at || null;
-        });
-        return map;
-    }, [grouped]);
-
     useEffect(() => {
         setLogoError(false);
     }, [form.data['instansi.logo']]);
 
     useEffect(() => {
-        const nextBaseline = buildBaseline(values);
+        const nextValues = buildBaseline(values);
+        const nextTimestamps = extractTimestamps(grouped);
         const prevBaseline = baselineRef.current;
-        baselineRef.current = nextBaseline;
-        setSavedBaseline(nextBaseline);
+        const prevTimestamps = timestampsRef.current;
 
-        // Sinkronkan form.data: perbarui field yang tidak sedang diedit lokal ke nilai server terbaru
+        const updatedBaseline = { ...prevBaseline };
+        const updatedTimestamps = { ...prevTimestamps };
+
+        // Sinkronkan form.data: hanya perbarui field yang tidak sedang diedit lokal ke nilai server terbaru.
+        // Field dirty mempertahankan baseline awal dan token versi awal agar deteksi konflik tetap berfungsi.
         form.setData((prev) => {
             const nextData = { ...prev };
             formKeys.forEach((key) => {
-                if (prev[key] === prevBaseline[key]) {
-                    nextData[key] = nextBaseline[key];
+                const isFieldDirty = prev[key] !== prevBaseline[key];
+                if (!isFieldDirty) {
+                    updatedBaseline[key] = nextValues[key];
+                    updatedTimestamps[key] = nextTimestamps[key];
+                    nextData[key] = nextValues[key];
                 }
             });
             return nextData;
         });
 
+        baselineRef.current = updatedBaseline;
+        timestampsRef.current = updatedTimestamps;
+        setSavedBaseline(updatedBaseline);
+        setSavedTimestamps(updatedTimestamps);
+
         form.setDefaults({
-            ...nextBaseline,
+            ...updatedBaseline,
             alasan: '',
         });
-    }, [values]);
+    }, [values, grouped]);
 
     const updateField = (field: keyof PengaturanFormData, value: string) => {
         form.setData((prev) => ({
@@ -145,8 +159,8 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         formKeys.forEach((key) => {
             if (form.data[key] !== savedBaseline[key]) {
                 dirtyData[key] = form.data[key];
-                if (updatedTimestamps[key]) {
-                    expectedTimestamps[key] = updatedTimestamps[key];
+                if (savedTimestamps[key]) {
+                    expectedTimestamps[key] = savedTimestamps[key];
                 }
             }
         });
@@ -163,25 +177,41 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             onSuccess: (page) => {
                 setIsConfirmOpen(false);
                 setAuditReason('');
-                const serverValues = (page?.props as unknown as PengaturanIndexProps)?.values || values;
-                const nextBaseline = buildBaseline(serverValues);
+                const pageProps = (page?.props as unknown as PengaturanIndexProps);
+                const serverValues = pageProps?.values || values;
+                const serverGrouped = pageProps?.grouped || grouped;
+                const nextServerBaseline = buildBaseline(serverValues);
+                const nextServerTimestamps = extractTimestamps(serverGrouped);
                 const snapshot = submittedSnapshotRef.current;
-                baselineRef.current = nextBaseline;
-                setSavedBaseline(nextBaseline);
+
+                const currentBaseline = baselineRef.current;
+                const currentTimestamps = timestampsRef.current;
+                const updatedBaseline = { ...currentBaseline };
+                const updatedTimestamps = { ...currentTimestamps };
 
                 // Preservasi in-flight edits: hanya perbarui field yang nilainya tidak berubah sejak snapshot submit
                 form.setData((prev) => {
                     const nextData = { ...prev, alasan: '' };
                     formKeys.forEach((key) => {
-                        if (!snapshot || prev[key] === snapshot[key]) {
-                            nextData[key] = nextBaseline[key];
+                        const wasUnchangedSinceSubmit = !snapshot || prev[key] === snapshot[key];
+                        const isNotDirty = prev[key] === currentBaseline[key];
+
+                        if (wasUnchangedSinceSubmit || isNotDirty) {
+                            updatedBaseline[key] = nextServerBaseline[key];
+                            updatedTimestamps[key] = nextServerTimestamps[key];
+                            nextData[key] = nextServerBaseline[key];
                         }
                     });
                     return nextData;
                 });
 
+                baselineRef.current = updatedBaseline;
+                timestampsRef.current = updatedTimestamps;
+                setSavedBaseline(updatedBaseline);
+                setSavedTimestamps(updatedTimestamps);
+
                 form.setDefaults({
-                    ...nextBaseline,
+                    ...updatedBaseline,
                     alasan: '',
                 });
                 submittedSnapshotRef.current = null;
@@ -194,8 +224,15 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     };
 
     const handleReset = () => {
+        const serverBaseline = buildBaseline(values);
+        const serverTimestamps = extractTimestamps(grouped);
+        baselineRef.current = serverBaseline;
+        timestampsRef.current = serverTimestamps;
+        setSavedBaseline(serverBaseline);
+        setSavedTimestamps(serverTimestamps);
+
         form.setData({
-            ...savedBaseline,
+            ...serverBaseline,
             alasan: '',
         });
         form.clearErrors();

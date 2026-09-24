@@ -7,11 +7,13 @@ import { Button } from '@/Components/Button';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import DecisionDialog, { type ReviewDecision } from './DecisionDialog';
 import ClaimedActivities from './ClaimedActivities';
 
 export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran }) {
     const formatNilai = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
     const { can } = pengukuran;
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);
@@ -23,7 +25,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
         <Head title={`Reviu ${indikator.kode}`} />
         <div className="mx-auto max-w-4xl space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3"><Link href="/verifikasi" className="rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">Kembali ke antrean verifikasi</Link><Badge status={pengukuran.status} /></div>
-            {pengukuran.status === 'disahkan' && <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm"><p className="font-semibold">Pengukuran telah disahkan</p><p className="mt-1">Snapshot resmi tersimpan. Waktu pengesahan: {pengukuran.snapshot?.disahkan_pada ? new Date(pengukuran.snapshot.disahkan_pada).toLocaleString('id-ID') : '—'}.</p></div>}
+            {pengukuran.status === 'disahkan' && <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm"><p className="font-semibold">Pengukuran telah disahkan</p><p className="mt-1">Snapshot resmi tersimpan. Waktu pengesahan: {formatTanggal(pengukuran.snapshot?.disahkan_pada, { withTime: true })}.</p></div>}
             <div className="flex flex-wrap gap-3 rounded-lg border border-border bg-surface p-3 text-xs text-muted">
                 <span>Pengajuan ke-{pengukuran.nomor_pengajuan}</span>
                 {pengukuran.jalur_pengajuan && <span>Jalur pengajuan: <strong className="capitalize text-ink">{pengukuran.jalur_pengajuan}</strong></span>}
