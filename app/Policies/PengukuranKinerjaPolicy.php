@@ -8,6 +8,7 @@ use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\DB;
 
 class PengukuranKinerjaPolicy
 {
@@ -118,6 +119,9 @@ class PengukuranKinerjaPolicy
         }
         if (! PeriodeJadwal::where('jadwal_id', $schedule->id)->where('periode_id', $snapshot->periode_mulai_id)->exists()) {
             $errors[] = 'Periode efektif snapshot bukan anggota jadwal.';
+        }
+        if (! DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists()) {
+            $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
         }
         if ($p->sumber_nilai === 'historis') {
             $errors[] = 'Koreksi nilai historis memerlukan alur backfill resmi.';

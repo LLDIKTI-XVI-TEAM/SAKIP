@@ -163,43 +163,38 @@ class Unit extends Model
         ?array $snapshot = null
     ): bool {
         $hasToken = $versionToken !== null && trim($versionToken) !== '';
-        $hasSnapshot = is_array($snapshot) && ! empty($snapshot);
-        $hasExpectedNama = $expectedNama !== null && trim($expectedNama) !== '';
-        $hasExpectedStatus = $expectedStatus !== null && trim($expectedStatus) !== '';
 
-        // Jika tidak ada satu pun penanda versi atau snapshot yang dikirimkan,
-        // tolak request karena kebaruan data awal tidak dapat diverifikasi (anti-bypass)
-        if (! $hasToken && ! $hasSnapshot && ! $hasExpectedNama && ! $hasExpectedStatus) {
+        // Ekstrak nama dan status dari snapshot array atau expected fields
+        $snapshotNama = isset($snapshot['nama']) && is_string($snapshot['nama'])
+            ? trim($snapshot['nama'])
+            : ($expectedNama !== null && is_string($expectedNama) ? trim($expectedNama) : null);
+
+        $snapshotStatus = isset($snapshot['status']) && is_string($snapshot['status'])
+            ? trim($snapshot['status'])
+            : ($expectedStatus !== null && is_string($expectedStatus) ? trim($expectedStatus) : null);
+
+        $hasCompleteSnapshot = $snapshotNama !== null && $snapshotNama !== ''
+            && $snapshotStatus !== null && $snapshotStatus !== '';
+
+        // Wajibkan token versi valid ATAU snapshot lengkap (nama DAN status).
+        // Penanda parsial (hanya nama atau hanya status) ditolak karena tidak mencakup seluruh state mutabel unit.
+        if (! $hasToken && ! $hasCompleteSnapshot) {
             return true;
         }
 
-        // 1. Jika token versi dikirimkan, cocokkan dengan token versi terkini baris
+        // 1. Jika token versi diberikan, cocokkan dengan token versi terkini baris
         if ($hasToken) {
             if (! hash_equals($this->getVersionToken(), (string) $versionToken)) {
                 return true;
             }
         }
 
-        // 2. Jika snapshot array dikirimkan, periksa apakah ada field yang berbeda
-        if ($hasSnapshot && is_array($snapshot)) {
-            if (isset($snapshot['nama']) && trim((string) $snapshot['nama']) !== trim($this->nama)) {
+        // 2. Jika snapshot lengkap diberikan, cocokkan seluruh field state terhadap baris terkini
+        if ($hasCompleteSnapshot) {
+            if ($snapshotNama !== trim($this->nama)) {
                 return true;
             }
-            if (isset($snapshot['status']) && (string) $snapshot['status'] !== (string) $this->status) {
-                return true;
-            }
-        }
-
-        // 3. Jika expected_nama dikirimkan, bandingkan nama yang diharapkan
-        if ($hasExpectedNama) {
-            if (trim((string) $expectedNama) !== trim($this->nama)) {
-                return true;
-            }
-        }
-
-        // 4. Jika expected_status dikirimkan, bandingkan status yang diharapkan
-        if ($hasExpectedStatus) {
-            if ((string) $expectedStatus !== (string) $this->status) {
+            if ($snapshotStatus !== (string) $this->status) {
                 return true;
             }
         }

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1414,5 +1415,80 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertDatabaseMissing('user_permission_granted', [
             'id' => $newGrant->id,
         ]);
+    }
+
+    /**
+     * Review Codex: Jangan batalkan izin global role saat unit nonaktif.
+     */
+    public function test_global_role_permissions_remain_valid_when_unit_is_inactive(): void
+    {
+        $resolver = app(PermissionResolver::class);
+
+        // Buat unit dan nonaktifkan
+        $unitNonaktif = Unit::create([
+            'nama' => 'Unit Nonaktif Hak Akses',
+            'status' => 'nonaktif',
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        // Buat user dengan peran Perencanaan
+        $perencanaanUser = User::factory()->create([
+            'nama' => 'User Perencanaan',
+            'email' => 'perencanaan@sakip.test',
+            'is_active' => true,
+        ]);
+        $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
+        $perencanaanUser->roles()->attach($perencanaanRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
+        // Hubungkan permissions perencanaan dari presets
+        $perencanaanCodes = RolePermissionPresets::forRole('perencanaan');
+        foreach (Permission::whereIn('kode', $perencanaanCodes)->get() as $perm) {
+            $perencanaanRole->permissions()->syncWithoutDetaching([
+                $perm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+            ]);
+        }
+
+        // Perencanaan tetap memiliki izin global membaca histori atau rencana pada unit nonaktif
+        $decisionRencana = $resolver->decide($perencanaanUser, 'rencana_aksi:read', $unitNonaktif->id);
+        $this->assertTrue($decisionRencana['allowed']);
+        $this->assertSame('allow', $decisionRencana['reason']);
+
+        $decisionPengukuran = $resolver->decide($perencanaanUser, 'pengukuran:read', $unitNonaktif->id);
+        $this->assertTrue($decisionPengukuran['allowed']);
+        $this->assertSame('allow', $decisionPengukuran['reason']);
+
+        // Superadmin juga tetap memiliki izin global pada unit nonaktif
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        foreach (Permission::whereIn('kode', ['rencana_aksi:read', 'pengukuran:read'])->get() as $perm) {
+            $superadminRole->permissions()->syncWithoutDetaching([
+                $perm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+            ]);
+        }
+        $decisionSuper = $resolver->decide($this->superadminUser, 'rencana_aksi:read', $unitNonaktif->id);
+        $this->assertTrue($decisionSuper['allowed']);
+        $this->assertSame('allow', $decisionSuper['reason']);
+
+        // Sebaliknya, pengguna yang hanya memiliki grant unit tanpa role permission ditolak dengan 'inactive_unit'
+        $stafUser = User::factory()->create([
+            'nama' => 'Staf Khusus',
+            'email' => 'staf@sakip.test',
+            'is_active' => true,
+        ]);
+        UserPermissionGrant::create([
+            'user_id' => $stafUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $unitNonaktif->id,
+            'alasan' => 'Grant pada unit nonaktif',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $decisionGrantOnly = $resolver->decide($stafUser, 'pengukuran:create', $unitNonaktif->id);
+        $this->assertFalse($decisionGrantOnly['allowed']);
+        $this->assertSame('inactive_unit', $decisionGrantOnly['reason']);
     }
 }

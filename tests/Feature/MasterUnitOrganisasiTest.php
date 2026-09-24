@@ -940,11 +940,12 @@ class MasterUnitOrganisasiTest extends TestCase
         $unit->refresh();
         $this->assertSame('Unit Hubungan Masyarakat Concurrency', $unit->nama);
 
-        // Admin A yang masih memegang form lama mencoba menonaktifkan unit dengan expected_nama lama
+        // Admin A yang masih memegang form lama mencoba menonaktifkan unit dengan snapshot lengkap awal
         $responseA = $this->actingAs($this->superadmin)->post("/unit/{$unit->id}", [
             'nama' => $namaAwal,
             'status' => 'nonaktif',
             'expected_nama' => $namaAwal,
+            'expected_status' => 'aktif',
         ]);
 
         $responseA->assertSessionHasErrors();
@@ -1081,5 +1082,96 @@ class MasterUnitOrganisasiTest extends TestCase
             str_contains((string) $responseGet->headers->get('Content-Type'), 'application/json'),
             'Kunjungan GET Inertia yang ditolak tidak boleh mengembalikan respons JSON biasa.'
         );
+    }
+
+    /**
+     * Review Codex: Wajibkan penanda versi yang mencakup seluruh state (tolak penanda parsial).
+     */
+    public function test_update_unit_rejects_partial_version_markers(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Parsial Marker',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // 1. Hanya mengirim expected_nama tanpa expected_status
+        $res1 = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Parsial Marker Diubah 1',
+            'status' => 'aktif',
+            'expected_nama' => 'Unit Parsial Marker',
+        ]);
+        $res1->assertSessionHasErrors('version_token');
+
+        // 2. Hanya mengirim expected_status tanpa expected_nama
+        $res2 = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Parsial Marker Diubah 2',
+            'status' => 'aktif',
+            'expected_status' => 'aktif',
+        ]);
+        $res2->assertSessionHasErrors('version_token');
+
+        // 3. Snapshot array hanya memuat 'nama' tanpa 'status'
+        $res3 = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Parsial Marker Diubah 3',
+            'status' => 'aktif',
+            'snapshot' => [
+                'nama' => 'Unit Parsial Marker',
+            ],
+        ]);
+        $res3->assertSessionHasErrors('version_token');
+
+        // 4. Snapshot array hanya memuat 'status' tanpa 'nama'
+        $res4 = $this->actingAs($this->admin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Parsial Marker Diubah 4',
+            'status' => 'aktif',
+            'snapshot' => [
+                'status' => 'aktif',
+            ],
+        ]);
+        $res4->assertSessionHasErrors('version_token');
+
+        // Pastikan nama asli tidak berubah
+        $unit->refresh();
+        $this->assertSame('Unit Parsial Marker', $unit->nama);
+        $this->assertSame('aktif', $unit->status);
+    }
+
+    /**
+     * Review Codex: Deteksi perubahan status konkuren saat snapshot lengkap dikirimkan.
+     */
+    public function test_update_unit_detects_concurrent_status_change_with_complete_snapshot(): void
+    {
+        $unit = Unit::create([
+            'nama' => 'Unit Status Concurrency Check',
+            'status' => 'aktif',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // Admin B mengubah status menjadi nonaktif
+        $unit->update(['status' => 'nonaktif']);
+
+        // Admin A mencoba mengubah nama dengan snapshot awal saat unit masih aktif
+        $responseA = $this->actingAs($this->superadmin)->post("/unit/{$unit->id}", [
+            'nama' => 'Unit Status Concurrency Check Diubah',
+            'status' => 'aktif',
+            'snapshot' => [
+                'nama' => 'Unit Status Concurrency Check',
+                'status' => 'aktif',
+            ],
+        ]);
+
+        $responseA->assertSessionHasErrors();
+
+        // Data tidak tertimpa
+        $unit->refresh();
+        $this->assertSame('Unit Status Concurrency Check', $unit->nama);
+        $this->assertSame('nonaktif', $unit->status);
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'unit.ubah_ditolak',
+            'objek_tipe' => 'unit',
+            'objek_id' => (string) $unit->id,
+        ]);
     }
 }
