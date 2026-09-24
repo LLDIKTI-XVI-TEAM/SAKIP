@@ -10,6 +10,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class PengaturanService
@@ -121,7 +122,7 @@ class PengaturanService
         };
 
         try {
-            return Cache::remember("pengaturan.{$kunci}", 86400, $loader);
+            return Cache::remember("pengaturan.{$kunci}", 3600, $loader);
         } catch (\Throwable) {
             return $loader();
         }
@@ -205,7 +206,7 @@ class PengaturanService
         };
 
         try {
-            return Cache::remember('pengaturan.all_values', 86400, $loader);
+            return Cache::remember('pengaturan.all_values', 3600, $loader);
         } catch (\Throwable) {
             return $loader();
         }
@@ -299,8 +300,24 @@ class PengaturanService
                     }
                     Cache::forget('pengaturan.all');
                     Cache::forget('pengaturan.all_values');
-                } catch (\Throwable) {
-                    // Abaikan jika cache store sedang tidak tersedia atau di-mock dalam pengujian
+                } catch (\Throwable $e) {
+                    Log::warning('Gagal menginvalidasi cache pengaturan setelah commit basis data: '.$e->getMessage(), [
+                        'changed_keys' => $changedKeys,
+                        'exception' => $e,
+                    ]);
+
+                    // Jadwalkan retry invalidasi setelah respons selesai dikirim ke pengguna
+                    try {
+                        dispatch(function () use ($changedKeys) {
+                            foreach ($changedKeys as $kunci) {
+                                Cache::forget("pengaturan.{$kunci}");
+                            }
+                            Cache::forget('pengaturan.all');
+                            Cache::forget('pengaturan.all_values');
+                        })->afterResponse();
+                    } catch (\Throwable) {
+                        // Abaikan jika dispatcher tidak tersedia dalam konteks pengujian
+                    }
                 }
             });
         });
@@ -319,8 +336,10 @@ class PengaturanService
             }
             Cache::forget('pengaturan.all');
             Cache::forget('pengaturan.all_values');
-        } catch (\Throwable) {
-            // Abaikan jika cache store sedang tidak tersedia atau di-mock dalam pengujian
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengosongkan seluruh cache pengaturan: '.$e->getMessage(), [
+                'exception' => $e,
+            ]);
         }
     }
 

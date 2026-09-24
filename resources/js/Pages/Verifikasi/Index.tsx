@@ -8,6 +8,7 @@ import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types'
 import { statusPerhitungan } from '@/Pages/Pengukuran/types';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useLabelUnit } from '@/hooks/useLabelUnit';
 
 interface VerifikasiIndexProps {
     pengukurans: Pengukuran[];
@@ -16,6 +17,7 @@ interface VerifikasiIndexProps {
 
 export default function VerifikasiIndex({ pengukurans = [], pagination }: VerifikasiIndexProps) {
     const formatNilai = useFormatNilai();
+    const labelUnit = useLabelUnit();
 
     return (
         <AuthenticatedLayout
@@ -29,7 +31,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                     Antrean Verifikasi Capaian Kinerja
                 </h2>
                 <p className="mt-0.5 text-xs text-muted">
-                    Daftar capaian kinerja yang diajukan oleh PIC Unit Kerja dan memerlukan reviu substansi serta pengesahan resmi oleh Tim Perencanaan.
+                    Daftar capaian kinerja yang diajukan oleh PIC {labelUnit} dan memerlukan reviu substansi serta pengesahan resmi oleh Tim Perencanaan.
                 </p>
             </div>
 
@@ -45,7 +47,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                         <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
                             <tr>
                                 <th className="px-6 py-3.5">KODE & INDIKATOR</th>
-                                <th className="px-6 py-3.5">UNIT KERJA & PIC</th>
+                                <th className="px-6 py-3.5">{labelUnit.toUpperCase()} & PIC</th>
                                 <th className="px-6 py-3.5 text-right">TARGET</th>
                                 <th className="px-6 py-3.5 text-right">REALISASI</th>
                                 <th className="px-6 py-3.5 text-right">HASIL PERHITUNGAN</th>

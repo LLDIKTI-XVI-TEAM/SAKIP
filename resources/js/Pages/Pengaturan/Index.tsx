@@ -22,6 +22,7 @@ import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 import { Select } from '@/Components/Select';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { PengaturanIndexProps } from '@/types/pengaturan';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -70,6 +71,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
     const [savedBaseline, setSavedBaseline] = useState<Omit<PengaturanFormData, 'alasan'>>(() => buildBaseline(values));
     const baselineRef = useRef(savedBaseline);
+    const submittedSnapshotRef = useRef<Omit<PengaturanFormData, 'alasan'> | null>(null);
 
     const form = useForm<PengaturanFormData>({
         ...savedBaseline,
@@ -153,6 +155,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             dirtyData.expected_updated_at = expectedTimestamps;
         }
 
+        submittedSnapshotRef.current = { ...form.data };
         form.transform(() => dirtyData);
 
         form.put('/pengaturan', {
@@ -162,19 +165,30 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 setAuditReason('');
                 const serverValues = (page?.props as unknown as PengaturanIndexProps)?.values || values;
                 const nextBaseline = buildBaseline(serverValues);
+                const snapshot = submittedSnapshotRef.current;
                 baselineRef.current = nextBaseline;
                 setSavedBaseline(nextBaseline);
-                form.setData({
-                    ...nextBaseline,
-                    alasan: '',
+
+                // Preservasi in-flight edits: hanya perbarui field yang nilainya tidak berubah sejak snapshot submit
+                form.setData((prev) => {
+                    const nextData = { ...prev, alasan: '' };
+                    formKeys.forEach((key) => {
+                        if (!snapshot || prev[key] === snapshot[key]) {
+                            nextData[key] = nextBaseline[key];
+                        }
+                    });
+                    return nextData;
                 });
+
                 form.setDefaults({
                     ...nextBaseline,
                     alasan: '',
                 });
+                submittedSnapshotRef.current = null;
             },
             onError: () => {
                 setIsConfirmOpen(false);
+                submittedSnapshotRef.current = null;
             },
         });
     };
@@ -186,6 +200,9 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         });
         form.clearErrors();
     };
+
+    // Format tanggal sesuai preferensi tampilan aktif
+    const formatTanggal = useFormatTanggal();
 
     // Calculate metadata summary for current tab
     const currentGroupItems = grouped[activeTab] || [];
@@ -258,7 +275,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                             {latestUpdateItem?.updated_at && (
                                 <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted bg-surface px-2.5 py-1 rounded-lg border border-border shadow-2xs">
                                     <Clock className="w-3.5 h-3.5 text-primary" />
-                                    <span>Terakhir diubah: {new Date(latestUpdateItem.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span>Terakhir diubah: {formatTanggal(latestUpdateItem.updated_at, { withTime: true })}</span>
                                     {latestUpdateItem.updated_by && (
                                         <>
                                             <span className="text-border">|</span>
@@ -273,7 +290,8 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 </div>
 
                 <form onSubmit={handleSaveClick}>
-                    {/* Tab: Identitas Instansi */}
+                    <fieldset disabled={form.processing} className="border-0 p-0 m-0 space-y-6">
+                        {/* Tab: Identitas Instansi */}
                     {activeTab === 'instansi' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             <div className="lg:col-span-7 space-y-5">
@@ -574,6 +592,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                             </div>
                         </div>
                     )}
+                    </fieldset>
 
                     {/* Actions Bar */}
                     <div className="mt-8 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-4">

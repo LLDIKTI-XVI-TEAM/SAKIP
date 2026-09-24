@@ -14,6 +14,7 @@ import {
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -47,6 +48,7 @@ interface DashboardProps {
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
     const { auth, pengaturan } = usePage<SharedPageProps>().props;
     const formatNilai = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
     const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP LLDIKTI XVI';
     const [currentDate, setCurrentDate] = useState<string>('');
     const hasPeriode = activePeriode !== null;
@@ -55,20 +57,14 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
     useEffect(() => {
         const updateBusinessDate = () => {
-            setCurrentDate(new Intl.DateTimeFormat('id-ID', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                timeZone: 'Asia/Makassar',
-            }).format(new Date()));
+            setCurrentDate(formatTanggal(new Date(), { withDay: true }));
         };
 
         updateBusinessDate();
         const interval = window.setInterval(updateBusinessDate, 60_000);
 
         return () => window.clearInterval(interval);
-    }, []);
+    }, [formatTanggal]);
 
     const cards = [
         {
