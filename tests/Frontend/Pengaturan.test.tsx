@@ -193,6 +193,48 @@ describe('PengaturanIndex Frontend', () => {
         expect(screen.getByText(/Harap berikan alasan pembaruan minimal 5 karakter/i)).toBeTruthy();
     });
 
+    it('menolak submit konfirmasi jika alasan audit melebihi 255 karakter', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama Instansi Diperbarui');
+
+        await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
+
+        const inputAlasan = screen.getByLabelText(/Alasan perubahan/i);
+        await user.type(inputAlasan, 'A'.repeat(256));
+
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
+
+        expect(screen.getByText(/Alasan pembaruan tidak boleh melebihi 255 karakter/i)).toBeTruthy();
+    });
+
+    it('mempertahankan alasan audit ketika modal dibuka kembali setelah ditutup', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} />);
+
+        const inputNama = screen.getByLabelText<HTMLInputElement>(/Nama Instansi/);
+        await user.clear(inputNama);
+        await user.type(inputNama, 'Nama Instansi Diperbarui');
+
+        await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
+
+        const inputAlasan = screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/i);
+        await user.type(inputAlasan, 'Alasan pembaruan valid untuk audit.');
+
+        // Tutup modal dengan tombol Batal
+        await user.click(screen.getByRole('button', { name: /Batal/i }));
+
+        // Buka modal kembali
+        await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
+
+        // Alasan tidak boleh hilang
+        const inputAlasanKembali = screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/i);
+        expect(inputAlasanKembali.value).toBe('Alasan pembaruan valid untuk audit.');
+    });
+
     it('mereset input ke nilai baseline ketika tombol kembalikan diklik', async () => {
         const user = userEvent.setup();
         render(<PengaturanIndex {...mockProps} />);

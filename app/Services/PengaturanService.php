@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\PermissionCodes;
 use Database\Seeders\PengaturanSeeder as SeederPengaturan;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -280,6 +281,11 @@ class PengaturanService
             ksort($data);
 
             foreach ($data as $kunci => $nilaiBaru) {
+                // Serialisasikan pembuatan dan pembaruan baris per kunci pada PostgreSQL untuk mencegah konflik baris baru
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:pengaturan:'.$kunci]);
+                }
+
                 $nilaiBaruStr = $nilaiBaru !== null ? (string) $nilaiBaru : null;
 
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
@@ -324,7 +330,15 @@ class PengaturanService
                 $setting->grup = self::WHITELIST[$kunci]['grup'];
                 $setting->updated_by = $lockedActor->id;
                 $setting->updated_at = $now;
-                $setting->save();
+
+                try {
+                    $setting->save();
+                } catch (UniqueConstraintViolationException) {
+                    $updaterName = Pengaturan::query()->where('kunci', $kunci)->first()?->updatedBy?->nama ?? 'pengguna lain';
+                    throw ValidationException::withMessages([
+                        $kunci => "Pengaturan '{$kunci}' telah dibuat oleh {$updaterName} saat Anda sedang mengedit. Silakan muat ulang halaman.",
+                    ]);
+                }
 
                 $changedKeys[] = $kunci;
 

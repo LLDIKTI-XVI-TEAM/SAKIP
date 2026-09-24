@@ -139,7 +139,6 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
     const handleSaveClick = (e: React.FormEvent) => {
         e.preventDefault();
-        setAuditReason('');
         setAuditError(undefined);
         setIsConfirmOpen(true);
     };
@@ -148,6 +147,11 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         const trimmedReason = auditReason.trim();
         if (trimmedReason.length < 5) {
             setAuditError('Harap berikan alasan pembaruan minimal 5 karakter untuk catatan audit.');
+            return;
+        }
+
+        if (trimmedReason.length > 255) {
+            setAuditError('Alasan pembaruan tidak boleh melebihi 255 karakter.');
             return;
         }
 
@@ -177,6 +181,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             onSuccess: (page) => {
                 setIsConfirmOpen(false);
                 setAuditReason('');
+                setAuditError(undefined);
                 const pageProps = (page?.props as unknown as PengaturanIndexProps);
                 const serverValues = pageProps?.values || values;
                 const serverGrouped = pageProps?.grouped || grouped;
@@ -216,9 +221,14 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 });
                 submittedSnapshotRef.current = null;
             },
-            onError: () => {
-                setIsConfirmOpen(false);
+            onError: (errors) => {
                 submittedSnapshotRef.current = null;
+                if (errors.alasan) {
+                    setAuditError(errors.alasan);
+                    setIsConfirmOpen(true);
+                } else {
+                    setIsConfirmOpen(false);
+                }
             },
         });
     };
@@ -235,6 +245,8 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             ...serverBaseline,
             alasan: '',
         });
+        setAuditReason('');
+        setAuditError(undefined);
         form.clearErrors();
     };
 
@@ -669,11 +681,19 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 title="Konfirmasi Perubahan Pengaturan"
                 description="Perubahan pengaturan sistem bersifat sensitif. Mohon masukkan justifikasi atau dasar perubahan untuk dicatat dalam audit trail."
                 reason={auditReason}
-                error={auditError}
+                error={auditError || form.errors.alasan}
                 busy={form.processing}
                 confirmLabel="Konfirmasi & Simpan"
-                onReasonChange={setAuditReason}
-                onClose={() => setIsConfirmOpen(false)}
+                onReasonChange={(val) => {
+                    setAuditReason(val);
+                    if (auditError) setAuditError(undefined);
+                    if (form.errors.alasan) form.clearErrors('alasan');
+                }}
+                onClose={() => {
+                    setIsConfirmOpen(false);
+                    setAuditError(undefined);
+                    if (form.errors.alasan) form.clearErrors('alasan');
+                }}
                 onConfirm={handleConfirmSubmit}
             />
         </AuthenticatedLayout>
