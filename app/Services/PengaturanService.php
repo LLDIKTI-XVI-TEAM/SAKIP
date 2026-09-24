@@ -110,7 +110,7 @@ class PengaturanService
      */
     public function get(string $kunci, mixed $default = null): mixed
     {
-        return Cache::remember("pengaturan.{$kunci}", 86400, function () use ($kunci, $default) {
+        $loader = function () use ($kunci, $default) {
             $setting = Pengaturan::query()->where('kunci', $kunci)->first();
 
             if ($setting === null) {
@@ -118,7 +118,13 @@ class PengaturanService
             }
 
             return $this->castValue($setting->nilai, $setting->tipe);
-        });
+        };
+
+        try {
+            return Cache::remember("pengaturan.{$kunci}", 86400, $loader);
+        } catch (\Throwable) {
+            return $loader();
+        }
     }
 
     /**
@@ -181,7 +187,7 @@ class PengaturanService
      */
     public function allValues(): array
     {
-        return Cache::remember('pengaturan.all_values', 86400, function () {
+        $loader = function () {
             $records = Pengaturan::query()
                 ->whereIn('kunci', array_keys(self::WHITELIST))
                 ->get()
@@ -196,7 +202,13 @@ class PengaturanService
             }
 
             return $values;
-        });
+        };
+
+        try {
+            return Cache::remember('pengaturan.all_values', 86400, $loader);
+        } catch (\Throwable) {
+            return $loader();
+        }
     }
 
     /**
@@ -281,11 +293,15 @@ class PengaturanService
             }
 
             DB::afterCommit(function () use ($changedKeys) {
-                foreach ($changedKeys as $kunci) {
-                    Cache::forget("pengaturan.{$kunci}");
+                try {
+                    foreach ($changedKeys as $kunci) {
+                        Cache::forget("pengaturan.{$kunci}");
+                    }
+                    Cache::forget('pengaturan.all');
+                    Cache::forget('pengaturan.all_values');
+                } catch (\Throwable) {
+                    // Abaikan jika cache store sedang tidak tersedia atau di-mock dalam pengujian
                 }
-                Cache::forget('pengaturan.all');
-                Cache::forget('pengaturan.all_values');
             });
         });
 
@@ -297,11 +313,15 @@ class PengaturanService
      */
     public function flushCache(): void
     {
-        foreach (array_keys(self::WHITELIST) as $kunci) {
-            Cache::forget("pengaturan.{$kunci}");
+        try {
+            foreach (array_keys(self::WHITELIST) as $kunci) {
+                Cache::forget("pengaturan.{$kunci}");
+            }
+            Cache::forget('pengaturan.all');
+            Cache::forget('pengaturan.all_values');
+        } catch (\Throwable) {
+            // Abaikan jika cache store sedang tidak tersedia atau di-mock dalam pengujian
         }
-        Cache::forget('pengaturan.all');
-        Cache::forget('pengaturan.all_values');
     }
 
     /**

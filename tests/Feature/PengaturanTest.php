@@ -319,3 +319,17 @@ test('pengaturan dibagikan ke Inertia shared props via allValues', function (): 
     expect($props['pengaturan']['instansi.nama'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
     expect($props['pengaturan']['aplikasi.nama'])->toBe('SAKIP LLDIKTI XVI');
 });
+
+test('allValues dan get tetap mengembalikan data database jika cache store mengalami kegagalan', function (): void {
+    Cache::shouldReceive('remember')->andThrow(new RuntimeException('Cache connection refused'));
+
+    $service = app(PengaturanService::class);
+    $values = $service->allValues();
+
+    expect($values)->toBeArray();
+    expect($values)->toHaveKey('instansi.nama');
+    expect($values['instansi.nama'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+
+    $val = $service->get('instansi.nama');
+    expect($val)->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
+});
