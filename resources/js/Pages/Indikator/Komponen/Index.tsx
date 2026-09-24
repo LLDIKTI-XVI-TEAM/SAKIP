@@ -32,6 +32,7 @@ import { Select } from '@/Components/Select';
 import { Switch } from '@/Components/Switch';
 import { Modal } from '@/Components/Modal';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 
 export interface IndikatorKinerjaData {
     id: string;
@@ -125,73 +126,6 @@ const defaultFormData: KomponenFormData = {
     bobot: 1.0,
     urutan: 1,
     aktif: true,
-};
-
-const HoverScrollText: React.FC<{
-    icon: React.ReactNode;
-    text: string;
-    isCardHovered: boolean;
-}> = ({ icon, text, isCardHovered }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const textRef = useRef<HTMLSpanElement>(null);
-    const [overflow, setOverflow] = useState(0);
-    const [isSelfHovered, setIsSelfHovered] = useState(false);
-
-    const updateOverflow = () => {
-        if (containerRef.current && textRef.current) {
-            const diff = textRef.current.scrollWidth - containerRef.current.clientWidth;
-            setOverflow(diff > 0 ? diff : 0);
-        }
-    };
-
-    useEffect(() => {
-        updateOverflow();
-        const timer1 = setTimeout(updateOverflow, 200);
-        const timer2 = setTimeout(updateOverflow, 800);
-        window.addEventListener('resize', updateOverflow);
-        return () => {
-            clearTimeout(timer1);
-            clearTimeout(timer2);
-            window.removeEventListener('resize', updateOverflow);
-        };
-    }, [text]);
-
-    const activeHover = isCardHovered || isSelfHovered;
-    const isScrolling = activeHover && overflow > 0;
-    const duration = Math.max(2.5, Math.round(overflow / 35));
-
-    return (
-        <div 
-            className="flex items-center gap-1.5 text-sm font-semibold text-ink overflow-hidden"
-            onMouseEnter={() => {
-                updateOverflow();
-                setIsSelfHovered(true);
-            }}
-            onMouseLeave={() => setIsSelfHovered(false)}
-        >
-            <span className="shrink-0 z-10 bg-surface pr-0.5">{icon}</span>
-            <div ref={containerRef} className="overflow-hidden relative w-full flex items-center">
-                <span
-                    ref={textRef}
-                    className="inline-block whitespace-nowrap select-none"
-                    style={{
-                        transform: isScrolling ? `translateX(-${overflow + 6}px)` : 'translateX(0)',
-                        transitionProperty: 'transform',
-                        transitionDuration: isScrolling ? `${duration}s` : '0.35s',
-                        transitionTimingFunction: isScrolling ? 'linear' : 'cubic-bezier(0.25, 1, 0.5, 1)',
-                        transitionDelay: isScrolling ? '0.35s' : '0s',
-                    }}
-                >
-                    {text}
-                </span>
-                <div 
-                    className={`pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface to-transparent z-10 transition-opacity duration-300 ${
-                        isScrolling ? 'opacity-0' : overflow > 0 ? 'opacity-100' : 'opacity-0'
-                    }`} 
-                />
-            </div>
-        </div>
-    );
 };
 
 export default function KomponenIndex({
@@ -542,7 +476,7 @@ export default function KomponenIndex({
                         <HoverScrollText
                             icon={<Building2 className="h-4 w-4 text-muted shrink-0" />}
                             text={indikator.unit?.nama || '-'}
-                            isCardHovered={isUnitHovered}
+                            isParentHovered={isUnitHovered}
                         />
                     </div>
                     <div className="rounded-lg border border-border bg-surface p-3 space-y-1">
@@ -627,9 +561,12 @@ export default function KomponenIndex({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowSimulator(prev => !prev)}
-                                        className="h-8 text-xs text-primary hover:text-primary/90 p-0"
+                                        className="h-8 text-xs text-primary hover:text-primary/90 p-0 border-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none active:ring-0"
                                     >
-                                        <Play className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                                        <Play 
+                                            className={`h-3.5 w-3.5 mr-1.5 transition-transform duration-200 transform ${showSimulator ? 'rotate-90' : 'rotate-0'}`} 
+                                            aria-hidden="true" 
+                                        />
                                         {showSimulator ? 'Sembunyikan Simulator Cepat' : 'Buka Simulator Perhitungan Nilai'}
                                     </Button>
                                     {showSimulator && (
@@ -638,7 +575,7 @@ export default function KomponenIndex({
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleResetSimulasi}
-                                            className="h-8 text-xs text-muted hover:text-ink p-0"
+                                            className="h-8 text-xs text-muted hover:text-ink p-0 border-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none active:ring-0"
                                         >
                                             <RefreshCw className="h-3 w-3 mr-1" />
                                             Reset Nilai
