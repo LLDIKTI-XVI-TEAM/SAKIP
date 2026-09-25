@@ -44,7 +44,7 @@ class AccountConcurrencyTest extends TestCase
         $results = $this->race('bootstrap', $user->id, 'sakip:initial-bootstrap');
         $this->assertEqualsCanonicalizing([true, false], $results);
         $this->assertDatabaseCount('auth_bootstraps', 1);
-        $this->assertDatabaseCount('role_permissions', 162);
+        $this->assertDatabaseCount('role_permissions', 165);
         $this->assertDatabaseCount('user_roles', 1);
         $this->assertTrue($user->fresh()->is_active);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());

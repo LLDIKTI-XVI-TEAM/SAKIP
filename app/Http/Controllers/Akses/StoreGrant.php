@@ -64,7 +64,7 @@ class StoreGrant extends Controller
                 Rule::exists('permissions', 'id')->where(
                     fn ($query) => $query->where('aktif', true)
                         ->where('butuh_scope', Permission::SCOPE_UNIT)
-                        ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
+                        ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
                 ),
             ],
             'unit_id' => [
@@ -209,7 +209,7 @@ class StoreGrant extends Controller
                 // Kunci permission dengan sharedLock dan validasi ulang status aktif serta butuh_scope di dalam transaksi
                 /** @var Permission|null $lockedPermission */
                 $lockedPermission = Permission::whereKey($permission->id)->sharedLock()->first();
-                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
+                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true)) {
                     throw ValidationException::withMessages([
                         'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
                     ]);

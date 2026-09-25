@@ -1657,11 +1657,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $rencanaAksiRead = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
         $kegiatanRead = Permission::where('kode', 'kegiatan:read')->firstOrFail();
 
-        // 1. Pastikan scope adalah global, bukan unit
-        $this->assertSame(Permission::SCOPE_GLOBAL, $rencanaAksiRead->butuh_scope);
-        $this->assertSame(Permission::SCOPE_GLOBAL, $kegiatanRead->butuh_scope);
-
-        // 2. Dropdown unitPermissions tidak memuat hak baca
+        // 1. Dropdown unitPermissions tidak memuat hak baca
         $resIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
         $resIndex->assertOk();
         $resIndex->assertInertia(fn (AssertableInertia $page) => $page
@@ -1671,7 +1667,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             )
         );
 
-        // 3. Mencoba kirim POST StoreGrant untuk rencana_aksi:read menghasilkan 422
+        // 2. Mencoba kirim POST StoreGrant untuk rencana_aksi:read menghasilkan 422
         $resStoreRencana = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $rencanaAksiRead->id,
@@ -1680,7 +1676,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
         $resStoreRencana->assertSessionHasErrors('permission_id');
 
-        // 4. Mencoba kirim POST StoreGrant untuk kegiatan:read menghasilkan 422
+        // 3. Mencoba kirim POST StoreGrant untuk kegiatan:read menghasilkan 422
         $resStoreKegiatan = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $kegiatanRead->id,
@@ -1705,8 +1701,8 @@ class GrantIzinTambahanUnitTest extends TestCase
             'kegiatan:update',
         ];
 
-        // Pastikan PermissionCatalog::UNIT_SCOPED tepat berisi 7 kode ini
-        $this->assertSame($expectedCodes, PermissionCatalog::UNIT_SCOPED);
+        // Pastikan PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS tepat berisi 7 kode ini
+        $this->assertSame($expectedCodes, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS);
 
         foreach ($expectedCodes as $code) {
             $perm = Permission::where('kode', $code)->firstOrFail();

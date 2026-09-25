@@ -38,9 +38,9 @@ class AccessFoundationTest extends TestCase
         $this->assertSame(['superadmin', 'admin', 'perencanaan', 'pic', 'pimpinan', 'pegawai'], RoleCatalog::codes());
         $this->assertDatabaseHas('roles', ['kode' => 'pic', 'aktif' => true, 'is_sistem' => true, 'urutan' => 6]);
         $this->assertDatabaseCount('role_permissions', 0);
-        $this->assertSame(7, Permission::where('butuh_scope', 'unit')->count());
+        $this->assertSame(9, Permission::where('butuh_scope', 'unit')->count());
         $this->assertSame(23, Permission::where('sensitif', true)->count());
-        $this->assertEqualsCanonicalizing(['pengukuran:read', 'rencana_aksi:read', 'kegiatan:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read'], RolePermissionPresets::forRole('pegawai'));
+        $this->assertEqualsCanonicalizing(['pengukuran:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read'], RolePermissionPresets::forRole('pegawai'));
         $this->assertEqualsCanonicalizing(['pengguna:read', 'akses:update', 'delegasi:update', 'unit:create', 'unit:read', 'unit:update', 'unit:delete', 'pengaturan:update', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'audit:read', 'dashboard:read', 'laporan:read'], RolePermissionPresets::forRole('admin'));
         $this->assertCount(71, RolePermissionPresets::forRole('superadmin'));
         $this->assertCount(63, RolePermissionPresets::forRole('perencanaan'));

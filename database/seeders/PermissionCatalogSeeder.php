@@ -94,7 +94,7 @@ class PermissionCatalogSeeder extends Seeder
                 'entitas' => 'rencana_aksi',
                 'aksi' => 'read',
                 'keterangan' => 'Membaca rencana aksi',
-                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'butuh_scope' => Permission::SCOPE_UNIT,
                 'sensitif' => false,
             ],
             [
@@ -102,7 +102,7 @@ class PermissionCatalogSeeder extends Seeder
                 'entitas' => 'kegiatan',
                 'aksi' => 'read',
                 'keterangan' => 'Membaca kegiatan',
-                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'butuh_scope' => Permission::SCOPE_UNIT,
                 'sensitif' => false,
             ],
             [

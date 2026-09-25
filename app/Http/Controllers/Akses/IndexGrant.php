@@ -92,7 +92,7 @@ class IndexGrant extends Controller
 
         $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
             ->where('aktif', true)
-            ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
+            ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
             ->select('id', 'kode', 'entitas', 'aksi', 'keterangan')
             ->orderBy('kode')
             ->get()
