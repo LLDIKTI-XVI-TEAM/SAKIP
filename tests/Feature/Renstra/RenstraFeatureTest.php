@@ -497,7 +497,12 @@ test('Halaman Edit Renstra tidak memuat relasi berkas ke props Inertia', functio
 test('Pengecekan capability UI di ShowRenstra tidak mencatat audit denial palsu', function (): void {
     $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-SHOW-PURE']);
 
-    $viewerRole = Role::query()->create(['id' => (string) Str::uuid(), 'kode' => 'viewer_renstra', 'nama' => 'Viewer Renstra']);
+    $viewerRole = Role::query()->create([
+        'id' => (string) Str::uuid(),
+        'kode' => 'viewer_renstra',
+        'nama' => 'Viewer Renstra',
+        'urutan' => 99,
+    ]);
     $readPerm = Permission::query()->where('kode', 'renstra:read')->firstOrFail();
     $viewerRole->permissions()->attach($readPerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
 
@@ -569,7 +574,8 @@ test('Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra nonaktif 
 test('Percobaan menghapus Renstra dengan dependensi sasaran mencatat audit renstra.hapus_ditolak', function (): void {
     $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-DEP-CHECK']);
     $renstra->sasaranStrategis()->create([
-        'nama' => 'Sasaran Terkait',
+        'kode' => 'SS-DEP-01',
+        'deskripsi' => 'Sasaran Terkait',
         'urutan' => 1,
     ]);
 
@@ -650,7 +656,12 @@ test('Penghapusan lampiran Renstra ditolak jika otorisasi parent Renstra ditolak
         'tautan' => 'https://example.test/lampiran-draft.pdf',
     ]);
 
-    $berkasOnlyRole = Role::query()->create(['id' => (string) Str::uuid(), 'kode' => 'berkas_only', 'nama' => 'Berkas Only']);
+    $berkasOnlyRole = Role::query()->create([
+        'id' => (string) Str::uuid(),
+        'kode' => 'berkas_only',
+        'nama' => 'Berkas Only',
+        'urutan' => 100,
+    ]);
     $berkasDeletePerm = Permission::query()->where('kode', 'berkas:delete')->firstOrFail();
     $berkasOnlyRole->permissions()->attach($berkasDeletePerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
 
