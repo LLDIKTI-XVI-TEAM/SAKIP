@@ -11,6 +11,7 @@ use App\Models\IndikatorKomponen;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kinerja\IndikatorPerhitunganService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -143,7 +144,7 @@ class IndikatorKomponenController extends Controller
                     dasarIzin: $decision,
                 );
             });
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             return redirect()->to("/indikator/{$indikator->id}/komponen")
                 ->with('error', 'Komponen tidak dapat dihapus karena memiliki keterkaitan data pada sistem. Silakan nonaktifkan komponen.');
         }
