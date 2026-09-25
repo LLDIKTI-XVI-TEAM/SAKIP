@@ -14,13 +14,15 @@ class EditRenstra extends Controller
 {
     public function __invoke(Request $request, Renstra $renstra): Response
     {
+        Gate::authorize('view', $renstra);
         Gate::authorize('update', $renstra);
 
         if ($renstra->status === Renstra::STATUS_DIARSIPKAN) {
             abort(403, 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.');
         }
 
-        $dapatBacaRegulasi = $request->user()?->can('viewAny', Regulasi::class) ?? false;
+        $user = $request->user();
+        $dapatBacaRegulasi = $user !== null && $user->can('viewAny', Regulasi::class);
 
         if ($dapatBacaRegulasi) {
             $renstra->load('regulasi');
@@ -35,9 +37,14 @@ class EditRenstra extends Controller
             $regulasiPilihan = [];
         }
 
+        $canUploadAttachment = $user !== null && $user->can('uploadAttachment', $renstra);
+
         return Inertia::render('Renstra/Edit', [
             'renstra' => $renstra,
             'regulasiPilihan' => $regulasiPilihan,
+            'can' => [
+                'uploadAttachment' => $canUploadAttachment,
+            ],
         ]);
     }
 }

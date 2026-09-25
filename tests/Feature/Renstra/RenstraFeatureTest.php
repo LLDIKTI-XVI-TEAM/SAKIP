@@ -797,6 +797,22 @@ test('Penghapusan Renstra dengan lampiran berkas menghormati deny berkas:delete'
 
     expect($audit)->not->toBeNull();
     expect($audit->nilai_baru['alasan_penolakan'])->toBe('berkas_delete_denied');
+
+    // Pada halaman Index dan Show, kemampuan delete disesuaikan saat izin berkas ditolak
+    $responseIndex = $this->actingAs($this->perencanaan)->get('/renstra');
+    $responseIndex->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Index')
+            ->where('can.berkas:delete', false)
+        );
+
+    $responseShow = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}");
+    $responseShow->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('can.delete', false)
+            ->where('can.deleteAttachment', false)
+        );
 });
 
 test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat', function (): void {
@@ -812,6 +828,12 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
     $renstra = buatRenstra($this->perencanaan, [
         'kode' => 'RENSTRA-PRIVACY-CHECK',
         'regulasi_id' => $regulasi->id,
+    ]);
+
+    $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'tautan',
+        'tautan' => 'https://example.test/lampiran-privacy.pdf',
     ]);
 
     // Berikan user explicit deny pada regulasi:read
@@ -836,12 +858,12 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
             )
         );
 
-    // Pada halaman Show: pembuat hanya mengekspos id dan nama, serta relasi regulasi disembunyikan
+    // Pada halaman Show: pembuat dan pengunggah hanya mengekspos id dan nama, serta relasi regulasi disembunyikan
     $responseShow = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}");
     $responseShow->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Renstra/Show')
-            ->where('renstra.regulasi', null)
+            ->missing('renstra.regulasi')
             ->has('renstra.pembuat', fn (Assert $pembuat) => $pembuat
                 ->has('id')
                 ->has('nama')
@@ -849,5 +871,103 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
                 ->missing('no_hp')
                 ->missing('nip')
             )
+            ->has('renstra.berkas.0.pengunggah', fn (Assert $pengunggah) => $pengunggah
+                ->has('id')
+                ->has('nama')
+                ->missing('email')
+                ->missing('no_hp')
+            )
         );
+});
+
+test('Halaman edit Renstra menolak akses jika izin view ditolak meskipun memiliki izin update', function (): void {
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-EDIT-VIEW-DENY',
+        'status' => Renstra::STATUS_DRAFT,
+    ]);
+
+    $renstraReadPerm = Permission::query()->where('kode', 'renstra:read')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $renstraReadPerm->id,
+        'alasan' => 'Deny renstra:read untuk pengujian edit',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit");
+    $response->assertForbidden();
+});
+
+test('Validasi regulasi_id pada Renstra menolak regulasi nonaktif kecuali jika sedang dirujuk pada pembaruan', function (): void {
+    $regulasiAktif = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 101/2025',
+        'tahun' => 2025,
+        'tentang' => 'Regulasi Aktif',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    $regulasiNonaktif1 = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 102/2025',
+        'tahun' => 2025,
+        'tentang' => 'Regulasi Nonaktif 1',
+        'aktif' => false,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    $regulasiNonaktif2 = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 103/2025',
+        'tahun' => 2025,
+        'tentang' => 'Regulasi Nonaktif 2',
+        'aktif' => false,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    // 1. Pembuatan baru dengan regulasi nonaktif ditolak
+    $responseCreate = $this->actingAs($this->perencanaan)->post('/renstra', [
+        'kode' => 'RENSTRA-REGULASI-CREATE-TEST',
+        'nama' => 'Uji Coba Regulasi Nonaktif',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'regulasi_id' => $regulasiNonaktif1->id,
+    ]);
+    $responseCreate->assertSessionHasErrors(['regulasi_id']);
+
+    // 2. Pembuatan baru dengan regulasi aktif berhasil
+    $responseCreateValid = $this->actingAs($this->perencanaan)->post('/renstra', [
+        'kode' => 'RENSTRA-REGULASI-CREATE-VALID',
+        'nama' => 'Uji Coba Regulasi Aktif',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'regulasi_id' => $regulasiAktif->id,
+    ]);
+    $responseCreateValid->assertRedirect('/renstra');
+    $createdRenstra = Renstra::query()->where('kode', 'RENSTRA-REGULASI-CREATE-VALID')->firstOrFail();
+
+    // Set rujukan awal ke regulasiNonaktif1 secara langsung di DB untuk menguji skenario legacy rujukan nonaktif
+    $createdRenstra->update(['regulasi_id' => $regulasiNonaktif1->id]);
+
+    // 3. Update mempertahankan regulasi lama yang nonaktif berhasil
+    $responseUpdateKeep = $this->actingAs($this->perencanaan)->put("/renstra/{$createdRenstra->id}", [
+        'kode' => 'RENSTRA-REGULASI-CREATE-VALID',
+        'nama' => 'Uji Coba Regulasi Pertahankan Rujukan Lama',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'regulasi_id' => $regulasiNonaktif1->id,
+    ]);
+    $responseUpdateKeep->assertRedirect("/renstra/{$createdRenstra->id}");
+
+    // 4. Update mengganti ke regulasi nonaktif lain ditolak
+    $responseUpdateChangeInactive = $this->actingAs($this->perencanaan)->put("/renstra/{$createdRenstra->id}", [
+        'kode' => 'RENSTRA-REGULASI-CREATE-VALID',
+        'nama' => 'Uji Coba Ganti Regulasi Nonaktif Lain',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'regulasi_id' => $regulasiNonaktif2->id,
+    ]);
+    $responseUpdateChangeInactive->assertSessionHasErrors(['regulasi_id']);
 });

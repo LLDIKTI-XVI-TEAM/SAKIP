@@ -29,7 +29,7 @@ class ShowRenstra extends Controller
         }
 
         if ($canViewAttachments) {
-            $relations['berkas'] = fn ($query) => $query->with('pengunggah')->orderByDesc('created_at');
+            $relations['berkas'] = fn ($query) => $query->with('pengunggah:id,nama')->orderByDesc('created_at');
         } else {
             $renstra->setRelation('berkas', collect([]));
         }
@@ -40,12 +40,15 @@ class ShowRenstra extends Controller
             $renstra->unsetRelation('regulasi');
         }
 
+        $hasBerkas = $renstra->berkas->isNotEmpty();
+        $canDeleteAttachment = $user->can('deleteAttachment', $renstra);
+
         return Inertia::render('Renstra/Show', [
             'renstra' => $renstra,
             'can' => [
                 'update' => $user->can('update', $renstra) && $renstra->status !== Renstra::STATUS_DIARSIPKAN,
-                'delete' => $user->can('delete', $renstra),
-                'deleteAttachment' => $user->can('deleteAttachment', $renstra),
+                'delete' => $user->can('delete', $renstra) && (! $hasBerkas || $canDeleteAttachment),
+                'deleteAttachment' => $canDeleteAttachment,
             ],
         ]);
     }

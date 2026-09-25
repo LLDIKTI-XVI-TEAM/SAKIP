@@ -279,7 +279,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Tooltip>
                                                     )}
 
-                                                    {can['renstra:delete'] && item.status === 'draft' && (
+                                                    {can['renstra:delete'] && item.status === 'draft' && ((item.berkas_count ?? 0) === 0 || can['berkas:delete']) && (
                                                         <Tooltip content="Hapus Renstra">
                                                             <button
                                                                 type="button"

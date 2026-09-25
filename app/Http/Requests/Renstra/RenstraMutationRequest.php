@@ -18,12 +18,30 @@ abstract class RenstraMutationRequest extends FormRequest
     protected function mutationRules(bool $requireReason = false): array
     {
         $routeRenstra = $this->route('renstra');
-        $renstraId = $routeRenstra instanceof Renstra ? $routeRenstra->id : null;
+        $renstraModel = null;
+        if ($routeRenstra instanceof Renstra) {
+            $renstraModel = $routeRenstra;
+        } elseif (is_string($routeRenstra) && $routeRenstra !== '') {
+            $renstraModel = Renstra::query()->find($routeRenstra);
+        }
+
+        $renstraId = $renstraModel?->id;
+        $currentRegulasiId = $renstraModel?->regulasi_id;
 
         $uniqueKode = Rule::unique('renstras', 'kode');
         if ($renstraId !== null) {
             $uniqueKode->ignore($renstraId);
         }
+
+        $regulasiExistsRule = Rule::exists('regulasi', 'id')->where(function ($query) use ($currentRegulasiId) {
+            if ($currentRegulasiId !== null) {
+                $query->where(function ($q) use ($currentRegulasiId) {
+                    $q->where('aktif', true)->orWhere('id', $currentRegulasiId);
+                });
+            } else {
+                $query->where('aktif', true);
+            }
+        });
 
         $settings = Pengaturan::where('grup', 'berkas')->pluck('nilai', 'kunci');
         $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
@@ -45,7 +63,7 @@ abstract class RenstraMutationRequest extends FormRequest
             'deskripsi' => ['nullable', 'string', 'max:5000'],
             'keterangan' => ['nullable', 'string', 'max:5000'],
             'dasar_hukum' => ['nullable', 'string', 'max:5000'],
-            'regulasi_id' => ['nullable', 'uuid', 'exists:regulasi,id'],
+            'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
             'alasan' => $requireReason
                 ? ['required', 'string', 'min:5', 'max:1000']
                 : ['nullable', 'string', 'max:1000'],

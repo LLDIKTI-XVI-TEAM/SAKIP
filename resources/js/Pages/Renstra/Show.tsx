@@ -153,7 +153,7 @@ export default function ShowRenstra({
                             </Link>
                         )}
 
-                        {can.delete && renstra.status === 'draft' && (
+                        {can.delete && renstra.status === 'draft' && (berkasList.length === 0 || can.deleteAttachment) && (
                             <Button
                                 type="button"
                                 variant="outline"

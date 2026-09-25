@@ -10,9 +10,12 @@ import type { RegulasiOption, RenstraDetail, RenstraFormData } from '@/types/ren
 interface EditRenstraProps {
     renstra: RenstraDetail;
     regulasiPilihan: RegulasiOption[];
+    can?: {
+        uploadAttachment?: boolean;
+    };
 }
 
-export default function EditRenstra({ renstra, regulasiPilihan }: EditRenstraProps) {
+export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenstraProps) {
     const isAktif = renstra.status === 'aktif' || renstra.is_aktif;
     const form = useForm<RenstraFormData>({
         nama: renstra.nama,
@@ -81,6 +84,7 @@ export default function EditRenstra({ renstra, regulasiPilihan }: EditRenstraPro
                                 disabled={form.processing}
                                 isEdit={true}
                                 requireReason={isAktif}
+                                canUploadAttachment={can?.uploadAttachment}
                                 setField={(field, value) => form.setData({ ...form.data, [field]: value })}
                             />
                         </CardContent>

@@ -66,6 +66,7 @@ class IndexRenstra extends Controller
                 'renstra:create' => $user->can('create', Renstra::class),
                 'renstra:update' => $user->can('update', Renstra::class),
                 'renstra:delete' => $user->can('delete', Renstra::class),
+                'berkas:delete' => $user !== null && $user->can('deleteAttachment', Renstra::class),
             ],
         ]);
     }

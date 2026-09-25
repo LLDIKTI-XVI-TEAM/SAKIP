@@ -26,8 +26,14 @@ class CreateRenstra extends Controller
                 ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
             : [];
 
+        $user = $request->user();
+        $canUploadAttachment = $user !== null && $user->can('uploadAttachment', Renstra::class);
+
         return Inertia::render('Renstra/Create', [
             'regulasiPilihan' => $regulasiPilihan,
+            'can' => [
+                'uploadAttachment' => $canUploadAttachment,
+            ],
         ]);
     }
 }

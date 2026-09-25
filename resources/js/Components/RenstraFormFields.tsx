@@ -16,6 +16,7 @@ interface RenstraFormFieldsProps {
     disabled?: boolean;
     isEdit?: boolean;
     requireReason?: boolean;
+    canUploadAttachment?: boolean;
     setField: SetRenstraField;
 }
 
@@ -42,6 +43,7 @@ export function RenstraFormFields({
     disabled = false,
     isEdit = false,
     requireReason = false,
+    canUploadAttachment = true,
     setField,
 }: RenstraFormFieldsProps) {
     const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
@@ -225,20 +227,26 @@ export function RenstraFormFields({
                             Unggah dokumen naskah digital Renstra melalui berkas, tautan repositori, atau kutipan teks.
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addLampiran}
-                        disabled={disabled}
-                        className="shrink-0 whitespace-nowrap self-start sm:self-center"
-                    >
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                        Tambah Lampiran
-                    </Button>
+                    {canUploadAttachment && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addLampiran}
+                            disabled={disabled}
+                            className="shrink-0 whitespace-nowrap self-start sm:self-center"
+                        >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            Tambah Lampiran
+                        </Button>
+                    )}
                 </div>
 
-                {data.lampiran.length === 0 ? (
+                {!canUploadAttachment ? (
+                    <div className="rounded-xl border border-dashed border-border bg-soft/40 py-6 px-4 text-center">
+                        <p className="text-sm font-medium text-muted">Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.</p>
+                    </div>
+                ) : data.lampiran.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border bg-soft/40 py-6 px-4 text-center">
                         <p className="text-sm font-medium text-muted">Belum ada lampiran naskah yang ditambahkan</p>
                     </div>

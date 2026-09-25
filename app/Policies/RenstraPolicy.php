@@ -41,7 +41,7 @@ class RenstraPolicy
         return $this->response($this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE));
     }
 
-    public function deleteAttachment(User $user, Renstra $renstra, ?Berkas $berkas = null): Response
+    public function deleteAttachment(User $user, ?Renstra $renstra = null, ?Berkas $berkas = null): Response
     {
         $parentDeleteDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
         $parentUpdateDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
@@ -51,6 +51,21 @@ class RenstraPolicy
         }
 
         $berkasDecision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
+
+        return $this->response($berkasDecision);
+    }
+
+    public function uploadAttachment(User $user, ?Renstra $renstra = null): Response
+    {
+        $parentDecision = $renstra === null
+            ? $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_CREATE)
+            : $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+
+        if (! $parentDecision->allowed) {
+            return $this->response($parentDecision);
+        }
+
+        $berkasDecision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_UPLOAD);
 
         return $this->response($berkasDecision);
     }

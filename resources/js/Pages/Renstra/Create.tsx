@@ -9,9 +9,12 @@ import type { RegulasiOption, RenstraFormData } from '@/types/renstra';
 
 interface CreateRenstraProps {
     regulasiPilihan: RegulasiOption[];
+    can?: {
+        uploadAttachment?: boolean;
+    };
 }
 
-export default function CreateRenstra({ regulasiPilihan }: CreateRenstraProps) {
+export default function CreateRenstra({ regulasiPilihan, can }: CreateRenstraProps) {
     const currentYear = new Date().getFullYear();
     const form = useForm<RenstraFormData>({
         nama: '',
@@ -62,6 +65,7 @@ export default function CreateRenstra({ regulasiPilihan }: CreateRenstraProps) {
                                 errors={form.errors as Record<string, string | undefined>}
                                 regulasiOptions={regulasiPilihan}
                                 disabled={form.processing}
+                                canUploadAttachment={can?.uploadAttachment}
                                 setField={(field, value) => form.setData({ ...form.data, [field]: value })}
                             />
                         </CardContent>
