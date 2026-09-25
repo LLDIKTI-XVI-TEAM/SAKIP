@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, ExternalLink, FileText } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { BerkasRegulasi, RegulasiDetail, RegulasiJenis } from '@/types/regulasi';
 
 interface ShowRegulasiProps {
@@ -15,16 +16,6 @@ const jenisLabel: Record<RegulasiJenis, string> = {
     perpres: 'Peraturan Presiden',
     keputusan_lainnya: 'Keputusan lainnya',
 };
-
-function formatTanggal(value: string | null): string {
-    if (!value) return 'Tidak dicantumkan';
-
-    return new Intl.DateTimeFormat('id-ID', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-    }).format(new Date(`${value}T00:00:00`));
-}
 
 function formatBytes(value: number | null): string {
     if (value === null) return '';
@@ -77,6 +68,8 @@ function Attachment({ attachment }: { attachment: BerkasRegulasi }) {
 }
 
 export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
+    const formatTanggal = useFormatTanggal();
+
     return (
         <AuthenticatedLayout
             title="Detail Dasar Aturan"
@@ -108,7 +101,7 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                             </div>
                             <div>
                                 <dt className="text-xs font-semibold text-muted">Tanggal penetapan</dt>
-                                <dd className="mt-1 text-sm text-ink">{formatTanggal(regulasi.tanggal)}</dd>
+                                <dd className="mt-1 text-sm text-ink">{regulasi.tanggal ? formatTanggal(regulasi.tanggal) : 'Tidak dicantumkan'}</dd>
                             </div>
                             <div>
                                 <dt className="text-xs font-semibold text-muted">Sumber resmi</dt>

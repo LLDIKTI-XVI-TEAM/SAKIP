@@ -23,6 +23,7 @@ import {
     Bell,
     User,
     Home,
+    Settings,
     HardDrive,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
@@ -43,7 +44,16 @@ export function AuthenticatedLayout({
     hasCustomHeading = false,
 }: AuthenticatedLayoutProps) {
     const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
-    const { props: { auth, flash }, url } = usePage<SharedPageProps>();
+    const { props: { auth, flash, pengaturan }, url } = usePage<SharedPageProps>();
+    const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP';
+    const instansiNama = (pengaturan?.['instansi.nama_pendek'] as string)
+        || (pengaturan?.['instansi.nama'] as string)
+        || 'LLDIKTI WILAYAH XVI';
+    const rawLogo = pengaturan ? (pengaturan['instansi.logo'] as string | null | undefined) : undefined;
+    const hasLogoKey = Boolean(pengaturan && Object.prototype.hasOwnProperty.call(pengaturan, 'instansi.logo'));
+    const logoUrl = hasLogoKey
+        ? (rawLogo && rawLogo.trim() !== '' ? rawLogo : null)
+        : '/img/dikti16-favicon-blue-150x150.png';
     const [navigationOpen, setNavigationOpen] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
@@ -52,7 +62,23 @@ export function AuthenticatedLayout({
     const drawerRef = useRef<HTMLElement>(null);
     const recovery = useAuthRecovery();
     const [logoutError, setLogoutError] = useState('');
+    const [logoFailed, setLogoFailed] = useState(false);
     const logout = useForm({});
+
+    useEffect(() => {
+        setLogoFailed(false);
+    }, [logoUrl]);
+
+    const normalizedBreadcrumbs = breadcrumbs.length > 0
+        ? (breadcrumbs[0]?.label.toLowerCase() === 'dashboard'
+            ? breadcrumbs
+            : [
+                auth?.can?.dashboard
+                    ? { label: 'Dashboard', href: '/dashboard' }
+                    : { label: 'Dashboard' },
+                ...breadcrumbs,
+            ])
+        : [];
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(min-width: 768px)');
@@ -130,6 +156,7 @@ export function AuthenticatedLayout({
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
         { href: '/akses/izin-peran', label: 'Izin Peran', icon: UserCheck, visible: auth.can.manageRolePermissions },
+        { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
     ];
 
     const handleLogout = (event: FormEvent) => {
@@ -158,16 +185,19 @@ export function AuthenticatedLayout({
 
             {/* Mobile Header Bar */}
             <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
-                <div className="flex min-w-0 items-center gap-2.5">
-                    <img
-                        src="/img/dikti16-favicon-blue-150x150.png"
-                        width={36}
-                        height={36}
-                        alt=""
-                        className="h-9 w-9 shrink-0 object-contain rounded-md"
-                    />
-                    <div>
-                        <span className="text-base font-bold tracking-tight text-white leading-none">SAKIP</span>
+                <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
+                    {!logoFailed && logoUrl && (
+                        <img
+                            src={logoUrl}
+                            width={36}
+                            height={36}
+                            alt=""
+                            className="h-9 w-9 shrink-0 object-contain rounded-md"
+                            onError={() => setLogoFailed(true)}
+                        />
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
                     </div>
                 </div>
                 <button
@@ -208,18 +238,21 @@ export function AuthenticatedLayout({
             >
                 {/* Brand Header */}
                 <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <img
-                            src="/img/dikti16-favicon-blue-150x150.png"
-                            width={38}
-                            height={38}
-                            alt=""
-                            className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
-                        />
-                        <div>
-                            <span className="text-lg font-bold tracking-tight text-white leading-tight block">SAKIP</span>
-                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight">
-                                LLDIKTI WILAYAH XVI
+                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+                        {!logoFailed && logoUrl && (
+                            <img
+                                src={logoUrl}
+                                width={38}
+                                height={38}
+                                alt=""
+                                className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
+                                onError={() => setLogoFailed(true)}
+                            />
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
+                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight truncate">
+                                {instansiNama}
                             </p>
                         </div>
                     </div>
@@ -238,11 +271,15 @@ export function AuthenticatedLayout({
                     <div className="px-3 py-3">
                         <nav aria-label="Navigasi utama" className="space-y-1.5">
                             {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
-                                const active = url.split('?')[0].startsWith(href);
+                                const currentPath = url.split('?')[0];
+                                const active = href === '/pengaturan'
+                                    ? currentPath === '/pengaturan'
+                                    : currentPath === href || currentPath.startsWith(`${href}/`);
                                 return (
                                     <Link
                                         key={href}
                                         href={href}
+                                        title={label}
                                         aria-current={active ? 'page' : undefined}
                                         onClick={() => setNavigationOpen(false)}
                                         className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
@@ -351,19 +388,8 @@ export function AuthenticatedLayout({
                     </div>
                 </header>
 
-                {(title || breadcrumbs.length > 0) && (
-                    <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
-                        {breadcrumbs.length > 0 && (
-                            <nav aria-label="Jejak navigasi" className="mb-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-                                {auth.can.dashboard ? <Link href="/dashboard" className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">SAKIP</Link> : <span>SAKIP</span>}
-                                {breadcrumbs.map((item, index) => (
-                                    <Fragment key={`${index}-${item.label}`}>
-                                        <ChevronRight aria-hidden="true" className="h-3 w-3" />
-                                        {item.href ? <Link href={item.href} className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">{item.label}</Link> : <span aria-current="page" className="font-medium text-ink">{item.label}</span>}
-                                    </Fragment>
-                                ))}
-                            </nav>
-                        )}
+                {(title || normalizedBreadcrumbs.length > 0) && (
+                    <header className="px-4 pt-4 pb-0 sm:px-6 sm:pt-5 lg:px-8 max-w-7xl w-full mx-auto">
                         {title && (
                             shouldRenderH1 ? (
                                 <h1 className="text-lg font-bold text-ink">{title}</h1>
@@ -371,12 +397,30 @@ export function AuthenticatedLayout({
                                 <p className="text-lg font-bold text-ink">{title}</p>
                             )
                         )}
+                        {normalizedBreadcrumbs.length > 0 && (
+                            <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
+                                {normalizedBreadcrumbs.map((item, index) => (
+                                    <Fragment key={`${index}-${item.label}`}>
+                                        {index > 0 && <ChevronRight aria-hidden="true" className="h-3 w-3" />}
+                                        {item.href ? (
+                                            <Link href={item.href} className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                                                {item.label}
+                                            </Link>
+                                        ) : (
+                                            <span aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined} className="font-medium text-ink">
+                                                {item.label}
+                                            </span>
+                                        )}
+                                    </Fragment>
+                                ))}
+                            </nav>
+                        )}
                     </header>
                 )}
 
                 {/* Alerts */}
                 {flash?.success && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="status" className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-sm text-ink shadow-2xs">
                             <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-success mt-0.5" />
                             <span>{flash.success}</span>
@@ -384,7 +428,7 @@ export function AuthenticatedLayout({
                     </div>
                 )}
                 {flash?.warning && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning-dark shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark mt-0.5" />
                             <span>{flash.warning}</span>
@@ -392,7 +436,7 @@ export function AuthenticatedLayout({
                     </div>
                 )}
                 {flash?.error && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
+                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
                         <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger shadow-2xs">
                             <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-danger mt-0.5" />
                             <span>{flash.error}</span>
@@ -409,7 +453,11 @@ export function AuthenticatedLayout({
                 )}
 
                 {/* Main Viewport */}
-                <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto outline-none">
+                <main
+                    id="main-content"
+                    tabIndex={-1}
+                    className={`flex-1 px-4 sm:px-6 lg:px-8 pb-8 ${title || normalizedBreadcrumbs.length > 0 ? 'pt-3 sm:pt-4' : 'pt-5 sm:pt-6 lg:pt-8'} max-w-7xl w-full mx-auto outline-none`}
+                >
                     {children}
                 </main>
             </div>

@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title inertia>{{ config('app.name', 'SAKIP LLDIKTI XVI') }}</title>
+    <title inertia>{{ app(\App\Services\PengaturanService::class)->get('aplikasi.nama', config('app.name', 'SAKIP LLDIKTI XVI')) }}</title>
+    <meta name="app-name" content="{{ app(\App\Services\PengaturanService::class)->get('aplikasi.nama', config('app.name', 'SAKIP LLDIKTI XVI')) }}">
     <link rel="icon" type="image/png" sizes="150x150" href="/img/dikti16-favicon-blue-150x150.png">
 
     <!-- Google Fonts Poppins -->

@@ -21,6 +21,8 @@ export interface SharedPageProps extends PageProps {
             manageDeny: boolean;
             unit: boolean;
             grant: boolean;
+            pengaturan: boolean;
+            'pengaturan:update'?: boolean;
             manageRolePermissions: boolean;
             jenisBerkas?: boolean;
             storagePolicy?: boolean;
@@ -34,6 +36,7 @@ export interface SharedPageProps extends PageProps {
         message?: string | null;
         [key: string]: unknown;
     };
+    pengaturan?: Record<string, string | number | boolean | null>;
 }
 
 declare module '@inertiajs/core' {

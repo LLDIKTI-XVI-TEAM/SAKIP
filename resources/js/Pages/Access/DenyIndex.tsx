@@ -5,10 +5,12 @@ import { Button } from '@/Components/Button';
 import { DenyMutationDialog } from '@/Components/Access/DenyMutationDialog';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { primaryButton, secondaryButton } from '@/Pages/Auth/AuthShell';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { SharedPageProps } from '@/types/auth';
 import type { DenyIndexProps, DenyRow } from '@/types/deny';
 
 export default function DenyIndex({ denies, pagination, filters, can }: DenyIndexProps) {
+    const formatTanggal = useFormatTanggal();
     const { props: { auth }, flash } = usePage<SharedPageProps>();
     const [dismissed, setDismissed] = useState<typeof flash | null>(null);
     const [modal, setModal] = useState<{ deny: DenyRow | null } | null>(null);
@@ -32,7 +34,7 @@ export default function DenyIndex({ denies, pagination, filters, can }: DenyInde
                 {denies.map((deny) => <li key={deny.id} className="flex flex-col gap-4 py-5 lg:flex-row lg:justify-between"><div className="min-w-0 space-y-2 text-sm">
                     <h2 className="break-words font-semibold">{deny.user.nama}{!deny.user.is_active && <span className="font-normal text-muted"> · Akun nonaktif</span>}</h2><p className="break-all text-muted">{deny.user.email}</p>
                     <p className="break-words"><span className="font-medium">{deny.permission.kode}</span>{!deny.permission.aktif && ' (izin nonaktif)'} · <span className="rounded bg-soft px-2 py-1">{deny.unit?.nama ?? 'Global'}{deny.unit?.status === 'nonaktif' && ' (unit nonaktif)'}</span></p>
-                    <p className="whitespace-pre-wrap break-words"><span className="font-medium">Alasan: </span>{deny.alasan}</p><p className="break-words text-xs text-muted">Ditetapkan oleh {deny.ditetapkan_oleh.nama} · <time dateTime={deny.created_at}>{new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Makassar' }).format(new Date(deny.created_at))} WITA</time></p>
+                    <p className="whitespace-pre-wrap break-words"><span className="font-medium">Alasan: </span>{deny.alasan}</p><p className="break-words text-xs text-muted">Ditetapkan oleh {deny.ditetapkan_oleh.nama} · <time dateTime={deny.created_at}>{formatTanggal(deny.created_at, { withTime: true })}</time></p>
                 </div>{can.manageDeny && <Button type="button" variant="outline" className={`${secondaryButton} self-start lg:shrink-0`} aria-label={`Cabut deny ${deny.user.nama} ${deny.permission.kode}`} onClick={(event) => { trigger.current = event.currentTarget; setModal({ deny }); }}>Cabut deny</Button>}</li>)}
             </ul>}
             {(pagination.prev_page_url || pagination.next_page_url) && <nav aria-label="Halaman pembatasan izin" className="mt-6 flex items-center justify-between gap-3 text-sm">{pagination.prev_page_url ? <Link href={pagination.prev_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Sebelumnya</Link> : <span className="text-muted">Sebelumnya</span>}<span>Halaman {pagination.current_page}</span>{pagination.next_page_url ? <Link href={pagination.next_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Berikutnya</Link> : <span className="text-muted">Berikutnya</span>}</nav>}

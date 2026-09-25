@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { Pengukuran } from '@/Pages/Pengukuran/types';
 
 export default function ClaimedActivities({ pengukuran }: { pengukuran: Pengukuran }) {
+    const formatTanggal = useFormatTanggal();
     const claims = pengukuran.klaim ?? [];
-    const date = (value: string | null) => value ? new Date(value).toLocaleDateString('id-ID') : '—';
+    const date = (value: string | null) => formatTanggal(value);
 
     return <Card>
         <CardHeader><CardTitle>Kegiatan dalam pengajuan</CardTitle></CardHeader>

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -32,6 +33,8 @@ class HandleInertiaRequests extends Middleware
                         'manageDeny' => $can['manageDeny'],
                         'unit' => $can['unit'],
                         'grant' => $can['grant'],
+                        'pengaturan' => $can['pengaturan'],
+                        'pengaturan:update' => $can['pengaturan:update'],
                         'manageRolePermissions' => $can['manageRolePermissions'],
                         'jenisBerkas' => $can['jenisBerkas'],
                         'storagePolicy' => $can['storagePolicy'],
@@ -46,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'message' => fn () => $request->session()->get('message'),
             ],
+            'pengaturan' => fn () => app(PengaturanService::class)->allValues(),
         ];
     }
 
@@ -68,6 +72,8 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => false,
             'regulasi:delete' => false,
             'berkas:delete' => false,
+            'pengaturan' => false,
+            'pengaturan:update' => false,
             'jenisBerkas' => false,
             'storagePolicy' => false,
             'storagePolicyUpdate' => false,
@@ -84,8 +90,8 @@ class HandleInertiaRequests extends Middleware
 
         $resolver = app(PermissionResolver::class);
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
-        $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
         $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
+        $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
 
         $computed = [
             'dashboard' => $resolver->allows($user, 'dashboard:read'),
@@ -108,6 +114,8 @@ class HandleInertiaRequests extends Middleware
             'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
             'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
             'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
+            'pengaturan' => $pengaturanUpdate,
+            'pengaturan:update' => $pengaturanUpdate,
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
