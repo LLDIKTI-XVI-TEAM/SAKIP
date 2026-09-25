@@ -43,8 +43,8 @@ class IndikatorKomponenController extends Controller
             'formulaContract' => $contract,
             'validation' => $validation,
             'can' => [
-                'create' => $resolver->allows($actor, 'komponen:create'),
-                'update' => $resolver->allows($actor, 'komponen:update'),
+                'create' => $indikator->tipe_perhitungan !== 'manual' && $resolver->allows($actor, 'komponen:create'),
+                'update' => $indikator->tipe_perhitungan !== 'manual' && $resolver->allows($actor, 'komponen:update'),
                 'delete' => $resolver->allows($actor, 'komponen:delete'),
             ],
         ]);
@@ -52,6 +52,8 @@ class IndikatorKomponenController extends Controller
 
     public function store(StoreIndikatorKomponenRequest $request, IndikatorKinerja $indikator, PermissionResolver $resolver): RedirectResponse
     {
+        abort_if($indikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
+
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:create');
 
@@ -80,6 +82,7 @@ class IndikatorKomponenController extends Controller
 
     public function update(UpdateIndikatorKomponenRequest $request, IndikatorKinerja $indikator, IndikatorKomponen $komponen, PermissionResolver $resolver): RedirectResponse
     {
+        abort_if($indikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
         abort_if($komponen->indikator_id !== $indikator->id, 404);
 
         $actor = $request->user()->fresh();

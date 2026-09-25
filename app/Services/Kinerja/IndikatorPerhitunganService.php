@@ -60,6 +60,10 @@ class IndikatorPerhitunganService
             if ($aktifKomponen->count() !== $penjumlahCount) {
                 $messages[] = 'Seluruh komponen aktif pada indikator bertipe penjumlahan wajib berperan sebagai penjumlah.';
             }
+        } elseif ($indikator->tipe_perhitungan === 'manual') {
+            if ($aktifKomponen->count() > 0) {
+                $messages[] = 'Indikator bertipe manual tidak menggunakan komponen angka perhitungan.';
+            }
         }
 
         return [
@@ -120,6 +124,15 @@ class IndikatorPerhitunganService
 
         $presisi = (int) ($indikator->presisi ?? 2);
 
+        // Evaluasi indikator manual tidak menggunakan variabel komponen aktif
+        if ($indikator->tipe_perhitungan === 'manual') {
+            if (! array_key_exists('nilai', $komponenValues) || $komponenValues['nilai'] === null || $komponenValues['nilai'] === '') {
+                return null;
+            }
+
+            return round((float) $komponenValues['nilai'], $presisi);
+        }
+
         // Seluruh komponen aktif harus memiliki nilai sebelum hasil dapat dievaluasi
         foreach ($aktifKomponen as $item) {
             if (! array_key_exists($item->kode, $komponenValues) || $komponenValues[$item->kode] === null || $komponenValues[$item->kode] === '') {
@@ -164,12 +177,6 @@ class IndikatorPerhitunganService
             }
 
             return round($total, $presisi);
-        }
-
-        if ($indikator->tipe_perhitungan === 'manual') {
-            $val = (float) ($komponenValues['nilai'] ?? 0);
-
-            return round($val, $presisi);
         }
 
         return null;

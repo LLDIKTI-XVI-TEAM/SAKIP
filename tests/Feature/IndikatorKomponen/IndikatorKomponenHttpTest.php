@@ -331,4 +331,50 @@ class IndikatorKomponenHttpTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    /**
+     * Mutasi komponen pada indikator bertipe manual ditolak.
+     */
+    public function test_mutasi_komponen_pada_indikator_manual_ditolak(): void
+    {
+        $indikatorManual = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $this->indikator->sasaran_strategis_id,
+            'unit_id' => $this->indikator->unit_id,
+            'kode' => 'IKU-MANUAL-TEST',
+            'nama' => 'Indikator Manual Test',
+            'satuan' => 'Laporan',
+            'tipe_perhitungan' => 'manual',
+            'arah' => 'naik_baik',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'is_aktif' => true,
+        ]);
+
+        // GET index harus memberikan can.create = false dan can.update = false
+        $response = $this->actingAs($this->perencanaan)
+            ->get("/indikator/{$indikatorManual->id}/komponen");
+
+        $response->assertOk();
+        $pageProps = $response->original->getData()['page']['props'];
+        $this->assertFalse($pageProps['can']['create']);
+        $this->assertFalse($pageProps['can']['update']);
+
+        // POST create komponen pada indikator manual harus ditolak dengan validasi/422
+        $this->actingAs($this->perencanaan)
+            ->post("/indikator/{$indikatorManual->id}/komponen", [
+                'kode' => 'm1',
+                'label' => 'Komponen Manual Ilegal',
+                'peran' => 'pembilang',
+                'bobot' => 1.0,
+                'urutan' => 1,
+                'aktif' => true,
+            ])
+            ->assertSessionHasErrors('indikator');
+
+        // Pastikan tidak ada komponen yang tersimpan
+        $this->assertDatabaseMissing('indikator_komponen', [
+            'indikator_id' => $indikatorManual->id,
+            'kode' => 'm1',
+        ]);
+    }
 }

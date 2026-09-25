@@ -211,6 +211,12 @@ export default function KomponenIndex({
             return null;
         }
 
+        const precision = typeof indikator.presisi === 'number' ? Math.max(0, Math.min(12, indikator.presisi)) : 2;
+        const roundToPrecision = (num: number, prec: number) => {
+            const factor = Math.pow(10, prec);
+            return Math.round((num + Number.EPSILON) * factor) / factor;
+        };
+
         if (indikator.tipe_perhitungan === 'rasio_persen') {
             const pembilangKomponen = aktifKomponen.filter(k => k.peran === 'pembilang');
             const penyebutKomponen = aktifKomponen.find(k => k.peran === 'penyebut');
@@ -231,7 +237,8 @@ export default function KomponenIndex({
                 sumPembilang += (val as number) * Number(k.bobot ?? 1);
             });
 
-            const hasil = (sumPembilang / effectivePenyebut) * 100;
+            const rawHasil = (sumPembilang / effectivePenyebut) * 100;
+            const hasil = roundToPrecision(rawHasil, precision);
             return { status: 'terhitung', value: hasil, note: `${sumPembilang} / ${effectivePenyebut} × 100%` };
         }
 
@@ -241,14 +248,16 @@ export default function KomponenIndex({
                 const val = typeof simulasiValues[k.kode] === 'number' ? simulasiValues[k.kode] : 0;
                 total += (val as number) * Number(k.bobot ?? 1);
             });
-            return { status: 'terhitung', value: total, note: 'Penjumlahan tertimbang komponen aktif' };
+            const hasil = roundToPrecision(total, precision);
+            return { status: 'terhitung', value: hasil, note: 'Penjumlahan tertimbang komponen aktif' };
         }
 
         return null;
-    }, [indikator.tipe_perhitungan, validation.is_valid, aktifKomponen, simulasiValues]);
+    }, [indikator.tipe_perhitungan, indikator.presisi, validation.is_valid, aktifKomponen, simulasiValues]);
 
     // Form Handlers
     const handleOpenCreate = () => {
+        if (indikator.tipe_perhitungan === 'manual') return;
         setIsEditing(false);
         setFormData({
             ...defaultFormData,
@@ -260,6 +269,7 @@ export default function KomponenIndex({
     };
 
     const handleOpenEdit = (item: KomponenItem) => {
+        if (indikator.tipe_perhitungan === 'manual') return;
         setIsEditing(true);
         setFormData({
             id: item.id,
@@ -438,6 +448,18 @@ export default function KomponenIndex({
                     </div>
                 </div>
 
+                {indikator.tipe_perhitungan === 'manual' && (
+                    <div className="flex items-start gap-3 rounded-xl border border-info/30 bg-info/5 p-4 text-sm text-ink shadow-2xs">
+                        <AlertCircle className="h-5 w-5 shrink-0 text-info mt-0.5" aria-hidden="true" />
+                        <div>
+                            <span className="font-semibold text-ink">Indikator Bertipe Perhitungan Manual</span>
+                            <p className="text-xs text-muted mt-1 leading-relaxed">
+                                Indikator ini tidak memerlukan konfigurasi variabel formula komponen. Nilai realisasi capaian diinput secara langsung oleh pengguna atau unit penanggung jawab saat pengisian pengukuran kinerja.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Quick Info Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-lg border border-border bg-surface p-3 space-y-1">
@@ -554,7 +576,7 @@ export default function KomponenIndex({
                         )}
 
                         {/* Interactive Simulator */}
-                        {validation.is_valid && aktifKomponen.length > 0 && (
+                        {validation.is_valid && aktifKomponen.length > 0 && indikator.tipe_perhitungan !== 'manual' && (
                             <div className="border-t border-border/60 pt-3">
                                 <div className="flex items-center justify-between">
                                     <Button
@@ -734,6 +756,8 @@ export default function KomponenIndex({
                                                 <p className="mt-1 text-xs text-muted max-w-sm mx-auto">
                                                     {searchQuery || filterPeran !== 'semua'
                                                         ? 'Tidak ada komponen yang cocok dengan kriteria pencarian atau filter.'
+                                                        : indikator.tipe_perhitungan === 'manual'
+                                                        ? 'Indikator bertipe manual tidak menggunakan komponen angka perhitungan.'
                                                         : 'Indikator ini belum memiliki komponen angka terdefinisi. Tambahkan komponen untuk memulai.'}
                                                 </p>
                                                 {can.create && !searchQuery && filterPeran === 'semua' && (

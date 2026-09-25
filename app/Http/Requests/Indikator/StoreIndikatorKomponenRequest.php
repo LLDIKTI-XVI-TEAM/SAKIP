@@ -8,6 +8,7 @@ use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreIndikatorKomponenRequest extends FormRequest
 {
@@ -75,6 +76,18 @@ class StoreIndikatorKomponenRequest extends FormRequest
             'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
             'aktif' => ['sometimes', 'boolean'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $indikator = $this->route('indikator');
+            $indikatorModel = $indikator instanceof IndikatorKinerja ? $indikator : IndikatorKinerja::find($indikator);
+
+            if ($indikatorModel?->tipe_perhitungan === 'manual') {
+                $validator->errors()->add('indikator', 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
+            }
+        });
     }
 
     /**

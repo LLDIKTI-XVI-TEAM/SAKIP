@@ -9,6 +9,7 @@ use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateIndikatorKomponenRequest extends FormRequest
 {
@@ -82,6 +83,18 @@ class UpdateIndikatorKomponenRequest extends FormRequest
             'aktif' => ['required', 'boolean'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $indikator = $this->route('indikator');
+            $indikatorModel = $indikator instanceof IndikatorKinerja ? $indikator : IndikatorKinerja::find($indikator);
+
+            if ($indikatorModel?->tipe_perhitungan === 'manual') {
+                $validator->errors()->add('indikator', 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
+            }
+        });
     }
 
     /**

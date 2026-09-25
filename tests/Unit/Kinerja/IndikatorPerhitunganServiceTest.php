@@ -265,4 +265,74 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $this->assertStringContainsString('zi_wbk', $contract['formula_text']);
         $this->assertCount(2, $contract['komponen_list']);
     }
+
+    /**
+     * Indikator manual dengan komponen aktif ditolak.
+     */
+    public function test_manual_dengan_komponen_aktif_ditolak(): void
+    {
+        $indikator = $this->createIndikator('manual');
+        $komponen = new Collection([
+            $this->createKomponen('x', 'penjumlah', 1.0, true),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        $result = $this->service->validateDefinisiKomponen($indikator);
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertContains('Indikator bertipe manual tidak menggunakan komponen angka perhitungan.', $result['messages']);
+    }
+
+    /**
+     * Indikator manual tanpa komponen valid secara definisi.
+     */
+    public function test_manual_tanpa_komponen_valid(): void
+    {
+        $indikator = $this->createIndikator('manual');
+        $indikator->setRelation('komponen', new Collection);
+
+        $result = $this->service->validateDefinisiKomponen($indikator);
+
+        $this->assertTrue($result['is_valid']);
+        $this->assertEmpty($result['messages']);
+
+        $contract = $this->service->getFormulaContract($indikator);
+        $this->assertSame('Input Manual Langsung', $contract['formula_text']);
+    }
+
+    /**
+     * Indikator manual mengevaluasi nilai langsung dan membulatkan sesuai presisi.
+     */
+    public function test_manual_evaluate_menggunakan_nilai_langsung(): void
+    {
+        $indikator = $this->createIndikator('manual', 2);
+        $indikator->setRelation('komponen', new Collection);
+
+        $hasil = $this->service->evaluate($indikator, ['nilai' => 88.5432]);
+        $this->assertSame(88.54, $hasil);
+
+        $nullHasil = $this->service->evaluate($indikator, []);
+        $this->assertNull($nullHasil);
+    }
+
+    /**
+     * Evaluasi membulatkan hasil perhitungan ke presisi indikator.
+     */
+    public function test_evaluate_membulatkan_ke_presisi_indikator(): void
+    {
+        $indikator = $this->createIndikator('penjumlahan', 2);
+        $komponen = new Collection([
+            $this->createKomponen('k1', 'penjumlah', 1.0, true, 1),
+            $this->createKomponen('k2', 'penjumlah', 1.0, true, 2),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        // 0.234 + 1.0006 = 1.2346 -> dibulatkan ke presisi 2 menjadi 1.23
+        $hasil = $this->service->evaluate($indikator, [
+            'k1' => 0.234,
+            'k2' => 1.0006,
+        ]);
+
+        $this->assertSame(1.23, $hasil);
+    }
 }
