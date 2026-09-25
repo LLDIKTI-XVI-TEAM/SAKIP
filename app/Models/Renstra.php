@@ -108,31 +108,37 @@ class Renstra extends Model
         $this->attributes['is_aktif'] = ($status === self::STATUS_AKTIF);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function pembuat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<Regulasi, $this> */
     public function regulasi(): BelongsTo
     {
         return $this->belongsTo(Regulasi::class, 'regulasi_id');
     }
 
+    /** @return MorphMany<Berkas, $this> */
     public function berkas(): MorphMany
     {
         return $this->morphMany(Berkas::class, 'berkasable');
     }
 
+    /** @return HasMany<SasaranStrategis, $this> */
     public function sasaranStrategis(): HasMany
     {
         return $this->hasMany(SasaranStrategis::class, 'renstra_id')->orderBy('urutan');
     }
 
+    /** @return HasMany<RenstraPk, $this> */
     public function renstraPk(): HasMany
     {
         return $this->hasMany(RenstraPk::class, 'renstra_id');
     }
 
+    /** @return HasMany<JadwalTahunan, $this> */
     public function jadwalTahunan(): HasMany
     {
         return $this->hasMany(JadwalTahunan::class, 'renstra_id');
