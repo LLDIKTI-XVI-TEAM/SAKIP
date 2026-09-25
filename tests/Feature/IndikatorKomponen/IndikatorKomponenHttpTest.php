@@ -430,8 +430,13 @@ class IndikatorKomponenHttpTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
+        $komponen = IndikatorKomponen::where('indikator_id', $this->indikator->id)
+            ->where('kode', 'exact_weight')
+            ->first();
+        $this->assertNotNull($komponen);
+
         $audit = AuditLog::where('tindakan', 'komponen.buat')
-            ->latest('created_at')
+            ->where('objek_id', $komponen->id)
             ->first();
 
         $this->assertNotNull($audit);
