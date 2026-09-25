@@ -108,6 +108,21 @@ class Renstra extends Model
         $this->attributes['is_aktif'] = ($status === self::STATUS_AKTIF);
     }
 
+    /**
+     * Menjaga keselarasan status operasional ketika is_aktif ditulis langsung.
+     */
+    public function setIsAktifAttribute(mixed $value): void
+    {
+        $isAktif = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        $this->attributes['is_aktif'] = $isAktif;
+
+        if ($isAktif && ($this->attributes['status'] ?? self::STATUS_DRAFT) === self::STATUS_DRAFT) {
+            $this->attributes['status'] = self::STATUS_AKTIF;
+        } elseif (! $isAktif && ($this->attributes['status'] ?? '') === self::STATUS_AKTIF) {
+            $this->attributes['status'] = self::STATUS_NONAKTIF;
+        }
+    }
+
     /** @return BelongsTo<User, $this> */
     public function pembuat(): BelongsTo
     {

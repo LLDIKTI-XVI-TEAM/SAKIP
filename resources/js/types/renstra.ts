@@ -37,6 +37,7 @@ export interface RenstraSummary {
     is_aktif: boolean;
     regulasi_id: number | null;
     regulasi_nomor: string | null;
+    regulasi?: RegulasiOption | null;
     berkas_count: number;
     pembuat: string | null;
     created_at: string | null;

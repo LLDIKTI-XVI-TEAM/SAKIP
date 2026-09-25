@@ -47,7 +47,7 @@ abstract class RenstraMutationRequest extends FormRequest
             'dasar_hukum' => ['nullable', 'string', 'max:5000'],
             'regulasi_id' => ['nullable', 'uuid', 'exists:regulasi,id'],
             'alasan' => $requireReason
-                ? ['required', 'string', 'min:10', 'max:1000']
+                ? ['required', 'string', 'min:5', 'max:1000']
                 : ['nullable', 'string', 'max:1000'],
             'lampiran' => ['sometimes', 'array'],
             'lampiran.*.mode' => ['required', Rule::in(['file', 'tautan', 'teks'])],
@@ -94,7 +94,7 @@ abstract class RenstraMutationRequest extends FormRequest
             'tahun_akhir.gte' => 'Tahun akhir harus lebih besar atau sama dengan tahun mulai.',
             'regulasi_id.exists' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
             'alasan.required' => 'Alasan perubahan wajib diisi.',
-            'alasan.min' => 'Alasan perubahan minimal 10 karakter.',
+            'alasan.min' => 'Alasan perubahan minimal 5 karakter.',
         ];
     }
 }

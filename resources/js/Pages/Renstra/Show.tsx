@@ -153,7 +153,7 @@ export default function ShowRenstra({
                             </Link>
                         )}
 
-                        {can.delete && !isAktif && (
+                        {can.delete && renstra.status === 'draft' && (
                             <Button
                                 type="button"
                                 variant="outline"
@@ -179,7 +179,7 @@ export default function ShowRenstra({
                                     Informasi Utama
                                 </h2>
 
-                                <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-4 sm:grid-cols-3">
                                     <div>
                                         <div className="text-xs font-medium text-muted">Periode Pelaksanaan</div>
                                         <div className="mt-1 font-mono text-sm font-semibold text-ink">
@@ -202,11 +202,6 @@ export default function ShowRenstra({
                                             <User className="h-4 w-4 text-muted" aria-hidden="true" />
                                             <span>{pembuatNama}</span>
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <div className="text-xs font-medium text-muted">Versi Dokumen</div>
-                                        <div className="mt-1 font-mono text-sm text-ink">v{renstra.versi ?? 1}</div>
                                     </div>
                                 </div>
 
@@ -406,7 +401,7 @@ export default function ShowRenstra({
                 title="Hapus Lampiran Renstra"
                 description={`Apakah Anda yakin ingin menghapus lampiran "${selectedBerkas?.nama_asli ?? selectedBerkas?.mode}"? Tindakan ini dicatat dalam audit log.`}
                 reason={deleteBerkasForm.data.alasan}
-                error={reasonError ?? deleteBerkasForm.errors.alasan}
+                error={reasonError ?? deleteBerkasForm.errors.alasan ?? (deleteBerkasForm.errors as Record<string, string | undefined>).berkas}
                 busy={deleteBerkasForm.processing}
                 confirmLabel="Hapus Lampiran"
                 destructive
@@ -420,7 +415,7 @@ export default function ShowRenstra({
                 title="Hapus Dokumen Renstra"
                 description={`Apakah Anda yakin ingin menghapus dokumen Renstra "${renstra.nama}" (${renstra.kode})? Tindakan ini dicatat dalam audit log.`}
                 reason={deleteRenstraForm.data.alasan}
-                error={renstraReasonError ?? deleteRenstraForm.errors.alasan}
+                error={renstraReasonError ?? deleteRenstraForm.errors.alasan ?? (deleteRenstraForm.errors as Record<string, string | undefined>).renstra}
                 busy={deleteRenstraForm.processing}
                 confirmLabel="Hapus Renstra"
                 destructive

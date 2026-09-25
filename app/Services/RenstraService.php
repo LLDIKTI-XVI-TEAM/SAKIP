@@ -61,7 +61,6 @@ class RenstraService
                     $renstra,
                     $data['lampiran'] ?? [],
                     $actor,
-                    $decision,
                     $storedPaths,
                 );
 
@@ -155,7 +154,6 @@ class RenstraService
                         $renstraTerkini,
                         $data['lampiran'],
                         $actor,
-                        $decision,
                         $storedPaths,
                     );
                 }
@@ -213,9 +211,9 @@ class RenstraService
         DB::transaction(function () use ($renstra, $alasan, $actor, $decision): void {
             $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
 
-            if ($renstraTerkini->status === Renstra::STATUS_AKTIF || $renstraTerkini->is_aktif) {
+            if ($renstraTerkini->status !== Renstra::STATUS_DRAFT) {
                 throw ValidationException::withMessages([
-                    'renstra' => 'Renstra yang sedang berstatus aktif tidak dapat dihapus.',
+                    'renstra' => 'Hanya Renstra berstatus draft yang dapat dihapus.',
                 ]);
             }
 
@@ -228,13 +226,29 @@ class RenstraService
             $renstraTerkini->load(['berkas', 'regulasi']);
             $nilaiLama = $this->snapshot($renstraTerkini);
 
-            $paths = $renstraTerkini->berkas()
-                ->where('mode', 'file')
-                ->pluck('path')
-                ->filter()
-                ->all();
+            $paths = [];
+            foreach ($renstraTerkini->berkas as $berkas) {
+                if ($berkas->mode === 'file' && is_string($berkas->path)) {
+                    $paths[] = $berkas->path;
+                }
 
-            $renstraTerkini->berkas()->delete();
+                $nilaiLamaBerkas = $this->metadataBerkasUntukAudit($berkas);
+
+                $berkas->dihapus_oleh = $actor->id;
+                $berkas->save();
+                $berkas->delete();
+
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'berkas.hapus',
+                    objekTipe: 'berkas',
+                    objekId: $berkas->id,
+                    nilaiLama: $nilaiLamaBerkas,
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+            }
+
             $renstraTerkini->delete();
 
             $this->auditLogger->catat(
@@ -271,7 +285,7 @@ class RenstraService
             $this->pastikanIzinDiizinkan($decision);
         }
 
-        DB::transaction(function () use ($renstra, $berkas, $alasan, $actor, $decision): void {
+        $penolakan = DB::transaction(function () use ($renstra, $berkas, $alasan, $actor, $decision): ?array {
             $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
             $berkasTerkini = Berkas::query()->lockForUpdate()->findOrFail($berkas->id);
 
@@ -291,9 +305,9 @@ class RenstraService
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
-                throw ValidationException::withMessages([
-                    'berkas' => 'Lampiran Renstra yang berstatus aktif tidak dapat dihapus karena telah mencapai batas imutabilitas.',
-                ]);
+                return [
+                    'pesan' => 'Lampiran Renstra yang berstatus aktif tidak dapat dihapus karena telah mencapai batas imutabilitas.',
+                ];
             }
 
             $path = $berkasTerkini->mode === 'file' && is_string($berkasTerkini->path) ? $berkasTerkini->path : null;
@@ -316,7 +330,15 @@ class RenstraService
             if ($path !== null) {
                 DB::afterCommit(fn () => $this->hapusFile([$path]));
             }
+
+            return null;
         });
+
+        if ($penolakan !== null) {
+            throw ValidationException::withMessages([
+                'berkas' => $penolakan['pesan'],
+            ]);
+        }
     }
 
     /**
@@ -349,25 +371,48 @@ class RenstraService
         Renstra $renstra,
         array $lampiran,
         User $actor,
-        PermissionDecision $decision,
         array &$storedPaths,
     ): void {
         if (empty($lampiran)) {
             return;
         }
 
-        $pengaturan = Pengaturan::query()
-            ->whereIn('kunci', [
-                'berkas.unggahan_aktif',
-                'berkas.max_file_size_kb',
-                'berkas.allowed_file_types',
-            ])
-            ->pluck('nilai', 'kunci');
+        $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+        $this->pastikanIzinDiizinkan($uploadDecision);
 
-        $isUploadActive = filter_var($pengaturan->get('berkas.unggahan_aktif', true), FILTER_VALIDATE_BOOLEAN);
-        $maxKb = (int) $pengaturan->get('berkas.max_file_size_kb', 10240);
-        $allowedFormatsStr = (string) $pengaturan->get('berkas.allowed_file_types', 'pdf,doc,docx,xls,xlsx,png,jpg,jpeg');
-        $allowedExtensions = array_values(array_filter(array_map('trim', explode(',', strtolower($allowedFormatsStr)))));
+        $adaFile = false;
+        foreach ($lampiran as $item) {
+            if (($item['mode'] ?? null) === 'file') {
+                $adaFile = true;
+                break;
+            }
+        }
+
+        $isUploadActive = true;
+        $maxKb = 10240;
+        $allowedExtensions = [];
+        $allowedFormatsStr = '';
+
+        if ($adaFile) {
+            $pengaturan = Pengaturan::query()
+                ->whereIn('kunci', [
+                    'berkas.unggahan_aktif',
+                    'berkas.ukuran_maks_kb',
+                    'berkas.format_diizinkan',
+                ])
+                ->pluck('nilai', 'kunci');
+
+            $isUploadActive = filter_var($pengaturan->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
+            if (! $isUploadActive) {
+                throw ValidationException::withMessages([
+                    'lampiran' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
+                ]);
+            }
+
+            $maxKb = (int) $pengaturan->get('berkas.ukuran_maks_kb', 10240);
+            $allowedFormatsStr = (string) $pengaturan->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png');
+            $allowedExtensions = array_values(array_filter(array_map('trim', explode(',', strtolower($allowedFormatsStr)))));
+        }
 
         foreach ($lampiran as $item) {
             $attributes = [
@@ -429,7 +474,7 @@ class RenstraService
                 objekTipe: 'berkas',
                 objekId: $berkas->id,
                 nilaiBaru: $this->metadataBerkasUntukAudit($berkas),
-                dasarIzin: $decision->toAuditBasis(),
+                dasarIzin: $uploadDecision->toAuditBasis(),
             );
         }
     }
@@ -485,7 +530,7 @@ class RenstraService
         } elseif ($berkas->mode === 'tautan') {
             $meta['tautan'] = $berkas->tautan;
         } else {
-            $meta['isi_teks'] = $berkas->isi_teks;
+            $meta['panjang_teks'] = mb_strlen((string) $berkas->isi_teks);
         }
 
         return $meta;

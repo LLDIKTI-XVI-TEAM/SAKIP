@@ -15,21 +15,29 @@ class ShowRenstra extends Controller
     {
         Gate::authorize('view', $renstra);
 
-        $renstra->load([
+        $user = $request->user();
+        $canViewAttachments = $user->can('viewAttachment', $renstra);
+
+        $relations = [
             'regulasi',
             'pembuat',
-            'berkas' => fn ($query) => $query->with('pengunggah')->orderByDesc('created_at'),
             'sasaranStrategis' => fn ($query) => $query->with('indikatorKinerjas')->orderBy('urutan'),
-        ]);
+        ];
 
-        $user = $request->user();
+        if ($canViewAttachments) {
+            $relations['berkas'] = fn ($query) => $query->with('pengunggah')->orderByDesc('created_at');
+        } else {
+            $renstra->setRelation('berkas', collect([]));
+        }
+
+        $renstra->load($relations);
 
         return Inertia::render('Renstra/Show', [
             'renstra' => $renstra,
             'can' => [
                 'update' => $user->can('update', $renstra),
                 'delete' => $user->can('delete', $renstra),
-                'deleteAttachment' => $user->can('delete', $renstra),
+                'deleteAttachment' => $user->can('deleteAttachment', $renstra),
             ],
         ]);
     }

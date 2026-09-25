@@ -202,6 +202,10 @@ test('AC-4: Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra akt
 
     $response->assertSessionHasErrors(['berkas']);
     $this->assertDatabaseHas('berkas', ['id' => $berkas->id]);
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'berkas.hapus_ditolak',
+        'objek_id' => $berkas->id,
+    ]);
 });
 
 test('AC-4: Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log', function (): void {
@@ -344,4 +348,110 @@ test('Update Renstra aktif mewajibkan alasan audit', function (): void {
         ->firstOrFail();
 
     expect($audit->alasan)->toBe('Penyesuaian redaksional nama dokumen Renstra.');
+});
+
+test('Penghapusan Renstra berstatus selain draft ditolak', function (): void {
+    $renstraNonaktif = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-NONAKTIF',
+        'status' => Renstra::STATUS_NONAKTIF,
+        'is_aktif' => false,
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from('/renstra')
+        ->delete("/renstra/{$renstraNonaktif->id}", [
+            'alasan' => 'Mencoba menghapus renstra nonaktif.',
+        ]);
+
+    $response->assertSessionHasErrors(['renstra']);
+    $this->assertDatabaseHas('renstras', ['id' => $renstraNonaktif->id]);
+});
+
+test('Penghapusan Renstra draft menghapus berkas lampiran dengan dihapus_oleh dan mencatat audit log berkas.hapus', function (): void {
+    Storage::fake('local');
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-DRAFT-CASCADE',
+        'status' => Renstra::STATUS_DRAFT,
+        'is_aktif' => false,
+    ]);
+
+    $file = UploadedFile::fake()->create('lampiran-cascade.pdf', 50, 'application/pdf');
+    $path = $file->store("berkas/renstra/{$renstra->id}", 'local');
+
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'file',
+        'nama_asli' => 'lampiran-cascade.pdf',
+        'path' => $path,
+        'disk' => 'local',
+        'mime' => 'application/pdf',
+        'ukuran_bytes' => 51200,
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from('/renstra')
+        ->delete("/renstra/{$renstra->id}", [
+            'alasan' => 'Menghapus draf renstra beserta seluruh lampirannya.',
+        ]);
+
+    $response->assertRedirect('/renstra');
+    $this->assertDatabaseMissing('renstras', ['id' => $renstra->id]);
+    expect(Berkas::query()->where('id', $berkas->id)->exists())->toBeFalse();
+    expect(Berkas::withTrashed()->where('id', $berkas->id)->first()->dihapus_pada)->not->toBeNull();
+    expect(Berkas::withTrashed()->where('id', $berkas->id)->first()->dihapus_oleh)->toBe($this->perencanaan->id);
+
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'berkas.hapus',
+        'objek_id' => $berkas->id,
+    ]);
+});
+
+test('Sinkronisasi status dan is_aktif bekerja dua arah pada model Renstra', function (): void {
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-SYNC',
+        'status' => Renstra::STATUS_DRAFT,
+        'is_aktif' => false,
+    ]);
+
+    $renstra->is_aktif = true;
+    expect($renstra->status)->toBe(Renstra::STATUS_AKTIF);
+
+    $renstra->is_aktif = false;
+    expect($renstra->status)->toBe(Renstra::STATUS_NONAKTIF);
+
+    $renstra->status = Renstra::STATUS_AKTIF;
+    expect($renstra->is_aktif)->toBeTrue();
+
+    $renstra->status = Renstra::STATUS_DRAFT;
+    expect($renstra->is_aktif)->toBeFalse();
+});
+
+test('Download lampiran Renstra memerlukan otorisasi viewAttachment', function (): void {
+    Storage::fake('local');
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-DOWNLOAD',
+    ]);
+
+    $file = UploadedFile::fake()->create('dokumen-unduh.pdf', 30, 'application/pdf');
+    $path = $file->store("berkas/renstra/{$renstra->id}", 'local');
+
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'file',
+        'nama_asli' => 'dokumen-unduh.pdf',
+        'path' => $path,
+        'disk' => 'local',
+        'mime' => 'application/pdf',
+        'ukuran_bytes' => 30720,
+    ]);
+
+    $responsePerencanaan = $this->actingAs($this->perencanaan)
+        ->get("/renstra/{$renstra->id}/berkas/{$berkas->id}/download");
+    $responsePerencanaan->assertOk();
+
+    $responsePembaca = $this->actingAs($this->pembaca)
+        ->get("/renstra/{$renstra->id}/berkas/{$berkas->id}/download");
+    $responsePembaca->assertForbidden();
 });

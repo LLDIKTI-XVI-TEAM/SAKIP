@@ -55,13 +55,20 @@ class RenstraPolicy
         return $this->response($decision);
     }
 
-    public function deleteAttachment(User $user, Renstra $renstra, Berkas $berkas): Response
+    public function deleteAttachment(User $user, Renstra $renstra, ?Berkas $berkas = null): Response
     {
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
 
-        if (! $decision->allowed) {
+        if (! $decision->allowed && $berkas !== null) {
             $this->catatPenolakanLampiran($user, $berkas, $decision);
         }
+
+        return $this->response($decision);
+    }
+
+    public function viewAttachment(User $user, Renstra $renstra, ?Berkas $berkas = null): Response
+    {
+        $decision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_READ);
 
         return $this->response($decision);
     }

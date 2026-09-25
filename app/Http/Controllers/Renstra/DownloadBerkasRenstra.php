@@ -15,6 +15,7 @@ class DownloadBerkasRenstra extends Controller
     public function __invoke(Request $request, Renstra $renstra, Berkas $berkas): StreamedResponse
     {
         Gate::authorize('view', $renstra);
+        Gate::authorize('viewAttachment', [$renstra, $berkas]);
 
         if ($berkas->berkasable_type !== $renstra->getMorphClass() || $berkas->berkasable_id !== $renstra->id) {
             abort(404, 'Lampiran tidak terkait dengan Renstra ini.');

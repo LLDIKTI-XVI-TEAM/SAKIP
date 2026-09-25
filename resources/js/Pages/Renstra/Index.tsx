@@ -241,8 +241,8 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                 </Badge>
                                             </td>
                                             <td className="px-5 py-4 text-xs text-muted">
-                                                {item.regulasi_nomor ? (
-                                                    <span className="font-medium text-ink">{item.regulasi_nomor}</span>
+                                                {item.regulasi?.nomor || item.regulasi_nomor ? (
+                                                    <span className="font-medium text-ink">{item.regulasi?.nomor || item.regulasi_nomor}</span>
                                                 ) : (
                                                     <span className="text-muted italic">Tidak ada</span>
                                                 )}
@@ -279,7 +279,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Tooltip>
                                                     )}
 
-                                                    {can['renstra:delete'] && item.status !== 'aktif' && (
+                                                    {can['renstra:delete'] && item.status === 'draft' && (
                                                         <Tooltip content="Hapus Renstra">
                                                             <button
                                                                 type="button"
@@ -336,7 +336,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                 title="Konfirmasi Hapus Renstra"
                 description={`Apakah Anda yakin ingin menghapus data Renstra "${selected?.nama}" (${selected?.kode})? Tindakan ini akan dicatat dalam audit log.`}
                 reason={deleteForm.data.alasan}
-                error={reasonError ?? deleteForm.errors.alasan}
+                error={reasonError ?? deleteForm.errors.alasan ?? (deleteForm.errors as Record<string, string | undefined>).renstra}
                 busy={deleteForm.processing}
                 confirmLabel="Hapus Renstra"
                 destructive
