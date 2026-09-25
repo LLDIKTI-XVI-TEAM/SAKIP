@@ -99,6 +99,81 @@ class IndikatorPerhitunganServiceTest extends TestCase
     }
 
     /**
+     * Penjumlahan dengan komponen aktif bukan penjumlah (pembilang/penyebut) ditolak.
+     */
+    public function test_penjumlahan_dengan_komponen_non_penjumlah_ditolak(): void
+    {
+        $indikator = $this->createIndikator('penjumlahan');
+        $komponen = new Collection([
+            $this->createKomponen('x', 'penjumlah', 1.0, true),
+            $this->createKomponen('y', 'pembilang', 1.0, true),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        $result = $this->service->validateDefinisiKomponen($indikator);
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertContains('Seluruh komponen aktif pada indikator bertipe penjumlahan wajib berperan sebagai penjumlah.', $result['messages']);
+    }
+
+    /**
+     * Rasio persen dengan komponen penjumlah aktif ditolak.
+     */
+    public function test_rasio_persen_dengan_penjumlah_ditolak(): void
+    {
+        $indikator = $this->createIndikator('rasio_persen');
+        $komponen = new Collection([
+            $this->createKomponen('n', 'pembilang', 1.0, true),
+            $this->createKomponen('t', 'penyebut', 1.0, true),
+            $this->createKomponen('extra', 'penjumlah', 1.0, true),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        $result = $this->service->validateDefinisiKomponen($indikator);
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertContains('Indikator bertipe rasio persen tidak boleh memiliki komponen berperan penjumlah.', $result['messages']);
+    }
+
+    /**
+     * Rasio persen dengan penyebut berbobot 0 ditolak.
+     */
+    public function test_rasio_persen_dengan_penyebut_bobot_nol_ditolak(): void
+    {
+        $indikator = $this->createIndikator('rasio_persen');
+        $komponen = new Collection([
+            $this->createKomponen('n', 'pembilang', 1.0, true),
+            $this->createKomponen('t', 'penyebut', 0.0, true),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        $result = $this->service->validateDefinisiKomponen($indikator);
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertContains('Komponen penyebut pada indikator bertipe rasio persen wajib memiliki bobot lebih besar dari 0 agar formula dapat dihitung.', $result['messages']);
+    }
+
+    /**
+     * Evaluate mengembalikan null jika belum semua komponen aktif diisi.
+     */
+    public function test_evaluate_mengembalikan_null_jika_komponen_aktif_belum_lengkap(): void
+    {
+        $indikator = $this->createIndikator('penjumlahan', 2);
+        $komponen = new Collection([
+            $this->createKomponen('a', 'penjumlah', 0.5, true, 1),
+            $this->createKomponen('b', 'penjumlah', 0.5, true, 2),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        // Hanya komponen 'a' yang diisi, 'b' kosong
+        $hasil = $this->service->evaluate($indikator, [
+            'a' => 10,
+        ]);
+
+        $this->assertNull($hasil);
+    }
+
+    /**
      * TEST-4: Kombinasi generic valid berhasil.
      */
     public function test_kombinasi_generic_valid_berhasil(): void

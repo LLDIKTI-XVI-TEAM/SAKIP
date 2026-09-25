@@ -30,6 +30,7 @@ class IndikatorPerhitunganService
         if ($indikator->tipe_perhitungan === 'rasio_persen') {
             $pembilangCount = $aktifKomponen->where('peran', 'pembilang')->count();
             $penyebutCount = $aktifKomponen->where('peran', 'penyebut')->count();
+            $penjumlahCount = $aktifKomponen->where('peran', 'penjumlah')->count();
 
             if ($pembilangCount < 1) {
                 $messages[] = 'Indikator bertipe rasio persen wajib memiliki minimal satu pembilang aktif.';
@@ -39,12 +40,25 @@ class IndikatorPerhitunganService
                 $messages[] = 'Indikator bertipe rasio persen wajib memiliki tepat satu penyebut aktif.';
             } elseif ($penyebutCount > 1) {
                 $messages[] = 'Indikator bertipe rasio persen tidak boleh memiliki lebih dari satu penyebut aktif.';
+            } else {
+                $penyebut = $aktifKomponen->firstWhere('peran', 'penyebut');
+                if ($penyebut && (float) $penyebut->bobot <= 0) {
+                    $messages[] = 'Komponen penyebut pada indikator bertipe rasio persen wajib memiliki bobot lebih besar dari 0 agar formula dapat dihitung.';
+                }
+            }
+
+            if ($penjumlahCount > 0) {
+                $messages[] = 'Indikator bertipe rasio persen tidak boleh memiliki komponen berperan penjumlah.';
             }
         } elseif ($indikator->tipe_perhitungan === 'penjumlahan') {
             $penjumlahCount = $aktifKomponen->where('peran', 'penjumlah')->count();
 
             if ($penjumlahCount < 1) {
                 $messages[] = 'Indikator bertipe penjumlahan wajib memiliki minimal satu komponen penjumlah aktif.';
+            }
+
+            if ($aktifKomponen->count() !== $penjumlahCount) {
+                $messages[] = 'Seluruh komponen aktif pada indikator bertipe penjumlahan wajib berperan sebagai penjumlah.';
             }
         }
 
@@ -105,6 +119,13 @@ class IndikatorPerhitunganService
         $aktifKomponen = $komponen->filter(fn ($k) => (bool) $k->aktif);
 
         $presisi = (int) ($indikator->presisi ?? 2);
+
+        // Seluruh komponen aktif harus memiliki nilai sebelum hasil dapat dievaluasi
+        foreach ($aktifKomponen as $item) {
+            if (! array_key_exists($item->kode, $komponenValues) || $komponenValues[$item->kode] === null || $komponenValues[$item->kode] === '') {
+                return null;
+            }
+        }
 
         if ($indikator->tipe_perhitungan === 'rasio_persen') {
             $pembilangItems = $aktifKomponen->where('peran', 'pembilang');

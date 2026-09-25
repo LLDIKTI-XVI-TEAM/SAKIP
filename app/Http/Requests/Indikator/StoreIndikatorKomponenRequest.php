@@ -61,8 +61,18 @@ class StoreIndikatorKomponenRequest extends FormRequest
             'label' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
             'peran' => ['required', 'string', Rule::in(['pembilang', 'penyebut', 'penjumlah'])],
-            'bobot' => ['required', 'numeric', 'min:0'],
-            'urutan' => ['required', 'integer', 'min:1'],
+            'bobot' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:999999999',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($this->input('peran') === 'penyebut' && (float) $value <= 0) {
+                        $fail('Bobot untuk komponen dengan peran penyebut wajib lebih besar dari 0.');
+                    }
+                },
+            ],
+            'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
             'aktif' => ['sometimes', 'boolean'],
         ];
     }
@@ -84,9 +94,11 @@ class StoreIndikatorKomponenRequest extends FormRequest
             'bobot.required' => 'Bobot komponen wajib diisi.',
             'bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
             'bobot.min' => 'Bobot komponen minimal bernilai 0.',
+            'bobot.max' => 'Bobot komponen tidak boleh melebihi 999.999.999.',
             'urutan.required' => 'Urutan komponen wajib diisi.',
             'urutan.integer' => 'Urutan komponen harus berupa bilangan bulat.',
             'urutan.min' => 'Urutan komponen minimal 1.',
+            'urutan.max' => 'Urutan komponen tidak boleh melebihi 32.767.',
         ];
     }
 }

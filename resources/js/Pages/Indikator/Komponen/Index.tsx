@@ -135,7 +135,6 @@ export default function KomponenIndex({
     validation,
     can = { create: false, update: false, delete: false },
 }: IndexProps) {
-    const { flash } = usePage<{ flash?: { success?: string; error?: string } }>().props;
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPeran, setFilterPeran] = useState<string>('semua');
     const [isUnitHovered, setIsUnitHovered] = useState(false);
@@ -194,40 +193,55 @@ export default function KomponenIndex({
     const simulasiResult = useMemo(() => {
         if (!validation.is_valid || aktifKomponen.length === 0) return null;
 
-        const hasInput = aktifKomponen.some(k => simulasiValues[k.kode] !== undefined && simulasiValues[k.kode] !== '');
-        if (!hasInput) return null;
+        const allInputsFilled = aktifKomponen.every(
+            k => simulasiValues[k.kode] !== undefined && simulasiValues[k.kode] !== ''
+        );
+        const filledCount = aktifKomponen.filter(
+            k => simulasiValues[k.kode] !== undefined && simulasiValues[k.kode] !== ''
+        ).length;
+
+        if (!allInputsFilled) {
+            if (filledCount > 0) {
+                return {
+                    status: 'belum_lengkap',
+                    value: null,
+                    note: `Menunggu seluruh input komponen aktif terisi (${filledCount}/${aktifKomponen.length})`,
+                };
+            }
+            return null;
+        }
 
         if (indikator.tipe_perhitungan === 'rasio_persen') {
             const pembilangKomponen = aktifKomponen.filter(k => k.peran === 'pembilang');
             const penyebutKomponen = aktifKomponen.find(k => k.peran === 'penyebut');
 
-            if (!penyebutKomponen) return { error: 'Penyebut tidak ditemukan' };
+            if (!penyebutKomponen) return { status: 'error', value: null, note: 'Penyebut tidak ditemukan' };
 
             const rawPenyebut = simulasiValues[penyebutKomponen.kode];
             const valPenyebut = typeof rawPenyebut === 'number' ? rawPenyebut : 0;
-            const effectivePenyebut = valPenyebut * Number(penyebutKomponen.bobot || 1);
+            const effectivePenyebut = valPenyebut * Number(penyebutKomponen.bobot ?? 1);
 
             if (effectivePenyebut === 0) {
-                return { value: null, note: 'Nilai tidak dapat dihitung (pembagian dengan nol / penyebut 0)' };
+                return { status: 'error', value: null, note: 'Nilai tidak dapat dihitung (pembagian dengan nol / penyebut 0)' };
             }
 
             let sumPembilang = 0;
             pembilangKomponen.forEach(k => {
                 const val = typeof simulasiValues[k.kode] === 'number' ? simulasiValues[k.kode] : 0;
-                sumPembilang += (val as number) * Number(k.bobot || 1);
+                sumPembilang += (val as number) * Number(k.bobot ?? 1);
             });
 
             const hasil = (sumPembilang / effectivePenyebut) * 100;
-            return { value: hasil, note: `${sumPembilang} / ${effectivePenyebut} × 100%` };
+            return { status: 'terhitung', value: hasil, note: `${sumPembilang} / ${effectivePenyebut} × 100%` };
         }
 
         if (indikator.tipe_perhitungan === 'penjumlahan') {
             let total = 0;
             aktifKomponen.forEach(k => {
                 const val = typeof simulasiValues[k.kode] === 'number' ? simulasiValues[k.kode] : 0;
-                total += (val as number) * Number(k.bobot || 1);
+                total += (val as number) * Number(k.bobot ?? 1);
             });
-            return { value: total, note: 'Penjumlahan tertimbang komponen aktif' };
+            return { status: 'terhitung', value: total, note: 'Penjumlahan tertimbang komponen aktif' };
         }
 
         return null;
@@ -378,6 +392,7 @@ export default function KomponenIndex({
     return (
         <AuthenticatedLayout
             title={`Konfigurasi Komponen - ${indikator.kode}`}
+            hasCustomHeading={true}
             breadcrumbs={[
                 { label: 'Perencanaan' },
                 { label: 'Indikator Kinerja' },
@@ -388,20 +403,6 @@ export default function KomponenIndex({
             <Head title={`Komponen Indikator: ${indikator.kode}`} />
 
             <div className="space-y-6">
-                {/* Flash Messages */}
-                {flash?.success && (
-                    <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm font-medium text-success-dark">
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
-                        <span>{flash.success}</span>
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="flex items-center gap-3 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm font-medium text-danger-dark">
-                        <AlertCircle className="h-5 w-5 shrink-0 text-danger" />
-                        <span>{flash.error}</span>
-                    </div>
-                )}
-
                 {/* Page Header */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
@@ -625,13 +626,19 @@ export default function KomponenIndex({
                                                 <span className="text-xs text-muted block">Hasil Simulasi Evaluasi:</span>
                                                 {simulasiResult ? (
                                                     simulasiResult.value === null ? (
-                                                        <span className="text-sm font-semibold text-danger">
+                                                        <span className={`text-sm font-semibold ${simulasiResult.status === 'belum_lengkap' ? 'text-warning-dark' : 'text-danger'}`}>
                                                             {simulasiResult.note}
                                                         </span>
                                                     ) : (
                                                         <div className="flex items-baseline gap-2">
                                                             <span className="text-lg font-bold text-primary">
-                                                                {Number(simulasiResult.value).toFixed(2)}
+                                                                {Number(simulasiResult.value).toFixed(
+                                                                    typeof indikator.desimal_tampilan === 'number'
+                                                                        ? indikator.desimal_tampilan
+                                                                        : typeof indikator.presisi === 'number'
+                                                                        ? indikator.presisi
+                                                                        : 2
+                                                                )}
                                                                 {indikator.tipe_perhitungan === 'rasio_persen' && '%'}
                                                             </span>
                                                             {simulasiResult.note && (
@@ -641,7 +648,7 @@ export default function KomponenIndex({
                                                     )
                                                 ) : (
                                                     <span className="text-xs text-muted italic">
-                                                        Masukkan nilai pada komponen di atas untuk melihat simulasi hasil.
+                                                        Masukkan nilai pada seluruh komponen di atas untuk melihat simulasi hasil.
                                                     </span>
                                                 )}
                                             </div>

@@ -117,21 +117,36 @@ class IndikatorKomponenController extends Controller
 
         $alasan = $request->validated('alasan');
 
-        DB::transaction(function () use ($komponen, $actor, $alasan, $decision) {
-            $nilaiLama = $komponen->toArray();
-            $komponen->delete();
+        $isReferenced = DB::table('jadwal_snapshot_komponen')->where('komponen_id', $komponen->id)->exists()
+            || DB::table('rencana_aksi_target')->where('komponen_id', $komponen->id)->exists()
+            || DB::table('pengukuran_komponen')->where('komponen_id', $komponen->id)->exists()
+            || DB::table('klaim_kegiatan')->where('komponen_id', $komponen->id)->exists();
 
-            $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'komponen.hapus',
-                objekTipe: 'indikator_komponen',
-                objekId: $komponen->id,
-                nilaiLama: $nilaiLama,
-                nilaiBaru: null,
-                alasan: $alasan,
-                dasarIzin: $decision,
-            );
-        });
+        if ($isReferenced) {
+            return redirect()->to("/indikator/{$indikator->id}/komponen")
+                ->with('error', 'Komponen tidak dapat dihapus karena sudah direferensikan pada data snapshot, pengukuran, rencana aksi, atau klaim kegiatan. Silakan nonaktifkan komponen sebagai alternatif.');
+        }
+
+        try {
+            DB::transaction(function () use ($komponen, $actor, $alasan, $decision) {
+                $nilaiLama = $komponen->toArray();
+                $komponen->delete();
+
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'komponen.hapus',
+                    objekTipe: 'indikator_komponen',
+                    objekId: $komponen->id,
+                    nilaiLama: $nilaiLama,
+                    nilaiBaru: null,
+                    alasan: $alasan,
+                    dasarIzin: $decision,
+                );
+            });
+        } catch (\Illuminate\Database\QueryException) {
+            return redirect()->to("/indikator/{$indikator->id}/komponen")
+                ->with('error', 'Komponen tidak dapat dihapus karena memiliki keterkaitan data pada sistem. Silakan nonaktifkan komponen.');
+        }
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil dihapus.');
