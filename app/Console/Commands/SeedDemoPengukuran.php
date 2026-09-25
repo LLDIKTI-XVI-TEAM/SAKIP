@@ -22,11 +22,11 @@ class SeedDemoPengukuran extends Command
 {
     protected $signature = 'sakip:seed-demo-pengukuran';
 
-    protected $description = 'Menyusun 1 set data simulasi operasional pengukuran kinerja aktif untuk pengujian.';
+    protected $description = 'Menyusun dan menyinkronkan data operasional pengukuran kinerja aktif untuk semua indikator aktif.';
 
     public function handle(): int
     {
-        $this->info('Memulai penyusunan data simulasi pengukuran kinerja...');
+        $this->info('Memulai sinkronisasi data operasional pengukuran kinerja...');
 
         DB::beginTransaction();
 
@@ -51,12 +51,11 @@ class SeedDemoPengukuran extends Command
                 return self::FAILURE;
             }
 
-            // 3. Ambil Indikator Kinerja yang dibuat user
-            $indikator = IndikatorKinerja::where('id', '01a0d6aa-c11d-73a0-adbf-c62ccd51f9b5')->first()
-                ?? IndikatorKinerja::first();
+            // 3. Ambil Seluruh Indikator Kinerja Aktif
+            $indikators = IndikatorKinerja::where('is_aktif', true)->get();
 
-            if (! $indikator) {
-                $this->error('Indikator Kinerja tidak ditemukan. Buat indikator terlebih dahulu.');
+            if ($indikators->isEmpty()) {
+                $this->error('Tidak ada Indikator Kinerja aktif. Buat indikator terlebih dahulu di Perencanaan.');
                 DB::rollBack();
 
                 return self::FAILURE;
@@ -113,126 +112,131 @@ class SeedDemoPengukuran extends Command
                 ['pengisian_mulai' => '2026-12-01', 'pengisian_selesai' => '2026-12-31', 'reviu_mulai' => '2027-01-01', 'reviu_selesai' => '2027-01-31']
             );
 
-            // 8. Buat Target Kinerja 2026
-            TargetKinerja::updateOrCreate(
-                ['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026],
-                [
-                    'target_tahunan' => 85.00,
-                    'target_tw1' => 20.00,
-                    'target_tw2' => 45.00,
-                    'target_tw3' => 70.00,
-                    'target_tw4' => 85.00,
-                ]
-            );
+            $rows = [];
 
-            // 9. Buat Jadwal Snapshot Indikator
-            $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
-                ->where('indikator_id', $indikator->id)
-                ->first();
+            // 8. Sinkronkan Setiap Indikator ke Pengukuran Kinerja Aktif
+            foreach ($indikators as $indikator) {
+                // A. Target Kinerja 2026
+                TargetKinerja::updateOrCreate(
+                    ['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026],
+                    [
+                        'target_tahunan' => 85.00,
+                        'target_tw1' => 20.00,
+                        'target_tw2' => 45.00,
+                        'target_tw3' => 70.00,
+                        'target_tw4' => 85.00,
+                    ]
+                );
 
-            if (! $snapshot) {
-                $snapshot = JadwalSnapshot::create([
-                    'jadwal_id' => $jadwal->id,
-                    'indikator_id' => $indikator->id,
-                    'periode_mulai_id' => $tw1->id,
-                    'unit_id' => $indikator->unit_id,
-                    'nama' => $indikator->nama,
-                    'definisi' => $indikator->definisi_operasional ?: 'Definisi operasional indikator kinerja.',
-                    'satuan' => $indikator->satuan,
-                    'presisi' => $indikator->presisi,
-                    'desimal_tampilan' => $indikator->desimal_tampilan,
-                    'arah' => $indikator->arah,
-                    'tipe_perhitungan' => $indikator->tipe_perhitungan,
-                    'target' => 70.00,
-                ]);
-            }
+                // B. Snapshot Jadwal
+                $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
+                    ->where('indikator_id', $indikator->id)
+                    ->first();
 
-            // 10. Tetapkan Penugasan Indikator (PIC) ke Pengguna
-            PenugasanIndikator::firstOrCreate(
-                ['indikator_id' => $indikator->id, 'user_id' => $user->id],
-                [
-                    'tanggal_mulai_berlaku' => '2026-01-01',
-                    'ditetapkan_oleh' => $user->id,
-                    'created_at' => now(),
-                ]
-            );
+                if (! $snapshot) {
+                    $snapshot = JadwalSnapshot::create([
+                        'jadwal_id' => $jadwal->id,
+                        'indikator_id' => $indikator->id,
+                        'periode_mulai_id' => $tw1->id,
+                        'unit_id' => $indikator->unit_id,
+                        'nama' => $indikator->nama,
+                        'definisi' => $indikator->definisi_operasional ?: 'Definisi operasional indikator kinerja.',
+                        'satuan' => $indikator->satuan,
+                        'presisi' => $indikator->presisi,
+                        'desimal_tampilan' => $indikator->desimal_tampilan,
+                        'arah' => $indikator->arah,
+                        'tipe_perhitungan' => $indikator->tipe_perhitungan,
+                        'target' => 70.00,
+                    ]);
+                }
 
-            // 11. Buat Rencana Aksi Sah
-            $ra = RencanaAksi::firstOrCreate(
-                ['indikator_id' => $indikator->id, 'tahun' => 2026],
-                [
-                    'unit_id' => $indikator->unit_id,
-                    'jadwal_tahunan_id' => $jadwal->id,
-                    'jadwal_snapshot_id' => $snapshot->id,
-                    'penanggung_jawab_id' => $user->id,
-                    'created_by' => $user->id,
-                    'status_alur' => 'disahkan',
-                    'disahkan_by' => $user->id,
-                    'disahkan_at' => now(),
-                ]
-            );
+                // C. Penugasan PIC ke Pengguna
+                PenugasanIndikator::firstOrCreate(
+                    ['indikator_id' => $indikator->id, 'user_id' => $user->id],
+                    [
+                        'tanggal_mulai_berlaku' => '2026-01-01',
+                        'ditetapkan_oleh' => $user->id,
+                        'created_at' => now(),
+                    ]
+                );
 
-            RencanaAksiVersi::firstOrCreate(
-                ['rencana_aksi_id' => $ra->id, 'nomor' => 1],
-                [
-                    'jadwal_snapshot_id' => $snapshot->id,
-                    'diajukan_by' => $user->id,
-                    'diajukan_at' => now(),
-                    'jalur_pengajuan' => 'perencanaan',
-                    'dasar_izin_pengajuan' => ['keterangan' => 'Rencana aksi disahkan awal tahun'],
-                    'snapshot' => [
-                        'target_periode' => [
-                            [
-                                'periode_id' => $tw3->id,
-                                'nilai' => 70,
-                                'status_perhitungan' => 'terhitung',
-                                'komponen' => [],
+                // D. Rencana Aksi Sah
+                $ra = RencanaAksi::firstOrCreate(
+                    ['indikator_id' => $indikator->id, 'tahun' => 2026],
+                    [
+                        'unit_id' => $indikator->unit_id,
+                        'jadwal_tahunan_id' => $jadwal->id,
+                        'jadwal_snapshot_id' => $snapshot->id,
+                        'penanggung_jawab_id' => $user->id,
+                        'created_by' => $user->id,
+                        'status_alur' => 'disahkan',
+                        'disahkan_by' => $user->id,
+                        'disahkan_at' => now(),
+                    ]
+                );
+
+                RencanaAksiVersi::firstOrCreate(
+                    ['rencana_aksi_id' => $ra->id, 'nomor' => 1],
+                    [
+                        'jadwal_snapshot_id' => $snapshot->id,
+                        'diajukan_by' => $user->id,
+                        'diajukan_at' => now(),
+                        'jalur_pengajuan' => 'perencanaan',
+                        'dasar_izin_pengajuan' => ['keterangan' => 'Rencana aksi disahkan awal tahun'],
+                        'snapshot' => [
+                            'target_periode' => [
+                                [
+                                    'periode_id' => $tw3->id,
+                                    'nilai' => 70,
+                                    'status_perhitungan' => 'terhitung',
+                                    'komponen' => [],
+                                ],
                             ],
                         ],
-                    ],
-                    'disahkan_by' => $user->id,
-                    'disahkan_at' => now(),
-                ]
-            );
+                        'disahkan_by' => $user->id,
+                        'disahkan_at' => now(),
+                    ]
+                );
 
-            // 12. Buat Baris Pengukuran Kinerja (Draft)
-            $pengukuran = PengukuranKinerja::firstOrCreate(
-                [
-                    'indikator_id' => $indikator->id,
-                    'tahun' => 2026,
-                    'periode_id' => $tw3->id,
-                    'jadwal_snapshot_id' => $snapshot->id,
-                ],
-                [
-                    'status_alur' => 'draft',
-                    'nilai' => null,
-                    'status_perhitungan' => 'belum_diisi',
-                    'sumber_nilai' => 'manual',
-                    'versi' => 1,
-                    'created_by' => $user->id,
-                ]
-            );
+                // E. Baris Pengukuran Kinerja
+                $pengukuran = PengukuranKinerja::firstOrCreate(
+                    [
+                        'indikator_id' => $indikator->id,
+                        'tahun' => 2026,
+                        'periode_id' => $tw3->id,
+                        'jadwal_snapshot_id' => $snapshot->id,
+                    ],
+                    [
+                        'status_alur' => 'draft',
+                        'nilai' => null,
+                        'status_perhitungan' => 'belum_diisi',
+                        'sumber_nilai' => 'manual',
+                        'versi' => 1,
+                        'created_by' => $user->id,
+                    ]
+                );
+
+                $rows[] = [
+                    $indikator->kode,
+                    $indikator->nama,
+                    '70 '.$indikator->satuan,
+                    $pengukuran->id,
+                    $pengukuran->status_alur,
+                ];
+            }
 
             DB::commit();
 
-            $this->info('Data simulasi pengukuran kinerja berhasil dibuat!');
+            $this->info('Sinkronisasi data pengukuran kinerja berhasil!');
             $this->table(
-                ['Entitas', 'Nilai'],
-                [
-                    ['Pengguna / PIC', $user->nama.' ('.$user->email.')'],
-                    ['Renstra', $renstra->kode.' - '.$renstra->nama],
-                    ['Tahun & Periode', '2026 - '.$tw3->nama],
-                    ['Indikator', $indikator->kode.' - '.$indikator->nama],
-                    ['Target Triwulan III', '70 '.$indikator->satuan],
-                    ['ID Pengukuran', $pengukuran->id],
-                    ['Status Alur', $pengukuran->status_alur],
-                ]
+                ['Kode IKU', 'Nama Indikator', 'Target TW3', 'ID Pengukuran', 'Status'],
+                $rows
             );
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->error('Gagal membuat data simulasi: '.$e->getMessage());
+            $this->error('Gagal sinkronisasi data: '.$e->getMessage());
 
             return self::FAILURE;
         }
