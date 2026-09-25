@@ -16,14 +16,21 @@ class IndexRenstra extends Controller
     {
         Gate::authorize('viewAny', Renstra::class);
 
-        $regulasiPilihan = Regulasi::query()
-            ->where('aktif', true)
-            ->orderBy('tahun', 'desc')
-            ->orderBy('nomor')
-            ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
+        $user = $request->user();
+        $dapatBacaRegulasi = $user !== null && $user->can('viewAny', Regulasi::class);
+
+        $regulasiPilihan = $dapatBacaRegulasi
+            ? Regulasi::query()
+                ->where('aktif', true)
+                ->orderBy('tahun', 'desc')
+                ->orderBy('nomor')
+                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
+            : [];
+
+        $withRelations = $dapatBacaRegulasi ? ['regulasi'] : [];
 
         $query = Renstra::query()
-            ->with(['regulasi', 'pembuat'])
+            ->with($withRelations)
             ->withCount(['sasaranStrategis', 'berkas']);
 
         if ($q = $request->input('q')) {
@@ -44,8 +51,6 @@ class IndexRenstra extends Controller
             ->orderBy('kode')
             ->paginate(15)
             ->withQueryString();
-
-        $user = $request->user();
 
         return Inertia::render('Renstra/Index', [
             'renstra' => $renstra,

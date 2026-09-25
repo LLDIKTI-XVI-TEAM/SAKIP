@@ -143,7 +143,7 @@ export default function ShowRenstra({
                             Kembali ke Master
                         </Link>
 
-                        {can.update && (
+                        {can.update && renstra.status !== 'diarsipkan' && (
                             <Link
                                 href={`/renstra/${renstra.id}/edit`}
                                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -317,7 +317,7 @@ export default function ShowRenstra({
                                                         </a>
                                                     )}
 
-                                                    {can.deleteAttachment && !isAktif && (
+                                                    {can.deleteAttachment && renstra.status === 'draft' && (
                                                         <button
                                                             type="button"
                                                             onClick={() => openDeleteBerkas(item)}

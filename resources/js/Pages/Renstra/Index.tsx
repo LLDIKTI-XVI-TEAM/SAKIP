@@ -266,7 +266,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Link>
                                                     </Tooltip>
 
-                                                    {can['renstra:update'] && (
+                                                    {can['renstra:update'] && item.status !== 'diarsipkan' && (
                                                         <Tooltip content="Edit Dokumen">
                                                             <Link
                                                                 href={`/renstra/${item.id}/edit`}

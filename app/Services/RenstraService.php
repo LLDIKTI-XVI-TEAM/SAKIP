@@ -121,6 +121,13 @@ class RenstraService
         try {
             return DB::transaction(function () use ($renstra, $data, $actor, $decision, &$storedPaths): Renstra {
                 $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
+
+                if ($renstraTerkini->status === Renstra::STATUS_DIARSIPKAN) {
+                    throw ValidationException::withMessages([
+                        'renstra' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
+                    ]);
+                }
+
                 $renstraTerkini->load(['berkas', 'regulasi']);
                 $nilaiLama = $this->snapshot($renstraTerkini);
                 $regulasiIdLama = $renstraTerkini->regulasi_id;
@@ -269,6 +276,31 @@ class RenstraService
                 ];
             }
 
+            $hasBerkas = $renstraTerkini->berkas()->exists();
+            $berkasDecision = null;
+            if ($hasBerkas) {
+                $berkasDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
+                if (! $berkasDecision->allowed) {
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'renstra.hapus_ditolak',
+                        objekTipe: 'renstra',
+                        objekId: $renstraTerkini->id,
+                        nilaiLama: $this->snapshot($renstraTerkini),
+                        nilaiBaru: [
+                            'alasan_penolakan' => 'berkas_delete_denied',
+                        ],
+                        alasan: $alasan,
+                        dasarIzin: $berkasDecision->toAuditBasis(),
+                    );
+
+                    return [
+                        'field' => 'renstra',
+                        'pesan' => 'Renstra tidak dapat dihapus karena Anda tidak memiliki izin untuk menghapus lampiran berkas yang terkait.',
+                    ];
+                }
+            }
+
             $renstraTerkini->load(['berkas', 'regulasi']);
             $nilaiLama = $this->snapshot($renstraTerkini);
 
@@ -291,7 +323,7 @@ class RenstraService
                     objekId: $berkas->id,
                     nilaiLama: $nilaiLamaBerkas,
                     alasan: $alasan,
-                    dasarIzin: $decision->toAuditBasis(),
+                    dasarIzin: $berkasDecision ? $berkasDecision->toAuditBasis() : $decision->toAuditBasis(),
                 );
             }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Renstra;
 
 use App\Http\Controllers\Controller;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,11 +18,17 @@ class ShowRenstra extends Controller
 
         $user = $request->user();
         $canViewAttachments = $user->can('viewAttachment', $renstra);
+        $dapatBacaRegulasi = $user->can('viewAny', Regulasi::class);
 
         $relations = [
-            'regulasi',
-            'pembuat',
+            'pembuat:id,nama',
         ];
+
+        if ($dapatBacaRegulasi) {
+            $relations[] = 'regulasi';
+        } else {
+            $renstra->setRelation('regulasi', null);
+        }
 
         if ($canViewAttachments) {
             $relations['berkas'] = fn ($query) => $query->with('pengunggah')->orderByDesc('created_at');
@@ -34,7 +41,7 @@ class ShowRenstra extends Controller
         return Inertia::render('Renstra/Show', [
             'renstra' => $renstra,
             'can' => [
-                'update' => $user->can('update', $renstra),
+                'update' => $user->can('update', $renstra) && $renstra->status !== Renstra::STATUS_DIARSIPKAN,
                 'delete' => $user->can('delete', $renstra),
                 'deleteAttachment' => $user->can('deleteAttachment', $renstra),
             ],

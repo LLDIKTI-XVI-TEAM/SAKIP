@@ -35,7 +35,16 @@ class DestroyBerkasRenstraRequest extends FormRequest
         $berkas = $this->route('berkas');
 
         if ($user instanceof User && $berkas instanceof Berkas) {
-            $decision = app(PermissionResolver::class)->resolve($user, PermissionCodes::BERKAS_DELETE);
+            $resolver = app(PermissionResolver::class);
+            $parentDelete = $resolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
+            $parentUpdate = $resolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+
+            if (! $parentDelete->allowed && ! $parentUpdate->allowed) {
+                $decision = $parentDelete;
+            } else {
+                $decision = $resolver->resolve($user, PermissionCodes::BERKAS_DELETE);
+            }
+
             $rawAlasan = $this->input('alasan');
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
 

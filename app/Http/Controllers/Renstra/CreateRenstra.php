@@ -16,11 +16,15 @@ class CreateRenstra extends Controller
     {
         Gate::authorize('create', Renstra::class);
 
-        $regulasiPilihan = Regulasi::query()
-            ->where('aktif', true)
-            ->orderBy('tahun', 'desc')
-            ->orderBy('nomor')
-            ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
+        $dapatBacaRegulasi = $request->user()?->can('viewAny', Regulasi::class) ?? false;
+
+        $regulasiPilihan = $dapatBacaRegulasi
+            ? Regulasi::query()
+                ->where('aktif', true)
+                ->orderBy('tahun', 'desc')
+                ->orderBy('nomor')
+                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
+            : [];
 
         return Inertia::render('Renstra/Create', [
             'regulasiPilihan' => $regulasiPilihan,
