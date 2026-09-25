@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Regulasi;
+use App\Models\Renstra;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RegulasiPolicy;
+use App\Policies\RenstraPolicy;
 use App\Policies\UnitPolicy;
 use App\Services\Auth\KeycloakIdentityProvider;
 use App\Services\Authorization\PermissionCatalog;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(Regulasi::class, RegulasiPolicy::class);
+        Gate::policy(Renstra::class, RenstraPolicy::class);
 
         foreach (PermissionCatalog::codes() as $code) {
             Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {

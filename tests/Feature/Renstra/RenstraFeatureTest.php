@@ -1,0 +1,347 @@
+<?php
+
+use App\Models\AuditLog;
+use App\Models\Berkas;
+use App\Models\Permission;
+use App\Models\Regulasi;
+use App\Models\Renstra;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\Authorization\RolePermissionPresets;
+use Database\Seeders\RegulasiPermissionSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+class RenstraPestTestCase extends TestCase
+{
+    public User $perencanaan;
+
+    public User $pembaca;
+}
+
+uses(RenstraPestTestCase::class, RefreshDatabase::class);
+
+function pasangPresetRoleUntukTestRenstra(string $roleName): void
+{
+    $role = Role::query()->where('kode', $roleName)->firstOrFail();
+    $permissionIds = Permission::query()
+        ->whereIn('kode', RolePermissionPresets::forRole($roleName))
+        ->pluck('id');
+
+    $role->permissions()->syncWithoutDetaching($permissionIds
+        ->mapWithKeys(fn (string $permissionId): array => [$permissionId => ['id' => (string) Str::uuid(), 'created_at' => now()]])
+        ->all());
+}
+
+function userDenganRoleRenstra(string $roleName, string $email): User
+{
+    $role = Role::query()->where('kode', $roleName)->firstOrFail();
+    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user->roles()->attach($role->id, [
+        'id' => (string) Str::uuid(),
+        'sumber_pemberian' => 'manual',
+        'diberikan_oleh' => $user->id,
+        'created_at' => now(),
+    ]);
+
+    return $user;
+}
+
+function buatRenstra(User $pembuat, array $overrides = []): Renstra
+{
+    return Renstra::query()->create(array_merge([
+        'nama' => 'Rencana Strategis LLDIKTI XVI 2025-2029',
+        'kode' => 'RENSTRA-2025-2029',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'status' => Renstra::STATUS_DRAFT,
+        'is_aktif' => false,
+        'deskripsi' => 'Dokumen induk perencanaan strategis.',
+        'dasar_hukum' => 'Permendikbudristek terkait SAKIP.',
+        'created_by' => $pembuat->id,
+    ], $overrides));
+}
+
+beforeEach(function (): void {
+    $this->seed(RegulasiPermissionSeeder::class);
+    pasangPresetRoleUntukTestRenstra('perencanaan');
+    pasangPresetRoleUntukTestRenstra('pegawai');
+    $this->perencanaan = userDenganRoleRenstra('perencanaan', 'perencanaan-renstra@example.test');
+    $this->pembaca = userDenganRoleRenstra('pegawai', 'pembaca-renstra@example.test');
+});
+
+test('AC-1: Data Renstra valid tersimpan dengan status awal draft', function (): void {
+    $payload = [
+        'nama' => 'Rencana Strategis LLDIKTI XVI 2025-2029',
+        'kode' => 'RENSTRA-2025-2029',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'deskripsi' => 'Penyusunan awal Renstra LLDIKTI Wilayah XVI.',
+        'dasar_hukum' => 'Kepmendikbudristek penetapan Renstra.',
+    ];
+
+    $response = $this->actingAs($this->perencanaan)->post('/renstra', $payload);
+
+    $response->assertRedirect('/renstra');
+
+    $renstra = Renstra::query()->where('kode', 'RENSTRA-2025-2029')->firstOrFail();
+
+    expect($renstra->status)->toBe('draft');
+    expect($renstra->is_aktif)->toBeFalse();
+    expect($renstra->nama)->toBe('Rencana Strategis LLDIKTI XVI 2025-2029');
+    expect($renstra->created_by)->toBe($this->perencanaan->id);
+
+    $this->assertDatabaseHas('renstras', [
+        'id' => $renstra->id,
+        'kode' => 'RENSTRA-2025-2029',
+        'status' => 'draft',
+        'is_aktif' => false,
+    ]);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'renstra.buat')
+        ->where('objek_id', $renstra->id)
+        ->firstOrFail();
+
+    expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
+});
+
+test('AC-2: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode', function (): void {
+    Storage::fake('local');
+
+    $payload = [
+        'nama' => 'Renstra Berkas LLDIKTI XVI',
+        'kode' => 'RENSTRA-LAMPIRAN',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'lampiran' => [
+            [
+                'mode' => 'file',
+                'file' => UploadedFile::fake()->create('naskah-renstra.pdf', 300, 'application/pdf'),
+            ],
+            [
+                'mode' => 'tautan',
+                'tautan' => 'https://jdih.kemdikbud.go.id/dokumen/renstra-2025',
+            ],
+            [
+                'mode' => 'teks',
+                'isi_teks' => 'Kutipan substansi arah kebijakan naskah Renstra.',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($this->perencanaan)->post('/renstra', $payload);
+
+    $response->assertRedirect('/renstra');
+
+    $renstra = Renstra::query()->where('kode', 'RENSTRA-LAMPIRAN')->firstOrFail();
+    expect($renstra->berkas)->toHaveCount(3);
+
+    $this->assertDatabaseHas('berkas', [
+        'berkasable_type' => $renstra->getMorphClass(),
+        'berkasable_id' => $renstra->id,
+        'jenis_berkas_id' => null,
+        'mode' => 'file',
+    ]);
+    $this->assertDatabaseHas('berkas', [
+        'berkasable_type' => $renstra->getMorphClass(),
+        'berkasable_id' => $renstra->id,
+        'mode' => 'tautan',
+        'tautan' => 'https://jdih.kemdikbud.go.id/dokumen/renstra-2025',
+    ]);
+    $this->assertDatabaseHas('berkas', [
+        'berkasable_type' => $renstra->getMorphClass(),
+        'berkasable_id' => $renstra->id,
+        'mode' => 'teks',
+    ]);
+
+    $fileBerkas = $renstra->berkas->firstWhere('mode', 'file');
+    Storage::disk('local')->assertExists($fileBerkas->path);
+});
+
+test('AC-3: Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak', function (): void {
+    $payloadInvalid = [
+        'nama' => 'Renstra Tahun Terbalik',
+        'kode' => 'RENSTRA-INVALID-YEAR',
+        'tahun_mulai' => 2030,
+        'tahun_selesai' => 2025,
+    ];
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from('/renstra/create')
+        ->post('/renstra', $payloadInvalid);
+
+    $response->assertSessionHasErrors(['tahun_selesai']);
+    $this->assertDatabaseMissing('renstras', ['kode' => 'RENSTRA-INVALID-YEAR']);
+});
+
+test('AC-4: Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra aktif ditolak', function (): void {
+    Storage::fake('local');
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-AKTIF-LOCK',
+        'status' => Renstra::STATUS_AKTIF,
+        'is_aktif' => true,
+    ]);
+
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'tautan',
+        'tautan' => 'https://example.test/naskah-final.pdf',
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from("/renstra/{$renstra->id}")
+        ->delete("/renstra/{$renstra->id}/berkas/{$berkas->id}", [
+            'alasan' => 'Mencoba menghapus dokumen naskah yang sudah aktif.',
+        ]);
+
+    $response->assertSessionHasErrors(['berkas']);
+    $this->assertDatabaseHas('berkas', ['id' => $berkas->id]);
+});
+
+test('AC-4: Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log', function (): void {
+    Storage::fake('local');
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-DRAFT-HAPUS',
+        'status' => Renstra::STATUS_DRAFT,
+        'is_aktif' => false,
+    ]);
+
+    $file = UploadedFile::fake()->create('draft-naskah.pdf', 100, 'application/pdf');
+    $path = $file->store('berkas/renstra', 'local');
+
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'file',
+        'nama_asli' => 'draft-naskah.pdf',
+        'path' => $path,
+        'disk' => 'local',
+        'mime' => 'application/pdf',
+        'ukuran_bytes' => 102400,
+    ]);
+
+    Storage::disk('local')->assertExists($path);
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from("/renstra/{$renstra->id}")
+        ->delete("/renstra/{$renstra->id}/berkas/{$berkas->id}", [
+            'alasan' => 'Revisi dokumen draf naskah sebelum disahkan.',
+        ]);
+
+    $response->assertRedirect("/renstra/{$renstra->id}");
+    expect(Berkas::query()->where('id', $berkas->id)->exists())->toBeFalse();
+    expect(Berkas::withTrashed()->where('id', $berkas->id)->first()->dihapus_pada)->not->toBeNull();
+    Storage::disk('local')->assertMissing($path);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'berkas.hapus')
+        ->where('objek_id', $berkas->id)
+        ->firstOrFail();
+
+    expect($audit->alasan)->toBe('Revisi dokumen draf naskah sebelum disahkan.');
+    expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
+});
+
+test('RBAC: Pegawai tanpa renstra:create ditolak 403 saat mencoba membuat Renstra', function (): void {
+    $response = $this->actingAs($this->pembaca)->post('/renstra', [
+        'nama' => 'Renstra Tidak Berhak',
+        'kode' => 'RENSTRA-403',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+    ]);
+
+    $response->assertForbidden();
+    $this->assertDatabaseMissing('renstras', ['kode' => 'RENSTRA-403']);
+});
+
+test('RBAC: Renstra index dan show dapat diakses oleh perencanaan dan ditolak untuk role tanpa renstra:read', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-BACA']);
+
+    // Perencanaan memiliki izin renstra:read
+    $responseIndex = $this->actingAs($this->perencanaan)->get('/renstra');
+    $responseIndex->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Index')
+            ->has('renstra.data')
+            ->has('regulasiPilihan')
+        );
+
+    $responseShow = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}");
+    $responseShow->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('renstra.kode', 'RENSTRA-BACA')
+        );
+
+    // Pegawai tanpa renstra:read ditolak 403
+    $this->actingAs($this->pembaca)->get('/renstra')->assertForbidden();
+    $this->actingAs($this->pembaca)->get("/renstra/{$renstra->id}")->assertForbidden();
+});
+
+test('Renstra dapat ditautkan ke regulasi rujukan', function (): void {
+    $regulasi = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 123/2024',
+        'tahun' => 2024,
+        'tentang' => 'Standar Akuntabilitas',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    $payload = [
+        'nama' => 'Renstra Berdasar Regulasi',
+        'kode' => 'RENSTRA-REGULASI',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'regulasi_id' => $regulasi->id,
+    ];
+
+    $this->actingAs($this->perencanaan)->post('/renstra', $payload);
+
+    $renstra = Renstra::query()->where('kode', 'RENSTRA-REGULASI')->firstOrFail();
+    expect($renstra->regulasi_id)->toBe($regulasi->id);
+    expect($renstra->regulasi->nomor)->toBe('Permen 123/2024');
+});
+
+test('Update Renstra aktif mewajibkan alasan audit', function (): void {
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-UPDATE-AKTIF',
+        'status' => Renstra::STATUS_AKTIF,
+        'is_aktif' => true,
+    ]);
+
+    $responseTanpaAlasan = $this->actingAs($this->perencanaan)
+        ->from("/renstra/{$renstra->id}/edit")
+        ->put("/renstra/{$renstra->id}", [
+            'nama' => 'Nama Baru Tanpa Alasan',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'alasan' => '',
+        ]);
+
+    $responseTanpaAlasan->assertSessionHasErrors(['alasan']);
+
+    $responseDenganAlasan = $this->actingAs($this->perencanaan)
+        ->put("/renstra/{$renstra->id}", [
+            'nama' => 'Renstra Nama Telah Diperbarui',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'alasan' => 'Penyesuaian redaksional nama dokumen Renstra.',
+        ]);
+
+    $responseDenganAlasan->assertRedirect("/renstra/{$renstra->id}");
+    expect($renstra->fresh()->nama)->toBe('Renstra Nama Telah Diperbarui');
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'renstra.ubah')
+        ->where('objek_id', $renstra->id)
+        ->firstOrFail();
+
+    expect($audit->alasan)->toBe('Penyesuaian redaksional nama dokumen Renstra.');
+});

@@ -17,6 +17,11 @@ export interface SharedPageProps extends PageProps {
             verifikasi: boolean;
             aktivasi: boolean;
             regulasi: boolean;
+            renstra?: boolean;
+            'renstra:create'?: boolean;
+            'renstra:read'?: boolean;
+            'renstra:update'?: boolean;
+            'renstra:delete'?: boolean;
             assignRole: boolean;
             manageDeny: boolean;
             unit: boolean;
