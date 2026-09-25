@@ -67,7 +67,7 @@ export interface KomponenItem {
     kode: string;
     label: string;
     peran: 'pembilang' | 'penyebut' | 'penjumlah';
-    bobot: number;
+    bobot: number | string;
     urutan: number;
     satuan: string | null;
     aktif: boolean;
@@ -943,7 +943,7 @@ export default function KomponenIndex({
                                 value={formData.bobot}
                                 onChange={e => setFormData(prev => ({ ...prev, bobot: e.target.value }))}
                                 error={formErrors.bobot}
-                                helperText="Pengali bobot pada formula."
+                                helperText="Pengali bobot pada formula (maks. 12 digit pecahan desimal)."
                             />
                         </div>
 

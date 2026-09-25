@@ -15,6 +15,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,20 +62,31 @@ class IndikatorKomponenController extends Controller
         $data['indikator_id'] = $indikator->id;
         $data['created_by'] = $actor->id;
 
-        DB::transaction(function () use ($data, $actor, $decision) {
-            $komponen = IndikatorKomponen::create($data);
+        try {
+            DB::transaction(function () use ($data, $actor, $decision) {
+                $komponen = IndikatorKomponen::create($data);
+                $komponen = $komponen->fresh();
 
-            $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'komponen.buat',
-                objekTipe: 'indikator_komponen',
-                objekId: $komponen->id,
-                nilaiLama: null,
-                nilaiBaru: $komponen->toArray(),
-                alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.')',
-                dasarIzin: $decision,
-            );
-        });
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'komponen.buat',
+                    objekTipe: 'indikator_komponen',
+                    objekId: $komponen->id,
+                    nilaiLama: null,
+                    nilaiBaru: $this->formatAuditSnapshot($komponen),
+                    alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.')',
+                    dasarIzin: $decision,
+                );
+            });
+        } catch (QueryException $e) {
+            if ($this->isUniqueConstraintViolation($e)) {
+                throw ValidationException::withMessages([
+                    'kode' => 'Kode komponen sudah digunakan pada indikator ini.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil ditambahkan.');
@@ -92,21 +104,32 @@ class IndikatorKomponenController extends Controller
         $alasan = $data['alasan'];
         unset($data['alasan']);
 
-        DB::transaction(function () use ($komponen, $data, $actor, $alasan, $decision) {
-            $nilaiLama = $komponen->toArray();
-            $komponen->update($data);
+        try {
+            DB::transaction(function () use ($komponen, $data, $actor, $alasan, $decision) {
+                $nilaiLama = $this->formatAuditSnapshot($komponen);
+                $komponen->update($data);
+                $nilaiBaru = $this->formatAuditSnapshot($komponen->fresh());
 
-            $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'komponen.ubah',
-                objekTipe: 'indikator_komponen',
-                objekId: $komponen->id,
-                nilaiLama: $nilaiLama,
-                nilaiBaru: $komponen->fresh()->toArray(),
-                alasan: $alasan,
-                dasarIzin: $decision,
-            );
-        });
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'komponen.ubah',
+                    objekTipe: 'indikator_komponen',
+                    objekId: $komponen->id,
+                    nilaiLama: $nilaiLama,
+                    nilaiBaru: $nilaiBaru,
+                    alasan: $alasan,
+                    dasarIzin: $decision,
+                );
+            });
+        } catch (QueryException $e) {
+            if ($this->isUniqueConstraintViolation($e)) {
+                throw ValidationException::withMessages([
+                    'kode' => 'Kode komponen sudah digunakan pada indikator ini.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil diperbarui.');
@@ -133,7 +156,7 @@ class IndikatorKomponenController extends Controller
 
         try {
             DB::transaction(function () use ($komponen, $actor, $alasan, $decision) {
-                $nilaiLama = $komponen->toArray();
+                $nilaiLama = $this->formatAuditSnapshot($komponen);
                 $komponen->delete();
 
                 $this->auditLogger->catat(
@@ -154,5 +177,39 @@ class IndikatorKomponenController extends Controller
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil dihapus.');
+    }
+
+    /**
+     * Membentuk snapshot audit dengan memastikan nilai desimal bobot tetap eksak sebagai string.
+     *
+     * @return array<string, mixed>
+     */
+    private function formatAuditSnapshot(IndikatorKomponen $komponen): array
+    {
+        $snapshot = $komponen->toArray();
+        $rawBobot = $komponen->getRawOriginal('bobot');
+        if ($rawBobot !== null && $rawBobot !== '') {
+            $snapshot['bobot'] = (string) $rawBobot;
+        } elseif (isset($snapshot['bobot'])) {
+            $snapshot['bobot'] = (string) $snapshot['bobot'];
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * Mengecek apakah QueryException merupakan pelanggaran unique constraint pada kode komponen.
+     */
+    private function isUniqueConstraintViolation(QueryException $e): bool
+    {
+        $sqlState = (string) $e->getCode();
+        $errorCode = $e->errorInfo[1] ?? null;
+        $message = strtolower($e->getMessage());
+
+        return $sqlState === '23505'
+            || $errorCode === 1062
+            || $errorCode === 19
+            || str_contains($message, 'unique')
+            || str_contains($message, 'duplicate');
     }
 }

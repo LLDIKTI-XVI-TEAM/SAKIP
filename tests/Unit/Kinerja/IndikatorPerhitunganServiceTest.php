@@ -335,4 +335,23 @@ class IndikatorPerhitunganServiceTest extends TestCase
 
         $this->assertSame(1.23, $hasil);
     }
+
+    /**
+     * Evaluasi dengan bobot desimal presisi tinggi tetap akurat.
+     */
+    public function test_evaluasi_dengan_bobot_berpresisi_tinggi_tetap_akurat(): void
+    {
+        $indikator = $this->createIndikator('penjumlahan', 4);
+        $komponen = new Collection([
+            $this->createKomponen('k1', 'penjumlah', 0.123456789012, true, 1),
+        ]);
+        $indikator->setRelation('komponen', $komponen);
+
+        // 100 * 0.123456789012 = 12.3456789012 -> presisi 4 = 12.3457
+        $hasil = $this->service->evaluate($indikator, [
+            'k1' => 100,
+        ]);
+
+        $this->assertSame(12.3457, $hasil);
+    }
 }

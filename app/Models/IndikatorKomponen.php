@@ -27,7 +27,7 @@ class IndikatorKomponen extends Model
     ];
 
     protected $casts = [
-        'bobot' => 'float',
+        'bobot' => 'decimal:12',
         'urutan' => 'integer',
         'aktif' => 'boolean',
     ];

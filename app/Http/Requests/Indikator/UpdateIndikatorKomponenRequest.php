@@ -71,10 +71,11 @@ class UpdateIndikatorKomponenRequest extends FormRequest
             'bobot' => [
                 'required',
                 'numeric',
+                'decimal:0,12',
                 'min:0',
                 'max:999999999',
                 function (string $attribute, mixed $value, \Closure $fail) {
-                    if ($this->input('peran') === 'penyebut' && (float) $value <= 0) {
+                    if ($this->input('peran') === 'penyebut' && ((float) $value <= 0 || round((float) $value, 12) <= 0)) {
                         $fail('Bobot untuk komponen dengan peran penyebut wajib lebih besar dari 0.');
                     }
                 },
@@ -113,6 +114,7 @@ class UpdateIndikatorKomponenRequest extends FormRequest
             'peran.in' => 'Peran komponen harus salah satu dari: pembilang, penyebut, penjumlah.',
             'bobot.required' => 'Bobot komponen wajib diisi.',
             'bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
+            'bobot.decimal' => 'Bobot komponen maksimal memiliki 12 digit pecahan desimal.',
             'bobot.min' => 'Bobot komponen minimal bernilai 0.',
             'bobot.max' => 'Bobot komponen tidak boleh melebihi 999.999.999.',
             'urutan.required' => 'Urutan komponen wajib diisi.',

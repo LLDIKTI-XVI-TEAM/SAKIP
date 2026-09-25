@@ -377,4 +377,94 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'm1',
         ]);
     }
+
+    /**
+     * Input bobot lebih dari 12 digit pecahan desimal ditolak validasi.
+     */
+    public function test_bobot_lebih_dari_12_digit_pecahan_ditolak_validasi(): void
+    {
+        $this->actingAs($this->perencanaan)
+            ->post("/indikator/{$this->indikator->id}/komponen", [
+                'kode' => 'p_tiny',
+                'label' => 'Pembilang Presisi Terlalu Kecil',
+                'peran' => 'pembilang',
+                'bobot' => '0.0000000000001', // 13 digit desimal
+                'urutan' => 1,
+                'aktif' => true,
+            ])
+            ->assertSessionHasErrors('bobot');
+    }
+
+    /**
+     * Komponen penyebut dengan bobot 0 atau mendekati 0 yang terpotong ditolak.
+     */
+    public function test_bobot_penyebut_nol_ditolak_validasi(): void
+    {
+        $this->actingAs($this->perencanaan)
+            ->post("/indikator/{$this->indikator->id}/komponen", [
+                'kode' => 't_zero',
+                'label' => 'Penyebut Nol',
+                'peran' => 'penyebut',
+                'bobot' => '0',
+                'urutan' => 1,
+                'aktif' => true,
+            ])
+            ->assertSessionHasErrors('bobot');
+    }
+
+    /**
+     * Audit log menyimpan bobot desimal eksak sebagai string tanpa rounding IEEE-754.
+     */
+    public function test_audit_log_menyimpan_bobot_desimal_eksak(): void
+    {
+        $exactBobot = '123456789.123456789012';
+
+        $this->actingAs($this->perencanaan)
+            ->post("/indikator/{$this->indikator->id}/komponen", [
+                'kode' => 'exact_weight',
+                'label' => 'Bobot Presisi Tinggi',
+                'peran' => 'pembilang',
+                'bobot' => $exactBobot,
+                'urutan' => 1,
+                'aktif' => true,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $audit = AuditLog::where('tindakan', 'komponen.buat')
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame($exactBobot, (string) $audit->nilai_baru['bobot']);
+    }
+
+    /**
+     * Benturan kode komponen saat transaksi menghasilkan ValidationException pada field kode, bukan 500.
+     */
+    public function test_benturan_kode_saat_transaksi_menghasilkan_validation_error(): void
+    {
+        // Buat komponen pertama
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id,
+            'kode' => 'race_code',
+            'label' => 'Komponen Awal',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Kirim request create dengan kode yang sama
+        $this->actingAs($this->perencanaan)
+            ->post("/indikator/{$this->indikator->id}/komponen", [
+                'kode' => 'race_code',
+                'label' => 'Komponen Duplikat',
+                'peran' => 'pembilang',
+                'bobot' => 1.0,
+                'urutan' => 2,
+                'aktif' => true,
+            ])
+            ->assertSessionHasErrors('kode');
+    }
 }
