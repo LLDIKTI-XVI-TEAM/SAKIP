@@ -841,7 +841,7 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
     $responseShow->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Renstra/Show')
-            ->missing('renstra.regulasi')
+            ->where('renstra.regulasi', null)
             ->has('renstra.pembuat', fn (Assert $pembuat) => $pembuat
                 ->has('id')
                 ->has('nama')

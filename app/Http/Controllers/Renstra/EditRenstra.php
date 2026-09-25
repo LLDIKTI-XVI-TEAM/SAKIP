@@ -31,7 +31,7 @@ class EditRenstra extends Controller
                 ->orderBy('nomor')
                 ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
         } else {
-            $renstra->setRelation('regulasi', null);
+            $renstra->unsetRelation('regulasi');
             $regulasiPilihan = [];
         }
 

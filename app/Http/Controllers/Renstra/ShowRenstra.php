@@ -26,8 +26,6 @@ class ShowRenstra extends Controller
 
         if ($dapatBacaRegulasi) {
             $relations[] = 'regulasi';
-        } else {
-            $renstra->setRelation('regulasi', null);
         }
 
         if ($canViewAttachments) {
@@ -37,6 +35,10 @@ class ShowRenstra extends Controller
         }
 
         $renstra->load($relations);
+
+        if (! $dapatBacaRegulasi) {
+            $renstra->unsetRelation('regulasi');
+        }
 
         return Inertia::render('Renstra/Show', [
             'renstra' => $renstra,
