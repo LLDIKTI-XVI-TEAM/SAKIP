@@ -7,6 +7,7 @@ use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserPermissionDeny;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -770,12 +771,12 @@ test('Penghapusan Renstra dengan lampiran berkas menghormati deny berkas:delete'
 
     // Berikan user explicit deny pada berkas:delete
     $berkasDeletePerm = Permission::query()->where('kode', 'berkas:delete')->firstOrFail();
-    DB::table('user_permission_denials')->insert([
+    UserPermissionDeny::create([
         'id' => (string) Str::uuid(),
         'user_id' => $this->perencanaan->id,
         'permission_id' => $berkasDeletePerm->id,
-        'diberikan_oleh' => $this->perencanaan->id,
-        'created_at' => now(),
+        'alasan' => 'Deny berkas:delete untuk pengujian',
+        'ditetapkan_oleh' => $this->perencanaan->id,
     ]);
 
     $response = $this->actingAs($this->perencanaan)
@@ -815,12 +816,12 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
 
     // Berikan user explicit deny pada regulasi:read
     $regulasiReadPerm = Permission::query()->where('kode', 'regulasi:read')->firstOrFail();
-    DB::table('user_permission_denials')->insert([
+    UserPermissionDeny::create([
         'id' => (string) Str::uuid(),
         'user_id' => $this->perencanaan->id,
         'permission_id' => $regulasiReadPerm->id,
-        'diberikan_oleh' => $this->perencanaan->id,
-        'created_at' => now(),
+        'alasan' => 'Deny regulasi:read untuk pengujian',
+        'ditetapkan_oleh' => $this->perencanaan->id,
     ]);
 
     // Pada halaman Index: regulasiPilihan harus kosong [] dan pembuat tidak diserialisasi
