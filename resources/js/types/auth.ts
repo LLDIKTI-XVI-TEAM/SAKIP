@@ -25,6 +25,7 @@ export interface SharedPageProps extends PageProps {
             jenisBerkas?: boolean;
             storagePolicy?: boolean;
             storagePolicyUpdate?: boolean;
+            sasaranIndikator?: boolean;
         };
     };
     flash?: {

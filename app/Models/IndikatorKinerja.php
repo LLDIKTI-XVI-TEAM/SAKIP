@@ -25,6 +25,7 @@ class IndikatorKinerja extends Model
         'tipe_perhitungan', 'unit_id', 'arah', 'presisi', 'desimal_tampilan', 'wajib_catatan',
         'jenis_agregasi',
         'is_aktif',
+        'created_by_role',
     ];
 
     protected $casts = [
@@ -35,6 +36,24 @@ class IndikatorKinerja extends Model
     public function sasaranStrategis(): BelongsTo
     {
         return $this->belongsTo(SasaranStrategis::class, 'sasaran_strategis_id');
+    }
+
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
+    /** @return BelongsTo<Regulasi, $this> */
+    public function regulasi(): BelongsTo
+    {
+        return $this->belongsTo(Regulasi::class, 'regulasi_id');
+    }
+
+    /** @return HasMany<IndikatorKomponen, $this> */
+    public function komponen(): HasMany
+    {
+        return $this->hasMany(IndikatorKomponen::class, 'indikator_id')->orderBy('urutan');
     }
 
     /** @return HasMany<TargetKinerja, $this> */

@@ -41,6 +41,21 @@ final class PermissionCodes
 
     public const JENIS_BERKAS_DELETE = 'jenis_berkas:delete';
 
+    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    public const SASARAN_CREATE = 'sasaran:create';
+
+    public const SASARAN_UPDATE = 'sasaran:update';
+
+    public const SASARAN_DELETE = 'sasaran:delete';
+
+    public const INDIKATOR_CREATE = 'indikator:create';
+
+    public const INDIKATOR_READ = 'indikator:read';
+
+    public const INDIKATOR_UPDATE = 'indikator:update';
+
+    public const INDIKATOR_DELETE = 'indikator:delete';
+
     // --- 9 Kode Permission Scope Unit untuk Form Grant (ISS-01.04, §6 Dokumen Konfirmasi Permission) ---
 
     public const RENCANA_AKSI_READ = 'rencana_aksi:read';
@@ -215,6 +230,27 @@ final class PermissionCodes
         return [
             self::PENGUKURAN_CREATE,
             self::PENGUKURAN_UPDATE,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function sasaran(): array
+    {
+        return [
+            self::SASARAN_CREATE,
+            self::SASARAN_UPDATE,
+            self::SASARAN_DELETE,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function indikator(): array
+    {
+        return [
+            self::INDIKATOR_CREATE,
+            self::INDIKATOR_READ,
+            self::INDIKATOR_UPDATE,
+            self::INDIKATOR_DELETE,
         ];
     }
 }

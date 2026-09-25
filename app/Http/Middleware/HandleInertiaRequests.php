@@ -36,6 +36,7 @@ class HandleInertiaRequests extends Middleware
                         'jenisBerkas' => $can['jenisBerkas'],
                         'storagePolicy' => $can['storagePolicy'],
                         'storagePolicyUpdate' => $can['storagePolicyUpdate'],
+                        'sasaranIndikator' => $can['sasaranIndikator'],
                     ],
                 ];
             },
@@ -71,6 +72,7 @@ class HandleInertiaRequests extends Middleware
             'jenisBerkas' => false,
             'storagePolicy' => false,
             'storagePolicyUpdate' => false,
+            'sasaranIndikator' => false,
         ];
 
         if ($user === null || ! $user->is_active) {
@@ -111,6 +113,7 @@ class HandleInertiaRequests extends Middleware
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
+            'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
         ];
 
         if ($request) {
