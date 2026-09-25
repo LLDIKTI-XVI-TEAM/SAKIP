@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { http, HttpResponseError, type HttpExceptionResponse } from '@inertiajs/core';
-import { formatNilai } from './formatNilai';
+import { useFormatNilai } from './formatNilai';
 import { statusPerhitungan, type Pengukuran } from './types';
 
 interface PreviewProps { id: string; komponen: { komponen_id: string; nilai: string }[]; satuan: string; desimalTampilan: number; paused: boolean; onRecovery: (response: HttpExceptionResponse) => void }
 type Result = Pick<Pengukuran, 'nilai' | 'status_perhitungan'>;
 
 export default function CalculationPreview({ id, komponen, satuan, desimalTampilan, paused, onRecovery }: PreviewProps) {
+    const formatNilai = useFormatNilai();
     const payload = JSON.stringify({ komponen: komponen.map((item) => ({ ...item, nilai: item.nilai === '' ? null : item.nilai })) });
     const [preview, setPreview] = useState<{ payload: string; result?: Result; error?: string } | null>(null);
     useEffect(() => {

@@ -7,7 +7,7 @@ import { Badge } from '@/Components/Badge';
 import type { Pengukuran, PeriodePengukuran, PengukuranPagination } from './types';
 import { statusPerhitungan } from './types';
 import Pagination from './Pagination';
-import { formatNilai } from './formatNilai';
+import { useFormatNilai } from './formatNilai';
 
 interface PengukuranIndexProps {
     periode: PeriodePengukuran | null;
@@ -16,6 +16,8 @@ interface PengukuranIndexProps {
 }
 
 export default function PengukuranIndex({ periode, pengukurans = [], pagination }: PengukuranIndexProps) {
+    const formatNilai = useFormatNilai();
+
     return (
         <AuthenticatedLayout
             title="Pengukuran Kinerja"

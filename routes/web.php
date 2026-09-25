@@ -12,8 +12,11 @@ use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
+use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
+use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
@@ -108,6 +111,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+    Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
+    Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 
     // Master Unit Organisasi
     Route::get('/unit', IndexUnit::class)->name('unit.index');
@@ -141,4 +146,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
+
+    // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
+    Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');
+    Route::post('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'store'])->whereUuid('indikator')->name('indikator.komponen.store');
+    Route::put('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'update'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.update');
+    Route::delete('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'destroy'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.destroy');
 });

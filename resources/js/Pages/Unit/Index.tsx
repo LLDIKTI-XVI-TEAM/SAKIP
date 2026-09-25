@@ -19,6 +19,7 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { useLabelUnit } from '@/hooks/useLabelUnit';
 
 interface UnitItem {
     id: string;
@@ -56,6 +57,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const page = usePage();
     const pageErrors = (page.props as { errors?: Record<string, string> }).errors;
     const recovery = useAuthRecovery();
+    const labelUnit = useLabelUnit();
 
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
@@ -272,13 +274,13 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
 
     return (
         <AuthenticatedLayout
-            title="Master Unit Organisasi"
+            title={`Master ${labelUnit}`}
             breadcrumbs={[
                 { label: 'Pengaturan Master' },
-                { label: 'Unit Organisasi' },
+                { label: labelUnit },
             ]}
         >
-            <Head title="Master Unit Organisasi" />
+            <Head title={`Master ${labelUnit}`} />
 
             <div className="space-y-6 max-w-7xl mx-auto">
                 {/* Header Title & Actions */}
@@ -286,10 +288,10 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                     <div>
                         <h1 className="text-xl font-bold tracking-tight text-[#122E92] flex items-center gap-2">
                             <Building2 className="w-6 h-6 text-[#D6AC48]" />
-                            Pengelolaan Master Unit Organisasi
+                            Pengelolaan Master {labelUnit}
                         </h1>
                         <p className="text-xs text-slate-500 mt-1">
-                            Kelola unit kerja pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
+                            Kelola {labelUnit.toLowerCase()} pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
                         </p>
                     </div>
 
@@ -299,7 +301,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                             className="inline-flex items-center gap-2 bg-[#122E92] hover:bg-[#0a1b5c] text-white shadow-xs self-start sm:self-auto"
                         >
                             <Plus className="w-4 h-4 text-[#D6AC48]" />
-                            Tambah Unit Baru
+                            Tambah {labelUnit} Baru
                         </Button>
                     )}
                 </div>
@@ -334,7 +336,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari nama unit organisasi..."
+                                placeholder={`Cari nama ${labelUnit.toLowerCase()}...`}
                                 className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] transition-colors"
                             />
                         </div>
@@ -378,7 +380,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                             <thead>
                                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                                     <th className="py-3.5 px-4 w-12 text-center">No</th>
-                                    <th className="py-3.5 px-4">Nama Unit Organisasi</th>
+                                    <th className="py-3.5 px-4">Nama {labelUnit}</th>
                                     <th className="py-3.5 px-4 text-center">Indikator</th>
                                     <th className="py-3.5 px-4 text-center">Rencana Aksi</th>
                                     <th className="py-3.5 px-4 text-center">Kegiatan</th>
@@ -392,7 +394,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                     <tr>
                                         <td colSpan={8} className="py-12 text-center text-slate-400">
                                             <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                            Tidak ada data unit organisasi yang cocok dengan kriteria pencarian.
+                                            Tidak ada data {labelUnit.toLowerCase()} yang cocok dengan kriteria pencarian.
                                         </td>
                                     </tr>
                                 ) : (
@@ -529,15 +531,15 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 title={
                     <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
                         <Plus className="w-4 h-4 text-[#D6AC48]" />
-                        <span>Tambah Unit Organisasi Baru</span>
+                        <span>Tambah {labelUnit} Baru</span>
                     </div>
                 }
-                description="Tambahkan unit kerja atau unit organisasi baru ke dalam master data SAKIP."
+                description={`Tambahkan ${labelUnit.toLowerCase()} baru ke dalam master data SAKIP.`}
             >
                 <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
                     <div className="space-y-1.5">
                         <label htmlFor="create_unit_nama" className="font-semibold text-slate-700">
-                            Nama Unit Organisasi <span className="text-rose-500">*</span>
+                            Nama {labelUnit} <span className="text-rose-500">*</span>
                         </label>
                         <Input
                             id="create_unit_nama"
@@ -605,10 +607,10 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 title={
                     <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
                         <Edit2 className="w-4 h-4 text-[#122E92]" />
-                        <span>Edit Unit: {editingUnit?.nama}</span>
+                        <span>Edit {labelUnit}: {editingUnit?.nama}</span>
                     </div>
                 }
-                description="Perbarui informasi nama atau status keaktifan unit organisasi."
+                description={`Perbarui informasi nama atau status keaktifan ${labelUnit.toLowerCase()}.`}
             >
                 <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
                     {(editForm.errors.version_token || (editForm.errors as Record<string, string>).konflik || (editForm.errors as Record<string, string>).snapshot || (editForm.errors as Record<string, string>).expected_state) && (
@@ -625,7 +627,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
 
                     <div className="space-y-1.5">
                         <label htmlFor="edit_unit_nama" className="font-semibold text-slate-700">
-                            Nama Unit Organisasi <span className="text-rose-500">*</span>
+                            Nama {labelUnit} <span className="text-rose-500">*</span>
                         </label>
                         <Input
                             id="edit_unit_nama"

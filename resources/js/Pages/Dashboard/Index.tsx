@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
-import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -45,7 +46,10 @@ interface DashboardProps {
 }
 
 export default function DashboardIndex({ activeRenstra, activePeriode, stats, pengukurans }: DashboardProps) {
-    const { auth } = usePage<SharedPageProps>().props;
+    const { auth, pengaturan } = usePage<SharedPageProps>().props;
+    const formatNilai = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
+    const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP LLDIKTI XVI';
     const [currentDate, setCurrentDate] = useState<string>('');
     const hasPeriode = activePeriode !== null;
     const isActivePeriode = activePeriode?.status === 'aktif';
@@ -53,20 +57,14 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
     useEffect(() => {
         const updateBusinessDate = () => {
-            setCurrentDate(new Intl.DateTimeFormat('id-ID', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                timeZone: 'Asia/Makassar',
-            }).format(new Date()));
+            setCurrentDate(formatTanggal(new Date(), { withDay: true }));
         };
 
         updateBusinessDate();
         const interval = window.setInterval(updateBusinessDate, 60_000);
 
         return () => window.clearInterval(interval);
-    }, []);
+    }, [formatTanggal]);
 
     const cards = [
         {
@@ -146,7 +144,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, pe
 
                         {/* Title */}
                         <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-surface leading-tight">
-                            Selamat Datang di <span className="text-surface">SAKIP LLDIKTI XVI</span>
+                            Selamat Datang di <span className="text-surface">{appName}</span>
                         </h1>
 
                         {/* Description */}

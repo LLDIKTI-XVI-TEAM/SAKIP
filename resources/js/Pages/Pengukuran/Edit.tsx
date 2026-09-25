@@ -12,7 +12,8 @@ import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
 import EvidenceList from './EvidenceList';
-import { formatNilai } from './formatNilai';
+import { useFormatNilai } from './formatNilai';
+import { useLabelUnit } from '@/hooks/useLabelUnit';
 import CalculationPreview from './CalculationPreview';
 
 interface PengukuranEditProps { pengukuran: Pengukuran }
@@ -22,6 +23,8 @@ export default function PengukuranEdit(props: PengukuranEditProps) {
 }
 
 function PengukuranForm({ pengukuran }: PengukuranEditProps) {
+    const formatNilai = useFormatNilai();
+    const labelUnit = useLabelUnit();
     const { can } = pengukuran;
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
     const historical = pengukuran.sumber_nilai === 'historis';
@@ -94,7 +97,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                 <CardContent className="space-y-3">
                     {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
                     <dl className="grid gap-4 text-sm sm:grid-cols-3">
-                        <div><dt className="text-muted">Unit penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
+                        <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
                         <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd><dd className="text-xs text-muted">{indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd></div>
                         <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                     </dl>
