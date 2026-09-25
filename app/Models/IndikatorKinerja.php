@@ -54,4 +54,16 @@ class IndikatorKinerja extends Model
     {
         return $this->hasMany(PenugasanIndikator::class, 'indikator_id');
     }
+
+    /** @return HasMany<IndikatorKomponen, $this> */
+    public function komponen(): HasMany
+    {
+        return $this->hasMany(IndikatorKomponen::class, 'indikator_id')->orderBy('urutan');
+    }
+
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
 }
