@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
@@ -31,6 +32,10 @@ class GrantIzinTambahanUnitTest extends TestCase
     protected User $pegawaiUser;
 
     protected User $pimpinanUser;
+
+    protected User $perencanaanUser;
+
+    protected User $aksesOnlyUser;
 
     protected Unit $unitA;
 
@@ -76,6 +81,18 @@ class GrantIzinTambahanUnitTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->perencanaanUser = User::factory()->create([
+            'nama' => 'Perencanaan Staf',
+            'email' => 'perencanaan@sakip.test',
+            'is_active' => true,
+        ]);
+
+        $this->aksesOnlyUser = User::factory()->create([
+            'nama' => 'User Hanya Akses',
+            'email' => 'aksesonly@sakip.test',
+            'is_active' => true,
+        ]);
+
         $adminRole = Role::where('kode', 'admin')->firstOrFail();
         $this->adminUser->roles()->attach($adminRole->id, [
             'id' => (string) Str::uuid(),
@@ -99,12 +116,55 @@ class GrantIzinTambahanUnitTest extends TestCase
             'created_at' => now(),
         ]);
 
+        $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
+        $this->perencanaanUser->roles()->attach($perencanaanRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+
         $aksesUpdatePerm = Permission::where('kode', 'akses:update')->firstOrFail();
+        $delegasiUpdatePerm = Permission::where('kode', 'delegasi:update')->firstOrFail();
+
         $adminRole->permissions()->attach($aksesUpdatePerm->id, [
             'id' => (string) Str::uuid(),
             'created_at' => now(),
         ]);
+        $adminRole->permissions()->attach($delegasiUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
         $superadminRole->permissions()->attach($aksesUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+        $superadminRole->permissions()->attach($delegasiUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        $perencanaanRole->permissions()->attach($delegasiUpdatePerm->id, [
+            'id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        $customAksesRole = Role::create([
+            'id' => (string) Str::uuid(),
+            'kode' => 'custom_akses',
+            'nama' => 'Custom Akses Role',
+            'urutan' => 99,
+            'is_sistem' => false,
+            'aktif' => true,
+        ]);
+        $this->aksesOnlyUser->roles()->attach($customAksesRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->adminUser->id,
+            'created_at' => now(),
+        ]);
+        $customAksesRole->permissions()->attach($aksesUpdatePerm->id, [
             'id' => (string) Str::uuid(),
             'created_at' => now(),
         ]);
@@ -791,16 +851,16 @@ class GrantIzinTambahanUnitTest extends TestCase
     /**
      * Codex Review 4: Catat penolakan aksi sensitif sebelum mengembalikan 403 saat aktor memiliki explicit deny.
      */
-    public function test_explicit_deny_on_akses_update_records_denial_audit_before_403(): void
+    public function test_explicit_deny_on_delegasi_update_records_denial_audit_before_403(): void
     {
-        $perm = Permission::where('kode', 'akses:update')->firstOrFail();
+        $perm = Permission::where('kode', 'delegasi:update')->firstOrFail();
 
-        // Admin di-deny untuk akses:update
+        // Admin di-deny untuk delegasi:update
         UserPermissionDeny::create([
             'user_id' => $this->adminUser->id,
             'permission_id' => $perm->id,
             'unit_id' => null,
-            'alasan' => 'Larangan eksplisit kelola akses',
+            'alasan' => 'Larangan eksplisit kelola delegasi grant',
             'ditetapkan_oleh' => $this->superadminUser->id,
         ]);
 
@@ -1128,10 +1188,10 @@ class GrantIzinTambahanUnitTest extends TestCase
      */
     public function test_grant_creation_reauthorizes_actor_inside_transaction(): void
     {
-        // Berikan deny eksplisit pada aktor untuk akses:update
+        // Berikan deny eksplisit pada aktor untuk delegasi:update
         UserPermissionDeny::create([
             'user_id' => $this->adminUser->id,
-            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'permission_id' => Permission::where('kode', 'delegasi:update')->firstOrFail()->id,
             'unit_id' => null,
             'alasan' => 'Pencabutan wewenang kelola akses',
             'ditetapkan_oleh' => $this->superadminUser->id,
@@ -1188,7 +1248,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 1. StoreGrant: Otorisasi ulang aktor gagal di dalam transaksi
         $denyStore = UserPermissionDeny::create([
             'user_id' => $this->adminUser->id,
-            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'permission_id' => Permission::where('kode', 'delegasi:update')->firstOrFail()->id,
             'unit_id' => null,
             'alasan' => 'Pencabutan akses kelola izin store',
             'ditetapkan_oleh' => $this->superadminUser->id,
@@ -1214,7 +1274,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 3. RevokeGrant: Otorisasi ulang aktor gagal di dalam transaksi
         UserPermissionDeny::create([
             'user_id' => $this->adminUser->id,
-            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'permission_id' => Permission::where('kode', 'delegasi:update')->firstOrFail()->id,
             'unit_id' => null,
             'alasan' => 'Pencabutan akses kelola izin',
             'ditetapkan_oleh' => $this->superadminUser->id,
@@ -1490,5 +1550,189 @@ class GrantIzinTambahanUnitTest extends TestCase
         $decisionGrantOnly = $resolver->decide($stafUser, 'pengukuran:create', $unitNonaktif->id);
         $this->assertFalse($decisionGrantOnly['allowed']);
         $this->assertSame('inactive_unit', $decisionGrantOnly['reason']);
+    }
+
+    /**
+     * Q32 / TEST-8: Peran Perencanaan dengan delegasi:update dapat mengelola grant tanpa membutuhkan peran Admin/Superadmin.
+     */
+    public function test_perencanaan_user_with_delegasi_update_can_manage_grants(): void
+    {
+        // 1. Perencanaan dapat membuka IndexGrant
+        $resIndex = $this->actingAs($this->perencanaanUser)->get('/akses/grant');
+        $resIndex->assertOk();
+        $resIndex->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Akses/GrantIndex')
+            ->where('can.create_grant', true)
+            ->where('can.revoke_grant', true)
+        );
+
+        // 2. Perencanaan dapat mencari pengguna di SearchGrantUsers
+        $resSearch = $this->actingAs($this->perencanaanUser)->getJson('/akses/grant/opsi/pengguna?q=Pegawai');
+        $resSearch->assertOk();
+        $this->assertGreaterThan(0, count($resSearch->json('items')));
+
+        // 3. Perencanaan dapat membuat grant unit baru
+        $resStore = $this->actingAs($this->perencanaanUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Diberikan oleh Tim Perencanaan untuk pengisian TW III',
+        ]);
+        $resStore->assertRedirect('/akses/grant');
+
+        $createdGrant = UserPermissionGrant::where('user_id', $this->pegawaiUser->id)
+            ->where('permission_id', $this->unitPermission->id)
+            ->where('unit_id', $this->unitA->id)
+            ->firstOrFail();
+
+        $this->assertSame($this->perencanaanUser->id, $createdGrant->diberikan_oleh);
+
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->perencanaanUser->id,
+            'tindakan' => 'user_permission_granted.tambah',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => $createdGrant->id,
+        ]);
+
+        // 4. Perencanaan dapat mencabut grant unit
+        $resRevoke = $this->actingAs($this->perencanaanUser)->delete("/akses/grant/{$createdGrant->id}", [
+            'alasan' => 'Dicabut oleh Tim Perencanaan karena penugasan selesai',
+        ]);
+        $resRevoke->assertRedirect('/akses/grant');
+
+        $this->assertDatabaseMissing('user_permission_granted', [
+            'id' => $createdGrant->id,
+        ]);
+
+        $this->assertDatabaseHas('audit_log', [
+            'actor_id' => $this->perencanaanUser->id,
+            'tindakan' => 'user_permission_granted.hapus',
+            'objek_tipe' => 'user_permission_granted',
+            'objek_id' => $createdGrant->id,
+        ]);
+    }
+
+    /**
+     * Q32 / TEST-9: Pengguna yang hanya memiliki akses:update (tanpa delegasi:update) ditolak dengan 403.
+     */
+    public function test_user_with_only_akses_update_cannot_manage_grants(): void
+    {
+        // 1. IndexGrant ditolak 403
+        $resIndex = $this->actingAs($this->aksesOnlyUser)->get('/akses/grant');
+        $resIndex->assertStatus(403);
+
+        // 2. SearchGrantUsers ditolak 403
+        $resSearch = $this->actingAs($this->aksesOnlyUser)->getJson('/akses/grant/opsi/pengguna');
+        $resSearch->assertStatus(403);
+
+        // 3. StoreGrant ditolak 403
+        $resStore = $this->actingAs($this->aksesOnlyUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba membuat grant dengan izin akses:update saja',
+        ]);
+        $resStore->assertStatus(403);
+
+        // 4. RevokeGrant ditolak 403
+        $grant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Grant existing oleh admin',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $resRevoke = $this->actingAs($this->aksesOnlyUser)->delete("/akses/grant/{$grant->id}", [
+            'alasan' => 'Mencoba cabut grant dengan izin akses:update saja',
+        ]);
+        $resRevoke->assertStatus(403);
+    }
+
+    /**
+     * Q32 / TEST-4 / AC-3: Permission baca (rencana_aksi:read dan kegiatan:read) berstatus global dan ditolak pada Grant Unit.
+     */
+    public function test_read_permissions_cannot_be_granted_via_unit_grant_endpoint(): void
+    {
+        $rencanaAksiRead = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
+        $kegiatanRead = Permission::where('kode', 'kegiatan:read')->firstOrFail();
+
+        // 1. Pastikan scope adalah global, bukan unit
+        $this->assertSame(Permission::SCOPE_GLOBAL, $rencanaAksiRead->butuh_scope);
+        $this->assertSame(Permission::SCOPE_GLOBAL, $kegiatanRead->butuh_scope);
+
+        // 2. Dropdown unitPermissions tidak memuat hak baca
+        $resIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $resIndex->assertOk();
+        $resIndex->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Akses/GrantIndex')
+            ->where('unitPermissions', fn ($permissions) => ! collect($permissions)->pluck('kode')->contains('rencana_aksi:read')
+                && ! collect($permissions)->pluck('kode')->contains('kegiatan:read')
+            )
+        );
+
+        // 3. Mencoba kirim POST StoreGrant untuk rencana_aksi:read menghasilkan 422
+        $resStoreRencana = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $rencanaAksiRead->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba grant hak baca rencana aksi',
+        ]);
+        $resStoreRencana->assertSessionHasErrors('permission_id');
+
+        // 4. Mencoba kirim POST StoreGrant untuk kegiatan:read menghasilkan 422
+        $resStoreKegiatan = $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_id' => $kegiatanRead->id,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Mencoba grant hak baca kegiatan',
+        ]);
+        $resStoreKegiatan->assertSessionHasErrors('permission_id');
+    }
+
+    /**
+     * Q32: Tepat 7 permission operasional unit dapat diberikan dan dicabut melalui Grant Unit.
+     */
+    public function test_all_seven_unit_permissions_can_be_granted_and_revoked(): void
+    {
+        $expectedCodes = [
+            'pengukuran:create',
+            'pengukuran:update',
+            'rencana_aksi:create',
+            'rencana_aksi:update',
+            'rencana_aksi:ajukan',
+            'kegiatan:create',
+            'kegiatan:update',
+        ];
+
+        // Pastikan PermissionCatalog::UNIT_SCOPED tepat berisi 7 kode ini
+        $this->assertSame($expectedCodes, PermissionCatalog::UNIT_SCOPED);
+
+        foreach ($expectedCodes as $code) {
+            $perm = Permission::where('kode', $code)->firstOrFail();
+            $this->assertSame(Permission::SCOPE_UNIT, $perm->butuh_scope);
+
+            // Simpan grant
+            $resStore = $this->actingAs($this->perencanaanUser)->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_id' => $perm->id,
+                'unit_id' => $this->unitA->id,
+                'alasan' => "Penugasan izin operasional {$code} untuk unit",
+            ]);
+            $resStore->assertRedirect('/akses/grant');
+
+            $grant = UserPermissionGrant::where('user_id', $this->pegawaiUser->id)
+                ->where('permission_id', $perm->id)
+                ->where('unit_id', $this->unitA->id)
+                ->firstOrFail();
+
+            // Cabut grant
+            $resRevoke = $this->actingAs($this->perencanaanUser)->delete("/akses/grant/{$grant->id}", [
+                'alasan' => "Pencabutan izin operasional {$code}",
+            ]);
+            $resRevoke->assertRedirect('/akses/grant');
+
+            $this->assertDatabaseMissing('user_permission_granted', ['id' => $grant->id]);
+        }
     }
 }

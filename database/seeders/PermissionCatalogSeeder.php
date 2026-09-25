@@ -14,7 +14,7 @@ class PermissionCatalogSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            // 9 Unit-scoped permissions
+            // 7 Unit-scoped permissions (Koreksi Q32)
             [
                 'kode' => 'pengukuran:create',
                 'entitas' => 'pengukuran',
@@ -28,14 +28,6 @@ class PermissionCatalogSeeder extends Seeder
                 'entitas' => 'pengukuran',
                 'aksi' => 'update',
                 'keterangan' => 'Mengubah pengukuran capaian indikator pada unit tertentu',
-                'butuh_scope' => Permission::SCOPE_UNIT,
-                'sensitif' => false,
-            ],
-            [
-                'kode' => 'rencana_aksi:read',
-                'entitas' => 'rencana_aksi',
-                'aksi' => 'read',
-                'keterangan' => 'Membaca rencana aksi pada unit tertentu',
                 'butuh_scope' => Permission::SCOPE_UNIT,
                 'sensitif' => false,
             ],
@@ -64,14 +56,6 @@ class PermissionCatalogSeeder extends Seeder
                 'sensitif' => false,
             ],
             [
-                'kode' => 'kegiatan:read',
-                'entitas' => 'kegiatan',
-                'aksi' => 'read',
-                'keterangan' => 'Membaca kegiatan pada unit tertentu',
-                'butuh_scope' => Permission::SCOPE_UNIT,
-                'sensitif' => false,
-            ],
-            [
                 'kode' => 'kegiatan:create',
                 'entitas' => 'kegiatan',
                 'aksi' => 'create',
@@ -93,9 +77,33 @@ class PermissionCatalogSeeder extends Seeder
                 'kode' => 'akses:update',
                 'entitas' => 'akses',
                 'aksi' => 'update',
-                'keterangan' => 'Mengelola hak akses, peran, dan grant izin tambahan unit',
+                'keterangan' => 'Mengelola hak akses, penetapan peran, dan explicit deny',
                 'butuh_scope' => Permission::SCOPE_GLOBAL,
                 'sensitif' => true,
+            ],
+            [
+                'kode' => 'delegasi:update',
+                'entitas' => 'delegasi',
+                'aksi' => 'update',
+                'keterangan' => 'Memberikan atau mencabut izin operasional per unit (Grant Unit)',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => true,
+            ],
+            [
+                'kode' => 'rencana_aksi:read',
+                'entitas' => 'rencana_aksi',
+                'aksi' => 'read',
+                'keterangan' => 'Membaca rencana aksi',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
+            ],
+            [
+                'kode' => 'kegiatan:read',
+                'entitas' => 'kegiatan',
+                'aksi' => 'read',
+                'keterangan' => 'Membaca kegiatan',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
             ],
             [
                 'kode' => 'pengguna:read',
@@ -288,6 +296,18 @@ class PermissionCatalogSeeder extends Seeder
         Role::firstOrCreate(
             ['kode' => 'admin'],
             ['nama' => 'Admin Pengelola', 'urutan' => 2, 'is_sistem' => true, 'aktif' => true]
+        );
+        Role::firstOrCreate(
+            ['kode' => 'perencanaan'],
+            ['nama' => 'Perencanaan', 'urutan' => 3, 'is_sistem' => true, 'aktif' => true]
+        );
+        Role::firstOrCreate(
+            ['kode' => 'pimpinan'],
+            ['nama' => 'Pimpinan', 'urutan' => 4, 'is_sistem' => true, 'aktif' => true]
+        );
+        Role::firstOrCreate(
+            ['kode' => 'pegawai'],
+            ['nama' => 'Pegawai', 'urutan' => 5, 'is_sistem' => true, 'aktif' => true]
         );
     }
 }

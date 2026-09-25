@@ -23,8 +23,8 @@ class RevokeGrant extends Controller
             abort(401);
         }
 
-        $decision = $permissionResolver->resolve($actor, 'akses:update');
-        if (! $decision->allowed || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+        $decision = $permissionResolver->resolve($actor, 'delegasi:update');
+        if (! $decision->allowed) {
             $auditLogger->catat(
                 actor: $actor,
                 tindakan: 'user_permission_granted.ditolak',
@@ -92,8 +92,8 @@ class RevokeGrant extends Controller
                 Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
             }
 
-            $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
-            if (! $currentDecision->allowed || ! $currentActor->hasAnyRole(['admin', 'superadmin'])) {
+            $currentDecision = $permissionResolver->resolve($currentActor, 'delegasi:update');
+            if (! $currentDecision->allowed) {
                 return [
                     'status' => 'denied',
                     'actor' => $currentActor,
