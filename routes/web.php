@@ -32,6 +32,15 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\Renstra\CreateRenstra;
+use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
+use App\Http\Controllers\Renstra\DestroyRenstra;
+use App\Http\Controllers\Renstra\DownloadBerkasRenstra;
+use App\Http\Controllers\Renstra\EditRenstra;
+use App\Http\Controllers\Renstra\IndexRenstra;
+use App\Http\Controllers\Renstra\ShowRenstra;
+use App\Http\Controllers\Renstra\StoreRenstra;
+use App\Http\Controllers\Renstra\UpdateRenstra;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
@@ -89,6 +98,17 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/regulasi/{regulasi}/berkas/{berkas}', DestroyBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.destroy');
     Route::get('/regulasi/{regulasi}/berkas/{berkas}/download', DownloadBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.download');
     Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
+
+    // Master Renstra
+    Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
+    Route::get('/renstra/create', CreateRenstra::class)->name('renstra.create');
+    Route::post('/renstra', StoreRenstra::class)->name('renstra.store');
+    Route::get('/renstra/{renstra}/edit', EditRenstra::class)->whereUuid('renstra')->name('renstra.edit');
+    Route::put('/renstra/{renstra}', UpdateRenstra::class)->whereUuid('renstra')->name('renstra.update');
+    Route::delete('/renstra/{renstra}', DestroyRenstra::class)->whereUuid('renstra')->name('renstra.destroy');
+    Route::delete('/renstra/{renstra}/berkas/{berkas}', DestroyBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.destroy');
+    Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
+    Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
 
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');

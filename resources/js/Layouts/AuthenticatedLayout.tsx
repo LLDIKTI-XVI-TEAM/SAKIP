@@ -25,6 +25,7 @@ import {
     Home,
     Settings,
     HardDrive,
+    Layers,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -148,6 +149,7 @@ export function AuthenticatedLayout({
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
+        { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
         { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },

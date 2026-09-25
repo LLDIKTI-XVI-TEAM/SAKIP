@@ -29,6 +29,15 @@ final class PermissionCodes
 
     public const REGULASI_DELETE = 'regulasi:delete';
 
+    // Master Renstra (ISS-02.02)
+    public const RENSTRA_CREATE = 'renstra:create';
+
+    public const RENSTRA_READ = 'renstra:read';
+
+    public const RENSTRA_UPDATE = 'renstra:update';
+
+    public const RENSTRA_DELETE = 'renstra:delete';
+
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 
@@ -164,6 +173,17 @@ final class PermissionCodes
             self::REGULASI_READ,
             self::REGULASI_UPDATE,
             self::REGULASI_DELETE,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function renstra(): array
+    {
+        return [
+            self::RENSTRA_CREATE,
+            self::RENSTRA_READ,
+            self::RENSTRA_UPDATE,
+            self::RENSTRA_DELETE,
         ];
     }
 

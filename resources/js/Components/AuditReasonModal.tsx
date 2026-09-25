@@ -57,8 +57,8 @@ export function AuditReasonModal({
                             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
-                            <h2 id={`${id}-title`} className="text-base font-semibold text-ink">{title}</h2>
-                            <p id={`${id}-description`} className="mt-1 break-words text-sm leading-6 text-muted">{description}</p>
+                            <h2 id={`${id}-title`} className="text-base font-semibold leading-tight text-ink">{title}</h2>
+                            <p id={`${id}-description`} className="mt-0.5 break-words text-sm leading-snug text-muted">{description}</p>
                         </div>
                     </div>
                     <button
