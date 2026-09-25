@@ -5,7 +5,6 @@ namespace App\Policies;
 use App\Models\Berkas;
 use App\Models\Renstra;
 use App\Models\User;
-use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -15,7 +14,6 @@ class RenstraPolicy
 {
     public function __construct(
         private readonly PermissionResolver $permissionResolver,
-        private readonly AuditLogger $auditLogger,
     ) {}
 
     public function viewAny(User $user): Response
@@ -35,39 +33,35 @@ class RenstraPolicy
 
     public function update(User $user, ?Renstra $renstra = null): Response
     {
-        $decision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
-
-        if (! $decision->allowed && $renstra !== null) {
-            $this->catatPenolakan($user, $renstra, 'renstra.ubah_ditolak', $decision);
-        }
-
-        return $this->response($decision);
+        return $this->response($this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE));
     }
 
     public function delete(User $user, ?Renstra $renstra = null): Response
     {
-        $decision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
-
-        if (! $decision->allowed && $renstra !== null) {
-            $this->catatPenolakan($user, $renstra, 'renstra.hapus_ditolak', $decision);
-        }
-
-        return $this->response($decision);
+        return $this->response($this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE));
     }
 
     public function deleteAttachment(User $user, Renstra $renstra, ?Berkas $berkas = null): Response
     {
-        $decision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
+        $parentDeleteDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
+        $parentUpdateDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
 
-        if (! $decision->allowed && $berkas !== null) {
-            $this->catatPenolakanLampiran($user, $berkas, $decision);
+        if (! $parentDeleteDecision->allowed && ! $parentUpdateDecision->allowed) {
+            return $this->response($parentDeleteDecision);
         }
 
-        return $this->response($decision);
+        $berkasDecision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
+
+        return $this->response($berkasDecision);
     }
 
     public function viewAttachment(User $user, Renstra $renstra, ?Berkas $berkas = null): Response
     {
+        $parentDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_READ);
+        if (! $parentDecision->allowed) {
+            return $this->response($parentDecision);
+        }
+
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_READ);
 
         return $this->response($decision);
@@ -78,60 +72,5 @@ class RenstraPolicy
         return $decision->allowed
             ? Response::allow()
             : Response::deny('Anda tidak memiliki izin yang efektif untuk melakukan tindakan ini.');
-    }
-
-    private function catatPenolakan(
-        User $user,
-        Renstra $renstra,
-        string $tindakan,
-        PermissionDecision $decision,
-    ): void {
-        $alasan = request()->input('alasan');
-
-        $this->auditLogger->catat(
-            actor: $user,
-            tindakan: $tindakan,
-            objekTipe: 'renstra',
-            objekId: $renstra->id,
-            nilaiLama: $renstra->withoutRelations()->toArray(),
-            alasan: is_string($alasan) ? $alasan : null,
-            dasarIzin: $decision->toAuditBasis(),
-        );
-    }
-
-    private function catatPenolakanLampiran(
-        User $user,
-        Berkas $berkas,
-        PermissionDecision $decision,
-    ): void {
-        $alasan = request()->input('alasan');
-
-        $metadata = [
-            'id' => $berkas->id,
-            'mode' => $berkas->mode,
-            'jenis_berkas_id' => $berkas->jenis_berkas_id,
-        ];
-
-        if ($berkas->mode === 'file') {
-            $metadata += [
-                'nama_asli' => $berkas->nama_asli,
-                'mime' => $berkas->mime,
-                'ukuran_bytes' => $berkas->ukuran_bytes,
-            ];
-        } elseif ($berkas->mode === 'tautan') {
-            $metadata['tautan'] = $berkas->tautan;
-        } else {
-            $metadata['panjang_teks'] = mb_strlen((string) $berkas->isi_teks);
-        }
-
-        $this->auditLogger->catat(
-            actor: $user,
-            tindakan: 'berkas.hapus_ditolak',
-            objekTipe: 'berkas',
-            objekId: $berkas->id,
-            nilaiLama: $metadata,
-            alasan: is_string($alasan) ? $alasan : null,
-            dasarIzin: $decision->toAuditBasis(),
-        );
     }
 }

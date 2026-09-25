@@ -16,10 +16,7 @@ class EditRenstra extends Controller
     {
         Gate::authorize('update', $renstra);
 
-        $renstra->load([
-            'regulasi',
-            'berkas' => fn ($query) => $query->with('pengunggah')->orderByDesc('created_at'),
-        ]);
+        $renstra->load('regulasi');
 
         $regulasiPilihan = Regulasi::query()
             ->where('aktif', true)

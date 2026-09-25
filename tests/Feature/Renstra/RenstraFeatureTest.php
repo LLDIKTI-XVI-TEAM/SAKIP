@@ -414,16 +414,36 @@ test('Sinkronisasi status dan is_aktif bekerja dua arah pada model Renstra', fun
         'is_aktif' => false,
     ]);
 
+    // draft + is_aktif=true -> status menjadi aktif
     $renstra->is_aktif = true;
     expect($renstra->status)->toBe(Renstra::STATUS_AKTIF);
+    expect($renstra->is_aktif)->toBeTrue();
 
+    // aktif + is_aktif=false -> status menjadi nonaktif
     $renstra->is_aktif = false;
     expect($renstra->status)->toBe(Renstra::STATUS_NONAKTIF);
+    expect($renstra->is_aktif)->toBeFalse();
 
+    // nonaktif + is_aktif=true -> status menjadi aktif (tidak boleh ambigu nonaktif + true)
+    $renstra->is_aktif = true;
+    expect($renstra->status)->toBe(Renstra::STATUS_AKTIF);
+    expect($renstra->is_aktif)->toBeTrue();
+
+    // status diarsipkan tidak dapat diaktifkan kembali lewat is_aktif
+    $renstra->status = Renstra::STATUS_DIARSIPKAN;
+    expect($renstra->is_aktif)->toBeFalse();
+    $renstra->is_aktif = true;
+    expect($renstra->status)->toBe(Renstra::STATUS_DIARSIPKAN);
+    expect($renstra->is_aktif)->toBeFalse();
+
+    // set status langsung menyelaraskan is_aktif
     $renstra->status = Renstra::STATUS_AKTIF;
     expect($renstra->is_aktif)->toBeTrue();
 
     $renstra->status = Renstra::STATUS_DRAFT;
+    expect($renstra->is_aktif)->toBeFalse();
+
+    $renstra->status = Renstra::STATUS_NONAKTIF;
     expect($renstra->is_aktif)->toBeFalse();
 });
 
@@ -454,4 +474,203 @@ test('Download lampiran Renstra memerlukan otorisasi viewAttachment', function (
     $responsePembaca = $this->actingAs($this->pembaca)
         ->get("/renstra/{$renstra->id}/berkas/{$berkas->id}/download");
     $responsePembaca->assertForbidden();
+});
+
+test('Halaman Edit Renstra tidak memuat relasi berkas ke props Inertia', function (): void {
+    Storage::fake('local');
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-EDIT-NO-BERKAS']);
+    $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'tautan',
+        'tautan' => 'https://example.test/private-naskah.pdf',
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit");
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Edit')
+            ->where('renstra.kode', 'RENSTRA-EDIT-NO-BERKAS')
+            ->missing('renstra.berkas')
+        );
+});
+
+test('Pengecekan capability UI di ShowRenstra tidak mencatat audit denial palsu', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-SHOW-PURE']);
+
+    $viewerRole = Role::query()->create(['id' => (string) Str::uuid(), 'kode' => 'viewer_renstra', 'nama' => 'Viewer Renstra']);
+    $readPerm = Permission::query()->where('kode', 'renstra:read')->firstOrFail();
+    $viewerRole->permissions()->attach($readPerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+
+    $viewer = User::factory()->create(['email' => 'viewer-only@example.test', 'is_active' => true]);
+    $viewer->roles()->attach($viewerRole->id, [
+        'id' => (string) Str::uuid(),
+        'sumber_pemberian' => 'manual',
+        'diberikan_oleh' => $viewer->id,
+        'created_at' => now(),
+    ]);
+
+    $response = $this->actingAs($viewer)->get("/renstra/{$renstra->id}");
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('can.update', false)
+            ->where('can.delete', false)
+        );
+
+    expect(AuditLog::query()
+        ->whereIn('tindakan', ['renstra.ubah_ditolak', 'renstra.hapus_ditolak'])
+        ->where('objek_id', $renstra->id)
+        ->exists())->toBeFalse();
+});
+
+test('Halaman Show Renstra tidak memuat relasi sasaranStrategis atau indikator ke props Inertia', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-NO-INDICATOR-LEAK']);
+
+    $response = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}");
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->missing('renstra.sasaran_strategis')
+            ->missing('renstra.sasaranStrategis')
+        );
+});
+
+test('Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra nonaktif dan diarsipkan ditolak', function (): void {
+    Storage::fake('local');
+
+    foreach ([Renstra::STATUS_NONAKTIF, Renstra::STATUS_DIARSIPKAN] as $status) {
+        $renstra = buatRenstra($this->perencanaan, [
+            'kode' => "RENSTRA-LOCK-{$status}",
+            'status' => $status,
+            'is_aktif' => false,
+        ]);
+
+        $berkas = $renstra->berkas()->create([
+            'uploaded_by' => $this->perencanaan->id,
+            'mode' => 'tautan',
+            'tautan' => "https://example.test/naskah-{$status}.pdf",
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)
+            ->from("/renstra/{$renstra->id}")
+            ->delete("/renstra/{$renstra->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Mencoba menghapus lampiran pada status non-draft.',
+            ]);
+
+        $response->assertSessionHasErrors(['berkas']);
+        $this->assertDatabaseHas('berkas', ['id' => $berkas->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_id' => $berkas->id,
+        ]);
+    }
+});
+
+test('Percobaan menghapus Renstra dengan dependensi sasaran mencatat audit renstra.hapus_ditolak', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-DEP-CHECK']);
+    $renstra->sasaranStrategis()->create([
+        'nama' => 'Sasaran Terkait',
+        'urutan' => 1,
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)
+        ->from('/renstra')
+        ->delete("/renstra/{$renstra->id}", [
+            'alasan' => 'Menghapus renstra yang masih memiliki sasaran.',
+        ]);
+
+    $response->assertSessionHasErrors(['renstra']);
+    $this->assertDatabaseHas('renstras', ['id' => $renstra->id]);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'renstra.hapus_ditolak')
+        ->where('objek_id', $renstra->id)
+        ->latest('waktu')
+        ->first();
+
+    expect($audit)->not->toBeNull();
+    expect($audit->nilai_baru['alasan_penolakan'])->toBe('memiliki_dependensi');
+});
+
+test('Perubahan regulasi_id pada Renstra mencatat audit renstra.ubah_regulasi', function (): void {
+    $regulasi1 = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 01/2024',
+        'tahun' => 2024,
+        'tentang' => 'Regulasi Pertama',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    $regulasi2 = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 02/2024',
+        'tahun' => 2024,
+        'tentang' => 'Regulasi Kedua',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-UBAH-REG',
+        'regulasi_id' => $regulasi1->id,
+    ]);
+
+    $response = $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'nama' => $renstra->nama,
+        'tahun_mulai' => $renstra->tahun_mulai,
+        'tahun_selesai' => $renstra->tahun_selesai,
+        'regulasi_id' => $regulasi2->id,
+    ]);
+
+    $response->assertRedirect("/renstra/{$renstra->id}");
+    expect($renstra->fresh()->regulasi_id)->toBe($regulasi2->id);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'renstra.ubah_regulasi')
+        ->where('objek_id', $renstra->id)
+        ->first();
+
+    expect($audit)->not->toBeNull();
+    expect($audit->nilai_lama['regulasi_id'])->toBe($regulasi1->id);
+    expect($audit->nilai_baru['regulasi_id'])->toBe($regulasi2->id);
+});
+
+test('Penghapusan lampiran Renstra ditolak jika otorisasi parent Renstra ditolak', function (): void {
+    Storage::fake('local');
+
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-PARENT-AUTH',
+        'status' => Renstra::STATUS_DRAFT,
+    ]);
+
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'tautan',
+        'tautan' => 'https://example.test/lampiran-draft.pdf',
+    ]);
+
+    $berkasOnlyRole = Role::query()->create(['id' => (string) Str::uuid(), 'kode' => 'berkas_only', 'nama' => 'Berkas Only']);
+    $berkasDeletePerm = Permission::query()->where('kode', 'berkas:delete')->firstOrFail();
+    $berkasOnlyRole->permissions()->attach($berkasDeletePerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+
+    $userBerkasOnly = User::factory()->create(['email' => 'berkas-only@example.test', 'is_active' => true]);
+    $userBerkasOnly->roles()->attach($berkasOnlyRole->id, [
+        'id' => (string) Str::uuid(),
+        'sumber_pemberian' => 'manual',
+        'diberikan_oleh' => $userBerkasOnly->id,
+        'created_at' => now(),
+    ]);
+
+    $response = $this->actingAs($userBerkasOnly)
+        ->delete("/renstra/{$renstra->id}/berkas/{$berkas->id}", [
+            'alasan' => 'Mencoba menghapus lampiran tanpa izin parent.',
+        ]);
+
+    $response->assertForbidden();
+    $this->assertDatabaseHas('berkas', ['id' => $berkas->id]);
+    $this->assertDatabaseHas('audit_log', [
+        'tindakan' => 'berkas.hapus_ditolak',
+        'objek_id' => $berkas->id,
+    ]);
 });

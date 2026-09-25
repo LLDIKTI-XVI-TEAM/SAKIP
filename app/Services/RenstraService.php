@@ -123,6 +123,7 @@ class RenstraService
                 $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
                 $renstraTerkini->load(['berkas', 'regulasi']);
                 $nilaiLama = $this->snapshot($renstraTerkini);
+                $regulasiIdLama = $renstraTerkini->regulasi_id;
 
                 $tahunMulai = isset($data['tahun_mulai']) ? (int) $data['tahun_mulai'] : $renstraTerkini->tahun_mulai;
                 $tahunSelesai = isset($data['tahun_selesai'])
@@ -170,6 +171,19 @@ class RenstraService
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
+                if (array_key_exists('regulasi_id', $data) && $renstraTerkini->regulasi_id !== $regulasiIdLama) {
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'renstra.ubah_regulasi',
+                        objekTipe: 'renstra',
+                        objekId: $renstraTerkini->id,
+                        nilaiLama: ['regulasi_id' => $regulasiIdLama],
+                        nilaiBaru: ['regulasi_id' => $renstraTerkini->regulasi_id],
+                        alasan: $data['alasan'] ?? null,
+                        dasarIzin: $decision->toAuditBasis(),
+                    );
+                }
+
                 return $renstraTerkini;
             });
         } catch (QueryException $exception) {
@@ -208,19 +222,51 @@ class RenstraService
             $this->pastikanIzinDiizinkan($decision);
         }
 
-        DB::transaction(function () use ($renstra, $alasan, $actor, $decision): void {
+        $penolakan = DB::transaction(function () use ($renstra, $alasan, $actor, $decision): ?array {
             $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
 
             if ($renstraTerkini->status !== Renstra::STATUS_DRAFT) {
-                throw ValidationException::withMessages([
-                    'renstra' => 'Hanya Renstra berstatus draft yang dapat dihapus.',
-                ]);
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra.hapus_ditolak',
+                    objekTipe: 'renstra',
+                    objekId: $renstraTerkini->id,
+                    nilaiLama: $this->snapshot($renstraTerkini),
+                    nilaiBaru: [
+                        'alasan_penolakan' => 'status_bukan_draft',
+                        'status' => $renstraTerkini->status,
+                    ],
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                return [
+                    'field' => 'renstra',
+                    'pesan' => 'Hanya Renstra berstatus draft yang dapat dihapus.',
+                ];
             }
 
             if ($renstraTerkini->sasaranStrategis()->exists() || $renstraTerkini->renstraPk()->exists() || $renstraTerkini->jadwalTahunan()->exists()) {
-                throw ValidationException::withMessages([
-                    'renstra' => 'Renstra tidak dapat dihapus karena telah memiliki data sasaran, perjanjian kinerja, atau jadwal terkait.',
-                ]);
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra.hapus_ditolak',
+                    objekTipe: 'renstra',
+                    objekId: $renstraTerkini->id,
+                    nilaiLama: $this->snapshot($renstraTerkini),
+                    nilaiBaru: [
+                        'alasan_penolakan' => 'memiliki_dependensi',
+                        'has_sasaran' => $renstraTerkini->sasaranStrategis()->exists(),
+                        'has_pk' => $renstraTerkini->renstraPk()->exists(),
+                        'has_jadwal' => $renstraTerkini->jadwalTahunan()->exists(),
+                    ],
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                return [
+                    'field' => 'renstra',
+                    'pesan' => 'Renstra tidak dapat dihapus karena telah memiliki data sasaran, perjanjian kinerja, atau jadwal terkait.',
+                ];
             }
 
             $renstraTerkini->load(['berkas', 'regulasi']);
@@ -264,7 +310,15 @@ class RenstraService
             if (! empty($paths)) {
                 DB::afterCommit(fn () => $this->hapusFile($paths));
             }
+
+            return null;
         });
+
+        if ($penolakan !== null) {
+            throw ValidationException::withMessages([
+                $penolakan['field'] => $penolakan['pesan'],
+            ]);
+        }
     }
 
     public function deleteAttachment(Renstra $renstra, Berkas $berkas, string $alasan, User $actor): void
@@ -289,8 +343,8 @@ class RenstraService
             $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
             $berkasTerkini = Berkas::query()->lockForUpdate()->findOrFail($berkas->id);
 
-            // Batas imutabilitas: lampiran Renstra tidak dapat dihapus setelah Renstra berstatus aktif.
-            if ($renstraTerkini->status === Renstra::STATUS_AKTIF || $renstraTerkini->is_aktif) {
+            // Batas imutabilitas: lampiran Renstra hanya dapat dihapus jika status masih draft.
+            if ($renstraTerkini->status !== Renstra::STATUS_DRAFT) {
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'berkas.hapus_ditolak',
@@ -298,7 +352,7 @@ class RenstraService
                     objekId: $berkasTerkini->id,
                     nilaiLama: $this->metadataBerkasUntukAudit($berkasTerkini),
                     nilaiBaru: [
-                        'alasan_penolakan' => 'renstra_aktif_lampiran_imutable',
+                        'alasan_penolakan' => 'renstra_bukan_draft_lampiran_imutabel',
                         'status_renstra' => $renstraTerkini->status,
                     ],
                     alasan: $alasan,
@@ -306,7 +360,7 @@ class RenstraService
                 );
 
                 return [
-                    'pesan' => 'Lampiran Renstra yang berstatus aktif tidak dapat dihapus karena telah mencapai batas imutabilitas.',
+                    'pesan' => 'Lampiran Renstra hanya dapat dihapus pada status draft karena telah mencapai batas imutabilitas.',
                 ];
             }
 

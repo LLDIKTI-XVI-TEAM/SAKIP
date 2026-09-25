@@ -20,7 +20,7 @@ interface RenstraFormFieldsProps {
 }
 
 const modeMeta: Record<LampiranMode, { label: string; icon: typeof FileText; description: string }> = {
-    file: { label: 'File', icon: FileText, description: 'Dokumen PDF atau Word naskah Renstra, maksimal 20 MB.' },
+    file: { label: 'File', icon: FileText, description: 'Dokumen PDF atau Word naskah Renstra sesuai batas kebijakan berkas.' },
     tautan: { label: 'Tautan', icon: Link2, description: 'Alamat tautan repositori dokumen resmi atau cloud storage.' },
     teks: { label: 'Teks', icon: Type, description: 'Kutipan substansi atau rangkuman naskah Renstra.' },
 };

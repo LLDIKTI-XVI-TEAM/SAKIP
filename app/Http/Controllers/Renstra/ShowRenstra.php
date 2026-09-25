@@ -21,7 +21,6 @@ class ShowRenstra extends Controller
         $relations = [
             'regulasi',
             'pembuat',
-            'sasaranStrategis' => fn ($query) => $query->with('indikatorKinerjas')->orderBy('urutan'),
         ];
 
         if ($canViewAttachments) {

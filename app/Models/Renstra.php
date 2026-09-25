@@ -114,11 +114,19 @@ class Renstra extends Model
     public function setIsAktifAttribute(mixed $value): void
     {
         $isAktif = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        $currentStatus = $this->attributes['status'] ?? self::STATUS_DRAFT;
+
+        if ($currentStatus === self::STATUS_DIARSIPKAN) {
+            $this->attributes['is_aktif'] = false;
+
+            return;
+        }
+
         $this->attributes['is_aktif'] = $isAktif;
 
-        if ($isAktif && ($this->attributes['status'] ?? self::STATUS_DRAFT) === self::STATUS_DRAFT) {
+        if ($isAktif) {
             $this->attributes['status'] = self::STATUS_AKTIF;
-        } elseif (! $isAktif && ($this->attributes['status'] ?? '') === self::STATUS_AKTIF) {
+        } elseif ($currentStatus === self::STATUS_AKTIF) {
             $this->attributes['status'] = self::STATUS_NONAKTIF;
         }
     }

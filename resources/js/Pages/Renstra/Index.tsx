@@ -284,7 +284,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                             <button
                                                                 type="button"
                                                                 onClick={() => openDelete(item)}
-                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-2xs transition-colors hover:bg-rose-100 hover:border-rose-300 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/20 cursor-pointer"
+                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-danger/30 bg-danger/5 text-danger shadow-2xs transition-colors hover:bg-danger/10 hover:border-danger/40 focus:outline-none focus:ring-2 focus:ring-danger/20 cursor-pointer"
                                                                 aria-label={`Hapus ${item.kode}`}
                                                             >
                                                                 <Trash2 className="h-4 w-4" aria-hidden="true" />
