@@ -175,10 +175,14 @@ export function GrantUserAutocomplete({
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setHighlightedIndex((prev) => (prev < items.length - 1 ? prev + 1 : 0));
+            if (items.length > 0) {
+                setHighlightedIndex((prev) => (prev < items.length - 1 ? prev + 1 : 0));
+            }
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : items.length - 1));
+            if (items.length > 0) {
+                setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : items.length - 1));
+            }
         } else if (e.key === 'Enter') {
             if (highlightedIndex >= 0 && items[highlightedIndex]) {
                 e.preventDefault();

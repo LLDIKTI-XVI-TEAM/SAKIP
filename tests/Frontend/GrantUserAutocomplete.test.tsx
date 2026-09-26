@@ -268,6 +268,7 @@ describe('GrantUserAutocomplete Component', () => {
         await user.type(input, 'di');
 
         await screen.findByRole('listbox');
+        expect(await screen.findByText('Dion Kobi')).toBeTruthy();
 
         // Navigasi ke bawah dengan ArrowDown
         await user.keyboard('{ArrowDown}');
