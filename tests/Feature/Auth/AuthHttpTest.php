@@ -6,6 +6,7 @@ use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\Auth\KeycloakIdentityProvider;
@@ -13,6 +14,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -122,6 +124,9 @@ class AuthHttpTest extends TestCase
     public function test_return_only_reviewer_has_the_same_menu_capability_as_the_endpoint(): void
     {
         $user = User::factory()->create(['is_active' => true]);
+        $user->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+            'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now(),
+        ]);
         foreach (['pengukuran:read', 'pengukuran:kembalikan'] as $code) {
             UserPermissionGrant::create([
                 'user_id' => $user->id, 'permission_id' => Permission::where('kode', $code)->sole()->id,

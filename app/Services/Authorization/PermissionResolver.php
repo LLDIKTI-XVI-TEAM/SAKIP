@@ -21,6 +21,12 @@ class PermissionResolver
         if (! $user->is_active) {
             return [...$result, 'reason' => 'inactive_user'];
         }
+        // Grant tidak membuka akses akun tanpa role resmi aktif, termasuk row role legacy.
+        if (! DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)
+            ->whereIn('roles.kode', RoleCatalog::codes())->exists()) {
+            return [...$result, 'reason' => 'no_role'];
+        }
         $permission = Permission::where('kode', $kode)->where('aktif', true)->first();
         if (! $permission) {
             return [...$result, 'reason' => 'unknown_permission'];

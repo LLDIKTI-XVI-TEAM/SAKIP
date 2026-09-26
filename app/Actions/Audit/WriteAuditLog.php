@@ -21,7 +21,16 @@ class WriteAuditLog
         $actor = $attributes['actor_id'] ?? null;
         $valid = match ($type) {
             'user' => $source === 'manual' && is_string($actor) && $actor !== '',
-            'system' => $source === 'sso_onboarding' && $actor === null && $event === 'user_roles.tambah',
+            'system' => $actor === null && (
+                ($source === 'sso_onboarding' && $event === 'user_roles.tambah')
+                || ($source === 'preset_release' && ($attributes['operator_reference'] ?? null) === null
+                    && is_string($attributes['runtime_identity'] ?? null) && trim($attributes['runtime_identity']) !== ''
+                    && match ($event) {
+                        'role_permissions.ubah', 'roles.hapus' => ($attributes['objek_tipe'] ?? null) === 'roles',
+                        'permissions.ubah' => ($attributes['objek_tipe'] ?? null) === 'permissions',
+                        default => false,
+                    })
+            ),
             'operator' => $source === 'bootstrap' && $actor === null
                 && is_string($attributes['operator_reference'] ?? null) && trim($attributes['operator_reference']) !== ''
                 && is_string($attributes['runtime_identity'] ?? null) && trim($attributes['runtime_identity']) !== ''

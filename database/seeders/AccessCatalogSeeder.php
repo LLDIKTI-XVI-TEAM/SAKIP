@@ -2,28 +2,18 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
-use App\Models\Role;
-use App\Services\Authorization\PermissionCatalog;
-use App\Services\Authorization\RoleCatalog;
+use App\Actions\Access\SyncRolePermissionPresets;
 use Illuminate\Database\Seeder;
 
 class AccessCatalogSeeder extends Seeder
 {
+    private const RELEASE = 'q32-2026-09-24';
+
     public function run(): void
     {
-        foreach (PermissionCatalog::codes() as $code) {
-            [$entity, $action] = explode(':', $code);
-            Permission::updateOrCreate(['kode' => $code], [
-                'entitas' => $entity,
-                'aksi' => $action,
-                'butuh_scope' => in_array($code, PermissionCatalog::UNIT_SCOPED, true) ? 'unit' : 'global',
-                'sensitif' => in_array($code, PermissionCatalog::SENSITIVE, true),
-            ]);
-        }
-        foreach (RoleCatalog::ROLES as $code => $definition) {
-            // Rerun tidak mengaktifkan ulang peran/permission atau menimpa izin yang dikelola.
-            Role::firstOrCreate(['kode' => $code], ['nama' => $definition['nama'], 'urutan' => $definition['seed_urutan'], 'is_sistem' => true, 'aktif' => true]);
-        }
+        $sync = app(SyncRolePermissionPresets::class);
+        $this->command?->line(json_encode($sync->preview(), JSON_THROW_ON_ERROR));
+        $events = $sync->handle(self::RELEASE, 'Penyelarasan lima role dan preset izin final.', 'cli:'.(gethostname() ?: 'unknown').':'.getmypid());
+        $this->command?->info('Sinkronisasi akses selesai; '.$events.' perubahan teraudit.');
     }
 }

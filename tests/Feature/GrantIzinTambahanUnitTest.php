@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,16 +95,6 @@ class GrantIzinTambahanUnitTest extends TestCase
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
             'diberikan_oleh' => $this->adminUser->id,
-            'created_at' => now(),
-        ]);
-
-        $aksesUpdatePerm = Permission::where('kode', 'akses:update')->firstOrFail();
-        $adminRole->permissions()->attach($aksesUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
-        ]);
-        $superadminRole->permissions()->attach($aksesUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
             'created_at' => now(),
         ]);
 
@@ -1445,14 +1434,6 @@ class GrantIzinTambahanUnitTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Hubungkan permissions perencanaan dari presets
-        $perencanaanCodes = RolePermissionPresets::forRole('perencanaan');
-        foreach (Permission::whereIn('kode', $perencanaanCodes)->get() as $perm) {
-            $perencanaanRole->permissions()->syncWithoutDetaching([
-                $perm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-            ]);
-        }
-
         // Perencanaan tetap memiliki izin global membaca histori atau rencana pada unit nonaktif
         $decisionRencana = $resolver->decide($perencanaanUser, 'rencana_aksi:read', $unitNonaktif->id);
         $this->assertTrue($decisionRencana['allowed']);
@@ -1463,12 +1444,6 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertSame('allow', $decisionPengukuran['reason']);
 
         // Superadmin juga tetap memiliki izin global pada unit nonaktif
-        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
-        foreach (Permission::whereIn('kode', ['rencana_aksi:read', 'pengukuran:read'])->get() as $perm) {
-            $superadminRole->permissions()->syncWithoutDetaching([
-                $perm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-            ]);
-        }
         $decisionSuper = $resolver->decide($this->superadminUser, 'rencana_aksi:read', $unitNonaktif->id);
         $this->assertTrue($decisionSuper['allowed']);
         $this->assertSame('allow', $decisionSuper['reason']);
@@ -1478,6 +1453,9 @@ class GrantIzinTambahanUnitTest extends TestCase
             'nama' => 'Staf Khusus',
             'email' => 'staf@sakip.test',
             'is_active' => true,
+        ]);
+        $stafUser->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+            'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->adminUser->id, 'created_at' => now(),
         ]);
         UserPermissionGrant::create([
             'user_id' => $stafUser->id,
