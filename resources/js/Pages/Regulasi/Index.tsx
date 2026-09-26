@@ -1,7 +1,7 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -43,6 +43,11 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
     const [recoveryMessage, setRecoveryMessage] = useState('');
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
+
+    useEffect(() => {
+        setQuery(filters.q);
+        setStatus(filters.status ?? '');
+    }, [filters.q, filters.status]);
     const [selected, setSelected] = useState<RegulasiSummary | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -124,6 +129,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                 <Card className="overflow-visible">
                     <form onSubmit={applyFilters} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
                         <Input
+                            name="q"
                             label="Cari regulasi"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}

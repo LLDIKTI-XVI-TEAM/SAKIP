@@ -39,12 +39,15 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
 
     if (!isOpen) return null;
 
+    const isRecoveryActive = Boolean(recovery.recovery) || recoveryUnknown;
+
     const handleSafeClose = () => {
         if (form.processing) return;
-        form.clearErrors();
-        form.reset();
-        setRecoveryUnknown(false);
-        setRecoveryMessage('');
+        if (!isRecoveryActive) {
+            form.clearErrors();
+            form.reset();
+            setRecoveryMessage('');
+        }
         onClose();
     };
 
@@ -53,6 +56,7 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
         if (form.processing || recovery.recovery || recoveryUnknown) return;
 
         form.post('/regulasi', {
+            preserveState: 'errors',
             forceFormData: true,
             preserveScroll: true,
             onHttpException: (response) => {
