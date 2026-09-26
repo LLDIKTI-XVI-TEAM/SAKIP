@@ -445,8 +445,7 @@ export default function GrantIndex({
                 {/* Header Title & Actions */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-primary" />
+                        <h2 className="text-sm font-semibold text-ink">
                             Grant Izin Tambahan per Unit
                         </h2>
                         <p className="mt-0.5 text-xs text-muted max-w-2xl">

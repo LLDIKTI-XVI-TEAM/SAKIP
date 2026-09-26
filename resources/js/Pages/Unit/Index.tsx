@@ -286,8 +286,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 {/* Header Title & Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-primary" />
+                        <h2 className="text-sm font-semibold text-ink">
                             Pengelolaan Master {labelUnit}
                         </h2>
                         <p className="mt-0.5 text-xs text-muted">
