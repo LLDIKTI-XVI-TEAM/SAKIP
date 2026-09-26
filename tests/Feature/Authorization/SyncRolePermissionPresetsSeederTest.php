@@ -79,4 +79,55 @@ class SyncRolePermissionPresetsSeederTest extends TestCase
         $this->seed(SyncRolePermissionPresetsSeeder::class);
         $this->assertSame($auditCountBefore, AuditLog::count());
     }
+
+    public function test_seeder_does_not_audit_inactive_permissions_as_added_and_remains_idempotent(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $user = User::factory()->create(['is_active' => true]);
+        $audit = AuditLog::create([
+            'actor_type' => 'operator',
+            'sumber' => 'bootstrap',
+            'operator_reference' => 'operator-test',
+            'runtime_identity' => 'test@phpunit',
+            'waktu' => now(),
+            'tindakan' => 'auth.bootstrap',
+            'objek_tipe' => 'users',
+            'objek_id' => $user->id,
+            'alasan' => 'Initial bootstrap',
+        ]);
+
+        DB::table('auth_bootstraps')->insert([
+            'id' => 'initial',
+            'user_id' => $user->id,
+            'audit_id' => $audit->id,
+            'created_at' => now(),
+        ]);
+
+        // Nonaktifkan salah satu permission yang ada di preset pegawai, misalnya 'kegiatan:read'
+        $kegiatanRead = Permission::where('kode', 'kegiatan:read')->firstOrFail();
+        $kegiatanRead->update(['aktif' => false]);
+
+        $this->seed(SyncRolePermissionPresetsSeeder::class);
+
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+
+        // Permission nonaktif tidak boleh terpasang di role_permissions
+        $this->assertDatabaseMissing('role_permissions', [
+            'role_id' => $pegawaiRole->id,
+            'permission_id' => $kegiatanRead->id,
+        ]);
+
+        // Audit log nilai_baru tidak boleh mencantumkan permission nonaktif
+        $pegawaiAudit = AuditLog::where('tindakan', 'role_permissions.ubah')
+            ->where('objek_id', $pegawaiRole->id)
+            ->firstOrFail();
+
+        $this->assertNotContains('kegiatan:read', $pegawaiAudit->nilai_baru['permissions'] ?? []);
+
+        // Rerun seeder harus idempoten (tidak menambah audit log baru)
+        $auditCountBefore = AuditLog::count();
+        $this->seed(SyncRolePermissionPresetsSeeder::class);
+        $this->assertSame($auditCountBefore, AuditLog::count());
+    }
 }

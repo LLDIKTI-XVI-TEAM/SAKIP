@@ -32,7 +32,7 @@ final class PermissionCatalog
         'pengaturan' => ['update'],
     ];
 
-    public const UNIT_SCOPED = ['pengukuran:create', 'pengukuran:update', 'rencana_aksi:read', 'rencana_aksi:create', 'rencana_aksi:update', 'rencana_aksi:ajukan', 'kegiatan:read', 'kegiatan:create', 'kegiatan:update'];
+    public const UNIT_SCOPED = ['pengukuran:create', 'pengukuran:update', 'rencana_aksi:create', 'rencana_aksi:update', 'rencana_aksi:ajukan', 'kegiatan:create', 'kegiatan:update'];
 
     /** Tepat 7 permission yang sah diberikan melalui form/endpoint Grant Unit (ISS-01.04 / Q32) */
     public const GRANTABLE_UNIT_PERMISSIONS = [

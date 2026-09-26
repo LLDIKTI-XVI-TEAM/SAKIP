@@ -1701,8 +1701,9 @@ class GrantIzinTambahanUnitTest extends TestCase
             'kegiatan:update',
         ];
 
-        // Pastikan PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS tepat berisi 7 kode ini
+        // Pastikan PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS dan UNIT_SCOPED tepat berisi 7 kode ini
         $this->assertSame($expectedCodes, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS);
+        $this->assertSame($expectedCodes, PermissionCatalog::UNIT_SCOPED);
 
         foreach ($expectedCodes as $code) {
             $perm = Permission::where('kode', $code)->firstOrFail();
@@ -1730,5 +1731,35 @@ class GrantIzinTambahanUnitTest extends TestCase
 
             $this->assertDatabaseMissing('user_permission_granted', ['id' => $grant->id]);
         }
+    }
+
+    /**
+     * Q32: Izin baca rencana aksi dan kegiatan berstatus global dan dapat dievaluasi tanpa unit_id.
+     */
+    public function test_read_permissions_are_global_and_evaluable_without_unit_id(): void
+    {
+        $resolver = app(PermissionResolver::class);
+
+        $rencanaAksiRead = Permission::where('kode', 'rencana_aksi:read')->firstOrFail();
+        $kegiatanRead = Permission::where('kode', 'kegiatan:read')->firstOrFail();
+
+        $this->assertSame(Permission::SCOPE_GLOBAL, $rencanaAksiRead->butuh_scope);
+        $this->assertSame(Permission::SCOPE_GLOBAL, $kegiatanRead->butuh_scope);
+
+        // Pasangkan role pegawai ke pegawaiUser dengan preset terbaru
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $syncData = [];
+        foreach (Permission::whereIn('kode', RolePermissionPresets::forRole('pegawai'))->pluck('id') as $permId) {
+            $syncData[$permId] = ['id' => (string) Str::uuid(), 'created_at' => now()];
+        }
+        $pegawaiRole->permissions()->sync($syncData);
+
+        $decisionRencana = $resolver->decide($this->pegawaiUser, 'rencana_aksi:read');
+        $this->assertTrue($decisionRencana['allowed']);
+        $this->assertNotSame('invalid_scope', $decisionRencana['reason']);
+
+        $decisionKegiatan = $resolver->decide($this->pegawaiUser, 'kegiatan:read');
+        $this->assertTrue($decisionKegiatan['allowed']);
+        $this->assertNotSame('invalid_scope', $decisionKegiatan['reason']);
     }
 }

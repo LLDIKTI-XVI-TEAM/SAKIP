@@ -48,7 +48,8 @@ class SyncRolePermissionPresetsSeeder extends Seeder
                 continue;
             }
 
-            $expectedCodes = RolePermissionPresets::forRole($roleKode);
+            $definedCodes = RolePermissionPresets::forRole($roleKode);
+            $expectedCodes = array_values(array_filter($definedCodes, fn (string $code): bool => isset($allPermissions[$code])));
             sort($expectedCodes);
 
             $currentPermissions = DB::table('role_permissions')
@@ -65,7 +66,7 @@ class SyncRolePermissionPresetsSeeder extends Seeder
                 continue;
             }
 
-            DB::transaction(function () use ($role, $allPermissions, $currentPermissions, $expectedCodes, $toAdd, $toRemove) {
+            DB::transaction(function () use ($role, $allPermissions, $currentPermissions, $toAdd, $toRemove) {
                 foreach ($toAdd as $addCode) {
                     if (isset($allPermissions[$addCode])) {
                         DB::table('role_permissions')->insert([
@@ -85,6 +86,13 @@ class SyncRolePermissionPresetsSeeder extends Seeder
                         ->delete();
                 }
 
+                $actualPermissions = DB::table('role_permissions')
+                    ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                    ->where('role_permissions.role_id', $role->id)
+                    ->pluck('permissions.kode')
+                    ->all();
+                sort($actualPermissions);
+
                 $this->audit->handle([
                     'actor_type' => 'operator',
                     'sumber' => 'bootstrap',
@@ -94,7 +102,7 @@ class SyncRolePermissionPresetsSeeder extends Seeder
                     'objek_tipe' => 'roles',
                     'objek_id' => $role->id,
                     'nilai_lama' => ['permissions' => $currentPermissions],
-                    'nilai_baru' => ['permissions' => $expectedCodes],
+                    'nilai_baru' => ['permissions' => $actualPermissions],
                     'alasan' => 'Sinkronisasi preset peran sesuai rilis kode (PRD §7.3)',
                 ]);
             });
