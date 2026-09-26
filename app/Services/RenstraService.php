@@ -119,15 +119,8 @@ class RenstraService
         $this->validasiRentangTahun($data);
 
         try {
-            return DB::transaction(function () use ($renstra, $data, $actor, $decision, &$storedPaths): Renstra {
+            $hasil = DB::transaction(function () use ($renstra, $data, $actor, $decision, &$storedPaths): Renstra|array {
                 $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
-
-                if ($renstraTerkini->status === Renstra::STATUS_DIARSIPKAN) {
-                    throw ValidationException::withMessages([
-                        'renstra' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
-                    ]);
-                }
-
                 $renstraTerkini->load(['berkas', 'regulasi']);
                 $nilaiLama = $this->snapshot($renstraTerkini);
                 $regulasiIdLama = $renstraTerkini->regulasi_id;
@@ -141,12 +134,55 @@ class RenstraService
                     ? $data['deskripsi']
                     : (array_key_exists('keterangan', $data) ? $data['keterangan'] : $renstraTerkini->deskripsi);
 
+                $dasarHukum = array_key_exists('dasar_hukum', $data) ? $data['dasar_hukum'] : $renstraTerkini->dasar_hukum;
+                $penolakan = null;
+
+                if ($renstraTerkini->status === Renstra::STATUS_DIARSIPKAN) {
+                    $penolakan = [
+                        'field' => 'renstra',
+                        'pesan' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
+                        'alasan_penolakan' => 'status_diarsipkan',
+                    ];
+                } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && trim((string) $dasarHukum) === '') {
+                    $penolakan = [
+                        'field' => 'dasar_hukum',
+                        'pesan' => 'Dasar hukum Renstra aktif wajib terisi.',
+                        'alasan_penolakan' => 'dasar_hukum_kosong',
+                    ];
+                } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && Renstra::query()
+                    ->whereKeyNot($renstraTerkini->id)
+                    ->where('status', Renstra::STATUS_AKTIF)
+                    ->where('tahun_mulai', '<=', $tahunSelesai)
+                    ->where('tahun_selesai', '>=', $tahunMulai)
+                    ->exists()) {
+                    $penolakan = [
+                        'field' => 'tahun_mulai',
+                        'pesan' => 'Rentang tahun Renstra aktif beririsan dengan Renstra aktif lain.',
+                        'alasan_penolakan' => 'rentang_aktif_beririsan',
+                    ];
+                }
+
+                if ($penolakan !== null) {
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'renstra.ubah_ditolak',
+                        objekTipe: 'renstra',
+                        objekId: $renstraTerkini->id,
+                        nilaiLama: $nilaiLama,
+                        nilaiBaru: ['alasan_penolakan' => $penolakan['alasan_penolakan']],
+                        alasan: $data['alasan'] ?? null,
+                        dasarIzin: $decision->toAuditBasis(),
+                    );
+
+                    return $penolakan;
+                }
+
                 $updateData = [
                     'nama' => $data['nama'] ?? $renstraTerkini->nama,
                     'tahun_mulai' => $tahunMulai,
                     'tahun_selesai' => $tahunSelesai,
                     'deskripsi' => $deskripsi,
-                    'dasar_hukum' => array_key_exists('dasar_hukum', $data) ? $data['dasar_hukum'] : $renstraTerkini->dasar_hukum,
+                    'dasar_hukum' => $dasarHukum,
                     'regulasi_id' => array_key_exists('regulasi_id', $data) ? $data['regulasi_id'] : $renstraTerkini->regulasi_id,
                 ];
 
@@ -193,8 +229,32 @@ class RenstraService
 
                 return $renstraTerkini;
             });
+
+            if (is_array($hasil)) {
+                throw ValidationException::withMessages([
+                    $hasil['field'] => $hasil['pesan'],
+                ]);
+            }
+
+            return $hasil;
         } catch (QueryException $exception) {
             $this->hapusFile($storedPaths);
+
+            if ($this->adalahIrisanRentangAktif($exception)) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra.ubah_ditolak',
+                    objekTipe: 'renstra',
+                    objekId: $renstra->id,
+                    nilaiBaru: ['alasan_penolakan' => 'rentang_aktif_beririsan'],
+                    alasan: $data['alasan'] ?? null,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                throw ValidationException::withMessages([
+                    'tahun_mulai' => 'Rentang tahun Renstra aktif beririsan dengan Renstra aktif lain.',
+                ]);
+            }
 
             if ($this->adalahDuplikasiKode($exception)) {
                 throw ValidationException::withMessages([
@@ -611,7 +671,6 @@ class RenstraService
                 'nama_asli' => $berkas->nama_asli,
                 'mime' => $berkas->mime,
                 'ukuran_bytes' => $berkas->ukuran_bytes,
-                'path' => $berkas->path,
             ];
         } elseif ($berkas->mode === 'tautan') {
             $meta['tautan'] = $berkas->tautan;
@@ -636,6 +695,12 @@ class RenstraService
     {
         return str_contains($exception->getMessage(), 'renstras_kode_unique')
             || str_contains($exception->getMessage(), '23505');
+    }
+
+    private function adalahIrisanRentangAktif(QueryException $exception): bool
+    {
+        return ($exception->errorInfo[0] ?? null) === '23P01'
+            && str_contains($exception->getMessage(), 'renstras_active_years_exclude');
     }
 
     private function pastikanIzinDiizinkan(PermissionDecision $decision): void

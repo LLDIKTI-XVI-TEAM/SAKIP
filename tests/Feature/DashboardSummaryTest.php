@@ -67,7 +67,7 @@ class DashboardSummaryTest extends TestCase
 
     public function test_dashboard_does_not_fall_back_to_old_data_without_an_active_renstra_schedule(): void
     {
-        Renstra::query()->update(['is_aktif' => false]);
+        Renstra::query()->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra', null)->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
 
@@ -84,7 +84,7 @@ class DashboardSummaryTest extends TestCase
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra.id', $this->jadwal->renstra_id)->where('stats.total', 1));
 
-        Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false]);
+        Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra', null)->where('activePeriode', null)->where('stats.total', 0));
     }
@@ -104,7 +104,7 @@ class DashboardSummaryTest extends TestCase
     public function test_index_does_not_use_a_closed_schedule_from_an_inactive_renstra(): void
     {
         $this->jadwal->update(['status' => 'ditutup']);
-        Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false]);
+        Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
             ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
 

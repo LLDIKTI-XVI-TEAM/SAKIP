@@ -40,7 +40,7 @@ class ShowRenstra extends Controller
             $renstra->unsetRelation('regulasi');
         }
 
-        $hasBerkas = $renstra->berkas->isNotEmpty();
+        $hasBerkas = $renstra->berkas()->exists();
         $canDeleteAttachment = $user->can('deleteAttachment', $renstra);
 
         return Inertia::render('Renstra/Show', [
