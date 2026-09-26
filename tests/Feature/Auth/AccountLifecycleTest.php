@@ -92,7 +92,7 @@ class AccountLifecycleTest extends TestCase
         $this->assertTrue($action->handle($user->id, 'Operator Uji / otorisasi QA', 'Inisialisasi pengujian', 'qa-runtime'));
         $this->assertTrue($user->fresh()->is_active);
         $this->assertSame('superadmin', $user->roles()->first()->kode);
-        $this->assertDatabaseCount('role_permissions', 162);
+        $this->assertDatabaseCount('role_permissions', 167);
         foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
             $role = Role::where('kode', $code)->sole();
             $installed = DB::table('role_permissions')

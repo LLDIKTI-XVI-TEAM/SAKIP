@@ -18,13 +18,10 @@ class IndexGrant extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        Gate::authorize('akses:update');
+        Gate::authorize('delegasi:update');
 
         /** @var User $actor */
         $actor = $request->user();
-        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
-            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang mengakses manajemen izin unit.');
-        }
 
         $actorIsSuperadmin = $actor->hasRole('superadmin');
 
@@ -95,7 +92,7 @@ class IndexGrant extends Controller
 
         $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
             ->where('aktif', true)
-            ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
+            ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
             ->select('id', 'kode', 'entitas', 'aksi', 'keterangan')
             ->orderBy('kode')
             ->get()

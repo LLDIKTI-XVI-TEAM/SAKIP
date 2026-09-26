@@ -7,7 +7,6 @@ use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Permission;
 use App\Models\UserPermissionDeny;
-use App\Models\UserPermissionGrant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -41,13 +40,16 @@ class ClaimedActivityEvidenceTest extends TestCase
         $this->get($detail)->assertInertia(fn ($page) => $page->where('pengukuran.can.viewClaims', false)->has('pengukuran.klaim', 0));
 
         $reader = $this->userWithRole('pegawai');
-        $this->actingAs($reader)->get($url)->assertForbidden();
-        UserPermissionGrant::create(['user_id' => $reader->id, 'permission_id' => Permission::where('kode', 'kegiatan:read')->value('id'),
-            'unit_id' => $this->unit->id, 'alasan' => 'Uji akses scoped.', 'diberikan_oleh' => $this->actor->id]);
-        $this->get($url)->assertOk()->assertStreamedContent('Bukti beku');
+        $this->actingAs($reader)->get($url)->assertOk()->assertStreamedContent('Bukti beku');
         $this->get($detail)->assertInertia(fn ($page) => $page->where('pengukuran.can.claimEvidence', true)
             ->where('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.download_url', url($url))
             ->missing('pengukuran.klaim.0.kegiatan.bukti_dukungs.0.path'));
+
+        // Deny kegiatan:read pada pegawai mencabut akses bukti klaim
+        $denyKegiatan = UserPermissionDeny::create(['user_id' => $reader->id, 'permission_id' => Permission::where('kode', 'kegiatan:read')->value('id'),
+            'unit_id' => $this->unit->id, 'alasan' => 'Uji deny kegiatan pegawai.', 'ditetapkan_oleh' => $this->actor->id]);
+        $this->get($url)->assertForbidden();
+        $denyKegiatan->delete();
 
         UserPermissionDeny::create(['user_id' => $reader->id, 'permission_id' => Permission::where('kode', 'berkas:read')->value('id'),
             'unit_id' => $this->unit->id, 'alasan' => 'Uji deny berkas.', 'ditetapkan_oleh' => $this->actor->id]);

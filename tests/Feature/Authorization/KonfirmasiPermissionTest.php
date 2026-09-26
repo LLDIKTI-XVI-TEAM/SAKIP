@@ -48,20 +48,18 @@ class KonfirmasiPermissionTest extends TestCase
 
     /**
      * §6 Dokumen Konfirmasi Permission:
-     * 9 permission dengan scope unit untuk form grant (ISS-01.04).
+     * 7 permission dengan scope unit untuk form grant (ISS-01.04, Q32).
      */
-    public function test_9_unit_scoped_permissions_match_confirmation_document(): void
+    public function test_7_unit_scoped_permissions_match_confirmation_document(): void
     {
         $unitCodes = PermissionCodes::unitScoped();
 
-        $this->assertCount(9, $unitCodes);
+        $this->assertCount(7, $unitCodes);
 
         $expected = [
-            'rencana_aksi:read',
             'rencana_aksi:create',
             'rencana_aksi:update',
             'rencana_aksi:ajukan',
-            'kegiatan:read',
             'kegiatan:create',
             'kegiatan:update',
             'pengukuran:create',

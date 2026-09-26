@@ -108,18 +108,16 @@ final class PermissionCodes
     }
 
     /**
-     * 9 Kode Permission Scope Unit untuk Form Grant (§6)
+     * 7 Kode Permission Scope Unit untuk Form Grant (§6, ISS-01.04, Q32)
      *
      * @return list<string>
      */
     public static function unitScoped(): array
     {
         return [
-            self::RENCANA_AKSI_READ,
             self::RENCANA_AKSI_CREATE,
             self::RENCANA_AKSI_UPDATE,
             self::RENCANA_AKSI_AJUKAN,
-            self::KEGIATAN_READ,
             self::KEGIATAN_CREATE,
             self::KEGIATAN_UPDATE,
             self::PENGUKURAN_CREATE,
