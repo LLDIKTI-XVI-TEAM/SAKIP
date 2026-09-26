@@ -9,6 +9,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $konflik = DB::table('renstras as pertama')
+            ->join('renstras as kedua', 'pertama.id', '<', 'kedua.id')
+            ->where('pertama.is_aktif', true)
+            ->where('kedua.is_aktif', true)
+            ->whereColumn('pertama.tahun_mulai', '<=', 'kedua.tahun_selesai')
+            ->whereColumn('kedua.tahun_mulai', '<=', 'pertama.tahun_selesai')
+            ->first(['pertama.id as id_pertama', 'kedua.id as id_kedua']);
+
+        if ($konflik !== null) {
+            throw new RuntimeException("Renstra aktif lama memiliki rentang tahun beririsan ({$konflik->id_pertama} dan {$konflik->id_kedua}). Tinjau dan putuskan statusnya sebelum migrasi.");
+        }
+
         Schema::table('renstras', function (Blueprint $table) {
             $table->enum('status', ['draft', 'aktif', 'nonaktif', 'diarsipkan'])
                 ->default('draft')

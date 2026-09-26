@@ -13,6 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -86,6 +87,22 @@ class RenstraService
             }
 
             throw $exception;
+        } catch (AuthorizationException $exception) {
+            $this->hapusFile($storedPaths);
+            $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+
+            if (! empty($data['lampiran']) && ! $uploadDecision->allowed) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra.buat_ditolak',
+                    objekTipe: 'renstra',
+                    objekId: (string) Str::uuid(),
+                    nilaiBaru: ['alasan_penolakan' => 'berkas_upload_denied'],
+                    dasarIzin: $uploadDecision->toAuditBasis(),
+                );
+            }
+
+            throw $exception;
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);
 
@@ -142,6 +159,12 @@ class RenstraService
                         'field' => 'renstra',
                         'pesan' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
                         'alasan_penolakan' => 'status_diarsipkan',
+                    ];
+                } elseif (! empty($data['lampiran']) && $renstraTerkini->status !== Renstra::STATUS_DRAFT) {
+                    $penolakan = [
+                        'field' => 'lampiran',
+                        'pesan' => 'Lampiran baru hanya dapat ditambahkan pada Renstra berstatus draft.',
+                        'alasan_penolakan' => 'renstra_bukan_draft_lampiran_imutabel',
                     ];
                 } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && trim((string) $dasarHukum) === '') {
                     $penolakan = [
@@ -260,6 +283,23 @@ class RenstraService
                 throw ValidationException::withMessages([
                     'kode' => 'Kode Renstra sudah terdaftar pada sistem.',
                 ]);
+            }
+
+            throw $exception;
+        } catch (AuthorizationException $exception) {
+            $this->hapusFile($storedPaths);
+            $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+
+            if (! empty($data['lampiran']) && ! $uploadDecision->allowed) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra.ubah_ditolak',
+                    objekTipe: 'renstra',
+                    objekId: $renstra->id,
+                    nilaiBaru: ['alasan_penolakan' => 'berkas_upload_denied'],
+                    alasan: $data['alasan'] ?? null,
+                    dasarIzin: $uploadDecision->toAuditBasis(),
+                );
             }
 
             throw $exception;

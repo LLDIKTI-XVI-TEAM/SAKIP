@@ -3,7 +3,6 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertCircle,
     ArrowLeft,
-    BookOpen,
     Download,
     Edit3,
     ExternalLink,
@@ -228,10 +227,7 @@ export default function ShowRenstra({
                         <Card>
                             <CardContent className="p-5 sm:p-6 space-y-4">
                                 <div className="flex items-center justify-between border-b border-border pb-3">
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
-                                        <h2 className="text-base font-semibold text-ink">Naskah Renstra & Lampiran</h2>
-                                    </div>
+                                    <h2 className="text-base font-semibold text-ink">Naskah Renstra & Lampiran</h2>
                                     <span className="text-xs text-muted">
                                         {berkasList.length} berkas terlampir
                                     </span>
@@ -307,9 +303,9 @@ export default function ShowRenstra({
                                                 </div>
 
                                                 <div className="flex items-center justify-end gap-2 self-end sm:self-center">
-                                                    {item.mode === 'file' && (
+                                                    {item.mode === 'file' && item.download_url && (
                                                         <a
-                                                            href={`/renstra/${renstra.id}/berkas/${item.id}/download`}
+                                                            href={item.download_url}
                                                             className="inline-flex items-center gap-1.5 rounded-md bg-soft px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-border focus:outline-none focus:ring-2 focus:ring-primary/20"
                                                         >
                                                             <Download className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
@@ -340,8 +336,7 @@ export default function ShowRenstra({
                     <div className="space-y-6">
                         <Card>
                             <CardContent className="p-5 space-y-4">
-                                <div className="flex items-center gap-2 border-b border-border pb-3">
-                                    <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
+                                <div className="border-b border-border pb-3">
                                     <h3 className="text-sm font-semibold text-ink">Rujukan Regulasi</h3>
                                 </div>
 

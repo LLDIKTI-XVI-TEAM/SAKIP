@@ -17,6 +17,7 @@ interface RenstraFormFieldsProps {
     isEdit?: boolean;
     requireReason?: boolean;
     canUploadAttachment?: boolean;
+    attachmentLocked?: boolean;
     setField: SetRenstraField;
 }
 
@@ -44,6 +45,7 @@ export function RenstraFormFields({
     isEdit = false,
     requireReason = false,
     canUploadAttachment = true,
+    attachmentLocked = false,
     setField,
 }: RenstraFormFieldsProps) {
     const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
@@ -244,7 +246,11 @@ export function RenstraFormFields({
 
                 {!canUploadAttachment ? (
                     <div className="rounded-xl border border-dashed border-border bg-soft/40 py-6 px-4 text-center">
-                        <p className="text-sm font-medium text-muted">Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.</p>
+                        <p className="text-sm font-medium text-muted">
+                            {attachmentLocked
+                                ? 'Lampiran baru hanya dapat ditambahkan saat Renstra berstatus draft.'
+                                : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
+                        </p>
                     </div>
                 ) : data.lampiran.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border bg-soft/40 py-6 px-4 text-center">

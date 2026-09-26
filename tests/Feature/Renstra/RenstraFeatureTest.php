@@ -14,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -438,6 +439,27 @@ test('Migrasi mempertahankan Renstra lama nonaktif sebagai nonaktif', function (
     expect(DB::table('renstras')->where('id', $id)->value('status'))->toBe(Renstra::STATUS_NONAKTIF);
 });
 
+test('Migrasi memberi diagnosis sebelum mengubah skema bila Renstra aktif lama beririsan', function (): void {
+    $migration = require database_path('migrations/2026_09_25_000001_enhance_renstras_table_for_master_domain.php');
+    $migration->down();
+
+    foreach ([['kode' => 'LEGACY-2025', 'mulai' => 2025, 'selesai' => 2029], ['kode' => 'LEGACY-2029', 'mulai' => 2029, 'selesai' => 2033]] as $item) {
+        DB::table('renstras')->insert([
+            'id' => (string) Str::uuid(),
+            'kode' => $item['kode'],
+            'nama' => $item['kode'],
+            'tahun_mulai' => $item['mulai'],
+            'tahun_selesai' => $item['selesai'],
+            'is_aktif' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    expect(fn () => $migration->up())->toThrow(RuntimeException::class, 'Renstra aktif lama memiliki rentang tahun beririsan');
+    expect(Schema::hasColumn('renstras', 'status'))->toBeFalse();
+});
+
 test('Pembaruan Renstra aktif tidak boleh mengosongkan dasar hukum', function (): void {
     $renstra = buatRenstra($this->perencanaan, [
         'kode' => 'RENSTRA-AKTIF-DASAR-HUKUM',
@@ -461,6 +483,49 @@ test('Pembaruan Renstra aktif tidak boleh mengosongkan dasar hukum', function ()
         'objek_id' => $renstra->id,
         'tindakan' => 'renstra.ubah_ditolak',
     ]);
+});
+
+test('Lampiran baru hanya dapat ditambahkan pada Renstra draft', function (): void {
+    foreach ([Renstra::STATUS_AKTIF, Renstra::STATUS_NONAKTIF] as $status) {
+        $renstra = buatRenstra($this->perencanaan, [
+            'kode' => "RENSTRA-TAMBAH-LAMPIRAN-{$status}",
+            'status' => $status,
+            'is_aktif' => $status === Renstra::STATUS_AKTIF,
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->from("/renstra/{$renstra->id}/edit")
+            ->put("/renstra/{$renstra->id}", [
+                'nama' => $renstra->nama,
+                'tahun_mulai' => $renstra->tahun_mulai,
+                'tahun_selesai' => $renstra->tahun_selesai,
+                'dasar_hukum' => $renstra->dasar_hukum,
+                'alasan' => 'Mencoba menambah lampiran setelah status draft.',
+                'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak.']],
+            ])
+            ->assertSessionHasErrors(['lampiran']);
+
+        expect($renstra->berkas()->exists())->toBeFalse();
+        $this->assertDatabaseHas('audit_log', [
+            'objek_id' => $renstra->id,
+            'tindakan' => 'renstra.ubah_ditolak',
+        ]);
+        $this->actingAs($this->perencanaan)
+            ->get("/renstra/{$renstra->id}/edit")
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Renstra/Edit')
+                ->where('can.uploadAttachment', false)
+            );
+    }
+
+    $draft = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-TAMBAH-LAMPIRAN-DRAFT']);
+    $this->actingAs($this->perencanaan)->put("/renstra/{$draft->id}", [
+        'nama' => $draft->nama,
+        'tahun_mulai' => $draft->tahun_mulai,
+        'tahun_selesai' => $draft->tahun_selesai,
+        'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran baru pada status draft.']],
+    ])->assertRedirect(route('renstra.show', $draft->id));
+    expect($draft->berkas()->count())->toBe(1);
 });
 
 test('Penghapusan Renstra berstatus selain draft ditolak', function (): void {
@@ -963,6 +1028,76 @@ test('Index mengirim capability unggah lampiran kepada modal tambah Renstra', fu
         ->assertInertia(fn (Assert $page) => $page
             ->component('Renstra/Index')
             ->where('can.uploadAttachment', false)
+        );
+});
+
+test('Deny berkas upload saat membuat Renstra dicatat di luar transaksi', function (): void {
+    $permission = Permission::query()->where('kode', 'berkas:upload')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny unggah untuk pengujian create',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->perencanaan)->post('/renstra', [
+        'nama' => 'Renstra unggah ditolak',
+        'kode' => 'RENSTRA-UPLOAD-DENIED',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran langsung dari request.']],
+    ])->assertForbidden();
+
+    $this->assertDatabaseMissing('renstras', ['kode' => 'RENSTRA-UPLOAD-DENIED']);
+    $audit = AuditLog::query()->where('tindakan', 'renstra.buat_ditolak')->latest('waktu')->firstOrFail();
+    expect($audit->nilai_baru['alasan_penolakan'])->toBe('berkas_upload_denied');
+    expect($audit->dasar_izin['keputusan'])->not->toBe('diizinkan');
+});
+
+test('Deny berkas upload saat mengubah Renstra dicatat di luar transaksi', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-UPDATE-UPLOAD-DENIED']);
+    $permission = Permission::query()->where('kode', 'berkas:upload')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny unggah untuk pengujian update',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'nama' => $renstra->nama,
+        'tahun_mulai' => $renstra->tahun_mulai,
+        'tahun_selesai' => $renstra->tahun_selesai,
+        'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran langsung dari request.']],
+    ])->assertForbidden();
+
+    expect($renstra->berkas()->exists())->toBeFalse();
+    $audit = AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->where('objek_id', $renstra->id)->latest('waktu')->firstOrFail();
+    expect($audit->nilai_baru['alasan_penolakan'])->toBe('berkas_upload_denied');
+    expect($audit->dasar_izin['keputusan'])->not->toBe('diizinkan');
+});
+
+test('Halaman detail tidak mengirim path dan kolom internal lampiran', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-SAFE-BERKAS-PAYLOAD']);
+    $berkas = $renstra->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'file',
+        'nama_asli' => 'naskah.pdf',
+        'path' => 'berkas/renstra/private/naskah.pdf',
+        'mime' => 'application/pdf',
+        'ukuran_bytes' => 123,
+    ]);
+
+    $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('renstra.berkas.0.download_url', route('renstra.berkas.download', [$renstra, $berkas]))
+            ->missing('renstra.berkas.0.path')
+            ->missing('renstra.berkas.0.berkasable_type')
+            ->missing('renstra.berkas.0.berkasable_id')
+            ->missing('renstra.berkas.0.dihapus_oleh')
         );
 });
 

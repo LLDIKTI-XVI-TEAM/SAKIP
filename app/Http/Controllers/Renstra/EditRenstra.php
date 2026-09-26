@@ -37,7 +37,8 @@ class EditRenstra extends Controller
             $regulasiPilihan = [];
         }
 
-        $canUploadAttachment = $user !== null && $user->can('uploadAttachment', $renstra);
+        $canUploadAttachment = $renstra->status === Renstra::STATUS_DRAFT
+            && $user !== null && $user->can('uploadAttachment', $renstra);
 
         return Inertia::render('Renstra/Edit', [
             'renstra' => $renstra,
