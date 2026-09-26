@@ -55,6 +55,8 @@ export const Modal: React.FC<ModalProps> = ({
         // Focus the first form field or focusable element once when modal opens
         const focusInitialElement = () => {
             if (!modalRef.current) return;
+            // Jangan mengambil fokus yang sudah dipilih pengguna sebelum timer awal selesai.
+            if (modalRef.current.contains(document.activeElement)) return;
             const primaryField = modalRef.current.querySelector<HTMLElement>(
                 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
             );
