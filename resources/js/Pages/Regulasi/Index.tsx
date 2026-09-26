@@ -108,9 +108,9 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
             <div className="space-y-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-3xl">
-                        <h2 className="text-base font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
-                        <p className="mt-1 text-sm leading-6 text-muted">
-                            Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator. File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log.
+                        <h2 className="text-sm font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
+                        <p className="mt-0.5 text-xs text-muted">
+                            Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator.
                         </p>
                     </div>
                     {can['regulasi:create'] && (
@@ -118,7 +118,8 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                             type="button"
                             onClick={() => setCreateOpen(true)}
                             variant="primary"
-                            className="gap-2"
+                            size="sm"
+                            className="gap-1.5"
                         >
                             <Plus className="h-4 w-4" aria-hidden="true" />
                             Tambah dasar aturan

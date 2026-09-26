@@ -68,7 +68,7 @@ export default function RolePermissionIndex({
         );
     };
     return (
-        <AuthenticatedLayout title="Izin Peran" hasCustomHeading>
+        <AuthenticatedLayout title="Izin Peran">
             <Head title="Izin Peran" />
             {status && dismissed !== receiptId && (
                 <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
@@ -90,10 +90,10 @@ export default function RolePermissionIndex({
                 </div>
             )}
             <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-                <h1 ref={title} tabIndex={-1} className="text-lg font-semibold">
+                <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">
                     Pengelolaan izin peran
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm text-muted">
+                </h2>
+                <p className="mt-0.5 max-w-3xl text-xs text-muted">
                     Kelola satu izin global dalam setiap perubahan. Perubahan
                     berlaku bagi seluruh pengguna yang memegang peran ini.
                 </p>

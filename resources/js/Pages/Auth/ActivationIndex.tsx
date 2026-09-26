@@ -87,11 +87,11 @@ export default function ActivationIndex({ users, canActivate }: ActivationProps)
     };
 
     return (
-        <AuthenticatedLayout title="Aktivasi pengguna" hasCustomHeading>
+        <AuthenticatedLayout title="Aktivasi pengguna">
             <Head title="Aktivasi pengguna" />
             <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-                <h1 ref={title} tabIndex={-1} className="text-lg font-semibold text-ink">Akun menunggu aktivasi</h1>
-                <p className="mb-6 mt-2 text-sm text-muted">Tinjau identitas pengguna sebelum mengaktifkan akses SAKIP.</p>
+                <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">Akun menunggu aktivasi</h2>
+                <p className="mb-6 mt-0.5 text-xs text-muted">Tinjau identitas pengguna sebelum mengaktifkan akses SAKIP.</p>
                 {users.data.length === 0 ? <p className="rounded-lg bg-soft p-4 text-sm text-muted">Tidak ada akun yang menunggu aktivasi.</p> : (
                     <ul className="divide-y divide-border">
                         {users.data.map((user) => (

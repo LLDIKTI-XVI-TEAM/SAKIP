@@ -22,11 +22,33 @@ export default function DenyIndex({ denies, pagination, filters, can }: DenyInde
         if (modal || !trigger.current) return;
         if (trigger.current.isConnected) trigger.current.focus(); else title.current?.focus();
     }, [modal]);
-    return <AuthenticatedLayout title="Pembatasan Izin" hasCustomHeading>
+    return <AuthenticatedLayout title="Pembatasan Izin">
         <Head title="Pembatasan Izin" />
         {message && dismissed !== flash && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg"><CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" /><p role="status" className="flex-1 text-sm font-medium">{message}</p><button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissed(flash)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button></div>}
         <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 ref={title} tabIndex={-1} className="text-lg font-semibold">Pembatasan izin eksplisit</h1><p className="mt-2 max-w-2xl text-sm text-muted">Deny membatasi izin meskipun peran atau grant mengizinkannya. Periksa pengguna, izin, dan cakupan sebelum menyimpan.</p></div>{can.manageDeny && <Button type="button" className={primaryButton} onClick={(event) => { trigger.current = event.currentTarget; setModal({ deny: null }); }}>Tambah deny</Button>}</div>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">
+                        Pembatasan izin eksplisit
+                    </h2>
+                    <p className="mt-0.5 max-w-2xl text-xs text-muted">
+                        Deny membatasi izin meskipun peran atau grant mengizinkannya. Periksa pengguna, izin, dan cakupan sebelum menyimpan.
+                    </p>
+                </div>
+                {can.manageDeny && (
+                    <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={(event) => {
+                            trigger.current = event.currentTarget;
+                            setModal({ deny: null });
+                        }}
+                    >
+                        Tambah deny
+                    </Button>
+                )}
+            </div>
             <form role="search" className="my-6 flex flex-wrap items-end gap-3" onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/deny', { preserveState: false }); }}>
                 <div className="min-w-0 flex-1"><label htmlFor="deny-list-search" className="block text-sm font-medium">Cari nama atau email</label><input id="deny-list-search" type="search" maxLength={100} value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} className="mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div><Button type="submit" className={secondaryButton} isLoading={search.processing}>Cari</Button>{filters.q && <Link href="/akses/deny" className="rounded py-3 text-sm text-primary underline focus:ring-2 focus:ring-primary">Reset</Link>}
             </form>

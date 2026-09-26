@@ -174,7 +174,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             <div className="space-y-6">
                 {/* Header Information */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted">
+                    <p className="text-xs text-muted">
                         Pengendalian kapasitas penyimpanan VPS dan kebijakan teknis bukti dukung aplikasi SAKIP.
                     </p>
 

@@ -121,7 +121,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
         if (trigger.current?.isConnected) trigger.current.focus();
         else title.current?.focus();
     }, [selected]);
-    return <AuthenticatedLayout title="Penetapan Peran" hasCustomHeading>
+    return <AuthenticatedLayout title="Penetapan Peran">
         <Head title="Penetapan Peran" />
         {successMessage && dismissedFlash !== flash && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
             <CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
@@ -129,8 +129,8 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
             <button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissedFlash(flash)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button>
         </div>}
         <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-            <h1 ref={title} tabIndex={-1} className="text-lg font-semibold">Peran utama pengguna</h1>
-            <p className="mt-2 text-sm text-muted">Setiap pengguna memiliki satu peran utama. {explanation}</p>
+            <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">Peran utama pengguna</h2>
+            <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki satu peran utama. {explanation}</p>
             <form onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/peran', { preserveState: false }); }} className="my-6 flex flex-wrap items-end gap-3" role="search">
                 <div className="min-w-0 flex-1"><label htmlFor="user-search" className="block text-sm font-medium">Cari nama atau email</label><input id="user-search" type="search" maxLength={100} value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} className={fieldClass} /></div>
                 <Button type="submit" className={secondaryButton} isLoading={search.processing}>Cari</Button>
