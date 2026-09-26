@@ -380,7 +380,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                         regulasiOptions={regulasiPilihan}
                         disabled={createForm.processing}
                         canUploadAttachment={can.uploadAttachment}
-                        setField={(field, value) => createForm.setData({ ...createForm.data, [field]: value })}
+                        setField={(field, value) => createForm.setData((prev) => ({ ...prev, [field]: value }))}
                     />
                 </form>
             </Modal>
