@@ -96,7 +96,7 @@ export default function ActivationIndex({ users, canActivate }: ActivationProps)
                     <ul className="divide-y divide-border">
                         {users.data.map((user) => (
                             <li key={user.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0"><h2 className="break-words text-sm font-semibold text-ink">{user.nama}</h2><p className="break-all text-sm text-muted">{user.email}</p></div>
+                                <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p></div>
                                 {canActivate && <Button type="button" className={`${primaryButton} self-start sm:self-auto`} aria-label={`Aktifkan ${user.nama}`} onClick={(event) => {
                                     trigger.current = event.currentTarget;
                                     setSelected(user);

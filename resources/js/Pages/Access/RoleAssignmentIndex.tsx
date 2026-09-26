@@ -138,7 +138,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
             </form>
             {users.data.length === 0 ? <p className="rounded-lg bg-soft p-4 text-sm text-muted">Tidak ada pengguna yang sesuai.</p> : <ul className="divide-y divide-border">
                 {users.data.map((user) => <li key={user.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><h2 className="break-words text-sm font-semibold">{user.nama}</h2><p className="break-all text-sm text-muted">{user.email}</p><p className="mt-2 text-sm"><span className="font-medium">{user.current_role?.nama ?? 'Belum memiliki peran'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}</span><span className="text-muted"> · {user.is_active ? 'Akun aktif' : 'Menunggu aktivasi'}</span></p></div>
+                    <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p><p className="mt-2 text-sm"><span className="font-medium">{user.current_role?.nama ?? 'Belum memiliki peran'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}</span><span className="text-muted"> · {user.is_active ? 'Akun aktif' : 'Menunggu aktivasi'}</span></p></div>
                     {can.assignRole && <Button type="button" className={`${primaryButton} self-start sm:shrink-0 sm:self-auto`} aria-label={`${user.current_role ? 'Ubah' : 'Tetapkan'} peran ${user.nama}`} onClick={(event) => { trigger.current = event.currentTarget; setSelected(user); }}>{user.current_role ? 'Ubah peran' : 'Tetapkan peran'}</Button>}
                 </li>)}
             </ul>}

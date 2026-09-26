@@ -110,7 +110,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                     <div className="max-w-3xl">
                         <h2 className="text-sm font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
                         <p className="mt-0.5 text-xs text-muted">
-                            Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator.
+                            Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator. File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log.
                         </p>
                     </div>
                     {can['regulasi:create'] && (
