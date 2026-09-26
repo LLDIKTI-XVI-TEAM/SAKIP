@@ -10,6 +10,7 @@ import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
+import { RegulasiCreateModal } from '@/Pages/Regulasi/Partials/RegulasiCreateModal';
 import type { Paginated, RegulasiJenis, RegulasiSummary } from '@/types/regulasi';
 
 interface RegulasiIndexProps {
@@ -43,6 +44,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
     const [selected, setSelected] = useState<RegulasiSummary | null>(null);
+    const [createOpen, setCreateOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [reasonError, setReasonError] = useState<string | undefined>();
     const deleteForm = useForm({ alasan: '' });
@@ -107,13 +109,15 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                         </p>
                     </div>
                     {can['regulasi:create'] && (
-                        <Link
-                            href="/regulasi/create"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            variant="primary"
+                            className="gap-2"
                         >
                             <Plus className="h-4 w-4" aria-hidden="true" />
                             Tambah dasar aturan
-                        </Link>
+                        </Button>
                     )}
                 </div>
 
@@ -148,9 +152,13 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                 Ubah kata pencarian atau tambahkan regulasi pertama agar Renstra dan Indikator memiliki rujukan hukum terstruktur.
                             </p>
                             {can['regulasi:create'] && (
-                                <Link href="/regulasi/create" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                                <button
+                                    type="button"
+                                    onClick={() => setCreateOpen(true)}
+                                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer"
+                                >
                                     <Plus className="h-4 w-4" aria-hidden="true" /> Tambah dasar aturan
-                                </Link>
+                                </button>
                             )}
                         </div>
                     </Card>
@@ -286,6 +294,13 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                 onClose={() => !deleteForm.processing && setDeleteOpen(false)}
                 onConfirm={confirmDelete}
             />
+
+            {can['regulasi:create'] && (
+                <RegulasiCreateModal
+                    isOpen={createOpen}
+                    onClose={() => setCreateOpen(false)}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }
