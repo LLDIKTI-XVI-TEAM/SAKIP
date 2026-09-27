@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Services\Authorization\PermissionCatalog;
+
 final class PermissionCodes
 {
     // --- 15 Kode Permission Utama dalam Scope 10 Issue Aktif (§5 Dokumen Konfirmasi Permission) ---
@@ -10,6 +12,8 @@ final class PermissionCodes
     public const PENGGUNA_READ = 'pengguna:read';
 
     public const AKSES_UPDATE = 'akses:update';
+
+    public const DELEGASI_UPDATE = 'delegasi:update';
 
     // Master Unit Organisasi (ISS-01.02)
     public const UNIT_CREATE = 'unit:create';
@@ -114,17 +118,7 @@ final class PermissionCodes
      */
     public static function unitScoped(): array
     {
-        return [
-            self::RENCANA_AKSI_READ,
-            self::RENCANA_AKSI_CREATE,
-            self::RENCANA_AKSI_UPDATE,
-            self::RENCANA_AKSI_AJUKAN,
-            self::KEGIATAN_READ,
-            self::KEGIATAN_CREATE,
-            self::KEGIATAN_UPDATE,
-            self::PENGUKURAN_CREATE,
-            self::PENGUKURAN_UPDATE,
-        ];
+        return PermissionCatalog::UNIT_SCOPED;
     }
 
     /**
@@ -191,30 +185,18 @@ final class PermissionCodes
     /** @return list<string> */
     public static function rencanaAksiUnitScoped(): array
     {
-        return [
-            self::RENCANA_AKSI_READ,
-            self::RENCANA_AKSI_CREATE,
-            self::RENCANA_AKSI_UPDATE,
-            self::RENCANA_AKSI_AJUKAN,
-        ];
+        return array_values(array_filter(self::unitScoped(), fn (string $code) => str_starts_with($code, 'rencana_aksi:')));
     }
 
     /** @return list<string> */
     public static function kegiatanUnitScoped(): array
     {
-        return [
-            self::KEGIATAN_READ,
-            self::KEGIATAN_CREATE,
-            self::KEGIATAN_UPDATE,
-        ];
+        return array_values(array_filter(self::unitScoped(), fn (string $code) => str_starts_with($code, 'kegiatan:')));
     }
 
     /** @return list<string> */
     public static function pengukuranUnitScoped(): array
     {
-        return [
-            self::PENGUKURAN_CREATE,
-            self::PENGUKURAN_UPDATE,
-        ];
+        return array_values(array_filter(self::unitScoped(), fn (string $code) => str_starts_with($code, 'pengukuran:')));
     }
 }

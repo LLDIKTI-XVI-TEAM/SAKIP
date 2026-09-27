@@ -28,29 +28,29 @@ class AssignRoleTest extends TestCase
 
     private User $target;
 
+    private int $seedAudits;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
+        $this->seedAudits = DB::table('audit_log')->count();
         $this->actor = User::factory()->create(['nama' => 'Z Pengelola', 'is_active' => true]);
         $this->target = User::factory()->create(['is_active' => false]);
         $role = Role::where('kode', 'superadmin')->sole();
-        foreach (Permission::whereIn('kode', ['pengguna:read', 'akses:update'])->get() as $permission) {
-            $role->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
-        }
         $this->actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
     }
 
-    public function test_first_assignment_accepts_pic_and_change_preserves_one_pivot_and_historical_audit(): void
+    public function test_first_assignment_accepts_official_role_and_change_preserves_one_pivot_and_historical_audit(): void
     {
         $action = app(AssignRole::class);
-        $pic = Role::where('kode', 'pic')->sole();
-        $this->assertSame('assigned', $action->handle($this->actor, $this->target->id, $pic->id, '  Penugasan awal  ', null));
+        $pimpinan = Role::where('kode', 'pimpinan')->sole();
+        $this->assertSame('assigned', $action->handle($this->actor, $this->target->id, $pimpinan->id, '  Penugasan awal  ', null));
         $before = DB::table('user_roles')->where('user_id', $this->target->id)->sole();
         $audit = AuditLog::findOrFail($before->audit_id);
         $this->assertSame('user_roles.tambah', $audit->tindakan);
         $this->assertNull($audit->nilai_lama);
-        $this->assertSame(['role_id' => $pic->id, 'role_kode' => 'pic'], $audit->nilai_baru);
+        $this->assertSame(['role_id' => $pimpinan->id, 'role_kode' => 'pimpinan'], $audit->nilai_baru);
         $this->assertSame('Penugasan awal', $audit->alasan);
         $this->assertTrue($audit->dasar_izin['pengguna_read']['allowed']);
         $this->assertTrue($audit->dasar_izin['akses_update']['allowed']);
@@ -66,7 +66,7 @@ class AssignRoleTest extends TestCase
         $this->assertSame($pegawai->id, $after->role_id);
         $change = AuditLog::findOrFail($after->audit_id);
         $this->assertSame('user_roles.ubah', $change->tindakan);
-        $this->assertSame(['role_id' => $pic->id, 'role_kode' => 'pic'], $change->nilai_lama);
+        $this->assertSame(['role_id' => $pimpinan->id, 'role_kode' => 'pimpinan'], $change->nilai_lama);
         $this->assertSame(['role_id' => $pegawai->id, 'role_kode' => 'pegawai'], $change->nilai_baru);
         $this->assertSame($history, $audit->fresh()->getRawOriginal());
         $this->assertSame(1, DB::table('user_roles')->where('user_id', $this->target->id)->count());
@@ -76,18 +76,18 @@ class AssignRoleTest extends TestCase
     public function test_fresh_noop_preserves_provenance_but_stale_aba_token_is_rejected(): void
     {
         $action = app(AssignRole::class);
-        $pic = Role::where('kode', 'pic')->value('id');
+        $pimpinan = Role::where('kode', 'pimpinan')->value('id');
         $other = Role::where('kode', 'pegawai')->value('id');
-        $action->handle($this->actor, $this->target->id, $pic, 'Awal', null);
+        $action->handle($this->actor, $this->target->id, $pimpinan, 'Awal', null);
         $first = $this->token();
-        $this->assertSame('unchanged', $action->handle($this->actor, $this->target->id, $pic, 'Ulang', array_reverse($first, true)));
+        $this->assertSame('unchanged', $action->handle($this->actor, $this->target->id, $pimpinan, 'Ulang', array_reverse($first, true)));
         $this->assertSame($first, $this->token());
-        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 1);
         $action->handle($this->actor, $this->target->id, $other, 'Ganti', $first);
-        $action->handle($this->actor, $this->target->id, $pic, 'Kembali', $this->token());
+        $action->handle($this->actor, $this->target->id, $pimpinan, 'Kembali', $this->token());
         $latest = $this->token();
         try {
-            $action->handle($this->actor, $this->target->id, $pic, 'Form lama', $first);
+            $action->handle($this->actor, $this->target->id, $pimpinan, 'Form lama', $first);
             $this->fail('Token ABA harus ditolak sebelum no-op.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('expected_assignment', $exception->errors());
@@ -100,7 +100,7 @@ class AssignRoleTest extends TestCase
     #[DataProvider('invalidChanges')]
     public function test_invalid_domain_input_does_not_assign(string $case, string $field): void
     {
-        $role = Role::where('kode', 'pic')->sole();
+        $role = Role::where('kode', 'pimpinan')->sole();
         $reason = 'Perubahan uji';
         if ($case === 'inactive') {
             $role->update(['aktif' => false]);
@@ -134,12 +134,12 @@ class AssignRoleTest extends TestCase
         $this->assertTrue($resolver->allows($this->actor, 'akses:update'));
         $this->deny($permission);
         try {
-            app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pic')->value('id'), 'Ditolak', null);
+            app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pimpinan')->value('id'), 'Ditolak', null);
             $this->fail('Izin terbaru harus diperiksa.');
         } catch (AuthorizationException) {
             $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
         }
-        $audit = AuditLog::sole();
+        $audit = AuditLog::where('sumber', 'manual')->sole();
         $this->assertSame('user_roles.ditolak', $audit->tindakan);
         $this->assertSame($this->actor->id, $audit->actor_id);
         $this->assertCount(2, $audit->dasar_izin);
@@ -155,20 +155,20 @@ class AssignRoleTest extends TestCase
     {
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('audit-unavailable'));
         try {
-            app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pic')->value('id'), 'Rollback', null);
+            app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pimpinan')->value('id'), 'Rollback', null);
             $this->fail('Audit failure harus membatalkan mutasi.');
         } catch (RuntimeException $exception) {
             $this->assertSame('audit-unavailable', $exception->getMessage());
         }
         $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     #[DataProvider('requiredPermissions')]
     public function test_http_gate_rejects_missing_permission_and_deny_without_audit(string $permission): void
     {
         $permissionId = Permission::where('kode', $permission)->value('id');
-        $row = DB::table('role_permissions')->where('permission_id', $permissionId)->sole();
+        $row = DB::table('role_permissions')->where('role_id', Role::where('kode', 'superadmin')->value('id'))->where('permission_id', $permissionId)->sole();
         DB::table('role_permissions')->where('id', $row->id)->delete();
         $this->actingAs($this->actor);
         foreach (['missing', 'denied'] as $case) {
@@ -178,7 +178,7 @@ class AssignRoleTest extends TestCase
             }
             $this->get('/akses/peran')->assertForbidden();
             $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertForbidden();
-            $this->assertDatabaseCount('audit_log', 0);
+            $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
             $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
         }
     }
@@ -186,28 +186,28 @@ class AssignRoleTest extends TestCase
     public function test_index_bounds_users_filters_and_orders_official_roles_without_sensitive_props(): void
     {
         $this->target->update(['nama' => 'A Target', 'email' => 'target@example.test']);
-        foreach (['superadmin', 'admin', 'perencanaan', 'pic', 'pimpinan', 'pegawai'] as $code) {
+        foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
             $user = User::factory()->create(['nama' => 'Z '.$code, 'is_active' => true]);
             $user->roles()->attach(Role::where('kode', $code)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
         }
         User::factory()->count(15)->create(['nama' => 'Z Pengguna']);
         $this->actingAs($this->actor)->get('/akses/peran')->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Access/RoleAssignmentIndex', false)->has('users.data', 20)->where('users.total', 23)
+            ->component('Access/RoleAssignmentIndex', false)->has('users.data', 20)->where('users.total', 22)
             ->where('users.data.0.id', $this->target->id)->where('users.data.0.assignment', null)
             ->where('roles.0.kode', 'superadmin')->where('roles.1.kode', 'admin')->where('roles.2.kode', 'perencanaan')
-            ->where('roles.3.kode', 'pic')->where('roles.4.kode', 'pimpinan')->where('roles.5.kode', 'pegawai')
+            ->where('roles.3.kode', 'pimpinan')->where('roles.4.kode', 'pegawai')
             ->missing('users.data.0.keycloak_id')->missing('users.data.0.roles')->missing('users.data.0.role_permissions')
             ->where('auth.can.assignRole', true)->where('can.assignRole', true));
         $this->get('/akses/peran?q=target%40example.test')->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.id', $this->target->id));
         $this->get('/akses/peran?q=A%20Target')->assertInertia(fn (Assert $page) => $page->has('users.data', 1));
-        $this->get('/akses/peran?page=2')->assertInertia(fn (Assert $page) => $page->has('users.data', 3));
+        $this->get('/akses/peran?page=2')->assertInertia(fn (Assert $page) => $page->has('users.data', 2));
         $this->get('/akses/peran?page=0')->assertSessionHasErrors('page');
         $this->get('/akses/peran?q='.str_repeat('a', 101))->assertSessionHasErrors('q');
-        app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pic')->value('id'), 'Penugasan', null);
-        Role::where('kode', 'pic')->update(['aktif' => false]);
+        app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pimpinan')->value('id'), 'Penugasan', null);
+        Role::where('kode', 'pimpinan')->update(['aktif' => false]);
         $this->get('/akses/peran?q=target%40example.test')->assertInertia(fn (Assert $page) => $page
-            ->has('roles', 5)->where('roles.3.kode', 'pimpinan')->where('roles.4.kode', 'pegawai')
-            ->where('users.data.0.current_role.kode', 'pic')->where('users.data.0.current_role.aktif', false));
+            ->has('roles', 4)->where('roles.3.kode', 'pegawai')
+            ->where('users.data.0.current_role.kode', 'pimpinan')->where('users.data.0.current_role.aktif', false));
         $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertSessionHasErrors('role_id');
     }
 
@@ -221,7 +221,7 @@ class AssignRoleTest extends TestCase
         $this->actingAs($this->actor)->from('/akses/peran')->post('/akses/peran/'.$this->target->id, $payload)
             ->assertRedirect('/akses/peran')->assertSessionHasErrors($field);
         $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     public static function invalidPayloads(): array
@@ -260,12 +260,12 @@ class AssignRoleTest extends TestCase
         $this->get('/akses/peran')->assertInertia(fn (Assert $page) => $page
             ->component('Access/RoleAssignmentIndex', false)->hasFlash('roleAssignmentStatus', 'assigned'));
         $this->get('/akses/peran')->assertInertia(fn (Assert $page) => $page->missingFlash('roleAssignmentStatus'));
-        $this->assertSame('pic', $this->target->roles()->value('kode'));
+        $this->assertSame('pimpinan', $this->target->roles()->value('kode'));
     }
 
     private function payload(): array
     {
-        return ['role_id' => Role::where('kode', 'pic')->value('id'), 'alasan' => 'Penugasan melalui form', 'expected_assignment' => $this->token()];
+        return ['role_id' => Role::where('kode', 'pimpinan')->value('id'), 'alasan' => 'Penugasan melalui form', 'expected_assignment' => $this->token()];
     }
 
     private function token(): ?array

@@ -1,13 +1,12 @@
 <?php
 
 use App\Actions\Access\AssignRole;
-use App\Actions\Access\ChangeRolePermission;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\RevokeDeny;
+use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\User;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -39,7 +38,7 @@ try {
     try {
         $assignment = isset($argv[3]) ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
         $result = match ($argv[1]) {
-            'change-role-permission' => app(ChangeRolePermission::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['role_id'], $assignment['permission_id'], $assignment['operation'], $assignment['alasan'], $assignment['expected_state']),
+            'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment']),
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
@@ -54,7 +53,6 @@ try {
         };
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
-            'change-role-permission' => 'expected_state',
             'assign-role' => 'expected_assignment',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
@@ -68,11 +66,6 @@ try {
             'revoke-deny' => 'stale',
             default => 'conflict',
         };
-    } catch (AuthorizationException $exception) {
-        if ($argv[1] !== 'change-role-permission') {
-            throw $exception;
-        }
-        $result = 'denied';
     }
     fwrite(STDOUT, 'RESULT:'.json_encode($result, JSON_THROW_ON_ERROR)."\n");
 } catch (Throwable $exception) {

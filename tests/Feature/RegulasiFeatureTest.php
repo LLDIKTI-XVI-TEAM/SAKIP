@@ -11,7 +11,6 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDenial;
-use App\Services\Authorization\RolePermissionPresets;
 use App\Services\RegulasiService;
 use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
@@ -36,8 +35,6 @@ uses(RegulasiPestTestCase::class, RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(RegulasiPermissionSeeder::class);
-    pasangPresetRoleUntukTest('perencanaan');
-    pasangPresetRoleUntukTest('pegawai');
     $this->perencanaan = userDenganRole('perencanaan', 'perencanaan-regulasi@example.test');
     $this->pembaca = userDenganRole('pegawai', 'pembaca-regulasi@example.test');
 });
@@ -108,14 +105,6 @@ test('create regulasi menyimpan tiga mode lampiran dan audit', function (): void
     expect($auditTeks)->not->toBeNull()
         ->and($auditTeks->nilai_baru)->toHaveKey('panjang_teks')
         ->and($auditTeks->nilai_baru)->not->toHaveKey('isi_teks');
-});
-
-test('seeder regulasi tidak memasang permission peran sebelum bootstrap', function (): void {
-    DB::table('role_permissions')->delete();
-
-    $this->seed(RegulasiPermissionSeeder::class);
-
-    $this->assertDatabaseCount('role_permissions', 0);
 });
 
 test('validasi lampiran mengabaikan nilai dari mode yang tidak aktif', function (): void {
@@ -646,18 +635,6 @@ function userDenganRole(string $roleName, string $email): User
     ]);
 
     return $user;
-}
-
-function pasangPresetRoleUntukTest(string $roleName): void
-{
-    $role = Role::query()->where('kode', $roleName)->firstOrFail();
-    $permissionIds = Permission::query()
-        ->whereIn('kode', RolePermissionPresets::forRole($roleName))
-        ->pluck('id');
-
-    $role->permissions()->syncWithoutDetaching($permissionIds
-        ->mapWithKeys(fn (string $permissionId): array => [$permissionId => ['id' => (string) Str::uuid(), 'created_at' => now()]])
-        ->all());
 }
 
 function buatRegulasi(User $pembuat): Regulasi

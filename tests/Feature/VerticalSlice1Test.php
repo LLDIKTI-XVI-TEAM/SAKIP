@@ -15,6 +15,7 @@ use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -178,6 +179,26 @@ class VerticalSlice1Test extends TestCase
         $this->assertSame($pic->id, $this->pengukuran->latestVersion->diajukan_by);
     }
 
+    public function test_preset_release_preserves_assignments_access_and_submission_history(): void
+    {
+        $pic = $this->preparePic();
+        $this->submit($pic);
+        $this->deny($pic, 'dashboard:read');
+        $tables = ['users', 'user_roles', 'user_permission_granted', 'user_permission_denied', 'penanggung_jawab', 'rencana_aksi_versi', 'pengukuran_versi', 'auth_bootstraps'];
+        $before = [];
+        foreach ($tables as $table) {
+            $before[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+        }
+        $history = DB::table('audit_log')->orderBy('id')->get();
+        Role::where('kode', 'admin')->sole()->permissions()->detach(Permission::where('kode', 'delegasi:update')->value('id'));
+        $this->seed(AccessCatalogSeeder::class);
+        foreach ($tables as $table) {
+            $this->assertSame($before[$table], DB::table($table)->orderBy('id')->get()->toJson(), $table);
+        }
+        $this->assertSame($history->toJson(), DB::table('audit_log')->whereIn('id', $history->pluck('id'))->orderBy('id')->get()->toJson());
+        $this->assertSame('pic', $this->pengukuran->latestVersion->jalur_pengajuan);
+    }
+
     public function test_f2_marks_self_approval_but_deny_still_wins(): void
     {
         $reviewer = $this->userWithRole('perencanaan');
@@ -254,6 +275,9 @@ class VerticalSlice1Test extends TestCase
         Storage::disk('public')->assertMissing($bukti->path);
         $this->actingAs($pic)->get(route('pengukuran.bukti', ['id' => $this->pengukuran->id, 'buktiId' => $bukti->id]))->assertOk();
         $this->actingAs($this->userWithRole('pegawai'))->get(route('pengukuran.bukti', ['id' => $this->pengukuran->id, 'buktiId' => $bukti->id]))->assertForbidden();
+        // Grant dan penugasan yang tersisa tidak membuka fallback berkas setelah role dicabut.
+        DB::table('user_roles')->where('user_id', $pic->id)->delete();
+        $this->actingAs($pic)->get(route('pengukuran.bukti', ['id' => $this->pengukuran->id, 'buktiId' => $bukti->id]))->assertForbidden();
     }
 
     public function test_resubmission_preserves_previous_version_and_audit(): void

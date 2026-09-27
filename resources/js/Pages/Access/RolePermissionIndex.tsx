@@ -1,157 +1,90 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { CheckCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Badge } from "@/Components/Badge";
 import { Button } from "@/Components/Button";
-import { RolePermissionDialog } from "@/Components/Access/RolePermissionDialog";
-import {
-    rolePermissionMessage,
-    rolePermissionOutcome,
-} from "@/Components/Access/rolePermissionOutcome";
+import { Input } from "@/Components/Input";
+import { Select } from "@/Components/Select";
 import { AuthenticatedLayout } from "@/Layouts/AuthenticatedLayout";
 import { secondaryButton } from "@/Pages/Auth/AuthShell";
-import type {
-    PermissionRow,
-    RoleOption,
-    RolePermissionIndexProps,
-} from "@/types/role-permission";
-
-const fieldClass =
-    "mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary";
-const readOnlyCopy = {
-    scoped: "Izin ini berada di luar pengelolaan izin global pada halaman ini.",
-    inactive: "Izin nonaktif. Isi tersimpan dipertahankan.",
-    unknown: "Izin tersimpan ini tidak termasuk katalog pengelolaan.",
-};
+import type { RolePermissionIndexProps } from "@/types/role-permission";
 
 export default function RolePermissionIndex({
     roles,
     selectedRole,
-    expectedState,
     permissions,
     pagination,
     filters,
-    can,
-    affectsActorRole,
-    receiptId,
 }: RolePermissionIndexProps) {
-    const page = usePage();
-    const status = rolePermissionOutcome(receiptId, page);
-    const [dismissed, setDismissed] = useState<string | null>(null);
+    const { errors } = usePage().props;
     const [query, setQuery] = useState(filters.q);
     const [navigating, setNavigating] = useState(false);
-    const [modal, setModal] = useState<{
-        role: RoleOption;
-        permission: PermissionRow;
-        state: string;
-        affectsActorRole: boolean;
-    } | null>(null);
-    const trigger = useRef<HTMLButtonElement | null>(null);
-    const title = useRef<HTMLHeadingElement>(null);
+    const pending = useRef(false);
+
     useEffect(() => {
         setQuery(filters.q);
     }, [filters.q]);
-    useEffect(() => {
-        if (modal || !trigger.current) return;
-        if (trigger.current.isConnected) trigger.current.focus();
-        else title.current?.focus();
-    }, [modal]);
+
     const navigationEvents = {
-        onStart: () => setNavigating(true),
-        onFinish: () => setNavigating(false),
+        onStart: () => {
+            pending.current = true;
+            setNavigating(true);
+        },
+        onFinish: () => {
+            pending.current = false;
+            setNavigating(false);
+        },
     };
     const navigate = (next: Partial<typeof filters>) => {
-        if (navigating || modal) return;
+        if (pending.current) return;
         router.get(
             "/akses/izin-peran",
             { ...filters, ...next },
             { preserveState: false, ...navigationEvents },
         );
     };
+
     return (
-        <AuthenticatedLayout title="Izin Peran">
-            <Head title="Izin Peran" />
-            {status && dismissed !== receiptId && (
-                <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
-                    <CheckCircle
-                        aria-hidden="true"
-                        className="h-5 w-5 shrink-0 text-success"
-                    />
-                    <p role="status" className="flex-1 text-sm font-medium">
-                        {rolePermissionMessage(status)}
-                    </p>
-                    <button
-                        type="button"
-                        aria-label="Tutup notifikasi"
-                        onClick={() => setDismissed(receiptId)}
-                        className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:ring-2 focus:ring-primary"
-                    >
-                        <X aria-hidden="true" className="h-4 w-4" />
-                    </button>
-                </div>
-            )}
-            <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-                <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">
-                    Pengelolaan izin peran
-                </h2>
+        <AuthenticatedLayout title="Peran & Izin">
+            <Head title="Peran & Izin" />
+            <section
+                aria-busy={navigating}
+                className="rounded-xl border border-border bg-surface p-4 sm:p-6"
+            >
+                <h2 className="text-sm font-semibold text-ink">Peran & Izin</h2>
                 <p className="mt-0.5 max-w-3xl text-xs text-muted">
-                    Kelola satu izin global dalam setiap perubahan. Perubahan
-                    berlaku bagi seluruh pengguna yang memegang peran ini.
+                    Lihat izin bawaan setiap peran. Hak akses pengguna juga
+                    dipengaruhi oleh grant, pembatasan izin, dan aturan pekerjaan.
                 </p>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label
-                            htmlFor="role-permission-role"
-                            className="block text-sm font-medium"
-                        >
-                            Peran
-                        </label>
-                        <select
-                            id="role-permission-role"
-                            disabled={navigating}
-                            value={filters.role ?? ""}
-                            className={fieldClass}
-                            onChange={(event) =>
-                                navigate({ role: event.target.value || null })
-                            }
-                        >
-                            <option value="">Pilih peran</option>
-                            {roles.map((role) => (
-                                <option key={role.id} value={role.id}>
-                                    {role.nama}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label
-                            htmlFor="role-permission-view"
-                            className="block text-sm font-medium"
-                        >
-                            Tampilan izin
-                        </label>
-                        <select
-                            id="role-permission-view"
-                            value={filters.view}
-                            disabled={!selectedRole || navigating}
-                            className={`${fieldClass} disabled:opacity-50`}
-                            onChange={(event) =>
-                                navigate({
-                                    view:
-                                        event.target.value === "available"
-                                            ? "available"
-                                            : "attached",
-                                })
-                            }
-                        >
-                            <option value="attached">Izin terpasang</option>
-                            <option value="available">
-                                Izin yang dapat ditambahkan
+                <div className="mt-6 max-w-md">
+                    <Select
+                        id="role-permission-role"
+                        name="role"
+                        label="Peran"
+                        value={filters.role ?? ""}
+                        disabled={navigating}
+                        error={errors?.role}
+                        aria-invalid={Boolean(errors?.role)}
+                        onChange={(event) =>
+                            navigate({ role: event.target.value || null, q: "" })
+                        }
+                    >
+                        <option value="">Pilih peran</option>
+                        {roles.map((role) => (
+                            <option key={role.id} value={role.id}>
+                                {role.nama}
+                                {role.aktif ? "" : " (nonaktif)"}
                             </option>
-                        </select>
-                    </div>
+                        ))}
+                    </Select>
                 </div>
                 {selectedRole ? (
                     <>
+                        <div className="mt-6 flex flex-wrap items-center gap-3">
+                            <h2 className="font-semibold">{selectedRole.nama}</h2>
+                            {!selectedRole.aktif && (
+                                <Badge variant="muted">Peran nonaktif</Badge>
+                            )}
+                        </div>
                         <form
                             role="search"
                             className="my-5 flex flex-wrap items-end gap-3"
@@ -161,165 +94,136 @@ export default function RolePermissionIndex({
                             }}
                         >
                             <div className="min-w-0 flex-1">
-                                <label
-                                    htmlFor="role-permission-search"
-                                    className="block text-sm font-medium"
-                                >
-                                    Cari kode atau keterangan izin
-                                </label>
-                                <input
+                                <Input
                                     id="role-permission-search"
+                                    name="q"
                                     type="search"
-                                    maxLength={100}
-                                    disabled={navigating}
+                                    label="Cari kode atau keterangan izin"
                                     value={query}
+                                    maxLength={100}
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    disabled={navigating}
+                                    error={errors?.q}
+                                    aria-invalid={Boolean(errors?.q)}
                                     onChange={(event) =>
                                         setQuery(event.target.value)
                                     }
-                                    className={fieldClass}
                                 />
                             </div>
-                            <Button
-                                type="submit"
-                                disabled={navigating}
-                                variant="outline"
-                                className={secondaryButton}
-                            >
-                                Cari
+                            <Button type="submit" disabled={navigating}>
+                                {navigating ? "Mencari…" : "Cari"}
                             </Button>
                         </form>
-                        <h2 className="text-sm font-semibold">
-                            {filters.view === "attached"
-                                ? "Izin terpasang"
-                                : "Izin tersedia"}{" "}
-                            · {selectedRole.nama}
-                        </h2>
+                        <p role="status" className="sr-only">
+                            {navigating ? "Memuat izin…" : ""}
+                        </p>
                         {permissions.length === 0 ? (
-                            <p className="mt-3 rounded-lg bg-soft p-4 text-sm text-muted">
-                                {filters.q
-                                    ? "Tidak ada izin yang sesuai dengan pencarian."
-                                    : filters.view === "attached"
-                                      ? "Belum ada izin yang terpasang pada peran ini."
-                                      : "Tidak ada izin global yang dapat ditambahkan."}
+                            <p className="py-8 text-center text-sm text-muted">
+                                Tidak ada izin yang cocok dengan pencarian.
                             </p>
                         ) : (
-                            <ul className="mt-3 divide-y divide-border">
-                                {permissions.map((permission) => (
-                                    <li
-                                        key={permission.id}
-                                        className="flex flex-col gap-3 py-4 lg:flex-row lg:items-start lg:justify-between"
-                                    >
-                                        <div className="min-w-0 space-y-1 text-sm">
-                                            <h3 className="break-words font-semibold">
-                                                {permission.kode}
-                                            </h3>
-                                            {permission.keterangan && (
-                                                <p className="break-words text-muted">
-                                                    {permission.keterangan}
-                                                </p>
-                                            )}
-                                            <p className="text-xs text-muted">
-                                                {permission.butuh_scope ===
-                                                "global"
-                                                    ? "Global"
-                                                    : "Konteks unit"}
-                                                {!permission.aktif &&
-                                                    " · Nonaktif"}
-                                            </p>
-                                            {permission.non_editable_reason && (
-                                                <p className="text-sm text-muted">
-                                                    {
-                                                        readOnlyCopy[
-                                                            permission
-                                                                .non_editable_reason
-                                                        ]
-                                                    }
-                                                </p>
-                                            )}
-                                        </div>
-                                        {can.manageRolePermissions &&
-                                            permission.editable &&
-                                            expectedState && (
-                                                <Button
-                                                    type="button"
-                                                    disabled={navigating}
-                                                    variant="outline"
-                                                    className={`${secondaryButton} self-start lg:shrink-0`}
-                                                    aria-label={`${permission.attached ? "Cabut" : "Tambah"} izin ${permission.kode}`}
-                                                    onClick={(event) => {
-                                                        trigger.current =
-                                                            event.currentTarget;
-                                                        setModal({
-                                                            role: selectedRole,
-                                                            permission,
-                                                            state: expectedState,
-                                                            affectsActorRole,
-                                                        });
-                                                    }}
-                                                >
-                                                    {permission.attached
-                                                        ? "Cabut izin"
-                                                        : "Tambah izin"}
-                                                </Button>
-                                            )}
-                                    </li>
-                                ))}
-                            </ul>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <caption className="sr-only">
+                                        Izin tersimpan untuk {selectedRole.nama}
+                                    </caption>
+                                    <thead className="border-b border-border bg-soft text-muted">
+                                        <tr>
+                                            <th scope="col" className="p-3">
+                                                Izin
+                                            </th>
+                                            <th scope="col" className="p-3">
+                                                Scope
+                                            </th>
+                                            <th scope="col" className="p-3">
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {permissions.map((permission) => (
+                                            <tr key={permission.id}>
+                                                <td className="p-3">
+                                                    <p className="break-all font-medium">
+                                                        {permission.kode}
+                                                    </p>
+                                                    <p className="mt-1 max-w-xl break-words text-muted">
+                                                        {permission.keterangan ||
+                                                            "—"}
+                                                    </p>
+                                                    {!permission.in_catalog && (
+                                                        <span className="mt-2 inline-block">
+                                                            <Badge variant="warning">
+                                                                Di luar katalog rilis
+                                                            </Badge>
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 align-top">
+                                                    {permission.butuh_scope ===
+                                                    "unit"
+                                                        ? "Unit"
+                                                        : "Global"}
+                                                </td>
+                                                <td className="p-3 align-top">
+                                                    <Badge
+                                                        variant={
+                                                            permission.aktif
+                                                                ? "success"
+                                                                : "muted"
+                                                        }
+                                                        className={
+                                                            permission.aktif
+                                                                ? "text-success-dark"
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {permission.aktif
+                                                            ? "Aktif"
+                                                            : "Nonaktif"}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
-                        {(pagination.prev_page_url ||
-                            pagination.next_page_url) && (
-                            <nav
-                                aria-label="Halaman izin peran"
-                                className="mt-6 flex items-center justify-between gap-3 text-sm"
-                            >
-                                {pagination.prev_page_url ? (
-                                    <Link
-                                        href={pagination.prev_page_url}
-                                        {...navigationEvents}
-                                        onBefore={() => !navigating}
-                                        className="rounded text-primary underline focus:ring-2 focus:ring-primary"
-                                    >
-                                        Sebelumnya
-                                    </Link>
-                                ) : (
-                                    <span className="text-muted">
-                                        Sebelumnya
-                                    </span>
+                        <nav
+                            aria-label="Halaman izin"
+                            className="mt-5 flex flex-wrap items-center justify-between gap-3"
+                        >
+                            <span className="text-sm text-muted">
+                                Halaman {pagination.page}
+                            </span>
+                            <div className="flex gap-2">
+                                {[
+                                    ["Sebelumnya", pagination.prev_page_url],
+                                    ["Berikutnya", pagination.next_page_url],
+                                ].map(([label, url]) =>
+                                    url ? (
+                                        <Link
+                                            key={label}
+                                            href={url}
+                                            className={secondaryButton}
+                                            aria-disabled={navigating}
+                                            onBefore={() => !pending.current}
+                                            {...navigationEvents}
+                                        >
+                                            {label}
+                                        </Link>
+                                    ) : null,
                                 )}
-                                <span>Halaman {pagination.page}</span>
-                                {pagination.next_page_url ? (
-                                    <Link
-                                        href={pagination.next_page_url}
-                                        {...navigationEvents}
-                                        onBefore={() => !navigating}
-                                        className="rounded text-primary underline focus:ring-2 focus:ring-primary"
-                                    >
-                                        Berikutnya
-                                    </Link>
-                                ) : (
-                                    <span className="text-muted">
-                                        Berikutnya
-                                    </span>
-                                )}
-                            </nav>
-                        )}
+                            </div>
+                        </nav>
                     </>
                 ) : (
-                    <p className="mt-5 rounded-lg bg-soft p-4 text-sm text-muted">
-                        Pilih peran untuk melihat dan mengelola izin globalnya.
+                    <p className="mt-6 text-sm text-muted">
+                        Pilih peran untuk melihat izin bawaannya.
                     </p>
                 )}
             </section>
-            {modal && (
-                <RolePermissionDialog
-                    role={modal.role}
-                    permission={modal.permission}
-                    expectedState={modal.state}
-                    affectsActorRole={modal.affectsActorRole}
-                    onClose={() => setModal(null)}
-                    onSaved={() => setModal(null)}
-                />
-            )}
         </AuthenticatedLayout>
     );
 }

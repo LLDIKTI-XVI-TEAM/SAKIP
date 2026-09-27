@@ -34,7 +34,7 @@ abstract class TestCase extends BaseTestCase
     /**
      * Tolak reset sebelum RefreshDatabase menyentuh schema yang belum dipastikan disposable.
      */
-    private function assertDisposableDatabase(Application $app): void
+    protected function assertDisposableDatabase(Application $app): void
     {
         if (! $app->environment('testing') || $app->configurationIsCached()) {
             throw new RuntimeException('Reset test memerlukan APP_ENV=testing tanpa config cache.');
