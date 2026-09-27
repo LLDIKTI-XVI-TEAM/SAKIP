@@ -261,24 +261,23 @@ export default function GrantIndex({
             <Head title="Grant Izin Unit - SAKIP LLDIKTI XVI" />
 
             <div className="space-y-6 max-w-7xl mx-auto">
-                {/* Header Banner */}
-                <div className="bg-gradient-to-r from-[#122E92] to-[#1e3fae] rounded-xl p-6 text-white shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck className="w-6 h-6 text-[#D6AC48]" />
-                            <h1 className="text-xl font-bold tracking-tight">
-                                Grant Izin Tambahan per Unit
-                            </h1>
-                        </div>
-                        <p className="text-sm text-blue-100/90 max-w-2xl">
+                {/* Header Title & Actions */}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold text-ink">
+                            Grant Izin Tambahan per Unit
+                        </h2>
+                        <p className="mt-0.5 text-xs text-muted max-w-2xl">
                             Berikan pengecualian izin operasional berscope unit kepada pengguna tanpa mengubah peran utama. Setiap aksi penambahan dan pencabutan dicatat permanen dalam jejak audit.
                         </p>
                     </div>
 
                     {can.create_grant && (
                         <Button
+                            variant="primary"
+                            size="sm"
                             onClick={handleOpenCreate}
-                            className="bg-[#D6AC48] hover:bg-[#c49a37] text-slate-900 font-semibold shadow-sm shrink-0 flex items-center gap-2"
+                            className="gap-1.5 shrink-0"
                         >
                             <Plus className="w-4 h-4" />
                             Beri Grant Baru

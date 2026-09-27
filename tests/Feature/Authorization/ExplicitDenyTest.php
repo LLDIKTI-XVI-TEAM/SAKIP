@@ -35,6 +35,8 @@ class ExplicitDenyTest extends TestCase
 
     private User $target;
 
+    private int $seedAudits;
+
     private Unit $unit;
 
     private Permission $permission;
@@ -43,6 +45,7 @@ class ExplicitDenyTest extends TestCase
     {
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
+        $this->seedAudits = DB::table('audit_log')->count();
         $this->actor = User::factory()->create(['is_active' => true]);
         $this->target = User::factory()->create(['is_active' => true]);
         $this->unit = Unit::create(['nama' => 'Unit A', 'status' => 'aktif', 'created_by' => $this->actor->id]);
@@ -53,7 +56,7 @@ class ExplicitDenyTest extends TestCase
     private function giveRole(User $user, string $code, Permission $permission): void
     {
         $role = Role::where('kode', $code)->sole();
-        $role->permissions()->syncWithoutDetaching([$permission->id => ['id' => Str::uuid(), 'created_at' => now()]]);
+        $role->permissions()->sync([$permission->id => ['id' => Str::uuid(), 'created_at' => now()]]);
         $user->roles()->sync([$role->id => ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]]);
     }
 
@@ -72,7 +75,7 @@ class ExplicitDenyTest extends TestCase
         $deny = $this->create($this->unit->id);
         $this->assertFalse($resolver->allows($this->target, $this->permission->kode, $this->unit->id));
         $this->assertTrue($resolver->allows($this->target, $this->permission->kode, $other->id));
-        $audit = AuditLog::sole();
+        $audit = AuditLog::where('sumber', 'manual')->sole();
         $this->assertSame('user_permission_denied.tambah', $audit->tindakan);
         $this->assertSame('user_permission_denied', $audit->objek_tipe);
         $this->assertSame($deny->id, $audit->objek_id);
@@ -127,7 +130,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertArrayHasKey($field, $exception->errors());
         }
         $this->assertDatabaseCount('user_permission_denied', 0);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     public static function invalidInput(): array
@@ -151,7 +154,7 @@ class ExplicitDenyTest extends TestCase
     {
         $unitId = $scoped ? $this->unit->id : null;
         $deny = $this->create($unitId)->fresh();
-        $history = AuditLog::sole()->getRawOriginal();
+        $history = AuditLog::where('sumber', 'manual')->sole()->getRawOriginal();
         try {
             app(CreateDeny::class)->handle($this->actor, $this->target->id, $this->permission->id, $unitId, 'Tidak boleh menimpa');
             $this->fail('Tuple duplikat harus ditolak.');
@@ -159,7 +162,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertArrayHasKey('permission_id', $exception->errors());
         }
         $this->assertSame($deny->getRawOriginal(), $deny->fresh()->getRawOriginal());
-        $this->assertSame($history, AuditLog::sole()->getRawOriginal());
+        $this->assertSame($history, AuditLog::where('sumber', 'manual')->sole()->getRawOriginal());
         $this->assertDatabaseCount('user_permission_denied', 1);
     }
 
@@ -181,7 +184,7 @@ class ExplicitDenyTest extends TestCase
         } catch (AuthorizationException) {
             $this->assertDatabaseMissing('user_permission_denied', ['user_id' => $this->target->id]);
         }
-        $audit = AuditLog::sole();
+        $audit = AuditLog::where('sumber', 'manual')->sole();
         $this->assertSame('user_permission_denied.ditolak', $audit->tindakan);
         $this->assertSame('users', $audit->objek_tipe);
         $this->assertSame($this->target->id, $audit->objek_id);
@@ -204,7 +207,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertSame('audit-unavailable', $exception->getMessage());
         }
         $this->assertDatabaseCount('user_permission_denied', 0);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     #[DataProvider('scopes')]
@@ -224,7 +227,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertArrayHasKey('permission_id', $exception->errors());
         }
         $this->assertDatabaseCount('user_permission_denied', 0);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     public function test_create_does_not_disguise_unrelated_database_failure_as_duplicate_deny(): void
@@ -240,7 +243,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertStringContainsString('permissions_kode_unique', $exception->errorInfo[2]);
         }
         $this->assertDatabaseCount('user_permission_denied', 0);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
     }
 
     #[DataProvider('remainingAccess')]
@@ -248,7 +251,7 @@ class ExplicitDenyTest extends TestCase
     {
         $this->giveRole($this->target, 'pegawai', $this->permission);
         $deny = $this->create($this->unit->id);
-        $created = AuditLog::sole();
+        $created = AuditLog::where('sumber', 'manual')->sole();
         $history = $created->getRawOriginal();
         if ($state === 'global-deny') {
             $this->create();
@@ -288,7 +291,7 @@ class ExplicitDenyTest extends TestCase
         app(RevokeDeny::class)->handle($this->actor, $deny->id, 'Bersihkan deny legacy');
         $this->assertDatabaseMissing('user_permission_denied', ['id' => $deny->id]);
         $this->assertSame($reference, $permission->fresh()->getRawOriginal());
-        $audit = AuditLog::sole();
+        $audit = AuditLog::where('sumber', 'manual')->sole();
         $this->assertEquals($before, $audit->nilai_lama);
         $this->assertSame('legacy:izin_uji', $audit->nilai_lama['permission_kode']);
         $this->assertSame('2026-01-01T00:00:00.000000Z', $audit->nilai_lama['created_at']);
@@ -329,7 +332,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertArrayHasKey($field, $exception->errors());
         }
         $this->assertDatabaseHas('user_permission_denied', ['id' => $deny->id]);
-        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 1);
     }
 
     public static function invalidRevoke(): array
@@ -359,7 +362,7 @@ class ExplicitDenyTest extends TestCase
     public function test_revoke_audit_failure_rolls_back_deletion_and_preserves_history(): void
     {
         $deny = $this->create()->fresh();
-        $history = AuditLog::sole()->getRawOriginal();
+        $history = AuditLog::where('sumber', 'manual')->sole()->getRawOriginal();
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('audit-unavailable'));
         try {
             app(RevokeDeny::class)->handle($this->actor, $deny->id, 'Cabut');
@@ -368,7 +371,7 @@ class ExplicitDenyTest extends TestCase
             $this->assertSame('audit-unavailable', $exception->getMessage());
         }
         $this->assertSame($deny->getRawOriginal(), $deny->fresh()->getRawOriginal());
-        $this->assertSame($history, AuditLog::sole()->getRawOriginal());
+        $this->assertSame($history, AuditLog::where('sumber', 'manual')->sole()->getRawOriginal());
     }
 
     public function test_http_requires_active_authorized_actor_and_gates_known_uuid_without_audit(): void
@@ -393,7 +396,7 @@ class ExplicitDenyTest extends TestCase
             }
         }
         $this->assertDatabaseHas('user_permission_denied', ['id' => $deny->id]);
-        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 1);
     }
 
     private function payload(): array
@@ -419,13 +422,13 @@ class ExplicitDenyTest extends TestCase
         $this->actingAs($this->actor);
         $this->post('/akses/deny', $this->payload() + ['actor_id' => $this->target->id, 'ditetapkan_oleh' => $this->target->id, 'dasar_izin' => ['allowed' => true], 'created_at' => now()->toISOString(), 'is_active' => true, 'grant' => ['x']])
             ->assertSessionHasErrors(['actor_id', 'ditetapkan_oleh', 'dasar_izin', 'created_at', 'is_active', 'grant']);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
         $deny = $this->create();
         $this->post('/akses/deny/'.$deny->id.'/cabut', $this->payload())->assertSessionHasErrors(['user_id', 'permission_id']);
         $this->post('/akses/deny/not-uuid/cabut', ['alasan' => 'Cabut'])->assertNotFound();
         $this->post('/akses/deny/'.Str::uuid().'/cabut', ['alasan' => 'Cabut'])->assertSessionHasErrors('deny_id');
         $this->assertDatabaseHas('user_permission_denied', ['id' => $deny->id]);
-        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 1);
     }
 
     public function test_http_legacy_and_inactive_deny_remain_visible_and_revokable_but_not_create_candidates(): void
@@ -444,7 +447,7 @@ class ExplicitDenyTest extends TestCase
         $this->getJson('/akses/deny/opsi/izin?q=legacy')->assertOk()->assertJsonCount(0, 'items');
         $this->post('/akses/deny/'.$deny->id.'/cabut', ['alasan' => 'Bersihkan legacy'])->assertSessionHasNoErrors()->assertRedirect('/akses/deny/hasil');
         $this->assertDatabaseMissing('user_permission_denied', ['id' => $deny->id]);
-        $this->assertSame('legacy:izin_uji', AuditLog::sole()->nilai_lama['permission_kode']);
+        $this->assertSame('legacy:izin_uji', AuditLog::where('sumber', 'manual')->sole()->nilai_lama['permission_kode']);
     }
 
     public function test_http_list_and_lookups_are_bounded_filtered_and_projected(): void
@@ -481,11 +484,11 @@ class ExplicitDenyTest extends TestCase
         $deny = UserPermissionDeny::sole();
         $this->post('/akses/deny/'.$deny->id.'/cabut', ['alasan' => 'Pulihkan diri'])->assertForbidden();
         $this->get('/akses/deny')->assertForbidden();
-        $this->assertDatabaseCount('audit_log', 1);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 1);
         $this->withSession(['denyResult' => ['actor_id' => $this->target->id, 'status' => 'created']])->get('/akses/deny/hasil')->assertInertia(fn (Assert $page) => $page->where('status', null));
         $this->giveRole($this->target, 'admin', Permission::where('kode', 'akses:update')->sole());
         $this->actingAs($this->target)->post('/akses/deny/'.$deny->id.'/cabut', ['alasan' => 'Pemulihan oleh operator lain'])->assertSessionHasNoErrors()->assertRedirect('/akses/deny/hasil');
         $this->assertTrue(app(PermissionResolver::class)->allows($this->actor->fresh(), 'akses:update'));
-        $this->assertDatabaseCount('audit_log', 2);
+        $this->assertDatabaseCount('audit_log', $this->seedAudits + 2);
     }
 }

@@ -58,10 +58,6 @@ class MasterUnitOrganisasiTest extends TestCase
             'diberikan_oleh' => $this->superadmin->id,
             'created_at' => now(),
         ]);
-        foreach (['unit:read', 'unit:create', 'unit:update', 'unit:delete'] as $p) {
-            $perm = Permission::where('kode', $p)->firstOrFail();
-            $superadminRole->permissions()->attach($perm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
-        }
 
         $this->admin = User::factory()->create([
             'nama' => 'Admin Test',
@@ -76,10 +72,6 @@ class MasterUnitOrganisasiTest extends TestCase
             'diberikan_oleh' => $this->superadmin->id,
             'created_at' => now(),
         ]);
-        foreach (['unit:read', 'unit:create', 'unit:update'] as $p) {
-            $perm = Permission::where('kode', $p)->firstOrFail();
-            $adminRole->permissions()->attach($perm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
-        }
 
         $this->pegawai = User::factory()->create([
             'nama' => 'Pegawai Biasa Test',

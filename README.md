@@ -47,11 +47,13 @@ Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document
 
 ## Bootstrap Super Admin pertama
 
+Preset role dan metadata katalog disinkronkan oleh `php artisan db:seed --class=AccessCatalogSeeder --force` (juga dipanggil `DatabaseSeeder` pada setup). Sebelum apply, seeder menampilkan delta membership/metadata, role nonaktif, jumlah referensi PIC dan grant baca unit lama. Jalankan pada lingkungan tujuan hanya setelah meninjau data serta delta rilis. Referensi pengguna PIC menghentikan rilis; tentukan pengganti per pengguna tanpa auto-map. Role/permission nonaktif tidak diaktifkan ulang, dan grant/deny/penugasan tidak diubah. Perubahan beserta audit sumber `preset_release` bersifat atomik; rerun tanpa delta tidak menulis ulang histori. Rollback migration provenance ditolak bila audit rilis sudah ada.
+
 Setelah skema dan katalog akses tersedia di lingkungan tujuan, calon Super Admin yang telah ditunjuk login melalui Keycloak sekali. Akunnya akan berstatus menunggu aktivasi. Ia menyalin **ID akun SAKIP** dari halaman tersebut dan menyampaikannya kepada operator yang berwenang bersama referensi otorisasi di luar aplikasi.
 
 Operator menjalankan `php artisan sakip:bootstrap-superadmin` pada server SAKIP. Perintah meminta ID akun, menampilkan nama dan email untuk dicocokkan dengan otorisasi, lalu meminta identitas/referensi operator, alasan, dan satu konfirmasi. Untuk eksekusi non-interaktif, berikan ID sebagai argumen serta `--operator-reference`, `--reason`, `--confirm-user=<ID yang sama>`, dan `--no-interaction`.
 
-Bootstrap hanya berlaku sekali. Pengulangan untuk akun yang sama tidak memulihkan hak yang kemudian dicabut; ID akun lain ditolak. Lima preset role yang sudah disepakati dipasang secara teraudit. Role `pic` tersedia tanpa preset bawaan selama keputusan Q31 masih terbuka; kondisi ini belum menutup gate UAT final/produksi pada Plan Q31.2. Setelah operator berhasil, pengguna menekan **Periksa status** pada halaman menunggu aktivasi.
+Bootstrap hanya berlaku sekali. Pengulangan untuk akun yang sama tidak memulihkan hak yang kemudian dicabut; ID akun lain ditolak. Preset lima role harus sudah terpasang melalui seeder rilis; bootstrap hanya memvalidasinya dan tidak memasang ulang izin. PIC merupakan konteks operasional, bukan role sistem. Setelah operator berhasil, pengguna menekan **Periksa status** pada halaman menunggu aktivasi.
 
 ---
 

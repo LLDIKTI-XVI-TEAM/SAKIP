@@ -113,7 +113,7 @@ class KonfirmasiPermissionTest extends TestCase
 
     /**
      * §7 & §9 Dokumen Konfirmasi Permission:
-     * Hak akses per role untuk Superadmin, Admin, Perencanaan, Pimpinan, Pegawai, dan PIC.
+     * Hak akses lima role resmi Q32; PIC tetap konteks operasional.
      */
     public function test_role_entitlements_match_confirmation_spec(): void
     {
@@ -162,9 +162,18 @@ class KonfirmasiPermissionTest extends TestCase
         $this->assertContains('regulasi:read', $pegawaiPreset);
         $this->assertContains('jenis_berkas:read', $pegawaiPreset);
 
-        // 5. PIC adalah identitas resmi tanpa preset bawaan otomatis (§3, §8.1)
-        $this->assertTrue(RoleCatalog::contains('pic'));
-        $this->assertFalse(RolePermissionPresets::hasDefinedPreset('pic'));
+        $this->assertFalse(RoleCatalog::contains('pic'));
+        $this->assertNotContains('unit:delete', $adminPreset);
+        $this->assertNotContains('pengukuran:setujui', $pimpinanPreset);
+        foreach (['superadmin', 'admin', 'perencanaan'] as $code) {
+            $this->assertContains('delegasi:update', RolePermissionPresets::forRole($code));
+        }
+        foreach (PermissionCodes::unitScoped() as $code) {
+            $this->assertNotContains($code, $pegawaiPreset);
+            $this->assertNotContains($code, $adminPreset);
+            $this->assertContains($code, $perencanaanPreset);
+            $this->assertContains($code, $superadminPreset);
+        }
     }
 
     /**
@@ -185,12 +194,6 @@ class KonfirmasiPermissionTest extends TestCase
         ]);
 
         $permAkses = Permission::where('kode', 'akses:update')->firstOrFail();
-        $permPengguna = Permission::where('kode', 'pengguna:read')->firstOrFail();
-
-        $roleAdmin->permissions()->syncWithoutDetaching([
-            $permAkses->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-            $permPengguna->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-        ]);
 
         $resolver = app(PermissionResolver::class);
 
