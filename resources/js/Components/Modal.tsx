@@ -55,8 +55,6 @@ export const Modal: React.FC<ModalProps> = ({
         // Focus the first form field or focusable element once when modal opens
         const focusInitialElement = () => {
             if (!modalRef.current) return;
-            // Jangan mengambil fokus yang sudah dipilih pengguna sebelum timer awal selesai.
-            if (modalRef.current.contains(document.activeElement)) return;
             const primaryField = modalRef.current.querySelector<HTMLElement>(
                 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
             );
@@ -75,7 +73,12 @@ export const Modal: React.FC<ModalProps> = ({
             }
         };
 
-        const timer = setTimeout(focusInitialElement, 50);
+        // Fokus field pertama hanya bila pengguna belum berinteraksi dengan elemen
+        // di dalam modal; mencuri fokus di tengah pengetikan akan menelan keystroke.
+        const timer = setTimeout(() => {
+            if (modalRef.current?.contains(document.activeElement)) return;
+            focusInitialElement();
+        }, 50);
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {

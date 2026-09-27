@@ -132,6 +132,14 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     expect(vi.mocked(router.post).mock.calls).toHaveLength(1);
 });
 
+it('menjaga hierarki heading: intro bagian H2 dan entri pengguna H3 di bawahnya', () => {
+    page();
+    expect(screen.getByRole('heading', { level: 2, name: 'Peran utama pengguna' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Ayu' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Budi' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ayu' })).toBeNull();
+});
+
 it.each([
     ['assigned', 'Peran berhasil ditetapkan.'], ['changed', 'Peran berhasil diubah.'],
     ['unchanged', 'Peran tidak berubah.'], [null, 'Tidak ada hasil penetapan peran untuk ditampilkan.'],

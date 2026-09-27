@@ -52,7 +52,7 @@ const props: RolePermissionIndexProps = {
 
 it("menampilkan metadata tersimpan tanpa kontrol mutasi atau klaim izin efektif", () => {
     render(<RolePermissionIndex {...props} />);
-    expect(screen.getByRole("heading", { name: "Peran & Izin" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Peran & Izin", level: 2 })).not.toBeNull();
     expect(screen.getByText("legacy:read")).not.toBeNull();
     expect(screen.getByText("Di luar katalog rilis")).not.toBeNull();
     expect(screen.getByText("Nonaktif")).not.toBeNull();

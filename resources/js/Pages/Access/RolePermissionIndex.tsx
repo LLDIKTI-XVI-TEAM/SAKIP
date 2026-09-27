@@ -44,14 +44,14 @@ export default function RolePermissionIndex({
     };
 
     return (
-        <AuthenticatedLayout title="Peran & Izin" hasCustomHeading>
+        <AuthenticatedLayout title="Peran & Izin">
             <Head title="Peran & Izin" />
             <section
                 aria-busy={navigating}
                 className="rounded-xl border border-border bg-surface p-4 sm:p-6"
             >
-                <h1 className="text-lg font-semibold">Peran & Izin</h1>
-                <p className="mt-2 max-w-3xl text-sm text-muted">
+                <h2 className="text-sm font-semibold text-ink">Peran & Izin</h2>
+                <p className="mt-0.5 max-w-3xl text-xs text-muted">
                     Lihat izin bawaan setiap peran. Hak akses pengguna juga
                     dipengaruhi oleh grant, pembatasan izin, dan aturan pekerjaan.
                 </p>
