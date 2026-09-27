@@ -26,7 +26,7 @@ class WriteAuditLog
                 || ($source === 'preset_release' && ($attributes['operator_reference'] ?? null) === null
                     && is_string($attributes['runtime_identity'] ?? null) && trim($attributes['runtime_identity']) !== ''
                     && match ($event) {
-                        'role_permissions.ubah', 'roles.hapus' => ($attributes['objek_tipe'] ?? null) === 'roles',
+                        'role_permissions.ubah', 'roles.tambah', 'roles.hapus' => ($attributes['objek_tipe'] ?? null) === 'roles',
                         'permissions.ubah' => ($attributes['objek_tipe'] ?? null) === 'permissions',
                         default => false,
                     })

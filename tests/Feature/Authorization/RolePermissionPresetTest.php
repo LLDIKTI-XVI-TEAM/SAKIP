@@ -28,6 +28,13 @@ class RolePermissionPresetTest extends TestCase
     public function test_release_installs_presets_and_all_entrypoints_are_idempotent(): void
     {
         $this->seed(AccessCatalogSeeder::class);
+        $this->assertSame(5, AuditLog::where('tindakan', 'roles.tambah')->count());
+        foreach (Role::all() as $role) {
+            $creation = AuditLog::where('tindakan', 'roles.tambah')->where('objek_id', $role->id)->sole();
+            $this->assertSame('preset_release', $creation->sumber);
+            $this->assertNull($creation->nilai_lama);
+            $this->assertEquals($role->only(['kode', 'nama', 'is_sistem', 'urutan', 'aktif']), $creation->nilai_baru);
+        }
         $this->assertDatabaseCount('role_permissions', 165);
         $this->assertSame(5, AuditLog::where('tindakan', 'role_permissions.ubah')->count());
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->firstOrFail();
@@ -77,6 +84,22 @@ class RolePermissionPresetTest extends TestCase
         $this->assertSame(['dashboard:read', 'jenis_berkas:read', 'kegiatan:read', 'komponen:read', 'pengukuran:read', 'regulasi:read', 'rencana_aksi:read'], $audit->nilai_baru['permissions']);
     }
 
+    public function test_partial_catalog_audits_only_new_roles_and_reports_exact_event_count(): void
+    {
+        $existing = Role::create(['kode' => 'admin', 'nama' => 'Admin lokal', 'urutan' => 2]);
+        $before = $existing->fresh()->getRawOriginal();
+        $sync = app(SyncRolePermissionPresets::class);
+        $events = $sync->handle('test-release', 'Lengkapi katalog parsial', 'test-cli');
+        $this->assertSame(80, $events); // 4 role + 71 permission + 5 membership.
+        $this->assertSame($events, AuditLog::where('sumber', 'preset_release')->count());
+        $this->assertSame(4, AuditLog::where('tindakan', 'roles.tambah')->count());
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'roles.tambah', 'objek_id' => $existing->id]);
+        $this->assertSame($before, $existing->fresh()->getRawOriginal());
+        $snapshot = $this->snapshot();
+        $this->assertSame(0, $sync->handle('test-release', 'Lengkapi katalog parsial', 'test-cli'));
+        $this->assertSame($snapshot, $this->snapshot());
+    }
+
     public function test_release_previews_and_audits_sensitive_reclassification_in_both_directions(): void
     {
         $this->seed(AccessCatalogSeeder::class);
@@ -112,8 +135,10 @@ class RolePermissionPresetTest extends TestCase
     {
         // Katalog belum lengkap: penolakan juga harus mencegah pembuatan role/preset baru.
         $role = Role::create(['kode' => 'pegawai', 'nama' => 'Pegawai', 'urutan' => 5, 'aktif' => false]);
+        $pic = Role::create(['kode' => 'pic', 'nama' => 'Legacy', 'urutan' => 6]);
         $before = $this->snapshot();
         $this->assertSame(['pegawai'], app(SyncRolePermissionPresets::class)->preview()['inactive_roles']);
+        $this->assertSame(['role_id' => $pic->id, 'will_delete_role' => false, 'permissions_to_remove' => [], 'user_references' => 0], app(SyncRolePermissionPresets::class)->preview()['pic_cleanup']);
         foreach ([AccessCatalogSeeder::class, PermissionCatalogSeeder::class, RegulasiPermissionSeeder::class] as $seeder) {
             try {
                 $this->seed($seeder);
@@ -148,6 +173,8 @@ class RolePermissionPresetTest extends TestCase
         $user = User::factory()->create();
         $user->roles()->attach($pic->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $before = $this->snapshot();
+        $this->assertSame(['role_id' => $pic->id, 'will_delete_role' => false, 'permissions_to_remove' => [], 'user_references' => 1], app(SyncRolePermissionPresets::class)->preview()['pic_cleanup']);
+        $this->assertSame($before, $this->snapshot());
         try {
             $this->seed(AccessCatalogSeeder::class);
             $this->fail('Pengguna PIC membutuhkan keputusan pengganti.');
@@ -164,8 +191,12 @@ class RolePermissionPresetTest extends TestCase
         $pic = Role::create(['kode' => 'pic', 'nama' => 'Legacy', 'urutan' => 6, 'aktif' => false]);
         $pic->permissions()->attach(Permission::where('kode', 'dashboard:read')->value('id'), ['id' => Str::uuid(), 'created_at' => now()]);
         $historical = DB::table('audit_log')->orderBy('id')->get();
+        $before = $this->snapshot();
+        $this->assertSame(['role_id' => $pic->id, 'will_delete_role' => true, 'permissions_to_remove' => ['dashboard:read'], 'user_references' => 0], app(SyncRolePermissionPresets::class)->preview()['pic_cleanup']);
+        $this->assertSame($before, $this->snapshot());
         $this->seed(AccessCatalogSeeder::class);
         $this->assertDatabaseMissing('roles', ['id' => $pic->id]);
+        $this->assertSame(['role_id' => null, 'will_delete_role' => false, 'permissions_to_remove' => [], 'user_references' => 0], app(SyncRolePermissionPresets::class)->preview()['pic_cleanup']);
         $this->assertSame($historical->toJson(), DB::table('audit_log')->whereIn('id', $historical->pluck('id'))->orderBy('id')->get()->toJson());
         $audit = AuditLog::where('objek_id', $pic->id)->where('tindakan', 'role_permissions.ubah')->sole();
         $this->assertSame(['permissions' => ['dashboard:read']], $audit->nilai_lama);
@@ -177,14 +208,16 @@ class RolePermissionPresetTest extends TestCase
     {
         $this->seed(AccessCatalogSeeder::class);
         $before = $this->snapshot();
-        $migration = require database_path('migrations/2026_09_27_000001_allow_preset_release_audit.php');
-        try {
-            $migration->down();
-            $this->fail('Rollback tidak boleh menghapus audit rilis.');
-        } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('preset_release', $exception->getMessage());
+        foreach (['2026_09_27_000002_allow_role_creation_release_audit.php', '2026_09_27_000001_allow_preset_release_audit.php'] as $file) {
+            $migration = require database_path('migrations/'.$file);
+            try {
+                $migration->down();
+                $this->fail('Rollback tidak boleh menghapus audit rilis.');
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('preset_release', $exception->getMessage());
+            }
+            $this->assertSame($before, $this->snapshot());
         }
-        $this->assertSame($before, $this->snapshot());
     }
 
     private function snapshot(): array
@@ -202,7 +235,7 @@ class RolePermissionPresetTest extends TestCase
         $valid = ['actor_id' => null, 'actor_type' => 'system', 'sumber' => 'preset_release', 'operator_reference' => null,
             'runtime_identity' => 'test-cli', 'tindakan' => 'role_permissions.ubah', 'objek_tipe' => 'roles',
             'objek_id' => (string) Str::uuid(), 'alasan' => 'test-release: perubahan fixture'];
-        foreach ([['runtime_identity' => ' '], ['operator_reference' => 'palsu'], ['tindakan' => 'pengguna.aktivasi'], ['objek_tipe' => 'users'], ['alasan' => ' ']] as $override) {
+        foreach ([['runtime_identity' => ' '], ['operator_reference' => 'palsu'], ['tindakan' => 'pengguna.aktivasi'], ['objek_tipe' => 'users'], ['alasan' => ' '], ['tindakan' => 'roles.tambah', 'objek_tipe' => 'permissions'], ['tindakan' => 'roles.tambah', 'runtime_identity' => ' ']] as $override) {
             $attributes = array_replace($valid, $override);
             try {
                 app(WriteAuditLog::class)->handle($attributes);
@@ -225,8 +258,11 @@ class RolePermissionPresetTest extends TestCase
         $historical = app(WriteAuditLog::class)->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Histori onboarding']);
         $before = $historical->fresh()->getRawOriginal();
         $migration = require database_path('migrations/2026_09_27_000001_allow_preset_release_audit.php');
+        $creationMigration = require database_path('migrations/2026_09_27_000002_allow_role_creation_release_audit.php');
+        $creationMigration->down();
         $migration->down();
         $migration->up();
+        $creationMigration->up();
         $this->assertSame($before, $historical->fresh()->getRawOriginal());
         $permission = Permission::create(['kode' => 'rencana_aksi:read', 'entitas' => 'rencana_aksi', 'aksi' => 'read', 'butuh_scope' => 'unit']);
         $unit = Unit::create(['nama' => 'Unit lama', 'created_by' => $user->id]);

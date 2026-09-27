@@ -36,10 +36,21 @@ class SyncRolePermissionPresets
             }
         }
 
+        $pic = $roles->get('pic');
+        $picReferences = $pic ? DB::table('user_roles')->where('role_id', $pic->id)->count() : 0;
+        $willDeletePic = $pic !== null && $picReferences === 0
+            && ! $roles->contains(fn (Role $role) => in_array($role->kode, RoleCatalog::codes(), true) && ! $role->aktif);
+
         return [
             'memberships' => $changes,
             'metadata' => $metadata,
-            'pic_references' => isset($roles['pic']) ? DB::table('user_roles')->where('role_id', $roles['pic']->id)->count() : 0,
+            'pic_references' => $picReferences,
+            'pic_cleanup' => [
+                'role_id' => $pic?->id,
+                'will_delete_role' => $willDeletePic,
+                'permissions_to_remove' => $willDeletePic ? $this->membership($pic->id) : [],
+                'user_references' => $picReferences,
+            ],
             'inactive_roles' => $roles->filter(fn (Role $role) => ! $role->aktif)->keys()->all(),
             'legacy_read_grants' => DB::table('user_permission_granted')->join('permissions', 'permissions.id', '=', 'user_permission_granted.permission_id')
                 ->whereIn('permissions.kode', ['rencana_aksi:read', 'kegiatan:read'])->whereNotNull('unit_id')->count(),
@@ -69,6 +80,9 @@ class SyncRolePermissionPresets
             foreach (RoleCatalog::ROLES as $code => $definition) {
                 if (! isset($roles[$code])) {
                     $roles[$code] = Role::create(['kode' => $code, 'nama' => $definition['nama'], 'urutan' => $definition['seed_urutan'], 'is_sistem' => true, 'aktif' => true]);
+                    $this->audit->handle($provenance + ['tindakan' => 'roles.tambah', 'objek_tipe' => 'roles', 'objek_id' => $roles[$code]->id,
+                        'nilai_lama' => null, 'nilai_baru' => $roles[$code]->only(['kode', 'nama', 'is_sistem', 'urutan', 'aktif'])]);
+                    $events++;
                 }
             }
             // Selaras dengan writer akses lain: role dahulu, lalu permission berurutan UUID.

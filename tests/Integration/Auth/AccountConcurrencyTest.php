@@ -121,7 +121,8 @@ class AccountConcurrencyTest extends TestCase
     public function test_two_releases_wait_for_the_same_lock_and_emit_one_set_of_delta_audits(): void
     {
         $results = $this->race('sync-presets', '', 'sakip:initial-bootstrap');
-        $this->assertEqualsCanonicalizing([76, 0], $results);
+        $this->assertEqualsCanonicalizing([81, 0], $results);
+        $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'roles.tambah')->count());
         $this->assertDatabaseCount('role_permissions', 165);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
         $this->assertSame(71, DB::table('audit_log')->where('tindakan', 'permissions.ubah')->count());
