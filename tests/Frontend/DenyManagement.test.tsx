@@ -176,3 +176,10 @@ it.each([false, true])('correlation create/revoke %s dan draft terjaga pada reco
     await user.click(screen.getByRole('button', { name: label }));
     expect(router.post).toHaveBeenCalledTimes(1);
 });
+
+it('menjaga hierarki heading: intro bagian H2 dan entri deny H3 di bawahnya', () => {
+    render(<DenyIndex {...props} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Pembatasan izin eksplisit' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: /Ayu/ })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 2, name: /Ayu/ })).toBeNull();
+});
