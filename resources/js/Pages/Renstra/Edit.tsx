@@ -12,6 +12,7 @@ interface EditRenstraProps {
     regulasiPilihan: RegulasiOption[];
     can?: {
         uploadAttachment?: boolean;
+        readRegulasi?: boolean;
     };
 }
 
@@ -33,6 +34,14 @@ export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenst
     const submit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (form.processing) return;
+        form.transform((data) => {
+            if (can?.readRegulasi === true) return data;
+
+            const payload: Partial<RenstraFormData> = { ...data };
+            delete payload.regulasi_id;
+
+            return payload;
+        });
         form.post(`/renstra/${renstra.id}`, {
             forceFormData: true,
         });
@@ -83,9 +92,11 @@ export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenst
                                 disabled={form.processing}
                                 isEdit={true}
                                 requireReason={isAktif}
+                                canReadRegulasi={can?.readRegulasi === true}
                                 canUploadAttachment={can?.uploadAttachment}
                                 attachmentLocked={renstra.status !== 'draft'}
-                                setField={(field, value) => form.setData({ ...form.data, [field]: value })}
+                                setField={(field, value) => form.setData((prev) => ({ ...prev, [field]: value }))}
+                                setLampiran={(updater) => form.setData((prev) => ({ ...prev, lampiran: updater(prev.lampiran) }))}
                             />
                         </CardContent>
 

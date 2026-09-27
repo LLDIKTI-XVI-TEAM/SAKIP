@@ -33,6 +33,7 @@ class CreateRenstra extends Controller
             'regulasiPilihan' => $regulasiPilihan,
             'can' => [
                 'uploadAttachment' => $canUploadAttachment,
+                'readRegulasi' => $dapatBacaRegulasi,
             ],
         ]);
     }

@@ -14,7 +14,11 @@ class StoreRenstraRequest extends RenstraMutationRequest
 {
     public function authorize(): bool
     {
-        return Gate::allows('create', Renstra::class);
+        $user = $this->user();
+
+        return $user instanceof User
+            && Gate::allows('create', Renstra::class)
+            && $this->relatedPermissionsAllowed($user);
     }
 
     protected function failedAuthorization(): void
@@ -22,7 +26,8 @@ class StoreRenstraRequest extends RenstraMutationRequest
         $user = $this->user();
 
         if ($user instanceof User) {
-            $decision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_CREATE);
+            $decision = $this->deniedRelatedDecision
+                ?? app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_CREATE);
             $rawAlasan = $this->input('alasan');
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
 
@@ -35,6 +40,7 @@ class StoreRenstraRequest extends RenstraMutationRequest
                     'nama' => $this->input('nama'),
                     'tahun_mulai' => $this->input('tahun_mulai'),
                     'tahun_selesai' => $this->input('tahun_selesai') ?? $this->input('tahun_akhir'),
+                    ...($this->deniedRelatedReason === null ? [] : ['alasan_penolakan' => $this->deniedRelatedReason]),
                 ],
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),

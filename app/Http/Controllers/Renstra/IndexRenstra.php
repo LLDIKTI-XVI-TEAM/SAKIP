@@ -52,6 +52,10 @@ class IndexRenstra extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        if (! $dapatBacaRegulasi) {
+            $renstra->getCollection()->each(fn (Renstra $item) => $item->setAttribute('regulasi_id', null));
+        }
+
         return Inertia::render('Renstra/Index', [
             'renstra' => $renstra,
             'regulasiPilihan' => $regulasiPilihan,
@@ -68,6 +72,7 @@ class IndexRenstra extends Controller
                 'renstra:delete' => $user->can('delete', Renstra::class),
                 'berkas:delete' => $user !== null && $user->can('deleteAttachment', Renstra::class),
                 'uploadAttachment' => $user !== null && $user->can('uploadAttachment', Renstra::class),
+                'readRegulasi' => $dapatBacaRegulasi,
             ],
         ]);
     }

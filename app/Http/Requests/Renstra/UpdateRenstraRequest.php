@@ -14,10 +14,12 @@ class UpdateRenstraRequest extends RenstraMutationRequest
     public function authorize(): bool
     {
         $renstra = $this->route('renstra');
+        $user = $this->user();
 
         return $renstra instanceof Renstra
-            ? Gate::allows('update', $renstra)
-            : false;
+            && $user instanceof User
+            && Gate::allows('update', $renstra)
+            && $this->relatedPermissionsAllowed($user, $renstra);
     }
 
     protected function failedAuthorization(): void
@@ -26,7 +28,8 @@ class UpdateRenstraRequest extends RenstraMutationRequest
         $renstra = $this->route('renstra');
 
         if ($user instanceof User && $renstra instanceof Renstra) {
-            $decision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+            $decision = $this->deniedRelatedDecision
+                ?? app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
             $rawAlasan = $this->input('alasan');
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
 
@@ -36,6 +39,7 @@ class UpdateRenstraRequest extends RenstraMutationRequest
                 objekTipe: 'renstra',
                 objekId: $renstra->id,
                 nilaiLama: $renstra->withoutRelations()->toArray(),
+                nilaiBaru: $this->deniedRelatedReason === null ? null : ['alasan_penolakan' => $this->deniedRelatedReason],
                 alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );

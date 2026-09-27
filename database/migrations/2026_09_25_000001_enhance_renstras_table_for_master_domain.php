@@ -9,6 +9,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $rentangTidakValid = DB::table('renstras')
+            ->where('is_aktif', true)
+            ->whereColumn('tahun_mulai', '>', 'tahun_selesai')
+            ->exists();
+
+        if ($rentangTidakValid) {
+            throw new RuntimeException('Renstra aktif lama memiliki rentang tahun tidak valid. Tinjau tahun mulai dan selesai sebelum migrasi.');
+        }
+
         $konflik = DB::table('renstras as pertama')
             ->join('renstras as kedua', 'pertama.id', '<', 'kedua.id')
             ->where('pertama.is_aktif', true)

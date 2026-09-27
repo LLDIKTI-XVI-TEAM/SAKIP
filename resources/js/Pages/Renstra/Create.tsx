@@ -11,6 +11,7 @@ interface CreateRenstraProps {
     regulasiPilihan: RegulasiOption[];
     can?: {
         uploadAttachment?: boolean;
+        readRegulasi?: boolean;
     };
 }
 
@@ -65,8 +66,10 @@ export default function CreateRenstra({ regulasiPilihan, can }: CreateRenstraPro
                                 errors={form.errors as Record<string, string | undefined>}
                                 regulasiOptions={regulasiPilihan}
                                 disabled={form.processing}
+                                canReadRegulasi={can?.readRegulasi === true}
                                 canUploadAttachment={can?.uploadAttachment}
-                                setField={(field, value) => form.setData({ ...form.data, [field]: value })}
+                                setField={(field, value) => form.setData((prev) => ({ ...prev, [field]: value }))}
+                                setLampiran={(updater) => form.setData((prev) => ({ ...prev, lampiran: updater(prev.lampiran) }))}
                             />
                         </CardContent>
 

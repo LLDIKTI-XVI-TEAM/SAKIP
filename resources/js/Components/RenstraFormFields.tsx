@@ -6,7 +6,7 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import type { LampiranDraft, LampiranMode, RegulasiOption, RenstraFormData } from '@/types/renstra';
 
-type RenstraEditableField = Exclude<keyof RenstraFormData, '_method'>;
+type RenstraEditableField = Exclude<keyof RenstraFormData, '_method' | 'lampiran'>;
 type SetRenstraField = <K extends RenstraEditableField>(field: K, value: RenstraFormData[K]) => void;
 
 interface RenstraFormFieldsProps {
@@ -16,9 +16,11 @@ interface RenstraFormFieldsProps {
     disabled?: boolean;
     isEdit?: boolean;
     requireReason?: boolean;
+    canReadRegulasi?: boolean;
     canUploadAttachment?: boolean;
     attachmentLocked?: boolean;
     setField: SetRenstraField;
+    setLampiran: (updater: (previous: LampiranDraft[]) => LampiranDraft[]) => void;
 }
 
 const modeMeta: Record<LampiranMode, { label: string; icon: typeof FileText; description: string }> = {
@@ -44,32 +46,32 @@ export function RenstraFormFields({
     disabled = false,
     isEdit = false,
     requireReason = false,
+    canReadRegulasi = false,
     canUploadAttachment = true,
     attachmentLocked = false,
     setField,
+    setLampiran,
 }: RenstraFormFieldsProps) {
     const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
-        const next = data.lampiran.map((item, itemIndex) => (
+        setLampiran((previous) => previous.map((item, itemIndex) => (
             itemIndex === index ? { ...item, [field]: value } : item
-        ));
-        setField('lampiran', next);
+        )));
     };
 
     const updateModeLampiran = (index: number, mode: LampiranMode) => {
-        const next = data.lampiran.map((item, itemIndex) => (
+        setLampiran((previous) => previous.map((item, itemIndex) => (
             itemIndex === index
                 ? { ...item, mode, file: null, tautan: '', isi_teks: '' }
                 : item
-        ));
-        setField('lampiran', next);
+        )));
     };
 
     const removeLampiran = (index: number) => {
-        setField('lampiran', data.lampiran.filter((_, itemIndex) => itemIndex !== index));
+        setLampiran((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     };
 
     const addLampiran = () => {
-        setField('lampiran', [...data.lampiran, newLampiran()]);
+        setLampiran((previous) => [...previous, newLampiran()]);
     };
 
     return (
@@ -107,7 +109,7 @@ export function RenstraFormFields({
                         required
                     />
 
-                    <Select
+                    {canReadRegulasi ? <Select
                         name="regulasi_id"
                         label="Rujukan Regulasi Utama"
                         value={data.regulasi_id}
@@ -121,7 +123,9 @@ export function RenstraFormFields({
                                 {reg.nomor} ({reg.tahun}) - {reg.tentang.length > 50 ? `${reg.tentang.slice(0, 50)}...` : reg.tentang}
                             </option>
                         ))}
-                    </Select>
+                    </Select> : isEdit ? (
+                        <p className="text-sm text-muted">Rujukan regulasi yang sudah tersimpan tetap dipertahankan.</p>
+                    ) : null}
                 </div>
             </section>
 

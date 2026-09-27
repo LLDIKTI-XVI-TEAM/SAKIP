@@ -4,6 +4,10 @@ namespace App\Http\Requests\Renstra;
 
 use App\Models\Pengaturan;
 use App\Models\Renstra;
+use App\Models\User;
+use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -11,6 +15,43 @@ use Illuminate\Validation\Validator;
 abstract class RenstraMutationRequest extends FormRequest
 {
     protected ?bool $isUploadActiveCached = null;
+
+    protected ?PermissionDecision $deniedRelatedDecision = null;
+
+    protected ?string $deniedRelatedReason = null;
+
+    protected function relatedPermissionsAllowed(User $actor, ?Renstra $renstra = null): bool
+    {
+        $input = $this->all();
+        $resolver = app(PermissionResolver::class);
+
+        // Evaluasi izin sebelum validasi isi agar payload lampiran yang rusak tetap ditolak sebagai akses.
+        if (array_key_exists('lampiran', $input) && $input['lampiran'] !== null && $input['lampiran'] !== []) {
+            $uploadDecision = $resolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+            if (! $uploadDecision->allowed) {
+                $this->deniedRelatedDecision = $uploadDecision;
+                $this->deniedRelatedReason = 'berkas_upload_denied';
+
+                return false;
+            }
+        }
+
+        if (array_key_exists('regulasi_id', $input)) {
+            $requestedRegulasiId = $input['regulasi_id'] === '' ? null : $input['regulasi_id'];
+            // ID eksplisit tetap ditolak meski sama dengan FK lama agar tidak menjadi oracle.
+            if ($requestedRegulasiId !== null || $requestedRegulasiId !== $renstra?->regulasi_id) {
+                $readDecision = $resolver->resolve($actor, PermissionCodes::REGULASI_READ);
+                if (! $readDecision->allowed) {
+                    $this->deniedRelatedDecision = $readDecision;
+                    $this->deniedRelatedReason = 'regulasi_read_denied';
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 
     /**
      * @return array<string, mixed>

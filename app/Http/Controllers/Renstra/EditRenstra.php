@@ -34,6 +34,7 @@ class EditRenstra extends Controller
                 ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
         } else {
             $renstra->unsetRelation('regulasi');
+            $renstra->setAttribute('regulasi_id', null);
             $regulasiPilihan = [];
         }
 
@@ -45,6 +46,7 @@ class EditRenstra extends Controller
             'regulasiPilihan' => $regulasiPilihan,
             'can' => [
                 'uploadAttachment' => $canUploadAttachment,
+                'readRegulasi' => $dapatBacaRegulasi,
             ],
         ]);
     }

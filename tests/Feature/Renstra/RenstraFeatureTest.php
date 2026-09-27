@@ -460,6 +460,25 @@ test('Migrasi memberi diagnosis sebelum mengubah skema bila Renstra aktif lama b
     expect(Schema::hasColumn('renstras', 'status'))->toBeFalse();
 });
 
+test('Migrasi menolak rentang tahun Renstra aktif lama yang terbalik sebelum mengubah skema', function (): void {
+    $migration = require database_path('migrations/2026_09_25_000001_enhance_renstras_table_for_master_domain.php');
+    $migration->down();
+
+    DB::table('renstras')->insert([
+        'id' => (string) Str::uuid(),
+        'kode' => 'LEGACY-RENTANG-TERBALIK',
+        'nama' => 'Renstra aktif lama dengan rentang tidak valid',
+        'tahun_mulai' => 2030,
+        'tahun_selesai' => 2025,
+        'is_aktif' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect(fn () => $migration->up())->toThrow(RuntimeException::class, 'rentang tahun tidak valid');
+    expect(Schema::hasColumn('renstras', 'status'))->toBeFalse();
+});
+
 test('Pembaruan Renstra aktif tidak boleh mengosongkan dasar hukum', function (): void {
     $renstra = buatRenstra($this->perencanaan, [
         'kode' => 'RENSTRA-AKTIF-DASAR-HUKUM',
@@ -1079,6 +1098,41 @@ test('Deny berkas upload saat mengubah Renstra dicatat di luar transaksi', funct
     expect($audit->dasar_izin['keputusan'])->not->toBe('diizinkan');
 });
 
+test('Deny unggah didahulukan dari validasi lampiran yang tidak lengkap', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-DENY-VALIDASI']);
+    $permission = Permission::query()->where('kode', 'berkas:upload')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny unggah sebelum validasi lampiran',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->perencanaan)->post('/renstra', [
+        'nama' => 'Renstra dengan lampiran tidak lengkap',
+        'kode' => 'RENSTRA-DENY-CREATE-INVALID',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+        'lampiran' => [['mode' => 'teks']],
+    ])->assertForbidden();
+
+    $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'nama' => $renstra->nama,
+        'tahun_mulai' => $renstra->tahun_mulai,
+        'tahun_selesai' => $renstra->tahun_selesai,
+        'lampiran' => [['mode' => 'teks']],
+    ])->assertForbidden();
+
+    $this->assertDatabaseMissing('renstras', ['kode' => 'RENSTRA-DENY-CREATE-INVALID']);
+    expect($renstra->berkas()->exists())->toBeFalse();
+    foreach (['renstra.buat_ditolak', 'renstra.ubah_ditolak'] as $tindakan) {
+        $audit = AuditLog::query()->where('tindakan', $tindakan)->latest('waktu')->firstOrFail();
+        expect($audit->dasar_izin['permission'])->toBe('berkas:upload');
+        expect($audit->dasar_izin['keputusan'])->toBe('ditolak');
+    }
+});
+
 test('Halaman detail tidak mengirim path dan kolom internal lampiran', function (): void {
     $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-SAFE-BERKAS-PAYLOAD']);
     $berkas = $renstra->berkas()->create([
@@ -1140,6 +1194,7 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
             ->where('regulasiPilihan', [])
             ->has('renstra.data.0', fn (Assert $item) => $item
                 ->missing('pembuat')
+                ->where('regulasi_id', null)
                 ->etc()
             )
         );
@@ -1164,6 +1219,80 @@ test('Payload Renstra menghormati izin regulasi:read dan membatasi data pembuat'
                 ->missing('no_hp')
             )
         );
+
+    $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit")
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Edit')
+            ->where('regulasiPilihan', [])
+            ->where('renstra.regulasi_id', null)
+            ->where('can.readRegulasi', false)
+        );
+});
+
+test('Deny regulasi read menolak rujukan eksplisit tanpa menghalangi edit field lain', function (): void {
+    $regulasiLama = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 201/2025',
+        'tahun' => 2025,
+        'tentang' => 'Rujukan lama',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+    $regulasiBaru = Regulasi::query()->create([
+        'jenis' => 'permen',
+        'nomor' => 'Permen 202/2025',
+        'tahun' => 2025,
+        'tentang' => 'Rujukan baru',
+        'aktif' => true,
+        'created_by' => $this->perencanaan->id,
+    ]);
+    $renstra = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-DENY-RUJUKAN',
+        'regulasi_id' => $regulasiLama->id,
+    ]);
+    $permission = Permission::query()->where('kode', 'regulasi:read')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny baca rujukan regulasi',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    foreach ([$regulasiBaru->id, (string) Str::uuid()] as $index => $regulasiId) {
+        $this->actingAs($this->perencanaan)->post('/renstra', [
+            'nama' => 'Renstra ditolak karena rujukan',
+            'kode' => 'RENSTRA-DENY-RUJUKAN-BARU-'.$index,
+            'tahun_mulai' => 2030,
+            'tahun_selesai' => 2034,
+            'regulasi_id' => $regulasiId,
+        ])->assertForbidden();
+    }
+
+    foreach ([$regulasiBaru->id, $regulasiLama->id, null] as $regulasiId) {
+        $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+            'nama' => 'Perubahan rujukan ditolak',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'regulasi_id' => $regulasiId,
+        ])->assertForbidden();
+    }
+
+    $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'nama' => 'Edit tanpa mengubah rujukan',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+    ])->assertRedirect();
+
+    $renstra->refresh();
+    expect($renstra->nama)->toBe('Edit tanpa mengubah rujukan');
+    expect($renstra->regulasi_id)->toBe($regulasiLama->id);
+    expect(Renstra::query()->where('kode', 'like', 'RENSTRA-DENY-RUJUKAN-BARU-%')->exists())->toBeFalse();
+
+    $audit = AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->latest('waktu')->firstOrFail();
+    expect($audit->nilai_baru['alasan_penolakan'])->toBe('regulasi_read_denied');
+    expect($audit->dasar_izin['permission'])->toBe('regulasi:read');
+    expect($audit->dasar_izin['keputusan'])->toBe('ditolak');
 });
 
 test('Halaman edit Renstra menolak akses jika izin view ditolak meskipun memiliki izin update', function (): void {
