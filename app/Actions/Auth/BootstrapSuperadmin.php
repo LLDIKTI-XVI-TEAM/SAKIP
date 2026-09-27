@@ -36,11 +36,11 @@ class BootstrapSuperadmin
 
                 return false;
             }
-            $roles = Role::get()->keyBy('kode');
+            $roles = Role::orderBy('id')->lockForUpdate()->get()->keyBy('kode');
             $expected = RoleCatalog::codes();
             sort($expected);
             if ($roles->pluck('kode')->sort()->values()->all() !== $expected || $roles->contains(fn (Role $role) => ! $role->aktif)) {
-                throw new DomainException('Enam peran aktif wajib lengkap sebelum bootstrap.');
+                throw new DomainException('Lima peran aktif wajib lengkap sebelum bootstrap.');
             }
             $superadmin = $roles->firstWhere('kode', 'superadmin');
             $pegawai = $roles->firstWhere('kode', 'pegawai');
@@ -49,25 +49,20 @@ class BootstrapSuperadmin
                 && $assignment->role_id === $pegawai->id
                 && DB::table('audit_log')->where('id', $assignment->audit_id)->where('objek_id', $user->id)->where('sumber', 'sso_onboarding')->where('tindakan', 'user_roles.tambah')->exists();
             if (! $onboarded || $user->is_active
-                || DB::table('role_permissions')->exists()
                 || DB::table('user_roles')->where('role_id', $superadmin->id)->exists()) {
                 throw new DomainException('Keadaan awal bootstrap tidak sesuai; tidak ada data yang diubah.');
             }
             $provenance = ['actor_type' => 'operator', 'sumber' => 'bootstrap', 'operator_reference' => $operator, 'runtime_identity' => $runtimeIdentity, 'alasan' => $reason];
-            $permissions = Permission::where('aktif', true)->pluck('id', 'kode');
-            foreach (RoleCatalog::codes() as $kode) {
-                $role = $roles->get($kode);
-                if (! RolePermissionPresets::hasDefinedPreset($kode)) {
-                    continue;
+            $permissions = Permission::orderBy('id')->lockForUpdate()->get()->keyBy('kode');
+            // Bootstrap hanya memvalidasi preset rilis; bukan jalur sinkronisasi atau pemulihan izin.
+            foreach (RoleCatalog::codes() as $code) {
+                $expected = RolePermissionPresets::forRole($code);
+                sort($expected);
+                $installed = DB::table('role_permissions')->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                    ->where('role_id', $roles[$code]->id)->orderBy('permissions.kode')->pluck('permissions.kode')->all();
+                if ($installed !== $expected || collect($expected)->contains(fn (string $permission) => ! ($permissions[$permission]->aktif ?? false))) {
+                    throw new DomainException('Preset permission belum sesuai rilis; jalankan sinkronisasi katalog terlebih dahulu.');
                 }
-                $codes = RolePermissionPresets::forRole($role->kode);
-                foreach ($codes as $code) {
-                    if (! isset($permissions[$code])) {
-                        throw new DomainException('Katalog permission bootstrap belum lengkap.');
-                    }
-                    DB::table('role_permissions')->insert(['id' => Str::uuid(), 'role_id' => $role->id, 'permission_id' => $permissions[$code], 'created_at' => now()]);
-                }
-                $this->audit->handle($provenance + ['tindakan' => 'role_permissions.ubah', 'objek_tipe' => 'roles', 'objek_id' => $role->id, 'nilai_lama' => [], 'nilai_baru' => ['permissions' => $codes]]);
             }
             $audit = $this->audit->handle($provenance + ['tindakan' => 'user_roles.ubah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'nilai_lama' => ['role_id' => $assignment->role_id], 'nilai_baru' => ['role_id' => $superadmin->id]]);
             DB::table('user_roles')->where('id', $assignment->id)->update(['role_id' => $superadmin->id, 'sumber_pemberian' => 'bootstrap', 'audit_id' => $audit->id]);

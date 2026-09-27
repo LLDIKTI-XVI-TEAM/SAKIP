@@ -8,8 +8,7 @@ class RegulasiPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Katalog boleh disiapkan lebih awal, tetapi assignment role hanya boleh
-        // dipasang oleh bootstrap pertama agar seluruh perubahan teraudit.
+        // Katalog dan preset mengikuti satu rilis atomik; assignment pengguna tidak berubah.
         $this->call(AccessCatalogSeeder::class);
     }
 }

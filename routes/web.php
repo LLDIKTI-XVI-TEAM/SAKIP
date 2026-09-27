@@ -64,8 +64,6 @@ Route::get('/auth/pending', function (Request $request) {
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
     Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
-    Route::get('/akses/izin-peran/hasil', [RolePermissionManagement::class, 'result'])->name('role-permission.result');
-    Route::post('/akses/izin-peran/{role}', [RolePermissionManagement::class, 'store'])->whereUuid('role')->name('role-permission.store');
     Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
     Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
     Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');
