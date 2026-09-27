@@ -265,6 +265,22 @@ class PermissionCatalogSeeder extends Seeder
                 'butuh_scope' => Permission::SCOPE_GLOBAL,
                 'sensitif' => true,
             ],
+            [
+                'kode' => 'pk:create',
+                'entitas' => 'pk',
+                'aksi' => 'create',
+                'keterangan' => 'Mencatat Perjanjian Kinerja baru',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
+            ],
+            [
+                'kode' => 'pk:update',
+                'entitas' => 'pk',
+                'aksi' => 'update',
+                'keterangan' => 'Mengubah dan melampirkan berkas Perjanjian Kinerja',
+                'butuh_scope' => Permission::SCOPE_GLOBAL,
+                'sensitif' => false,
+            ],
         ];
 
         foreach ($permissions as $data) {

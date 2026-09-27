@@ -39,4 +39,10 @@ class Renstra extends Model
     {
         return $this->hasMany(SasaranStrategis::class, 'renstra_id')->orderBy('urutan');
     }
+
+    /** @return HasMany<RenstraPk, $this> */
+    public function perjanjianKinerja(): HasMany
+    {
+        return $this->hasMany(RenstraPk::class, 'renstra_id')->orderBy('tahun');
+    }
 }

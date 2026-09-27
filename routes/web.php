@@ -23,6 +23,7 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\PerjanjianKinerjaController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
 use App\Http\Controllers\Regulasi\DestroyRegulasi;
@@ -135,4 +136,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'store'])->whereUuid('indikator')->name('indikator.komponen.store');
     Route::put('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'update'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.update');
     Route::delete('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'destroy'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.destroy');
+
+    // Perjanjian Kinerja (PK) & Lampiran Legal
+    Route::get('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'index'])->name('perjanjian-kinerja.index');
+    Route::get('/perjanjian-kinerja/create', [PerjanjianKinerjaController::class, 'create'])->name('perjanjian-kinerja.create');
+    Route::post('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'store'])->name('perjanjian-kinerja.store');
+    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'show'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.show');
+    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/edit', [PerjanjianKinerjaController::class, 'edit'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.edit');
+    Route::put('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'update'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.update');
+    Route::delete('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}', [PerjanjianKinerjaController::class, 'destroyBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.destroy');
+    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}/unduh', [PerjanjianKinerjaController::class, 'downloadBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.download');
 });

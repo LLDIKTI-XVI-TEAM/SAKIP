@@ -29,6 +29,13 @@ final class PermissionCodes
 
     public const REGULASI_DELETE = 'regulasi:delete';
 
+    // Perjanjian Kinerja (PK) (ISS-02.08)
+    public const PK_CREATE = 'pk:create';
+
+    public const PK_READ = 'pk:read';
+
+    public const PK_UPDATE = 'pk:update';
+
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 
