@@ -694,23 +694,20 @@ test('Halaman Edit Renstra tidak memuat relasi berkas ke props Inertia', functio
 
 test('Pengecekan capability UI di ShowRenstra tidak mencatat audit denial palsu', function (): void {
     $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-SHOW-PURE']);
+    $viewer = $this->perencanaan;
 
-    $viewerRole = Role::query()->create([
-        'id' => (string) Str::uuid(),
-        'kode' => 'viewer_renstra',
-        'nama' => 'Viewer Renstra',
-        'urutan' => 99,
-    ]);
-    $readPerm = Permission::query()->where('kode', 'renstra:read')->firstOrFail();
-    $viewerRole->permissions()->attach($readPerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+    foreach ([PermissionCodes::RENSTRA_UPDATE, PermissionCodes::RENSTRA_DELETE] as $kode) {
+        $permission = Permission::query()->where('kode', $kode)->firstOrFail();
+        UserPermissionDeny::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $viewer->id,
+            'permission_id' => $permission->id,
+            'alasan' => 'Pengujian capability tanpa audit penolakan',
+            'ditetapkan_oleh' => $viewer->id,
+        ]);
+    }
 
-    $viewer = User::factory()->create(['email' => 'viewer-only@example.test', 'is_active' => true]);
-    $viewer->roles()->attach($viewerRole->id, [
-        'id' => (string) Str::uuid(),
-        'sumber_pemberian' => 'manual',
-        'diberikan_oleh' => $viewer->id,
-        'created_at' => now(),
-    ]);
+    expect($viewer->can('view', $renstra))->toBeTrue();
 
     $response = $this->actingAs($viewer)->get("/renstra/{$renstra->id}");
     $response->assertOk()
