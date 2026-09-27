@@ -29,8 +29,8 @@ class StoreGrant extends Controller
             abort(401);
         }
 
-        $decision = $permissionResolver->resolve($actor, 'akses:update');
-        if (! $decision->allowed || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
+        $decision = $permissionResolver->resolve($actor, 'delegasi:update');
+        if (! $decision->allowed) {
             $auditLogger->catat(
                 actor: $actor,
                 tindakan: 'user_permission_granted.ditolak',
@@ -64,7 +64,7 @@ class StoreGrant extends Controller
                 Rule::exists('permissions', 'id')->where(
                     fn ($query) => $query->where('aktif', true)
                         ->where('butuh_scope', Permission::SCOPE_UNIT)
-                        ->whereIn('kode', PermissionCatalog::UNIT_SCOPED)
+                        ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
                 ),
             ],
             'unit_id' => [
@@ -175,8 +175,8 @@ class StoreGrant extends Controller
                 }
 
                 // Otorisasi ulang aktor di dalam transaksi untuk mencegah race condition pencabutan hak akses
-                $currentDecision = $permissionResolver->resolve($currentActor, 'akses:update');
-                if (! $currentDecision->allowed || ! $currentActor->hasAnyRole(['admin', 'superadmin'])) {
+                $currentDecision = $permissionResolver->resolve($currentActor, 'delegasi:update');
+                if (! $currentDecision->allowed) {
                     return [
                         'status' => 'denied',
                         'actor' => $currentActor,
@@ -209,7 +209,7 @@ class StoreGrant extends Controller
                 // Kunci permission dengan sharedLock dan validasi ulang status aktif serta butuh_scope di dalam transaksi
                 /** @var Permission|null $lockedPermission */
                 $lockedPermission = Permission::whereKey($permission->id)->sharedLock()->first();
-                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
+                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true)) {
                     throw ValidationException::withMessages([
                         'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
                     ]);

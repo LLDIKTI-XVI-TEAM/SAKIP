@@ -12,13 +12,7 @@ class SearchGrantUsers extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
-        Gate::authorize('akses:update');
-
-        /** @var User|null $actor */
-        $actor = $request->user();
-        if (! $actor || ! $actor->hasAnyRole(['admin', 'superadmin'])) {
-            abort(403, 'Hanya peran Admin dan Superadmin yang berwenang mengakses data pengguna.');
-        }
+        Gate::authorize('delegasi:update');
 
         $search = trim($request->string('q')->toString());
 
