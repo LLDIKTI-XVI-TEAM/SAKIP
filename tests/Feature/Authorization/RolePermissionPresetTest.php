@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Authorization;
 
+use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Audit\WriteAuditLog;
 use App\Models\AuditLog;
 use App\Models\Permission;
@@ -44,11 +45,11 @@ class RolePermissionPresetTest extends TestCase
         $this->assertSame($before, $this->snapshot());
     }
 
-    public function test_release_corrects_drift_and_metadata_preserving_existing_identity_and_inactive_flags(): void
+    public function test_release_corrects_drift_and_metadata_preserving_existing_identity_and_inactive_permission(): void
     {
         $this->seed(AccessCatalogSeeder::class);
         $role = Role::where('kode', 'pegawai')->sole();
-        $role->update(['nama' => 'Label lokal', 'urutan' => 90, 'aktif' => false]);
+        $role->update(['nama' => 'Label lokal', 'urutan' => 90]);
         $retained = DB::table('role_permissions')->where('role_id', $role->id)->orderBy('permission_id')->get();
         $extra = Permission::where('kode', 'akses:update')->sole();
         $role->permissions()->attach($extra->id, ['id' => Str::uuid(), 'created_at' => now()]);
@@ -57,11 +58,10 @@ class RolePermissionPresetTest extends TestCase
         Permission::where('kode', 'komponen:create')->update(['keterangan' => null]);
         Permission::where('kode', 'komponen:read')->update(['keterangan' => 'Keterangan lokal']);
         Permission::where('kode', 'renstra:read')->update(['keterangan' => '']);
-        Permission::where('kode', 'renstra:delete')->update(['sensitif' => true]);
         $this->travel(10)->minutes();
         $this->seed(AccessCatalogSeeder::class);
         $this->assertSame($retained->toJson(), DB::table('role_permissions')->where('role_id', $role->id)->orderBy('permission_id')->get()->toJson());
-        $this->assertDatabaseHas('roles', ['id' => $role->id, 'nama' => 'Label lokal', 'urutan' => 90, 'aktif' => false]);
+        $this->assertDatabaseHas('roles', ['id' => $role->id, 'nama' => 'Label lokal', 'urutan' => 90, 'aktif' => true]);
         $this->assertFalse($extra->fresh()->aktif);
         $this->assertDatabaseHas('permissions', ['kode' => 'akses:update', 'keterangan' => 'Menetapkan peran pengguna dan mengelola pembatasan izin eksplisit.']);
         $this->assertDatabaseHas('permissions', ['kode' => 'delegasi:update', 'keterangan' => 'Memberikan dan mencabut grant izin tambahan per unit.', 'butuh_scope' => 'global']);
@@ -71,12 +71,60 @@ class RolePermissionPresetTest extends TestCase
         $this->assertDatabaseHas('permissions', ['kode' => 'komponen:read', 'keterangan' => 'Keterangan lokal']);
         $this->assertDatabaseHas('permissions', ['kode' => 'renstra:read', 'keterangan' => 'Membaca data Renstra']);
         $this->assertDatabaseHas('permissions', ['kode' => 'sasaran:create', 'keterangan' => null]);
-        $this->assertDatabaseHas('permissions', ['kode' => 'renstra:delete', 'sensitif' => true]);
         $this->seed(PermissionCatalogSeeder::class);
-        $this->assertDatabaseHas('permissions', ['kode' => 'renstra:delete', 'sensitif' => true]);
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->where('objek_id', $role->id)->orderByDesc('waktu')->firstOrFail();
         $this->assertSame(['akses:update', 'dashboard:read', 'jenis_berkas:read', 'kegiatan:read', 'komponen:read', 'pengukuran:read', 'regulasi:read', 'rencana_aksi:read'], $audit->nilai_lama['permissions']);
         $this->assertSame(['dashboard:read', 'jenis_berkas:read', 'kegiatan:read', 'komponen:read', 'pengukuran:read', 'regulasi:read', 'rencana_aksi:read'], $audit->nilai_baru['permissions']);
+    }
+
+    public function test_release_previews_and_audits_sensitive_reclassification_in_both_directions(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $sensitive = Permission::where('kode', 'akses:update')->sole();
+        $ordinary = Permission::where('kode', 'renstra:delete')->sole();
+        $sensitive->update(['sensitif' => false, 'aktif' => false]);
+        $ordinary->update(['sensitif' => true]);
+        $before = $this->snapshot();
+        $historical = AuditLog::pluck('id');
+        $sync = app(SyncRolePermissionPresets::class);
+
+        $this->assertEqualsCanonicalizing(['akses:update', 'renstra:delete'], $sync->preview()['metadata']);
+        $this->assertSame($before, $this->snapshot());
+        $this->assertSame(2, $sync->handle('test-release', 'Koreksi metadata sensitif', 'test-cli'));
+        $this->assertDatabaseHas('permissions', ['id' => $sensitive->id, 'sensitif' => true, 'aktif' => false]);
+        $this->assertDatabaseHas('permissions', ['id' => $ordinary->id, 'sensitif' => false, 'aktif' => true]);
+        foreach ([$sensitive->id => true, $ordinary->id => false] as $id => $value) {
+            $audit = AuditLog::whereNotIn('id', $historical)->where('objek_id', $id)->sole();
+            $this->assertSame('permissions.ubah', $audit->tindakan);
+            $this->assertSame('preset_release', $audit->sumber);
+            $this->assertSame(['sensitif' => ! $value], $audit->nilai_lama);
+            $this->assertSame(['sensitif' => $value], $audit->nilai_baru);
+        }
+        $this->assertSame(array_diff_key($before, ['permissions' => 1, 'audit_log' => 1]), array_diff_key($this->snapshot(), ['permissions' => 1, 'audit_log' => 1]));
+        $after = $this->snapshot();
+        $this->assertSame([], $sync->preview()['metadata']);
+        $this->seed(PermissionCatalogSeeder::class);
+        $this->seed(RegulasiPermissionSeeder::class);
+        $this->assertSame($after, $this->snapshot());
+    }
+
+    public function test_inactive_official_role_blocks_release_without_any_writes_or_reactivation(): void
+    {
+        // Katalog belum lengkap: penolakan juga harus mencegah pembuatan role/preset baru.
+        $role = Role::create(['kode' => 'pegawai', 'nama' => 'Pegawai', 'urutan' => 5, 'aktif' => false]);
+        $before = $this->snapshot();
+        $this->assertSame(['pegawai'], app(SyncRolePermissionPresets::class)->preview()['inactive_roles']);
+        foreach ([AccessCatalogSeeder::class, PermissionCatalogSeeder::class, RegulasiPermissionSeeder::class] as $seeder) {
+            try {
+                $this->seed($seeder);
+                $this->fail('Role resmi nonaktif harus membatalkan sinkronisasi.');
+            } catch (DomainException $exception) {
+                $this->assertStringContainsString('pegawai', $exception->getMessage());
+                $this->assertStringContainsString('nonaktif', $exception->getMessage());
+            }
+            $this->assertSame($before, $this->snapshot());
+            $this->assertFalse($role->fresh()->aktif);
+        }
     }
 
     public function test_audit_failure_rolls_back_catalog_membership_and_pic_cleanup_together(): void
@@ -113,7 +161,7 @@ class RolePermissionPresetTest extends TestCase
     public function test_unassigned_pic_cleanup_is_audited_and_historical_audit_is_immutable(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $pic = Role::create(['kode' => 'pic', 'nama' => 'Legacy', 'urutan' => 6]);
+        $pic = Role::create(['kode' => 'pic', 'nama' => 'Legacy', 'urutan' => 6, 'aktif' => false]);
         $pic->permissions()->attach(Permission::where('kode', 'dashboard:read')->value('id'), ['id' => Str::uuid(), 'created_at' => now()]);
         $historical = DB::table('audit_log')->orderBy('id')->get();
         $this->seed(AccessCatalogSeeder::class);

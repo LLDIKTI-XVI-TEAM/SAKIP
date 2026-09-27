@@ -56,6 +56,10 @@ class SyncRolePermissionPresets
         return DB::transaction(function () use ($release, $reason, $runtimeIdentity): int {
             DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:initial-bootstrap']);
             $roles = Role::whereIn('kode', [...RoleCatalog::codes(), 'pic'])->orderBy('id')->lockForUpdate()->get()->keyBy('kode');
+            $inactiveRoles = $roles->filter(fn (Role $role) => in_array($role->kode, RoleCatalog::codes(), true) && ! $role->aktif)->keys();
+            if ($inactiveRoles->isNotEmpty()) {
+                throw new DomainException('Sinkronisasi dibatalkan: role resmi masih nonaktif ('.$inactiveRoles->implode(', ').'). Tidak ada data yang diubah.');
+            }
             $pic = $roles->get('pic');
             if ($pic && DB::table('user_roles')->where('role_id', $pic->id)->exists()) {
                 throw new DomainException('Referensi pengguna role PIC masih ada; tetapkan pengganti per pengguna sebelum rilis.');
@@ -130,7 +134,7 @@ class SyncRolePermissionPresets
         return [
             'entitas' => $entity, 'aksi' => $action,
             'butuh_scope' => in_array($code, PermissionCatalog::UNIT_SCOPED, true) ? 'unit' : 'global',
-            'sensitif' => $permission?->sensitif ?? in_array($code, PermissionCatalog::SENSITIVE, true),
+            'sensitif' => in_array($code, PermissionCatalog::SENSITIVE, true),
             'keterangan' => PermissionCatalog::DESCRIPTION_OVERRIDES[$code]
                 ?? ($permission && filled($permission->keterangan) ? $permission->keterangan : (PermissionCatalog::DEFAULT_DESCRIPTIONS[$code] ?? null)),
         ];

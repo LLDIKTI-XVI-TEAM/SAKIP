@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Models\UserRole;
+use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleCatalog;
 use App\Services\Authorization\RolePermissionPresets;
@@ -119,7 +120,7 @@ class AccessFoundationTest extends TestCase
         $this->assertDatabaseHas('roles', ['kode' => 'pimpinan', 'urutan' => 4]);
         $this->assertDatabaseHas('roles', ['kode' => 'pegawai', 'urutan' => 5]);
         $role = Role::where('kode', 'pimpinan')->sole();
-        $role->update(['nama' => 'Label tersimpan', 'urutan' => 20, 'aktif' => false]);
+        $role->update(['nama' => 'Label tersimpan', 'urutan' => 20]);
         $before = DB::table('roles')->orderBy('kode')->get()->toJson();
         $permissions = DB::table('role_permissions')->get()->toJson();
         $this->seed(AccessCatalogSeeder::class);
@@ -178,6 +179,32 @@ class AccessFoundationTest extends TestCase
         $this->assertFalse($resolver->allows($user, 'dashboard:read'));
         $role->update(['aktif' => true]);
         $this->assertTrue($resolver->allows($user, 'dashboard:read'));
+    }
+
+    public function test_active_permission_outside_release_catalog_cannot_allow_through_role_or_grant(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $user = User::factory()->create(['is_active' => true]);
+        $role = Role::where('kode', 'pegawai')->sole();
+        $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $permission = Permission::create(['kode' => 'legacy:aksi', 'entitas' => 'legacy', 'aksi' => 'aksi', 'butuh_scope' => 'global', 'aktif' => true]);
+        $this->assertNotContains($permission->kode, PermissionCatalog::codes());
+        $resolver = app(PermissionResolver::class);
+        $this->assertTrue($resolver->allows($user, 'dashboard:read'));
+
+        $role->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        $decision = $resolver->decide($user, $permission->kode);
+        $this->assertFalse($decision['allowed']);
+        $this->assertSame('unknown_permission', $decision['reason']);
+
+        $role->permissions()->detach($permission->id);
+        $grantId = (string) Str::uuid();
+        DB::table('user_permission_granted')->insert(['id' => $grantId, 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => null, 'alasan' => 'Fixture grant legacy', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $decision = $resolver->decide($user, $permission->kode);
+        $this->assertFalse($decision['allowed']);
+        $this->assertSame('unknown_permission', $decision['reason']);
+        $this->assertDatabaseHas('permissions', ['id' => $permission->id, 'aktif' => true]);
+        $this->assertDatabaseHas('user_permission_granted', ['id' => $grantId]);
     }
 
     public function test_audit_rejects_missing_actor_and_is_append_only(): void

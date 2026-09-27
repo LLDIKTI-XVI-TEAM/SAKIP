@@ -27,6 +27,9 @@ class PermissionResolver
             ->whereIn('roles.kode', RoleCatalog::codes())->exists()) {
             return [...$result, 'reason' => 'no_role'];
         }
+        if (! in_array($kode, PermissionCatalog::codes(), true)) {
+            return [...$result, 'reason' => 'unknown_permission'];
+        }
         $permission = Permission::where('kode', $kode)->where('aktif', true)->first();
         if (! $permission) {
             return [...$result, 'reason' => 'unknown_permission'];
