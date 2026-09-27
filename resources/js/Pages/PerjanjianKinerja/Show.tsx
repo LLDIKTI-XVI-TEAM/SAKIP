@@ -83,9 +83,9 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
         >
             <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
 
-            <div className="mx-auto max-w-5xl space-y-6">
+            <div className="mx-auto max-w-5xl space-y-4">
                 {/* Back and Action Toolbar */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-1">
                     <Link
                         href="/perjanjian-kinerja"
                         className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
@@ -306,31 +306,18 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                 <Modal
                     isOpen={isDeleteModalOpen}
                     onClose={closeDeleteModal}
-                    title="Hapus Lampiran Perjanjian Kinerja"
-                >
-                    <form onSubmit={handleDeleteSubmit} className="space-y-4">
-                        <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-amber-900 dark:text-amber-200 text-sm">
-                            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" aria-hidden="true" />
-                            <div>
-                                <p className="font-semibold">Konfirmasi Penghapusan Lampiran</p>
-                                <p className="mt-0.5 text-xs">
-                                    Tindakan penghapusan berkas lampiran ini akan dicatat ke dalam log audit sistem SAKIP.
-                                </p>
+                    size="md"
+                    title={
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-danger/10 text-danger flex items-center justify-center font-bold shrink-0">
+                                <Trash2 className="w-4 h-4" />
                             </div>
+                            <span>Hapus Lampiran Perjanjian Kinerja</span>
                         </div>
-
-                        <Textarea
-                            name="alasan"
-                            label="Alasan Penghapusan Lampiran"
-                            value={deleteForm.data.alasan}
-                            onChange={(e) => deleteForm.setData('alasan', e.target.value)}
-                            error={deleteForm.errors.alasan}
-                            placeholder="Jelaskan alasan menghapus lampiran dokumen ini (wajib diisi)..."
-                            rows={3}
-                            required
-                        />
-
-                        <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                    }
+                    description="Konfirmasi penghapusan naskah berkas lampiran komitmen kinerja."
+                    footer={
+                        <div className="flex items-center justify-end gap-3 w-full">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -341,12 +328,37 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                             </Button>
                             <Button
                                 type="submit"
+                                form="delete-lampiran-form"
                                 variant="danger"
                                 disabled={deleteForm.processing || !deleteForm.data.alasan.trim()}
                             >
                                 {deleteForm.processing ? 'Menghapus...' : 'Hapus Lampiran'}
                             </Button>
                         </div>
+                    }
+                >
+                    <form id="delete-lampiran-form" onSubmit={handleDeleteSubmit} className="space-y-4">
+                        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-amber-950">
+                            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700 mt-0.5" aria-hidden="true" />
+                            <div>
+                                <p className="text-sm font-bold text-amber-950">Konfirmasi Penghapusan Lampiran</p>
+                                <p className="mt-1 text-xs text-amber-900 leading-relaxed">
+                                    Tindakan penghapusan berkas lampiran ini akan dicatat ke dalam log audit sistem SAKIP.
+                                </p>
+                            </div>
+                        </div>
+
+                        <Textarea
+                            id="alasan-hapus-lampiran"
+                            name="alasan"
+                            label="Alasan Penghapusan Lampiran"
+                            value={deleteForm.data.alasan}
+                            onChange={(e) => deleteForm.setData('alasan', e.target.value)}
+                            error={deleteForm.errors.alasan}
+                            placeholder="Jelaskan alasan menghapus lampiran dokumen ini (wajib diisi)..."
+                            rows={3}
+                            required
+                        />
                     </form>
                 </Modal>
             </div>

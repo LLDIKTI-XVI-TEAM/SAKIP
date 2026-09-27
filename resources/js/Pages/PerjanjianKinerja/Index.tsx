@@ -250,7 +250,6 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                     <Link
                                                         href={`/perjanjian-kinerja/${item.id}`}
                                                         className="min-w-0 max-w-[200px] overflow-hidden block hover:text-primary transition-colors cursor-pointer group"
-                                                        title={item.renstra.nama}
                                                     >
                                                         <HoverScrollText
                                                             text={item.renstra.nama}
