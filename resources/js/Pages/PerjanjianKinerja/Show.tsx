@@ -20,11 +20,13 @@ import { Badge } from '@/Components/Badge';
 import { Modal } from '@/Components/Modal';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { BerkasPk, RenstraPkSummary } from '@/types/perjanjian-kinerja';
+import type { BerkasPk, RenstraPkSummary, StorageSettings } from '@/types/perjanjian-kinerja';
+import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
 
 interface ShowProps {
     pk: RenstraPkSummary;
     is_jadwal_aktif: boolean;
+    storageSettings?: StorageSettings;
     can: {
         update: boolean;
         delete_berkas: boolean;
@@ -38,10 +40,11 @@ function formatBytes(value: number | null): string {
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function Show({ pk, is_jadwal_aktif, can }: ShowProps) {
+export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const deleteForm = useForm({
         alasan: '',
@@ -93,12 +96,13 @@ export default function Show({ pk, is_jadwal_aktif, can }: ShowProps) {
 
                     {can.update && (
                         <div className="shrink-0">
-                            <Link href={`/perjanjian-kinerja/${pk.id}/edit`}>
-                                <Button variant="outline">
-                                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                                    Edit Perjanjian Kinerja
-                                </Button>
-                            </Link>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsEditModalOpen(true)}
+                            >
+                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                                Edit Perjanjian Kinerja
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -346,6 +350,16 @@ export default function Show({ pk, is_jadwal_aktif, can }: ShowProps) {
                     </form>
                 </Modal>
             </div>
+
+            {can.update && (
+                <PerjanjianKinerjaEditModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    pk={pk}
+                    isJadwalAktif={is_jadwal_aktif}
+                    storageSettings={storageSettings}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

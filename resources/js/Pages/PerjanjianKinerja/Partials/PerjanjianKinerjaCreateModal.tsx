@@ -66,7 +66,7 @@ export function PerjanjianKinerjaCreateModal({
             bodyClassName="p-4 sm:p-6"
             title={
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
                         <FileText className="w-4 h-4" />
                     </div>
                     <span>Formulir Pencatatan Perjanjian Kinerja</span>

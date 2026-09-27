@@ -17,6 +17,7 @@ export interface ModalProps {
     hideScrollbar?: boolean;
     scrollable?: boolean;
     ariaLabel?: string;
+    autoFocus?: boolean;
 }
 
 // Global modal stack to ensure only the topmost modal handles Escape
@@ -36,6 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
     hideScrollbar = false,
     scrollable = true,
     ariaLabel,
+    autoFocus = true,
 }) => {
     const modalId = useId();
     const titleId = title ? `${modalId}-title` : undefined;
@@ -55,6 +57,10 @@ export const Modal: React.FC<ModalProps> = ({
         // Focus the first form field or focusable element once when modal opens
         const focusInitialElement = () => {
             if (!modalRef.current) return;
+            if (!autoFocus) {
+                modalRef.current.focus();
+                return;
+            }
             const primaryField = modalRef.current.querySelector<HTMLElement>(
                 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
             );

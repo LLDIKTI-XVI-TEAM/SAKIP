@@ -101,6 +101,7 @@ class PerjanjianKinerjaController extends Controller
         return Inertia::render('PerjanjianKinerja/Show', [
             'pk' => $perjanjianKinerja,
             'is_jadwal_aktif' => $isJadwalAktif,
+            'storageSettings' => $this->storageSettings(),
             'can' => [
                 'update' => $user?->can('update', $perjanjianKinerja) ?? false,
                 'delete_berkas' => ! $isJadwalAktif && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
@@ -111,21 +112,11 @@ class PerjanjianKinerjaController extends Controller
     /**
      * Menampilkan formulir pengubahan data Perjanjian Kinerja.
      */
-    public function edit(RenstraPk $perjanjianKinerja): Response
+    public function edit(RenstraPk $perjanjianKinerja): RedirectResponse
     {
         Gate::authorize('update', $perjanjianKinerja);
 
-        $perjanjianKinerja->load([
-            'renstra',
-            'berkas.pengunggah:id,nama',
-            'jadwalTahunan',
-        ]);
-
-        return Inertia::render('PerjanjianKinerja/Edit', [
-            'pk' => $perjanjianKinerja,
-            'is_jadwal_aktif' => $perjanjianKinerja->jadwalTahunan?->status === 'aktif',
-            'storageSettings' => $this->storageSettings(),
-        ]);
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
     }
 
     /**

@@ -30,6 +30,7 @@ import {
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { Paginated, RenstraPkSummary, RenstraSummary, StorageSettings } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaCreateModal } from './Partials/PerjanjianKinerjaCreateModal';
+import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
 
 interface IndexProps {
     perjanjianKinerja: Paginated<RenstraPkSummary>;
@@ -49,6 +50,7 @@ interface IndexProps {
 export default function Index({ perjanjianKinerja, renstras, storageSettings, filters, can }: IndexProps) {
     const formatTanggal = useFormatTanggal();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingPk, setEditingPk] = useState<RenstraPkSummary | null>(null);
     const [renstraId, setRenstraId] = useState(filters.renstra_id ?? '');
     const [tahun, setTahun] = useState(filters.tahun ? String(filters.tahun) : '');
     const [search, setSearch] = useState(filters.q ?? '');
@@ -245,13 +247,17 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                     <span className="inline-flex items-center justify-center rounded-lg bg-primary/10 px-2.5 py-1 font-bold text-primary shrink-0">
                                                         {item.tahun}
                                                     </span>
-                                                    <div className="min-w-0 max-w-[200px] overflow-hidden">
+                                                    <Link
+                                                        href={`/perjanjian-kinerja/${item.id}`}
+                                                        className="min-w-0 max-w-[200px] overflow-hidden block hover:text-primary transition-colors cursor-pointer group"
+                                                        title={item.renstra.nama}
+                                                    >
                                                         <HoverScrollText
                                                             text={item.renstra.nama}
-                                                            className="text-xs font-normal text-muted"
-                                                            textClassName="font-normal text-muted"
+                                                            className="text-xs font-normal text-muted group-hover:text-primary transition-colors"
+                                                            textClassName="font-normal text-muted group-hover:text-primary transition-colors"
                                                         />
-                                                    </div>
+                                                    </Link>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-semibold text-ink">
@@ -297,13 +303,14 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                         <Eye className="h-4 w-4" aria-hidden="true" />
                                                     </Link>
                                                     {can.update && (
-                                                        <Link
-                                                            href={`/perjanjian-kinerja/${item.id}/edit`}
-                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-amber-600 transition-colors"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditingPk(item)}
+                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-amber-600 transition-colors cursor-pointer"
                                                             title="Edit Dokumen PK"
                                                         >
                                                             <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </Link>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -356,6 +363,16 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     isOpen={isCreateModalOpen}
                     onClose={() => setIsCreateModalOpen(false)}
                     renstras={renstras}
+                    storageSettings={storageSettings}
+                />
+            )}
+
+            {can.update && (
+                <PerjanjianKinerjaEditModal
+                    isOpen={Boolean(editingPk)}
+                    onClose={() => setEditingPk(null)}
+                    pk={editingPk}
+                    isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
                     storageSettings={storageSettings}
                 />
             )}
