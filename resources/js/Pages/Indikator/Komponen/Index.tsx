@@ -402,7 +402,6 @@ export default function KomponenIndex({
     return (
         <AuthenticatedLayout
             title={`Konfigurasi Komponen - ${indikator.kode}`}
-            hasCustomHeading={true}
             breadcrumbs={[
                 { label: 'Perencanaan' },
                 { label: 'Indikator Kinerja' },
@@ -426,10 +425,10 @@ export default function KomponenIndex({
                                 <Badge variant="muted" size="sm">Nonaktif</Badge>
                             )}
                         </div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">
+                        <h2 className="text-sm font-semibold text-ink">
                             Konfigurasi Komponen: {indikator.nama}
-                        </h1>
-                        <p className="text-xs sm:text-sm text-muted mt-1">
+                        </h2>
+                        <p className="mt-0.5 text-xs text-muted">
                             Kelola variabel komponen data-driven yang diinput unit untuk pembentukan nilai capaian kinerja.
                         </p>
                     </div>
@@ -438,10 +437,11 @@ export default function KomponenIndex({
                         {can.create && (
                             <Button
                                 variant="primary"
+                                size="sm"
                                 onClick={handleOpenCreate}
-                                className="shadow-sm whitespace-nowrap shrink-0"
+                                className="gap-1.5 whitespace-nowrap shrink-0"
                             >
-                                <Plus className="h-4 w-4 mr-1.5 shrink-0" />
+                                <Plus className="h-4 w-4" />
                                 <span className="whitespace-nowrap">Tambah Komponen</span>
                             </Button>
                         )}
