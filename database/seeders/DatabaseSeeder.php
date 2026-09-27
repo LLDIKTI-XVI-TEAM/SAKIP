@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
             AccessCatalogSeeder::class,
             PengaturanSeeder::class,
             StoragePolicySeeder::class,
-            SyncRolePermissionPresetsSeeder::class,
         ]);
     }
 }

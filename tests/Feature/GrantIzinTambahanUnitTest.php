@@ -11,6 +11,7 @@ use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -126,27 +127,18 @@ class GrantIzinTambahanUnitTest extends TestCase
         $aksesUpdatePerm = Permission::where('kode', 'akses:update')->firstOrFail();
         $delegasiUpdatePerm = Permission::where('kode', 'delegasi:update')->firstOrFail();
 
-        $adminRole->permissions()->attach($aksesUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
-        ]);
-        $adminRole->permissions()->attach($delegasiUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
+        $adminRole->permissions()->syncWithoutDetaching([
+            $aksesUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+            $delegasiUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
         ]);
 
-        $superadminRole->permissions()->attach($aksesUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
-        ]);
-        $superadminRole->permissions()->attach($delegasiUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
+        $superadminRole->permissions()->syncWithoutDetaching([
+            $aksesUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
+            $delegasiUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
         ]);
 
-        $perencanaanRole->permissions()->attach($delegasiUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
+        $perencanaanRole->permissions()->syncWithoutDetaching([
+            $delegasiUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
         ]);
 
         $customAksesRole = Role::create([
