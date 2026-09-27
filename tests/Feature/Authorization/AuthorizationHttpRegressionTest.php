@@ -55,9 +55,15 @@ class AuthorizationHttpRegressionTest extends TestCase
 
     private function registerPermissionProbe(string $permissionCode): void
     {
-        Gate::define($permissionCode, fn (User $user) => app(PermissionResolver::class)->allows($user, $permissionCode));
+        // Route test-only tanpa Gate::define: ability dievaluasi lewat wiring Gate
+        // production dari AppServiceProvider, sehingga kode yang tidak terdaftar
+        // memang tidak pernah mendapat definisi Gate dari test.
         Route::middleware(['web', 'auth', 'active'])
-            ->get('/__test/authorization/'.md5($permissionCode), fn () => Gate::authorize($permissionCode) && response()->noContent());
+            ->get('/__test/authorization/'.md5($permissionCode), function () use ($permissionCode) {
+                Gate::authorize($permissionCode);
+
+                return response()->noContent();
+            });
     }
 
     public function test_matching_global_deny_overrides_role_allow_through_http(): void
@@ -99,9 +105,10 @@ class AuthorizationHttpRegressionTest extends TestCase
         $user = User::factory()->create(['is_active' => true]);
         $this->assign($user, 'pegawai');
         $this->grant($user, 'pengukuran:update');
-        // Penugasan efektif diperlukan business guard; bukan bagian yang diuji deny-nya.
+        // Assignment test dimulai 2026-02-01, lebih baru dari fixture 2026-01-01,
+        // sehingga effectivePic() deterministik memilih aktor test, bukan tie acak.
         PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $user->id,
-            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
+            'tanggal_mulai_berlaku' => '2026-02-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
 
         $this->actingAs($user)
             ->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft', 'nilai' => 10])
@@ -122,9 +129,10 @@ class AuthorizationHttpRegressionTest extends TestCase
         $user = User::factory()->create(['is_active' => true]);
         $this->assign($user, 'pegawai');
         $this->grant($user, 'pengukuran:update');
-        // Prasyarat business unit A harus valid supaya deny berasal dari otorisasi, bukan guard.
+        // Assignment test dimulai 2026-02-01, lebih baru dari fixture 2026-01-01,
+        // sehingga effectivePic() deterministik memilih aktor test, bukan tie acak.
         PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $user->id,
-            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
+            'tanggal_mulai_berlaku' => '2026-02-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
 
         $response = $this->actingAs($user)
             ->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft', 'nilai' => 10]);
@@ -141,13 +149,16 @@ class AuthorizationHttpRegressionTest extends TestCase
             'nama' => 'Indikator Tetangga', 'definisi' => 'Konteks tetangga.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         RencanaAksi::create(['indikator_id' => $indikatorB->id, 'tahun' => 2026, 'unit_id' => $otherUnit->id, 'jadwal_tahunan_id' => $this->jadwal->id, 'jadwal_snapshot_id' => $contextB->id,
             'penanggung_jawab_id' => $user->id, 'created_by' => $user->id, 'status_alur' => 'disahkan', 'disahkan_by' => $user->id, 'disahkan_at' => now()]);
-        PenugasanIndikator::create(['indikator_id' => $indikatorB->id, 'user_id' => $user->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
+        PenugasanIndikator::create(['indikator_id' => $indikatorB->id, 'user_id' => $user->id, 'tanggal_mulai_berlaku' => '2026-02-01', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
         $otherMeasurement = PengukuranKinerja::create(['indikator_id' => $indikatorB->id, 'tahun' => $this->pengukuran->tahun,
             'periode_id' => $this->pengukuran->periode_id, 'jadwal_snapshot_id' => $contextB->id, 'sumber_nilai' => 'manual', 'created_by' => $user->id]);
 
+        $before = $otherMeasurement->fresh()->only(['nilai', 'versi']);
         $this->actingAs($user)
             ->post('/pengukuran/'.$otherMeasurement->id, ['versi' => 1, 'action' => 'draft', 'nilai' => 10])
             ->assertForbidden();
+        // 403 saja belum cukup: tolakan tidak boleh menyisakan mutasi parsial.
+        $this->assertSame($before, $otherMeasurement->fresh()->only(['nilai', 'versi']));
     }
 
     public function test_unknown_permission_fails_closed_through_http(): void
