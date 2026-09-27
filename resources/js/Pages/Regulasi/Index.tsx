@@ -1,7 +1,7 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -10,6 +10,7 @@ import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
+import { RegulasiCreateModal } from '@/Pages/Regulasi/Partials/RegulasiCreateModal';
 import type { Paginated, RegulasiJenis, RegulasiSummary } from '@/types/regulasi';
 
 interface RegulasiIndexProps {
@@ -42,7 +43,13 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
     const [recoveryMessage, setRecoveryMessage] = useState('');
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
+
+    useEffect(() => {
+        setQuery(filters.q);
+        setStatus(filters.status ?? '');
+    }, [filters.q, filters.status]);
     const [selected, setSelected] = useState<RegulasiSummary | null>(null);
+    const [createOpen, setCreateOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [reasonError, setReasonError] = useState<string | undefined>();
     const deleteForm = useForm({ alasan: '' });
@@ -101,25 +108,29 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
             <div className="space-y-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-3xl">
-                        <h2 className="text-base font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
-                        <p className="mt-1 text-sm leading-6 text-muted">
+                        <h2 className="text-sm font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
+                        <p className="mt-0.5 text-xs text-muted">
                             Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator. File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log.
                         </p>
                     </div>
                     {can['regulasi:create'] && (
-                        <Link
-                            href="/regulasi/create"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            variant="primary"
+                            size="sm"
+                            className="gap-1.5"
                         >
                             <Plus className="h-4 w-4" aria-hidden="true" />
                             Tambah dasar aturan
-                        </Link>
+                        </Button>
                     )}
                 </div>
 
                 <Card className="overflow-visible">
                     <form onSubmit={applyFilters} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
                         <Input
+                            name="q"
                             label="Cari regulasi"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
@@ -148,9 +159,13 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                 Ubah kata pencarian atau tambahkan regulasi pertama agar Renstra dan Indikator memiliki rujukan hukum terstruktur.
                             </p>
                             {can['regulasi:create'] && (
-                                <Link href="/regulasi/create" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                                <button
+                                    type="button"
+                                    onClick={() => setCreateOpen(true)}
+                                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer"
+                                >
                                     <Plus className="h-4 w-4" aria-hidden="true" /> Tambah dasar aturan
-                                </Link>
+                                </button>
                             )}
                         </div>
                     </Card>
@@ -286,6 +301,13 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                 onClose={() => !deleteForm.processing && setDeleteOpen(false)}
                 onConfirm={confirmDelete}
             />
+
+            {can['regulasi:create'] && (
+                <RegulasiCreateModal
+                    isOpen={createOpen}
+                    onClose={() => setCreateOpen(false)}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

@@ -25,7 +25,6 @@ import {
     Save,
     Info,
     ShieldAlert,
-    Database,
     HelpCircle,
 } from 'lucide-react';
 
@@ -174,7 +173,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             <div className="space-y-6">
                 {/* Header Information */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted">
+                    <p className="text-xs text-muted">
                         Pengendalian kapasitas penyimpanan VPS dan kebijakan teknis bukti dukung aplikasi SAKIP.
                     </p>
 
@@ -209,8 +208,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                 {/* Metrik Penggunaan Storage Cards */}
                 <div>
                     <div className="mb-3 flex items-center justify-between">
-                        <h2 className="text-base font-semibold text-ink flex items-center gap-2">
-                            <Database className="h-4 w-4 text-primary" aria-hidden="true" />
+                        <h2 className="text-base font-semibold text-ink">
                             Penggunaan Penyimpanan Bukti Dukung (Aktif)
                         </h2>
                     </div>
@@ -301,9 +299,8 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                 {/* Header Bagian Tabel Distribusi */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-                            <span>Distribusi Bukti Dukung per Induk Dokumen SAKIP</span>
+                        <h2 className="text-sm font-semibold text-ink">
+                            Distribusi Bukti Dukung per Induk Dokumen SAKIP
                         </h2>
                         <p className="text-xs text-muted mt-0.5">
                             Rincian akumulasi bukti fisik file, tautan, dan teks pada seluruh modul kinerja.

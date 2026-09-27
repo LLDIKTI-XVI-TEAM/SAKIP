@@ -28,6 +28,7 @@ class PreviewPengukuranTest extends TestCase
         }
         $this->pengukuran->update(['jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'komponen']);
         $url = '/pengukuran/'.$this->pengukuran->id.'/pratinjau';
+        $auditBefore = DB::table('audit_log')->orderBy('id')->get()->toJson();
         $this->actingAs($this->actor)->postJson($url, ['komponen' => $values, 'nilai' => 999])
             ->assertOk()->assertJsonPath('nilai', '80.00')->assertJsonPath('status_perhitungan', 'terhitung');
         $values[1]['nilai'] = '0';
@@ -39,7 +40,7 @@ class PreviewPengukuranTest extends TestCase
         $this->assertDatabaseHas($this->pengukuran->getTable(), ['id' => $this->pengukuran->id, 'nilai' => null, 'versi' => 1, 'status_alur' => 'draft']);
         $this->assertDatabaseCount('pengukuran_komponen', 0);
         $this->assertDatabaseCount('pengukuran_versi', 0);
-        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertSame($auditBefore, DB::table('audit_log')->orderBy('id')->get()->toJson());
     }
 
     public function test_preview_requires_active_authorized_editor_and_honors_unit_deny(): void

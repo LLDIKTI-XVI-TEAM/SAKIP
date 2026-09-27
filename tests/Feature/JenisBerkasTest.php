@@ -22,7 +22,6 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\Authorization\RolePermissionPresets;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,13 +80,6 @@ class JenisBerkasTest extends TestCase
     {
         $user = User::factory()->create(['is_active' => true]);
         $role = Role::where('kode', $kode)->firstOrFail();
-        if (RolePermissionPresets::hasDefinedPreset($kode)) {
-            foreach (Permission::whereIn('kode', RolePermissionPresets::forRole($kode))->get() as $permission) {
-                $role->permissions()->syncWithoutDetaching([
-                    $permission->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-                ]);
-            }
-        }
         $user->roles()->attach($role->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',

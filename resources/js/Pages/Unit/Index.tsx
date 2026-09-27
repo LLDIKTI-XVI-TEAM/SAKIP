@@ -286,21 +286,22 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 {/* Header Title & Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-xl font-bold tracking-tight text-[#122E92] flex items-center gap-2">
-                            <Building2 className="w-6 h-6 text-[#D6AC48]" />
+                        <h2 className="text-sm font-semibold text-ink">
                             Pengelolaan Master {labelUnit}
-                        </h1>
-                        <p className="text-xs text-slate-500 mt-1">
+                        </h2>
+                        <p className="mt-0.5 text-xs text-muted">
                             Kelola {labelUnit.toLowerCase()} pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
                         </p>
                     </div>
 
                     {can.create && (
                         <Button 
+                            variant="primary"
+                            size="sm"
                             onClick={handleOpenCreate}
-                            className="inline-flex items-center gap-2 bg-[#122E92] hover:bg-[#0a1b5c] text-white shadow-xs self-start sm:self-auto"
+                            className="gap-1.5 self-start sm:self-auto"
                         >
-                            <Plus className="w-4 h-4 text-[#D6AC48]" />
+                            <Plus className="w-4 h-4" />
                             Tambah {labelUnit} Baru
                         </Button>
                     )}

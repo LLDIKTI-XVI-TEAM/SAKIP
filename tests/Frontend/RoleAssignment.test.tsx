@@ -7,10 +7,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vite
 import RoleAssignmentIndex from '@/Pages/Access/RoleAssignmentIndex';
 import RoleAssignmentResult from '@/Pages/Access/RoleAssignmentResult';
 
-const currentPage = vi.hoisted(() => ({ props: { auth: { user: { id: 'operator', role: 'pic' } } }, flash: {} as Record<string, unknown> }));
+const currentPage = vi.hoisted(() => ({ props: { auth: { user: { id: 'operator', role: 'pimpinan' } } }, flash: {} as Record<string, unknown> }));
 vi.mock('@inertiajs/react', async (original) => ({ ...await original<typeof import('@inertiajs/react')>(), Head: () => null, usePage: () => currentPage }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
-const roles = [{ id: 'pic-id', kode: 'pic', nama: 'PIC' }, { id: 'pegawai-id', kode: 'pegawai', nama: 'Pegawai' }];
+const roles = [{ id: 'pimpinan-id', kode: 'pimpinan', nama: 'Pimpinan' }, { id: 'pegawai-id', kode: 'pegawai', nama: 'Pegawai' }];
 const token = { id: 'pivot-id', role_id: 'pegawai-id', audit_id: 'audit-id' };
 const users = { data: [
     { id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', is_active: true, current_role: { ...roles[1], aktif: true }, assignment: token },
@@ -43,13 +43,13 @@ it('mengirim single role dan snapshot, menjaga input/error, lalu mereset saat ga
     expect(screen.queryByText(/Anda sedang mengubah peran akun sendiri/)).toBeNull();
     const select = screen.getByRole<HTMLSelectElement>('combobox');
     expect(select.multiple).toBe(false);
-    await user.selectOptions(select, 'pic-id');
+    await user.selectOptions(select, 'pimpinan-id');
     const reason = screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ });
     await user.type(reason, 'Penugasan disetujui');
     await user.tab();
     await user.tab();
     await user.keyboard('{Enter}');
-    expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran/user-a', { role_id: 'pic-id', alasan: 'Penugasan disetujui', expected_assignment: token }]);
+    expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran/user-a', { role_id: 'pimpinan-id', alasan: 'Penugasan disetujui', expected_assignment: token }]);
     const options = vi.mocked(router.post).mock.calls[0][2];
     await act(async () => { options?.onError?.({ alasan: 'Jelaskan alasan.' }); });
     expect(document.activeElement).toBe(reason);
@@ -61,10 +61,10 @@ it('mengirim single role dan snapshot, menjaga input/error, lalu mereset saat ga
     expect(document.activeElement).toBe(trigger);
     await user.click(screen.getByRole('button', { name: 'Tetapkan peran Budi' }));
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ }).value).toBe('');
-    await user.selectOptions(screen.getByRole('combobox'), 'pic-id');
+    await user.selectOptions(screen.getByRole('combobox'), 'pimpinan-id');
     await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Penugasan pertama');
     await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
-    expect(vi.mocked(router.post).mock.calls[1][1]).toEqual({ role_id: 'pic-id', alasan: 'Penugasan pertama', expected_assignment: null });
+    expect(vi.mocked(router.post).mock.calls[1][1]).toEqual({ role_id: 'pimpinan-id', alasan: 'Penugasan pertama', expected_assignment: null });
     const response: Page = { component: 'Access/RoleAssignmentIndex', props: { errors: {} }, url: '/akses/peran', version: null, rescuedProps: [], flash: { roleAssignmentStatus: 'assigned' }, rememberedState: {} };
     await act(async () => { vi.mocked(router.post).mock.calls[1][2]?.onSuccess?.(response); });
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -76,7 +76,7 @@ it('memperingatkan perubahan peran sendiri dan menampilkan toast server yang dap
     currentPage.props.auth.user.id = 'user-a';
     const view = page();
     await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
-    await user.selectOptions(screen.getByRole('combobox'), 'pic-id');
+    await user.selectOptions(screen.getByRole('combobox'), 'pimpinan-id');
     expect(screen.getByText(/Anda sedang mengubah peran akun sendiri/)).toBeTruthy();
     expect(screen.getByText(/Anda mungkin tidak dapat mengembalikannya sendiri/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Batal' }));
@@ -130,6 +130,14 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     expect(screen.getByText(/Izin tindakan ditolak/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
     expect(vi.mocked(router.post).mock.calls).toHaveLength(1);
+});
+
+it('menjaga hierarki heading: intro bagian H2 dan entri pengguna H3 di bawahnya', () => {
+    page();
+    expect(screen.getByRole('heading', { level: 2, name: 'Peran utama pengguna' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Ayu' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Budi' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ayu' })).toBeNull();
 });
 
 it.each([

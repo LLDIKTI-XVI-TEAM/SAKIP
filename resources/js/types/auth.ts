@@ -23,7 +23,7 @@ export interface SharedPageProps extends PageProps {
             grant: boolean;
             pengaturan: boolean;
             'pengaturan:update'?: boolean;
-            manageRolePermissions: boolean;
+            viewRolePermissions: boolean;
             jenisBerkas?: boolean;
             storagePolicy?: boolean;
             storagePolicyUpdate?: boolean;

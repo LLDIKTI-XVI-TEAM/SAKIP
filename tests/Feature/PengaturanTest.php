@@ -2,10 +2,8 @@
 
 use App\Models\AuditLog;
 use App\Models\Pengaturan;
-use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\Authorization\RolePermissionPresets;
 use App\Services\PengaturanService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PengaturanSeeder;
@@ -33,29 +31,10 @@ beforeEach(function (): void {
     $this->seed(AccessCatalogSeeder::class);
     $this->seed(PengaturanSeeder::class);
 
-    pasangRoleDanPermission('admin');
-    pasangRoleDanPermission('perencanaan');
-    pasangRoleDanPermission('pegawai');
-
     $this->admin = buatUserDenganRole('admin', 'admin-pengaturan@example.test');
     $this->perencanaan = buatUserDenganRole('perencanaan', 'perencanaan-pengaturan@example.test');
     $this->pegawai = buatUserDenganRole('pegawai', 'pegawai-pengaturan@example.test');
 });
-
-function pasangRoleDanPermission(string $roleName): void
-{
-    $role = Role::query()->where('kode', $roleName)->firstOrFail();
-    $codes = RolePermissionPresets::forRole($roleName);
-    $permissionIds = Permission::query()
-        ->whereIn('kode', $codes)
-        ->pluck('id');
-
-    $role->permissions()->syncWithoutDetaching(
-        $permissionIds->mapWithKeys(fn (string $id) => [
-            $id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-        ])->all()
-    );
-}
 
 function buatUserDenganRole(string $roleName, string $email): User
 {

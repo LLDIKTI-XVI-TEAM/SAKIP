@@ -8,7 +8,6 @@ use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
-use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -17,7 +16,6 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\Authorization\RolePermissionPresets;
 use App\Services\Storage\StorageMetricsService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\StoragePolicySeeder;
@@ -123,13 +121,6 @@ class StoragePolicyTest extends TestCase
     {
         $user = User::factory()->create(['is_active' => true]);
         $role = Role::where('kode', $kode)->firstOrFail();
-        if (RolePermissionPresets::hasDefinedPreset($kode)) {
-            foreach (Permission::whereIn('kode', RolePermissionPresets::forRole($kode))->get() as $permission) {
-                $role->permissions()->syncWithoutDetaching([
-                    $permission->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
-                ]);
-            }
-        }
         $user->roles()->attach($role->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
