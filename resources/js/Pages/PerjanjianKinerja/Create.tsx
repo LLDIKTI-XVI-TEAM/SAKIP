@@ -41,27 +41,31 @@ export default function Create({ renstras, storageSettings }: CreateProps) {
 
     return (
         <AuthenticatedLayout
-            title="Catat Perjanjian Kinerja Baru"
+            title="Catat Perjanjian Kinerja (PK) Baru"
             breadcrumbs={[
-                { label: 'Perjanjian Kinerja', href: '/perjanjian-kinerja' },
+                { label: 'Perjanjian Kinerja (PK)', href: '/perjanjian-kinerja' },
                 { label: 'Pencatatan Baru' },
             ]}
         >
-            <Head title="Catat Perjanjian Kinerja Baru" />
+            <Head title="Catat Perjanjian Kinerja (PK) Baru" />
 
-            <div className="mx-auto max-w-4xl space-y-6">
-                <Link
-                    href="/perjanjian-kinerja"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke Daftar PK
-                </Link>
+            <div className="mx-auto max-w-4xl">
+                <div className="py-2">
+                    <Link
+                        href="/perjanjian-kinerja"
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                    >
+                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        Kembali ke Daftar PK
+                    </Link>
+                </div>
 
                 <form onSubmit={handleSubmit}>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Formulir Pencatatan Perjanjian Kinerja</CardTitle>
+                            <CardTitle className="text-xl font-bold text-ink">
+                                Formulir Pencatatan Perjanjian Kinerja
+                            </CardTitle>
                             <p className="mt-1 text-sm text-muted">
                                 Masukkan rincian dokumen legal formal komitmen kinerja dan lampirkan naskah pendukung.
                             </p>

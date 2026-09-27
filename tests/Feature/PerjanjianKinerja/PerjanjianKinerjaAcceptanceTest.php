@@ -328,6 +328,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         $this->assertNotNull($audit);
         $this->assertSame($this->perencanaan->id, $audit->actor_id);
         $this->assertSame('Mencoba menghapus lampiran saat jadwal aktif', $audit->alasan);
+        $this->assertSame(['alasan_penolakan' => 'jadwal_tahunan_aktif'], $audit->nilai_baru);
     }
 
     /**

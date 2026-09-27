@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\PerjanjianKinerja;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
@@ -10,6 +11,7 @@ use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Services\RenstraPkService;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -51,6 +53,7 @@ class PerjanjianKinerjaController extends Controller
             'filters' => $request->only(['renstra_id', 'tahun', 'q']),
             'can' => [
                 'create' => $user?->can('create', RenstraPk::class) ?? false,
+                'update' => $user?->can('update', RenstraPk::class) ?? false,
             ],
         ]);
     }
@@ -98,7 +101,7 @@ class PerjanjianKinerjaController extends Controller
             'jadwalTahunan',
         ]);
 
-        $isJadwalAktif = $perjanjianKinerja->jadwalTahunan?->status === 'aktif';
+        $isJadwalAktif = $perjanjianKinerja->isJadwalAktif();
         $user = request()->user();
 
         return Inertia::render('PerjanjianKinerja/Show', [
@@ -190,7 +193,10 @@ class PerjanjianKinerjaController extends Controller
             404,
         );
 
-        return Storage::disk('local')->download($berkas->path, $berkas->nama_asli);
+        /** @var FilesystemAdapter $storage */
+        $storage = Storage::disk('local');
+
+        return $storage->download($berkas->path, $berkas->nama_asli);
     }
 
     /**
@@ -205,7 +211,7 @@ class PerjanjianKinerjaController extends Controller
         ])->pluck('nilai', 'kunci');
 
         return [
-            'unggahan_aktif' => filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN),
+            'unggahan_aktif' => filter_var($settings->get('berkas.unggahan_aktif') ?? true, FILTER_VALIDATE_BOOLEAN),
             'ukuran_maks_kb' => (int) $settings->get('berkas.ukuran_maks_kb', 10240),
             'format_diizinkan' => (string) $settings->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png'),
         ];

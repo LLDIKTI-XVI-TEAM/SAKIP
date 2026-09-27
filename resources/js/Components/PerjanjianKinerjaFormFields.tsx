@@ -1,6 +1,9 @@
-import React, { useMemo } from 'react';
-import { FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown, FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { Button } from '@/Components/Button';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
@@ -51,6 +54,8 @@ export function PerjanjianKinerjaFormFields({
     disabled = false,
     setField,
 }: PerjanjianKinerjaFormFieldsProps) {
+    const [isRenstraHovered, setIsRenstraHovered] = useState(false);
+
     const selectedRenstra = useMemo(() => {
         return renstras.find((r) => r.id === data.renstra_id);
     }, [renstras, data.renstra_id]);
@@ -96,37 +101,92 @@ export function PerjanjianKinerjaFormFields({
                     </p>
                 </div>
 
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="sm:col-span-2">
-                        <Select
-                            name="renstra_id"
-                            label="Periode Renstra Induk"
-                            value={data.renstra_id}
-                            onChange={(event) => {
-                                setField('renstra_id', event.target.value);
-                                const found = renstras.find((r) => r.id === event.target.value);
-                                if (found && (!data.tahun || Number(data.tahun) < found.tahun_mulai || Number(data.tahun) > found.tahun_selesai)) {
-                                    setField('tahun', found.tahun_mulai);
-                                }
-                            }}
-                            error={errors.renstra_id}
-                            disabled={disabled || isEdit}
-                            required
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-12">
+                    <div className="sm:col-span-2 lg:col-span-5">
+                        <label
+                            htmlFor="renstra_id"
+                            className="mb-1.5 block text-sm font-medium text-ink whitespace-nowrap"
                         >
-                            <option value="">-- Pilih Rencana Strategis --</option>
-                            {renstras.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                    {r.nama} ({r.tahun_mulai} - {r.tahun_selesai})
-                                </option>
-                            ))}
-                        </Select>
+                            Periode Renstra Induk
+                            <span className="ml-1 text-danger font-normal" aria-hidden="true">*</span>
+                        </label>
+
+                        <div
+                            className={twMerge(
+                                clsx(
+                                    'relative w-full h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm transition-colors flex items-center justify-between',
+                                    errors.renstra_id
+                                        ? 'border-danger focus-within:border-danger focus-within:ring-2 focus-within:ring-danger/20'
+                                        : 'border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20',
+                                    disabled || isEdit
+                                        ? 'cursor-not-allowed bg-soft text-muted'
+                                        : 'cursor-pointer hover:border-border-dark'
+                                )
+                            )}
+                            onMouseEnter={() => setIsRenstraHovered(true)}
+                            onMouseLeave={() => setIsRenstraHovered(false)}
+                        >
+                            <div className="min-w-0 flex-1 pr-6 overflow-hidden">
+                                {selectedRenstra ? (
+                                    <HoverScrollText
+                                        text={`${selectedRenstra.nama} (${selectedRenstra.tahun_mulai} - ${selectedRenstra.tahun_selesai})`}
+                                        isParentHovered={isRenstraHovered}
+                                        className="text-sm font-normal text-ink"
+                                        textClassName="font-normal"
+                                    />
+                                ) : (
+                                    <span className="text-muted text-sm select-none">
+                                        -- Pilih Rencana Strategis --
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
+                                <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                            </div>
+
+                            {!(disabled || isEdit) && (
+                                <select
+                                    id="renstra_id"
+                                    name="renstra_id"
+                                    aria-label="Periode Renstra Induk"
+                                    value={data.renstra_id}
+                                    onChange={(event) => {
+                                        setField('renstra_id', event.target.value);
+                                        const found = renstras.find((r) => r.id === event.target.value);
+                                        if (
+                                            found &&
+                                            (!data.tahun ||
+                                                Number(data.tahun) < found.tahun_mulai ||
+                                                Number(data.tahun) > found.tahun_selesai)
+                                        ) {
+                                            setField('tahun', found.tahun_mulai);
+                                        }
+                                    }}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                    required
+                                >
+                                    <option value="">-- Pilih Rencana Strategis --</option>
+                                    {renstras.map((r) => (
+                                        <option key={r.id} value={r.id}>
+                                            {r.nama} ({r.tahun_mulai} - {r.tahun_selesai})
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        {errors.renstra_id && (
+                            <p className="mt-1.5 text-xs font-medium text-danger">{errors.renstra_id}</p>
+                        )}
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 lg:col-span-3">
                         {allowedYears.length > 0 ? (
                             <Select
                                 name="tahun"
                                 label="Tahun Pelaksanaan"
+                                labelClassName="whitespace-nowrap"
                                 value={data.tahun}
                                 onChange={(event) => setField('tahun', Number(event.target.value))}
                                 error={errors.tahun}
@@ -145,6 +205,7 @@ export function PerjanjianKinerjaFormFields({
                                 name="tahun"
                                 type="number"
                                 label="Tahun Pelaksanaan"
+                                labelClassName="whitespace-nowrap"
                                 value={data.tahun}
                                 onChange={(event) => setField('tahun', event.target.value)}
                                 error={errors.tahun}
@@ -155,11 +216,12 @@ export function PerjanjianKinerjaFormFields({
                         )}
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 lg:col-span-4">
                         <Input
                             name="tanggal_pk"
                             type="date"
                             label="Tanggal Penandatanganan"
+                            labelClassName="whitespace-nowrap"
                             value={data.tanggal_pk}
                             onChange={(event) => setField('tanggal_pk', event.target.value)}
                             error={errors.tanggal_pk}
@@ -168,7 +230,7 @@ export function PerjanjianKinerjaFormFields({
                         />
                     </div>
 
-                    <div className="sm:col-span-2 lg:col-span-4">
+                    <div className="sm:col-span-2 lg:col-span-12">
                         <Input
                             name="nomor_pk"
                             label="Nomor Dokumen Perjanjian Kinerja"
@@ -201,7 +263,7 @@ export function PerjanjianKinerjaFormFields({
             </section>
 
             <section aria-labelledby="lampiran-pk-heading" className="border-t border-border pt-7">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 id="lampiran-pk-heading" className="text-base font-semibold text-ink">
                             Lampiran Dokumen Legal (3 Mode)
@@ -212,13 +274,14 @@ export function PerjanjianKinerjaFormFields({
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="primary"
                         size="sm"
                         onClick={() => setField('lampiran', [...data.lampiran, newLampiran()])}
                         disabled={disabled}
+                        className="whitespace-nowrap shrink-0 shadow-2xs"
                     >
                         <Plus className="h-4 w-4" aria-hidden="true" />
-                        Tambah Lampiran
+                        <span className="whitespace-nowrap">Tambah Lampiran</span>
                     </Button>
                 </div>
 

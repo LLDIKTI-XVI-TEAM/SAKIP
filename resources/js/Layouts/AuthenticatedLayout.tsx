@@ -147,7 +147,7 @@ export function AuthenticatedLayout({
         { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
-        { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? true },
+        { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },

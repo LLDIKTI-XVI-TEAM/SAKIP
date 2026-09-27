@@ -25,9 +25,9 @@ class StorePerjanjianKinerjaRequest extends FormRequest
             'tanggal_pk' => ['required', 'date'],
             'lampiran' => ['nullable', 'array'],
             'lampiran.*.mode' => ['required_with:lampiran', Rule::in(['file', 'tautan', 'teks'])],
-            'lampiran.*.file' => ['nullable', 'file'],
-            'lampiran.*.tautan' => ['nullable', 'string', 'url:http,https', 'max:2048'],
-            'lampiran.*.isi_teks' => ['nullable', 'string', 'max:10000'],
+            'lampiran.*.file' => ['required_if:lampiran.*.mode,file', 'file'],
+            'lampiran.*.tautan' => ['required_if:lampiran.*.mode,tautan', 'url:http,https', 'max:2048'],
+            'lampiran.*.isi_teks' => ['required_if:lampiran.*.mode,teks', 'string', 'max:10000'],
             'lampiran.*.nama_asli' => ['nullable', 'string', 'max:255'],
         ];
     }

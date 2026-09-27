@@ -74,6 +74,15 @@ class RenstraPk extends Model
         return $this->hasOne(JadwalTahunan::class, 'renstra_pk_id');
     }
 
+    public function isJadwalAktif(): bool
+    {
+        return JadwalTahunan::where('status', 'aktif')
+            ->where(function ($q) {
+                $q->where('renstra_pk_id', $this->id)
+                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
+            })->exists();
+    }
+
     public function getMorphClass(): string
     {
         return 'renstra_pk';

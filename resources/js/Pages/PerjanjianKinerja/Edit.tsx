@@ -46,21 +46,23 @@ export default function Edit({ pk, is_jadwal_aktif, storageSettings }: EditProps
         <AuthenticatedLayout
             title={`Edit PK Tahun ${pk.tahun} - ${pk.nomor_pk}`}
             breadcrumbs={[
-                { label: 'Perjanjian Kinerja', href: '/perjanjian-kinerja' },
+                { label: 'Perjanjian Kinerja (PK)', href: '/perjanjian-kinerja' },
                 { label: `Tahun ${pk.tahun}`, href: `/perjanjian-kinerja/${pk.id}` },
                 { label: 'Edit' },
             ]}
         >
-            <Head title={`Edit Perjanjian Kinerja Tahun ${pk.tahun}`} />
+            <Head title={`Edit Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
 
-            <div className="mx-auto max-w-4xl space-y-6">
-                <Link
-                    href={`/perjanjian-kinerja/${pk.id}`}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke Detail PK
-                </Link>
+            <div className="mx-auto max-w-4xl">
+                <div className="py-2">
+                    <Link
+                        href={`/perjanjian-kinerja/${pk.id}`}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                    >
+                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        Kembali ke Detail PK
+                    </Link>
+                </div>
 
                 {is_jadwal_aktif && (
                     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200">
@@ -79,7 +81,9 @@ export default function Edit({ pk, is_jadwal_aktif, storageSettings }: EditProps
                 <form onSubmit={handleSubmit}>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Edit Data Perjanjian Kinerja</CardTitle>
+                            <CardTitle className="text-xl font-bold text-ink">
+                                Edit Data Perjanjian Kinerja
+                            </CardTitle>
                             <p className="mt-1 text-sm text-muted">
                                 Perbarui nomor surat, tanggal penandatanganan, atau tambahkan naskah lampiran baru. Seluruh perubahan dicatat dalam jejak audit beralasan.
                             </p>

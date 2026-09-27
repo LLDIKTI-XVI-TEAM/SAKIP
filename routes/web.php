@@ -23,7 +23,7 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
-use App\Http\Controllers\PerjanjianKinerjaController;
+use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
 use App\Http\Controllers\Regulasi\DestroyRegulasi;

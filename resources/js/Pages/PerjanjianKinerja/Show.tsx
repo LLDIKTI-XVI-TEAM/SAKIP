@@ -74,11 +74,11 @@ export default function Show({ pk, is_jadwal_aktif, can }: ShowProps) {
         <AuthenticatedLayout
             title={`PK Tahun ${pk.tahun} - ${pk.nomor_pk}`}
             breadcrumbs={[
-                { label: 'Perjanjian Kinerja', href: '/perjanjian-kinerja' },
+                { label: 'Perjanjian Kinerja (PK)', href: '/perjanjian-kinerja' },
                 { label: `Tahun ${pk.tahun}` },
             ]}
         >
-            <Head title={`Perjanjian Kinerja Tahun ${pk.tahun}`} />
+            <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
 
             <div className="mx-auto max-w-5xl space-y-6">
                 {/* Back and Action Toolbar */}

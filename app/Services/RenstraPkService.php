@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Berkas;
-use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -107,35 +106,37 @@ class RenstraPkService
 
         try {
             return DB::transaction(function () use ($pk, $data, $alasan, $actor, &$storedPaths) {
-                $pk->load(['berkas']);
-                $nilaiLama = $this->snapshot($pk);
+                /** @var RenstraPk $pkLocked */
+                $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
+                $pkLocked->load(['berkas']);
+                $nilaiLama = $this->snapshot($pkLocked);
 
                 if (array_key_exists('nomor_pk', $data)) {
-                    $pk->nomor_pk = $data['nomor_pk'];
+                    $pkLocked->nomor_pk = $data['nomor_pk'];
                 }
                 if (array_key_exists('tanggal_pk', $data)) {
-                    $pk->tanggal_pk = $data['tanggal_pk'];
+                    $pkLocked->tanggal_pk = $data['tanggal_pk'];
                 }
-                $pk->save();
+                $pkLocked->save();
 
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
-                    $this->simpanLampiran($pk, $data['lampiran'], $actor, $storedPaths);
+                    $this->simpanLampiran($pkLocked, $data['lampiran'], $actor, $storedPaths);
                 }
 
-                $pk->fresh(['renstra', 'creator', 'berkas']);
-                $nilaiBaru = $this->snapshot($pk);
+                $pkLocked->fresh(['renstra', 'creator', 'berkas']);
+                $nilaiBaru = $this->snapshot($pkLocked);
 
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'renstra_pk.ubah',
                     objekTipe: 'renstra_pk',
-                    objekId: $pk->id,
+                    objekId: $pkLocked->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $nilaiBaru,
                     alasan: $alasan,
                 );
 
-                return $pk;
+                return $pkLocked;
             });
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);
@@ -160,18 +161,14 @@ class RenstraPkService
             ]);
         }
 
-        $jadwalAktif = JadwalTahunan::where('renstra_id', $pk->renstra_id)
-            ->where('tahun', $pk->tahun)
-            ->where('status', 'aktif')
-            ->exists();
-
-        if ($jadwalAktif) {
+        if ($pk->isJadwalAktif()) {
             $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'berkas.hapus_ditolak',
                 objekTipe: 'berkas',
                 objekId: $berkas->id,
                 nilaiLama: $this->metadataBerkasUntukAudit($berkas),
+                nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
                 alasan: $alasan,
             );
 
@@ -183,7 +180,14 @@ class RenstraPkService
         $path = $berkas->mode === 'file' && is_string($berkas->path) ? $berkas->path : null;
         $nilaiLama = $this->metadataBerkasUntukAudit($berkas);
 
-        DB::transaction(function () use ($berkas, $actor, $nilaiLama, $alasan) {
+        DB::transaction(function () use ($pk, $berkas, $actor, $nilaiLama, $alasan) {
+            $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
+            if ($pkLocked->isJadwalAktif()) {
+                throw ValidationException::withMessages([
+                    'berkas' => 'Lampiran Perjanjian Kinerja tidak dapat dihapus karena Jadwal Tahunan sudah aktif.',
+                ]);
+            }
+
             $berkas->dihapus_oleh = $actor->id;
             $berkas->save();
             $berkas->delete();
@@ -229,7 +233,7 @@ class RenstraPkService
                 'berkas.format_diizinkan',
             ])->pluck('nilai', 'kunci');
 
-            $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
+            $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif') ?? true, FILTER_VALIDATE_BOOLEAN);
             if (! $isUploadActive) {
                 throw ValidationException::withMessages([
                     'lampiran' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
@@ -252,7 +256,9 @@ class RenstraPkService
             if ($mode === 'file') {
                 $file = $item['file'] ?? null;
                 if (! $file instanceof UploadedFile) {
-                    throw new RuntimeException('Lampiran file tidak valid.');
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Lampiran file tidak valid atau berkas belum diunggah.',
+                    ]);
                 }
 
                 if ($maxKb > 0 && ($file->getSize() > $maxKb * 1024)) {
@@ -281,14 +287,26 @@ class RenstraPkService
                     'ukuran_bytes' => $file->getSize(),
                 ];
             } elseif ($mode === 'tautan') {
+                $tautan = $item['tautan'] ?? ($item['url'] ?? null);
+                if (empty($tautan)) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Tautan dokumen lampiran wajib diisi untuk mode tautan.',
+                    ]);
+                }
                 $attributes += [
                     'nama_asli' => $item['nama_asli'] ?? ($item['nama'] ?? 'Tautan Dokumen PK'),
-                    'tautan' => $item['tautan'] ?? ($item['url'] ?? null),
+                    'tautan' => $tautan,
                 ];
             } elseif ($mode === 'teks') {
+                $isiTeks = $item['isi_teks'] ?? ($item['teks'] ?? null);
+                if (empty($isiTeks)) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Isi catatan dokumen lampiran wajib diisi untuk mode teks.',
+                    ]);
+                }
                 $attributes += [
                     'nama_asli' => $item['nama_asli'] ?? ($item['nama'] ?? 'Catatan Dokumen PK'),
-                    'isi_teks' => $item['isi_teks'] ?? ($item['teks'] ?? null),
+                    'isi_teks' => $isiTeks,
                 ];
             }
 

@@ -31,12 +31,12 @@ class RenstraPkPolicy
         return $this->permissionResolver->allows($user, PermissionCodes::PK_CREATE);
     }
 
-    public function update(User $user, RenstraPk $pk): bool
+    public function update(User $user, ?RenstraPk $pk = null): bool
     {
         return $this->permissionResolver->allows($user, PermissionCodes::PK_UPDATE);
     }
 
-    public function deleteBerkas(User $user, RenstraPk $pk): bool
+    public function deleteBerkas(User $user, ?RenstraPk $pk = null): bool
     {
         return $this->permissionResolver->allows($user, PermissionCodes::PK_UPDATE)
             || $this->permissionResolver->allows($user, PermissionCodes::BERKAS_DELETE);

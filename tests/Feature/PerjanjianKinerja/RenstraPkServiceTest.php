@@ -290,12 +290,13 @@ class RenstraPkServiceTest extends TestCase
         ]);
 
         // Audit log berkas.hapus_ditolak tercatat
-        $this->assertDatabaseHas('audit_log', [
-            'tindakan' => 'berkas.hapus_ditolak',
-            'objek_tipe' => 'berkas',
-            'objek_id' => $berkas->id,
-            'alasan' => 'Mencoba hapus saat jadwal aktif',
-            'actor_id' => $this->actor->id,
-        ]);
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame($this->actor->id, $audit->actor_id);
+        $this->assertSame('Mencoba hapus saat jadwal aktif', $audit->alasan);
+        $this->assertSame(['alasan_penolakan' => 'jadwal_tahunan_aktif'], $audit->nilai_baru);
     }
 }

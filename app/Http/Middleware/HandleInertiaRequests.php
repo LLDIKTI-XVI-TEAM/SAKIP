@@ -125,7 +125,7 @@ class HandleInertiaRequests extends Middleware
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
-            'pk' => true,
+            'pk' => (bool) $user->is_active,
             'pk:create' => $resolver->allows($user, 'pk:create'),
             'pk:update' => $resolver->allows($user, 'pk:update'),
         ];
