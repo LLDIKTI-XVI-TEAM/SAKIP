@@ -3,12 +3,10 @@
 namespace Tests\Feature\PerjanjianKinerja;
 
 use App\Models\JadwalTahunan;
-use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
-use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -35,12 +33,6 @@ class PerjanjianKinerjaHttpTest extends TestCase
 
         $this->perencanaan = User::factory()->create(['is_active' => true]);
         $rolePerencanaan = Role::where('kode', 'perencanaan')->firstOrFail();
-        foreach (Permission::whereIn('kode', [PermissionCodes::PK_CREATE, PermissionCodes::PK_UPDATE, PermissionCodes::BERKAS_DELETE])->get() as $perm) {
-            $rolePerencanaan->permissions()->attach($perm->id, [
-                'id' => (string) Str::uuid(),
-                'created_at' => now(),
-            ]);
-        }
         $this->perencanaan->roles()->attach($rolePerencanaan->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',

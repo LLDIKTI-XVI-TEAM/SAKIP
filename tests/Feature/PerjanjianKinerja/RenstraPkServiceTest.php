@@ -5,12 +5,10 @@ namespace Tests\Feature\PerjanjianKinerja;
 use App\Models\AuditLog;
 use App\Models\Berkas;
 use App\Models\JadwalTahunan;
-use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\RenstraPkService;
-use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -38,12 +36,6 @@ class RenstraPkServiceTest extends TestCase
 
         $this->actor = User::factory()->create(['is_active' => true]);
         $role = Role::where('kode', 'superadmin')->firstOrFail();
-        foreach (Permission::whereIn('kode', [PermissionCodes::PK_CREATE, PermissionCodes::PK_UPDATE, PermissionCodes::BERKAS_DELETE])->get() as $perm) {
-            $role->permissions()->attach($perm->id, [
-                'id' => (string) Str::uuid(),
-                'created_at' => now(),
-            ]);
-        }
         $this->actor->roles()->attach($role->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',

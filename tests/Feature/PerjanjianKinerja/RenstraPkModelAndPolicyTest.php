@@ -3,13 +3,11 @@
 namespace Tests\Feature\PerjanjianKinerja;
 
 use App\Models\Berkas;
-use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
 use App\Policies\RenstraPkPolicy;
-use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -66,12 +64,6 @@ class RenstraPkModelAndPolicyTest extends TestCase
 
         $superadmin = User::factory()->create(['is_active' => true]);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
-        foreach (Permission::whereIn('kode', [PermissionCodes::PK_CREATE, PermissionCodes::PK_UPDATE, PermissionCodes::BERKAS_DELETE])->get() as $permission) {
-            $superadminRole->permissions()->attach($permission->id, [
-                'id' => (string) Str::uuid(),
-                'created_at' => now(),
-            ]);
-        }
         $superadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',

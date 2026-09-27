@@ -5,12 +5,10 @@ namespace Tests\Feature\PerjanjianKinerja;
 use App\Models\AuditLog;
 use App\Models\Berkas;
 use App\Models\JadwalTahunan;
-use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
-use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -51,12 +49,6 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         // Setup Superadmin
         $this->superadmin = User::factory()->create(['is_active' => true]);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
-        foreach (Permission::whereIn('kode', [PermissionCodes::PK_CREATE, PermissionCodes::PK_UPDATE, PermissionCodes::BERKAS_DELETE])->get() as $perm) {
-            $superadminRole->permissions()->attach($perm->id, [
-                'id' => (string) Str::uuid(),
-                'created_at' => now(),
-            ]);
-        }
         $this->superadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
@@ -67,12 +59,6 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         // Setup Perencanaan
         $this->perencanaan = User::factory()->create(['is_active' => true]);
         $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
-        foreach (Permission::whereIn('kode', [PermissionCodes::PK_CREATE, PermissionCodes::PK_UPDATE, PermissionCodes::BERKAS_DELETE])->get() as $perm) {
-            $perencanaanRole->permissions()->attach($perm->id, [
-                'id' => (string) Str::uuid(),
-                'created_at' => now(),
-            ]);
-        }
         $this->perencanaan->roles()->attach($perencanaanRole->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
