@@ -14,6 +14,7 @@ use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -203,7 +204,7 @@ class RenstraPkServiceTest extends TestCase
         ], 'Koreksi nomor surat PK dari pimpinan', $this->actor);
 
         $this->assertSame('PK-REVISI', $updated->nomor_pk);
-        $this->assertSame('2026-01-20', $updated->tanggal_pk->toDateString());
+        $this->assertSame('2026-01-20', Carbon::parse($updated->tanggal_pk)->toDateString());
 
         // Audit log renstra_pk.ubah
         $audit = AuditLog::where('tindakan', 'renstra_pk.ubah')

@@ -14,6 +14,7 @@ use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -120,7 +121,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         $this->assertNotNull($pk);
         $this->assertSame($this->renstra->id, $pk->renstra_id);
         $this->assertSame(2026, $pk->tahun);
-        $this->assertSame('2026-01-15', $pk->tanggal_pk->toDateString());
+        $this->assertSame('2026-01-15', Carbon::parse($pk->tanggal_pk)->toDateString());
         $this->assertSame($this->perencanaan->id, $pk->created_by);
         $this->assertNotNull($pk->created_at);
         $this->assertNotNull($pk->updated_at);

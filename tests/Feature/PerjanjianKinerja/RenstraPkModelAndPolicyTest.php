@@ -12,6 +12,7 @@ use App\Policies\RenstraPkPolicy;
 use App\Support\PermissionCodes;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -43,7 +44,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertNotNull($pk->created_at);
         $this->assertNotNull($pk->updated_at);
         $this->assertSame(2026, $pk->tahun);
-        $this->assertSame('2026-01-15', $pk->tanggal_pk->toDateString());
+        $this->assertSame('2026-01-15', Carbon::parse($pk->tanggal_pk)->toDateString());
         $this->assertTrue($pk->renstra->is($renstra));
         $this->assertTrue($pk->creator->is($user));
         $this->assertTrue($renstra->perjanjianKinerja->contains($pk));

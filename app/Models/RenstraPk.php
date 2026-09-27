@@ -2,12 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property string $id
+ * @property string $renstra_id
+ * @property int $tahun
+ * @property string $nomor_pk
+ * @property Carbon $tanggal_pk
+ * @property string $created_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Renstra $renstra
+ * @property-read User $creator
+ * @property-read Collection<int, Berkas> $berkas
+ * @property-read JadwalTahunan|null $jadwalTahunan
+ */
 class RenstraPk extends Model
 {
     use HasUuids;
