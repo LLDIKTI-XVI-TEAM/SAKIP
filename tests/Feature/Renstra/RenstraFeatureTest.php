@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Authorization\RolePermissionPresets;
+use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1079,6 +1080,49 @@ test('Index tidak mengirim jumlah lampiran ketika izin baca berkas ditolak', fun
             ->where('renstra.data.0.berkas_count', null)
             ->where('renstra.data.0.can_delete', true)
         );
+});
+
+test('Index dan Show tidak mengungkap keberadaan lampiran lewat capability hapus tanpa izin berkas', function (): void {
+    $kosong = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-TANPA-LAMPIRAN']);
+    $berlampiran = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-DENGAN-LAMPIRAN']);
+    $berlampiran->berkas()->create([
+        'uploaded_by' => $this->perencanaan->id,
+        'mode' => 'teks',
+        'isi_teks' => 'Naskah pengujian',
+    ]);
+
+    foreach ([PermissionCodes::BERKAS_READ, PermissionCodes::BERKAS_DELETE] as $kode) {
+        $permission = Permission::query()->where('kode', $kode)->firstOrFail();
+        UserPermissionDeny::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $permission->id,
+            'alasan' => 'Deny akses berkas pada pengujian capability',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+    }
+
+    $this->actingAs($this->perencanaan)->get('/renstra')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Index')
+            ->where('can.renstra:delete', true)
+            ->where('can.berkas:delete', false)
+            ->where('renstra.total', 2)
+            ->where('renstra.data.0.berkas_count', null)
+            ->where('renstra.data.1.berkas_count', null)
+            ->where('renstra.data.0.can_delete', false)
+            ->where('renstra.data.1.can_delete', false)
+        );
+
+    foreach ([$kosong, $berlampiran] as $renstra) {
+        $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Renstra/Show')
+                ->where('renstra.berkas', [])
+                ->where('can.delete', false)
+                ->where('can.deleteAttachment', false)
+            );
+    }
 });
 
 test('Index menolak filter berbentuk array sebelum menyusun query', function (): void {

@@ -35,8 +35,8 @@ class ShowRenstra extends Controller
 
         $renstra->load($relations);
 
-        $hasBerkas = $renstra->berkas()->exists();
         $canDeleteAttachment = $user->can('deleteAttachment', $renstra);
+        $hasBerkas = $canViewAttachments && ! $canDeleteAttachment && $renstra->berkas()->exists();
 
         $detail = [
             'id' => $renstra->id,
@@ -88,7 +88,8 @@ class ShowRenstra extends Controller
             'renstra' => $detail,
             'can' => [
                 'update' => $user->can('update', $renstra) && $renstra->status !== Renstra::STATUS_DIARSIPKAN,
-                'delete' => $user->can('delete', $renstra) && (! $hasBerkas || $canDeleteAttachment),
+                'delete' => $user->can('delete', $renstra)
+                    && ($canDeleteAttachment || ($canViewAttachments && ! $hasBerkas)),
                 'deleteAttachment' => $canDeleteAttachment,
             ],
         ]);

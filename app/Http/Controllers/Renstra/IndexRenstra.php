@@ -74,7 +74,7 @@ class IndexRenstra extends Controller
         $renstra->getCollection()->each(function (Renstra $item) use ($dapatBacaRegulasi, $dapatBacaLampiran, $dapatHapusRenstra, $dapatHapusLampiran): void {
             $item->setAttribute('can_delete', $dapatHapusRenstra
                 && $item->status === Renstra::STATUS_DRAFT
-                && ((int) $item->berkas_count === 0 || $dapatHapusLampiran));
+                && ($dapatHapusLampiran || ($dapatBacaLampiran && (int) $item->berkas_count === 0)));
 
             if (! $dapatBacaRegulasi) {
                 $item->setAttribute('regulasi_id', null);
