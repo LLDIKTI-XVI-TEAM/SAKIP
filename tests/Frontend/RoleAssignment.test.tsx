@@ -13,8 +13,8 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ childr
 const roles = [{ id: 'pimpinan-id', kode: 'pimpinan', nama: 'Pimpinan' }, { id: 'pegawai-id', kode: 'pegawai', nama: 'Pegawai' }];
 const token = { id: 'pivot-id', role_id: 'pegawai-id', audit_id: 'audit-id' };
 const users = { data: [
-    { id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', is_active: true, current_role: { ...roles[1], aktif: true }, assignment: token },
-    { id: 'user-b', nama: 'Budi', email: 'budi@example.test', is_active: false, current_role: null, assignment: null },
+    { id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', status: 'aktif' as const, current_role: { ...roles[1], aktif: true }, assignment: token },
+    { id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif' as const, current_role: null, assignment: null },
 ], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null };
 const methods = ['showModal', 'close'] as const;
 const originals = methods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));

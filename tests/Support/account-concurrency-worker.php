@@ -51,6 +51,12 @@ try {
             'revoke-deny' => 'revoked',
             default => $result,
         };
+    } catch (DomainException $exception) {
+        if ($argv[1] !== 'bootstrap' || ! ($assignment['expect_ineligible'] ?? false)
+            || $exception->getMessage() !== 'Keadaan awal bootstrap tidak sesuai; tidak ada data yang diubah.') {
+            throw $exception;
+        }
+        $result = 'ineligible';
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
             'assign-role' => 'expected_assignment',

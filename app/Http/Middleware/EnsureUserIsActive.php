@@ -11,7 +11,7 @@ class EnsureUserIsActive
     public function handle(Request $request, Closure $next): Response
     {
         // Baca status saat request, termasuk session yang dibentuk sebelum penonaktifan.
-        if (! $request->user()?->fresh()?->is_active) {
+        if ($request->user()?->fresh()?->status !== 'aktif') {
             return redirect()->route('auth.pending');
         }
 

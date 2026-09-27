@@ -18,7 +18,7 @@ class PermissionResolver
     public function decide(User $user, string $kode, ?string $unitId = null): array
     {
         $result = ['allowed' => false, 'permission' => $kode, 'reason' => 'no_allow', 'roles' => [], 'grants' => [], 'denies' => []];
-        if (! $user->is_active) {
+        if ($user->status !== 'aktif') {
             return [...$result, 'reason' => 'inactive_user'];
         }
         // Grant tidak membuka akses akun tanpa role resmi aktif, termasuk row role legacy.

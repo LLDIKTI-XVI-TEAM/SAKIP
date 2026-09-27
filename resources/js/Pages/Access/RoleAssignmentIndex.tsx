@@ -10,7 +10,7 @@ import type { SharedPageProps } from '@/types/auth';
 
 type AssignmentState = { id: string; role_id: string; audit_id: string | null };
 type RoleOption = { id: string; kode: string; nama: string };
-type RoleUser = { id: string; nama: string; email: string; is_active: boolean; current_role: (RoleOption & { aktif: boolean }) | null; assignment: AssignmentState | null };
+type RoleUser = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif'; current_role: (RoleOption & { aktif: boolean }) | null; assignment: AssignmentState | null };
 interface RoleAssignmentProps {
     users: { data: RoleUser[]; current_page: number; last_page: number; prev_page_url: string | null; next_page_url: string | null };
     roles: RoleOption[];
@@ -138,7 +138,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
             </form>
             {users.data.length === 0 ? <p className="rounded-lg bg-soft p-4 text-sm text-muted">Tidak ada pengguna yang sesuai.</p> : <ul className="divide-y divide-border">
                 {users.data.map((user) => <li key={user.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p><p className="mt-2 text-sm"><span className="font-medium">{user.current_role?.nama ?? 'Belum memiliki peran'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}</span><span className="text-muted"> · {user.is_active ? 'Akun aktif' : 'Menunggu aktivasi'}</span></p></div>
+                    <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p><p className="mt-2 text-sm"><span className="font-medium">{user.current_role?.nama ?? 'Belum memiliki peran'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}</span><span className="text-muted"> · {user.status === 'aktif' ? 'Akun aktif' : 'Menunggu aktivasi'}</span></p></div>
                     {can.assignRole && <Button type="button" className={`${primaryButton} self-start sm:shrink-0 sm:self-auto`} aria-label={`${user.current_role ? 'Ubah' : 'Tetapkan'} peran ${user.nama}`} onClick={(event) => { trigger.current = event.currentTarget; setSelected(user); }}>{user.current_role ? 'Ubah peran' : 'Tetapkan peran'}</Button>}
                 </li>)}
             </ul>}

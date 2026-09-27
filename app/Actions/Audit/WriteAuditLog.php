@@ -22,7 +22,10 @@ class WriteAuditLog
         $valid = match ($type) {
             'user' => $source === 'manual' && is_string($actor) && $actor !== '',
             'system' => $actor === null && (
-                ($source === 'sso_onboarding' && $event === 'user_roles.tambah')
+                ($source === 'sso_onboarding' && $event === 'pengguna.terdaftar'
+                    && ($attributes['objek_tipe'] ?? null) === 'users'
+                    && ($attributes['operator_reference'] ?? null) === null
+                    && ($attributes['runtime_identity'] ?? null) === null)
                 || ($source === 'preset_release' && ($attributes['operator_reference'] ?? null) === null
                     && is_string($attributes['runtime_identity'] ?? null) && trim($attributes['runtime_identity']) !== ''
                     && match ($event) {
@@ -34,7 +37,7 @@ class WriteAuditLog
             'operator' => $source === 'bootstrap' && $actor === null
                 && is_string($attributes['operator_reference'] ?? null) && trim($attributes['operator_reference']) !== ''
                 && is_string($attributes['runtime_identity'] ?? null) && trim($attributes['runtime_identity']) !== ''
-                && in_array($event, ['user_roles.ubah', 'pengguna.aktivasi', 'role_permissions.ubah', 'auth.bootstrap'], true),
+                && in_array($event, ['user_roles.tambah', 'user_roles.ubah', 'pengguna.aktivasi', 'role_permissions.ubah', 'auth.bootstrap'], true),
             default => false,
         };
         if (! $valid || ! is_string($attributes['alasan'] ?? null) || trim($attributes['alasan']) === '') {

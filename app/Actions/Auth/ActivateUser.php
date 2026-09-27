@@ -24,14 +24,14 @@ class ActivateUser
             if (! $decision['allowed']) {
                 return ['denied' => $decision];
             }
-            if ($target->is_active) {
+            if ($target->status === 'aktif') {
                 return ['changed' => false];
             }
-            $target->update(['is_active' => true]);
+            $target->update(['status' => 'aktif']);
             $this->audit->handle([
                 'actor_type' => 'user', 'actor_id' => $actor->id, 'sumber' => 'manual',
                 'tindakan' => 'pengguna.aktivasi', 'objek_tipe' => 'users', 'objek_id' => $target->id,
-                'nilai_lama' => ['is_active' => false], 'nilai_baru' => ['is_active' => true],
+                'nilai_lama' => ['status' => 'nonaktif'], 'nilai_baru' => ['status' => 'aktif'],
                 'alasan' => $reason, 'dasar_izin' => $decision,
             ]);
 

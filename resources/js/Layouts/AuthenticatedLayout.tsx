@@ -1,12 +1,10 @@
-import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import { Fragment, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
-import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { LogoutActions } from '@/Components/Auth/LogoutActions';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard,
     FileSpreadsheet,
     CheckCircle2,
-    LogOut,
     ChevronRight,
     CheckCircle,
     AlertCircle,
@@ -60,10 +58,8 @@ export function AuthenticatedLayout({
         && window.matchMedia('(min-width: 768px)').matches);
     const menuButtonRef = useRef<HTMLButtonElement>(null);
     const drawerRef = useRef<HTMLElement>(null);
-    const recovery = useAuthRecovery();
-    const [logoutError, setLogoutError] = useState('');
+
     const [logoFailed, setLogoFailed] = useState(false);
-    const logout = useForm({});
 
     useEffect(() => {
         setLogoFailed(false);
@@ -158,20 +154,6 @@ export function AuthenticatedLayout({
         { href: '/akses/izin-peran', label: 'Peran & Izin', icon: UserCheck, visible: auth.can.viewRolePermissions },
         { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
     ];
-
-    const handleLogout = (event: FormEvent) => {
-        event.preventDefault();
-        if (logout.processing || recovery.recovery || logoutError) return;
-        logout.post('/logout', {
-            onStart: () => router.clearHistory(),
-            onHttpException: (response) => {
-                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/logout', mutation: true })) setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.');
-                return false;
-            },
-            onCancel: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); },
-            onNetworkError: () => { setLogoutError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.'); return false; },
-        });
-    };
 
     return (
         <div className="min-h-screen bg-page font-sans text-ink flex flex-col md:flex-row">
@@ -315,23 +297,7 @@ export function AuthenticatedLayout({
                             </div>
                         </div>
 
-                        {recovery.recovery && (
-                            <div className="mt-3 flow-root rounded-lg bg-surface px-3 text-ink">
-                                <AuthRecoveryNotice recovery={recovery.recovery} pending={logout.processing} logout />
-                            </div>
-                        )}
-                        {logoutError && <p role="alert" className="mt-3 rounded-lg border border-danger/30 bg-surface p-3 text-xs font-medium leading-relaxed text-danger">{logoutError}</p>}
-
-                        <form onSubmit={handleLogout} className="mt-3">
-                            <button
-                                type="submit"
-                                disabled={logout.processing || Boolean(recovery.recovery || logoutError)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-400/40 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <LogOut aria-hidden="true" className="h-3.5 w-3.5 transition-colors" />
-                                <span>{logout.processing ? 'Keluar…' : 'Keluar sistem'}</span>
-                            </button>
-                        </form>
+                        <LogoutActions sidebar />
                     </div>
                 </div>
             </aside>

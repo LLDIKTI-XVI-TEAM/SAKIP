@@ -74,8 +74,19 @@ class AuthHttpTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/auth/pending');
         $this->post('/pengukuran/00000000-0000-4000-8000-000000000000')->assertRedirect('/auth/pending');
         $response = $this->get('/auth/pending');
-        $response->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('auth.user.nama', 'Pengguna Uji')->where('auth.can.dashboard', false)->missing('demo_users')->missing('auth.user.keycloak_id')->missing('auth.user.password'));
+        $response->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'activation')->where('auth.user.status', 'nonaktif')->where('auth.user.nama', 'Pengguna Uji')->where('auth.can.dashboard', false)->missing('demo_users')->missing('auth.user.keycloak_id')->missing('auth.user.password'));
         $this->assertStringNotContainsString('pending-canary', $response->getContent());
+    }
+
+    public function test_active_without_role_lands_on_pending_role_but_explicit_recovery_stays_recovered(): void
+    {
+        $user = User::factory()->create(['keycloak_id' => 'no-role', 'status' => 'aktif']);
+        $this->mock(KeycloakIdentityProvider::class)->shouldReceive('identity')->twice()->andReturn(['subject' => 'no-role', 'nama' => 'Fixture', 'email' => 'fixture@example.test']);
+        $this->get('/auth/keycloak/callback')->assertRedirect('/auth/pending');
+        $this->get('/auth/pending')->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'role')->where('auth.user.status', 'aktif')->where('auth.can', fn ($can) => collect($can)->every(fn ($value) => $value === false)));
+        $this->get('/dashboard')->assertForbidden();
+        $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')->assertRedirect('/auth/recovered');
+        $this->assertSame(0, $user->roles()->count());
     }
 
     public function test_failed_callback_does_not_leak_provider_exception_or_create_session(): void
@@ -96,9 +107,9 @@ class AuthHttpTest extends TestCase
         $target = $provision->handle(['subject' => 'target', 'nama' => 'Target Uji', 'email' => 'target@example.test']);
         $this->actingAs($admin->fresh())->post('/akses/aktivasi/'.$target->id, ['alasan' => ''])->assertSessionHasErrors('alasan');
         $this->post('/akses/aktivasi/'.$target->id, ['alasan' => 'Disetujui'])->assertRedirect('/akses/aktivasi')->assertSessionHas('activationResult.status', 'activated');
-        $this->assertTrue($target->fresh()->is_active);
+        $this->assertSame('aktif', $target->fresh()->status);
         $this->actingAs($target->fresh());
-        $target->refresh()->update(['is_active' => false]);
+        $target->refresh()->update(['status' => 'nonaktif']);
         $this->get('/pengukuran')->assertRedirect('/auth/pending');
     }
 
@@ -123,7 +134,7 @@ class AuthHttpTest extends TestCase
 
     public function test_return_only_reviewer_has_the_same_menu_capability_as_the_endpoint(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $user->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
             'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now(),
         ]);
@@ -138,12 +149,48 @@ class AuthHttpTest extends TestCase
 
     public function test_logout_is_local_first_and_landing_does_not_restart_sso(): void
     {
+        $resolved = false;
+        $this->app->bind(KeycloakIdentityProvider::class, function () use (&$resolved) {
+            $resolved = true;
+            throw new \LogicException('Provider tidak boleh di-resolve untuk logout lokal.');
+        });
         $user = app(ProvisionKeycloakUser::class)->handle(['subject' => 'logout', 'nama' => 'Logout Uji', 'email' => 'logout@example.test']);
-        $response = $this->actingAs($user)->post('/logout', [], ['X-Inertia' => 'true']);
-        $response->assertStatus(409)->assertHeader('X-Inertia-Location');
+        $oldSession = session()->getId();
+        $response = $this->actingAs($user)->withSession(['state' => 'old', 'code_verifier' => 'old', 'oidc_nonce' => 'old', 'oidc_started_at' => time(), '_token' => 'old-token'])->post('/logout', [], ['X-Inertia' => 'true']);
+        $response->assertRedirect('/auth/logged-out')->assertHeaderMissing('X-Inertia-Location')->assertSessionMissing('state')->assertSessionMissing('code_verifier')->assertSessionMissing('oidc_nonce')->assertSessionMissing('oidc_started_at');
+        $this->assertFalse($resolved);
+        $this->assertNotSame($oldSession, session()->getId());
+        $this->assertNotSame('old-token', session()->token());
         $this->assertGuest();
         $this->get('/auth/logged-out')->assertInertia(fn (Assert $page) => $page->component('Auth/LoggedOut')->where('auth.user', null));
         $this->get('/dashboard')->assertRedirect('/login');
+    }
+
+    public function test_sso_logout_ends_local_session_then_redirects_without_tokens_or_client_input(): void
+    {
+        foreach ([false, true] as $inertia) {
+            $user = User::factory()->create();
+            $response = $this->actingAs($user)->post('/logout/sso', ['redirect_uri' => 'https://attacker.test'], $inertia ? ['X-Inertia' => 'true'] : []);
+            $this->assertGuest();
+            $response->assertStatus($inertia ? 409 : 302);
+            $url = $response->headers->get($inertia ? 'X-Inertia-Location' : 'Location');
+            $this->assertStringStartsWith('https://sso.test/realms/sakip/protocol/openid-connect/logout?', $url);
+            parse_str(parse_url($url, PHP_URL_QUERY), $query);
+            $this->assertSame(['post_logout_redirect_uri' => 'https://sakip.test/auth/logged-out', 'client_id' => 'sakip'], $query);
+        }
+    }
+
+    public function test_logout_get_is_rejected_and_sso_failure_remains_local_with_safe_warning(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->get('/logout')->assertStatus(405);
+        $this->get('/logout/sso')->assertStatus(405);
+        $this->assertAuthenticatedAs($user);
+        config(['services.keycloak.post_logout_redirect' => 'https://attacker.test/auth/logged-out']);
+        $this->post('/logout/sso')->assertRedirect('/auth/logged-out');
+        $this->assertGuest();
+        $this->assertSame('sso_unavailable', session('inertia.flash_data.logoutNotice'));
+        $this->post('/logout')->assertRedirect('/auth/logged-out');
     }
 
     public function test_recovery_login_is_explicit_and_normal_login_clears_stale_marker(): void
@@ -157,14 +204,14 @@ class AuthHttpTest extends TestCase
 
     public function test_recovery_callback_is_one_shot_and_does_not_require_dashboard_permission(): void
     {
-        $user = User::factory()->create(['keycloak_id' => 'recovery-qa', 'is_active' => true]);
+        $user = User::factory()->create(['keycloak_id' => 'recovery-qa', 'status' => 'aktif']);
         $this->mock(KeycloakIdentityProvider::class)->shouldReceive('identity')->twice()
             ->andReturn(['subject' => 'recovery-qa', 'nama' => 'Recovery QA', 'email' => 'qa@example.test']);
         $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')
             ->assertRedirect('/auth/recovered')->assertSessionMissing('auth_recovery_requested');
         $this->get('/auth/recovered')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth/Recovered')->where('auth.can.dashboard', false));
         $this->get('/dashboard')->assertForbidden();
-        $this->get('/auth/keycloak/callback')->assertRedirect('/dashboard');
+        $this->get('/auth/keycloak/callback')->assertRedirect('/auth/pending');
         $this->assertAuthenticatedAs($user);
     }
 
@@ -205,7 +252,7 @@ class AuthHttpTest extends TestCase
 
     public function test_failed_attempt_then_explicit_retry_consumes_new_marker_for_new_identity(): void
     {
-        $other = User::factory()->create(['keycloak_id' => 'other-recovery-qa', 'is_active' => true]);
+        $other = User::factory()->create(['keycloak_id' => 'other-recovery-qa', 'status' => 'aktif']);
         $calls = 0;
         $provider = $this->mock(KeycloakIdentityProvider::class);
         $provider->shouldReceive('redirect')->andReturn(redirect('https://sso.test/login'));
@@ -222,6 +269,6 @@ class AuthHttpTest extends TestCase
         $this->get('/auth/keycloak/callback')->assertRedirect('/auth/recovered')->assertSessionMissing('auth_recovery_requested');
         $this->assertAuthenticatedAs($other);
         $this->get('/login')->assertSessionMissing('auth_recovery_requested');
-        $this->get('/auth/keycloak/callback')->assertRedirect('/dashboard');
+        $this->get('/auth/keycloak/callback')->assertRedirect('/auth/pending');
     }
 }
