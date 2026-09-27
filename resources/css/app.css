@@ -110,3 +110,10 @@ body {
     }
 }
 
+/* Efek backdrop blur untuk elemen dialog / modal */
+dialog::backdrop {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+

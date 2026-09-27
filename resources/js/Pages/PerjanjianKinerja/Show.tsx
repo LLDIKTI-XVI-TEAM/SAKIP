@@ -17,8 +17,7 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
-import { Modal } from '@/Components/Modal';
-import { Textarea } from '@/Components/Textarea';
+import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { BerkasPk, RenstraPkSummary, StorageSettings } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
@@ -85,7 +84,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
 
             <div className="mx-auto max-w-5xl space-y-4">
                 {/* Back and Action Toolbar */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <Link
                         href="/perjanjian-kinerja"
                         className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
@@ -123,14 +122,14 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                 )}
 
                 {/* Metadata Card */}
-                <Card>
+                <Card className="-mt-1.5 sm:-mt-2">
                     <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
                         <div>
                             <div className="flex items-center gap-2.5">
                                 <span className="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1 font-bold text-primary">
                                     Tahun {pk.tahun}
                                 </span>
-                                <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+                                <h1 className="text-lg font-bold tracking-tight text-ink sm:text-xl">
                                     {pk.nomor_pk}
                                 </h1>
                             </div>
@@ -302,65 +301,39 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                     </CardContent>
                 </Card>
 
-                {/* Modal Konfirmasi Hapus Lampiran */}
-                <Modal
-                    isOpen={isDeleteModalOpen}
-                    onClose={closeDeleteModal}
-                    size="md"
-                    title={
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-danger/10 text-danger flex items-center justify-center font-bold shrink-0">
-                                <Trash2 className="w-4 h-4" />
-                            </div>
-                            <span>Hapus Lampiran Perjanjian Kinerja</span>
-                        </div>
+                {/* Modal Alasan Audit Hapus Lampiran menggunakan komponen reusable AuditReasonModal (konsisten dengan Persyaratan Berkas) */}
+                <AuditReasonModal
+                    open={isDeleteModalOpen}
+                    title="Konfirmasi Hapus Lampiran"
+                    description={
+                        selectedBerkas
+                            ? `Penghapusan berkas lampiran bersifat sensitif. Lampiran “${selectedBerkas.nama_asli ?? selectedBerkas.tautan ?? 'berkas'}” akan dihapus secara permanen. Masukkan alasan penghapusan untuk rekaman audit.`
+                            : 'Penghapusan berkas lampiran bersifat sensitif. Masukkan alasan penghapusan untuk rekaman audit.'
                     }
-                    description="Konfirmasi penghapusan naskah berkas lampiran komitmen kinerja."
-                    footer={
-                        <div className="flex items-center justify-end gap-3 w-full">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={closeDeleteModal}
-                                disabled={deleteForm.processing}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                form="delete-lampiran-form"
-                                variant="danger"
-                                disabled={deleteForm.processing || !deleteForm.data.alasan.trim()}
-                            >
-                                {deleteForm.processing ? 'Menghapus...' : 'Hapus Lampiran'}
-                            </Button>
-                        </div>
-                    }
-                >
-                    <form id="delete-lampiran-form" onSubmit={handleDeleteSubmit} className="space-y-4">
-                        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-amber-950">
-                            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700 mt-0.5" aria-hidden="true" />
-                            <div>
-                                <p className="text-sm font-bold text-amber-950">Konfirmasi Penghapusan Lampiran</p>
-                                <p className="mt-1 text-xs text-amber-900 leading-relaxed">
-                                    Tindakan penghapusan berkas lampiran ini akan dicatat ke dalam log audit sistem SAKIP.
-                                </p>
-                            </div>
-                        </div>
-
-                        <Textarea
-                            id="alasan-hapus-lampiran"
-                            name="alasan"
-                            label="Alasan Penghapusan Lampiran"
-                            value={deleteForm.data.alasan}
-                            onChange={(e) => deleteForm.setData('alasan', e.target.value)}
-                            error={deleteForm.errors.alasan}
-                            placeholder="Jelaskan alasan menghapus lampiran dokumen ini (wajib diisi)..."
-                            rows={3}
-                            required
-                        />
-                    </form>
-                </Modal>
+                    reason={deleteForm.data.alasan}
+                    error={deleteForm.errors.alasan}
+                    busy={deleteForm.processing}
+                    submitDisabled={!deleteForm.data.alasan.trim()}
+                    confirmLabel="Hapus Lampiran"
+                    destructive={true}
+                    onReasonChange={(reason) => {
+                        deleteForm.setData('alasan', reason);
+                        deleteForm.clearErrors('alasan');
+                    }}
+                    onClose={() => {
+                        if (!deleteForm.processing) {
+                            closeDeleteModal();
+                        }
+                    }}
+                    onConfirm={() => {
+                        if (!selectedBerkas) return;
+                        deleteForm.delete(`/perjanjian-kinerja/${pk.id}/berkas/${selectedBerkas.id}`, {
+                            onSuccess: () => {
+                                closeDeleteModal();
+                            },
+                        });
+                    }}
+                />
             </div>
 
             {can.update && (
