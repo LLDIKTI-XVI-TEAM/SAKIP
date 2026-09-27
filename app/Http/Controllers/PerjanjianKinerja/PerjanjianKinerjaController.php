@@ -50,6 +50,7 @@ class PerjanjianKinerjaController extends Controller
         return Inertia::render('PerjanjianKinerja/Index', [
             'perjanjianKinerja' => $perjanjianKinerja,
             'renstras' => $renstras,
+            'storageSettings' => $this->storageSettings(),
             'filters' => $request->only(['renstra_id', 'tahun', 'q']),
             'can' => [
                 'create' => $user?->can('create', RenstraPk::class) ?? false,
@@ -61,18 +62,11 @@ class PerjanjianKinerjaController extends Controller
     /**
      * Menampilkan formulir pencatatan Perjanjian Kinerja baru.
      */
-    public function create(): Response
+    public function create(): RedirectResponse
     {
         Gate::authorize('create', RenstraPk::class);
 
-        $renstras = Renstra::where('is_aktif', true)
-            ->orderByDesc('tahun_mulai')
-            ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai']);
-
-        return Inertia::render('PerjanjianKinerja/Create', [
-            'renstras' => $renstras,
-            'storageSettings' => $this->storageSettings(),
-        ]);
+        return redirect()->route('perjanjian-kinerja.index');
     }
 
     /**

@@ -28,11 +28,13 @@ import {
     TableRow,
 } from '@/Components/Table';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { Paginated, RenstraPkSummary, RenstraSummary } from '@/types/perjanjian-kinerja';
+import type { Paginated, RenstraPkSummary, RenstraSummary, StorageSettings } from '@/types/perjanjian-kinerja';
+import { PerjanjianKinerjaCreateModal } from './Partials/PerjanjianKinerjaCreateModal';
 
 interface IndexProps {
     perjanjianKinerja: Paginated<RenstraPkSummary>;
     renstras: RenstraSummary[];
+    storageSettings?: StorageSettings;
     filters: {
         renstra_id?: string;
         tahun?: string | number;
@@ -44,8 +46,9 @@ interface IndexProps {
     };
 }
 
-export default function Index({ perjanjianKinerja, renstras, filters, can }: IndexProps) {
+export default function Index({ perjanjianKinerja, renstras, storageSettings, filters, can }: IndexProps) {
     const formatTanggal = useFormatTanggal();
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [renstraId, setRenstraId] = useState(filters.renstra_id ?? '');
     const [tahun, setTahun] = useState(filters.tahun ? String(filters.tahun) : '');
     const [search, setSearch] = useState(filters.q ?? '');
@@ -98,12 +101,14 @@ export default function Index({ perjanjianKinerja, renstras, filters, can }: Ind
 
                     {can.create && (
                         <div className="shrink-0">
-                            <Link href="/perjanjian-kinerja/create">
-                                <Button size="sm" className="w-full sm:w-auto gap-1.5">
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Catat PK Baru
-                                </Button>
-                            </Link>
+                            <Button
+                                size="sm"
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="w-full sm:w-auto gap-1.5"
+                            >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                Catat PK Baru
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -345,6 +350,15 @@ export default function Index({ perjanjianKinerja, renstras, filters, can }: Ind
                     )}
                 </Card>
             </div>
+
+            {can.create && (
+                <PerjanjianKinerjaCreateModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    renstras={renstras}
+                    storageSettings={storageSettings}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }
