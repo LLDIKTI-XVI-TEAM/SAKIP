@@ -98,6 +98,17 @@ it('form edit tanpa izin baca regulasi menyembunyikan pilihan dan tidak mengirim
     expect(payload).not.toHaveProperty('regulasi_id');
 });
 
+it('form tambah tanpa izin baca regulasi tidak mengirim regulasi_id kosong', () => {
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    render(<Create regulasiPilihan={[]} can={{ uploadAttachment: false, readRegulasi: false }} />);
+
+    expect(screen.queryByLabelText('Rujukan Regulasi Utama')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Renstra' }));
+
+    const payload = vi.mocked(router.post).mock.calls[0][1];
+    expect(payload).not.toHaveProperty('regulasi_id');
+});
+
 it('halaman detail memakai URL unduh yang dikirim server', () => {
     render(<Show renstra={{
         ...renstra,

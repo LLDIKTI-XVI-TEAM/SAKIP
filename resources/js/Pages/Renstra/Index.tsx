@@ -84,6 +84,14 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
     const handleCreateSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (createForm.processing) return;
+        createForm.transform((data) => {
+            if (can.readRegulasi === true) return data;
+
+            const payload: Partial<RenstraFormData> = { ...data };
+            delete payload.regulasi_id;
+
+            return payload;
+        });
         createForm.post('/renstra', {
             forceFormData: true,
             preserveScroll: true,
@@ -248,10 +256,14 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                 )}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-xs text-muted">
-                                                <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-                                                    <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
-                                                    {item.berkas_count} lampiran
-                                                </span>
+                                                {item.berkas_count === null ? (
+                                                    <span>Akses dibatasi</span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+                                                        <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                                                        {item.berkas_count} lampiran
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-left">
                                                 <div className="flex items-center justify-start gap-1.5">
@@ -279,7 +291,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Tooltip>
                                                     )}
 
-                                                    {can['renstra:delete'] && item.status === 'draft' && ((item.berkas_count ?? 0) === 0 || can['berkas:delete']) && (
+                                                    {item.can_delete && (
                                                         <Tooltip content="Hapus Renstra">
                                                             <button
                                                                 type="button"

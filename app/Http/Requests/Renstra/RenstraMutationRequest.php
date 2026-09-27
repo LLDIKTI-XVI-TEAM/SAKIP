@@ -20,7 +20,7 @@ abstract class RenstraMutationRequest extends FormRequest
 
     protected ?string $deniedRelatedReason = null;
 
-    protected function relatedPermissionsAllowed(User $actor, ?Renstra $renstra = null): bool
+    protected function relatedPermissionsAllowed(User $actor): bool
     {
         $input = $this->all();
         $resolver = app(PermissionResolver::class);
@@ -37,16 +37,13 @@ abstract class RenstraMutationRequest extends FormRequest
         }
 
         if (array_key_exists('regulasi_id', $input)) {
-            $requestedRegulasiId = $input['regulasi_id'] === '' ? null : $input['regulasi_id'];
-            // ID eksplisit tetap ditolak meski sama dengan FK lama agar tidak menjadi oracle.
-            if ($requestedRegulasiId !== null || $requestedRegulasiId !== $renstra?->regulasi_id) {
-                $readDecision = $resolver->resolve($actor, PermissionCodes::REGULASI_READ);
-                if (! $readDecision->allowed) {
-                    $this->deniedRelatedDecision = $readDecision;
-                    $this->deniedRelatedReason = 'regulasi_read_denied';
+            // Bahkan nilai kosong dapat mengungkap apakah FK lama terisi melalui perbedaan respons.
+            $readDecision = $resolver->resolve($actor, PermissionCodes::REGULASI_READ);
+            if (! $readDecision->allowed) {
+                $this->deniedRelatedDecision = $readDecision;
+                $this->deniedRelatedReason = 'regulasi_read_denied';
 
-                    return false;
-                }
+                return false;
             }
         }
 

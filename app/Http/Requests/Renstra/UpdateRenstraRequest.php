@@ -19,7 +19,7 @@ class UpdateRenstraRequest extends RenstraMutationRequest
         return $renstra instanceof Renstra
             && $user instanceof User
             && Gate::allows('update', $renstra)
-            && $this->relatedPermissionsAllowed($user, $renstra);
+            && $this->relatedPermissionsAllowed($user);
     }
 
     protected function failedAuthorization(): void

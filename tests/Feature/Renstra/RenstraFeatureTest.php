@@ -1050,6 +1050,59 @@ test('Index mengirim capability unggah lampiran kepada modal tambah Renstra', fu
         );
 });
 
+test('Index tidak mengirim jumlah lampiran ketika izin baca berkas ditolak', function (): void {
+    $renstra = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-HITUNG-BERKAS']);
+    foreach (['Lampiran pertama', 'Lampiran kedua'] as $isi) {
+        $renstra->berkas()->create([
+            'uploaded_by' => $this->perencanaan->id,
+            'mode' => 'teks',
+            'isi_teks' => $isi,
+        ]);
+    }
+
+    $this->actingAs($this->perencanaan)->get('/renstra')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('renstra.data.0.berkas_count', 2)
+        );
+
+    $permission = Permission::query()->where('kode', 'berkas:read')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny jumlah lampiran pada Index',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    $this->actingAs($this->perencanaan)->get('/renstra')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('renstra.data.0.berkas_count', null)
+            ->where('renstra.data.0.can_delete', true)
+        );
+});
+
+test('Index menolak filter berbentuk array sebelum menyusun query', function (): void {
+    $this->actingAs($this->perencanaan)->get('/renstra?q[]=x')
+        ->assertRedirect()
+        ->assertSessionHasErrors('q');
+
+    $this->actingAs($this->perencanaan)->get('/renstra?status[]=draft')
+        ->assertRedirect()
+        ->assertSessionHasErrors('status');
+
+    $this->actingAs($this->perencanaan)->get('/renstra?status=tidak-valid')
+        ->assertRedirect()
+        ->assertSessionHasErrors('status');
+
+    buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-FILTER-VALID']);
+    $this->actingAs($this->perencanaan)->get('/renstra?q=FILTER-VALID&status=draft')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.q', 'FILTER-VALID')
+            ->where('filters.status', 'draft')
+            ->where('renstra.total', 1)
+        );
+});
+
 test('Deny berkas upload saat membuat Renstra dicatat di luar transaksi', function (): void {
     $permission = Permission::query()->where('kode', 'berkas:upload')->firstOrFail();
     UserPermissionDeny::create([
@@ -1293,6 +1346,52 @@ test('Deny regulasi read menolak rujukan eksplisit tanpa menghalangi edit field 
     expect($audit->nilai_baru['alasan_penolakan'])->toBe('regulasi_read_denied');
     expect($audit->dasar_izin['permission'])->toBe('regulasi:read');
     expect($audit->dasar_izin['keputusan'])->toBe('ditolak');
+});
+
+test('Deny regulasi read menolak field kosong tanpa membocorkan keadaan rujukan', function (): void {
+    $renstraTanpaRujukan = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-TANPA-RUJUKAN']);
+    $permission = Permission::query()->where('kode', 'regulasi:read')->firstOrFail();
+    UserPermissionDeny::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => $this->perencanaan->id,
+        'permission_id' => $permission->id,
+        'alasan' => 'Deny field rujukan kosong',
+        'ditetapkan_oleh' => $this->perencanaan->id,
+    ]);
+
+    foreach ([null, ''] as $index => $regulasiId) {
+        $this->actingAs($this->perencanaan)->post('/renstra', [
+            'nama' => 'Renstra dengan rujukan kosong',
+            'kode' => 'RENSTRA-DENY-KOSONG-'.$index,
+            'tahun_mulai' => 2030,
+            'tahun_selesai' => 2034,
+            'regulasi_id' => $regulasiId,
+        ])->assertForbidden();
+
+        $this->actingAs($this->perencanaan)->put("/renstra/{$renstraTanpaRujukan->id}", [
+            'nama' => 'Perubahan rujukan kosong ditolak',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'regulasi_id' => $regulasiId,
+        ])->assertForbidden();
+    }
+
+    $this->actingAs($this->perencanaan)->put("/renstra/{$renstraTanpaRujukan->id}", [
+        'nama' => 'Edit tanpa field rujukan',
+        'tahun_mulai' => 2025,
+        'tahun_selesai' => 2029,
+    ])->assertRedirect();
+
+    $this->actingAs($this->perencanaan)->post('/renstra', [
+        'nama' => 'Buat tanpa field rujukan',
+        'kode' => 'RENSTRA-TANPA-FIELD-RUJUKAN',
+        'tahun_mulai' => 2030,
+        'tahun_selesai' => 2034,
+    ])->assertRedirect();
+
+    expect($renstraTanpaRujukan->fresh()->nama)->toBe('Edit tanpa field rujukan');
+    expect(Renstra::query()->where('kode', 'like', 'RENSTRA-DENY-KOSONG-%')->exists())->toBeFalse();
+    $this->assertDatabaseHas('renstras', ['kode' => 'RENSTRA-TANPA-FIELD-RUJUKAN', 'regulasi_id' => null]);
 });
 
 test('Halaman edit Renstra menolak akses jika izin view ditolak meskipun memiliki izin update', function (): void {

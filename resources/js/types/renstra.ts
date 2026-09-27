@@ -38,7 +38,8 @@ export interface RenstraSummary {
     regulasi_id: number | null;
     regulasi_nomor: string | null;
     regulasi?: RegulasiOption | null;
-    berkas_count: number;
+    berkas_count: number | null;
+    can_delete: boolean;
     pembuat: string | null;
     created_at: string | null;
     updated_at: string | null;
