@@ -135,6 +135,7 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $renstra = Renstra::create([
             'kode' => 'RENSTRA-TEST',
+            'created_by' => $this->superadmin->id,
             'nama' => 'Renstra Test',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -230,6 +231,7 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $renstra = Renstra::create([
             'kode' => 'RENSTRA-SNAP-TEST',
+            'created_by' => $this->superadmin->id,
             'nama' => 'Renstra Snapshot Test',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -325,6 +327,7 @@ class MasterUnitOrganisasiTest extends TestCase
 
         $renstra = Renstra::create([
             'kode' => 'RENSTRA-FK-TEST',
+            'created_by' => $this->superadmin->id,
             'nama' => 'Renstra FK Test',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
