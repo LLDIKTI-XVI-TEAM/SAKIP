@@ -50,7 +50,7 @@ export function PerjanjianKinerjaEditModal({
             });
             clearErrors();
         }
-    }, [pk?.id, isOpen]);
+    }, [pk, isOpen, setData, clearErrors]);
 
     const setField = <K extends keyof PerjanjianKinerjaFormData>(
         field: K,

@@ -141,7 +141,7 @@ export const Modal: React.FC<ModalProps> = ({
                 previousFocusedElement.current.focus();
             }
         };
-    }, [isOpen, modalId]);
+    }, [isOpen, modalId, autoFocus]);
 
     if (!isOpen) return null;
 
