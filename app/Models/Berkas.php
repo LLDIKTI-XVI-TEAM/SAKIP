@@ -46,6 +46,13 @@ class Berkas extends Model
         'dihapus_oleh',
     ];
 
+    /**
+     * @var list<string>
+     */
+    protected $hidden = [
+        'path',
+    ];
+
     protected function casts(): array
     {
         return [

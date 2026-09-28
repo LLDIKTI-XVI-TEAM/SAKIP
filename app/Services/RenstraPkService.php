@@ -10,6 +10,7 @@ use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Support\PermissionCodes;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,11 @@ class RenstraPkService
      */
     public function create(array $data, User $actor): RenstraPk
     {
+        $createDecision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_CREATE);
+        if (! $createDecision->allowed) {
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.');
+        }
+
         $renstra = Renstra::findOrFail($data['renstra_id']);
         $tahun = (int) $data['tahun'];
 
@@ -108,6 +114,10 @@ class RenstraPkService
         }
 
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_UPDATE);
+        if (! $decision->allowed) {
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
+        }
+
         $storedPaths = [];
 
         try {
@@ -168,7 +178,14 @@ class RenstraPkService
             ]);
         }
 
-        $decision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
+        $pkUpdateDecision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_UPDATE);
+        $berkasDeleteDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
+
+        if (! $pkUpdateDecision->allowed || ! $berkasDeleteDecision->allowed) {
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk menghapus lampiran Perjanjian Kinerja.');
+        }
+
+        $decision = $berkasDeleteDecision;
         $path = null;
 
         $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, $decision, &$path): ?string {
@@ -181,7 +198,13 @@ class RenstraPkService
                     ->orWhere(fn ($sub) => $sub->where('renstra_id', $pkLocked->renstra_id)->where('tahun', $pkLocked->tahun));
             })->lockForUpdate()->get();
 
-            if ($jadwalTerkait->contains(fn ($j) => $j->status === 'aktif')) {
+            $isJadwalMengunci = $jadwalTerkait->contains(function ($j) {
+                return $j->status === 'aktif'
+                    || $j->status === 'ditutup'
+                    || ! is_null($j->activated_at);
+            });
+
+            if ($isJadwalMengunci) {
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'berkas.hapus_ditolak',
@@ -260,9 +283,7 @@ class RenstraPkService
     {
         $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
         if (! $uploadDecision->allowed) {
-            throw ValidationException::withMessages([
-                'lampiran' => 'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.',
-            ]);
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
         }
 
         $adaFile = false;
@@ -394,8 +415,17 @@ class RenstraPkService
      */
     protected function hapusFile(array $paths): void
     {
-        if ($paths !== []) {
-            Storage::disk('local')->delete($paths);
+        foreach ($paths as $path) {
+            try {
+                $deleted = Storage::disk('local')->delete($path);
+                if (! $deleted && Storage::disk('local')->exists($path)) {
+                    Log::warning('Storage::delete() mengembalikan false saat rollback lampiran PK, menjadwalkan CleanupStorageFileJob.', ['path' => $path]);
+                    CleanupStorageFileJob::dispatch($path, 'local');
+                }
+            } catch (Throwable $e) {
+                Log::warning('Gagal menghapus file lampiran PK dari storage saat rollback: '.$e->getMessage(), ['path' => $path]);
+                CleanupStorageFileJob::dispatch($path, 'local');
+            }
         }
     }
 

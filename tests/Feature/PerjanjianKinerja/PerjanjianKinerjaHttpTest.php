@@ -77,6 +77,13 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://rahasia.example.com/pk-link',
+            'nama_asli' => 'Dokumen Tautan PK',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
         $this->actingAs($this->pegawai)
             ->get('/perjanjian-kinerja')
             ->assertOk()
@@ -85,6 +92,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
                 ->has('perjanjianKinerja')
             );
 
+        // Pegawai tanpa izin berkas:read tidak boleh melihat path, tautan, atau isi_teks
         $this->actingAs($this->pegawai)
             ->get("/perjanjian-kinerja/{$pk->id}")
             ->assertOk()
@@ -92,6 +100,22 @@ class PerjanjianKinerjaHttpTest extends TestCase
                 ->component('PerjanjianKinerja/Show')
                 ->where('pk.id', $pk->id)
                 ->where('pk.nomor_pk', 'PK-2026-VIEW')
+                ->where('can.read_berkas', false)
+                ->where('can.delete_berkas', false)
+                ->missing('pk.berkas.0.path')
+                ->missing('pk.berkas.0.tautan')
+                ->missing('pk.berkas.0.isi_teks')
+            );
+
+        // Perencanaan dengan izin berkas:read dapat melihat tautan, namun storage path tetap hidden
+        $this->actingAs($this->perencanaan)
+            ->get("/perjanjian-kinerja/{$pk->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('PerjanjianKinerja/Show')
+                ->where('can.read_berkas', true)
+                ->where('pk.berkas.0.tautan', 'https://rahasia.example.com/pk-link')
+                ->missing('pk.berkas.0.path')
             );
     }
 
@@ -266,6 +290,79 @@ class PerjanjianKinerjaHttpTest extends TestCase
             ->assertSessionHasErrors('berkas');
     }
 
+    public function test_delete_lampiran_berkas_succeeds_when_jadwal_in_draft_status(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-2026-DRAFT',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/draft-pk-2',
+            'nama_asli' => 'Draf PK 2',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'draft',
+            'activated_at' => null,
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Hapus draf berkas sebelum jadwal aktif',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSoftDeleted($berkas);
+    }
+
+    public function test_delete_lampiran_berkas_fails_when_jadwal_closed_after_active(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-2026-CLOSED',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/closed-pk',
+            'nama_asli' => 'Closed PK Doc',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'ditutup',
+            'activated_at' => now()->subMonths(3),
+            'closed_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Mencoba hapus dokumen setelah jadwal ditutup',
+            ])
+            ->assertSessionHasErrors('berkas');
+
+        $this->assertDatabaseHas('berkas', [
+            'id' => $berkas->id,
+            'dihapus_pada' => null,
+        ]);
+    }
+
     public function test_download_lampiran_file(): void
     {
         $file = UploadedFile::fake()->create('dokumen_pk.pdf', 150, 'application/pdf');
@@ -288,12 +385,12 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'uploaded_by' => $this->perencanaan->id,
         ]);
 
-        // Pegawai tanpa izin berkas:read ditolak (Finding 2)
+        // Pegawai tanpa izin berkas:read ditolak
         $this->actingAs($this->pegawai)
             ->get("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}/unduh")
             ->assertForbidden();
 
-        // Perencanaan dengan izin berkas:read berhasil (Finding 2)
+        // Perencanaan dengan izin berkas:read berhasil
         $response = $this->actingAs($this->perencanaan)
             ->get("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}/unduh");
 
@@ -326,12 +423,18 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'uploaded_by' => $this->perencanaan->id,
         ]);
 
-        // Mencoba menghapus berkas milik PK B lewat endpoint PK A ditolak 403 Forbidden (Finding 13)
+        // Mencoba menghapus berkas milik PK B lewat endpoint PK A ditolak 404 Not Found
         $this->actingAs($this->perencanaan)
             ->delete("/perjanjian-kinerja/{$pkA->id}/berkas/{$berkasB->id}", [
                 'alasan' => 'Hapus berkas silang',
             ])
-            ->assertForbidden();
+            ->assertNotFound();
+
+        // Mismatch kepemilikan tidak boleh dicatat sebagai audit otorisasi ditolak
+        $this->assertDatabaseMissing('audit_log', [
+            'objek_id' => $berkasB->id,
+            'tindakan' => 'berkas.hapus_ditolak',
+        ]);
     }
 
     public function test_index_filters_and_validates_query_parameters(): void
@@ -492,5 +595,113 @@ class PerjanjianKinerjaHttpTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('tidak_memiliki_izin', $audit->nilai_baru['alasan_penolakan'] ?? null);
+    }
+
+    public function test_delete_lampiran_forbidden_with_explicit_deny_records_audit_log(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-DELETE-DENY',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-delete-deny',
+            'nama_asli' => 'Dokumen Delete Deny',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Berikan explicit deny berkas:delete kepada perencanaan
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:delete')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Uji coba explicit deny berkas:delete',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Mencoba menghapus dengan explicit deny',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_tipe' => 'berkas',
+            'objek_id' => $berkas->id,
+            'actor_id' => $this->perencanaan->id,
+        ]);
+    }
+
+    public function test_delete_lampiran_unauthorized_truncates_large_alasan_in_audit_log(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-LARGE-ALASAN',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-large-alasan',
+            'nama_asli' => 'Dokumen Large Alasan',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        $oversizedAlasan = str_repeat('A', 2500);
+
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => $oversizedAlasan,
+            ])
+            ->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        // Alasan harus dibatasi maksimal 1000 karakter dan tidak membocorkan payload tak terbatas
+        $this->assertSame(1000, mb_strlen($audit->alasan, 'UTF-8'));
+        $this->assertSame(str_repeat('A', 1000), $audit->alasan);
+    }
+
+    public function test_delete_lampiran_unauthorized_with_empty_or_malformed_alasan_handles_safely(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-EMPTY-ALASAN',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-empty-alasan',
+            'nama_asli' => 'Dokumen Empty Alasan',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => '   ',
+            ])
+            ->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('Tidak memiliki otorisasi', $audit->alasan);
     }
 }

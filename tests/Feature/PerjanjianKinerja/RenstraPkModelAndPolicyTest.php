@@ -59,6 +59,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
 
         $this->assertCount(1, $pk->fresh()->berkas);
         $this->assertTrue($pk->fresh()->berkas->first()->is($berkas));
+        $this->assertArrayNotHasKey('path', $berkas->toArray());
     }
 
     public function test_renstra_pk_policy_authorization(): void
@@ -130,7 +131,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertFalse($policy->uploadBerkas($pegawai, $pk));
         $this->assertFalse($policy->uploadBerkas($inactiveUser, $pk));
 
-        // User dengan izin pk:create tapi explicit deny berkas:upload ditolak (Finding 1)
+        // User dengan izin pk:create tapi explicit deny berkas:upload ditolak
         $userWithDenyUpload = User::factory()->create(['status' => 'aktif']);
         $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
         $userWithDenyUpload->roles()->attach($perencanaanRole->id, [
@@ -154,7 +155,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         ]);
         $this->assertFalse($policy->uploadBerkas($userWithDenyUpload));
 
-        // User tanpa role aktif ditolak fail-closed (Finding 1)
+        // User tanpa role aktif ditolak fail-closed
         $userWithoutActiveRole = User::factory()->create(['status' => 'aktif']);
         $inactiveRole = Role::create([
             'kode' => 'role_non_aktif',

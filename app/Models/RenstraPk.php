@@ -78,7 +78,11 @@ class RenstraPk extends Model
 
     public function isJadwalAktif(): bool
     {
-        return JadwalTahunan::where('status', 'aktif')
+        return JadwalTahunan::where(function ($q) {
+            $q->where('status', 'aktif')
+                ->orWhere('status', 'ditutup')
+                ->orWhereNotNull('activated_at');
+        })
             ->where(function ($q) {
                 $q->where('renstra_pk_id', $this->id)
                     ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));

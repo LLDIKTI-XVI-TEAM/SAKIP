@@ -2,17 +2,23 @@
 
 namespace Tests\Feature\PerjanjianKinerja;
 
+use App\Jobs\CleanupStorageFileJob;
 use App\Models\AuditLog;
 use App\Models\Berkas;
 use App\Models\JadwalTahunan;
+use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\RenstraPkService;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -290,5 +296,275 @@ class RenstraPkServiceTest extends TestCase
         $this->assertSame($this->actor->id, $audit->actor_id);
         $this->assertSame('Mencoba hapus saat jadwal aktif', $audit->alasan);
         $this->assertSame(['alasan_penolakan' => 'jadwal_tahunan_aktif'], $audit->nilai_baru);
+    }
+
+    public function test_delete_berkas_succeeds_when_jadwal_tahunan_in_draft_status(): void
+    {
+        $file = UploadedFile::fake()->create('pk_lampiran_draft.pdf', 100);
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-2026-DRAFT',
+            'tanggal_pk' => '2026-01-10',
+            'lampiran' => [
+                ['mode' => 'file', 'file' => $file],
+            ],
+        ], $this->actor);
+
+        $berkas = $pk->berkas->first();
+
+        // Buat Jadwal Tahunan berstatus draft yang belum pernah diaktifkan
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'draft',
+            'activated_at' => null,
+        ]);
+
+        $this->service->deleteBerkas($pk, $berkas, 'Hapus lampiran selagi jadwal masih draf', $this->actor);
+
+        $this->assertSoftDeleted($berkas);
+    }
+
+    public function test_delete_berkas_rejected_when_jadwal_tahunan_closed_after_active(): void
+    {
+        $file = UploadedFile::fake()->create('pk_lampiran_closed.pdf', 100);
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-2026-CLOSED',
+            'tanggal_pk' => '2026-01-10',
+            'lampiran' => [
+                ['mode' => 'file', 'file' => $file],
+            ],
+        ], $this->actor);
+
+        $berkas = $pk->berkas->first();
+
+        // Jadwal Tahunan yang sudah ditutup setelah pernah aktif
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'ditutup',
+            'activated_at' => now()->subMonths(6),
+            'closed_at' => now(),
+        ]);
+
+        try {
+            $this->service->deleteBerkas($pk, $berkas, 'Mencoba hapus lampiran saat jadwal ditutup', $this->actor);
+            $this->fail('Penolakan hapus lampiran PK harus melempar ValidationException ketika jadwal sudah pernah aktif dan ditutup.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('berkas', $e->errors());
+        }
+
+        // Berkas tetap tidak terhapus
+        $this->assertDatabaseHas('berkas', [
+            'id' => $berkas->id,
+            'dihapus_pada' => null,
+        ]);
+
+        // Audit log penolakan tercatat
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame(['alasan_penolakan' => 'jadwal_tahunan_aktif'], $audit->nilai_baru);
+    }
+
+    public function test_create_pk_via_service_rejected_when_actor_lacks_pk_create(): void
+    {
+        $pegawai = User::factory()->create(['status' => 'aktif']);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $pegawai->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-NOAUTH',
+            'tanggal_pk' => '2026-01-10',
+        ], $pegawai);
+    }
+
+    public function test_update_pk_via_service_rejected_when_actor_lacks_pk_update(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-INIT',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $pegawai = User::factory()->create(['status' => 'aktif']);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $pegawai->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service->update($pk, [
+            'nomor_pk' => 'PK-MODIFIED',
+        ], 'Alasan update', $pegawai);
+    }
+
+    public function test_delete_berkas_via_service_rejected_when_actor_lacks_pk_update_or_berkas_delete(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-BERKAS',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'nama_asli' => 'Tautan Draf',
+            'tautan' => 'https://example.com/draft',
+            'uploaded_by' => $this->actor->id,
+        ]);
+
+        // Pegawai tidak punya pk:update maupun berkas:delete
+        $pegawai = User::factory()->create(['status' => 'aktif']);
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $pegawai->roles()->attach($pegawaiRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        try {
+            $this->service->deleteBerkas($pk, $berkas, 'Coba hapus tanpa izin', $pegawai);
+            $this->fail('Actor tanpa izin harus melempar AuthorizationException.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseHas('berkas', ['id' => $berkas->id, 'dihapus_pada' => null]);
+        }
+
+        // User dengan explicit deny berkas:delete ditolak meski punya pk:update
+        $userDeny = User::factory()->create(['status' => 'aktif']);
+        $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
+        $userDeny->roles()->attach($perencanaanRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $userDeny->id,
+            'permission_id' => Permission::where('kode', 'berkas:delete')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Deny delete berkas',
+            'ditetapkan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        try {
+            $this->service->deleteBerkas($pk, $berkas, 'Coba hapus dengan explicit deny', $userDeny);
+            $this->fail('Actor dengan explicit deny berkas:delete harus ditolak.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseHas('berkas', ['id' => $berkas->id, 'dihapus_pada' => null]);
+        }
+    }
+
+    public function test_simpan_lampiran_via_service_rejected_when_actor_lacks_berkas_upload(): void
+    {
+        $userDenyUpload = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $userDenyUpload->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $userDenyUpload->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Deny upload berkas',
+            'ditetapkan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPLOAD-DENY',
+            'tanggal_pk' => '2026-01-10',
+            'lampiran' => [
+                [
+                    'mode' => 'tautan',
+                    'tautan' => 'https://example.com/doc',
+                    'nama_asli' => 'Doc Tautan',
+                ],
+            ],
+        ], $userDenyUpload);
+    }
+
+    public function test_rollback_upload_dispatches_cleanup_job_when_storage_delete_fails(): void
+    {
+        Queue::fake([CleanupStorageFileJob::class]);
+
+        $fakeDisk = \Mockery::mock(Filesystem::class);
+        $fakeDisk->shouldReceive('delete')->with('test-orphan.pdf')->andReturn(false);
+        $fakeDisk->shouldReceive('exists')->with('test-orphan.pdf')->andReturn(true);
+        Storage::set('local', $fakeDisk);
+
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('hapusFile');
+        $method->invoke($this->service, ['test-orphan.pdf']);
+
+        Queue::assertPushed(CleanupStorageFileJob::class, function ($job) {
+            return $job->path === 'test-orphan.pdf' && $job->disk === 'local';
+        });
+    }
+
+    public function test_cleanup_storage_job_does_not_delete_file_in_use_by_active_berkas(): void
+    {
+        Storage::clearResolvedInstances();
+        Storage::fake('local');
+        $path = 'berkas/renstra_pk/active-in-use.pdf';
+        Storage::disk('local')->put($path, 'data');
+
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-ACTIVE-BERKAS',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'file',
+            'nama_asli' => 'active.pdf',
+            'path' => $path,
+            'uploaded_by' => $this->actor->id,
+        ]);
+
+        // Job dijalankan saat berkas masih aktif -> file tidak boleh dihapus
+        $job = new CleanupStorageFileJob($path, 'local');
+        $job->handle();
+        Storage::disk('local')->assertExists($path);
+
+        // Soft delete berkas
+        $berkas->delete();
+
+        // Job dijalankan saat berkas sudah terhapus -> file berhasil dihapus
+        $job->handle();
+        Storage::disk('local')->assertMissing($path);
     }
 }

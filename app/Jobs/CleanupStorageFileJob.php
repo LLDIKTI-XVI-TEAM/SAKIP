@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Berkas;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,6 +34,13 @@ class CleanupStorageFileJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Jangan hapus jika file masih aktif digunakan oleh record Berkas (tidak di-soft-delete)
+        if (Berkas::where('path', $this->path)->whereNull('dihapus_pada')->exists()) {
+            Log::info('Pembersihan berkas dibatalkan: berkas masih aktif digunakan oleh record berkas.');
+
+            return;
+        }
+
         $storage = Storage::disk($this->disk);
 
         if (! $storage->exists($this->path)) {

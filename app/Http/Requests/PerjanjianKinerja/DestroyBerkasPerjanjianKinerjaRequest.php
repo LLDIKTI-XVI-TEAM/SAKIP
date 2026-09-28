@@ -16,11 +16,14 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
         $pk = $this->route('perjanjian_kinerja');
         $berkas = $this->route('berkas');
 
-        return $pk instanceof RenstraPk
-            && $berkas instanceof Berkas
-            && in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true)
-            && $berkas->berkasable_id === $pk->id
-            && ($this->user()?->can('deleteBerkas', $pk) ?? false);
+        if (! $pk instanceof RenstraPk
+            || ! $berkas instanceof Berkas
+            || $berkas->berkasable_id !== $pk->id
+            || ! in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true)) {
+            abort(404, 'Lampiran tidak ditemukan untuk Perjanjian Kinerja ini.');
+        }
+
+        return $this->user()?->can('deleteBerkas', $pk) ?? false;
     }
 
     /**
@@ -36,15 +39,24 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         $user = $this->user();
+        $pk = $this->route('perjanjian_kinerja');
         $berkas = $this->route('berkas');
 
-        if ($user && $berkas instanceof Berkas) {
+        if ($user && $pk instanceof RenstraPk && $berkas instanceof Berkas
+            && $berkas->berkasable_id === $pk->id
+            && in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true)) {
             $resolver = app(PermissionResolver::class);
             $updateDecision = $resolver->resolve($user, PermissionCodes::PK_UPDATE);
             $deleteDecision = $resolver->resolve($user, PermissionCodes::BERKAS_DELETE);
 
             $primaryDecision = ! $updateDecision->allowed ? $updateDecision : $deleteDecision;
-            $alasan = $this->input('alasan');
+            $rawAlasan = $this->input('alasan');
+            $alasan = is_string($rawAlasan) ? trim($rawAlasan) : '';
+            if ($alasan !== '') {
+                $alasan = mb_substr($alasan, 0, 1000, 'UTF-8');
+            } else {
+                $alasan = 'Tidak memiliki otorisasi';
+            }
 
             $metadata = [
                 'id' => $berkas->id,
@@ -74,7 +86,7 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
                 objekId: $berkas->id,
                 nilaiLama: $metadata,
                 nilaiBaru: ['alasan_penolakan' => 'tidak_memiliki_izin'],
-                alasan: is_string($alasan) && trim($alasan) !== '' ? trim($alasan) : null,
+                alasan: $alasan,
                 dasarIzin: $primaryDecision->toAuditBasis(),
             );
         }
