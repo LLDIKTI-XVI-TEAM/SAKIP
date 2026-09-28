@@ -127,7 +127,7 @@ final class PermissionCodes
     }
 
     /**
-     * 9 Kode Permission Scope Unit untuk Form Grant (§6)
+     * 7 Kode Permission Scope Unit untuk Form Grant (§6, ISS-01.04, Q32)
      *
      * @return list<string>
      */

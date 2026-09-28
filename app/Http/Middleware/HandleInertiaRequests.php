@@ -107,8 +107,7 @@ class HandleInertiaRequests extends Middleware
                 && $resolver->allows($user, 'akses:update'),
             'manageDeny' => $resolver->allows($user, 'akses:update'),
             'unit' => $resolver->allows($user, 'unit:read'),
-            'grant' => $resolver->allows($user, 'akses:update')
-                && $user->hasAnyRole(['admin', 'superadmin']),
+            'grant' => $resolver->allows($user, 'delegasi:update'),
             'viewRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
