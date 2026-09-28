@@ -34,7 +34,7 @@ class UpdateIndikator extends Controller
             // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
             /** @var User|null $lockedActor */
             $lockedActor = User::whereKey($actor->id)->lockForUpdate()->first();
-            if (! $lockedActor || ! $lockedActor->is_active) {
+            if (! $lockedActor || $lockedActor->status !== 'aktif') {
                 return [
                     'status' => 'denied',
                     'dasarIzin' => [

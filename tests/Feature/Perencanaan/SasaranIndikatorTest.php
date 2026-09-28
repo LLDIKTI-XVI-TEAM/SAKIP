@@ -1358,10 +1358,10 @@ class SasaranIndikatorTest extends TestCase
         // Simulasikan race condition: pengguna aktif saat lolos middleware awal,
         // namun baris pengguna di basis data dinonaktifkan sebelum transaksi memperoleh lock.
         $this->withoutMiddleware(EnsureUserIsActive::class);
-        DB::table('users')->where('id', $this->perencanaan->id)->update(['is_active' => false]);
-        $this->perencanaan->is_active = true;
+        DB::table('users')->where('id', $this->perencanaan->id)->update(['status' => 'nonaktif']);
+        $this->perencanaan->status = 'aktif';
 
-        // Store ditolak di dalam transaksi karena query lock memuat ulang is_active = false
+        // Store ditolak di dalam transaksi karena query lock memuat ulang status = nonaktif
         $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-INACTIVE-NEW',
@@ -1373,7 +1373,7 @@ class SasaranIndikatorTest extends TestCase
         ]);
         $responseStore->assertForbidden();
 
-        // Update ditolak di dalam transaksi karena query lock memuat ulang is_active = false
+        // Update ditolak di dalam transaksi karena query lock memuat ulang status = nonaktif
         $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-INACTIVE-EDIT',
@@ -1386,7 +1386,7 @@ class SasaranIndikatorTest extends TestCase
         $responseUpdate->assertForbidden();
 
         // Kembalikan status akun di basis data
-        DB::table('users')->where('id', $this->perencanaan->id)->update(['is_active' => true]);
+        DB::table('users')->where('id', $this->perencanaan->id)->update(['status' => 'aktif']);
         $this->perencanaan->refresh();
     }
 
@@ -1594,7 +1594,7 @@ class SasaranIndikatorTest extends TestCase
         $role = Role::where('kode', $roleName)->firstOrFail();
         $user = User::factory()->create([
             'email' => $email,
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $user->roles()->attach($role->id, [

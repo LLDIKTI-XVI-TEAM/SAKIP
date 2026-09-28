@@ -40,13 +40,13 @@ class SeedDemoPengukuran extends Command
         try {
             // 1. Ambil Pengguna Aktif (utamakan yang memiliki peran perencanaan atau superadmin)
             $user = User::where('email', 'dayensite@gmail.com')
-                ->where('is_active', true)
+                ->where('status', 'aktif')
                 ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
                 ->first()
-                ?? User::where('is_active', true)
+                ?? User::where('status', 'aktif')
                     ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
                     ->first()
-                ?? User::where('is_active', true)->first();
+                ?? User::where('status', 'aktif')->first();
 
             if (! $user) {
                 $this->error('Pengguna aktif dengan wewenang yang sesuai tidak ditemukan di sistem.');
