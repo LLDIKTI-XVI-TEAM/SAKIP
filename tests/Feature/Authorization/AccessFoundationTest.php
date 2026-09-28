@@ -53,7 +53,7 @@ class AccessFoundationTest extends TestCase
     public function test_resolver_evaluates_live_roles_grants_scopes_and_deny_without_superadmin_bypass(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'superadmin')->firstOrFail();
         $role->permissions()->detach();
         $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
@@ -88,7 +88,7 @@ class AccessFoundationTest extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $resolver = app(PermissionResolver::class);
         foreach (['perencanaan', 'superadmin'] as $code) {
-            $user = User::factory()->create(['is_active' => true]);
+            $user = User::factory()->create(['status' => 'aktif']);
             $role = Role::where('kode', $code)->sole();
             $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
             foreach (['A', 'B'] as $name) {
@@ -131,7 +131,7 @@ class AccessFoundationTest extends TestCase
     public function test_pegawai_work_access_requires_explicit_grant_and_obeys_deny(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'pegawai')->sole();
         $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $permission = Permission::where('kode', 'pengukuran:update')->sole();
@@ -151,7 +151,7 @@ class AccessFoundationTest extends TestCase
     public function test_global_permission_is_checked_against_the_target_unit_deny(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $user->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $unit = Unit::create(['nama' => 'Unit A', 'created_by' => $user->id]);
         $permission = Permission::where('kode', 'pengukuran:read')->firstOrFail();
@@ -165,7 +165,7 @@ class AccessFoundationTest extends TestCase
     public function test_grants_cannot_allow_a_user_without_an_active_official_role(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $permission = Permission::where('kode', 'dashboard:read')->sole();
         DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => null, 'alasan' => 'Fixture', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $resolver = app(PermissionResolver::class);
@@ -184,7 +184,7 @@ class AccessFoundationTest extends TestCase
     public function test_active_permission_outside_release_catalog_cannot_allow_through_role_or_grant(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'pegawai')->sole();
         $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         $permission = Permission::create(['kode' => 'legacy:aksi', 'entitas' => 'legacy', 'aksi' => 'aksi', 'butuh_scope' => 'global', 'aktif' => true]);
@@ -211,7 +211,7 @@ class AccessFoundationTest extends TestCase
     {
         $user = User::factory()->create();
         $writer = app(WriteAuditLog::class);
-        $audit = $writer->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Pendaftaran SSO', 'nilai_baru' => ['role' => 'pegawai']]);
+        $audit = $writer->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'pengguna.terdaftar', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Pendaftaran SSO', 'nilai_baru' => ['status' => 'nonaktif']]);
         $this->assertNull($audit->actor_id);
         $this->assertDatabaseCount('audit_log', 1);
         $this->expectException(\LogicException::class);
@@ -227,7 +227,7 @@ class AccessFoundationTest extends TestCase
     public function test_database_rejects_raw_update_and_delete_of_final_audit_records(): void
     {
         $user = User::factory()->create();
-        $audit = app(WriteAuditLog::class)->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Pendaftaran SSO']);
+        $audit = app(WriteAuditLog::class)->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'pengguna.terdaftar', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Pendaftaran SSO']);
         foreach ([
             fn () => DB::table('audit_log')->where('id', $audit->id)->update(['alasan' => 'Jejak diganti']),
             fn () => DB::table('audit_log')->where('id', $audit->id)->delete(),
@@ -282,6 +282,6 @@ class AccessFoundationTest extends TestCase
             $this->assertDatabaseCount('user_permission_granted', 0);
         }
         $this->expectException(\InvalidArgumentException::class);
-        UserRole::create(['user_id' => $user->id, 'role_id' => Role::where('kode', 'superadmin')->firstOrFail()->id, 'sumber_pemberian' => 'sso_onboarding']);
+        UserRole::create(['user_id' => $user->id, 'role_id' => Role::where('kode', 'pegawai')->firstOrFail()->id, 'sumber_pemberian' => 'sso_onboarding']);
     }
 }

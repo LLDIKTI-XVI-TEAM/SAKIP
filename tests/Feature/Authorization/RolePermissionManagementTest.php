@@ -23,7 +23,7 @@ class RolePermissionManagementTest extends TestCase
     {
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
-        $this->actor = User::factory()->create(['is_active' => true]);
+        $this->actor = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'pegawai')->sole();
         $this->actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
         DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $this->actor->id, 'permission_id' => Permission::where('kode', 'pengguna:read')->value('id'), 'unit_id' => null, 'alasan' => 'Hak lihat katalog', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
@@ -48,7 +48,7 @@ class RolePermissionManagementTest extends TestCase
     {
         DB::table('user_permission_granted')->delete();
         $this->get('/akses/izin-peran')->assertForbidden();
-        $this->actor->update(['is_active' => false]);
+        $this->actor->update(['status' => 'nonaktif']);
         $this->get('/akses/izin-peran')->assertRedirect(route('auth.pending'));
     }
 

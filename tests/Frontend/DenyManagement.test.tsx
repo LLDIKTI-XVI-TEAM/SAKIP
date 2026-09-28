@@ -11,7 +11,7 @@ import type { DenyIndexProps, DenyRow } from '@/types/deny';
 const currentPage = vi.hoisted(() => ({ props: { auth: { user: { id: 'operator' } } }, flash: {} as Record<string, unknown> }));
 vi.mock('@inertiajs/react', async (original) => ({ ...await original<typeof import('@inertiajs/react')>(), Head: () => null, usePage: () => currentPage }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
-const target = { id: 'target', nama: 'Ayu', email: 'ayu@example.test', is_active: false };
+const target = { id: 'target', nama: 'Ayu', email: 'ayu@example.test', status: 'nonaktif' as const };
 const permission = { id: 'permission', kode: 'pengukuran:update', keterangan: null, butuh_scope: 'unit' as const };
 const unit = { id: 'unit', nama: 'Unit A', status: 'nonaktif' as const };
 const deny: DenyRow = { id: 'deny-original', user: target, permission: { ...permission, aktif: false }, unit, alasan: 'Alasan awal', ditetapkan_oleh: { id: 'operator', nama: 'Operator' }, created_at: '2026-01-01T00:00:00Z' };

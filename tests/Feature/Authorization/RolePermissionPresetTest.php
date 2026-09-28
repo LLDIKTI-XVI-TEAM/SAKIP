@@ -254,8 +254,11 @@ class RolePermissionPresetTest extends TestCase
 
     public function test_migration_preserves_old_audit_and_release_does_not_globalize_legacy_unit_grants(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
-        $historical = app(WriteAuditLog::class)->handle(['actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Histori onboarding']);
+        $user = User::factory()->create(['status' => 'aktif']);
+        // Fixture historis melewati writer baru yang tidak lagi menerbitkan assignment onboarding.
+        $historicalId = (string) Str::uuid();
+        DB::table('audit_log')->insert(['id' => $historicalId, 'waktu' => now(), 'actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'alasan' => 'Histori onboarding']);
+        $historical = AuditLog::findOrFail($historicalId);
         $before = $historical->fresh()->getRawOriginal();
         $migration = require database_path('migrations/2026_09_27_000001_allow_preset_release_audit.php');
         $creationMigration = require database_path('migrations/2026_09_27_000002_allow_role_creation_release_audit.php');

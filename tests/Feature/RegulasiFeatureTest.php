@@ -528,7 +528,7 @@ test('penolakan hapus lampiran diaudit terhadap lampiran yang dituju', function 
 });
 
 test('pengguna tanpa peran tidak menerima permission regulasi', function (): void {
-    $tanpaPeran = User::factory()->create(['is_active' => true]);
+    $tanpaPeran = User::factory()->create(['status' => 'aktif']);
 
     $this->actingAs($tanpaPeran)
         ->get('/regulasi')
@@ -626,7 +626,7 @@ test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (): voi
 function userDenganRole(string $roleName, string $email): User
 {
     $role = Role::query()->where('kode', $roleName)->firstOrFail();
-    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user = User::factory()->create(['email' => $email, 'status' => 'aktif']);
     $user->roles()->attach($role->id, [
         'id' => (string) Str::uuid(),
         'sumber_pemberian' => 'manual',

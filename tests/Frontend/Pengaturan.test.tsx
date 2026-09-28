@@ -13,7 +13,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         Head: () => null,
         usePage: () => ({
             props: {
-                auth: { user: { id: 'admin-id', nama: 'Admin', email: 'admin@example.test', is_active: true, role: 'admin' }, can: { pengaturan: true } },
+                auth: { user: { id: 'admin-id', nama: 'Admin', email: 'admin@example.test', status: 'aktif', role: 'admin' }, can: { pengaturan: true } },
                 flash: {},
             },
         }),

@@ -34,7 +34,7 @@ class BootstrapSuperadminCommandTest extends TestCase
             ->expectsConfirmation('Aktifkan akun ini sebagai Super Admin?', 'yes')
             ->assertExitCode(0);
 
-        $this->assertTrue($user->fresh()->is_active);
+        $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame('superadmin', $user->roles()->first()->kode);
         $this->assertDatabaseCount('auth_bootstraps', 1);
     }
@@ -55,7 +55,7 @@ class BootstrapSuperadminCommandTest extends TestCase
             '--no-interaction' => true,
         ])->assertExitCode(1);
 
-        $this->assertFalse($user->fresh()->is_active);
+        $this->assertSame('nonaktif', $user->fresh()->status);
         $this->assertDatabaseCount('auth_bootstraps', 0);
         $this->assertDatabaseCount('role_permissions', 165);
     }

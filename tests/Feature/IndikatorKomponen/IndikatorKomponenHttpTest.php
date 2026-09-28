@@ -71,7 +71,7 @@ class IndikatorKomponenHttpTest extends TestCase
 
     private function userWithRole(string $kode): User
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', $kode)->firstOrFail();
         $user->roles()->attach($role->id, [
             'id' => (string) Str::uuid(),

@@ -34,14 +34,14 @@ class DenyManagement
     {
         $search = $this->search($request);
         $rows = UserPermissionDeny::select(['id', 'user_id', 'permission_id', 'unit_id', 'alasan', 'ditetapkan_oleh', 'created_at'])
-            ->with(['user:id,nama,email,is_active', 'permission:id,kode,keterangan,butuh_scope,aktif', 'unit:id,nama,status', 'penetap:id,nama'])
+            ->with(['user:id,nama,email,status', 'permission:id,kode,keterangan,butuh_scope,aktif', 'unit:id,nama,status', 'penetap:id,nama'])
             ->when($search !== '', fn ($query) => $query->whereHas('user', fn ($user) => $user
                 ->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%'))))
             ->orderByDesc('created_at')->orderByDesc('id')->simplePaginate(20)->withQueryString();
 
         return Inertia::render('Access/DenyIndex', [
             'denies' => $rows->getCollection()->map(fn (UserPermissionDeny $deny) => [
-                'id' => $deny->id, 'user' => $deny->user->only(['id', 'nama', 'email', 'is_active']),
+                'id' => $deny->id, 'user' => $deny->user->only(['id', 'nama', 'email', 'status']),
                 'permission' => $deny->permission->only(['id', 'kode', 'keterangan', 'butuh_scope', 'aktif']),
                 'unit' => $deny->unit?->only(['id', 'nama', 'status']), 'alasan' => $deny->alasan,
                 'ditetapkan_oleh' => $deny->penetap->only(['id', 'nama']), 'created_at' => $deny->created_at->toISOString(),
@@ -54,11 +54,11 @@ class DenyManagement
     public function users(Request $request): JsonResponse
     {
         $search = $this->search($request);
-        $rows = User::select(['id', 'nama', 'email', 'is_active'])
+        $rows = User::select(['id', 'nama', 'email', 'status'])
             ->when($search !== '', fn ($query) => $query->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%')))
             ->orderBy('nama')->orderBy('id')->simplePaginate(20);
 
-        return response()->json(['items' => $rows->getCollection()->map(fn (User $user) => $user->only(['id', 'nama', 'email', 'is_active']))->all(), 'page' => $rows->currentPage(), 'hasMore' => $rows->hasMorePages()]);
+        return response()->json(['items' => $rows->getCollection()->map(fn (User $user) => $user->only(['id', 'nama', 'email', 'status']))->all(), 'page' => $rows->currentPage(), 'hasMore' => $rows->hasMorePages()]);
     }
 
     public function units(Request $request): JsonResponse

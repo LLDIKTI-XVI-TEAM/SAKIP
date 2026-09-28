@@ -262,7 +262,7 @@ class PengaturanService
 
         $result = DB::transaction(function () use ($actor, $data, $auditReason, $expectedUpdatedAt, &$changedCount, &$changedKeys) {
             $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->first();
-            if (! $lockedActor || ! $lockedActor->is_active) {
+            if (! $lockedActor || $lockedActor->status !== 'aktif') {
                 return [
                     'status' => 'denied',
                     'denialReason' => 'Akun pengguna tidak aktif atau tidak ditemukan.',

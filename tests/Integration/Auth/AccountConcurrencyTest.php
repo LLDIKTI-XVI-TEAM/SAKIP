@@ -3,6 +3,7 @@
 namespace Tests\Integration\Auth;
 
 use App\Actions\Access\SyncRolePermissionPresets;
+use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\Permission;
 use App\Models\Role;
@@ -44,15 +45,16 @@ class AccountConcurrencyTest extends TestCase
         });
     }
 
-    public function test_two_concurrent_callbacks_create_one_identity_assignment_and_audit(): void
+    public function test_two_concurrent_callbacks_create_one_identity_without_assignment_and_one_audit(): void
     {
         $this->seed(AccessCatalogSeeder::class);
         $results = $this->race('provision', 'concurrent-subject', 'sakip:sso:concurrent-subject');
         $this->assertSame($results[0], $results[1]);
         $this->assertDatabaseCount('users', 1);
-        $this->assertDatabaseCount('user_roles', 1);
+        $this->assertDatabaseCount('user_roles', 0);
         $this->assertSame(1, DB::table('audit_log')->where('sumber', 'sso_onboarding')->count());
-        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'is_active' => false]);
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.terdaftar')->count());
+        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'status' => 'nonaktif']);
     }
 
     public function test_two_concurrent_bootstraps_install_privileges_and_audit_only_once(): void
@@ -64,17 +66,33 @@ class AccountConcurrencyTest extends TestCase
         $this->assertDatabaseCount('auth_bootstraps', 1);
         $this->assertDatabaseCount('role_permissions', 165);
         $this->assertDatabaseCount('user_roles', 1);
-        $this->assertTrue($user->fresh()->is_active);
+        $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
-        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'user_roles.ubah')->count());
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'user_roles.tambah')->where('sumber', 'bootstrap')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.aktivasi')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'auth.bootstrap')->count());
+    }
+
+    public function test_bootstrap_rechecks_candidate_after_waiting_for_activation_lock(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $target = app(ProvisionKeycloakUser::class)->handle(['subject' => 'activation-race', 'nama' => 'Fixture', 'email' => 'fixture@example.test']);
+        $prepare = fn () => app(ActivateUser::class)->handle($actor, $target->id, 'Aktivasi sah lebih dahulu');
+        $results = $this->race('bootstrap', $target->id, '', [['expect_ineligible' => true]], $prepare);
+        $this->assertSame(['ineligible'], $results);
+        $this->assertSame('aktif', $target->fresh()->status);
+        $this->assertSame(0, $target->roles()->count());
+        $this->assertDatabaseCount('auth_bootstraps', 0);
+        $this->assertSame(0, DB::table('audit_log')->where('sumber', 'bootstrap')->count());
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'pengguna.aktivasi')->count());
     }
 
     public function test_two_first_assignments_have_one_winner_and_one_stale_conflict(): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $actor = User::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['status' => 'aktif']);
         $target = User::factory()->create();
         $admin = Role::where('kode', 'admin')->sole();
         $actor->roles()->attach($admin->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
@@ -92,8 +110,8 @@ class AccountConcurrencyTest extends TestCase
     public function test_concurrent_deny_creates_and_revokes_have_one_winner(bool $scoped): void
     {
         $this->seed(AccessCatalogSeeder::class);
-        $actor = User::factory()->create(['is_active' => true]);
-        $target = User::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'admin')->sole();
         $actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
         $unitId = $scoped ? Unit::create(['nama' => 'Race unit', 'created_by' => $actor->id])->id : null;
@@ -137,7 +155,7 @@ class AccountConcurrencyTest extends TestCase
         $payloads = [['worker_operation' => 'sync-presets'], ['worker_operation' => 'bootstrap']];
         $results = $this->race('sync-presets', $user->id, 'sakip:initial-bootstrap', $payloads, $prepare);
         $this->assertSame([0, true], $results);
-        $this->assertTrue($user->fresh()->is_active);
+        $this->assertSame('aktif', $user->fresh()->status);
         $this->assertDatabaseCount('auth_bootstraps', 1);
         $this->assertSame(6, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
     }
