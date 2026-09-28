@@ -49,7 +49,7 @@ class PreviewPengukuranTest extends TestCase
         $this->postJson($url, [])->assertUnauthorized();
         $this->actingAs($this->userWithRole('pegawai'))->postJson($url, [])->assertForbidden();
         $inactive = $this->userWithRole('superadmin');
-        $inactive->update(['is_active' => false]);
+        $inactive->update(['status' => 'nonaktif']);
         $this->actingAs($inactive)->postJson($url, [])->assertRedirect('/auth/pending');
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id,
             'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'), 'unit_id' => $this->unit->id,

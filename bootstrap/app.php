@@ -19,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias(['auth' => AuthenticateWithRejectionMarker::class, 'active' => EnsureUserIsActive::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Exception autentikasi melewati header middleware; Back dari SSO tidak boleh memakai redirect lama.
+        $exceptions->respond(function ($response, Throwable $exception) {
+            if ($exception instanceof AuthenticationException) {
+                $response->headers->set('Cache-Control', 'no-store, private');
+            }
+
+            return $response;
+        });
         $recovery = static function (Request $request, int $status, string $reason, bool $rejected) {
             return response()->json([
                 'message' => $status === 401 ? 'Autentikasi diperlukan.' : 'Verifikasi keamanan permintaan gagal.',

@@ -21,7 +21,7 @@ class RoleAssignment
         abort_unless($permissions->allows($actor, 'pengguna:read') && $permissions->allows($actor, 'akses:update'), 403);
         $query = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'page' => ['nullable', 'integer', 'min:1']]);
         $search = trim($query['q'] ?? '');
-        $users = User::select(['id', 'nama', 'email', 'is_active'])
+        $users = User::select(['id', 'nama', 'email', 'status'])
             ->with('roles:id,kode,nama,aktif')
             ->when($search !== '', fn ($builder) => $builder->where(fn ($filter) => $filter
                 ->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%')))
@@ -30,7 +30,7 @@ class RoleAssignment
                 $role = $user->roles->first();
 
                 return [
-                    'id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'is_active' => $user->is_active,
+                    'id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status,
                     'current_role' => $role ? $role->only(['id', 'kode', 'nama', 'aktif']) : null,
                     'assignment' => $role ? $role->getRelation('pivot')->only(['id', 'role_id', 'audit_id']) : null,
                 ];

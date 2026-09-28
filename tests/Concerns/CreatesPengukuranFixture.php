@@ -66,7 +66,7 @@ trait CreatesPengukuranFixture
 
     protected function userWithRole(string $kode): User
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', $kode)->firstOrFail();
         $user->roles()->attach($role->id, ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
 

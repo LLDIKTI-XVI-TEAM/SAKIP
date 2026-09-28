@@ -4,7 +4,7 @@ export interface AuthUser {
     id: string;
     nama: string;
     email: string;
-    is_active: boolean;
+    status: 'aktif' | 'nonaktif';
     role: string | null;
 }
 
@@ -41,5 +41,5 @@ export interface SharedPageProps extends PageProps {
 }
 
 declare module '@inertiajs/core' {
-    interface PageFlashData { authRecoveryNotice?: 'no_replay' }
+    interface PageFlashData { authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable' }
 }

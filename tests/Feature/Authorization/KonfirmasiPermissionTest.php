@@ -182,7 +182,7 @@ class KonfirmasiPermissionTest extends TestCase
      */
     public function test_gates_and_resolver_enforce_server_side_authorization_and_deny_wins(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $unit = Unit::create(['nama' => 'Unit Uji Otorisasi', 'created_by' => $user->id]);
 
         $roleAdmin = Role::where('kode', 'admin')->firstOrFail();

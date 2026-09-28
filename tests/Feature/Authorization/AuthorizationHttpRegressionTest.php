@@ -69,7 +69,7 @@ class AuthorizationHttpRegressionTest extends TestCase
     public function test_matching_global_deny_overrides_role_allow_through_http(): void
     {
         $this->giveRolePermission('admin', 'unit:read');
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'admin');
 
         $this->actingAs($user)->get('/unit')->assertOk();
@@ -82,7 +82,7 @@ class AuthorizationHttpRegressionTest extends TestCase
     public function test_inactive_permission_fails_closed_through_http(): void
     {
         $this->giveRolePermission('admin', 'unit:read');
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'admin');
 
         Permission::where('kode', 'unit:read')->sole()->update(['aktif' => false]);
@@ -93,7 +93,7 @@ class AuthorizationHttpRegressionTest extends TestCase
     public function test_direct_url_without_permission_is_forbidden_through_http(): void
     {
         // Pegawai tidak membawa unit:create dari presetnya; tombol create disembunyikan via can.*.
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'pegawai');
 
         $this->actingAs($user)->post('/unit', ['nama' => 'Unit Percobaan', 'status' => 'aktif'])->assertForbidden();
@@ -102,7 +102,7 @@ class AuthorizationHttpRegressionTest extends TestCase
 
     public function test_matching_unit_deny_overrides_grant_only_allow_through_http(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'pegawai');
         $this->grant($user, 'pengukuran:update');
         // Assignment test dimulai 2026-02-01, lebih baru dari fixture 2026-01-01,
@@ -126,7 +126,7 @@ class AuthorizationHttpRegressionTest extends TestCase
     public function test_unit_grant_allows_matching_unit_and_denies_other_unit_through_http(): void
     {
         // Pegawai tanpa allow global `pengukuran:update`; hak isi dibentuk semata lewat Grant Unit A.
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'pegawai');
         $this->grant($user, 'pengukuran:update');
         // Assignment test dimulai 2026-02-01, lebih baru dari fixture 2026-01-01,
@@ -163,7 +163,7 @@ class AuthorizationHttpRegressionTest extends TestCase
 
     public function test_unknown_permission_fails_closed_through_http(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'pegawai');
         $this->registerPermissionProbe('tidak:ada');
 
@@ -177,7 +177,7 @@ class AuthorizationHttpRegressionTest extends TestCase
         // Allow yang secara basis data tampak valid terhadap role superadmin.
         $this->giveRolePermission('superadmin', 'legacy:akses');
         $this->assertDatabaseHas('role_permissions', ['permission_id' => $legacy->id]);
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'superadmin');
         $this->registerPermissionProbe('legacy:akses');
 
@@ -191,7 +191,7 @@ class AuthorizationHttpRegressionTest extends TestCase
 
     public function test_undefined_gate_ability_is_rejected(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $this->assign($user, 'pegawai');
 
         // Ability tanpa definisi dievaluasi sebagai user terautentikasi, bukan guest,

@@ -82,6 +82,25 @@ class KeycloakIdentityProvider extends Provider
         }
     }
 
+    public function ssoLogoutUrl(): string
+    {
+        $landing = config('services.keycloak.post_logout_redirect');
+        $callback = config('services.keycloak.redirect');
+        if (! is_string($landing) || ! self::safeUrl($landing) || ! is_string($callback) || ! self::safeUrl($callback)) {
+            throw new UnexpectedValueException('Landing logout tidak valid.');
+        }
+        $return = parse_url($landing);
+        $origin = parse_url($callback);
+        if (($return['path'] ?? '') !== '/auth/logged-out'
+            || strtolower($return['scheme']) !== strtolower($origin['scheme'])
+            || strtolower($return['host']) !== strtolower($origin['host'])
+            || ($return['port'] ?? ($return['scheme'] === 'https' ? 443 : 80)) !== ($origin['port'] ?? ($origin['scheme'] === 'https' ? 443 : 80))) {
+            throw new UnexpectedValueException('Landing logout harus berada pada origin callback SAKIP.');
+        }
+
+        return $this->getLogoutUrl($landing, $this->clientId);
+    }
+
     private function json(string $url): array
     {
         return json_decode((string) $this->getHttpClient()->get($url)->getBody(), true, 32, JSON_THROW_ON_ERROR);

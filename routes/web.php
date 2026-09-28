@@ -8,7 +8,9 @@ use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\SearchGrantUsers;
 use App\Http\Controllers\Akses\StoreGrant;
 use App\Http\Controllers\Auth\KeycloakCallback;
+use App\Http\Controllers\Auth\PendingAccount;
 use App\Http\Controllers\Auth\ProcessLogout;
+use App\Http\Controllers\Auth\ProcessSsoLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
@@ -63,9 +65,8 @@ Route::get('/auth/logged-out', function () {
     return Inertia::render('Auth/LoggedOut');
 })->name('auth.logged-out');
 Route::post('/logout', ProcessLogout::class)->name('logout')->block();
-Route::get('/auth/pending', function (Request $request) {
-    return $request->user()->fresh()->is_active ? redirect()->route('dashboard') : Inertia::render('Auth/Pending');
-})->middleware('auth')->name('auth.pending');
+Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block();
+Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');

@@ -37,7 +37,8 @@ class SessionRecoveryTest extends TestCase
         $this->assertStringNotContainsString('canary', $response->getContent());
         $this->assertDatabaseCount('user_roles', 0);
         $this->assertDatabaseCount('audit_log', $before);
-        $this->get('/dashboard')->assertRedirect('/login');
+        $redirect = $this->get('/dashboard')->assertRedirect('/login');
+        $this->assertStringContainsString('no-store', $redirect->headers->get('Cache-Control'));
         $this->getJson('/dashboard')->assertUnauthorized();
     }
 
@@ -70,6 +71,23 @@ class SessionRecoveryTest extends TestCase
             ->assertUnauthorized()->assertJsonPath('recovery.rejected.method', 'GET')
             ->assertJsonPath('recovery.rejected.path', '/dashboard');
         $this->assertSame('After commit', $target->fresh()->nama);
+    }
+
+    public function test_logout_token_checks_precede_cleanup_and_same_origin_framework_path_remains_valid(): void
+    {
+        $this->app->bind(PreventRequestForgery::class, ChecksRequestForgeryInTests::class);
+        foreach (['/logout', '/logout/sso'] as $path) {
+            $user = User::factory()->create();
+            foreach ([[], ['_token' => 'wrong']] as $payload) {
+                $this->actingAs($user)->withSession(['_token' => 'valid'])->post($path, $payload, ['X-Inertia' => 'true'])
+                    ->assertStatus(419)->assertJsonPath('recovery.rejected', ['method' => 'POST', 'path' => $path, 'before_action' => true]);
+                $this->assertAuthenticatedAs($user);
+            }
+            $this->post($path, [], ['Sec-Fetch-Site' => 'same-origin'])->assertRedirect();
+            $this->assertGuest();
+            $this->withSession(['_token' => 'valid'])->post($path, ['_token' => 'valid'])->assertRedirect();
+            $this->assertGuest();
+        }
     }
 
     public function test_downstream_auth_and_generic_419_do_not_claim_before_action(): void

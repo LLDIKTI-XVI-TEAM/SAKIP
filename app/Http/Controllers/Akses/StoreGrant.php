@@ -55,7 +55,7 @@ class StoreGrant extends Controller
                 'required',
                 'bail',
                 'uuid',
-                Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('status', 'aktif')),
             ],
             'permission_id' => [
                 'required',
@@ -99,7 +99,7 @@ class StoreGrant extends Controller
 
         /** @var User|null $targetUser */
         $targetUser = User::with('roles')->find($validated['user_id']);
-        if (! $targetUser || ! $targetUser->is_active) {
+        if (! $targetUser || $targetUser->status !== 'aktif') {
             throw ValidationException::withMessages([
                 'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
             ]);
@@ -190,7 +190,7 @@ class StoreGrant extends Controller
                 }
 
                 // Validasi ulang status aktif pengguna target di dalam transaksi untuk mencegah TOCTOU
-                if (! $lockedTargetUser->is_active) {
+                if ($lockedTargetUser->status !== 'aktif') {
                     throw ValidationException::withMessages([
                         'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
                     ]);

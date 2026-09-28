@@ -54,43 +54,43 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->adminUser = User::factory()->create([
             'nama' => 'Admin Pengelola',
             'email' => 'admin@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->superadminUser = User::factory()->create([
             'nama' => 'Superadmin Utama',
             'email' => 'superadmin@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->otherAdminUser = User::factory()->create([
             'nama' => 'Admin Kedua',
             'email' => 'admin2@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->pegawaiUser = User::factory()->create([
             'nama' => 'Pegawai Staf',
             'email' => 'pegawai@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->pimpinanUser = User::factory()->create([
             'nama' => 'Pimpinan Lembaga',
             'email' => 'pimpinan@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->perencanaanUser = User::factory()->create([
             'nama' => 'Perencanaan Staf',
             'email' => 'perencanaan@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $this->aksesOnlyUser = User::factory()->create([
             'nama' => 'User Hanya Akses',
             'email' => 'aksesonly@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $adminRole = Role::where('kode', 'admin')->firstOrFail();
@@ -141,25 +141,13 @@ class GrantIzinTambahanUnitTest extends TestCase
             $delegasiUpdatePerm->id => ['id' => (string) Str::uuid(), 'created_at' => now()],
         ]);
 
-        $customAksesRole = Role::create([
-            'id' => (string) Str::uuid(),
-            'kode' => 'custom_akses',
-            'nama' => 'Custom Akses Role',
-            'urutan' => 99,
-            'is_sistem' => false,
-            'aktif' => true,
-        ]);
-        $this->aksesOnlyUser->roles()->attach($customAksesRole->id, [
+        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
+        $this->aksesOnlyUser->roles()->attach($pegawaiRole->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
             'diberikan_oleh' => $this->adminUser->id,
             'created_at' => now(),
         ]);
-        $customAksesRole->permissions()->attach($aksesUpdatePerm->id, [
-            'id' => (string) Str::uuid(),
-            'created_at' => now(),
-        ]);
-        $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $this->pegawaiUser->roles()->attach($pegawaiRole->id, [
             'id' => (string) Str::uuid(),
             'sumber_pemberian' => 'manual',
@@ -496,7 +484,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
 
         // Superadmin memberi grant ke sesama Superadmin
-        $anotherSuperadmin = User::factory()->create(['is_active' => true]);
+        $anotherSuperadmin = User::factory()->create(['status' => 'aktif']);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
         $anotherSuperadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
@@ -566,13 +554,14 @@ class GrantIzinTambahanUnitTest extends TestCase
         $adminResponse->assertOk();
         $adminResponse->assertJsonStructure([
             'items' => [
-                '*' => ['id', 'nama', 'name', 'email', 'is_active', 'roles'],
+                '*' => ['id', 'nama', 'name', 'email', 'status', 'roles'],
             ],
             'page',
             'hasMore',
         ]);
 
         $adminItems = collect($adminResponse->json('items'));
+        $this->assertTrue($adminItems->every(fn ($item) => $item['status'] === 'aktif' && ! array_key_exists('is_active', $item)));
         // Seluruh pengguna aktif (termasuk Admin & Superadmin) dapat dipilih sesuai ISS-01.04 AC-5
         $this->assertTrue($adminItems->contains('id', $this->adminUser->id));
         $this->assertTrue($adminItems->contains('id', $this->otherAdminUser->id));
@@ -581,13 +570,13 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertTrue($adminItems->contains('id', $this->pimpinanUser->id));
 
         // Pengguna nonaktif tidak muncul
-        $inactive = User::factory()->create(['nama' => 'User Nonaktif Test', 'is_active' => false]);
+        $inactive = User::factory()->create(['nama' => 'User Nonaktif Test', 'status' => 'nonaktif']);
         $adminResponse2 = $this->actingAs($this->adminUser)->getJson('/akses/grant/opsi/pengguna?q=Nonaktif');
         $adminResponse2->assertOk();
         $items2 = collect($adminResponse2->json('items'));
         $this->assertFalse($items2->contains('id', $inactive->id));
 
-        // Akses ditolak bagi pengguna tanpa izin akses:update
+        // Akses ditolak bagi pengguna tanpa izin delegasi:update.
         $forbiddenResponse = $this->actingAs($this->pegawaiUser)->getJson('/akses/grant/opsi/pengguna');
         $forbiddenResponse->assertStatus(403);
     }
@@ -796,7 +785,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $inactiveUser = User::factory()->create([
             'nama' => 'User Nonaktif',
             'email' => 'nonaktif@sakip.test',
-            'is_active' => false,
+            'status' => 'nonaktif',
         ]);
 
         $response = $this->actingAs($this->adminUser)
@@ -940,7 +929,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $pegawai2 = User::factory()->create([
             'nama' => 'Budi Santoso',
             'email' => 'budi@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $pegawai2->roles()->attach($pegawaiRole->id, [
@@ -1034,7 +1023,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $userTarget = User::factory()->create([
             'nama' => 'Target Nonaktif Konkuren',
             'email' => 'target.nonaktif@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $userTarget->roles()->attach($pegawaiRole->id, [
@@ -1045,7 +1034,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
 
         // Simulasi status user menjadi nonaktif tepat sebelum lock didapat
-        $userTarget->update(['is_active' => false]);
+        $userTarget->update(['status' => 'nonaktif']);
 
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
@@ -1153,7 +1142,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $testUser = User::factory()->create([
             'nama' => 'Pengguna Role Nonaktif',
             'email' => 'user.inactive.role@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $testUser->roles()->attach($inactiveRole->id, [
@@ -1357,7 +1346,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $targetUser = User::factory()->create([
             'nama' => 'Pegawai Calon Admin',
             'email' => 'calon.admin@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $targetUser->roles()->attach($pegawaiRole->id, [
@@ -1485,7 +1474,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $perencanaanUser = User::factory()->create([
             'nama' => 'User Perencanaan',
             'email' => 'perencanaan@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
         $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
         $perencanaanUser->roles()->attach($perencanaanRole->id, [
@@ -1513,7 +1502,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $stafUser = User::factory()->create([
             'nama' => 'Staf Khusus',
             'email' => 'staf@sakip.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
         $stafUser->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
             'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->adminUser->id, 'created_at' => now(),
@@ -1539,6 +1528,8 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 1. Perencanaan dapat membuka IndexGrant
         $resIndex = $this->actingAs($this->perencanaanUser)->get('/akses/grant');
         $resIndex->assertOk();
+        $resIndex->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('auth.user.status', 'aktif')->where('auth.can.grant', true));
         $resIndex->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Akses/GrantIndex')
             ->where('can.create_grant', true)
@@ -1596,9 +1587,22 @@ class GrantIzinTambahanUnitTest extends TestCase
      */
     public function test_user_with_only_akses_update_cannot_manage_grants(): void
     {
+        UserPermissionGrant::create([
+            'user_id' => $this->aksesOnlyUser->id,
+            'permission_id' => Permission::where('kode', 'akses:update')->firstOrFail()->id,
+            'unit_id' => null,
+            'alasan' => 'Fixture izin akses tanpa kewenangan delegasi',
+            'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $resolver = app(PermissionResolver::class);
+        $this->assertTrue($resolver->allows($this->aksesOnlyUser, 'akses:update'));
+        $this->assertFalse($resolver->allows($this->aksesOnlyUser, 'delegasi:update'));
+
         // 1. IndexGrant ditolak 403
         $resIndex = $this->actingAs($this->aksesOnlyUser)->get('/akses/grant');
         $resIndex->assertStatus(403);
+        $this->get('/auth/recovered')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('auth.user.status', 'aktif')->where('auth.can.grant', false));
 
         // 2. SearchGrantUsers ditolak 403
         $resSearch = $this->actingAs($this->aksesOnlyUser)->getJson('/akses/grant/opsi/pengguna');

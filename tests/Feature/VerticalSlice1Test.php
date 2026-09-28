@@ -171,7 +171,7 @@ class VerticalSlice1Test extends TestCase
             $this->assertSame($preserved[$table], DB::table($table)->orderBy('id')->get()->toJson(), $table);
         }
         $this->assertSame($history, DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson());
-        $this->assertTrue($pic->fresh()->is_active);
+        $this->assertSame('aktif', $pic->fresh()->status);
         PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $reviewer->id, 'tanggal_mulai_berlaku' => '2026-03-10', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
         $this->review($pic, 'verifikasi')->assertSessionHasErrors('versi');
         $this->review($reviewer, 'verifikasi')->assertSessionHasNoErrors()->assertRedirect();

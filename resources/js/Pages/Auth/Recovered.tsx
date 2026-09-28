@@ -11,6 +11,15 @@ export default function Recovered() {
             <h1 className="text-xl font-semibold">Sesi Anda aktif</h1>
             <p className="text-sm leading-relaxed">Tidak ada formulir yang dikirim ulang otomatis. Periksa hasil tindakan sebelumnya sebelum mengirim perubahan lagi.</p>
             <p className="text-sm text-muted">Formulir sebelumnya tidak dipulihkan. Buka halaman yang tersedia sesuai akses Anda untuk memeriksa data terbaru.</p>
+            {!auth.user?.role && (
+                <div className="space-y-3 rounded-lg bg-soft p-4 text-sm">
+                    <p>Akun Anda belum memiliki peran yang aktif. Hubungi pengelola akses untuk penetapan peran.</p>
+                    <Link href="/auth/pending" className={loginLink}>Periksa status akun</Link>
+                </div>
+            )}
+            {auth.user?.role && !Object.values(auth.can).some(Boolean) && (
+                <p className="rounded-lg bg-soft p-4 text-sm">Belum ada halaman yang dapat diakses. Hubungi pengelola akses SAKIP.</p>
+            )}
             {auth.can.dashboard && <Link href="/dashboard" className={loginLink}>Buka dashboard</Link>}
         </section>
     </AuthenticatedLayout>;

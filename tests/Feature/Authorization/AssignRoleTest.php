@@ -35,8 +35,8 @@ class AssignRoleTest extends TestCase
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
         $this->seedAudits = DB::table('audit_log')->count();
-        $this->actor = User::factory()->create(['nama' => 'Z Pengelola', 'is_active' => true]);
-        $this->target = User::factory()->create(['is_active' => false]);
+        $this->actor = User::factory()->create(['nama' => 'Z Pengelola', 'status' => 'aktif']);
+        $this->target = User::factory()->create(['status' => 'nonaktif']);
         $role = Role::where('kode', 'superadmin')->sole();
         $this->actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
     }
@@ -70,7 +70,7 @@ class AssignRoleTest extends TestCase
         $this->assertSame(['role_id' => $pegawai->id, 'role_kode' => 'pegawai'], $change->nilai_baru);
         $this->assertSame($history, $audit->fresh()->getRawOriginal());
         $this->assertSame(1, DB::table('user_roles')->where('user_id', $this->target->id)->count());
-        $this->assertFalse($this->target->fresh()->is_active);
+        $this->assertSame('nonaktif', $this->target->fresh()->status);
     }
 
     public function test_fresh_noop_preserves_provenance_but_stale_aba_token_is_rejected(): void
@@ -187,7 +187,7 @@ class AssignRoleTest extends TestCase
     {
         $this->target->update(['nama' => 'A Target', 'email' => 'target@example.test']);
         foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
-            $user = User::factory()->create(['nama' => 'Z '.$code, 'is_active' => true]);
+            $user = User::factory()->create(['nama' => 'Z '.$code, 'status' => 'aktif']);
             $user->roles()->attach(Role::where('kode', $code)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
         }
         User::factory()->count(15)->create(['nama' => 'Z Pengguna']);

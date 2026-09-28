@@ -48,7 +48,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $this->superadmin = User::factory()->create([
             'nama' => 'Superadmin Test',
             'email' => 'superadmin@example.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
@@ -62,7 +62,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $this->admin = User::factory()->create([
             'nama' => 'Admin Test',
             'email' => 'admin@example.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $adminRole = Role::where('kode', 'admin')->firstOrFail();
@@ -76,7 +76,7 @@ class MasterUnitOrganisasiTest extends TestCase
         $this->pegawai = User::factory()->create([
             'nama' => 'Pegawai Biasa Test',
             'email' => 'pegawai@example.test',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
