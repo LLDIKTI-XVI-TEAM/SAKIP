@@ -44,6 +44,7 @@ class IndikatorKomponenModelTest extends TestCase
         $user = User::factory()->create();
         $renstra = Renstra::create([
             'kode' => 'RENSTRA-TEST',
+            'created_by' => $user->id,
             'nama' => 'Renstra Test',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,

@@ -113,7 +113,7 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
                     data={form.data}
                     errors={form.errors as Record<string, string | undefined>}
                     disabled={form.processing}
-                    setField={(field, value) => form.setData({ ...form.data, [field]: value })}
+                    setField={(field, value) => form.setData((prev) => ({ ...prev, [field]: value }))}
                 />
 
                 <div className="flex items-center justify-end gap-3 pt-5 border-t border-border">

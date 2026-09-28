@@ -55,6 +55,7 @@ class RenstraPkServiceTest extends TestCase
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
             'is_aktif' => true,
+            'created_by' => $this->actor->id,
         ]);
 
         $this->service = app(RenstraPkService::class);

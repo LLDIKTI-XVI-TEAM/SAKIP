@@ -352,6 +352,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
     $renstra = Renstra::query()->create([
         'regulasi_id' => $regulasi->id,
         'kode' => 'RENSTRA-REGULASI',
+        'created_by' => $this->perencanaan->id,
         'nama' => 'Renstra dengan regulasi aktif',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
@@ -598,6 +599,7 @@ test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (): voi
     Renstra::query()->create([
         'regulasi_id' => $regulasi->id,
         'kode' => 'RENSTRA-LAMPIRAN',
+        'created_by' => $this->perencanaan->id,
         'nama' => 'Renstra dengan regulasi aktif',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,

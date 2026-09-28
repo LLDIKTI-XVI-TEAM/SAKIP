@@ -31,6 +31,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'tahun_selesai' => 2029,
             'deskripsi' => 'Rencana Strategis',
             'is_aktif' => true,
+            'created_by' => $user->id,
         ]);
 
         $pk = RenstraPk::create([
@@ -92,6 +93,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
             'is_aktif' => true,
+            'created_by' => $superadmin->id,
         ]);
         $pk = RenstraPk::create([
             'renstra_id' => $renstra->id,
@@ -182,6 +184,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
             'is_aktif' => true,
+            'created_by' => $user->id,
         ]);
         $pk = RenstraPk::create([
             'renstra_id' => $renstra->id,
