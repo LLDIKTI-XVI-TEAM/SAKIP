@@ -18,12 +18,12 @@ class RenstraPkPolicy
 
     public function viewAny(User $user): bool
     {
-        return (bool) $user->is_active;
+        return (bool) $user->is_active && $user->roles()->where('roles.aktif', true)->exists();
     }
 
     public function view(User $user, RenstraPk $pk): bool
     {
-        return (bool) $user->is_active;
+        return (bool) $user->is_active && $user->roles()->where('roles.aktif', true)->exists();
     }
 
     public function create(User $user): bool
@@ -39,6 +39,12 @@ class RenstraPkPolicy
     public function deleteBerkas(User $user, ?RenstraPk $pk = null): bool
     {
         return $this->permissionResolver->allows($user, PermissionCodes::PK_UPDATE)
-            || $this->permissionResolver->allows($user, PermissionCodes::BERKAS_DELETE);
+            && $this->permissionResolver->allows($user, PermissionCodes::BERKAS_DELETE);
+    }
+
+    public function downloadBerkas(User $user, RenstraPk $pk): bool
+    {
+        return $this->view($user, $pk)
+            && $this->permissionResolver->allows($user, PermissionCodes::BERKAS_READ);
     }
 }

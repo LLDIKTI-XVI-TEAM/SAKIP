@@ -29,16 +29,22 @@ class PerjanjianKinerjaController extends Controller
     {
         Gate::authorize('viewAny', RenstraPk::class);
 
+        $filters = $request->validate([
+            'renstra_id' => ['nullable', 'uuid', 'exists:renstras,id'],
+            'tahun' => ['nullable', 'integer', 'between:1900,2100'],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
         $query = RenstraPk::query()
             ->with([
                 'renstra:id,kode,nama,tahun_mulai,tahun_selesai,is_aktif',
                 'creator:id,nama',
-                'berkas',
                 'jadwalTahunan:id,renstra_pk_id,tahun,status',
             ])
-            ->when($request->filled('renstra_id'), fn ($q) => $q->where('renstra_id', $request->string('renstra_id')))
-            ->when($request->filled('tahun'), fn ($q) => $q->where('tahun', (int) $request->input('tahun')))
-            ->when($request->filled('q'), fn ($q) => $q->where('nomor_pk', 'ilike', '%'.$request->string('q').'%'))
+            ->withCount('berkas')
+            ->when(! empty($filters['renstra_id']), fn ($q) => $q->where('renstra_id', $filters['renstra_id']))
+            ->when(! empty($filters['tahun']), fn ($q) => $q->where('tahun', $filters['tahun']))
+            ->when(! empty($filters['q']), fn ($q) => $q->where('nomor_pk', 'ilike', '%'.$filters['q'].'%'))
             ->orderByDesc('tahun')
             ->orderByDesc('created_at');
 
@@ -97,6 +103,11 @@ class PerjanjianKinerjaController extends Controller
 
         $isJadwalAktif = $perjanjianKinerja->isJadwalAktif();
         $user = request()->user();
+        $canReadBerkas = $user?->can('downloadBerkas', $perjanjianKinerja) ?? false;
+
+        if (! $canReadBerkas) {
+            $perjanjianKinerja->berkas->makeHidden(['path', 'tautan', 'isi_teks']);
+        }
 
         return Inertia::render('PerjanjianKinerja/Show', [
             'pk' => $perjanjianKinerja,
@@ -105,6 +116,7 @@ class PerjanjianKinerjaController extends Controller
             'can' => [
                 'update' => $user?->can('update', $perjanjianKinerja) ?? false,
                 'delete_berkas' => ! $isJadwalAktif && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
+                'read_berkas' => $canReadBerkas,
             ],
         ]);
     }
@@ -163,11 +175,11 @@ class PerjanjianKinerjaController extends Controller
      */
     public function downloadBerkas(RenstraPk $perjanjianKinerja, Berkas $berkas): StreamedResponse
     {
-        Gate::authorize('view', $perjanjianKinerja);
+        Gate::authorize('downloadBerkas', $perjanjianKinerja);
 
         abort_unless(
             $berkas->berkasable_id === $perjanjianKinerja->id
-                && in_array($berkas->berkasable_type, ['renstra_pk', $perjanjianKinerja->getMorphClass()], true),
+                && in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true),
             404,
         );
 

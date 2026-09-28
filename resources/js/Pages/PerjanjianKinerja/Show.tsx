@@ -29,6 +29,7 @@ interface ShowProps {
     can: {
         update: boolean;
         delete_berkas: boolean;
+        read_berkas?: boolean;
     };
 }
 
@@ -45,7 +46,10 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    const deleteForm = useForm({
+    const deleteForm = useForm<{
+        alasan: string;
+        berkas?: string;
+    }>({
         alasan: '',
     });
 
@@ -230,21 +234,27 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
 
                                                 {berkas.mode === 'tautan' && (
                                                     <div className="mt-2 text-xs">
-                                                        <a
-                                                            href={berkas.tautan ?? '#'}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium break-all"
-                                                        >
-                                                            <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                                            {berkas.tautan}
-                                                        </a>
+                                                        {berkas.tautan ? (
+                                                            <a
+                                                                href={berkas.tautan}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium break-all"
+                                                            >
+                                                                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                {berkas.tautan}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-muted italic">Tautan dilindungi</span>
+                                                        )}
                                                     </div>
                                                 )}
 
                                                 {berkas.mode === 'teks' && (
                                                     <div className="mt-2.5 rounded-lg bg-soft/60 p-3 text-sm text-ink whitespace-pre-wrap leading-relaxed">
-                                                        {berkas.isi_teks}
+                                                        {berkas.isi_teks ?? (
+                                                            <span className="text-muted italic">Konten teks dilindungi</span>
+                                                        )}
                                                     </div>
                                                 )}
 
@@ -259,7 +269,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
-                                                {berkas.mode === 'file' && (
+                                                {berkas.mode === 'file' && can.read_berkas !== false && (
                                                     <a
                                                         href={`/perjanjian-kinerja/${pk.id}/berkas/${berkas.id}/unduh`}
                                                         className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
@@ -269,7 +279,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                                                     </a>
                                                 )}
 
-                                                {berkas.mode === 'tautan' && berkas.tautan && (
+                                                {berkas.mode === 'tautan' && berkas.tautan && can.read_berkas !== false && (
                                                     <a
                                                         href={berkas.tautan}
                                                         target="_blank"
@@ -311,7 +321,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                             : 'Penghapusan berkas lampiran bersifat sensitif. Masukkan alasan penghapusan untuk rekaman audit.'
                     }
                     reason={deleteForm.data.alasan}
-                    error={deleteForm.errors.alasan}
+                    error={deleteForm.errors.berkas || deleteForm.errors.alasan}
                     busy={deleteForm.processing}
                     submitDisabled={!deleteForm.data.alasan.trim()}
                     confirmLabel="Hapus Lampiran"
@@ -319,6 +329,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                     onReasonChange={(reason) => {
                         deleteForm.setData('alasan', reason);
                         deleteForm.clearErrors('alasan');
+                        deleteForm.clearErrors('berkas');
                     }}
                     onClose={() => {
                         if (!deleteForm.processing) {

@@ -65,13 +65,15 @@ class RenstraPk extends Model
     /** @return MorphMany<Berkas, $this> */
     public function berkas(): MorphMany
     {
-        return $this->morphMany(Berkas::class, 'berkasable')->whereNull('dihapus_pada');
+        return $this->morphMany(Berkas::class, 'berkasable')
+            ->whereNull('dihapus_pada');
     }
 
     /** @return HasOne<JadwalTahunan, $this> */
     public function jadwalTahunan(): HasOne
     {
-        return $this->hasOne(JadwalTahunan::class, 'renstra_pk_id');
+        return $this->hasOne(JadwalTahunan::class, 'renstra_pk_id')
+            ->orderByRaw("case when status = 'aktif' then 0 else 1 end");
     }
 
     public function isJadwalAktif(): bool

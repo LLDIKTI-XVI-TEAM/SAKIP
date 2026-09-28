@@ -3,13 +3,17 @@
 namespace App\Services;
 
 use App\Models\Berkas;
+use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\User;
+use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -19,6 +23,7 @@ class RenstraPkService
 {
     public function __construct(
         protected AuditLogger $auditLogger,
+        protected PermissionResolver $permissionResolver,
     ) {}
 
     /**
@@ -102,10 +107,11 @@ class RenstraPkService
             ]);
         }
 
+        $decision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_UPDATE);
         $storedPaths = [];
 
         try {
-            return DB::transaction(function () use ($pk, $data, $alasan, $actor, &$storedPaths) {
+            return DB::transaction(function () use ($pk, $data, $alasan, $actor, $decision, &$storedPaths) {
                 /** @var RenstraPk $pkLocked */
                 $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
                 $pkLocked->load(['berkas']);
@@ -123,7 +129,7 @@ class RenstraPkService
                     $this->simpanLampiran($pkLocked, $data['lampiran'], $actor, $storedPaths);
                 }
 
-                $pkLocked->fresh(['renstra', 'creator', 'berkas']);
+                $pkLocked = $pkLocked->fresh(['renstra', 'creator', 'berkas']);
                 $nilaiBaru = $this->snapshot($pkLocked);
 
                 $this->auditLogger->catat(
@@ -134,6 +140,7 @@ class RenstraPkService
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $nilaiBaru,
                     alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
                 );
 
                 return $pkLocked;
@@ -150,7 +157,7 @@ class RenstraPkService
      */
     public function deleteBerkas(RenstraPk $pk, Berkas $berkas, string $alasan, User $actor): void
     {
-        if ($berkas->berkasable_id !== $pk->id || ! in_array($berkas->berkasable_type, ['renstra_pk', $pk->getMorphClass()], true)) {
+        if ($berkas->berkasable_id !== $pk->id || ! in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true)) {
             throw new RuntimeException('Berkas bukan merupakan lampiran dari Perjanjian Kinerja ini.');
         }
 
@@ -161,49 +168,82 @@ class RenstraPkService
             ]);
         }
 
-        if ($pk->isJadwalAktif()) {
-            $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'berkas.hapus_ditolak',
-                objekTipe: 'berkas',
-                objekId: $berkas->id,
-                nilaiLama: $this->metadataBerkasUntukAudit($berkas),
-                nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
-                alasan: $alasan,
-            );
+        $decision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
+        $path = null;
 
-            throw ValidationException::withMessages([
-                'berkas' => 'Lampiran Perjanjian Kinerja tidak dapat dihapus karena Jadwal Tahunan sudah aktif.',
-            ]);
-        }
-
-        $path = $berkas->mode === 'file' && is_string($berkas->path) ? $berkas->path : null;
-        $nilaiLama = $this->metadataBerkasUntukAudit($berkas);
-
-        DB::transaction(function () use ($pk, $berkas, $actor, $nilaiLama, $alasan) {
+        $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, $decision, &$path): ?string {
+            /** @var RenstraPk $pkLocked */
             $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
-            if ($pkLocked->isJadwalAktif()) {
+
+            // Kunci baris jadwal_tahunan terkait untuk mencegah race condition / TOCTOU aktivasi jadwal
+            $jadwalTerkait = JadwalTahunan::where(function ($q) use ($pkLocked) {
+                $q->where('renstra_pk_id', $pkLocked->id)
+                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $pkLocked->renstra_id)->where('tahun', $pkLocked->tahun));
+            })->lockForUpdate()->get();
+
+            if ($jadwalTerkait->contains(fn ($j) => $j->status === 'aktif')) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'berkas.hapus_ditolak',
+                    objekTipe: 'berkas',
+                    objekId: $berkas->id,
+                    nilaiLama: $this->metadataBerkasUntukAudit($berkas),
+                    nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
+                    alasan: $alasan,
+                    dasarIzin: $decision->toAuditBasis(),
+                );
+
+                return 'jadwal_tahunan_aktif';
+            }
+
+            /** @var Berkas|null $berkasLocked */
+            $berkasLocked = Berkas::where('id', $berkas->id)
+                ->where('berkasable_id', $pkLocked->id)
+                ->whereIn('berkasable_type', ['renstra_pk', RenstraPk::class])
+                ->whereNull('dihapus_pada')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $berkasLocked) {
                 throw ValidationException::withMessages([
-                    'berkas' => 'Lampiran Perjanjian Kinerja tidak dapat dihapus karena Jadwal Tahunan sudah aktif.',
+                    'berkas' => 'Lampiran berkas sudah dihapus atau tidak ditemukan.',
                 ]);
             }
 
-            $berkas->dihapus_oleh = $actor->id;
-            $berkas->save();
-            $berkas->delete();
+            $path = $berkasLocked->mode === 'file' && is_string($berkasLocked->path) ? $berkasLocked->path : null;
+            $nilaiLama = $this->metadataBerkasUntukAudit($berkasLocked);
+
+            $berkasLocked->dihapus_oleh = $actor->id;
+            $berkasLocked->save();
+            $berkasLocked->delete();
 
             $this->auditLogger->catat(
                 actor: $actor,
                 tindakan: 'berkas.hapus',
                 objekTipe: 'berkas',
-                objekId: $berkas->id,
+                objekId: $berkasLocked->id,
                 nilaiLama: $nilaiLama,
                 alasan: $alasan,
+                dasarIzin: $decision->toAuditBasis(),
             );
+
+            return null;
         });
 
+        if ($penolakan === 'jadwal_tahunan_aktif') {
+            throw ValidationException::withMessages([
+                'berkas' => 'Lampiran Perjanjian Kinerja tidak dapat dihapus karena Jadwal Tahunan sudah aktif.',
+            ]);
+        }
+
         if ($path !== null) {
-            DB::afterCommit(fn () => Storage::disk('local')->delete($path));
+            DB::afterCommit(function () use ($path) {
+                try {
+                    Storage::disk('local')->delete($path);
+                } catch (Throwable $e) {
+                    Log::warning('Gagal menghapus file lampiran PK dari storage setelah commit: '.$e->getMessage(), ['path' => $path]);
+                }
+            });
         }
     }
 
@@ -356,15 +396,27 @@ class RenstraPkService
      */
     protected function metadataBerkasUntukAudit(Berkas $berkas): array
     {
-        return [
+        $metadata = [
             'id' => $berkas->id,
             'mode' => $berkas->mode,
             'nama_asli' => $berkas->nama_asli,
-            'path' => $berkas->path,
-            'tautan' => $berkas->tautan,
-            'isi_teks' => $berkas->isi_teks,
-            'ukuran_bytes' => $berkas->ukuran_bytes,
-            'mime' => $berkas->mime,
+        ];
+
+        if ($berkas->mode === 'file') {
+            return $metadata + [
+                'mime' => $berkas->mime,
+                'ukuran_bytes' => $berkas->ukuran_bytes,
+            ];
+        }
+
+        if ($berkas->mode === 'tautan') {
+            return $metadata + [
+                'tautan' => $berkas->tautan,
+            ];
+        }
+
+        return $metadata + [
+            'panjang_teks' => mb_strlen((string) $berkas->isi_teks),
         ];
     }
 

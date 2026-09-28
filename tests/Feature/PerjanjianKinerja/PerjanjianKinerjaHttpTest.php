@@ -285,10 +285,63 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'uploaded_by' => $this->perencanaan->id,
         ]);
 
-        $response = $this->actingAs($this->pegawai)
+        // Pegawai tanpa izin berkas:read ditolak (Finding 2)
+        $this->actingAs($this->pegawai)
+            ->get("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}/unduh")
+            ->assertForbidden();
+
+        // Perencanaan dengan izin berkas:read berhasil (Finding 2)
+        $response = $this->actingAs($this->perencanaan)
             ->get("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}/unduh");
 
         $response->assertOk();
         $this->assertSame('attachment; filename=dokumen_pk.pdf', $response->headers->get('content-disposition'));
     }
+
+    public function test_delete_lampiran_fails_if_berkas_belongs_to_different_pk(): void
+    {
+        $pkA = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-A',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $pkB = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-B',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkasB = $pkB->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-b',
+            'nama_asli' => 'Berkas PK B',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Mencoba menghapus berkas milik PK B lewat endpoint PK A ditolak 403 Forbidden (Finding 13)
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pkA->id}/berkas/{$berkasB->id}", [
+                'alasan' => 'Hapus berkas silang',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_index_filters_and_validates_query_parameters(): void
+    {
+        // Valid query parameters
+        $this->actingAs($this->perencanaan)
+            ->get("/perjanjian-kinerja?renstra_id={$this->renstra->id}&tahun=2026&q=PK")
+            ->assertOk();
+
+        // Invalid query parameter (tahun bukan integer) ditolak redirect dengan error validasi
+        $this->actingAs($this->perencanaan)
+            ->get("/perjanjian-kinerja?tahun=bukan-angka")
+            ->assertSessionHasErrors('tahun');
+    }
 }
+

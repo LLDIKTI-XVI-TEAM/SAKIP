@@ -17,6 +17,14 @@ interface PerjanjianKinerjaCreateModalProps {
     storageSettings?: StorageSettings;
 }
 
+const getTodayLocalDate = (): string => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export function PerjanjianKinerjaCreateModal({
     isOpen,
     onClose,
@@ -27,7 +35,7 @@ export function PerjanjianKinerjaCreateModal({
         renstra_id: renstras[0]?.id ?? '',
         tahun: renstras[0]?.tahun_mulai ?? new Date().getFullYear(),
         nomor_pk: '',
-        tanggal_pk: new Date().toISOString().split('T')[0],
+        tanggal_pk: getTodayLocalDate(),
         lampiran: [],
     });
 

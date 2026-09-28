@@ -99,25 +99,45 @@ class RenstraPkModelAndPolicyTest extends TestCase
 
         $policy = app(RenstraPkPolicy::class);
 
-        // Superadmin dengan izin pk:create, pk:update, berkas:delete
+        // Superadmin dengan izin pk:create, pk:update, berkas:delete, berkas:read
         $this->assertTrue($policy->viewAny($superadmin));
         $this->assertTrue($policy->view($superadmin, $pk));
         $this->assertTrue($policy->create($superadmin));
         $this->assertTrue($policy->update($superadmin, $pk));
         $this->assertTrue($policy->deleteBerkas($superadmin, $pk));
+        $this->assertTrue($policy->downloadBerkas($superadmin, $pk));
 
-        // Pegawai tanpa izin pk:create, pk:update, berkas:delete
+        // Pegawai tanpa izin pk:create, pk:update, berkas:delete, berkas:read
         $this->assertTrue($policy->viewAny($pegawai));
         $this->assertTrue($policy->view($pegawai, $pk));
         $this->assertFalse($policy->create($pegawai));
         $this->assertFalse($policy->update($pegawai, $pk));
         $this->assertFalse($policy->deleteBerkas($pegawai, $pk));
+        $this->assertFalse($policy->downloadBerkas($pegawai, $pk));
 
-        // Inactive user
+        // Inactive user ditolak fail-closed
         $this->assertFalse($policy->viewAny($inactiveUser));
         $this->assertFalse($policy->view($inactiveUser, $pk));
         $this->assertFalse($policy->create($inactiveUser));
         $this->assertFalse($policy->update($inactiveUser, $pk));
         $this->assertFalse($policy->deleteBerkas($inactiveUser, $pk));
+        $this->assertFalse($policy->downloadBerkas($inactiveUser, $pk));
+
+        // User tanpa role aktif ditolak fail-closed (Finding 1)
+        $userWithoutActiveRole = User::factory()->create(['is_active' => true]);
+        $inactiveRole = Role::create([
+            'kode' => 'role_non_aktif',
+            'nama' => 'Role Non Aktif',
+            'aktif' => false,
+            'urutan' => 99,
+        ]);
+        $userWithoutActiveRole->roles()->attach($inactiveRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+        $this->assertFalse($policy->viewAny($userWithoutActiveRole));
+        $this->assertFalse($policy->view($userWithoutActiveRole, $pk));
     }
 }

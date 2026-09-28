@@ -283,10 +283,10 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                 )}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-muted">
-                                                {item.berkas && item.berkas.length > 0 ? (
+                                                {(item.berkas_count ?? item.berkas?.length ?? 0) > 0 ? (
                                                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink bg-soft px-2.5 py-1 rounded-md">
                                                         <FileText className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                                        {item.berkas.length} Berkas
+                                                        {item.berkas_count ?? item.berkas?.length} Berkas
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted/70">Tanpa Lampiran</span>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
+import { AlertCircle, ChevronDown, FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Button } from '@/Components/Button';
@@ -284,6 +284,13 @@ export function PerjanjianKinerjaFormFields({
                         <span className="whitespace-nowrap">Tambah Lampiran</span>
                     </Button>
                 </div>
+
+                {errors.lampiran && (
+                    <div className="mt-4 rounded-lg border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{errors.lampiran}</span>
+                    </div>
+                )}
 
                 {data.lampiran.length === 0 ? (
                     <div className="mt-4 rounded-lg border border-dashed border-border bg-page px-5 py-7 text-center">
