@@ -18,7 +18,7 @@ class UserActivation
         abort_unless($permissions->allows($request->user(), 'pengguna:read'), 403);
 
         return Inertia::render('Auth/ActivationIndex', [
-            'users' => User::where('is_active', false)->select(['id', 'nama', 'email', 'created_at'])->orderBy('created_at')->orderBy('id')->paginate(20),
+            'users' => User::where('status', 'nonaktif')->select(['id', 'nama', 'email', 'created_at'])->orderBy('created_at')->orderBy('id')->paginate(20),
             'canActivate' => $permissions->allows($request->user(), 'akses:update'),
             'activationResult' => $request->session()->get('activationResult'),
         ]);

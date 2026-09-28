@@ -22,7 +22,7 @@ class RevokeDenyRequest extends FormRequest
             'permission_id' => ['prohibited'], 'unit_id' => ['prohibited'], 'actor_id' => ['prohibited'],
             'ditetapkan_oleh' => ['prohibited'], 'created_at' => ['prohibited'], 'audit_id' => ['prohibited'],
             'actor_type' => ['prohibited'], 'sumber' => ['prohibited'], 'waktu' => ['prohibited'],
-            'dasar_izin' => ['prohibited'], 'is_active' => ['prohibited'], 'role_id' => ['prohibited'],
+            'dasar_izin' => ['prohibited'], 'status' => ['prohibited'], 'is_active' => ['prohibited'], 'role_id' => ['prohibited'],
             'grant' => ['prohibited'], 'deny' => ['prohibited'], 'penanggung_jawab' => ['prohibited'],
         ];
     }

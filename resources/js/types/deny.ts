@@ -1,4 +1,4 @@
-export type UserOption = { id: string; nama: string; email: string; is_active: boolean };
+export type UserOption = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif' };
 export type UnitOption = { id: string; nama: string; status: 'aktif' | 'nonaktif' };
 export type PermissionOption = { id: string; kode: string; keterangan: string | null; butuh_scope: 'global' | 'unit' };
 export type OptionPage<T> = { items: T[]; page: number; hasMore: boolean };

@@ -46,8 +46,8 @@ class ExplicitDenyTest extends TestCase
         parent::setUp();
         $this->seed(AccessCatalogSeeder::class);
         $this->seedAudits = DB::table('audit_log')->count();
-        $this->actor = User::factory()->create(['is_active' => true]);
-        $this->target = User::factory()->create(['is_active' => true]);
+        $this->actor = User::factory()->create(['status' => 'aktif']);
+        $this->target = User::factory()->create(['status' => 'aktif']);
         $this->unit = Unit::create(['nama' => 'Unit A', 'status' => 'aktif', 'created_by' => $this->actor->id]);
         $this->permission = Permission::where('kode', 'pengukuran:update')->sole();
         $this->giveRole($this->actor, 'superadmin', Permission::where('kode', 'akses:update')->sole());
@@ -140,11 +140,11 @@ class ExplicitDenyTest extends TestCase
 
     public function test_create_accepts_inactive_target_and_unit_without_granting_or_activating(): void
     {
-        $this->target->update(['is_active' => false]);
+        $this->target->update(['status' => 'nonaktif']);
         $this->unit->update(['status' => 'nonaktif']);
         $deny = $this->create($this->unit->id);
         $this->assertTrue($deny->exists);
-        $this->assertFalse($this->target->fresh()->is_active);
+        $this->assertSame('nonaktif', $this->target->fresh()->status);
         $this->assertSame('nonaktif', $this->unit->fresh()->status);
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
@@ -380,7 +380,7 @@ class ExplicitDenyTest extends TestCase
         $paths = ['/akses/deny', '/akses/deny/opsi/pengguna', '/akses/deny/opsi/unit', '/akses/deny/opsi/izin'];
         $this->get('/akses/deny')->assertRedirect('/login');
         foreach (['missing', 'denied', 'inactive'] as $state) {
-            $operator = User::factory()->create(['is_active' => $state !== 'inactive']);
+            $operator = User::factory()->create(['status' => $state !== 'inactive' ? 'aktif' : 'nonaktif']);
             if ($state === 'denied') {
                 $this->giveRole($operator, 'admin', Permission::where('kode', 'akses:update')->sole());
                 UserPermissionDeny::create(['user_id' => $operator->id, 'permission_id' => Permission::where('kode', 'akses:update')->value('id'), 'alasan' => 'Deny operator', 'ditetapkan_oleh' => $this->actor->id]);
@@ -420,8 +420,8 @@ class ExplicitDenyTest extends TestCase
     public function test_http_rejects_spoofed_provenance_and_revoke_target_overrides(): void
     {
         $this->actingAs($this->actor);
-        $this->post('/akses/deny', $this->payload() + ['actor_id' => $this->target->id, 'ditetapkan_oleh' => $this->target->id, 'dasar_izin' => ['allowed' => true], 'created_at' => now()->toISOString(), 'is_active' => true, 'grant' => ['x']])
-            ->assertSessionHasErrors(['actor_id', 'ditetapkan_oleh', 'dasar_izin', 'created_at', 'is_active', 'grant']);
+        $this->post('/akses/deny', $this->payload() + ['actor_id' => $this->target->id, 'ditetapkan_oleh' => $this->target->id, 'dasar_izin' => ['allowed' => true], 'created_at' => now()->toISOString(), 'status' => 'aktif', 'grant' => ['x']])
+            ->assertSessionHasErrors(['actor_id', 'ditetapkan_oleh', 'dasar_izin', 'created_at', 'status', 'grant']);
         $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
         $deny = $this->create();
         $this->post('/akses/deny/'.$deny->id.'/cabut', $this->payload())->assertSessionHasErrors(['user_id', 'permission_id']);
@@ -434,13 +434,13 @@ class ExplicitDenyTest extends TestCase
     public function test_http_legacy_and_inactive_deny_remain_visible_and_revokable_but_not_create_candidates(): void
     {
         $this->permission->update(['kode' => 'legacy:izin_uji', 'aktif' => false]);
-        $this->target->update(['nama' => 'Target Legacy', 'is_active' => false]);
+        $this->target->update(['nama' => 'Target Legacy', 'status' => 'nonaktif']);
         $this->unit->update(['status' => 'nonaktif']);
         $deny = UserPermissionDeny::create(['user_id' => $this->target->id, 'permission_id' => $this->permission->id, 'unit_id' => $this->unit->id, 'alasan' => 'Legacy', 'ditetapkan_oleh' => $this->actor->id]);
         $this->actingAs($this->actor)->get('/akses/deny?q=Target%20Legacy')->assertInertia(fn (Assert $page) => $page
             ->component('Access/DenyIndex', false)->has('denies', 1)->where('denies.0.id', $deny->id)
             ->where('denies.0.permission.kode', 'legacy:izin_uji')->where('denies.0.permission.aktif', false)
-            ->where('denies.0.user.is_active', false)->where('denies.0.unit.status', 'nonaktif')
+            ->where('denies.0.user.status', 'nonaktif')->where('denies.0.unit.status', 'nonaktif')
             ->missing('denies.0.user.keycloak_id')->missing('denies.0.user.roles')->missing('denies.0.permission.sensitif'));
         $this->getJson('/akses/deny/opsi/izin?q=legacy')->assertOk()->assertJsonCount(0, 'items');
         $this->permission->update(['aktif' => true]);
@@ -453,7 +453,7 @@ class ExplicitDenyTest extends TestCase
     public function test_http_list_and_lookups_are_bounded_filtered_and_projected(): void
     {
         for ($i = 0; $i < 21; $i++) {
-            $target = User::factory()->create(['nama' => sprintf('Fixture %02d', $i), 'is_active' => false]);
+            $target = User::factory()->create(['nama' => sprintf('Fixture %02d', $i), 'status' => 'nonaktif']);
             $unit = Unit::create(['nama' => sprintf('Fixture %02d', $i), 'status' => 'nonaktif', 'created_by' => $this->actor->id]);
             UserPermissionDeny::create(['user_id' => $target->id, 'permission_id' => $this->permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'ditetapkan_oleh' => $this->actor->id]);
         }
@@ -464,7 +464,7 @@ class ExplicitDenyTest extends TestCase
         foreach (['pengguna', 'unit'] as $lookup) {
             $response = $this->getJson('/akses/deny/opsi/'.$lookup.'?q=Fixture')->assertOk()->assertJsonCount(20, 'items')->assertJsonPath('hasMore', true);
             $this->assertSame('Fixture 00', $response->json('items.0.nama'));
-            $this->assertSame($lookup === 'pengguna' ? ['id', 'nama', 'email', 'is_active'] : ['id', 'nama', 'status'], array_keys($response->json('items.0')));
+            $this->assertSame($lookup === 'pengguna' ? ['id', 'nama', 'email', 'status'] : ['id', 'nama', 'status'], array_keys($response->json('items.0')));
             $this->getJson('/akses/deny/opsi/'.$lookup.'?q=Fixture&page=2')->assertJsonCount(1, 'items')->assertJsonPath('hasMore', false);
         }
         $response = $this->getJson('/akses/deny/opsi/izin')->assertOk()->assertJsonCount(20, 'items')->assertJsonPath('hasMore', true);

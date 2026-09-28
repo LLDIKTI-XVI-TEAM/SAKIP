@@ -23,7 +23,7 @@ class HandleInertiaRequests extends Middleware
                 $can = $this->capabilities($user, $request);
 
                 return [
-                    'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'is_active' => $user->is_active, 'role' => $user->is_active ? $user->roles()->value('kode') : null] : null,
+                    'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status, 'role' => $user->status === 'aktif' ? $user->roles()->value('kode') : null] : null,
                     'can' => [
                         'dashboard' => $can['dashboard'],
                         'pengukuran' => $can['pengukuran'],
@@ -86,7 +86,7 @@ class HandleInertiaRequests extends Middleware
             'pk:update' => false,
         ];
 
-        if ($user === null || ! $user->is_active) {
+        if ($user === null || $user->status !== 'aktif') {
             return $defaultCapabilities;
         }
 

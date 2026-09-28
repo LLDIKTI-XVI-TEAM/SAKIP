@@ -7,6 +7,7 @@ let mockPengaturan: Record<string, unknown> = {
 };
 let mockUrl = '/pengaturan';
 let mockCan: Record<string, boolean> = { dashboard: true, pengaturan: true };
+let mockRole = 'admin';
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
@@ -20,7 +21,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         usePage: () => ({
             props: {
                 auth: {
-                    user: { id: 'admin-id', nama: 'Superadmin', email: 'admin@example.test', is_active: true, role: 'admin' },
+                    user: { id: 'admin-id', nama: 'Operator QA', email: 'admin@example.test', status: 'aktif', role: mockRole },
                     can: mockCan,
                 },
                 flash: {},
@@ -65,9 +66,28 @@ afterEach(() => {
     };
     mockUrl = '/pengaturan';
     mockCan = { dashboard: true, pengaturan: true };
+    mockRole = 'admin';
 });
 
 describe('AuthenticatedLayout Breadcrumbs', () => {
+    it('menu Grant mengikuti capability server, tanpa gate nama peran di klien', () => {
+        mockRole = 'perencanaan';
+        mockCan = { dashboard: true, grant: true };
+        const { rerender } = render(
+            <AuthenticatedLayout>
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+        expect(screen.getByRole('link', { name: 'Izin Unit (Grant)' }).getAttribute('href')).toBe('/akses/grant');
+        mockCan = { dashboard: true, grant: false };
+        rerender(
+            <AuthenticatedLayout>
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+        expect(screen.queryByRole('link', { name: 'Izin Unit (Grant)' })).toBeNull();
+    });
+
     it('merender jejak navigasi Dashboard > Pengaturan tanpa menambah SAKIP', () => {
         render(
             <AuthenticatedLayout

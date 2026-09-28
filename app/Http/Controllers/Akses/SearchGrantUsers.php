@@ -16,9 +16,9 @@ class SearchGrantUsers extends Controller
 
         $search = trim($request->string('q')->toString());
 
-        $rows = User::select(['id', 'nama', 'email', 'is_active'])
+        $rows = User::select(['id', 'nama', 'email', 'status'])
             ->with('roles:id,nama,kode,aktif')
-            ->where('is_active', true)
+            ->where('status', 'aktif')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($filter) use ($search) {
                     $filter->where('nama', 'ilike', "%{$search}%")
@@ -36,7 +36,7 @@ class SearchGrantUsers extends Controller
                     'nama' => $user->nama,
                     'name' => $user->nama,
                     'email' => $user->email,
-                    'is_active' => $user->is_active,
+                    'status' => $user->status,
                     'roles' => $user->roles->pluck('nama')->all(),
                 ];
             })->all(),

@@ -20,7 +20,7 @@ class UpdatePengaturanRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user instanceof User || ! $user->is_active) {
+        if (! $user instanceof User || $user->status !== 'aktif') {
             return false;
         }
 

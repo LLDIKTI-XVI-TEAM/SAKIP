@@ -16,7 +16,7 @@ class UserFactory extends Factory
             'keycloak_id' => (string) Str::uuid(),
             'nama' => fake()->name(),
             'email' => fake()->safeEmail(),
-            'is_active' => false,
+            'status' => 'nonaktif',
         ];
     }
 }

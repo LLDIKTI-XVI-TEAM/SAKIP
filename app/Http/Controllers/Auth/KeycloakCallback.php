@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Services\Auth\KeycloakIdentityProvider;
 use App\Services\Auth\KeycloakTokenValidator;
+use App\Services\Authorization\RoleCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,16 +23,26 @@ class KeycloakCallback
         try {
             $identity = app(KeycloakIdentityProvider::class)->identity($validator);
             $user = $provision->handle($identity);
+            // Selesaikan lookup landing sebelum identity sesi berubah jika query gagal.
+            $landing = 'auth.pending';
+            if ($user->status === 'aktif') {
+                if ($recovery) {
+                    $landing = 'auth.recovered';
+                } elseif ($user->roles()->whereIn('kode', RoleCatalog::codes())->where('roles.aktif', true)->exists()) {
+                    $landing = 'dashboard';
+                }
+            }
+
             Auth::login($user);
             $request->session()->regenerate();
             Inertia::clearHistory();
             Log::info('Autentikasi SSO berhasil.', ['category' => 'login_success', 'actor_id' => $user->id, 'correlation_id' => (string) Str::uuid()]);
 
-            if ($recovery && ! $user->is_active) {
+            if ($recovery && $user->status !== 'aktif') {
                 Inertia::flash('authRecoveryNotice', 'no_replay');
             }
 
-            return redirect()->route($user->is_active ? ($recovery ? 'auth.recovered' : 'dashboard') : 'auth.pending');
+            return redirect()->route($landing);
         } catch (Throwable $e) {
             if ($recovery) {
                 $request->session()->flash('auth_recovery_retry', true);

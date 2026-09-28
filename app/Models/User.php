@@ -8,18 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
+/**
+ * @property 'aktif'|'nonaktif' $status
+ */
 class User extends Authenticatable
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['keycloak_id', 'nama', 'email', 'nomor_telepon', 'is_active'];
+    protected $fillable = ['keycloak_id', 'nama', 'email', 'nomor_telepon', 'status'];
 
     protected $hidden = ['keycloak_id'];
-
-    protected function casts(): array
-    {
-        return ['is_active' => 'boolean'];
-    }
 
     /** @return BelongsToMany<Role, $this> */
     public function roles(): BelongsToMany
