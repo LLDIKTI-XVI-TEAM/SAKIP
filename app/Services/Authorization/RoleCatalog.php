@@ -9,7 +9,6 @@ final class RoleCatalog
         'superadmin' => ['nama' => 'Superadmin', 'seed_urutan' => 1],
         'admin' => ['nama' => 'Administrator', 'seed_urutan' => 2],
         'perencanaan' => ['nama' => 'Perencanaan', 'seed_urutan' => 3],
-        'pic' => ['nama' => 'PIC', 'seed_urutan' => 6],
         'pimpinan' => ['nama' => 'Pimpinan', 'seed_urutan' => 4],
         'pegawai' => ['nama' => 'Pegawai', 'seed_urutan' => 5],
     ];

@@ -157,7 +157,7 @@ export function AuthenticatedLayout({
         { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
         { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
         { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
-        { href: '/akses/izin-peran', label: 'Izin Peran', icon: UserCheck, visible: auth.can.manageRolePermissions },
+        { href: '/akses/izin-peran', label: 'Peran & Izin', icon: UserCheck, visible: auth.can.viewRolePermissions },
         { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
     ];
 

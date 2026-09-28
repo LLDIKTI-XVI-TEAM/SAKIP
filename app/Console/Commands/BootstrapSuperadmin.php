@@ -14,7 +14,7 @@ class BootstrapSuperadmin extends Command
 {
     protected $signature = 'sakip:bootstrap-superadmin {user? : ID akun SAKIP dari halaman menunggu aktivasi} {--operator-reference= : Identitas operator dan referensi otorisasi manusia} {--reason= : Alasan bootstrap} {--confirm-user= : Konfirmasi ID akun untuk eksekusi non-interaktif}';
 
-    protected $description = 'Inisialisasi satu Superadmin dan preset izin sekali saja dengan audit operator.';
+    protected $description = 'Inisialisasi satu Superadmin setelah validasi preset rilis dengan audit operator.';
 
     public function handle(Bootstrap $bootstrap): int
     {

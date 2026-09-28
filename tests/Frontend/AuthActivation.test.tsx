@@ -71,4 +71,11 @@ describe('Aktivasi pengguna', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(document.activeElement).toBe(trigger);
     });
+
+    it('menjaga hierarki heading: intro bagian H2 dan entri pengguna H3 di bawahnya', () => {
+        render(<ActivationIndex users={users} canActivate />);
+        expect(screen.getByRole('heading', { level: 2, name: 'Akun menunggu aktivasi' })).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 3, name: 'Pengguna Uji' })).toBeTruthy();
+        expect(screen.queryByRole('heading', { level: 2, name: 'Pengguna Uji' })).toBeNull();
+    });
 });

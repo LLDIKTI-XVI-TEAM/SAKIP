@@ -67,6 +67,9 @@ describe('Regulasi Modal UI/UX', () => {
         // Sebelum klik, modal belum ada di DOM / belum terbuka
         expect(screen.queryByRole('heading', { name: 'Tambah Dasar Aturan' })).toBeNull();
 
+        // Keterangan privasi file dan jejak audit tetap tampil pada deskripsi halaman
+        expect(screen.getByText(/File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log/)).toBeTruthy();
+
         // Klik tombol Tambah dasar aturan
         const tambahBtn = screen.getByRole('button', { name: /Tambah dasar aturan/i });
         await user.click(tambahBtn);

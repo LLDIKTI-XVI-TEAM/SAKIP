@@ -86,9 +86,10 @@ describe('Grant Mutation 403 Exception Handling', () => {
         expect(screen.getByRole('dialog')).toBeTruthy();
 
         // Isi form
-        const userSelect = await screen.findByLabelText(/Pilih Pengguna Target/i);
-        await screen.findByRole('option', { name: /Pegawai Test/i });
-        await user.selectOptions(userSelect, 'user-2');
+        const userInput = await screen.findByPlaceholderText(/Cari nama atau email pengguna.../i);
+        await user.type(userInput, 'Pegawai');
+        const userOption = await screen.findByRole('option', { name: /Pegawai Test/i });
+        await user.click(userOption);
 
         const permissionSelect = screen.getByLabelText(/Permission Unit-Scoped/i);
         await user.selectOptions(permissionSelect, 'perm-1');

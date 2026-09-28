@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, Clock, Eye, AlertCircle, Paperclip } from 'lucide-react';
+import { CheckCircle2, Eye, AlertCircle, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -37,8 +37,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-ink">
-                        <Clock className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-ink">
                         Daftar Pengajuan Masuk ({pagination.total})
                     </CardTitle>
                 </CardHeader>

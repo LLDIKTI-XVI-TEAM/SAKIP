@@ -87,16 +87,16 @@ export default function ActivationIndex({ users, canActivate }: ActivationProps)
     };
 
     return (
-        <AuthenticatedLayout title="Aktivasi pengguna" hasCustomHeading>
+        <AuthenticatedLayout title="Aktivasi pengguna">
             <Head title="Aktivasi pengguna" />
             <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-                <h1 ref={title} tabIndex={-1} className="text-lg font-semibold text-ink">Akun menunggu aktivasi</h1>
-                <p className="mb-6 mt-2 text-sm text-muted">Tinjau identitas pengguna sebelum mengaktifkan akses SAKIP.</p>
+                <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">Akun menunggu aktivasi</h2>
+                <p className="mb-6 mt-0.5 text-xs text-muted">Tinjau identitas pengguna sebelum mengaktifkan akses SAKIP.</p>
                 {users.data.length === 0 ? <p className="rounded-lg bg-soft p-4 text-sm text-muted">Tidak ada akun yang menunggu aktivasi.</p> : (
                     <ul className="divide-y divide-border">
                         {users.data.map((user) => (
                             <li key={user.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0"><h2 className="break-words text-sm font-semibold text-ink">{user.nama}</h2><p className="break-all text-sm text-muted">{user.email}</p></div>
+                                <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p></div>
                                 {canActivate && <Button type="button" className={`${primaryButton} self-start sm:self-auto`} aria-label={`Aktifkan ${user.nama}`} onClick={(event) => {
                                     trigger.current = event.currentTarget;
                                     setSelected(user);

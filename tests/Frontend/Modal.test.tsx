@@ -1,10 +1,35 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Modal } from '@/Components/Modal';
 
 afterEach(cleanup);
 
 describe('Modal Accessibility', () => {
+    it.each([false, true])('fokus awal tidak mengambil alih field yang sudah dipilih: %s', (alreadyFocused) => {
+        vi.useFakeTimers();
+        try {
+            render(
+                <Modal isOpen={true} onClose={vi.fn()} title="Form regulasi">
+                    <select aria-label="Jenis">
+                        <option>Keputusan</option>
+                    </select>
+                    <input aria-label="Nomor" />
+                </Modal>
+            );
+            const number = screen.getByRole('textbox', { name: 'Nomor' });
+            if (alreadyFocused) number.focus();
+
+            act(() => vi.runOnlyPendingTimers());
+
+            expect(document.activeElement).toBe(
+                alreadyFocused ? number : screen.getByRole('combobox', { name: 'Jenis' })
+            );
+        } finally {
+            cleanup();
+            vi.useRealTimers();
+        }
+    });
+
     it('menghubungkan aria-labelledby dan aria-describedby ke ID judul dan deskripsi dialog', () => {
         const onClose = vi.fn();
         render(
