@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Perencanaan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Indikator\StoreIndikatorRequest;
 use App\Models\IndikatorKinerja;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\RoleCatalog;
@@ -15,6 +17,7 @@ use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class StoreIndikator extends Controller
 {
@@ -26,12 +29,27 @@ class StoreIndikator extends Controller
         $validated = $request->validated();
 
         $result = DB::transaction(function () use ($validated, $actor, $auditLogger, $resolver) {
-            // Kunci user dan role aktif aktor untuk mencegah race condition pencabutan peran / izin
-            User::whereKey($actor->id)->sharedLock()->first();
+            // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
+            /** @var User|null $lockedActor */
+            $lockedActor = User::whereKey($actor->id)->lockForUpdate()->first();
+            if (! $lockedActor || ! $lockedActor->is_active) {
+                return [
+                    'status' => 'denied',
+                    'dasarIzin' => [
+                        'status' => 'denied',
+                        'alasan' => 'Akun pengguna tidak aktif.',
+                    ],
+                ];
+            }
+
+            // 2. Kunci seluruh baris ACL yang menentukan keputusan izin aktor
+            DB::table('user_roles')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_denied')->where('user_id', $lockedActor->id)->sharedLock()->get();
 
             $actorRoleIds = DB::table('user_roles')
                 ->join('roles', 'roles.id', '=', 'user_roles.role_id')
-                ->where('user_roles.user_id', $actor->id)
+                ->where('user_roles.user_id', $lockedActor->id)
                 ->where('roles.aktif', true)
                 ->pluck('roles.id')
                 ->all();
@@ -40,8 +58,13 @@ class StoreIndikator extends Controller
                 Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
             }
 
-            // Evaluasi ulang keputusan izin di dalam transaksi yang terkunci
-            $currentDecision = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE);
+            $perm = Permission::where('kode', PermissionCodes::INDIKATOR_CREATE)->sharedLock()->first();
+            if ($perm && ! empty($actorRoleIds)) {
+                DB::table('role_permissions')->whereIn('role_id', $actorRoleIds)->where('permission_id', $perm->id)->sharedLock()->get();
+            }
+
+            // 3. Evaluasi ulang keputusan izin di dalam transaksi yang terkunci memakai state terkini
+            $currentDecision = $resolver->resolve($lockedActor, PermissionCodes::INDIKATOR_CREATE);
             if (! $currentDecision->allowed) {
                 return [
                     'status' => 'denied',
@@ -49,7 +72,8 @@ class StoreIndikator extends Controller
                 ];
             }
 
-            // Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan resolusi Q32 terkini
+            // 4. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan resolusi Q32
+            // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
             $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
             $createdRole = null;
             if (! empty($grantingRoleIds)) {
@@ -61,17 +85,31 @@ class StoreIndikator extends Controller
                     ->value('kode');
             }
 
-            if (! $createdRole) {
-                // Fallback ke role aktif tertinggi aktor jika izin diperoleh melalui grant/mekanisme lain
-                $createdRole = $actor->roles()
-                    ->where('roles.aktif', true)
-                    ->whereIn('roles.kode', RoleCatalog::codes())
-                    ->orderBy('roles.urutan')
-                    ->value('roles.kode');
+            if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
+                return [
+                    'status' => 'denied',
+                    'dasarIzin' => [
+                        'status' => 'denied',
+                        'alasan' => 'Izin pembuatan indikator tidak bersumber dari peran resmi yang sah untuk provenance.',
+                    ],
+                ];
             }
 
-            if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
-                throw new \LogicException('Tidak dapat menentukan role otoritas yang sah dari aktor untuk pembuatan indikator.');
+            // 5. Kunci dan periksa ulang status unit tujuan di dalam transaksi
+            /** @var Unit|null $targetUnit */
+            $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
+            if (! $targetUnit || $targetUnit->status !== 'aktif') {
+                throw ValidationException::withMessages([
+                    'unit_id' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
+                ]);
+            }
+
+            // 6. Kunci sasaran strategis induk
+            $sasaran = SasaranStrategis::whereKey($validated['sasaran_strategis_id'])->sharedLock()->first();
+            if (! $sasaran) {
+                throw ValidationException::withMessages([
+                    'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak valid.',
+                ]);
             }
 
             $created = IndikatorKinerja::create([

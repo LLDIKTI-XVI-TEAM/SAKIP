@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Perencanaan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Indikator\UpdateIndikatorRequest;
 use App\Models\IndikatorKinerja;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\SasaranStrategis;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
@@ -26,9 +29,53 @@ class UpdateIndikator extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_UPDATE)->toAuditBasis();
 
-        DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $dasarIzin, $request) {
+        $result = DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $resolver, $request) {
+            // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
+            /** @var User|null $lockedActor */
+            $lockedActor = User::whereKey($actor->id)->lockForUpdate()->first();
+            if (! $lockedActor || ! $lockedActor->is_active) {
+                return [
+                    'status' => 'denied',
+                    'dasarIzin' => [
+                        'status' => 'denied',
+                        'alasan' => 'Akun pengguna tidak aktif.',
+                    ],
+                ];
+            }
+
+            // 2. Kunci seluruh baris ACL yang menentukan keputusan izin aktor
+            DB::table('user_roles')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_denied')->where('user_id', $lockedActor->id)->sharedLock()->get();
+
+            $actorRoleIds = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('user_roles.user_id', $lockedActor->id)
+                ->where('roles.aktif', true)
+                ->pluck('roles.id')
+                ->all();
+            sort($actorRoleIds);
+            if (! empty($actorRoleIds)) {
+                Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+            }
+
+            $perm = Permission::where('kode', PermissionCodes::INDIKATOR_UPDATE)->sharedLock()->first();
+            if ($perm && ! empty($actorRoleIds)) {
+                DB::table('role_permissions')->whereIn('role_id', $actorRoleIds)->where('permission_id', $perm->id)->sharedLock()->get();
+            }
+
+            // 3. Evaluasi ulang keputusan izin di dalam transaksi yang terkunci memakai state terkini (Point 10)
+            $currentDecision = $resolver->resolve($lockedActor, PermissionCodes::INDIKATOR_UPDATE);
+            if (! $currentDecision->allowed) {
+                return [
+                    'status' => 'denied',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
+                ];
+            }
+
+            $dasarIzin = $currentDecision->toAuditBasis();
+
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::query()
                 ->whereKey($indikator->getKey())
@@ -37,18 +84,50 @@ class UpdateIndikator extends Controller
 
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
 
-            // Cegah pemindahan indikator lintas Renstra
-            $currentRenstraId = DB::table('sasaran_strategis')
-                ->where('id', $lockedIndikator->sasaran_strategis_id)
-                ->value('renstra_id');
-            $targetRenstraId = DB::table('sasaran_strategis')
-                ->where('id', $validated['sasaran_strategis_id'])
-                ->value('renstra_id');
+            // 4. Kunci kedua sasaran secara deterministik dan cegah pemindahan lintas Renstra (Point 6)
+            $currentSasaranId = $lockedIndikator->sasaran_strategis_id;
+            $targetSasaranId = $validated['sasaran_strategis_id'];
+            $sasaranIds = array_values(array_unique([$currentSasaranId, $targetSasaranId]));
+            sort($sasaranIds);
 
-            if ($currentRenstraId !== $targetRenstraId) {
+            $lockedSasarans = SasaranStrategis::whereIn('id', $sasaranIds)
+                ->orderBy('id')
+                ->sharedLock()
+                ->get()
+                ->keyBy('id');
+
+            $currentSasaran = $lockedSasarans->get($currentSasaranId);
+            $targetSasaran = $lockedSasarans->get($targetSasaranId);
+
+            if (! $currentSasaran || ! $targetSasaran || $currentSasaran->renstra_id !== $targetSasaran->renstra_id) {
                 throw ValidationException::withMessages([
                     'sasaran_strategis_id' => 'Pemindahan indikator ke sasaran strategis di luar Renstra asal tidak diizinkan.',
                 ]);
+            }
+
+            // 5. Kunci dan periksa ulang status unit tujuan (Point 8)
+            /** @var Unit|null $targetUnit */
+            $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
+            if (! $targetUnit || $targetUnit->status !== 'aktif') {
+                throw ValidationException::withMessages([
+                    'unit_id' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
+                ]);
+            }
+
+            // 6. Validasi alasan perpindahan terhadap baris yang dikunci (Point 5)
+            $isUnitChanged = $lockedIndikator->unit_id !== $validated['unit_id'];
+            $alasanPindah = null;
+            if ($isUnitChanged) {
+                $rawAlasanPindah = $validated['alasan_pindah_unit']
+                    ?? $validated['alasan']
+                    ?? $request->input('alasan_pindah_unit')
+                    ?? $request->input('alasan');
+                $alasanPindah = is_string($rawAlasanPindah) ? trim($rawAlasanPindah) : '';
+                if ($alasanPindah === '' || mb_strlen($alasanPindah) < 10) {
+                    throw ValidationException::withMessages([
+                        'alasan_pindah_unit' => 'Perpindahan unit penanggung jawab memerlukan alasan minimal 10 karakter.',
+                    ]);
+                }
             }
 
             $updateData = [
@@ -89,15 +168,10 @@ class UpdateIndikator extends Controller
 
             $nilaiBaru = $lockedIndikator->withoutRelations()->toArray();
 
-            // 1. Audit eksplisit bila terjadi perpindahan unit penanggung jawab
-            $isUnitChanged = ($nilaiLama['unit_id'] ?? null) !== ($nilaiBaru['unit_id'] ?? null);
+            // 7. Audit perpindahan unit penanggung jawab jika unit berubah
             if ($isUnitChanged) {
                 $oldUnitName = DB::table('unit')->where('id', $nilaiLama['unit_id'])->value('nama') ?? $nilaiLama['unit_id'];
-                $newUnitName = DB::table('unit')->where('id', $nilaiBaru['unit_id'])->value('nama') ?? $nilaiBaru['unit_id'];
-                $alasanPindah = $validated['alasan_pindah_unit']
-                    ?? $validated['alasan']
-                    ?? $request->input('alasan')
-                    ?? "Perpindahan unit penanggung jawab dari '{$oldUnitName}' ke '{$newUnitName}'.";
+                $newUnitName = $targetUnit->nama ?? $nilaiBaru['unit_id'];
 
                 $auditLogger->catat(
                     actor: $actor,
@@ -117,7 +191,7 @@ class UpdateIndikator extends Controller
                 );
             }
 
-            // 2. Audit perubahan data umum jika ada field non-unit yang berubah
+            // 8. Audit perubahan data umum jika ada field non-unit yang berubah (Point 9: keluarkan delta unit)
             $generalFields = ['sasaran_strategis_id', 'regulasi_id', 'kode', 'nama', 'definisi_operasional', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'wajib_catatan', 'jenis_agregasi', 'is_aktif'];
             $hasGeneralChanges = false;
             foreach ($generalFields as $field) {
@@ -133,19 +207,45 @@ class UpdateIndikator extends Controller
                     $alasan .= ' Perubahan regulasi_id: '.($nilaiLama['regulasi_id'] ?? 'kosong').' -> '.($nilaiBaru['regulasi_id'] ?? 'kosong').'.';
                 }
 
+                $nilaiLamaUbah = $nilaiLama;
+                $nilaiBaruUbah = $nilaiBaru;
+                if ($isUnitChanged) {
+                    unset($nilaiLamaUbah['unit_id'], $nilaiBaruUbah['unit_id']);
+                }
+
                 $auditLogger->catat(
                     actor: $actor,
                     tindakan: 'indikator.ubah',
                     objekTipe: 'indikator',
                     objekId: (string) $lockedIndikator->id,
-                    nilaiLama: $nilaiLama,
-                    nilaiBaru: $nilaiBaru,
+                    nilaiLama: $nilaiLamaUbah,
+                    nilaiBaru: $nilaiBaruUbah,
                     alasan: $alasan,
                     dasarIzin: $dasarIzin,
                 );
             }
+
+            return [
+                'status' => 'updated',
+                'indikator' => $lockedIndikator,
+            ];
         });
 
+        if ($result['status'] === 'denied') {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'indikator.ubah_ditolak',
+                objekTipe: 'indikator',
+                objekId: (string) $indikator->id,
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: 'Pembaruan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                dasarIzin: $result['dasarIzin'],
+            );
+            abort(403, 'Anda tidak berwenang mengubah indikator kinerja.');
+        }
+
+        $indikator = $result['indikator'];
         $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
 
         return redirect()

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Perencanaan;
 
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
@@ -305,7 +306,7 @@ class SasaranIndikatorTest extends TestCase
         ]);
     }
 
-    public function test_5e_provenance_legacy_unknown_ditolak_pada_model_baru_tetapi_diterima_skema_backfill(): void
+    public function test_5e_provenance_legacy_unknown_ditolak_pada_setiap_insert_baru(): void
     {
         $sasaran = SasaranStrategis::create([
             'renstra_id' => $this->renstra->id,
@@ -315,7 +316,7 @@ class SasaranIndikatorTest extends TestCase
         ]);
 
         // 1. Model baru menolak sentinel legacy_unknown
-        $threw = false;
+        $threwModel = false;
         try {
             IndikatorKinerja::create([
                 'sasaran_strategis_id' => $sasaran->id,
@@ -328,28 +329,31 @@ class SasaranIndikatorTest extends TestCase
                 'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
             ]);
         } catch (\InvalidArgumentException $e) {
-            $threw = true;
+            $threwModel = true;
         }
-        $this->assertTrue($threw, 'Model harus menolak pembuatan baru dengan sentinel legacy_unknown.');
+        $this->assertTrue($threwModel, 'Model harus menolak pembuatan baru dengan sentinel legacy_unknown.');
 
-        // 2. Query builder / backfill skema database menerima sentinel legacy_unknown
-        $id = (string) Str::uuid();
-        DB::table('indikator_kinerjas')->insert([
-            'id' => $id,
-            'sasaran_strategis_id' => $sasaran->id,
-            'kode' => 'IKU-LEGACY-OK',
-            'nama' => 'Indikator Legacy Valid DB',
-            'satuan' => 'Poin',
-            'unit_id' => $this->unit->id,
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
-            'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $loaded = IndikatorKinerja::findOrFail($id);
-        $this->assertSame('legacy_unknown', $loaded->created_by_role);
+        // 2. Query builder / direct SQL INSERT juga ditolak oleh trigger database
+        $threwDb = false;
+        try {
+            DB::table('indikator_kinerjas')->insert([
+                'id' => (string) Str::uuid(),
+                'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-LEGACY-OK',
+                'nama' => 'Indikator Legacy Valid DB',
+                'satuan' => 'Poin',
+                'unit_id' => $this->unit->id,
+                'arah' => 'naik_baik',
+                'tipe_perhitungan' => 'manual',
+                'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (QueryException $e) {
+            $threwDb = true;
+            $this->assertSame('23514', $e->getCode());
+        }
+        $this->assertTrue($threwDb, 'Database trigger harus menolak INSERT baru dengan sentinel legacy_unknown.');
     }
 
     public function test_5f_created_by_role_bersifat_immutable_pada_model(): void
@@ -1136,14 +1140,18 @@ class SasaranIndikatorTest extends TestCase
 
     public function test_index_sasaran_indikator_validates_renstra_id_and_handles_invalid_gracefully(): void
     {
-        // 1. Query string dengan format bukan UUID tidak melempar 500 dan fallback ke Renstra aktif
-        $responseBadFormat = $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator?renstra_id=bukan-uuid');
-        $responseBadFormat->assertOk();
+        // 1. Query string tanpa renstra_id fallback ke Renstra aktif
+        $responseNoParam = $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator');
+        $responseNoParam->assertOk();
 
-        // 2. Query string dengan UUID yang tidak ada di basis data fallback ke Renstra aktif
+        // 2. Query string dengan format bukan UUID ditolak 404
+        $responseBadFormat = $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator?renstra_id=bukan-uuid');
+        $responseBadFormat->assertNotFound();
+
+        // 3. Query string dengan UUID yang tidak ada di basis data ditolak 404
         $randomUuid = (string) Str::uuid();
         $responseNotFound = $this->actingAs($this->perencanaan)->get("/perencanaan/sasaran-indikator?renstra_id={$randomUuid}");
-        $responseNotFound->assertOk();
+        $responseNotFound->assertNotFound();
     }
 
     public function test_update_indikator_lintas_renstra_ditolak_validasi(): void
@@ -1282,6 +1290,303 @@ class SasaranIndikatorTest extends TestCase
             ->first();
         $this->assertNotNull($auditUbah);
         $this->assertSame('IKU-TRANSFER-EDIT', $auditUbah->nilai_baru['kode']);
+    }
+
+    public function test_store_indikator_fails_closed_when_allowed_only_by_direct_grant_without_role(): void
+    {
+        $this->pasangPresetRole('pegawai');
+        $pegawai = $this->buatUserDenganRole('pegawai', 'pegawai-grant@sakip.test');
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-GRANT-ONLY',
+            'deskripsi' => 'Sasaran Grant Only',
+            'urutan' => 1,
+        ]);
+
+        $permIndikatorCreate = Permission::where('kode', PermissionCodes::INDIKATOR_CREATE)->firstOrFail();
+
+        // Berikan direct grant indikator:create ke pegawai (yang role aslinya tidak punya izin ini)
+        DB::table('user_permission_granted')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $pegawai->id,
+            'permission_id' => $permIndikatorCreate->id,
+            'unit_id' => null,
+            'alasan' => 'Direct grant uji coba tanpa role yang sah',
+            'diberikan_oleh' => $pegawai->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($pegawai)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-GRANT-ONLY',
+            'nama' => 'Indikator Grant Only',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('indikator_kinerjas', ['kode' => 'IKU-GRANT-ONLY']);
+
+        $audit = AuditLog::where('tindakan', 'indikator.buat_ditolak')->latest('waktu')->first();
+        $this->assertNotNull($audit);
+        $this->assertStringContainsString('tidak bersumber dari peran resmi', $audit->dasar_izin['alasan'] ?? '');
+    }
+
+    public function test_store_dan_update_menolak_pengguna_nonaktif_di_dalam_transaksi(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-INACTIVE-USER',
+            'deskripsi' => 'Sasaran Inactive User',
+            'urutan' => 2,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-INACTIVE-USER',
+            'nama' => 'Indikator Inactive User',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        // Simulasikan race condition: pengguna aktif saat lolos middleware awal,
+        // namun baris pengguna di basis data dinonaktifkan sebelum transaksi memperoleh lock.
+        $this->withoutMiddleware(EnsureUserIsActive::class);
+        DB::table('users')->where('id', $this->perencanaan->id)->update(['is_active' => false]);
+        $this->perencanaan->is_active = true;
+
+        // Store ditolak di dalam transaksi karena query lock memuat ulang is_active = false
+        $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-INACTIVE-NEW',
+            'nama' => 'Indikator Inactive New',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+        $responseStore->assertForbidden();
+
+        // Update ditolak di dalam transaksi karena query lock memuat ulang is_active = false
+        $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-INACTIVE-EDIT',
+            'nama' => 'Indikator Inactive Edit',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+        $responseUpdate->assertForbidden();
+
+        // Kembalikan status akun di basis data
+        DB::table('users')->where('id', $this->perencanaan->id)->update(['is_active' => true]);
+        $this->perencanaan->refresh();
+    }
+
+    public function test_database_trigger_menolak_pemindahan_indikator_lintas_renstra(): void
+    {
+        $renstraLain = Renstra::create([
+            'kode' => 'RENSTRA-TRIGGER',
+            'nama' => 'Renstra Trigger Test',
+            'tahun_mulai' => 2035,
+            'tahun_selesai' => 2040,
+            'is_aktif' => false,
+        ]);
+
+        $sasaranAsal = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-ASAL-TRIG',
+            'deskripsi' => 'Sasaran Asal Trigger',
+            'urutan' => 1,
+        ]);
+
+        $sasaranLain = SasaranStrategis::create([
+            'renstra_id' => $renstraLain->id,
+            'kode' => 'SS-LAIN-TRIG',
+            'deskripsi' => 'Sasaran Lain Trigger',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaranAsal->id,
+            'kode' => 'IKU-TRIG-LINTAS',
+            'nama' => 'Indikator Trigger Lintas',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $threw = false;
+        try {
+            DB::table('indikator_kinerjas')
+                ->where('id', $indikator->id)
+                ->update(['sasaran_strategis_id' => $sasaranLain->id]);
+        } catch (QueryException $e) {
+            $threw = true;
+            $this->assertSame('23514', $e->getCode());
+        }
+
+        $this->assertTrue($threw, 'Trigger check_indikator_same_renstra harus melempar 23514 pada update lintas Renstra.');
+    }
+
+    public function test_update_indikator_menolak_unit_tujuan_nonaktif_di_dalam_transaksi(): void
+    {
+        $unitNonaktif = Unit::create([
+            'nama' => 'Unit Nonaktif Target',
+            'status' => 'nonaktif',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-UNIT-NONAKTIF',
+            'deskripsi' => 'Sasaran Unit Nonaktif',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UNIT-NONAKTIF',
+            'nama' => 'Indikator Unit Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UNIT-NONAKTIF',
+            'nama' => 'Indikator Unit Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $unitNonaktif->id,
+            'alasan_pindah_unit' => 'Mencoba pindah ke unit yang sudah nonaktif.',
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $response->assertSessionHasErrors(['unit_id']);
+        $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
+    }
+
+    public function test_update_indikator_merged_edit_tidak_menduplikasi_delta_unit_pada_audit_ubah(): void
+    {
+        $unitBaru = Unit::create([
+            'nama' => 'Unit Baru Gabungan',
+            'status' => 'aktif',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-MERGED',
+            'deskripsi' => 'Sasaran Merged Edit',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-MERGED',
+            'nama' => 'Nama Awal Sebelum Gabungan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-MERGED-NEW',
+            'nama' => 'Nama Baru Setelah Gabungan',
+            'satuan' => '%',
+            'unit_id' => $unitBaru->id,
+            'alasan_pindah_unit' => 'Alasan sah perpindahan unit pada edit gabungan.',
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $response->assertRedirect();
+
+        // 1. Audit indikator.pindah_unit mencatat perpindahan unit
+        $auditPindah = AuditLog::where('tindakan', 'indikator.pindah_unit')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditPindah);
+        $this->assertSame($this->unit->id, $auditPindah->nilai_lama['unit_id']);
+        $this->assertSame($unitBaru->id, $auditPindah->nilai_baru['unit_id']);
+
+        // 2. Audit indikator.ubah mencatat perubahan field umum dan TIDAK memuat delta unit_id
+        $auditUbah = AuditLog::where('tindakan', 'indikator.ubah')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditUbah);
+        $this->assertSame('IKU-MERGED-NEW', $auditUbah->nilai_baru['kode']);
+        $this->assertArrayNotHasKey('unit_id', $auditUbah->nilai_lama);
+        $this->assertArrayNotHasKey('unit_id', $auditUbah->nilai_baru);
+    }
+
+    public function test_update_indikator_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-UPDATE-DENIED',
+            'deskripsi' => 'Sasaran Update Denied',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UPDATE-DENIED',
+            'nama' => 'Nama Asal Tidak Boleh Berubah',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        $mockResolver->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) {
+            return new PermissionDecision(false, $code, [
+                'alasan' => 'revoked_inside_transaction',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]);
+        });
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UPDATE-DENIED-MOD',
+            'nama' => 'Nama Berubah Yang Harus Ditolak',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertSame('Nama Asal Tidak Boleh Berubah', $indikator->fresh()->nama);
+
+        $auditDenied = AuditLog::where('tindakan', 'indikator.ubah_ditolak')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditDenied);
+        $this->assertSame('revoked_inside_transaction', $auditDenied->dasar_izin['alasan'] ?? null);
     }
 
     private function buatUserDenganRole(string $roleName, string $email): User

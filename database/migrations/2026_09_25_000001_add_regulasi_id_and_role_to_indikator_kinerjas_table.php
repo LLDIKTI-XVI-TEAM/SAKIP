@@ -101,6 +101,47 @@ return new class extends Migration
                 BEFORE UPDATE ON indikator_kinerjas
                 FOR EACH ROW EXECUTE FUNCTION reject_indikator_created_by_role_mutation();
         SQL);
+
+        // 6. Tambahkan trigger PostgreSQL untuk menolak penggunaan sentinel legacy_unknown pada INSERT record baru
+        DB::unprepared(<<<'SQL'
+            CREATE OR REPLACE FUNCTION reject_indikator_legacy_unknown_insert() RETURNS trigger AS $$
+            BEGIN
+                IF NEW.created_by_role = 'legacy_unknown' THEN
+                    RAISE EXCEPTION 'Sentinel legacy_unknown tidak diizinkan pada INSERT indikator baru.' USING ERRCODE = '23514';
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS indikator_kinerjas_no_legacy_unknown_insert ON indikator_kinerjas;
+            CREATE TRIGGER indikator_kinerjas_no_legacy_unknown_insert
+                BEFORE INSERT ON indikator_kinerjas
+                FOR EACH ROW EXECUTE FUNCTION reject_indikator_legacy_unknown_insert();
+        SQL);
+
+        // 7. Tambahkan trigger PostgreSQL untuk menegakkan invariant bahwa indikator tidak boleh dipindahkan lintas Renstra
+        DB::unprepared(<<<'SQL'
+            CREATE OR REPLACE FUNCTION check_indikator_same_renstra() RETURNS trigger AS $$
+            DECLARE
+                old_renstra uuid;
+                new_renstra uuid;
+            BEGIN
+                IF OLD.sasaran_strategis_id IS NOT NULL AND NEW.sasaran_strategis_id IS DISTINCT FROM OLD.sasaran_strategis_id THEN
+                    SELECT renstra_id INTO old_renstra FROM sasaran_strategis WHERE id = OLD.sasaran_strategis_id;
+                    SELECT renstra_id INTO new_renstra FROM sasaran_strategis WHERE id = NEW.sasaran_strategis_id;
+                    IF old_renstra IS DISTINCT FROM new_renstra THEN
+                        RAISE EXCEPTION 'Indikator kinerja tidak boleh dipindahkan ke sasaran strategis pada Renstra yang berbeda.' USING ERRCODE = '23514';
+                    END IF;
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS indikator_kinerjas_same_renstra_guard ON indikator_kinerjas;
+            CREATE TRIGGER indikator_kinerjas_same_renstra_guard
+                BEFORE UPDATE OF sasaran_strategis_id ON indikator_kinerjas
+                FOR EACH ROW EXECUTE FUNCTION check_indikator_same_renstra();
+        SQL);
     }
 
     /**
@@ -109,6 +150,10 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasColumn('indikator_kinerjas', 'created_by_role')) {
+            DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_same_renstra_guard ON indikator_kinerjas');
+            DB::statement('DROP FUNCTION IF EXISTS check_indikator_same_renstra()');
+            DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_no_legacy_unknown_insert ON indikator_kinerjas');
+            DB::statement('DROP FUNCTION IF EXISTS reject_indikator_legacy_unknown_insert()');
             DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_created_by_role_immutable ON indikator_kinerjas');
             DB::statement('DROP FUNCTION IF EXISTS reject_indikator_created_by_role_mutation()');
             DB::statement('ALTER TABLE indikator_kinerjas DROP CONSTRAINT IF EXISTS indikator_kinerjas_created_by_role_check');
