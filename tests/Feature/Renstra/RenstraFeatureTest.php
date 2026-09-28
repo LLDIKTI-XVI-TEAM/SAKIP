@@ -46,7 +46,7 @@ function pasangPresetRoleUntukTestRenstra(string $roleName): void
 function userDenganRoleRenstra(string $roleName, string $email): User
 {
     $role = Role::query()->where('kode', $roleName)->firstOrFail();
-    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user = User::factory()->create(['email' => $email, 'status' => 'aktif']);
     $user->roles()->attach($role->id, [
         'id' => (string) Str::uuid(),
         'sumber_pemberian' => 'manual',
@@ -116,7 +116,7 @@ test('AC-1: Data Renstra valid tersimpan dengan status awal draft', function ():
     expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
 });
 
-test('AC-2: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode', function (): void {
+test('AC-4: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode', function (): void {
     Storage::fake('local');
 
     $payload = [
@@ -181,7 +181,7 @@ test('AC-2: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mod
     expect($auditInduk->nilai_baru['lampiran'][0])->not->toHaveKey('path');
 });
 
-test('AC-3: Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak', function (): void {
+test('AC-2: Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak', function (): void {
     $payloadInvalid = [
         'nama' => 'Renstra Tahun Terbalik',
         'kode' => 'RENSTRA-INVALID-YEAR',
@@ -197,7 +197,7 @@ test('AC-3: Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak va
     $this->assertDatabaseMissing('renstras', ['kode' => 'RENSTRA-INVALID-YEAR']);
 });
 
-test('AC-4: Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra aktif ditolak', function (): void {
+test('Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra aktif ditolak', function (): void {
     Storage::fake('local');
 
     $renstra = buatRenstra($this->perencanaan, [
@@ -226,7 +226,7 @@ test('AC-4: Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra akt
     ]);
 });
 
-test('AC-4: Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log', function (): void {
+test('Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log', function (): void {
     Storage::fake('local');
 
     $renstra = buatRenstra($this->perencanaan, [
@@ -270,7 +270,7 @@ test('AC-4: Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di au
     expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
 });
 
-test('RBAC: Pegawai tanpa renstra:create ditolak 403 saat mencoba membuat Renstra', function (): void {
+test('AC-5: Pegawai tanpa renstra:create ditolak 403 saat mencoba membuat Renstra', function (): void {
     $response = $this->actingAs($this->pembaca)->post('/renstra', [
         'nama' => 'Renstra Tidak Berhak',
         'kode' => 'RENSTRA-403',
@@ -306,7 +306,7 @@ test('RBAC: Renstra index dan show dapat diakses oleh perencanaan dan ditolak un
     $this->actingAs($this->pembaca)->get("/renstra/{$renstra->id}")->assertForbidden();
 });
 
-test('Renstra dapat ditautkan ke regulasi rujukan', function (): void {
+test('AC-3: Rujukan regulasi valid dapat ditampilkan dan dikosongkan tanpa kehilangan dasar hukum', function (): void {
     $regulasi = Regulasi::query()->create([
         'jenis' => 'permen',
         'nomor' => 'Permen 123/2024',
@@ -322,6 +322,7 @@ test('Renstra dapat ditautkan ke regulasi rujukan', function (): void {
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
         'regulasi_id' => $regulasi->id,
+        'dasar_hukum' => 'Ringkasan dasar hukum Renstra tetap disimpan.',
     ];
 
     $this->actingAs($this->perencanaan)->post('/renstra', $payload);
@@ -329,6 +330,32 @@ test('Renstra dapat ditautkan ke regulasi rujukan', function (): void {
     $renstra = Renstra::query()->where('kode', 'RENSTRA-REGULASI')->firstOrFail();
     expect($renstra->regulasi_id)->toBe($regulasi->id);
     expect($renstra->regulasi->nomor)->toBe('Permen 123/2024');
+
+    $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('renstra.regulasi.jenis', 'permen')
+            ->where('renstra.regulasi.nomor', 'Permen 123/2024')
+            ->where('renstra.regulasi.tahun', 2024)
+            ->where('renstra.regulasi.tentang', 'Standar Akuntabilitas')
+        );
+
+    $payload['regulasi_id'] = null;
+    $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", $payload)
+        ->assertRedirect("/renstra/{$renstra->id}");
+
+    $renstra = $renstra->fresh();
+    expect($renstra->regulasi_id)->toBeNull();
+    expect($renstra->dasar_hukum)->toBe('Ringkasan dasar hukum Renstra tetap disimpan.');
+
+    $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Show')
+            ->where('renstra.regulasi', null)
+            ->where('renstra.dasar_hukum', 'Ringkasan dasar hukum Renstra tetap disimpan.')
+        );
 });
 
 test('Update Renstra aktif mewajibkan alasan audit', function (): void {
@@ -608,7 +635,7 @@ test('Penghapusan Renstra berstatus selain draft ditolak', function (): void {
     $this->assertDatabaseHas('renstras', ['id' => $renstraNonaktif->id]);
 });
 
-test('Penghapusan Renstra draft menghapus berkas lampiran dengan dihapus_oleh dan mencatat audit log berkas.hapus', function (): void {
+test('AC-6: Penghapusan Renstra draft menghapus berkas lampiran dengan dihapus_oleh dan mencatat audit log berkas.hapus', function (): void {
     Storage::fake('local');
 
     $renstra = buatRenstra($this->perencanaan, [
@@ -930,7 +957,7 @@ test('Penghapusan lampiran Renstra ditolak jika otorisasi parent Renstra ditolak
 
 test('Percobaan membuat Renstra tanpa izin renstra:create mencatat audit renstra.buat_ditolak', function (): void {
     $pembacaRole = Role::query()->where('kode', 'pembaca')->first();
-    $userPembaca = User::factory()->create(['email' => 'pembaca-create-fail@example.test', 'is_active' => true]);
+    $userPembaca = User::factory()->create(['email' => 'pembaca-create-fail@example.test', 'status' => 'aktif']);
     if ($pembacaRole) {
         $userPembaca->roles()->attach($pembacaRole->id, [
             'id' => (string) Str::uuid(),

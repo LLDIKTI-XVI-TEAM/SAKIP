@@ -109,6 +109,25 @@ it('form tambah tanpa izin baca regulasi tidak mengirim regulasi_id kosong', () 
     expect(payload).not.toHaveProperty('regulasi_id');
 });
 
+it('halaman detail menampilkan jenis, nomor, tahun, dan tentang regulasi rujukan', () => {
+    render(<Show renstra={{
+        ...renstra,
+        regulasi_id: 11,
+        regulasi: {
+            id: 11,
+            jenis: 'permen',
+            nomor: 'Permen 123/2024',
+            tahun: 2024,
+            tentang: 'Standar Akuntabilitas',
+        },
+    }} />);
+
+    expect(screen.getByText('Jenis')).toBeTruthy();
+    expect(screen.getByText('Peraturan Menteri')).toBeTruthy();
+    expect(screen.getByText('Permen 123/2024 (2024)')).toBeTruthy();
+    expect(screen.getByText('Standar Akuntabilitas')).toBeTruthy();
+});
+
 it('halaman detail memakai URL unduh yang dikirim server', () => {
     render(<Show renstra={{
         ...renstra,

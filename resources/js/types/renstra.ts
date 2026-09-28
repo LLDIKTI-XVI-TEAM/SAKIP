@@ -1,3 +1,5 @@
+import type { RegulasiJenis } from '@/types/regulasi';
+
 export type RenstraStatus = 'draft' | 'aktif' | 'nonaktif' | 'diarsipkan';
 export type LampiranMode = 'file' | 'tautan' | 'teks';
 
@@ -22,6 +24,7 @@ export interface BerkasRenstra {
 
 export interface RegulasiOption {
     id: number;
+    jenis: RegulasiJenis;
     nomor: string;
     tentang: string;
     tahun: number;

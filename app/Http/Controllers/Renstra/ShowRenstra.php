@@ -78,6 +78,7 @@ class ShowRenstra extends Controller
         if ($dapatBacaRegulasi) {
             $detail['regulasi'] = $renstra->regulasi ? [
                 'id' => $renstra->regulasi->id,
+                'jenis' => $renstra->regulasi->jenis,
                 'nomor' => $renstra->regulasi->nomor,
                 'tahun' => $renstra->regulasi->tahun,
                 'tentang' => $renstra->regulasi->tentang,

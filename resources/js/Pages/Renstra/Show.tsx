@@ -20,6 +20,7 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import type { BerkasRenstra, RenstraDetail, RenstraStatus } from '@/types/renstra';
+import type { RegulasiJenis } from '@/types/regulasi';
 
 interface ShowRenstraProps {
     renstra: RenstraDetail;
@@ -42,6 +43,13 @@ const statusLabel: Record<RenstraStatus, string> = {
     aktif: 'Aktif',
     nonaktif: 'Nonaktif',
     diarsipkan: 'Diarsipkan',
+};
+
+const jenisLabel: Record<RegulasiJenis, string> = {
+    kepmen: 'Keputusan Menteri',
+    permen: 'Peraturan Menteri',
+    perpres: 'Peraturan Presiden',
+    keputusan_lainnya: 'Keputusan lainnya',
 };
 
 function formatBytes(bytes: number | null): string {
@@ -342,6 +350,13 @@ export default function ShowRenstra({
 
                                 {renstra.regulasi ? (
                                     <div className="space-y-3">
+                                        <div>
+                                            <div className="text-xs text-muted">Jenis</div>
+                                            <div className="mt-0.5 text-sm font-semibold text-ink">
+                                                {jenisLabel[renstra.regulasi.jenis]}
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <div className="text-xs text-muted">Nomor & Tahun</div>
                                             <div className="mt-0.5 text-sm font-semibold text-ink">
