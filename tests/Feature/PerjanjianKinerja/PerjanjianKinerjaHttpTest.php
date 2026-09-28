@@ -340,8 +340,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
 
         // Invalid query parameter (tahun bukan integer) ditolak redirect dengan error validasi
         $this->actingAs($this->perencanaan)
-            ->get("/perjanjian-kinerja?tahun=bukan-angka")
+            ->get('/perjanjian-kinerja?tahun=bukan-angka')
             ->assertSessionHasErrors('tahun');
     }
 }
-

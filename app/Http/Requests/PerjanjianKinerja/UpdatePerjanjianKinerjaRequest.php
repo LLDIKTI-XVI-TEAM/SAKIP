@@ -6,6 +6,7 @@ use App\Models\Pengaturan;
 use App\Models\RenstraPk;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdatePerjanjianKinerjaRequest extends FormRequest
 {
@@ -48,7 +49,7 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
     }
 
     /**
-     * @return list<callable(\Illuminate\Validation\Validator): void>
+     * @return list<callable(Validator): void>
      */
     public function after(): array
     {
