@@ -45,7 +45,7 @@ trait CreatesPengukuranFixture
         $this->seed(AccessCatalogSeeder::class);
         $this->actor = $this->userWithRole('superadmin');
         $this->unit = Unit::create(['nama' => 'Unit Pengujian', 'created_by' => $this->actor->id]);
-        $renstra = Renstra::create(['kode' => 'R-UJI', 'nama' => 'Renstra Uji', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true]);
+        $renstra = Renstra::create(['kode' => 'R-UJI', 'nama' => 'Renstra Uji', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI', 'deskripsi' => 'Sasaran Uji']);
         $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $this->unit->id, 'kode' => 'I-UJI', 'nama' => 'Indikator Uji', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual', 'created_by_role' => $this->actor->roles->first()?->kode ?? 'superadmin']);
         $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-UJI', 'tanggal_pk' => '2026-01-01', 'created_by' => $this->actor->id]);

@@ -55,6 +55,7 @@ class JenisBerkasTest extends TestCase
         $unit = Unit::create(['nama' => 'Unit Pengujian', 'created_by' => $this->perencanaan->id]);
         $renstra = Renstra::create([
             'kode' => 'R-UJI',
+            'created_by' => $this->perencanaan->id,
             'nama' => 'Renstra Uji',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,

@@ -61,6 +61,7 @@ class SasaranIndikatorTest extends TestCase
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
             'is_aktif' => true,
+            'created_by' => $this->perencanaan->id,
         ]);
 
         $this->unit = Unit::create([
@@ -1162,6 +1163,7 @@ class SasaranIndikatorTest extends TestCase
             'tahun_mulai' => 2030,
             'tahun_selesai' => 2035,
             'is_aktif' => false,
+            'created_by' => $this->perencanaan->id,
         ]);
 
         $sasaranAsal = SasaranStrategis::create([
@@ -1398,6 +1400,7 @@ class SasaranIndikatorTest extends TestCase
             'tahun_mulai' => 2035,
             'tahun_selesai' => 2040,
             'is_aktif' => false,
+            'created_by' => $this->perencanaan->id,
         ]);
 
         $sasaranAsal = SasaranStrategis::create([

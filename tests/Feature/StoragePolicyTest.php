@@ -57,6 +57,7 @@ class StoragePolicyTest extends TestCase
         $this->unit = Unit::create(['nama' => 'Unit Pengujian Storage', 'created_by' => $this->perencanaan->id]);
         $renstra = Renstra::create([
             'kode' => 'R-STORAGE',
+            'created_by' => $this->perencanaan->id,
             'nama' => 'Renstra Storage Uji',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,

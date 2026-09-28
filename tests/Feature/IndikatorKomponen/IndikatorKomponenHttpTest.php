@@ -38,6 +38,7 @@ class IndikatorKomponenHttpTest extends TestCase
 
         $renstra = Renstra::create([
             'kode' => 'RENSTRA-HTTP-TEST',
+            'created_by' => $this->perencanaan->id,
             'nama' => 'Renstra Test',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,

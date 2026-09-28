@@ -29,6 +29,7 @@ class HandleInertiaRequests extends Middleware
                         'verifikasi' => $can['verifikasi'],
                         'aktivasi' => $can['aktivasi'],
                         'regulasi' => $can['regulasi'],
+                        'renstra' => $can['renstra'],
                         'assignRole' => $can['assignRole'],
                         'manageDeny' => $can['manageDeny'],
                         'unit' => $can['unit'],
@@ -72,6 +73,11 @@ class HandleInertiaRequests extends Middleware
             'regulasi:read' => false,
             'regulasi:update' => false,
             'regulasi:delete' => false,
+            'renstra' => false,
+            'renstra:create' => false,
+            'renstra:read' => false,
+            'renstra:update' => false,
+            'renstra:delete' => false,
             'berkas:delete' => false,
             'pengaturan' => false,
             'pengaturan:update' => false,
@@ -92,6 +98,7 @@ class HandleInertiaRequests extends Middleware
 
         $resolver = app(PermissionResolver::class);
         $regulasiRead = $resolver->allows($user, 'regulasi:read');
+        $renstraRead = $resolver->allows($user, 'renstra:read');
         $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
         $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
 
@@ -114,6 +121,11 @@ class HandleInertiaRequests extends Middleware
             'regulasi:read' => $regulasiRead,
             'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
             'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
+            'renstra' => $renstraRead,
+            'renstra:create' => $resolver->allows($user, 'renstra:create'),
+            'renstra:read' => $renstraRead,
+            'renstra:update' => $resolver->allows($user, 'renstra:update'),
+            'renstra:delete' => $resolver->allows($user, 'renstra:delete'),
             'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
             'pengaturan' => $pengaturanUpdate,
             'pengaturan:update' => $pengaturanUpdate,
