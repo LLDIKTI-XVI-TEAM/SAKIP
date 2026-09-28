@@ -45,14 +45,16 @@ return new class extends Migration
                         }
                     }
 
-                    if (! $derivedRole && ! empty($audit->actor_id)) {
-                        $derivedRole = DB::table('user_roles')
-                            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
-                            ->where('user_roles.user_id', $audit->actor_id)
-                            ->where('roles.aktif', true)
-                            ->whereIn('roles.kode', RoleCatalog::codes())
-                            ->orderBy('roles.urutan')
-                            ->value('roles.kode');
+                    if (! $derivedRole && ! empty($audit->dasar_izin)) {
+                        $dasarIzin = is_string($audit->dasar_izin) ? json_decode($audit->dasar_izin, true) : (array) $audit->dasar_izin;
+                        $roleIds = $dasarIzin['sumber_allow']['roles'] ?? $dasarIzin['roles'] ?? [];
+                        if (! empty($roleIds)) {
+                            $derivedRole = DB::table('roles')
+                                ->whereIn('id', (array) $roleIds)
+                                ->whereIn('kode', RoleCatalog::codes())
+                                ->orderBy('urutan')
+                                ->value('kode');
+                        }
                     }
                 }
             }
@@ -82,6 +84,23 @@ return new class extends Migration
         DB::statement('ALTER TABLE indikator_kinerjas DROP CONSTRAINT IF EXISTS indikator_kinerjas_created_by_role_check');
         $validRoles = implode("', '", $allowedRoles);
         DB::statement("ALTER TABLE indikator_kinerjas ADD CONSTRAINT indikator_kinerjas_created_by_role_check CHECK (created_by_role IN ('{$validRoles}'));");
+
+        // 5. Tambahkan trigger PostgreSQL untuk mengunci sifat immutable kolom created_by_role setelah INSERT
+        DB::unprepared(<<<'SQL'
+            CREATE OR REPLACE FUNCTION reject_indikator_created_by_role_mutation() RETURNS trigger AS $$
+            BEGIN
+                IF OLD.created_by_role IS NOT NULL AND NEW.created_by_role IS DISTINCT FROM OLD.created_by_role THEN
+                    RAISE EXCEPTION 'created_by_role pada indikator_kinerjas bersifat immutable dan tidak boleh diubah.' USING ERRCODE = '23514';
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS indikator_kinerjas_created_by_role_immutable ON indikator_kinerjas;
+            CREATE TRIGGER indikator_kinerjas_created_by_role_immutable
+                BEFORE UPDATE ON indikator_kinerjas
+                FOR EACH ROW EXECUTE FUNCTION reject_indikator_created_by_role_mutation();
+        SQL);
     }
 
     /**
@@ -90,6 +109,8 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasColumn('indikator_kinerjas', 'created_by_role')) {
+            DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_created_by_role_immutable ON indikator_kinerjas');
+            DB::statement('DROP FUNCTION IF EXISTS reject_indikator_created_by_role_mutation()');
             DB::statement('ALTER TABLE indikator_kinerjas DROP CONSTRAINT IF EXISTS indikator_kinerjas_created_by_role_check');
             Schema::table('indikator_kinerjas', function (Blueprint $table) {
                 $table->dropColumn('created_by_role');

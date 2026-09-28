@@ -144,7 +144,7 @@ class AuthorizationHttpRegressionTest extends TestCase
         // Unit B valid di semua prasyarat bisnis; satu-satunya perbedaan adalah grant tidak mencakupnya.
         $otherUnit = Unit::create(['nama' => 'Unit Tetangga', 'created_by' => $this->actor->id]);
         $sasaranB = SasaranStrategis::create(['renstra_id' => $this->jadwal->renstra_id, 'kode' => 'S-TTG', 'deskripsi' => 'Sasaran Tetangga']);
-        $indikatorB = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaranB->id, 'unit_id' => $otherUnit->id, 'kode' => 'I-TTG', 'nama' => 'Indikator Tetangga', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual', 'created_by_role' => 'perencanaan']);
+        $indikatorB = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaranB->id, 'unit_id' => $otherUnit->id, 'kode' => 'I-TTG', 'nama' => 'Indikator Tetangga', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual', 'created_by_role' => $this->actor->roles->first()?->kode ?? 'superadmin']);
         $contextB = JadwalSnapshot::create(['jadwal_id' => $this->jadwal->id, 'indikator_id' => $indikatorB->id, 'periode_mulai_id' => $this->pengukuran->periode_id, 'unit_id' => $otherUnit->id,
             'nama' => 'Indikator Tetangga', 'definisi' => 'Konteks tetangga.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         RencanaAksi::create(['indikator_id' => $indikatorB->id, 'tahun' => 2026, 'unit_id' => $otherUnit->id, 'jadwal_tahunan_id' => $this->jadwal->id, 'jadwal_snapshot_id' => $contextB->id,

@@ -45,6 +45,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         definisi_operasional: '',
         satuan: '%',
         unit_id: units[0]?.id ?? '',
+        alasan_pindah_unit: '',
         arah: 'naik_baik' as IndikatorArah,
         tipe_perhitungan: 'manual' as IndikatorTipePerhitungan,
         presisi: 2,
@@ -75,6 +76,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         definisi_operasional: indikator.definisi_operasional ?? '',
                         satuan: indikator.satuan,
                         unit_id: indikator.unit_id,
+                        alasan_pindah_unit: '',
                         arah: indikator.arah,
                         tipe_perhitungan: indikator.tipe_perhitungan,
                         presisi: indikator.presisi ?? 2,
@@ -92,6 +94,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         definisi_operasional: '',
                         satuan: '%',
                         unit_id: units[0]?.id ?? '',
+                        alasan_pindah_unit: '',
                         arah: 'naik_baik',
                         tipe_perhitungan: 'manual',
                         presisi: 2,
@@ -236,6 +239,21 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         </Select>
                     </div>
                 </div>
+
+                {isEdit && data.unit_id !== indikator?.unit_id && (
+                    <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <Textarea
+                            id="indikator_alasan_pindah_unit"
+                            label="Alasan Perpindahan Unit Penanggung Jawab"
+                            placeholder="Jelaskan alasan pemindahan kepemilikan unit indikator ini (minimal 10 karakter)..."
+                            value={data.alasan_pindah_unit}
+                            onChange={(e) => setData('alasan_pindah_unit', e.target.value)}
+                            error={errors.alasan_pindah_unit}
+                            helperText="Perpindahan unit penanggung jawab memerlukan konfirmasi alasan dan akan dicatat terpisah pada audit log."
+                            required
+                        />
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>

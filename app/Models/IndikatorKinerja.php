@@ -32,6 +32,19 @@ class IndikatorKinerja extends Model
     public const PROVENANCE_LEGACY_UNKNOWN = 'legacy_unknown';
 
     /**
+     * Peran yang diizinkan untuk pembuatan indikator baru via model (hanya peran resmi).
+     * Sentinel legacy_unknown tidak diizinkan untuk pembuatan baru.
+     *
+     * @return list<string>
+     */
+    public static function creatableRoles(): array
+    {
+        return RoleCatalog::codes();
+    }
+
+    /**
+     * Seluruh nilai provenance yang sah tersimpan di basis data (termasuk sentinel legacy).
+     *
      * @return list<string>
      */
     public static function validProvenanceRoles(): array
@@ -46,8 +59,14 @@ class IndikatorKinerja extends Model
     protected static function booted(): void
     {
         static::creating(function (IndikatorKinerja $indikator) {
-            if (empty($indikator->created_by_role) || ! in_array($indikator->created_by_role, self::validProvenanceRoles(), true)) {
-                throw new \InvalidArgumentException("Indikator kinerja wajib menyertakan 'created_by_role' yang sah dari keputusan resolver izin atau provenance legacy.");
+            if (empty($indikator->created_by_role) || ! in_array($indikator->created_by_role, self::creatableRoles(), true)) {
+                throw new \InvalidArgumentException("Indikator kinerja baru wajib menyertakan 'created_by_role' yang sah dari katalog peran resmi.");
+            }
+        });
+
+        static::updating(function (IndikatorKinerja $indikator) {
+            if ($indikator->isDirty('created_by_role')) {
+                throw new \LogicException("Atribut 'created_by_role' bersifat immutable dan tidak boleh diubah setelah indikator dibuat.");
             }
         });
     }

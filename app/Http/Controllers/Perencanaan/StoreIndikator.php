@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Perencanaan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Indikator\StoreIndikatorRequest;
 use App\Models\IndikatorKinerja;
+use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -13,6 +14,7 @@ use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class StoreIndikator extends Controller
 {
@@ -22,27 +24,45 @@ class StoreIndikator extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $decision = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE);
-        if (! $decision->allowed) {
-            abort(403);
-        }
-        $dasarIzin = $decision->toAuditBasis();
 
-        $indikator = DB::transaction(function () use ($validated, $actor, $auditLogger, $dasarIzin) {
-            // Ambil role aktif aktor yang memiliki izin indikator:create berdasarkan resolusi Q32
-            $createdRole = DB::table('roles')
-                ->join('user_roles', 'user_roles.role_id', '=', 'roles.id')
-                ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
-                ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+        $result = DB::transaction(function () use ($validated, $actor, $auditLogger, $resolver) {
+            // Kunci user dan role aktif aktor untuk mencegah race condition pencabutan peran / izin
+            User::whereKey($actor->id)->sharedLock()->first();
+
+            $actorRoleIds = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
                 ->where('user_roles.user_id', $actor->id)
                 ->where('roles.aktif', true)
-                ->where('permissions.kode', PermissionCodes::INDIKATOR_CREATE)
-                ->whereIn('roles.kode', RoleCatalog::codes())
-                ->orderBy('roles.urutan')
-                ->value('roles.kode');
+                ->pluck('roles.id')
+                ->all();
+            sort($actorRoleIds);
+            if (! empty($actorRoleIds)) {
+                Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+            }
+
+            // Evaluasi ulang keputusan izin di dalam transaksi yang terkunci
+            $currentDecision = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE);
+            if (! $currentDecision->allowed) {
+                return [
+                    'status' => 'denied',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
+                ];
+            }
+
+            // Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan resolusi Q32 terkini
+            $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
+            $createdRole = null;
+            if (! empty($grantingRoleIds)) {
+                $createdRole = DB::table('roles')
+                    ->whereIn('id', (array) $grantingRoleIds)
+                    ->where('aktif', true)
+                    ->whereIn('kode', RoleCatalog::codes())
+                    ->orderBy('urutan')
+                    ->value('kode');
+            }
 
             if (! $createdRole) {
-                // Fallback ke role aktif tertinggi aktor jika izin diberikan melalui grant/mekanisme lain
+                // Fallback ke role aktif tertinggi aktor jika izin diperoleh melalui grant/mekanisme lain
                 $createdRole = $actor->roles()
                     ->where('roles.aktif', true)
                     ->whereIn('roles.kode', RoleCatalog::codes())
@@ -50,7 +70,7 @@ class StoreIndikator extends Controller
                     ->value('roles.kode');
             }
 
-            if (! $createdRole || ! RoleCatalog::contains($createdRole)) {
+            if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
                 throw new \LogicException('Tidak dapat menentukan role otoritas yang sah dari aktor untuk pembuatan indikator.');
             }
 
@@ -80,12 +100,30 @@ class StoreIndikator extends Controller
                 nilaiLama: null,
                 nilaiBaru: $created->toArray(),
                 alasan: "Menambah indikator kinerja '{$created->kode} - {$created->nama}'.",
-                dasarIzin: $dasarIzin,
+                dasarIzin: $currentDecision->toAuditBasis(),
             );
 
-            return $created;
+            return [
+                'status' => 'created',
+                'indikator' => $created,
+            ];
         });
 
+        if ($result['status'] === 'denied') {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'indikator.buat_ditolak',
+                objekTipe: 'indikator',
+                objekId: (string) Str::uuid(),
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                dasarIzin: $result['dasarIzin'],
+            );
+            abort(403, 'Anda tidak berwenang menambah indikator kinerja.');
+        }
+
+        $indikator = $result['indikator'];
         $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
 
         return redirect()

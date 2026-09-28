@@ -13,6 +13,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,10 +32,18 @@ class IndexSasaranIndikator extends Controller
             ->orderByDesc('tahun_mulai')
             ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']);
 
-        $selectedRenstraId = $request->query('renstra_id');
-        if (! $selectedRenstraId && $renstras->isNotEmpty()) {
-            $selectedRenstraId = $renstras->firstWhere('is_aktif', true)?->id ?? $renstras->first()->id;
+        $requestedRenstraId = $request->query('renstra_id');
+        $selectedRenstra = null;
+
+        if (is_string($requestedRenstraId) && Str::isUuid($requestedRenstraId)) {
+            $selectedRenstra = $renstras->firstWhere('id', $requestedRenstraId);
         }
+
+        if (! $selectedRenstra && $renstras->isNotEmpty()) {
+            $selectedRenstra = $renstras->firstWhere('is_aktif', true) ?? $renstras->first();
+        }
+
+        $selectedRenstraId = $selectedRenstra?->id;
 
         $sasarans = [];
         if ($selectedRenstraId) {
