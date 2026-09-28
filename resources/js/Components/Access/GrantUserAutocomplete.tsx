@@ -59,8 +59,8 @@ export function GrantUserAutocomplete({
             setItems([]);
             setIsOpen(false);
             setHighlightedIndex(-1);
-        } else if (initialUser && initialUser.id === value && !selectedUser) {
-            setSelectedUser(initialUser);
+        } else if (initialUser && initialUser.id === value) {
+            setSelectedUser((current) => current ?? initialUser);
         }
     }, [value, initialUser]);
 

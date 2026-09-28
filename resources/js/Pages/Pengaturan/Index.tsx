@@ -91,10 +91,12 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
     const formKeys = Object.keys(savedBaseline) as (keyof typeof savedBaseline)[];
     const hasChanges = formKeys.some((key) => form.data[key] !== savedBaseline[key]);
+    const { setData, setDefaults } = form;
+    const instansiLogo = form.data['instansi.logo'];
 
     useEffect(() => {
         setLogoError(false);
-    }, [form.data['instansi.logo']]);
+    }, [instansiLogo]);
 
     useEffect(() => {
         const nextValues = buildBaseline(values);
@@ -107,9 +109,10 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
         // Sinkronkan form.data: hanya perbarui field yang tidak sedang diedit lokal ke nilai server terbaru.
         // Field dirty mempertahankan baseline awal dan token versi awal agar deteksi konflik tetap berfungsi.
-        form.setData((prev) => {
+        setData((prev) => {
             const nextData = { ...prev };
-            formKeys.forEach((key) => {
+            const keys = Object.keys(prevBaseline) as (keyof typeof prevBaseline)[];
+            keys.forEach((key) => {
                 const isFieldDirty = prev[key] !== prevBaseline[key];
                 if (!isFieldDirty) {
                     updatedBaseline[key] = nextValues[key];
@@ -125,11 +128,11 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         setSavedBaseline(updatedBaseline);
         setSavedTimestamps(updatedTimestamps);
 
-        form.setDefaults({
+        setDefaults({
             ...updatedBaseline,
             alasan: '',
         });
-    }, [values, grouped]);
+    }, [values, grouped, setData, setDefaults]);
 
     const updateField = (field: keyof PengaturanFormData, value: string) => {
         form.setData((prev) => ({

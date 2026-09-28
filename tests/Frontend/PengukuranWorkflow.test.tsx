@@ -11,7 +11,11 @@ import type { Pengukuran } from '@/Pages/Pengukuran/types';
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
-    return { ...original, Head: () => null };
+    return {
+        ...original,
+        Head: () => null,
+        usePage: () => ({ props: { pengaturan: {} } }),
+    };
 });
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
