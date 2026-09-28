@@ -25,10 +25,17 @@ class UpdateIndikator extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $nilaiLama = $indikator->withoutRelations()->toArray();
         $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_UPDATE)->toAuditBasis();
 
-        DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $nilaiLama, $dasarIzin) {
+        DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $dasarIzin) {
+            /** @var IndikatorKinerja $lockedIndikator */
+            $lockedIndikator = IndikatorKinerja::query()
+                ->whereKey($indikator->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
+
             $updateData = [
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
                 'kode' => trim($validated['kode']),
@@ -63,11 +70,11 @@ class UpdateIndikator extends Controller
                 $updateData['is_aktif'] = (bool) $validated['is_aktif'];
             }
 
-            $indikator->update($updateData);
+            $lockedIndikator->update($updateData);
 
-            $nilaiBaru = $indikator->withoutRelations()->toArray();
+            $nilaiBaru = $lockedIndikator->withoutRelations()->toArray();
 
-            $alasan = "Memperbarui indikator kinerja '{$indikator->kode}'.";
+            $alasan = "Memperbarui indikator kinerja '{$lockedIndikator->kode}'.";
             if (($nilaiLama['regulasi_id'] ?? null) !== ($nilaiBaru['regulasi_id'] ?? null)) {
                 $alasan .= ' Perubahan regulasi_id: '.($nilaiLama['regulasi_id'] ?? 'kosong').' -> '.($nilaiBaru['regulasi_id'] ?? 'kosong').'.';
             }
@@ -76,7 +83,7 @@ class UpdateIndikator extends Controller
                 actor: $actor,
                 tindakan: 'indikator.ubah',
                 objekTipe: 'indikator',
-                objekId: (string) $indikator->id,
+                objekId: (string) $lockedIndikator->id,
                 nilaiLama: $nilaiLama,
                 nilaiBaru: $nilaiBaru,
                 alasan: $alasan,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
@@ -35,6 +35,8 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
     indikator,
 }) => {
     const isEdit = Boolean(indikator);
+    const prevOpenRef = useRef(false);
+    const prevIndikatorIdRef = useRef<string | null>(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors, transform } = useForm({
         sasaran_strategis_id: defaultSasaranId || (sasarans[0]?.id ?? ''),
@@ -54,47 +56,57 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
     });
 
     useEffect(() => {
+        const wasOpen = prevOpenRef.current;
+        const prevId = prevIndikatorIdRef.current;
+        const currentId = indikator?.id ?? null;
+
+        prevOpenRef.current = isOpen;
+        prevIndikatorIdRef.current = currentId;
+
         if (isOpen) {
-            clearErrors();
-            if (indikator) {
-                setData({
-                    sasaran_strategis_id: indikator.sasaran_strategis_id,
-                    kode: indikator.kode,
-                    nama: indikator.nama,
-                    definisi_operasional: indikator.definisi_operasional ?? '',
-                    satuan: indikator.satuan,
-                    unit_id: indikator.unit_id,
-                    arah: indikator.arah,
-                    tipe_perhitungan: indikator.tipe_perhitungan,
-                    presisi: indikator.presisi ?? 2,
-                    desimal_tampilan: indikator.desimal_tampilan ?? 2,
-                    wajib_catatan: Boolean(indikator.wajib_catatan),
-                    jenis_agregasi: indikator.jenis_agregasi ?? 'terakhir',
-                    is_aktif: Boolean(indikator.is_aktif),
-                    regulasi_id: indikator.regulasi_id ?? '',
-                });
-            } else {
-                setData({
-                    sasaran_strategis_id: defaultSasaranId || (sasarans[0]?.id ?? ''),
-                    kode: '',
-                    nama: '',
-                    definisi_operasional: '',
-                    satuan: '%',
-                    unit_id: units[0]?.id ?? '',
-                    arah: 'naik_baik',
-                    tipe_perhitungan: 'manual',
-                    presisi: 2,
-                    desimal_tampilan: 2,
-                    wajib_catatan: false,
-                    jenis_agregasi: 'terakhir',
-                    is_aktif: true,
-                    regulasi_id: '',
-                });
+            // Inisialisasi hanya saat transisi tertutup -> terbuka atau saat target indikator yang diedit berganti
+            if (!wasOpen || prevId !== currentId) {
+                clearErrors();
+                if (indikator) {
+                    setData({
+                        sasaran_strategis_id: indikator.sasaran_strategis_id,
+                        kode: indikator.kode,
+                        nama: indikator.nama,
+                        definisi_operasional: indikator.definisi_operasional ?? '',
+                        satuan: indikator.satuan,
+                        unit_id: indikator.unit_id,
+                        arah: indikator.arah,
+                        tipe_perhitungan: indikator.tipe_perhitungan,
+                        presisi: indikator.presisi ?? 2,
+                        desimal_tampilan: indikator.desimal_tampilan ?? 2,
+                        wajib_catatan: Boolean(indikator.wajib_catatan),
+                        jenis_agregasi: indikator.jenis_agregasi ?? 'terakhir',
+                        is_aktif: Boolean(indikator.is_aktif),
+                        regulasi_id: indikator.regulasi_id ?? '',
+                    });
+                } else {
+                    setData({
+                        sasaran_strategis_id: defaultSasaranId || (sasarans[0]?.id ?? ''),
+                        kode: '',
+                        nama: '',
+                        definisi_operasional: '',
+                        satuan: '%',
+                        unit_id: units[0]?.id ?? '',
+                        arah: 'naik_baik',
+                        tipe_perhitungan: 'manual',
+                        presisi: 2,
+                        desimal_tampilan: 2,
+                        wajib_catatan: false,
+                        jenis_agregasi: 'terakhir',
+                        is_aktif: true,
+                        regulasi_id: '',
+                    });
+                }
             }
-        } else {
+        } else if (wasOpen) {
             reset();
         }
-    }, [isOpen, indikator, defaultSasaranId, sasarans, units]);
+    }, [isOpen, indikator, defaultSasaranId]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -259,7 +271,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             label="Presisi Desimal"
                             type="number"
                             min={0}
-                            max={6}
+                            max={4}
                             value={data.presisi}
                             onChange={(e) => setData('presisi', parseInt(e.target.value, 10) || 0)}
                             error={errors.presisi}

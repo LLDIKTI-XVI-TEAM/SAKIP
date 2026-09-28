@@ -27,14 +27,12 @@ class DestroySasaran extends Controller
         $alasan = trim((string) $request->validated('alasan'));
         $dasarIzin = $resolver->resolve($actor, PermissionCodes::SASARAN_DELETE)->toAuditBasis();
 
-        $nilaiLama = DB::transaction(function () use ($sasaran, $actor, $auditLogger, $alasan, $dasarIzin) {
+        $result = DB::transaction(function () use ($sasaran, $actor, $auditLogger, $alasan, $dasarIzin) {
             /** @var SasaranStrategis $lockedSasaran */
             $lockedSasaran = SasaranStrategis::where('id', $sasaran->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedSasaran->indikatorKinerjas()->exists()) {
-                throw ValidationException::withMessages([
-                    'sasaran' => "Sasaran '{$lockedSasaran->kode}' tidak dapat dihapus karena masih memiliki indikator kinerja.",
-                ]);
+                return false;
             }
 
             $nilaiLama = $lockedSasaran->withoutRelations()->toArray();
@@ -54,8 +52,25 @@ class DestroySasaran extends Controller
             return $nilaiLama;
         });
 
+        if ($result === false) {
+            $auditLogger->catat(
+                actor: $actor,
+                tindakan: 'sasaran.hapus_ditolak',
+                objekTipe: 'sasaran',
+                objekId: (string) $sasaran->id,
+                nilaiLama: $sasaran->withoutRelations()->toArray(),
+                nilaiBaru: null,
+                alasan: "Penolakan penghapusan sasaran '{$sasaran->kode}': sasaran masih memiliki indikator kinerja. Alasan pengguna: {$alasan}",
+                dasarIzin: $dasarIzin,
+            );
+
+            throw ValidationException::withMessages([
+                'sasaran' => "Sasaran '{$sasaran->kode}' tidak dapat dihapus karena masih memiliki indikator kinerja.",
+            ]);
+        }
+
         return redirect()
             ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $renstraId])
-            ->with('success', "Sasaran strategis '{$nilaiLama['kode']}' berhasil dihapus.");
+            ->with('success', "Sasaran strategis '{$result['kode']}' berhasil dihapus.");
     }
 }

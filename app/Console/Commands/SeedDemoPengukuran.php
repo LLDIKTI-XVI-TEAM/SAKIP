@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
+use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
@@ -26,17 +27,29 @@ class SeedDemoPengukuran extends Command
 
     public function handle(): int
     {
+        if (app()->environment('production')) {
+            $this->error('Command seeding demo pengukuran hanya boleh dijalankan di lingkungan non-produksi (local/testing).');
+
+            return self::FAILURE;
+        }
+
         $this->info('Memulai sinkronisasi data operasional pengukuran kinerja...');
 
         DB::beginTransaction();
 
         try {
-            // 1. Ambil Pengguna Aktif
-            $user = User::where('email', 'dayensite@gmail.com')->first()
+            // 1. Ambil Pengguna Aktif (utamakan yang memiliki peran perencanaan atau superadmin)
+            $user = User::where('email', 'dayensite@gmail.com')
+                ->where('is_active', true)
+                ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
+                ->first()
+                ?? User::where('is_active', true)
+                    ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
+                    ->first()
                 ?? User::where('is_active', true)->first();
 
             if (! $user) {
-                $this->error('Pengguna aktif tidak ditemukan di sistem.');
+                $this->error('Pengguna aktif dengan wewenang yang sesuai tidak ditemukan di sistem.');
                 DB::rollBack();
 
                 return self::FAILURE;
@@ -94,8 +107,13 @@ class SeedDemoPengukuran extends Command
                     'penutupan' => '2026-12-31',
                     'activated_at' => now(),
                 ]);
+            } elseif ($jadwal->status === 'ditutup') {
+                $this->error("Jadwal tahunan 2026 sudah berstatus 'ditutup'. Command demo tidak diizinkan membuka kembali jadwal final secara sepihak.");
+                DB::rollBack();
+
+                return self::FAILURE;
             } else {
-                $jadwal->update(['status' => 'aktif', 'renstra_pk_id' => $pk->id, 'activated_at' => now()]);
+                $jadwal->update(['renstra_pk_id' => $pk->id]);
             }
 
             // 7. Buat Jendela Waktu Pengisian & Reviu per Triwulan
@@ -154,6 +172,24 @@ class SeedDemoPengukuran extends Command
                     ]);
                 }
 
+                // Salin definisi komponen aktif ke jadwal_snapshot_komponen
+                $activeKomponens = $indikator->komponen()->where('aktif', true)->get();
+                foreach ($activeKomponens as $komponen) {
+                    JadwalSnapshotKomponen::firstOrCreate(
+                        [
+                            'jadwal_snapshot_id' => $snapshot->id,
+                            'komponen_id' => $komponen->id,
+                        ],
+                        [
+                            'kode' => $komponen->kode,
+                            'label' => $komponen->label,
+                            'peran' => $komponen->peran,
+                            'bobot' => $komponen->bobot,
+                            'urutan' => $komponen->urutan,
+                        ]
+                    );
+                }
+
                 // C. Penugasan PIC ke Pengguna
                 PenugasanIndikator::firstOrCreate(
                     ['indikator_id' => $indikator->id, 'user_id' => $user->id],
@@ -193,7 +229,11 @@ class SeedDemoPengukuran extends Command
                                     'periode_id' => $tw3->id,
                                     'nilai' => 70,
                                     'status_perhitungan' => 'terhitung',
-                                    'komponen' => [],
+                                    'komponen' => $activeKomponens->map(fn ($k) => [
+                                        'komponen_id' => $k->id,
+                                        'kode' => $k->kode,
+                                        'target' => 70,
+                                    ])->toArray(),
                                 ],
                             ],
                         ],
@@ -203,6 +243,9 @@ class SeedDemoPengukuran extends Command
                 );
 
                 // E. Baris Pengukuran Kinerja
+                $isFormula = $indikator->tipe_perhitungan !== 'manual';
+                $sumberNilai = $isFormula ? 'komponen' : 'manual';
+
                 $pengukuran = PengukuranKinerja::firstOrCreate(
                     [
                         'indikator_id' => $indikator->id,
@@ -214,11 +257,15 @@ class SeedDemoPengukuran extends Command
                         'status_alur' => 'draft',
                         'nilai' => null,
                         'status_perhitungan' => 'belum_diisi',
-                        'sumber_nilai' => 'manual',
+                        'sumber_nilai' => $sumberNilai,
                         'versi' => 1,
                         'created_by' => $user->id,
                     ]
                 );
+
+                if (! $pengukuran->wasRecentlyCreated && $pengukuran->sumber_nilai !== $sumberNilai) {
+                    $pengukuran->update(['sumber_nilai' => $sumberNilai]);
+                }
 
                 $rows[] = [
                     $indikator->kode,

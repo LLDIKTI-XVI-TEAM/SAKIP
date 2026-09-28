@@ -20,24 +20,31 @@ class UpdateSasaran extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $nilaiLama = $sasaran->withoutRelations()->toArray();
         $dasarIzin = $resolver->resolve($actor, PermissionCodes::SASARAN_UPDATE)->toAuditBasis();
 
-        DB::transaction(function () use ($sasaran, $validated, $actor, $auditLogger, $nilaiLama, $dasarIzin) {
-            $sasaran->update([
+        DB::transaction(function () use ($sasaran, $validated, $actor, $auditLogger, $dasarIzin) {
+            /** @var SasaranStrategis $lockedSasaran */
+            $lockedSasaran = SasaranStrategis::query()
+                ->whereKey($sasaran->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $nilaiLama = $lockedSasaran->withoutRelations()->toArray();
+
+            $lockedSasaran->update([
                 'kode' => trim($validated['kode']),
                 'deskripsi' => trim($validated['deskripsi']),
-                'urutan' => $validated['urutan'] ?? $sasaran->urutan,
+                'urutan' => $validated['urutan'] ?? $lockedSasaran->urutan,
             ]);
 
             $auditLogger->catat(
                 actor: $actor,
                 tindakan: 'sasaran.ubah',
                 objekTipe: 'sasaran',
-                objekId: (string) $sasaran->id,
+                objekId: (string) $lockedSasaran->id,
                 nilaiLama: $nilaiLama,
-                nilaiBaru: $sasaran->withoutRelations()->toArray(),
-                alasan: "Memperbarui sasaran strategis '{$sasaran->kode}'.",
+                nilaiBaru: $lockedSasaran->withoutRelations()->toArray(),
+                alasan: "Memperbarui sasaran strategis '{$lockedSasaran->kode}'.",
                 dasarIzin: $dasarIzin,
             );
         });

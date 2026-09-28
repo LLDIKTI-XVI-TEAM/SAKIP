@@ -4,6 +4,10 @@ namespace Tests\Feature\Perencanaan;
 
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
+use App\Models\IndikatorKomponen;
+use App\Models\JadwalSnapshotKomponen;
+use App\Models\JadwalTahunan;
+use App\Models\PengukuranKinerja;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
@@ -81,6 +85,7 @@ class SasaranIndikatorTest extends TestCase
             ->has('sasarans')
             ->has('units')
             ->has('regulasis')
+            ->has('can.komponen_read')
             ->where('can.sasaran_create', true)
             ->where('can.indikator_create', true)
         );
@@ -467,6 +472,14 @@ class SasaranIndikatorTest extends TestCase
         $this->assertDatabaseHas('sasaran_strategis', [
             'id' => $sasaran->id,
         ]);
+
+        $audit = AuditLog::where('tindakan', 'sasaran.hapus_ditolak')
+            ->where('objek_id', (string) $sasaran->id)
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertSame('sasaran', $audit->objek_tipe);
+        $this->assertSame('sasaran.hapus_ditolak', $audit->tindakan);
+        $this->assertSame('diizinkan', $audit->dasar_izin['keputusan'] ?? null);
     }
 
     public function test_explicit_deny_regulasi_read_hides_catalog_and_relation_details(): void
@@ -812,6 +825,64 @@ class SasaranIndikatorTest extends TestCase
         $this->assertTrue(Str::isUuid($auditSasaran->objek_id));
         $this->assertNotNull($auditSasaran->dasar_izin);
         $this->assertSame('ditolak', $auditSasaran->dasar_izin['keputusan'] ?? null);
+    }
+
+    public function test_seed_demo_pengukuran_creates_component_snapshots_and_rejects_closed_schedule(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-FORMULA',
+            'deskripsi' => 'Sasaran Formula Test',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-FORMULA',
+            'nama' => 'Indikator Rasio Persen',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        $komponen = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'K1',
+            'label' => 'Komponen Pembilang',
+            'peran' => 'pembilang',
+            'bobot' => 1,
+            'urutan' => 1,
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Jalankan command demo pengukuran
+        $exitCode = $this->artisan('sakip:seed-demo-pengukuran')->run();
+        $this->assertSame(0, $exitCode);
+
+        // Verifikasi komponen aktif disalin ke jadwal_snapshot_komponen
+        $snapshotKomponen = JadwalSnapshotKomponen::where('komponen_id', $komponen->id)->first();
+        $this->assertNotNull($snapshotKomponen);
+        $this->assertSame('K1', $snapshotKomponen->kode);
+
+        // Verifikasi pengukuran dibuat dengan sumber_nilai = komponen
+        $pengukuran = PengukuranKinerja::where('indikator_id', $indikator->id)->first();
+        $this->assertNotNull($pengukuran);
+        $this->assertSame('komponen', $pengukuran->sumber_nilai);
+
+        // Tutup jadwal tahunan 2026
+        $jadwal = JadwalTahunan::where('renstra_id', $this->renstra->id)->where('tahun', 2026)->firstOrFail();
+        $jadwal->update(['status' => 'ditutup']);
+
+        // Jalankan command lagi, harus menolak membuka kembali jadwal tertutup
+        $exitCodeClosed = $this->artisan('sakip:seed-demo-pengukuran')->run();
+        $this->assertSame(1, $exitCodeClosed);
+
+        $jadwal->refresh();
+        $this->assertSame('ditutup', $jadwal->status);
     }
 
     private function buatUserDenganRole(string $roleName, string $email): User

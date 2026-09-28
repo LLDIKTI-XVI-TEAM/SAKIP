@@ -62,4 +62,5 @@ export interface SasaranIndikatorCapabilities {
     indikator_update: boolean;
     indikator_delete: boolean;
     regulasi_read?: boolean;
+    komponen_read?: boolean;
 }

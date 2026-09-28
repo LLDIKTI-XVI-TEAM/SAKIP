@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
@@ -20,6 +20,8 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
     sasaran,
 }) => {
     const isEdit = Boolean(sasaran);
+    const prevOpenRef = useRef(false);
+    const prevSasaranIdRef = useRef<string | null>(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         renstra_id: renstraId,
@@ -29,24 +31,33 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
     });
 
     useEffect(() => {
+        const wasOpen = prevOpenRef.current;
+        const prevId = prevSasaranIdRef.current;
+        const currentId = sasaran?.id ?? null;
+
+        prevOpenRef.current = isOpen;
+        prevSasaranIdRef.current = currentId;
+
         if (isOpen) {
-            clearErrors();
-            if (sasaran) {
-                setData({
-                    renstra_id: sasaran.renstra_id,
-                    kode: sasaran.kode,
-                    deskripsi: sasaran.deskripsi,
-                    urutan: sasaran.urutan,
-                });
-            } else {
-                setData({
-                    renstra_id: renstraId,
-                    kode: '',
-                    deskripsi: '',
-                    urutan: 1,
-                });
+            if (!wasOpen || prevId !== currentId) {
+                clearErrors();
+                if (sasaran) {
+                    setData({
+                        renstra_id: sasaran.renstra_id,
+                        kode: sasaran.kode,
+                        deskripsi: sasaran.deskripsi,
+                        urutan: sasaran.urutan,
+                    });
+                } else {
+                    setData({
+                        renstra_id: renstraId,
+                        kode: '',
+                        deskripsi: '',
+                        urutan: 1,
+                    });
+                }
             }
-        } else {
+        } else if (wasOpen) {
             reset();
         }
     }, [isOpen, sasaran, renstraId]);

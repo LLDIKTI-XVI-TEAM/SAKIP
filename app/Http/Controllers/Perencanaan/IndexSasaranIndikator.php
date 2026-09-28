@@ -115,6 +115,7 @@ class IndexSasaranIndikator extends Controller
                 'indikator_update' => $resolver->allows($user, PermissionCodes::INDIKATOR_UPDATE),
                 'indikator_delete' => $resolver->allows($user, PermissionCodes::INDIKATOR_DELETE),
                 'regulasi_read' => $canReadRegulasi,
+                'komponen_read' => $resolver->allows($user, PermissionCodes::KOMPONEN_READ),
             ],
         ]);
     }

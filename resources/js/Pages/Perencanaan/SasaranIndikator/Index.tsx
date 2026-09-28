@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
@@ -439,6 +439,17 @@ export default function SasaranIndikatorIndex({
                                                             </td>
                                                             <td className="px-4 py-3 align-top text-right">
                                                                 <div className="flex items-center justify-end gap-1">
+                                                                    {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
+                                                                        <Link
+                                                                            href={`/indikator/${ind.id}/komponen`}
+                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary inline-flex items-center"
+                                                                            title="Konfigurasi Komponen Perhitungan"
+                                                                            aria-label={`Konfigurasi komponen ${ind.kode}`}
+                                                                        >
+                                                                            <Calculator className="h-3.5 w-3.5" />
+                                                                        </Link>
+                                                                    )}
+
                                                                     {can.indikator_update && (
                                                                         <button
                                                                             type="button"
