@@ -31,6 +31,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
 
         $renstra = Renstra::where('kode', 'RENSTRA-2025-2029')->first() ?? Renstra::create([
             'kode' => 'RENSTRA-2025-2029',
+            'created_by' => $creator->id,
             'nama' => 'Rencana Strategis LLDIKTI Wilayah XVI 2025-2029',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,

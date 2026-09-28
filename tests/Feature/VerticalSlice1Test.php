@@ -429,7 +429,7 @@ class VerticalSlice1Test extends TestCase
 
     public function test_schedule_context_cannot_reference_another_renstra(): void
     {
-        $other = Renstra::create(['kode' => 'R-LAIN', 'nama' => 'Renstra lain', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029]);
+        $other = Renstra::create(['kode' => 'R-LAIN', 'nama' => 'Renstra lain', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $this->actor->id]);
         $this->jadwal->update(['renstra_id' => $other->id]);
         $this->assertFalse(Gate::forUser($this->actor)->allows('update', $this->pengukuran->fresh()));
     }

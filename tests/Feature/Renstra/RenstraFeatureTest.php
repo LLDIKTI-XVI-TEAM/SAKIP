@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Authorization\RolePermissionPresets;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Database\QueryException;
@@ -399,6 +400,48 @@ test('Pembaruan Renstra aktif menolak rentang yang beririsan dengan Renstra akti
         'objek_id' => $renstra->id,
         'tindakan' => 'renstra.ubah_ditolak',
     ]);
+});
+
+test('Basis data mewajibkan penyusun Renstra', function (): void {
+    expect(fn () => DB::transaction(fn () => buatRenstra($this->perencanaan, [
+        'created_by' => null,
+    ])))->toThrow(QueryException::class);
+});
+
+test('Basis data mempertahankan penyusun selama masih dirujuk Renstra', function (): void {
+    $penyusun = User::factory()->create();
+    $renstra = buatRenstra($penyusun);
+
+    expect(fn () => DB::transaction(fn () => DB::table('users')
+        ->where('id', $penyusun->id)
+        ->delete()))->toThrow(QueryException::class);
+
+    expect($renstra->fresh()->created_by)->toBe($penyusun->id);
+    $this->assertDatabaseHas('users', ['id' => $penyusun->id]);
+});
+
+test('Migrasi penyusun wajib mempertahankan data dan menghentikan rilis bila penyusun belum diketahui', function (): void {
+    $migration = require database_path('migrations/2026_09_28_000001_require_renstra_creator.php');
+    $renstra = buatRenstra($this->perencanaan);
+
+    $migration->down();
+    $tanpaPenyusun = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-PENYUSUN-BELUM-DIKETAHUI',
+        'created_by' => null,
+    ]);
+
+    expect(fn () => $migration->up())->toThrow(RuntimeException::class, 'Renstra lama belum memiliki penyusun');
+    expect($tanpaPenyusun->fresh()->created_by)->toBeNull();
+    expect($renstra->fresh()->created_by)->toBe($this->perencanaan->id);
+
+    // Identitas lama baru boleh diisi setelah ditemukan bukti penyusun yang sah.
+    $tanpaPenyusun->update(['created_by' => $this->perencanaan->id]);
+    $migration->up();
+
+    expect($tanpaPenyusun->fresh()->created_by)->toBe($this->perencanaan->id);
+    expect($renstra->fresh()->status)->toBe(Renstra::STATUS_DRAFT);
+    expect(fn () => DB::transaction(fn () => $tanpaPenyusun->update(['created_by' => null])))
+        ->toThrow(QueryException::class);
 });
 
 test('Basis data menolak dua Renstra aktif dengan rentang tahun beririsan', function (): void {
@@ -851,22 +894,20 @@ test('Penghapusan lampiran Renstra ditolak jika otorisasi parent Renstra ditolak
         'tautan' => 'https://example.test/lampiran-draft.pdf',
     ]);
 
-    $berkasOnlyRole = Role::query()->create([
-        'id' => (string) Str::uuid(),
-        'kode' => 'berkas_only',
-        'nama' => 'Berkas Only',
-        'urutan' => 100,
-    ]);
-    $berkasDeletePerm = Permission::query()->where('kode', 'berkas:delete')->firstOrFail();
-    $berkasOnlyRole->permissions()->attach($berkasDeletePerm->id, ['id' => (string) Str::uuid(), 'created_at' => now()]);
+    $userBerkasOnly = $this->perencanaan;
+    foreach ([PermissionCodes::RENSTRA_UPDATE, PermissionCodes::RENSTRA_DELETE] as $kode) {
+        UserPermissionDeny::create([
+            'user_id' => $userBerkasOnly->id,
+            'permission_id' => Permission::query()->where('kode', $kode)->firstOrFail()->id,
+            'alasan' => 'Pengujian izin berkas tanpa izin mutasi parent Renstra',
+            'ditetapkan_oleh' => $userBerkasOnly->id,
+        ]);
+    }
 
-    $userBerkasOnly = User::factory()->create(['email' => 'berkas-only@example.test', 'is_active' => true]);
-    $userBerkasOnly->roles()->attach($berkasOnlyRole->id, [
-        'id' => (string) Str::uuid(),
-        'sumber_pemberian' => 'manual',
-        'diberikan_oleh' => $userBerkasOnly->id,
-        'created_at' => now(),
-    ]);
+    $resolver = app(PermissionResolver::class);
+    expect($resolver->resolve($userBerkasOnly, PermissionCodes::BERKAS_DELETE)->allowed)->toBeTrue();
+    expect($resolver->resolve($userBerkasOnly, PermissionCodes::RENSTRA_DELETE)->allowed)->toBeFalse();
+    expect($resolver->resolve($userBerkasOnly, PermissionCodes::RENSTRA_UPDATE)->allowed)->toBeFalse();
 
     $response = $this->actingAs($userBerkasOnly)
         ->delete("/renstra/{$renstra->id}/berkas/{$berkas->id}", [
@@ -883,7 +924,8 @@ test('Penghapusan lampiran Renstra ditolak jika otorisasi parent Renstra ditolak
         ->first();
 
     expect($audit)->not->toBeNull();
-    expect($audit->dasar_izin['keputusan'] ?? null)->not->toBe('diizinkan');
+    expect($audit->dasar_izin['keputusan'])->toBe('ditolak');
+    expect($audit->dasar_izin['permission'])->toBe(PermissionCodes::RENSTRA_DELETE);
 });
 
 test('Percobaan membuat Renstra tanpa izin renstra:create mencatat audit renstra.buat_ditolak', function (): void {

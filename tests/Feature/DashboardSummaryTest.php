@@ -71,7 +71,7 @@ class DashboardSummaryTest extends TestCase
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra', null)->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
 
-        $renstra = Renstra::create(['kode' => 'R-BARU', 'nama' => 'Renstra Baru', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true]);
+        $renstra = Renstra::create(['kode' => 'R-BARU', 'nama' => 'Renstra Baru', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra.id', $renstra->id)->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
     }
@@ -79,8 +79,8 @@ class DashboardSummaryTest extends TestCase
     public function test_dashboard_selects_the_active_renstra_covering_the_current_year(): void
     {
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => true]);
-        Renstra::create(['kode' => 'R-LAMA', 'nama' => 'Renstra Lama', 'tahun_mulai' => 2020, 'tahun_selesai' => 2024, 'is_aktif' => true]);
-        Renstra::create(['kode' => 'R-DEPAN', 'nama' => 'Renstra Mendatang', 'tahun_mulai' => 2030, 'tahun_selesai' => 2034, 'is_aktif' => true]);
+        Renstra::create(['kode' => 'R-LAMA', 'nama' => 'Renstra Lama', 'tahun_mulai' => 2020, 'tahun_selesai' => 2024, 'is_aktif' => true, 'created_by' => $this->actor->id]);
+        Renstra::create(['kode' => 'R-DEPAN', 'nama' => 'Renstra Mendatang', 'tahun_mulai' => 2030, 'tahun_selesai' => 2034, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra.id', $this->jadwal->renstra_id)->where('stats.total', 1));
 
@@ -108,7 +108,7 @@ class DashboardSummaryTest extends TestCase
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
             ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
 
-        Renstra::create(['kode' => 'R-AKTIF-BARU', 'nama' => 'Renstra Aktif Baru', 'tahun_mulai' => 2026, 'tahun_selesai' => 2030, 'is_aktif' => true]);
+        Renstra::create(['kode' => 'R-AKTIF-BARU', 'nama' => 'Renstra Aktif Baru', 'tahun_mulai' => 2026, 'tahun_selesai' => 2030, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
             ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
     }

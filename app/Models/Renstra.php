@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property string $status
  * @property bool $is_aktif
  * @property string|null $regulasi_id
- * @property string|null $created_by
+ * @property string $created_by
  * @property-read User|null $pembuat
  * @property-read Regulasi|null $regulasi
  * @property-read Collection<int, Berkas> $berkas
