@@ -4,6 +4,14 @@ import { afterEach, expect, it, vi } from 'vitest';
 import CalculationPreview from '@/Pages/Pengukuran/CalculationPreview';
 import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 
+vi.mock('@inertiajs/react', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@inertiajs/react')>();
+    return {
+        ...original,
+        usePage: () => ({ props: { pengaturan: {} } }),
+    };
+});
+
 const onRecovery = vi.fn();
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 

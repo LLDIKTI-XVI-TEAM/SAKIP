@@ -228,4 +228,16 @@ describe('StorageIndex Component', () => {
         const sizeInput = screen.getByLabelText(/Batas Ukuran Berkas Default/i) as HTMLInputElement;
         expect(sizeInput.value).toBe('20480');
     });
+
+    it('mempertahankan ketikan saat render ulang membawa snapshot server yang sama', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<StorageIndex {...defaultProps} />);
+        const formatInput = screen.getByLabelText(/Daftar Format File Default/i) as HTMLInputElement;
+
+        await user.clear(formatInput);
+        await user.type(formatInput, 'pdf,png');
+        rerender(<StorageIndex {...defaultProps} settings={{ ...defaultProps.settings }} />);
+
+        expect(formatInput.value).toBe('pdf,png');
+    });
 });
