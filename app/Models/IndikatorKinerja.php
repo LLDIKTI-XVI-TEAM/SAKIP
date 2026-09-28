@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Authorization\RoleCatalog;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,16 @@ class IndikatorKinerja extends Model
         'created_by_role',
     ];
 
+    public const PROVENANCE_LEGACY_UNKNOWN = 'legacy_unknown';
+
+    /**
+     * @return list<string>
+     */
+    public static function validProvenanceRoles(): array
+    {
+        return [...RoleCatalog::codes(), self::PROVENANCE_LEGACY_UNKNOWN];
+    }
+
     protected $casts = [
         'is_aktif' => 'boolean', 'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
     ];
@@ -35,8 +46,8 @@ class IndikatorKinerja extends Model
     protected static function booted(): void
     {
         static::creating(function (IndikatorKinerja $indikator) {
-            if (empty($indikator->created_by_role)) {
-                $indikator->created_by_role = 'perencanaan';
+            if (empty($indikator->created_by_role) || ! in_array($indikator->created_by_role, self::validProvenanceRoles(), true)) {
+                throw new \InvalidArgumentException("Indikator kinerja wajib menyertakan 'created_by_role' yang sah dari keputusan resolver izin atau provenance legacy.");
             }
         });
     }

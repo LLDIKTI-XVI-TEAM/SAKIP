@@ -75,6 +75,7 @@ class StoragePolicyTest extends TestCase
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => true,
+            'created_by_role' => 'perencanaan',
         ]);
 
         $this->seedPengaturanGrupBerkas();

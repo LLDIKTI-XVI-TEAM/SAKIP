@@ -72,6 +72,7 @@ class IndikatorKomponenModelTest extends TestCase
             'presisi' => 2,
             'desimal_tampilan' => 2,
             'is_aktif' => true,
+            'created_by_role' => 'perencanaan',
         ]);
 
         $komponen = IndikatorKomponen::create([

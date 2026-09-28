@@ -231,6 +231,103 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame('perencanaan', $indikator->created_by_role);
     }
 
+    public function test_5b_created_by_role_mencatat_role_efektif_aktor_non_perencanaan(): void
+    {
+        $this->pasangPresetRole('superadmin');
+        $superadmin = $this->buatUserDenganRole('superadmin', 'superadmin-test@sakip.test');
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SUPERADMIN',
+            'deskripsi' => 'Sasaran Superadmin',
+            'urutan' => 2,
+        ]);
+
+        $this->actingAs($superadmin)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SUPERADMIN-TEST',
+            'nama' => 'Indikator Dibuat Superadmin',
+            'satuan' => 'Laporan',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $indikator = IndikatorKinerja::where('kode', 'IKU-SUPERADMIN-TEST')->firstOrFail();
+        $this->assertSame('superadmin', $indikator->created_by_role);
+    }
+
+    public function test_5c_omission_created_by_role_ditolak_fail_closed(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-OMISSION',
+            'deskripsi' => 'Sasaran Omission Test',
+            'urutan' => 3,
+        ]);
+
+        // Pembuatan model tanpa created_by_role harus gagal secara fail-closed
+        $this->expectException(\InvalidArgumentException::class);
+        IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-OMIT',
+            'nama' => 'Indikator Tanpa Role',
+            'satuan' => 'Poin',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+    }
+
+    public function test_5d_role_tidak_valid_ditolak(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-INVALID-ROLE',
+            'deskripsi' => 'Sasaran Invalid Role',
+            'urutan' => 4,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-BAD-ROLE',
+            'nama' => 'Indikator Bad Role',
+            'satuan' => 'Poin',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'role_khayalan',
+        ]);
+    }
+
+    public function test_5e_provenance_legacy_unknown_diterima_skema_dan_model(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-LEGACY',
+            'deskripsi' => 'Sasaran Legacy Test',
+            'urutan' => 5,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-LEGACY',
+            'nama' => 'Indikator Legacy Sentinel',
+            'satuan' => 'Poin',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
+        ]);
+
+        $this->assertSame('legacy_unknown', $indikator->created_by_role);
+        $this->assertDatabaseHas('indikator_kinerjas', [
+            'id' => $indikator->id,
+            'created_by_role' => 'legacy_unknown',
+        ]);
+    }
+
     public function test_6_regulasi_id_nullable_dan_perubahan_rujukan_dicatat_pada_audit(): void
     {
         $sasaran = SasaranStrategis::create([
@@ -872,6 +969,35 @@ class SasaranIndikatorTest extends TestCase
         $pengukuran = PengukuranKinerja::where('indikator_id', $indikator->id)->first();
         $this->assertNotNull($pengukuran);
         $this->assertSame('komponen', $pengukuran->sumber_nilai);
+
+        // Uji Item 3 & 4:
+        // Set sumber_nilai pengukuran existing ke 'historis'
+        $pengukuran->update(['sumber_nilai' => 'historis']);
+
+        // Tambah komponen baru ke master setelah snapshot sudah terbentuk
+        $komponenBaru = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'K2',
+            'label' => 'Komponen Baru Master',
+            'peran' => 'penyebut',
+            'bobot' => 1,
+            'urutan' => 2,
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Jalankan ulang command saat jadwal masih aktif
+        $exitCodeRerun = $this->artisan('sakip:seed-demo-pengukuran')->run();
+        $this->assertSame(0, $exitCodeRerun);
+
+        // Verifikasi sumber_nilai pengukuran existing TIDAK dimutasi
+        $pengukuran->refresh();
+        $this->assertSame('historis', $pengukuran->sumber_nilai);
+
+        // Verifikasi snapshot beku TIDAK disisipi komponen baru master
+        $this->assertDatabaseMissing('jadwal_snapshot_komponen', [
+            'komponen_id' => $komponenBaru->id,
+        ]);
 
         // Tutup jadwal tahunan 2026
         $jadwal = JadwalTahunan::where('renstra_id', $this->renstra->id)->where('tahun', 2026)->firstOrFail();

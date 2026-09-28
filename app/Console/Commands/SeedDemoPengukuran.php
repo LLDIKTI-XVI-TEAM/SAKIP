@@ -170,24 +170,20 @@ class SeedDemoPengukuran extends Command
                         'tipe_perhitungan' => $indikator->tipe_perhitungan,
                         'target' => 70.00,
                     ]);
-                }
 
-                // Salin definisi komponen aktif ke jadwal_snapshot_komponen
-                $activeKomponens = $indikator->komponen()->where('aktif', true)->get();
-                foreach ($activeKomponens as $komponen) {
-                    JadwalSnapshotKomponen::firstOrCreate(
-                        [
+                    // Salin definisi komponen aktif ke jadwal_snapshot_komponen HANYA ketika snapshot baru dibuat
+                    $activeKomponens = $indikator->komponen()->where('aktif', true)->get();
+                    foreach ($activeKomponens as $komponen) {
+                        JadwalSnapshotKomponen::create([
                             'jadwal_snapshot_id' => $snapshot->id,
                             'komponen_id' => $komponen->id,
-                        ],
-                        [
                             'kode' => $komponen->kode,
                             'label' => $komponen->label,
                             'peran' => $komponen->peran,
                             'bobot' => $komponen->bobot,
                             'urutan' => $komponen->urutan,
-                        ]
-                    );
+                        ]);
+                    }
                 }
 
                 // C. Penugasan PIC ke Pengguna
@@ -215,6 +211,8 @@ class SeedDemoPengukuran extends Command
                     ]
                 );
 
+                $snapshotKomponens = $snapshot->komponen()->get();
+
                 RencanaAksiVersi::firstOrCreate(
                     ['rencana_aksi_id' => $ra->id, 'nomor' => 1],
                     [
@@ -229,8 +227,8 @@ class SeedDemoPengukuran extends Command
                                     'periode_id' => $tw3->id,
                                     'nilai' => 70,
                                     'status_perhitungan' => 'terhitung',
-                                    'komponen' => $activeKomponens->map(fn ($k) => [
-                                        'komponen_id' => $k->id,
+                                    'komponen' => $snapshotKomponens->map(fn ($k) => [
+                                        'komponen_id' => $k->komponen_id,
                                         'kode' => $k->kode,
                                         'target' => 70,
                                     ])->toArray(),
@@ -243,7 +241,7 @@ class SeedDemoPengukuran extends Command
                 );
 
                 // E. Baris Pengukuran Kinerja
-                $isFormula = $indikator->tipe_perhitungan !== 'manual';
+                $isFormula = $snapshot->tipe_perhitungan !== 'manual';
                 $sumberNilai = $isFormula ? 'komponen' : 'manual';
 
                 $pengukuran = PengukuranKinerja::firstOrCreate(
@@ -262,10 +260,6 @@ class SeedDemoPengukuran extends Command
                         'created_by' => $user->id,
                     ]
                 );
-
-                if (! $pengukuran->wasRecentlyCreated && $pengukuran->sumber_nilai !== $sumberNilai) {
-                    $pengukuran->update(['sumber_nilai' => $sumberNilai]);
-                }
 
                 $rows[] = [
                     $indikator->kode,

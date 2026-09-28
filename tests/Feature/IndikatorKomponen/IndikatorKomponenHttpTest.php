@@ -66,6 +66,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'presisi' => 2,
             'desimal_tampilan' => 2,
             'is_aktif' => true,
+            'created_by_role' => 'perencanaan',
         ]);
     }
 
@@ -340,6 +341,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'presisi' => 2,
             'desimal_tampilan' => 2,
             'is_aktif' => true,
+            'created_by_role' => 'perencanaan',
         ]);
 
         // GET index harus memberikan can.create = false dan can.update = false

@@ -22,12 +22,36 @@ class StoreIndikator extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE)->toAuditBasis();
+        $decision = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE);
+        if (! $decision->allowed) {
+            abort(403);
+        }
+        $dasarIzin = $decision->toAuditBasis();
 
         $indikator = DB::transaction(function () use ($validated, $actor, $auditLogger, $dasarIzin) {
-            $createdRole = $actor->roles()->where('roles.aktif', true)->orderBy('roles.urutan')->value('roles.kode') ?? 'perencanaan';
-            if (! RoleCatalog::contains($createdRole)) {
-                $createdRole = 'perencanaan';
+            // Ambil role aktif aktor yang memiliki izin indikator:create berdasarkan resolusi Q32
+            $createdRole = DB::table('roles')
+                ->join('user_roles', 'user_roles.role_id', '=', 'roles.id')
+                ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
+                ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('user_roles.user_id', $actor->id)
+                ->where('roles.aktif', true)
+                ->where('permissions.kode', PermissionCodes::INDIKATOR_CREATE)
+                ->whereIn('roles.kode', RoleCatalog::codes())
+                ->orderBy('roles.urutan')
+                ->value('roles.kode');
+
+            if (! $createdRole) {
+                // Fallback ke role aktif tertinggi aktor jika izin diberikan melalui grant/mekanisme lain
+                $createdRole = $actor->roles()
+                    ->where('roles.aktif', true)
+                    ->whereIn('roles.kode', RoleCatalog::codes())
+                    ->orderBy('roles.urutan')
+                    ->value('roles.kode');
+            }
+
+            if (! $createdRole || ! RoleCatalog::contains($createdRole)) {
+                throw new \LogicException('Tidak dapat menentukan role otoritas yang sah dari aktor untuk pembuatan indikator.');
             }
 
             $created = IndikatorKinerja::create([

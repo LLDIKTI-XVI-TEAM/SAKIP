@@ -73,6 +73,7 @@ class JenisBerkasTest extends TestCase
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => true,
+            'created_by_role' => 'perencanaan',
         ]);
     }
 
@@ -451,6 +452,7 @@ class JenisBerkasTest extends TestCase
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => false,
+            'created_by_role' => 'perencanaan',
         ]);
 
         JenisBerkas::create([
@@ -619,6 +621,7 @@ class JenisBerkasTest extends TestCase
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => false,
+            'created_by_role' => 'perencanaan',
         ]);
 
         $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
@@ -644,6 +647,7 @@ class JenisBerkasTest extends TestCase
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => false,
+            'created_by_role' => 'perencanaan',
         ]);
 
         $inactiveB = IndikatorKinerja::create([
@@ -654,6 +658,7 @@ class JenisBerkasTest extends TestCase
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
             'is_aktif' => false,
+            'created_by_role' => 'perencanaan',
         ]);
 
         $jb = JenisBerkas::create([

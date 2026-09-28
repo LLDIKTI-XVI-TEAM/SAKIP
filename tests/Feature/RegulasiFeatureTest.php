@@ -373,6 +373,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'nama' => 'Indikator uji regulasi',
         'satuan' => '%',
         'is_aktif' => true,
+        'created_by_role' => 'perencanaan',
     ]);
 
     DB::enableQueryLog();
