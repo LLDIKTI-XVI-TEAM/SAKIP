@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\PerjanjianKinerja;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Berkas;
+use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
@@ -11,6 +13,7 @@ use App\Policies\RenstraPkPolicy;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -123,6 +126,34 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertFalse($policy->deleteBerkas($inactiveUser, $pk));
         $this->assertFalse($policy->downloadBerkas($inactiveUser, $pk));
 
+        $this->assertTrue($policy->uploadBerkas($superadmin, $pk));
+        $this->assertFalse($policy->uploadBerkas($pegawai, $pk));
+        $this->assertFalse($policy->uploadBerkas($inactiveUser, $pk));
+
+        // User dengan izin pk:create tapi explicit deny berkas:upload ditolak (Finding 1)
+        $userWithDenyUpload = User::factory()->create(['is_active' => true]);
+        $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
+        $userWithDenyUpload->roles()->attach($perencanaanRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+        $this->assertTrue($policy->create($userWithDenyUpload));
+        $this->assertTrue($policy->uploadBerkas($userWithDenyUpload));
+
+        // Tambah explicit deny berkas:upload -> deny wins
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $userWithDenyUpload->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Pembatasan hak upload berkas',
+            'ditetapkan_oleh' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+        $this->assertFalse($policy->uploadBerkas($userWithDenyUpload));
+
         // User tanpa role aktif ditolak fail-closed (Finding 1)
         $userWithoutActiveRole = User::factory()->create(['is_active' => true]);
         $inactiveRole = Role::create([
@@ -139,5 +170,100 @@ class RenstraPkModelAndPolicyTest extends TestCase
         ]);
         $this->assertFalse($policy->viewAny($userWithoutActiveRole));
         $this->assertFalse($policy->view($userWithoutActiveRole, $pk));
+    }
+
+    public function test_legacy_morph_discriminator_migrated_and_loaded_by_relation(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $renstra = Renstra::create([
+            'kode' => 'REN-LEGACY',
+            'nama' => 'Renstra Legacy Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+        ]);
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-LEGACY',
+            'tanggal_pk' => '2026-01-10',
+            'created_by' => $user->id,
+        ]);
+
+        // Simulasikan baris legacy sebelum migrasi (berkasable_type = App\Models\RenstraPk)
+        $berkasId = (string) Str::uuid();
+        DB::table('berkas')->insert([
+            'id' => $berkasId,
+            'jenis_berkas_id' => null,
+            'berkasable_type' => 'App\\Models\\RenstraPk',
+            'berkasable_id' => $pk->id,
+            'mode' => 'tautan',
+            'nama_asli' => 'Dokumen PK Legacy',
+            'tautan' => 'https://example.com/pk-legacy',
+            'uploaded_by' => $user->id,
+            'created_at' => now(),
+        ]);
+
+        // Sebelum migrasi dijalankan, baris masih bertipe FQCN
+        $this->assertDatabaseHas('berkas', [
+            'id' => $berkasId,
+            'berkasable_type' => 'App\\Models\\RenstraPk',
+        ]);
+
+        // Jalankan migrasi penyelarasan discriminator morf legacy
+        $migration = require database_path('migrations/2026_09_28_000001_migrate_renstra_pk_berkasable_type.php');
+        $migration->up();
+
+        // Setelah migrasi, discriminator diselaraskan menjadi alias renstra_pk
+        $this->assertDatabaseHas('berkas', [
+            'id' => $berkasId,
+            'berkasable_type' => 'renstra_pk',
+        ]);
+
+        // Relasi berkas dan withCount memuat lampiran legacy dengan tepat
+        $pkFresh = RenstraPk::withCount('berkas')->findOrFail($pk->id);
+        $this->assertSame(1, $pkFresh->berkas_count);
+        $this->assertCount(1, $pkFresh->berkas);
+        $this->assertSame($berkasId, $pkFresh->berkas->first()->id);
+    }
+
+    public function test_handle_inertia_requests_aligns_pk_menu_capability_with_view_any_policy(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $superadmin->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        $userWithoutActiveRole = User::factory()->create(['is_active' => true]);
+        $inactiveRole = Role::create([
+            'kode' => 'role_inaktif_menu',
+            'nama' => 'Role Inaktif',
+            'aktif' => false,
+            'urutan' => 99,
+        ]);
+        $userWithoutActiveRole->roles()->attach($inactiveRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $superadmin->id,
+            'created_at' => now(),
+        ]);
+
+        $middleware = app(HandleInertiaRequests::class);
+        $reflection = new \ReflectionClass($middleware);
+        $method = $reflection->getMethod('capabilities');
+
+        // User tanpa role aktif mendapatkan pk = false (menu tersembunyi, selaras dengan viewAny 403)
+        $capabilitiesWithoutActiveRole = $method->invoke($middleware, $userWithoutActiveRole);
+        $this->assertFalse($capabilitiesWithoutActiveRole['pk']);
+
+        // User dengan role aktif mendapatkan pk = true
+        $capabilitiesSuperadmin = $method->invoke($middleware, $superadmin);
+        $this->assertTrue($capabilitiesSuperadmin['pk']);
     }
 }

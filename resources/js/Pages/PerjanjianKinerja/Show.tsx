@@ -30,6 +30,7 @@ interface ShowProps {
         update: boolean;
         delete_berkas: boolean;
         read_berkas?: boolean;
+        upload_berkas?: boolean;
     };
 }
 
@@ -354,6 +355,7 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                     pk={pk}
                     isJadwalAktif={is_jadwal_aktif}
                     storageSettings={storageSettings}
+                    canUploadBerkas={can.upload_berkas ?? true}
                 />
             )}
         </AuthenticatedLayout>

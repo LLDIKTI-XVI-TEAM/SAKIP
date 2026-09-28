@@ -5,6 +5,7 @@ namespace App\Http\Requests\PerjanjianKinerja;
 use App\Models\Pengaturan;
 use App\Models\RenstraPk;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -13,10 +14,21 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
     public function authorize(): bool
     {
         $pk = $this->route('perjanjian_kinerja');
+        if (! ($pk instanceof RenstraPk)) {
+            return false;
+        }
 
-        return $pk instanceof RenstraPk
-            ? ($this->user()?->can('update', $pk) ?? false)
-            : false;
+        $user = $this->user();
+        if (! ($user?->can('update', $pk) ?? false)) {
+            return false;
+        }
+
+        $lampiran = $this->input('lampiran');
+        if (! empty($lampiran) && is_array($lampiran)) {
+            return $user->can('uploadBerkas', $pk);
+        }
+
+        return true;
     }
 
     /**
@@ -75,6 +87,11 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
                         $validator->errors()->add("lampiran.{$index}.file", 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.');
                     } elseif (! $this->hasFile("lampiran.{$index}.file")) {
                         $validator->errors()->add("lampiran.{$index}.file", 'Pilih file yang akan dilampirkan.');
+                    } else {
+                        $file = $this->file("lampiran.{$index}.file");
+                        if ($file instanceof UploadedFile && mb_strlen($file->getClientOriginalName()) > 255) {
+                            $validator->errors()->add("lampiran.{$index}.file", 'Nama file lampiran tidak boleh melebihi 255 karakter.');
+                        }
                     }
                 }
             }

@@ -42,6 +42,11 @@ class RenstraPkPolicy
             && $this->permissionResolver->allows($user, PermissionCodes::BERKAS_DELETE);
     }
 
+    public function uploadBerkas(User $user, ?RenstraPk $pk = null): bool
+    {
+        return $this->permissionResolver->allows($user, PermissionCodes::BERKAS_UPLOAD);
+    }
+
     public function downloadBerkas(User $user, RenstraPk $pk): bool
     {
         return $this->view($user, $pk)

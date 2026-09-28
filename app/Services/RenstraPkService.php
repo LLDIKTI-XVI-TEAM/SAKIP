@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\CleanupStorageFileJob;
 use App\Models\Berkas;
 use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
@@ -238,9 +239,14 @@ class RenstraPkService
         if ($path !== null) {
             DB::afterCommit(function () use ($path) {
                 try {
-                    Storage::disk('local')->delete($path);
+                    $deleted = Storage::disk('local')->delete($path);
+                    if (! $deleted && Storage::disk('local')->exists($path)) {
+                        Log::warning('Storage::delete() mengembalikan false untuk lampiran PK, menjadwalkan CleanupStorageFileJob.', ['path' => $path]);
+                        CleanupStorageFileJob::dispatch($path, 'local');
+                    }
                 } catch (Throwable $e) {
                     Log::warning('Gagal menghapus file lampiran PK dari storage setelah commit: '.$e->getMessage(), ['path' => $path]);
+                    CleanupStorageFileJob::dispatch($path, 'local');
                 }
             });
         }
@@ -252,6 +258,13 @@ class RenstraPkService
      */
     protected function simpanLampiran(RenstraPk $pk, array $lampiran, User $actor, array &$storedPaths): void
     {
+        $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+        if (! $uploadDecision->allowed) {
+            throw ValidationException::withMessages([
+                'lampiran' => 'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.',
+            ]);
+        }
+
         $adaFile = false;
         foreach ($lampiran as $item) {
             if (($item['mode'] ?? null) === 'file') {
@@ -318,11 +331,25 @@ class RenstraPkService
                     throw new RuntimeException('Lampiran gagal disimpan ke private storage.');
                 }
 
+                $originalName = $file->getClientOriginalName();
+                if (mb_strlen($originalName) > 255) {
+                    $fileExt = $file->getClientOriginalExtension();
+                    $suffix = $fileExt !== '' ? '.'.$fileExt : '';
+                    $maxBaseLen = 255 - mb_strlen($suffix);
+                    $baseName = mb_substr(pathinfo($originalName, PATHINFO_FILENAME), 0, max(1, $maxBaseLen));
+                    $namaAsli = $baseName.$suffix;
+                } else {
+                    $namaAsli = $originalName;
+                }
+
+                $mime = (string) ($file->getMimeType() ?: $file->getClientMimeType() ?: 'application/octet-stream');
+                $mime = mb_substr($mime, 0, 255);
+
                 $storedPaths[] = $path;
                 $attributes += [
-                    'nama_asli' => $file->getClientOriginalName(),
+                    'nama_asli' => $namaAsli,
                     'path' => $path,
-                    'mime' => $file->getClientMimeType() ?: $file->getMimeType(),
+                    'mime' => $mime,
                     'ukuran_bytes' => $file->getSize(),
                 ];
             } elseif ($mode === 'tautan') {
@@ -333,7 +360,7 @@ class RenstraPkService
                     ]);
                 }
                 $attributes += [
-                    'nama_asli' => $item['nama_asli'] ?? ($item['nama'] ?? 'Tautan Dokumen PK'),
+                    'nama_asli' => mb_substr((string) ($item['nama_asli'] ?? ($item['nama'] ?? 'Tautan Dokumen PK')), 0, 255),
                     'tautan' => $tautan,
                 ];
             } elseif ($mode === 'teks') {
@@ -344,7 +371,7 @@ class RenstraPkService
                     ]);
                 }
                 $attributes += [
-                    'nama_asli' => $item['nama_asli'] ?? ($item['nama'] ?? 'Catatan Dokumen PK'),
+                    'nama_asli' => mb_substr((string) ($item['nama_asli'] ?? ($item['nama'] ?? 'Catatan Dokumen PK')), 0, 255),
                     'isi_teks' => $isiTeks,
                 ];
             }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
@@ -124,7 +125,7 @@ class HandleInertiaRequests extends Middleware
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
-            'pk' => (bool) $user->is_active,
+            'pk' => $user->can('viewAny', RenstraPk::class),
             'pk:create' => $resolver->allows($user, 'pk:create'),
             'pk:update' => $resolver->allows($user, 'pk:update'),
         ];

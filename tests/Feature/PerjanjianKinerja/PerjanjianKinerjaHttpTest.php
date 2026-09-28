@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\PerjanjianKinerja;
 
+use App\Models\AuditLog;
 use App\Models\JadwalTahunan;
+use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
@@ -10,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -342,5 +345,152 @@ class PerjanjianKinerjaHttpTest extends TestCase
         $this->actingAs($this->perencanaan)
             ->get('/perjanjian-kinerja?tahun=bukan-angka')
             ->assertSessionHasErrors('tahun');
+    }
+
+    public function test_post_perjanjian_kinerja_with_attachment_forbidden_if_berkas_upload_denied(): void
+    {
+        // Berikan explicit deny berkas:upload kepada perencanaan
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Uji coba explicit deny berkas:upload',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // POST dengan lampiran harus ditolak 403 Forbidden
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-DENY-UPLOAD',
+                'tanggal_pk' => '2026-01-15',
+                'lampiran' => [
+                    [
+                        'mode' => 'tautan',
+                        'tautan' => 'https://example.com/pk-deny',
+                    ],
+                ],
+            ])
+            ->assertForbidden();
+
+        // POST tanpa lampiran tetap diizinkan
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-ALLOWED-WITHOUT-ATTACHMENT',
+                'tanggal_pk' => '2026-01-15',
+            ])
+            ->assertRedirect();
+    }
+
+    public function test_put_perjanjian_kinerja_with_attachment_forbidden_if_berkas_upload_denied(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPDATE-TEST',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Berikan explicit deny berkas:upload kepada perencanaan
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Uji coba explicit deny berkas:upload',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        // PUT dengan lampiran harus ditolak 403 Forbidden
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-UPDATE-WITH-ATT',
+                'tanggal_pk' => '2026-01-20',
+                'alasan' => 'Mencoba tambah lampiran saat deny berkas:upload',
+                'lampiran' => [
+                    [
+                        'mode' => 'tautan',
+                        'tautan' => 'https://example.com/pk-update-deny',
+                    ],
+                ],
+            ])
+            ->assertForbidden();
+
+        // PUT tanpa lampiran tetap diizinkan
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-UPDATE-SUCCESS',
+                'tanggal_pk' => '2026-01-20',
+                'alasan' => 'Pembaruan metadata tanpa lampiran',
+            ])
+            ->assertRedirect();
+    }
+
+    public function test_post_perjanjian_kinerja_with_oversized_filename_rejected_by_validation(): void
+    {
+        $oversizedFilename = str_repeat('a', 260).'.pdf';
+        $file = UploadedFile::fake()->create($oversizedFilename, 100, 'application/pdf');
+
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-LONG-FILENAME',
+                'tanggal_pk' => '2026-01-15',
+                'lampiran' => [
+                    [
+                        'mode' => 'file',
+                        'file' => $file,
+                    ],
+                ],
+            ])
+            ->assertSessionHasErrors('lampiran.0.file');
+    }
+
+    public function test_delete_lampiran_unauthorized_records_audit_log_penolakan(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-DELETE-AUDIT',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-delete-audit',
+            'nama_asli' => 'Dokumen Delete Audit',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Pegawai tidak memiliki izin berkas:delete atau pk:update -> 403 Forbidden
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Mencoba menghapus tanpa hak akses',
+            ])
+            ->assertForbidden();
+
+        // Audit log berkas.hapus_ditolak harus tercatat di database dengan alasan tidak_memiliki_izin
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_tipe' => 'berkas',
+            'objek_id' => $berkas->id,
+            'actor_id' => $this->pegawai->id,
+        ]);
+
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('tidak_memiliki_izin', $audit->nilai_baru['alasan_penolakan'] ?? null);
     }
 }

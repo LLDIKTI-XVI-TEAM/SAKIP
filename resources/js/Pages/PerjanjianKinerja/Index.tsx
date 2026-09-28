@@ -44,6 +44,7 @@ interface IndexProps {
     can: {
         create: boolean;
         update?: boolean;
+        upload_berkas?: boolean;
     };
 }
 
@@ -363,6 +364,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     onClose={() => setIsCreateModalOpen(false)}
                     renstras={renstras}
                     storageSettings={storageSettings}
+                    canUploadBerkas={can.upload_berkas ?? true}
                 />
             )}
 
@@ -373,6 +375,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     pk={editingPk}
                     isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
                     storageSettings={storageSettings}
+                    canUploadBerkas={can.upload_berkas ?? true}
                 />
             )}
         </AuthenticatedLayout>

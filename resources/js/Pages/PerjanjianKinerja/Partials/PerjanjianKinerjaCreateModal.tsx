@@ -15,6 +15,7 @@ interface PerjanjianKinerjaCreateModalProps {
     onClose: () => void;
     renstras: RenstraSummary[];
     storageSettings?: StorageSettings;
+    canUploadBerkas?: boolean;
 }
 
 const getTodayLocalDate = (): string => {
@@ -30,6 +31,7 @@ export function PerjanjianKinerjaCreateModal({
     onClose,
     renstras,
     storageSettings,
+    canUploadBerkas = true,
 }: PerjanjianKinerjaCreateModalProps) {
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<PerjanjianKinerjaFormData>({
         renstra_id: renstras[0]?.id ?? '',
@@ -110,6 +112,7 @@ export function PerjanjianKinerjaCreateModal({
                     renstras={renstras}
                     storageSettings={storageSettings}
                     disabled={processing}
+                    canUploadBerkas={canUploadBerkas}
                     setField={setField}
                 />
             </form>

@@ -16,6 +16,7 @@ interface PerjanjianKinerjaEditModalProps {
     pk: RenstraPkSummary | null;
     isJadwalAktif?: boolean;
     storageSettings?: StorageSettings;
+    canUploadBerkas?: boolean;
 }
 
 export function PerjanjianKinerjaEditModal({
@@ -24,6 +25,7 @@ export function PerjanjianKinerjaEditModal({
     pk,
     isJadwalAktif = false,
     storageSettings,
+    canUploadBerkas = true,
 }: PerjanjianKinerjaEditModalProps) {
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<PerjanjianKinerjaFormData>({
         renstra_id: pk?.renstra_id ?? '',
@@ -141,6 +143,7 @@ export function PerjanjianKinerjaEditModal({
                     storageSettings={storageSettings}
                     isEdit={true}
                     disabled={processing}
+                    canUploadBerkas={canUploadBerkas}
                     setField={setField}
                 />
             </form>

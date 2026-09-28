@@ -61,6 +61,7 @@ class PerjanjianKinerjaController extends Controller
             'can' => [
                 'create' => $user?->can('create', RenstraPk::class) ?? false,
                 'update' => $user?->can('update', RenstraPk::class) ?? false,
+                'upload_berkas' => $user?->can('uploadBerkas', RenstraPk::class) ?? false,
             ],
         ]);
     }
@@ -117,6 +118,7 @@ class PerjanjianKinerjaController extends Controller
                 'update' => $user?->can('update', $perjanjianKinerja) ?? false,
                 'delete_berkas' => ! $isJadwalAktif && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
                 'read_berkas' => $canReadBerkas,
+                'upload_berkas' => $user?->can('uploadBerkas', $perjanjianKinerja) ?? false,
             ],
         ]);
     }

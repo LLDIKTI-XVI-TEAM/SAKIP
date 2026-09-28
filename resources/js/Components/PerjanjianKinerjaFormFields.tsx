@@ -25,6 +25,7 @@ interface PerjanjianKinerjaFormFieldsProps {
     storageSettings?: StorageSettings;
     isEdit?: boolean;
     disabled?: boolean;
+    canUploadBerkas?: boolean;
     setField: SetPkField;
 }
 
@@ -52,6 +53,7 @@ export function PerjanjianKinerjaFormFields({
     storageSettings,
     isEdit = false,
     disabled = false,
+    canUploadBerkas = true,
     setField,
 }: PerjanjianKinerjaFormFieldsProps) {
     const [isRenstraHovered, setIsRenstraHovered] = useState(false);
@@ -272,18 +274,31 @@ export function PerjanjianKinerjaFormFields({
                             Lampirkan naskah bertanda tangan digital/basah melalui berkas privat, tautan repositori awan, atau salinan teks komitmen.
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setField('lampiran', [...data.lampiran, newLampiran()])}
-                        disabled={disabled}
-                        className="whitespace-nowrap shrink-0 shadow-2xs"
-                    >
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                        <span className="whitespace-nowrap">Tambah Lampiran</span>
-                    </Button>
+                    {canUploadBerkas ? (
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => setField('lampiran', [...data.lampiran, newLampiran()])}
+                            disabled={disabled}
+                            className="whitespace-nowrap shrink-0 shadow-2xs"
+                        >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            <span className="whitespace-nowrap">Tambah Lampiran</span>
+                        </Button>
+                    ) : (
+                        <div className="text-xs text-muted italic">
+                            Penambahan lampiran dinonaktifkan (tanpa izin berkas:upload)
+                        </div>
+                    )}
                 </div>
+
+                {! canUploadBerkas && (
+                    <div className="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>Anda tidak memiliki izin (berkas:upload) untuk menambahkan atau mengunggah lampiran dokumen.</span>
+                    </div>
+                )}
 
                 {errors.lampiran && (
                     <div className="mt-4 rounded-lg border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger flex items-center gap-2">
