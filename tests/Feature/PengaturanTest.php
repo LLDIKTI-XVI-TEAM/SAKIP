@@ -39,7 +39,7 @@ beforeEach(function (): void {
 function buatUserDenganRole(string $roleName, string $email): User
 {
     $role = Role::query()->where('kode', $roleName)->firstOrFail();
-    $user = User::factory()->create(['email' => $email, 'is_active' => true]);
+    $user = User::factory()->create(['email' => $email, 'status' => 'aktif']);
     $user->roles()->attach($role->id, [
         'id' => (string) Str::uuid(),
         'sumber_pemberian' => 'manual',
@@ -421,7 +421,7 @@ test('evaluasi ulang izin di dalam batas transaksi mutasi menolak aksi jika izin
 
     // 1. Akun dinonaktifkan
     $inactiveAdmin = buatUserDenganRole('admin', 'admin-nonaktif@example.test');
-    $inactiveAdmin->is_active = false;
+    $inactiveAdmin->status = 'nonaktif';
     $inactiveAdmin->save();
 
     expect(fn () => $service->update(
@@ -530,7 +530,7 @@ test('penolakan otorisasi pada evaluasi ulang di dalam transaksi tercatat dalam 
     $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
 
     $actor = buatUserDenganRole('admin', 'admin-evaluasi-transaksi@example.test');
-    $actor->is_active = false;
+    $actor->status = 'nonaktif';
     $actor->save();
 
     try {

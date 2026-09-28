@@ -7,7 +7,7 @@ export interface UserOption {
     name?: string;
     email: string;
     roles?: string[];
-    is_active?: boolean;
+    status?: 'aktif' | 'nonaktif';
 }
 
 export interface UserOptionPage {

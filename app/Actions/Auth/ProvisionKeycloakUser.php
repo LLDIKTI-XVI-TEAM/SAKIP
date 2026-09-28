@@ -3,10 +3,8 @@
 namespace App\Actions\Auth;
 
 use App\Actions\Audit\WriteAuditLog;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class ProvisionKeycloakUser
 {
@@ -24,15 +22,14 @@ class ProvisionKeycloakUser
 
                 return $user;
             }
-            $role = Role::where('kode', 'pegawai')->where('aktif', true)->sole();
-            $user = User::create(['keycloak_id' => $identity['subject'], 'nama' => $identity['nama'], 'email' => $identity['email'], 'is_active' => false]);
-            $audit = $this->audit->handle([
-                'actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'user_roles.tambah',
+            // Identitas baru belum membawa hak akses; aktivasi dan penetapan peran terpisah.
+            $user = User::create(['keycloak_id' => $identity['subject'], 'nama' => $identity['nama'], 'email' => $identity['email'], 'status' => 'nonaktif']);
+            $this->audit->handle([
+                'actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'pengguna.terdaftar',
                 'objek_tipe' => 'users', 'objek_id' => $user->id,
-                'nilai_baru' => ['role_id' => $role->id, 'is_active' => false],
+                'nilai_baru' => ['status' => 'nonaktif'],
                 'alasan' => 'Sistem — onboarding SSO',
             ]);
-            DB::table('user_roles')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'role_id' => $role->id, 'diberikan_oleh' => null, 'sumber_pemberian' => 'sso_onboarding', 'audit_id' => $audit->id, 'created_at' => now()]);
 
             return $user;
         });

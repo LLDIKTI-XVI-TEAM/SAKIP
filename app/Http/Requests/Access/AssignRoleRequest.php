@@ -28,7 +28,7 @@ class AssignRoleRequest extends FormRequest
             'audit_id' => ['prohibited'], 'sumber_pemberian' => ['prohibited'],
             'actor_type' => ['prohibited'], 'sumber' => ['prohibited'],
             'waktu' => ['prohibited'], 'dasar_izin' => ['prohibited'],
-            'is_active' => ['prohibited'], 'grant' => ['prohibited'],
+            'status' => ['prohibited'], 'is_active' => ['prohibited'], 'grant' => ['prohibited'],
             'deny' => ['prohibited'], 'penanggung_jawab' => ['prohibited'],
         ];
     }

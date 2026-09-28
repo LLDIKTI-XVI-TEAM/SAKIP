@@ -11,21 +11,21 @@ describe('GrantUserAutocomplete Component', () => {
             nama: 'Dion Kobi',
             email: 'dionkobi08@gmail.com',
             roles: ['Pimpinan'],
-            is_active: true,
+            status: 'aktif',
         },
         {
             id: 'user-dinda',
             nama: 'Dinda LLDIKTI',
             email: 'dinda@lldikti16.kemdikbud.go.id',
             roles: ['Pegawai'],
-            is_active: true,
+            status: 'aktif',
         },
         {
             id: 'user-tanpa-role',
             nama: 'Rian Staf',
             email: 'rian@lldikti16.kemdikbud.go.id',
             roles: [],
-            is_active: true,
+            status: 'aktif',
         },
     ];
 

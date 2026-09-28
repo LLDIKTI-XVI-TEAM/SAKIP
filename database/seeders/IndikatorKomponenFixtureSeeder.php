@@ -20,7 +20,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
             'keycloak_id' => (string) Str::uuid(),
             'nama' => 'Perencanaan SAKIP',
             'email' => 'perencanaan@sakip.local',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $unit = Unit::first() ?? Unit::create([
