@@ -9,6 +9,7 @@ use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Str;
 
 class IndikatorKinerjaPolicy
 {
@@ -29,7 +30,23 @@ class IndikatorKinerjaPolicy
 
     public function create(User $user): Response
     {
-        return $this->response($this->permissionResolver->resolve($user, PermissionCodes::INDIKATOR_CREATE));
+        $decision = $this->permissionResolver->resolve($user, PermissionCodes::INDIKATOR_CREATE);
+
+        if (! $decision->allowed) {
+            $alasan = request()->input('alasan');
+            $this->auditLogger->catat(
+                actor: $user,
+                tindakan: 'indikator.buat_ditolak',
+                objekTipe: 'indikator',
+                objekId: (string) Str::uuid(),
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : 'Percobaan membuat indikator kinerja ditolak oleh sistem otorisasi.',
+                dasarIzin: $decision->toAuditBasis(),
+            );
+        }
+
+        return $this->response($decision);
     }
 
     public function update(User $user, IndikatorKinerja $indikator): Response
@@ -75,7 +92,8 @@ class IndikatorKinerjaPolicy
             objekTipe: 'indikator',
             objekId: $indikator->id,
             nilaiLama: $indikator->withoutRelations()->toArray(),
-            alasan: is_string($alasan) ? $alasan : null,
+            nilaiBaru: null,
+            alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : "Percobaan {$tindakan} ditolak oleh sistem otorisasi.",
             dasarIzin: $decision->toAuditBasis(),
         );
     }

@@ -51,11 +51,15 @@ class SeedDemoPengukuran extends Command
                 return self::FAILURE;
             }
 
-            // 3. Ambil Seluruh Indikator Kinerja Aktif
-            $indikators = IndikatorKinerja::where('is_aktif', true)->get();
+            // 3. Ambil Seluruh Indikator Kinerja Aktif di bawah Renstra terpilih
+            $indikators = IndikatorKinerja::where('is_aktif', true)
+                ->whereHas('sasaranStrategis', function ($query) use ($renstra) {
+                    $query->where('renstra_id', $renstra->id);
+                })
+                ->get();
 
             if ($indikators->isEmpty()) {
-                $this->error('Tidak ada Indikator Kinerja aktif. Buat indikator terlebih dahulu di Perencanaan.');
+                $this->error("Tidak ada Indikator Kinerja aktif di bawah Renstra '{$renstra->nama}'. Buat indikator terlebih dahulu di Perencanaan.");
                 DB::rollBack();
 
                 return self::FAILURE;

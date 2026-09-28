@@ -8,21 +8,27 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\RoleCatalog;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class StoreIndikator extends Controller
 {
-    public function __invoke(StoreIndikatorRequest $request, AuditLogger $auditLogger): RedirectResponse
+    public function __invoke(StoreIndikatorRequest $request, AuditLogger $auditLogger, PermissionResolver $resolver): RedirectResponse
     {
         /** @var User $actor */
         $actor = $request->user();
 
         $validated = $request->validated();
+        $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_CREATE)->toAuditBasis();
 
-        $indikator = DB::transaction(function () use ($validated, $actor, $auditLogger) {
+        $indikator = DB::transaction(function () use ($validated, $actor, $auditLogger, $dasarIzin) {
             $createdRole = $actor->roles()->where('roles.aktif', true)->orderBy('roles.urutan')->value('roles.kode') ?? 'perencanaan';
+            if (! RoleCatalog::contains($createdRole)) {
+                $createdRole = 'perencanaan';
+            }
 
             $created = IndikatorKinerja::create([
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
@@ -50,7 +56,7 @@ class StoreIndikator extends Controller
                 nilaiLama: null,
                 nilaiBaru: $created->toArray(),
                 alasan: "Menambah indikator kinerja '{$created->kode} - {$created->nama}'.",
-                dasarIzin: ['permission' => PermissionCodes::INDIKATOR_CREATE],
+                dasarIzin: $dasarIzin,
             );
 
             return $created;

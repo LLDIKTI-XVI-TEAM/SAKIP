@@ -7,21 +7,23 @@ use App\Http\Requests\Sasaran\UpdateSasaranRequest;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class UpdateSasaran extends Controller
 {
-    public function __invoke(UpdateSasaranRequest $request, SasaranStrategis $sasaran, AuditLogger $auditLogger): RedirectResponse
+    public function __invoke(UpdateSasaranRequest $request, SasaranStrategis $sasaran, AuditLogger $auditLogger, PermissionResolver $resolver): RedirectResponse
     {
         /** @var User $actor */
         $actor = $request->user();
 
         $validated = $request->validated();
         $nilaiLama = $sasaran->withoutRelations()->toArray();
+        $dasarIzin = $resolver->resolve($actor, PermissionCodes::SASARAN_UPDATE)->toAuditBasis();
 
-        DB::transaction(function () use ($sasaran, $validated, $actor, $auditLogger, $nilaiLama) {
+        DB::transaction(function () use ($sasaran, $validated, $actor, $auditLogger, $nilaiLama, $dasarIzin) {
             $sasaran->update([
                 'kode' => trim($validated['kode']),
                 'deskripsi' => trim($validated['deskripsi']),
@@ -36,7 +38,7 @@ class UpdateSasaran extends Controller
                 nilaiLama: $nilaiLama,
                 nilaiBaru: $sasaran->withoutRelations()->toArray(),
                 alasan: "Memperbarui sasaran strategis '{$sasaran->kode}'.",
-                dasarIzin: ['permission' => PermissionCodes::SASARAN_UPDATE],
+                dasarIzin: $dasarIzin,
             );
         });
 

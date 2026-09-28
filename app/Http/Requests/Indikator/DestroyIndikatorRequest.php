@@ -22,7 +22,19 @@ class DestroyIndikatorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'alasan' => ['nullable', 'string', 'max:1000'],
+            'alasan' => ['required', 'string', 'min:10', 'max:1000'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'alasan.required' => 'Alasan penghapusan wajib diisi.',
+            'alasan.min' => 'Alasan penghapusan minimal 10 karakter.',
+            'alasan.max' => 'Alasan penghapusan maksimal 1000 karakter.',
         ];
     }
 }

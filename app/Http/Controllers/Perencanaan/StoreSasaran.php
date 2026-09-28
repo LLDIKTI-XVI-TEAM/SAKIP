@@ -7,20 +7,22 @@ use App\Http\Requests\Sasaran\StoreSasaranRequest;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class StoreSasaran extends Controller
 {
-    public function __invoke(StoreSasaranRequest $request, AuditLogger $auditLogger): RedirectResponse
+    public function __invoke(StoreSasaranRequest $request, AuditLogger $auditLogger, PermissionResolver $resolver): RedirectResponse
     {
         /** @var User $actor */
         $actor = $request->user();
 
         $validated = $request->validated();
+        $dasarIzin = $resolver->resolve($actor, PermissionCodes::SASARAN_CREATE)->toAuditBasis();
 
-        $sasaran = DB::transaction(function () use ($validated, $actor, $auditLogger) {
+        $sasaran = DB::transaction(function () use ($validated, $actor, $auditLogger, $dasarIzin) {
             $created = SasaranStrategis::create([
                 'renstra_id' => $validated['renstra_id'],
                 'kode' => trim($validated['kode']),
@@ -36,7 +38,7 @@ class StoreSasaran extends Controller
                 nilaiLama: null,
                 nilaiBaru: $created->toArray(),
                 alasan: "Menambah sasaran strategis '{$created->kode}'.",
-                dasarIzin: ['permission' => PermissionCodes::SASARAN_CREATE],
+                dasarIzin: $dasarIzin,
             );
 
             return $created;

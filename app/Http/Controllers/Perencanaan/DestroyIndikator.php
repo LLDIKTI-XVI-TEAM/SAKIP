@@ -8,6 +8,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -15,15 +16,20 @@ use Illuminate\Support\Facades\DB;
 
 class DestroyIndikator extends Controller
 {
-    public function __invoke(DestroyIndikatorRequest $request, IndikatorKinerja $indikator, AuditLogger $auditLogger): RedirectResponse
-    {
+    public function __invoke(
+        DestroyIndikatorRequest $request,
+        IndikatorKinerja $indikator,
+        AuditLogger $auditLogger,
+        PermissionResolver $resolver
+    ): RedirectResponse {
         /** @var User $actor */
         $actor = $request->user();
 
         $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
-        $alasan = $request->input('alasan') ?: "Menghapus indikator kinerja '{$indikator->kode}'.";
+        $alasan = trim((string) $request->validated('alasan'));
+        $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_DELETE)->toAuditBasis();
 
-        $result = DB::transaction(function () use ($indikator, $actor, $auditLogger, $alasan) {
+        $result = DB::transaction(function () use ($indikator, $actor, $auditLogger, $alasan, $dasarIzin) {
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::where('id', $indikator->id)->lockForUpdate()->firstOrFail();
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
@@ -48,8 +54,8 @@ class DestroyIndikator extends Controller
                     objekId: (string) $lockedIndikator->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $lockedIndikator->withoutRelations()->toArray(),
-                    alasan: "Menonaktifkan indikator kinerja '{$lockedIndikator->kode}' karena memiliki riwayat kinerja.",
-                    dasarIzin: ['permission' => PermissionCodes::INDIKATOR_DELETE],
+                    alasan: $alasan,
+                    dasarIzin: $dasarIzin,
                 );
 
                 return ['deactivated' => true, 'kode' => $nilaiLama['kode']];
@@ -68,8 +74,8 @@ class DestroyIndikator extends Controller
                     objekId: (string) $lockedIndikator->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: null,
-                    alasan: (string) $alasan,
-                    dasarIzin: ['permission' => PermissionCodes::INDIKATOR_DELETE],
+                    alasan: $alasan,
+                    dasarIzin: $dasarIzin,
                 );
 
                 return ['deactivated' => false, 'kode' => $nilaiLama['kode']];
@@ -85,8 +91,8 @@ class DestroyIndikator extends Controller
                         objekId: (string) $lockedIndikator->id,
                         nilaiLama: $nilaiLama,
                         nilaiBaru: $lockedIndikator->withoutRelations()->toArray(),
-                        alasan: "Menonaktifkan indikator kinerja '{$lockedIndikator->kode}' karena memiliki riwayat kinerja.",
-                        dasarIzin: ['permission' => PermissionCodes::INDIKATOR_DELETE],
+                        alasan: $alasan,
+                        dasarIzin: $dasarIzin,
                     );
 
                     return ['deactivated' => true, 'kode' => $nilaiLama['kode']];

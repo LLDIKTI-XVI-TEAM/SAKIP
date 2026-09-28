@@ -8,21 +8,27 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class UpdateIndikator extends Controller
 {
-    public function __invoke(UpdateIndikatorRequest $request, IndikatorKinerja $indikator, AuditLogger $auditLogger): RedirectResponse
-    {
+    public function __invoke(
+        UpdateIndikatorRequest $request,
+        IndikatorKinerja $indikator,
+        AuditLogger $auditLogger,
+        PermissionResolver $resolver
+    ): RedirectResponse {
         /** @var User $actor */
         $actor = $request->user();
 
         $validated = $request->validated();
         $nilaiLama = $indikator->withoutRelations()->toArray();
+        $dasarIzin = $resolver->resolve($actor, PermissionCodes::INDIKATOR_UPDATE)->toAuditBasis();
 
-        DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $nilaiLama) {
+        DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $nilaiLama, $dasarIzin) {
             $updateData = [
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
                 'kode' => trim($validated['kode']),
@@ -74,7 +80,7 @@ class UpdateIndikator extends Controller
                 nilaiLama: $nilaiLama,
                 nilaiBaru: $nilaiBaru,
                 alasan: $alasan,
-                dasarIzin: ['permission' => PermissionCodes::INDIKATOR_UPDATE],
+                dasarIzin: $dasarIzin,
             );
         });
 

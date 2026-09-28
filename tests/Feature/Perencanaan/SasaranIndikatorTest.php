@@ -645,6 +645,175 @@ class SasaranIndikatorTest extends TestCase
         ]);
     }
 
+    public function test_inactive_unit_rejected_on_store_and_update_transfer(): void
+    {
+        $inactiveUnit = Unit::create([
+            'nama' => 'Unit Nonaktif',
+            'status' => 'nonaktif',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-UNIT-TEST',
+            'deskripsi' => 'Sasaran Unit Test',
+            'urutan' => 1,
+        ]);
+
+        // 1. Create indikator dengan unit nonaktif harus ditolak
+        $createResponse = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-BAD-UNIT',
+            'nama' => 'Indikator Unit Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $inactiveUnit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $createResponse->assertSessionHasErrors(['unit_id']);
+
+        // 2. Buat indikator dengan unit aktif terlebih dahulu
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UNIT-VALID',
+            'nama' => 'Indikator Awal',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        // 3. Update memindahkan kepemilikan ke unit nonaktif harus ditolak
+        $updateTransferResponse = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UNIT-VALID',
+            'nama' => 'Indikator Dipindah ke Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $inactiveUnit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $updateTransferResponse->assertSessionHasErrors(['unit_id']);
+
+        // 4. Update tanpa memindahkan unit tetap diperbolehkan
+        $updateSameResponse = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-UNIT-VALID',
+            'nama' => 'Indikator Nama Baru',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $updateSameResponse->assertRedirect();
+        $indikator->refresh();
+        $this->assertSame('Indikator Nama Baru', $indikator->nama);
+    }
+
+    public function test_destroy_request_validates_minimum_reason_length(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-REASON-TEST',
+            'deskripsi' => 'Sasaran Reason Test',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REASON-TEST',
+            'nama' => 'Indikator Reason Test',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        // Hapus indikator tanpa alasan atau alasan pendek (< 10 karakter)
+        $shortIndikator = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikator->id}", [
+            'alasan' => 'pendek',
+        ]);
+        $shortIndikator->assertSessionHasErrors(['alasan']);
+
+        // Hapus sasaran tanpa alasan atau alasan pendek (< 10 karakter)
+        $shortSasaran = $this->actingAs($this->perencanaan)->delete("/perencanaan/sasaran/{$sasaran->id}", [
+            'alasan' => 'pendek',
+        ]);
+        $shortSasaran->assertSessionHasErrors(['alasan']);
+    }
+
+    public function test_denied_create_logs_audit_with_correlation_id_and_basis(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-DENIED-TEST',
+            'deskripsi' => 'Sasaran Denied Test',
+            'urutan' => 1,
+        ]);
+
+        // Berikan explicit deny indikator:create ke user perencanaan
+        $permIndikatorCreate = Permission::where('kode', 'indikator:create')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $permIndikatorCreate->id,
+            'unit_id' => null,
+            'alasan' => 'Deny pembuatan indikator untuk pengujian audit',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        $responseIndikator = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-DENIED',
+            'nama' => 'Indikator Denied',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $responseIndikator->assertForbidden();
+
+        $auditIndikator = AuditLog::where('tindakan', 'indikator.buat_ditolak')->latest('waktu')->first();
+        $this->assertNotNull($auditIndikator);
+        $this->assertSame('indikator', $auditIndikator->objek_tipe);
+        $this->assertTrue(Str::isUuid($auditIndikator->objek_id));
+        $this->assertNotNull($auditIndikator->dasar_izin);
+        $this->assertSame('ditolak', $auditIndikator->dasar_izin['keputusan'] ?? null);
+
+        // Berikan explicit deny sasaran:create ke user perencanaan
+        $permSasaranCreate = Permission::where('kode', 'sasaran:create')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $permSasaranCreate->id,
+            'unit_id' => null,
+            'alasan' => 'Deny pembuatan sasaran untuk pengujian audit',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        $responseSasaran = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-DENIED',
+            'deskripsi' => 'Sasaran Denied',
+            'urutan' => 2,
+        ]);
+
+        $responseSasaran->assertForbidden();
+
+        $auditSasaran = AuditLog::where('tindakan', 'sasaran.buat_ditolak')->latest('waktu')->first();
+        $this->assertNotNull($auditSasaran);
+        $this->assertSame('sasaran', $auditSasaran->objek_tipe);
+        $this->assertTrue(Str::isUuid($auditSasaran->objek_id));
+        $this->assertNotNull($auditSasaran->dasar_izin);
+        $this->assertSame('ditolak', $auditSasaran->dasar_izin['keputusan'] ?? null);
+    }
+
     private function buatUserDenganRole(string $roleName, string $email): User
     {
         $role = Role::where('kode', $roleName)->firstOrFail();

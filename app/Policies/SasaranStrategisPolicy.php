@@ -9,6 +9,7 @@ use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Str;
 
 class SasaranStrategisPolicy
 {
@@ -29,7 +30,23 @@ class SasaranStrategisPolicy
 
     public function create(User $user): Response
     {
-        return $this->response($this->permissionResolver->resolve($user, PermissionCodes::SASARAN_CREATE));
+        $decision = $this->permissionResolver->resolve($user, PermissionCodes::SASARAN_CREATE);
+
+        if (! $decision->allowed) {
+            $alasan = request()->input('alasan');
+            $this->auditLogger->catat(
+                actor: $user,
+                tindakan: 'sasaran.buat_ditolak',
+                objekTipe: 'sasaran',
+                objekId: (string) Str::uuid(),
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : 'Percobaan membuat sasaran strategis ditolak oleh sistem otorisasi.',
+                dasarIzin: $decision->toAuditBasis(),
+            );
+        }
+
+        return $this->response($decision);
     }
 
     public function update(User $user, SasaranStrategis $sasaran): Response
@@ -75,7 +92,8 @@ class SasaranStrategisPolicy
             objekTipe: 'sasaran',
             objekId: $sasaran->id,
             nilaiLama: $sasaran->withoutRelations()->toArray(),
-            alasan: is_string($alasan) ? $alasan : null,
+            nilaiBaru: null,
+            alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : "Percobaan {$tindakan} ditolak oleh sistem otorisasi.",
             dasarIzin: $decision->toAuditBasis(),
         );
     }

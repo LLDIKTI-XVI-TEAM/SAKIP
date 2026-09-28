@@ -5,6 +5,7 @@ namespace App\Http\Requests\Indikator;
 use App\Models\IndikatorKinerja;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class StoreIndikatorRequest extends FormRequest
 {
@@ -24,7 +25,11 @@ class StoreIndikatorRequest extends FormRequest
             'nama' => ['required', 'string', 'max:1000'],
             'definisi_operasional' => ['nullable', 'string', 'max:2000'],
             'satuan' => ['required', 'string', 'max:50'],
-            'unit_id' => ['required', 'uuid', 'exists:unit,id'],
+            'unit_id' => [
+                'required',
+                'uuid',
+                Rule::exists('unit', 'id')->where('status', 'aktif'),
+            ],
             'arah' => ['required', 'in:naik_baik,turun_baik'],
             'tipe_perhitungan' => ['required', 'in:manual,rasio_persen,penjumlahan'],
             'presisi' => ['nullable', 'integer', 'between:0,4'],
@@ -48,7 +53,7 @@ class StoreIndikatorRequest extends FormRequest
             'nama.required' => 'Nama indikator kinerja wajib diisi.',
             'satuan.required' => 'Satuan indikator kinerja wajib diisi.',
             'unit_id.required' => 'Unit penanggung jawab wajib dipilih.',
-            'unit_id.exists' => 'Unit penanggung jawab tidak valid.',
+            'unit_id.exists' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
             'arah.required' => 'Arah penilaian wajib dipilih.',
             'arah.in' => 'Arah penilaian harus berupa naik_baik atau turun_baik.',
             'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
