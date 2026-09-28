@@ -23,22 +23,41 @@ class UpdateIndikator extends Controller
         $nilaiLama = $indikator->withoutRelations()->toArray();
 
         DB::transaction(function () use ($indikator, $validated, $actor, $auditLogger, $nilaiLama) {
-            $indikator->update([
+            $updateData = [
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
-                'regulasi_id' => $validated['regulasi_id'] ?? null,
                 'kode' => trim($validated['kode']),
                 'nama' => trim($validated['nama']),
-                'definisi_operasional' => isset($validated['definisi_operasional']) ? trim($validated['definisi_operasional']) : null,
                 'satuan' => trim($validated['satuan']),
                 'unit_id' => $validated['unit_id'],
                 'arah' => $validated['arah'],
                 'tipe_perhitungan' => $validated['tipe_perhitungan'],
-                'presisi' => $validated['presisi'] ?? 2,
-                'desimal_tampilan' => $validated['desimal_tampilan'] ?? 2,
-                'wajib_catatan' => (bool) ($validated['wajib_catatan'] ?? false),
-                'jenis_agregasi' => $validated['jenis_agregasi'] ?? 'terakhir',
-                'is_aktif' => (bool) ($validated['is_aktif'] ?? true),
-            ]);
+            ];
+
+            if (array_key_exists('definisi_operasional', $validated)) {
+                $updateData['definisi_operasional'] = $validated['definisi_operasional'] !== null
+                    ? trim($validated['definisi_operasional'])
+                    : null;
+            }
+            if (array_key_exists('regulasi_id', $validated)) {
+                $updateData['regulasi_id'] = $validated['regulasi_id'];
+            }
+            if (array_key_exists('presisi', $validated) && $validated['presisi'] !== null) {
+                $updateData['presisi'] = (int) $validated['presisi'];
+            }
+            if (array_key_exists('desimal_tampilan', $validated) && $validated['desimal_tampilan'] !== null) {
+                $updateData['desimal_tampilan'] = (int) $validated['desimal_tampilan'];
+            }
+            if (array_key_exists('wajib_catatan', $validated) && $validated['wajib_catatan'] !== null) {
+                $updateData['wajib_catatan'] = (bool) $validated['wajib_catatan'];
+            }
+            if (array_key_exists('jenis_agregasi', $validated) && $validated['jenis_agregasi'] !== null) {
+                $updateData['jenis_agregasi'] = $validated['jenis_agregasi'];
+            }
+            if (array_key_exists('is_aktif', $validated) && $validated['is_aktif'] !== null) {
+                $updateData['is_aktif'] = (bool) $validated['is_aktif'];
+            }
+
+            $indikator->update($updateData);
 
             $nilaiBaru = $indikator->withoutRelations()->toArray();
 

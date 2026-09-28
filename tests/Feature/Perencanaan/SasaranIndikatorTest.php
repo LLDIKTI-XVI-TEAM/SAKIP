@@ -12,9 +12,11 @@ use App\Models\SasaranStrategis;
 use App\Models\TargetKinerja;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserPermissionDeny;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -464,6 +466,182 @@ class SasaranIndikatorTest extends TestCase
         $response->assertSessionHasErrors(['sasaran']);
         $this->assertDatabaseHas('sasaran_strategis', [
             'id' => $sasaran->id,
+        ]);
+    }
+
+    public function test_explicit_deny_regulasi_read_hides_catalog_and_relation_details(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-REG-DENY',
+            'deskripsi' => 'Sasaran Regulasi Deny Test',
+            'urutan' => 1,
+        ]);
+
+        IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'regulasi_id' => $this->regulasi->id,
+            'kode' => 'IKU-REG-DENY',
+            'nama' => 'Indikator dengan Regulasi Rujukan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        // Berikan explicit deny regulasi:read pada user perencanaan
+        $regulasiPermission = Permission::where('kode', 'regulasi:read')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $regulasiPermission->id,
+            'unit_id' => null,
+            'alasan' => 'Dilarang melihat regulasi untuk pengujian',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator');
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Perencanaan/SasaranIndikator/Index')
+            ->where('can.regulasi_read', false)
+            ->where('regulasis', [])
+            ->where('sasarans.0.indikator_kinerjas.0.regulasi', null)
+            ->where('sasarans.0.indikator_kinerjas.0.regulasi_id', null)
+        );
+    }
+
+    public function test_update_indikator_preserves_unsubmitted_fields(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-PRESERVE',
+            'deskripsi' => 'Sasaran Preserve Test',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-PRESERVE',
+            'nama' => 'Nama Awal',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'presisi' => 3,
+            'desimal_tampilan' => 4,
+            'wajib_catatan' => true,
+            'jenis_agregasi' => 'rata_rata',
+            'is_aktif' => false,
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        // Submit pembaruan tanpa menyertakan desimal_tampilan, jenis_agregasi, maupun is_aktif
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-PRESERVE',
+            'nama' => 'Nama Baru Diperbarui',
+            'satuan' => 'Dokumen',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $response->assertRedirect();
+        $indikator->refresh();
+
+        $this->assertSame('Nama Baru Diperbarui', $indikator->nama);
+        $this->assertSame('Dokumen', $indikator->satuan);
+        $this->assertFalse($indikator->is_aktif, 'is_aktif harus tetap false dan tidak diaktifkan ulang secara otomatis');
+        $this->assertSame(4, $indikator->desimal_tampilan, 'desimal_tampilan harus dipertahankan');
+        $this->assertSame('rata_rata', $indikator->jenis_agregasi, 'jenis_agregasi harus dipertahankan');
+        $this->assertTrue($indikator->wajib_catatan, 'wajib_catatan harus dipertahankan');
+    }
+
+    public function test_destroy_indikator_with_extended_dependencies_deactivates_safely(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-DEP-EXT',
+            'deskripsi' => 'Sasaran Dependency Extended Test',
+            'urutan' => 1,
+        ]);
+
+        // 1. Dependensi penanggung_jawab
+        $indikatorPic = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-PIC',
+            'nama' => 'Indikator dengan PIC',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        DB::table('penanggung_jawab')->insert([
+            'id' => (string) Str::uuid(),
+            'indikator_id' => $indikatorPic->id,
+            'user_id' => $this->perencanaan->id,
+            'tanggal_mulai_berlaku' => now()->toDateString(),
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $responsePic = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikatorPic->id}", [
+            'alasan' => 'Mencoba hapus indikator yang memiliki penanggung jawab',
+        ]);
+
+        $responsePic->assertRedirect();
+        $this->assertDatabaseHas('indikator_kinerjas', [
+            'id' => $indikatorPic->id,
+            'is_aktif' => false,
+        ]);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'indikator.nonaktifkan',
+            'objek_tipe' => 'indikator',
+            'objek_id' => $indikatorPic->id,
+        ]);
+
+        // 2. Dependensi jenis_berkas
+        $indikatorBerkas = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-BERKAS',
+            'nama' => 'Indikator dengan Jenis Berkas',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        DB::table('jenis_berkas')->insert([
+            'id' => (string) Str::uuid(),
+            'nama' => 'Laporan Hasil Evaluasi',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $indikatorBerkas->id,
+            'created_by' => $this->perencanaan->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $responseBerkas = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikatorBerkas->id}", [
+            'alasan' => 'Mencoba hapus indikator yang memiliki jenis berkas',
+        ]);
+
+        $responseBerkas->assertRedirect();
+        $this->assertDatabaseHas('indikator_kinerjas', [
+            'id' => $indikatorBerkas->id,
+            'is_aktif' => false,
+        ]);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'indikator.nonaktifkan',
+            'objek_tipe' => 'indikator',
+            'objek_id' => $indikatorBerkas->id,
         ]);
     }
 

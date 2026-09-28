@@ -25,6 +25,8 @@ class IndexSasaranIndikator extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $canReadRegulasi = $resolver->allows($user, PermissionCodes::REGULASI_READ);
+
         $renstras = Renstra::orderByDesc('is_aktif')
             ->orderByDesc('tahun_mulai')
             ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']);
@@ -40,27 +42,27 @@ class IndexSasaranIndikator extends Controller
                 ->orderBy('urutan')
                 ->orderBy('kode')
                 ->with([
-                    'indikatorKinerjas' => function ($query) {
-                        $query->orderBy('kode')
-                            ->with([
-                                'unit:id,nama',
-                                'regulasi:id,jenis,nomor,tahun,tentang',
-                            ]);
+                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi) {
+                        $relations = ['unit:id,nama'];
+                        if ($canReadRegulasi) {
+                            $relations[] = 'regulasi:id,jenis,nomor,tahun,tentang';
+                        }
+                        $query->orderBy('kode')->with($relations);
                     },
                 ])
                 ->get()
-                ->map(function (SasaranStrategis $sasaran) {
+                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi) {
                     return [
                         'id' => $sasaran->id,
                         'renstra_id' => $sasaran->renstra_id,
                         'kode' => $sasaran->kode,
                         'deskripsi' => $sasaran->deskripsi,
                         'urutan' => $sasaran->urutan,
-                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) {
+                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi) {
                             return [
                                 'id' => $indikator->id,
                                 'sasaran_strategis_id' => $indikator->sasaran_strategis_id,
-                                'regulasi_id' => $indikator->regulasi_id,
+                                'regulasi_id' => $canReadRegulasi ? $indikator->regulasi_id : null,
                                 'kode' => $indikator->kode,
                                 'nama' => $indikator->nama,
                                 'definisi_operasional' => $indikator->definisi_operasional,
@@ -75,7 +77,7 @@ class IndexSasaranIndikator extends Controller
                                 'jenis_agregasi' => $indikator->jenis_agregasi,
                                 'is_aktif' => $indikator->is_aktif,
                                 'created_by_role' => $indikator->created_by_role,
-                                'regulasi' => $indikator->regulasi ? [
+                                'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
                                     'id' => $indikator->regulasi->id,
                                     'jenis' => $indikator->regulasi->jenis,
                                     'nomor' => $indikator->regulasi->nomor,
@@ -92,9 +94,11 @@ class IndexSasaranIndikator extends Controller
             ->orderBy('nama')
             ->get(['id', 'nama']);
 
-        $regulasis = Regulasi::where('aktif', true)
-            ->orderByDesc('tahun')
-            ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
+        $regulasis = $canReadRegulasi
+            ? Regulasi::where('aktif', true)
+                ->orderByDesc('tahun')
+                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
+            : [];
 
         return Inertia::render('Perencanaan/SasaranIndikator/Index', [
             'renstras' => $renstras,
@@ -110,6 +114,7 @@ class IndexSasaranIndikator extends Controller
                 'indikator_read' => $resolver->allows($user, PermissionCodes::INDIKATOR_READ),
                 'indikator_update' => $resolver->allows($user, PermissionCodes::INDIKATOR_UPDATE),
                 'indikator_delete' => $resolver->allows($user, PermissionCodes::INDIKATOR_DELETE),
+                'regulasi_read' => $canReadRegulasi,
             ],
         ]);
     }

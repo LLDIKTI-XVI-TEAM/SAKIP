@@ -46,7 +46,10 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         arah: 'naik_baik' as IndikatorArah,
         tipe_perhitungan: 'manual' as IndikatorTipePerhitungan,
         presisi: 2,
+        desimal_tampilan: 2,
         wajib_catatan: false,
+        jenis_agregasi: 'terakhir',
+        is_aktif: true,
         regulasi_id: '' as string,
     });
 
@@ -64,7 +67,10 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     arah: indikator.arah,
                     tipe_perhitungan: indikator.tipe_perhitungan,
                     presisi: indikator.presisi ?? 2,
+                    desimal_tampilan: indikator.desimal_tampilan ?? 2,
                     wajib_catatan: Boolean(indikator.wajib_catatan),
+                    jenis_agregasi: indikator.jenis_agregasi ?? 'terakhir',
+                    is_aktif: Boolean(indikator.is_aktif),
                     regulasi_id: indikator.regulasi_id ?? '',
                 });
             } else {
@@ -78,7 +84,10 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     arah: 'naik_baik',
                     tipe_perhitungan: 'manual',
                     presisi: 2,
+                    desimal_tampilan: 2,
                     wajib_catatan: false,
+                    jenis_agregasi: 'terakhir',
+                    is_aktif: true,
                     regulasi_id: '',
                 });
             }
@@ -286,15 +295,30 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     error={errors.definisi_operasional}
                 />
 
-                <div className="flex items-center gap-3 pt-2">
-                    <Switch
-                        id="indikator_wajib_catatan"
-                        checked={data.wajib_catatan}
-                        onChange={(val) => setData('wajib_catatan', val)}
-                    />
-                    <label htmlFor="indikator_wajib_catatan" className="text-sm font-medium text-ink cursor-pointer">
-                        Wajib Melampirkan Catatan Penjelasan saat Pengisian Realisasi
-                    </label>
+                <div className="flex flex-col gap-3 pt-2">
+                    <div className="flex items-center gap-3">
+                        <Switch
+                            id="indikator_wajib_catatan"
+                            checked={data.wajib_catatan}
+                            onChange={(val) => setData('wajib_catatan', val)}
+                        />
+                        <label htmlFor="indikator_wajib_catatan" className="text-sm font-medium text-ink cursor-pointer">
+                            Wajib Melampirkan Catatan Penjelasan saat Pengisian Realisasi
+                        </label>
+                    </div>
+
+                    {isEdit && (
+                        <div className="flex items-center gap-3">
+                            <Switch
+                                id="indikator_is_aktif"
+                                checked={data.is_aktif}
+                                onChange={(val) => setData('is_aktif', val)}
+                            />
+                            <label htmlFor="indikator_is_aktif" className="text-sm font-medium text-ink cursor-pointer">
+                                Status Indikator Aktif
+                            </label>
+                        </div>
+                    )}
                 </div>
             </form>
         </Modal>
