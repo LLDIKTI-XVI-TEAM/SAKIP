@@ -568,4 +568,171 @@ class RenstraPkServiceTest extends TestCase
         $job->handle();
         Storage::disk('local')->assertMissing($path);
     }
+
+    public function test_create_pk_rejected_when_actor_explicit_deny_added_concurrently_inside_transaction(): void
+    {
+        $concurrentActor = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $concurrentActor->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $injected = false;
+        User::retrieved(function ($model) use ($concurrentActor, &$injected) {
+            if (! $injected && $model->id === $concurrentActor->id) {
+                $injected = true;
+                DB::table('user_permission_denied')->insert([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $concurrentActor->id,
+                    'permission_id' => Permission::where('kode', 'pk:create')->value('id'),
+                    'unit_id' => null,
+                    'alasan' => 'Deny concurrent saat transaksi berjalan',
+                    'ditetapkan_oleh' => $this->actor->id,
+                    'created_at' => now(),
+                ]);
+            }
+        });
+
+        try {
+            $this->service->create([
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-CONCURRENT-CREATE',
+                'tanggal_pk' => '2026-01-10',
+            ], $concurrentActor);
+            $this->fail('Harus melempar AuthorizationException karena permission ditolak di dalam transaksi.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseMissing('renstra_pk', [
+                'nomor_pk' => 'PK-CONCURRENT-CREATE',
+            ]);
+        }
+    }
+
+    public function test_update_pk_rejected_when_actor_explicit_deny_added_concurrently_inside_transaction(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-CONCURRENT-UPDATE-ORIG',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $concurrentActor = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $concurrentActor->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $injected = false;
+        User::retrieved(function ($model) use ($concurrentActor, &$injected) {
+            if (! $injected && $model->id === $concurrentActor->id) {
+                $injected = true;
+                DB::table('user_permission_denied')->insert([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $concurrentActor->id,
+                    'permission_id' => Permission::where('kode', 'pk:update')->value('id'),
+                    'unit_id' => null,
+                    'alasan' => 'Deny concurrent update saat transaksi berjalan',
+                    'ditetapkan_oleh' => $this->actor->id,
+                    'created_at' => now(),
+                ]);
+            }
+        });
+
+        try {
+            $this->service->update($pk, [
+                'nomor_pk' => 'PK-CONCURRENT-UPDATE-MUTATED',
+            ], 'Ubah nomor PK', $concurrentActor);
+            $this->fail('Harus melempar AuthorizationException karena permission update ditolak di dalam transaksi.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseMissing('renstra_pk', [
+                'nomor_pk' => 'PK-CONCURRENT-UPDATE-MUTATED',
+            ]);
+            $this->assertSame('PK-CONCURRENT-UPDATE-ORIG', $pk->fresh()->nomor_pk);
+        }
+    }
+
+    public function test_delete_berkas_rejected_when_actor_explicit_deny_added_concurrently_inside_transaction(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-CONCURRENT-DELETE-BERKAS',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/test-concurrent-delete',
+            'nama_asli' => 'Doc Test',
+            'uploaded_by' => $this->actor->id,
+        ]);
+
+        $concurrentActor = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $concurrentActor->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $injected = false;
+        User::retrieved(function ($model) use ($concurrentActor, &$injected) {
+            if (! $injected && $model->id === $concurrentActor->id) {
+                $injected = true;
+                DB::table('user_permission_denied')->insert([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $concurrentActor->id,
+                    'permission_id' => Permission::where('kode', 'berkas:delete')->value('id'),
+                    'unit_id' => null,
+                    'alasan' => 'Deny concurrent delete berkas saat transaksi berjalan',
+                    'ditetapkan_oleh' => $this->actor->id,
+                    'created_at' => now(),
+                ]);
+            }
+        });
+
+        try {
+            $this->service->deleteBerkas($pk, $berkas, 'Hapus lampiran concurrent', $concurrentActor);
+            $this->fail('Harus melempar AuthorizationException karena permission berkas:delete ditolak di dalam transaksi.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseHas('berkas', [
+                'id' => $berkas->id,
+                'dihapus_pada' => null,
+            ]);
+        }
+    }
+
+    public function test_update_pk_with_nul_character_in_alasan_sanitizes_safely(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-NUL-UPDATE-ORIG',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $alasanWithNul = "Perubahan beralasan\0dengan karakter NUL";
+
+        $updated = $this->service->update($pk, [
+            'nomor_pk' => 'PK-NUL-UPDATE-NEW',
+        ], $alasanWithNul, $this->actor);
+
+        $this->assertSame('PK-NUL-UPDATE-NEW', $updated->nomor_pk);
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.ubah')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+        $this->assertSame('Perubahan beralasandengan karakter NUL', $audit->alasan);
+    }
 }

@@ -28,6 +28,29 @@ class RenstraPkService
     ) {}
 
     /**
+     * Membersihkan string alasan audit dari byte NUL dan karakter kontrol ilegal.
+     */
+    public static function sanitizeAlasan(mixed $rawAlasan): string
+    {
+        if (! is_string($rawAlasan)) {
+            return '';
+        }
+
+        $clean = str_replace("\0", '', $rawAlasan);
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean)
+            ?? preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $clean)
+            ?? '';
+
+        $clean = trim($clean);
+
+        if ($clean === '') {
+            return '';
+        }
+
+        return mb_substr($clean, 0, 1000, 'UTF-8');
+    }
+
+    /**
      * Membuat data Perjanjian Kinerja beserta lampiran opsionalnya.
      *
      * @param  array<string, mixed>  $data
@@ -37,6 +60,13 @@ class RenstraPkService
         $createDecision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_CREATE);
         if (! $createDecision->allowed) {
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.');
+        }
+
+        if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
+            $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+            if (! $uploadDecision->allowed) {
+                throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
+            }
         }
 
         $renstra = Renstra::findOrFail($data['renstra_id']);
@@ -58,26 +88,37 @@ class RenstraPkService
 
         try {
             return DB::transaction(function () use ($data, $renstra, $tahun, $actor, &$storedPaths) {
+                $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                if ($lockedActor->status !== 'aktif') {
+                    throw new AuthorizationException('Pengguna tidak aktif.');
+                }
+
+                $createDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_CREATE);
+                if (! $createDecision->allowed) {
+                    throw new AuthorizationException('Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.');
+                }
+
                 $pk = RenstraPk::create([
                     'renstra_id' => $renstra->id,
                     'tahun' => $tahun,
                     'nomor_pk' => $data['nomor_pk'],
                     'tanggal_pk' => $data['tanggal_pk'],
-                    'created_by' => $actor->id,
+                    'created_by' => $lockedActor->id,
                 ]);
 
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
-                    $this->simpanLampiran($pk, $data['lampiran'], $actor, $storedPaths);
+                    $this->simpanLampiran($pk, $data['lampiran'], $lockedActor, $storedPaths);
                 }
 
                 $pk->load(['renstra', 'creator', 'berkas']);
 
                 $this->auditLogger->catat(
-                    actor: $actor,
+                    actor: $lockedActor,
                     tindakan: 'renstra_pk.buat',
                     objekTipe: 'renstra_pk',
                     objekId: $pk->id,
                     nilaiBaru: $this->snapshot($pk),
+                    dasarIzin: $createDecision->toAuditBasis(),
                 );
 
                 return $pk;
@@ -106,7 +147,7 @@ class RenstraPkService
      */
     public function update(RenstraPk $pk, array $data, string $alasan, User $actor): RenstraPk
     {
-        $alasan = trim($alasan);
+        $alasan = self::sanitizeAlasan($alasan);
         if ($alasan === '') {
             throw ValidationException::withMessages([
                 'alasan' => 'Alasan perubahan Perjanjian Kinerja wajib diisi.',
@@ -118,10 +159,27 @@ class RenstraPkService
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
         }
 
+        if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
+            $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+            if (! $uploadDecision->allowed) {
+                throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
+            }
+        }
+
         $storedPaths = [];
 
         try {
-            return DB::transaction(function () use ($pk, $data, $alasan, $actor, $decision, &$storedPaths) {
+            return DB::transaction(function () use ($pk, $data, $alasan, $actor, &$storedPaths) {
+                $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                if ($lockedActor->status !== 'aktif') {
+                    throw new AuthorizationException('Pengguna tidak aktif.');
+                }
+
+                $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
+                if (! $decision->allowed) {
+                    throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
+                }
+
                 /** @var RenstraPk $pkLocked */
                 $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
                 $pkLocked->load(['berkas']);
@@ -136,14 +194,14 @@ class RenstraPkService
                 $pkLocked->save();
 
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
-                    $this->simpanLampiran($pkLocked, $data['lampiran'], $actor, $storedPaths);
+                    $this->simpanLampiran($pkLocked, $data['lampiran'], $lockedActor, $storedPaths);
                 }
 
                 $pkLocked = $pkLocked->fresh(['renstra', 'creator', 'berkas']);
                 $nilaiBaru = $this->snapshot($pkLocked);
 
                 $this->auditLogger->catat(
-                    actor: $actor,
+                    actor: $lockedActor,
                     tindakan: 'renstra_pk.ubah',
                     objekTipe: 'renstra_pk',
                     objekId: $pkLocked->id,
@@ -171,7 +229,7 @@ class RenstraPkService
             throw new RuntimeException('Berkas bukan merupakan lampiran dari Perjanjian Kinerja ini.');
         }
 
-        $alasan = trim($alasan);
+        $alasan = self::sanitizeAlasan($alasan);
         if ($alasan === '') {
             throw ValidationException::withMessages([
                 'alasan' => 'Alasan penghapusan lampiran wajib diisi.',
@@ -185,10 +243,21 @@ class RenstraPkService
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk menghapus lampiran Perjanjian Kinerja.');
         }
 
-        $decision = $berkasDeleteDecision;
         $path = null;
 
-        $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, $decision, &$path): ?string {
+        $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, &$path): ?string {
+            $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            if ($lockedActor->status !== 'aktif') {
+                throw new AuthorizationException('Pengguna tidak aktif.');
+            }
+
+            $pkUpdateDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
+            $berkasDeleteDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_DELETE);
+
+            if (! $pkUpdateDecision->allowed || ! $berkasDeleteDecision->allowed) {
+                throw new AuthorizationException('Pengguna tidak memiliki izin untuk menghapus lampiran Perjanjian Kinerja.');
+            }
+
             /** @var RenstraPk $pkLocked */
             $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
 
@@ -206,14 +275,14 @@ class RenstraPkService
 
             if ($isJadwalMengunci) {
                 $this->auditLogger->catat(
-                    actor: $actor,
+                    actor: $lockedActor,
                     tindakan: 'berkas.hapus_ditolak',
                     objekTipe: 'berkas',
                     objekId: $berkas->id,
                     nilaiLama: $this->metadataBerkasUntukAudit($berkas),
                     nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
                     alasan: $alasan,
-                    dasarIzin: $decision->toAuditBasis(),
+                    dasarIzin: $berkasDeleteDecision->toAuditBasis(),
                 );
 
                 return 'jadwal_tahunan_aktif';
@@ -236,18 +305,18 @@ class RenstraPkService
             $path = $berkasLocked->mode === 'file' && is_string($berkasLocked->path) ? $berkasLocked->path : null;
             $nilaiLama = $this->metadataBerkasUntukAudit($berkasLocked);
 
-            $berkasLocked->dihapus_oleh = $actor->id;
+            $berkasLocked->dihapus_oleh = $lockedActor->id;
             $berkasLocked->save();
             $berkasLocked->delete();
 
             $this->auditLogger->catat(
-                actor: $actor,
+                actor: $lockedActor,
                 tindakan: 'berkas.hapus',
                 objekTipe: 'berkas',
                 objekId: $berkasLocked->id,
                 nilaiLama: $nilaiLama,
                 alasan: $alasan,
-                dasarIzin: $decision->toAuditBasis(),
+                dasarIzin: $berkasDeleteDecision->toAuditBasis(),
             );
 
             return null;
@@ -272,6 +341,51 @@ class RenstraPkService
                     CleanupStorageFileJob::dispatch($path, 'local');
                 }
             });
+        }
+    }
+
+    /**
+     * Mengunggah lampiran ke Perjanjian Kinerja secara aman concurrency.
+     *
+     * @param  array<int, array<string, mixed>>  $lampiran
+     * @return list<Berkas>
+     */
+    public function uploadBerkas(RenstraPk $pk, array $lampiran, User $actor): array
+    {
+        $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
+        if (! $uploadDecision->allowed) {
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
+        }
+
+        $pkUpdateDecision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_UPDATE);
+        if (! $pkUpdateDecision->allowed) {
+            throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
+        }
+
+        $storedPaths = [];
+
+        try {
+            return DB::transaction(function () use ($pk, $lampiran, $actor, &$storedPaths) {
+                $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                if ($lockedActor->status !== 'aktif') {
+                    throw new AuthorizationException('Pengguna tidak aktif.');
+                }
+
+                $pkUpdateDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
+                if (! $pkUpdateDecision->allowed) {
+                    throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
+                }
+
+                /** @var RenstraPk $pkLocked */
+                $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
+                $this->simpanLampiran($pkLocked, $lampiran, $lockedActor, $storedPaths);
+
+                return $pkLocked->fresh(['berkas'])->berkas->all();
+            });
+        } catch (Throwable $exception) {
+            $this->hapusFile($storedPaths);
+
+            throw $exception;
         }
     }
 
@@ -406,6 +520,7 @@ class RenstraPkService
                 objekTipe: 'berkas',
                 objekId: $berkas->id,
                 nilaiBaru: $this->metadataBerkasUntukAudit($berkas),
+                dasarIzin: $uploadDecision->toAuditBasis(),
             );
         }
     }

@@ -705,4 +705,182 @@ class PerjanjianKinerjaHttpTest extends TestCase
 
         $this->assertSame('Tidak memiliki otorisasi', $audit->alasan);
     }
+
+    public function test_delete_lampiran_unauthorized_with_nul_character_in_alasan_sanitizes_safely(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-NUL-ALASAN',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-nul-alasan',
+            'nama_asli' => 'Dokumen NUL Alasan',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        $malformedAlasan = "alasan valid\0malformed";
+
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => $malformedAlasan,
+            ])
+            ->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')
+            ->where('objek_id', $berkas->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+        $this->assertSame('alasan validmalformed', $audit->alasan);
+    }
+
+    public function test_ownership_matrix_unauthorized_actor_with_foreign_berkas_returns_403_without_audit(): void
+    {
+        $pk1 = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-OWNERSHIP-1',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $pk2 = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-OWNERSHIP-2',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkasForeign = $pk2->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk2-lampiran',
+            'nama_asli' => 'Dokumen PK2',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Actor tanpa izin delete (pegawai) menembak PK1 dengan ID berkas milik PK2.
+        // Harus 403 Forbidden agar tidak menjadi metadata/ownership oracle.
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk1->id}/berkas/{$berkasForeign->id}", [
+                'alasan' => 'Mencoba probe ownership berkas asing',
+            ])
+            ->assertForbidden();
+
+        // Tidak boleh ada audit log penolakan izin yang dicatat untuk berkas asing.
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_id' => $berkasForeign->id,
+        ]);
+    }
+
+    public function test_ownership_matrix_authorized_actor_with_foreign_berkas_returns_404(): void
+    {
+        $pk1 = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AUTH-1',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $pk2 = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-AUTH-2',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkasForeign = $pk2->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk2-foreign',
+            'nama_asli' => 'Dokumen PK2 Foreign',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Actor yang berwenang (perencanaan) meminta delete berkas yang bukan milik PK1.
+        // Harus 404 Not Found.
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pk1->id}/berkas/{$berkasForeign->id}", [
+                'alasan' => 'Hapus berkas pada PK yang salah',
+            ])
+            ->assertNotFound();
+
+        // Tidak mencatat audit penolakan izin.
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_id' => $berkasForeign->id,
+        ]);
+    }
+
+    public function test_ownership_matrix_unauthorized_actor_with_matching_berkas_returns_403_and_audits(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UNAUTH-MATCH',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-match',
+            'nama_asli' => 'Dokumen Match',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Actor tanpa izin menembak berkas yang benar milik PK.
+        $this->actingAs($this->pegawai)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Mencoba hapus tanpa izin',
+            ])
+            ->assertForbidden();
+
+        // Audit log penolakan izin harus tercatat.
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'berkas.hapus_ditolak',
+            'objek_id' => $berkas->id,
+            'actor_id' => $this->pegawai->id,
+        ]);
+    }
+
+    public function test_ownership_matrix_authorized_actor_with_matching_berkas_succeeds(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AUTH-MATCH',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $berkas = $pk->berkas()->create([
+            'mode' => 'tautan',
+            'tautan' => 'https://example.com/pk-auth-match',
+            'nama_asli' => 'Dokumen Auth Match',
+            'uploaded_by' => $this->perencanaan->id,
+        ]);
+
+        // Actor berwenang menghapus berkas yang benar milik PK.
+        $this->actingAs($this->perencanaan)
+            ->delete("/perjanjian-kinerja/{$pk->id}/berkas/{$berkas->id}", [
+                'alasan' => 'Penghapusan berkas terotorisasi',
+            ])
+            ->assertRedirect();
+
+        $this->assertSoftDeleted($berkas);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'berkas.hapus',
+            'objek_id' => $berkas->id,
+            'actor_id' => $this->perencanaan->id,
+        ]);
+    }
 }

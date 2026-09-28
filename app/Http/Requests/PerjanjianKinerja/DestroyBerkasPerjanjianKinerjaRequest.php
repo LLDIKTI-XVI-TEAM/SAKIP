@@ -14,8 +14,16 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
     public function authorize(): bool
     {
         $pk = $this->route('perjanjian_kinerja');
+        $user = $this->user();
+
+        // Pemeriksaan kapabilitas otorisasi dilakukan pertama kali untuk mencegah ownership oracle.
+        if (! $user || ! $user->can('deleteBerkas', $pk)) {
+            return false;
+        }
+
         $berkas = $this->route('berkas');
 
+        // Untuk aktor yang berwenang, ketidaksesuaian kepemilikan menghasilkan 404 Not Found.
         if (! $pk instanceof RenstraPk
             || ! $berkas instanceof Berkas
             || $berkas->berkasable_id !== $pk->id
@@ -23,7 +31,7 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
             abort(404, 'Lampiran tidak ditemukan untuk Perjanjian Kinerja ini.');
         }
 
-        return $this->user()?->can('deleteBerkas', $pk) ?? false;
+        return true;
     }
 
     /**
@@ -42,6 +50,8 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
         $pk = $this->route('perjanjian_kinerja');
         $berkas = $this->route('berkas');
 
+        // Audit penolakan izin hanya dicatat jika berkas benar-benar milik PK terkait.
+        // Aktor tanpa izin tetap menerima respons 403, tetapi audit penolakan tidak dicatat untuk berkas asing.
         if ($user && $pk instanceof RenstraPk && $berkas instanceof Berkas
             && $berkas->berkasable_id === $pk->id
             && in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true)) {
@@ -51,12 +61,7 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
 
             $primaryDecision = ! $updateDecision->allowed ? $updateDecision : $deleteDecision;
             $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) ? trim($rawAlasan) : '';
-            if ($alasan !== '') {
-                $alasan = mb_substr($alasan, 0, 1000, 'UTF-8');
-            } else {
-                $alasan = 'Tidak memiliki otorisasi';
-            }
+            $alasan = $this->sanitizeAlasan($rawAlasan);
 
             $metadata = [
                 'id' => $berkas->id,
@@ -92,5 +97,28 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
         }
 
         parent::failedAuthorization();
+    }
+
+    protected function sanitizeAlasan(mixed $rawAlasan): string
+    {
+        if (! is_string($rawAlasan)) {
+            return 'Tidak memiliki otorisasi';
+        }
+
+        // Hapus byte NUL untuk mencegah exception PostgreSQL SQLSTATE[22P05]
+        $clean = str_replace("\0", '', $rawAlasan);
+
+        // Hapus karakter kontrol yang tidak dapat dicetak, pertahankan newline dan tab
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean)
+            ?? preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $clean)
+            ?? '';
+
+        $clean = trim($clean);
+
+        if ($clean === '') {
+            return 'Tidak memiliki otorisasi';
+        }
+
+        return mb_substr($clean, 0, 1000, 'UTF-8');
     }
 }
