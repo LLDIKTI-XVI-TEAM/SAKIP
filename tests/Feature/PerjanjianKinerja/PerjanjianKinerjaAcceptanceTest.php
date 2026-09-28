@@ -47,7 +47,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         Storage::fake('local');
 
         // Setup Superadmin
-        $this->superadmin = User::factory()->create(['is_active' => true]);
+        $this->superadmin = User::factory()->create(['status' => 'aktif']);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
         $this->superadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
@@ -57,7 +57,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         ]);
 
         // Setup Perencanaan
-        $this->perencanaan = User::factory()->create(['is_active' => true]);
+        $this->perencanaan = User::factory()->create(['status' => 'aktif']);
         $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
         $this->perencanaan->roles()->attach($perencanaanRole->id, [
             'id' => (string) Str::uuid(),
@@ -67,7 +67,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
         ]);
 
         // Setup Pegawai
-        $this->pegawai = User::factory()->create(['is_active' => true]);
+        $this->pegawai = User::factory()->create(['status' => 'aktif']);
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $this->pegawai->roles()->attach($pegawaiRole->id, [
             'id' => (string) Str::uuid(),

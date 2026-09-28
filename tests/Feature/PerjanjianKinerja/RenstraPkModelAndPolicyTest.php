@@ -65,7 +65,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
     {
         $this->seed(AccessCatalogSeeder::class);
 
-        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadmin = User::factory()->create(['status' => 'aktif']);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
         $superadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
@@ -74,7 +74,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $pegawai = User::factory()->create(['is_active' => true]);
+        $pegawai = User::factory()->create(['status' => 'aktif']);
         $pegawaiRole = Role::where('kode', 'pegawai')->firstOrFail();
         $pegawai->roles()->attach($pegawaiRole->id, [
             'id' => (string) Str::uuid(),
@@ -83,7 +83,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $inactiveUser = User::factory()->create(['is_active' => false]);
+        $inactiveUser = User::factory()->create(['status' => 'nonaktif']);
 
         $renstra = Renstra::create([
             'kode' => 'REN-2025-2029',
@@ -131,7 +131,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertFalse($policy->uploadBerkas($inactiveUser, $pk));
 
         // User dengan izin pk:create tapi explicit deny berkas:upload ditolak (Finding 1)
-        $userWithDenyUpload = User::factory()->create(['is_active' => true]);
+        $userWithDenyUpload = User::factory()->create(['status' => 'aktif']);
         $perencanaanRole = Role::where('kode', 'perencanaan')->firstOrFail();
         $userWithDenyUpload->roles()->attach($perencanaanRole->id, [
             'id' => (string) Str::uuid(),
@@ -155,7 +155,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertFalse($policy->uploadBerkas($userWithDenyUpload));
 
         // User tanpa role aktif ditolak fail-closed (Finding 1)
-        $userWithoutActiveRole = User::factory()->create(['is_active' => true]);
+        $userWithoutActiveRole = User::factory()->create(['status' => 'aktif']);
         $inactiveRole = Role::create([
             'kode' => 'role_non_aktif',
             'nama' => 'Role Non Aktif',
@@ -174,7 +174,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
 
     public function test_legacy_morph_discriminator_migrated_and_loaded_by_relation(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'aktif']);
         $renstra = Renstra::create([
             'kode' => 'REN-LEGACY',
             'nama' => 'Renstra Legacy Test',
@@ -231,7 +231,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
     {
         $this->seed(AccessCatalogSeeder::class);
 
-        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadmin = User::factory()->create(['status' => 'aktif']);
         $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
         $superadmin->roles()->attach($superadminRole->id, [
             'id' => (string) Str::uuid(),
@@ -240,7 +240,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $userWithoutActiveRole = User::factory()->create(['is_active' => true]);
+        $userWithoutActiveRole = User::factory()->create(['status' => 'aktif']);
         $inactiveRole = Role::create([
             'kode' => 'role_inaktif_menu',
             'nama' => 'Role Inaktif',

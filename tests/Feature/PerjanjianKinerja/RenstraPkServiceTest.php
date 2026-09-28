@@ -34,7 +34,7 @@ class RenstraPkServiceTest extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         Storage::fake('local');
 
-        $this->actor = User::factory()->create(['is_active' => true]);
+        $this->actor = User::factory()->create(['status' => 'aktif']);
         $role = Role::where('kode', 'superadmin')->firstOrFail();
         $this->actor->roles()->attach($role->id, [
             'id' => (string) Str::uuid(),

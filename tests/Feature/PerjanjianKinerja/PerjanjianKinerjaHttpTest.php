@@ -34,7 +34,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         Storage::fake('local');
 
-        $this->perencanaan = User::factory()->create(['is_active' => true]);
+        $this->perencanaan = User::factory()->create(['status' => 'aktif']);
         $rolePerencanaan = Role::where('kode', 'perencanaan')->firstOrFail();
         $this->perencanaan->roles()->attach($rolePerencanaan->id, [
             'id' => (string) Str::uuid(),
@@ -43,7 +43,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->pegawai = User::factory()->create(['is_active' => true]);
+        $this->pegawai = User::factory()->create(['status' => 'aktif']);
         $rolePegawai = Role::where('kode', 'pegawai')->firstOrFail();
         $this->pegawai->roles()->attach($rolePegawai->id, [
             'id' => (string) Str::uuid(),

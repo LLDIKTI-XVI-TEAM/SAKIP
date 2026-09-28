@@ -18,12 +18,12 @@ class RenstraPkPolicy
 
     public function viewAny(User $user): bool
     {
-        return (bool) $user->is_active && $user->roles()->where('roles.aktif', true)->exists();
+        return $user->status === 'aktif' && $user->roles()->where('roles.aktif', true)->exists();
     }
 
     public function view(User $user, RenstraPk $pk): bool
     {
-        return (bool) $user->is_active && $user->roles()->where('roles.aktif', true)->exists();
+        return $user->status === 'aktif' && $user->roles()->where('roles.aktif', true)->exists();
     }
 
     public function create(User $user): bool
