@@ -16,6 +16,7 @@ return new class extends Migration
         if (! Schema::hasColumn('indikator_kinerjas', 'created_by_role')) {
             Schema::table('indikator_kinerjas', function (Blueprint $table) {
                 $table->string('created_by_role', 50)
+                    ->default('perencanaan')
                     ->nullable()
                     ->after('is_aktif');
             });
@@ -31,9 +32,10 @@ return new class extends Migration
             ->whereNotIn('created_by_role', RoleCatalog::codes())
             ->update(['created_by_role' => 'perencanaan']);
 
-        // 3. Wajibkan non-null pada kolom created_by_role
+        // 3. Wajibkan non-null pada kolom created_by_role dengan default 'perencanaan'
         Schema::table('indikator_kinerjas', function (Blueprint $table) {
             $table->string('created_by_role', 50)
+                ->default('perencanaan')
                 ->nullable(false)
                 ->change();
         });

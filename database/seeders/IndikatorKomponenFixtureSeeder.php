@@ -58,6 +58,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
                 'presisi' => 2,
                 'desimal_tampilan' => 2,
                 'is_aktif' => true,
+                'created_by_role' => 'perencanaan',
             ]
         );
 
@@ -100,6 +101,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
                 'presisi' => 2,
                 'desimal_tampilan' => 2,
                 'is_aktif' => true,
+                'created_by_role' => 'perencanaan',
             ]
         );
 

@@ -32,6 +32,15 @@ class IndikatorKinerja extends Model
         'is_aktif' => 'boolean', 'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (IndikatorKinerja $indikator) {
+            if (empty($indikator->created_by_role)) {
+                $indikator->created_by_role = 'perencanaan';
+            }
+        });
+    }
+
     /** @return BelongsTo<SasaranStrategis, $this> */
     public function sasaranStrategis(): BelongsTo
     {
