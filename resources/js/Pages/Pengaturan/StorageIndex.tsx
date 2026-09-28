@@ -86,27 +86,38 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
         expected_version: settings.expected_version ?? 1,
         alasan: '',
     });
+    const { setData, setDefaults } = form;
+    const {
+        berkas_unggahan_aktif,
+        berkas_ukuran_maks_kb,
+        berkas_format_diizinkan,
+        berkas_tautan_selalu_diizinkan,
+        expected_updated_at,
+        expected_version,
+    } = settings;
 
     useEffect(() => {
-        form.setData({
-            berkas_unggahan_aktif: settings.berkas_unggahan_aktif,
-            berkas_ukuran_maks_kb: settings.berkas_ukuran_maks_kb,
-            berkas_format_diizinkan: settings.berkas_format_diizinkan,
-            berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
-            expected_updated_at: settings.expected_updated_at,
-            expected_version: settings.expected_version ?? 1,
+        const serverData = {
+            berkas_unggahan_aktif,
+            berkas_ukuran_maks_kb,
+            berkas_format_diizinkan,
+            berkas_tautan_selalu_diizinkan,
+            expected_updated_at,
+            expected_version: expected_version ?? 1,
             alasan: '',
-        });
-        form.setDefaults({
-            berkas_unggahan_aktif: settings.berkas_unggahan_aktif,
-            berkas_ukuran_maks_kb: settings.berkas_ukuran_maks_kb,
-            berkas_format_diizinkan: settings.berkas_format_diizinkan,
-            berkas_tautan_selalu_diizinkan: settings.berkas_tautan_selalu_diizinkan,
-            expected_updated_at: settings.expected_updated_at,
-            expected_version: settings.expected_version ?? 1,
-            alasan: '',
-        });
-    }, [settings.expected_updated_at, settings.expected_version]);
+        };
+        setData(serverData);
+        setDefaults(serverData);
+    }, [
+        berkas_unggahan_aktif,
+        berkas_ukuran_maks_kb,
+        berkas_format_diizinkan,
+        berkas_tautan_selalu_diizinkan,
+        expected_updated_at,
+        expected_version,
+        setData,
+        setDefaults,
+    ]);
 
     const handleOpenModal = (e?: FormEvent) => {
         if (e) {

@@ -94,6 +94,7 @@ export function AuthenticatedLayout({
         if (!isMobileDrawerOpen) return;
 
         const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const menuButton = menuButtonRef.current;
         const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
         const focusFirstDrawerControl = () => {
             drawerRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
@@ -132,8 +133,8 @@ export function AuthenticatedLayout({
         return () => {
             window.cancelAnimationFrame(focusFrame);
             document.removeEventListener('keydown', trapFocus);
-            if (!window.matchMedia('(min-width: 768px)').matches && menuButtonRef.current?.isConnected) {
-                menuButtonRef.current.focus();
+            if (!window.matchMedia('(min-width: 768px)').matches && menuButton?.isConnected) {
+                menuButton.focus();
             } else if (previousFocus?.isConnected) {
                 previousFocus.focus();
             }
