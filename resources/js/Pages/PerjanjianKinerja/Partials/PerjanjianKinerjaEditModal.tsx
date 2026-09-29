@@ -37,8 +37,19 @@ export function PerjanjianKinerjaEditModal({
         _method: 'put',
     });
 
+    const prevIsOpenRef = React.useRef(false);
+    const lastLoadedPkIdRef = React.useRef<string | null>(null);
+
     useEffect(() => {
-        if (pk && isOpen) {
+        if (!isOpen) {
+            prevIsOpenRef.current = false;
+            return;
+        }
+
+        const justOpened = !prevIsOpenRef.current && isOpen;
+        const switchedPk = pk !== null && pk.id !== lastLoadedPkIdRef.current;
+
+        if (pk && (justOpened || switchedPk)) {
             setData({
                 renstra_id: pk.renstra_id,
                 tahun: pk.tahun,
@@ -49,7 +60,10 @@ export function PerjanjianKinerjaEditModal({
                 _method: 'put',
             });
             clearErrors();
+            lastLoadedPkIdRef.current = pk.id;
         }
+
+        prevIsOpenRef.current = isOpen;
     }, [pk, isOpen, setData, clearErrors]);
 
     const setField = <K extends keyof PerjanjianKinerjaFormData>(

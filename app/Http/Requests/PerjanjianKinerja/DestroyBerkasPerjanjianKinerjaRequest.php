@@ -105,8 +105,11 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
             return 'Tidak memiliki otorisasi';
         }
 
+        // Pastikan encoding UTF-8 valid untuk mencegah SQLSTATE[22021]
+        $clean = mb_convert_encoding($rawAlasan, 'UTF-8', 'UTF-8');
+
         // Hapus byte NUL untuk mencegah exception PostgreSQL SQLSTATE[22P05]
-        $clean = str_replace("\0", '', $rawAlasan);
+        $clean = str_replace("\0", '', $clean);
 
         // Hapus karakter kontrol yang tidak dapat dicetak, pertahankan newline dan tab
         $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean)

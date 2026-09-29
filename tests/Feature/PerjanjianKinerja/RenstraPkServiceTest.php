@@ -735,4 +735,221 @@ class RenstraPkServiceTest extends TestCase
         $this->assertStringNotContainsString("\0", $audit->alasan);
         $this->assertSame('Perubahan beralasandengan karakter NUL', $audit->alasan);
     }
+
+    public function test_upload_berkas_dual_permission_and_composite_audit_basis(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPLOAD-COMPOSITE',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $uploadedBerkas = $this->service->uploadBerkas($pk, [
+            [
+                'mode' => 'tautan',
+                'tautan' => 'https://example.com/pk-composite-audit',
+                'nama_asli' => 'Lampiran Composite Audit',
+            ],
+        ], $this->actor);
+
+        $this->assertCount(1, $uploadedBerkas);
+        $berkas = $uploadedBerkas[0];
+
+        $audit = AuditLog::where('tindakan', 'berkas.unggah')
+            ->where('objek_id', $berkas->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertIsArray($audit->dasar_izin);
+        $this->assertSame('berkas:upload', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('pk:update', $audit->dasar_izin['parent_permission'] ?? null);
+        $this->assertIsArray($audit->dasar_izin['basis_parent'] ?? null);
+        $this->assertSame('pk:update', $audit->dasar_izin['basis_parent']['permission'] ?? null);
+    }
+
+    public function test_upload_berkas_fails_closed_when_pk_update_denied(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPLOAD-DENY-PK-UPDATE',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $actor->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        // Explicit deny pk:update
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $actor->id,
+            'permission_id' => Permission::where('kode', 'pk:update')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Deny pk:update for upload test',
+            'ditetapkan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service->uploadBerkas($pk, [
+            [
+                'mode' => 'tautan',
+                'tautan' => 'https://example.com/should-fail',
+                'nama_asli' => 'Should Fail',
+            ],
+        ], $actor);
+    }
+
+    public function test_upload_berkas_fails_closed_when_berkas_upload_denied(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPLOAD-DENY-BERKAS-UPLOAD',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $superadminRole = Role::where('kode', 'superadmin')->firstOrFail();
+        $actor->roles()->attach($superadminRole->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        // Explicit deny berkas:upload
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $actor->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Deny berkas:upload for upload test',
+            'ditetapkan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service->uploadBerkas($pk, [
+            [
+                'mode' => 'tautan',
+                'tautan' => 'https://example.com/should-fail',
+                'nama_asli' => 'Should Fail',
+            ],
+        ], $actor);
+    }
+
+    public function test_create_pk_locks_renstra_and_prevents_range_race(): void
+    {
+        $injected = false;
+        User::retrieved(function ($model) use (&$injected) {
+            if (! $injected && $model->id === $this->actor->id) {
+                $injected = true;
+                Renstra::where('id', $this->renstra->id)->update([
+                    'tahun_selesai' => 2028,
+                ]);
+            }
+        });
+
+        try {
+            $this->service->create([
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2029,
+                'nomor_pk' => 'PK-RANGE-RACE',
+                'tanggal_pk' => '2029-01-10',
+            ], $this->actor);
+            $this->fail('Harus melempar ValidationException karena Renstra direload dan divalidasi di bawah lock.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('tahun', $e->errors());
+            $this->assertDatabaseMissing('renstra_pk', [
+                'nomor_pk' => 'PK-RANGE-RACE',
+            ]);
+        }
+    }
+
+    public function test_concurrent_role_permission_revocation_inside_transaction(): void
+    {
+        $concurrentActor = User::factory()->create(['status' => 'aktif']);
+        $role = Role::create([
+            'kode' => 'perencana_khusus_'.Str::random(6),
+            'nama' => 'Perencana Khusus',
+            'keterangan' => 'Role uji concurrent revocation',
+            'urutan' => 99,
+            'aktif' => true,
+        ]);
+
+        $pkCreatePerm = Permission::where('kode', 'pk:create')->firstOrFail();
+        DB::table('role_permissions')->insert([
+            'id' => (string) Str::uuid(),
+            'role_id' => $role->id,
+            'permission_id' => $pkCreatePerm->id,
+            'created_at' => now(),
+        ]);
+
+        $concurrentActor->roles()->attach($role->id, [
+            'id' => (string) Str::uuid(),
+            'sumber_pemberian' => 'manual',
+            'diberikan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        $injected = false;
+        User::retrieved(function ($model) use ($concurrentActor, $role, $pkCreatePerm, &$injected) {
+            if (! $injected && $model->id === $concurrentActor->id) {
+                $injected = true;
+                DB::table('role_permissions')
+                    ->where('role_id', $role->id)
+                    ->where('permission_id', $pkCreatePerm->id)
+                    ->delete();
+            }
+        });
+
+        try {
+            $this->service->create([
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-ROLE-REVOKED',
+                'tanggal_pk' => '2026-01-10',
+            ], $concurrentActor);
+            $this->fail('Harus melempar AuthorizationException karena role permission dicabut sebelum resolusi.');
+        } catch (AuthorizationException $e) {
+            $this->assertDatabaseMissing('renstra_pk', [
+                'nomor_pk' => 'PK-ROLE-REVOKED',
+            ]);
+        }
+    }
+
+    public function test_update_pk_sanitizes_malformed_utf8_and_long_alasan(): void
+    {
+        $pk = $this->service->create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-SANITY-ALASAN-ORIG',
+            'tanggal_pk' => '2026-01-10',
+        ], $this->actor);
+
+        $oversizedAndMalformed = str_repeat('B', 1500)."\x80\x81"."\0";
+
+        $updated = $this->service->update($pk, [
+            'nomor_pk' => 'PK-SANITY-ALASAN-NEW',
+        ], $oversizedAndMalformed, $this->actor);
+
+        $this->assertSame('PK-SANITY-ALASAN-NEW', $updated->nomor_pk);
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.ubah')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertLessThanOrEqual(1000, mb_strlen($audit->alasan, 'UTF-8'));
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+        $this->assertTrue(mb_check_encoding($audit->alasan, 'UTF-8'));
+    }
 }
