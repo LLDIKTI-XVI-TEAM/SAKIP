@@ -73,6 +73,8 @@ class UpdateUnitRequest extends FormRequest
 
     protected function passedValidation(): void
     {
+        // Alias konkurensi sengaja memakai input() agar prioritas dan normalisasi tipe tetap terjaga.
+        // Hanya field konkurensi dipetakan manual; nama/status mutasi tetap memakai validated().
         $versionToken = $this->input('version_token') ?? $this->input('versi_token')
             ?? $this->input('token') ?? $this->input('expected_state');
         $expectedNama = $this->input('expected_nama') ?? $this->input('initial_nama')

@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -19,7 +20,7 @@ class StoreUnitGrantRequest extends FormRequest
     {
         $actor = $this->user();
         abort_unless($actor, 401);
-        $this->decision = $permissionResolver->resolve($actor, 'delegasi:update');
+        $this->decision = $permissionResolver->resolve($actor, PermissionCodes::DELEGASI_UPDATE);
 
         // Boolean menjaga hook denial audit tetap berjalan sebelum validasi payload.
         return $this->decision->allowed;

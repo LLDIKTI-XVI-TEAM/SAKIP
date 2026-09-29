@@ -4,6 +4,7 @@ namespace App\Http\Requests\Unit;
 
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -15,7 +16,7 @@ class DestroyUnitRequest extends FormRequest
     {
         $actor = $this->user();
         abort_unless($actor, 401);
-        $this->decision = $permissionResolver->resolve($actor, 'unit:delete');
+        $this->decision = $permissionResolver->resolve($actor, PermissionCodes::UNIT_DELETE);
 
         // Boolean meneruskan penolakan ke hook audit, termasuk jika payload malformed.
         return $this->decision->allowed && $actor->hasRole('superadmin');
