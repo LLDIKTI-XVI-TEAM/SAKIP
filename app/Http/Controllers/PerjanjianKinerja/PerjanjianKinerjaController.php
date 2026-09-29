@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\PerjanjianKinerja;
 
+use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
@@ -10,7 +13,6 @@ use App\Models\Berkas;
 use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
-use App\Services\RenstraPkService;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -79,9 +81,9 @@ class PerjanjianKinerjaController extends Controller
     /**
      * Menyimpan data Perjanjian Kinerja baru beserta lampiran.
      */
-    public function store(StorePerjanjianKinerjaRequest $request, RenstraPkService $service): RedirectResponse
+    public function store(StorePerjanjianKinerjaRequest $request, CreatePerjanjianKinerja $action): RedirectResponse
     {
-        $pk = $service->create($request->validated(), $request->user());
+        $pk = $action->handle($request->validated(), $request->user());
 
         return redirect()
             ->route('perjanjian-kinerja.show', $pk)
@@ -140,9 +142,9 @@ class PerjanjianKinerjaController extends Controller
     public function update(
         UpdatePerjanjianKinerjaRequest $request,
         RenstraPk $perjanjianKinerja,
-        RenstraPkService $service,
+        UpdatePerjanjianKinerja $action,
     ): RedirectResponse {
-        $service->update(
+        $action->handle(
             $perjanjianKinerja,
             $request->validated(),
             $request->validated('alasan'),
@@ -161,9 +163,9 @@ class PerjanjianKinerjaController extends Controller
         DestroyBerkasPerjanjianKinerjaRequest $request,
         RenstraPk $perjanjianKinerja,
         Berkas $berkas,
-        RenstraPkService $service,
+        DeleteBerkasPerjanjianKinerja $action,
     ): RedirectResponse {
-        $service->deleteBerkas(
+        $action->handle(
             $perjanjianKinerja,
             $berkas,
             $request->validated('alasan'),

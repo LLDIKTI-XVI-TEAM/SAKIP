@@ -5,6 +5,7 @@ namespace App\Http\Requests\PerjanjianKinerja;
 use App\Models\Pengaturan;
 use App\Models\RenstraPk;
 use App\Services\AuditLogger;
+use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
@@ -81,20 +82,9 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
 
     protected function sanitizeAlasan(mixed $rawAlasan): ?string
     {
-        if (! is_string($rawAlasan) || trim($rawAlasan) === '') {
-            return null;
-        }
+        $clean = PerjanjianKinerjaSupport::sanitizeAlasan($rawAlasan);
 
-        $clean = mb_convert_encoding($rawAlasan, 'UTF-8', 'UTF-8');
-        $clean = str_replace("\0", '', $clean);
-        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean) ?? '';
-        $clean = trim($clean);
-
-        if ($clean === '') {
-            return null;
-        }
-
-        return mb_substr($clean, 0, 1000, 'UTF-8');
+        return $clean !== '' ? $clean : null;
     }
 
     /**
