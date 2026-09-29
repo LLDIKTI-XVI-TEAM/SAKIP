@@ -8,7 +8,7 @@ use App\Models\Pengaturan;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;

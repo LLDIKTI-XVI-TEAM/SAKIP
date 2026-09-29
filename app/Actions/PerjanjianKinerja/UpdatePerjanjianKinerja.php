@@ -26,6 +26,16 @@ class UpdatePerjanjianKinerja
     /**
      * Menjalankan use-case pembaruan metadata dan lampiran Perjanjian Kinerja secara teraudit.
      *
+     * Catatan Arsitektural Batas Scope:
+     * Aksi ini berada dalam batas ruang lingkup ISS-02.08 (pencatatan dan pemeliharaan administratif
+     * dokumen Perjanjian Kinerja serta berkas legal pendukung). Aksi ini memerlukan izin pk:update,
+     * alasan wajib, serta merekam jejak audit (renstra_pk.ubah).
+     *
+     * Mekanisme koreksi formal (ISS-02.09) dengan versioning snapshot historis, pembuatan snapshot
+     * pengganti saat snapshot lama dirujuk oleh versi Rencana Aksi atau Pengukuran Kinerja, rujukan
+     * sumber koreksi resmi, dan alur pengesahan ulang TIDAK ditangani pada aksi ini melainkan
+     * menjadi concern terpisah pada modul koreksi ISS-02.09.
+     *
      * @param  array<string, mixed>  $data
      */
     public function handle(RenstraPk $pk, array $data, string $alasan, User $actor): RenstraPk
@@ -34,6 +44,20 @@ class UpdatePerjanjianKinerja
         if ($alasan === '') {
             throw ValidationException::withMessages([
                 'alasan' => 'Alasan perubahan Perjanjian Kinerja wajib diisi.',
+            ]);
+        }
+
+        if (! array_key_exists('expected_updated_at', $data) || $data['expected_updated_at'] === null || trim((string) $data['expected_updated_at']) === '') {
+            throw ValidationException::withMessages([
+                'expected_updated_at' => 'Token versi Perjanjian Kinerja (expected_updated_at) wajib disertakan untuk mencegah konflik konkurensi.',
+            ]);
+        }
+
+        try {
+            $expectedIso = Carbon::parse((string) $data['expected_updated_at'])->toISOString();
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'expected_updated_at' => 'Format timestamp versi tidak valid.',
             ]);
         }
 
@@ -52,7 +76,7 @@ class UpdatePerjanjianKinerja
         $storedPaths = [];
 
         try {
-            return DB::transaction(function () use ($pk, $data, $alasan, $actor, &$storedPaths) {
+            return DB::transaction(function () use ($pk, $data, $alasan, $actor, $expectedIso, &$storedPaths) {
                 $requiredCodes = [PermissionCodes::PK_UPDATE];
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $requiredCodes[] = PermissionCodes::BERKAS_UPLOAD;
@@ -76,25 +100,13 @@ class UpdatePerjanjianKinerja
                 /** @var RenstraPk $pkLocked */
                 $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
 
-                if (array_key_exists('expected_updated_at', $data)) {
-                    $expectedUpdatedAt = (string) $data['expected_updated_at'];
-                    $currentTimestamp = $pkLocked->updated_at ?? $pkLocked->created_at;
-                    try {
-                        $expectedIso = Carbon::parse($expectedUpdatedAt)->toISOString();
-                        $currentIso = $currentTimestamp !== null ? $currentTimestamp->toISOString() : null;
-                        if ($currentIso === null || $currentIso !== $expectedIso) {
-                            throw ValidationException::withMessages([
-                                'konflik' => 'Data Perjanjian Kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
-                            ]);
-                        }
-                    } catch (Throwable $e) {
-                        if ($e instanceof ValidationException) {
-                            throw $e;
-                        }
-                        throw ValidationException::withMessages([
-                            'expected_updated_at' => 'Format timestamp versi tidak valid.',
-                        ]);
-                    }
+                $currentTimestamp = $pkLocked->updated_at ?? $pkLocked->created_at;
+                $currentIso = $currentTimestamp !== null ? $currentTimestamp->toISOString() : null;
+
+                if ($currentIso === null || $currentIso !== $expectedIso) {
+                    throw ValidationException::withMessages([
+                        'konflik' => 'Data Perjanjian Kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    ]);
                 }
 
                 $pkLocked->load(['berkas']);

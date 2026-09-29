@@ -72,11 +72,14 @@ class UpdatePerjanjianKinerjaTest extends TestCase
             'tanggal_pk' => '2026-01-10',
         ], $this->actor);
 
+        $expectedUpdatedAt = $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString();
+
         // Update tanpa alasan harus melempar ValidationException
         try {
             $this->updateAction->handle($pk, [
                 'nomor_pk' => 'PK-REVISI',
                 'tanggal_pk' => '2026-01-20',
+                'expected_updated_at' => $expectedUpdatedAt,
             ], '', $this->actor);
             $this->fail('Harus melempar ValidationException jika alasan kosong.');
         } catch (ValidationException $e) {
@@ -87,6 +90,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
         $updated = $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-REVISI',
             'tanggal_pk' => '2026-01-20',
+            'expected_updated_at' => $expectedUpdatedAt,
         ], 'Perubahan nomor PK sesuai SK terbaru', $this->actor);
 
         $this->assertSame('PK-REVISI', $updated->nomor_pk);
@@ -123,6 +127,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
         $this->expectException(AuthorizationException::class);
         $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-MODIFIED',
+            'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
         ], 'Alasan update', $pegawai);
     }
 
@@ -163,6 +168,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
         try {
             $this->updateAction->handle($pk, [
                 'nomor_pk' => 'PK-CONCURRENT-UPDATE-MUTATED',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
             ], 'Ubah nomor PK', $concurrentActor);
             $this->fail('Harus melempar AuthorizationException karena permission update ditolak di dalam transaksi.');
         } catch (AuthorizationException $e) {
@@ -186,6 +192,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
 
         $updated = $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-NUL-UPDATE-NEW',
+            'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
         ], $alasanWithNul, $this->actor);
 
         $this->assertSame('PK-NUL-UPDATE-NEW', $updated->nomor_pk);
@@ -212,6 +219,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
 
         $updated = $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-SANITY-ALASAN-NEW',
+            'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
         ], $oversizedAndMalformed, $this->actor);
 
         $this->assertSame('PK-SANITY-ALASAN-NEW', $updated->nomor_pk);
@@ -237,6 +245,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
 
         $updated = $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-UPDATE-COMPOSITE-NEW',
+            'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
             'lampiran' => [
                 [
                     'mode' => 'tautan',
@@ -292,6 +301,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
         $this->updateAction->handle($pk, [
+            'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
             'lampiran' => [
                 [
                     'mode' => 'tautan',
