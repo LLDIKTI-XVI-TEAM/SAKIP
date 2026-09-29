@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\IndikatorKinerja;
-use App\Services\Authorization\RoleCatalog;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +7,28 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Daftar kode role resmi — salinan beku dari
+     * App\Services\Authorization\RoleCatalog::ROLES per 2026-09-29.
+     * Disalin eksplisit agar fresh-migrate masa depan deterministik
+     * meskipun katalog mutable berubah. Jangan import App\... di migrasi.
+     *
+     * @var list<string>
+     */
+    private const FROZEN_ROLE_CODES = [
+        'superadmin',
+        'admin',
+        'perencanaan',
+        'pimpinan',
+        'pegawai',
+    ];
+
+    /**
+     * Sentinel provenance legacy — salinan beku dari
+     * App\Models\IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN.
+     */
+    private const LEGACY_UNKNOWN = 'legacy_unknown';
+
     /**
      * Run the migrations.
      */
@@ -40,7 +60,7 @@ return new class extends Migration
                 if ($audit) {
                     if (! empty($audit->nilai_baru)) {
                         $nilaiBaru = is_string($audit->nilai_baru) ? json_decode($audit->nilai_baru, true) : (array) $audit->nilai_baru;
-                        if (! empty($nilaiBaru['created_by_role']) && in_array($nilaiBaru['created_by_role'], RoleCatalog::codes(), true)) {
+                        if (! empty($nilaiBaru['created_by_role']) && in_array($nilaiBaru['created_by_role'], self::FROZEN_ROLE_CODES, true)) {
                             $derivedRole = $nilaiBaru['created_by_role'];
                         }
                     }
@@ -51,7 +71,7 @@ return new class extends Migration
                         if (! empty($roleIds)) {
                             $derivedRole = DB::table('roles')
                                 ->whereIn('id', (array) $roleIds)
-                                ->whereIn('kode', RoleCatalog::codes())
+                                ->whereIn('kode', self::FROZEN_ROLE_CODES)
                                 ->orderBy('urutan')
                                 ->value('kode');
                         }
@@ -59,7 +79,7 @@ return new class extends Migration
                 }
             }
 
-            $roleToSet = $derivedRole ?? IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN;
+            $roleToSet = $derivedRole ?? self::LEGACY_UNKNOWN;
 
             DB::table('indikator_kinerjas')
                 ->where('id', $row->id)
@@ -67,11 +87,11 @@ return new class extends Migration
         }
 
         // 2. Normalisasi nilai di luar katalog role resmi dan sentinel legacy ke 'legacy_unknown'
-        $allowedRoles = [...RoleCatalog::codes(), IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN];
+        $allowedRoles = [...self::FROZEN_ROLE_CODES, self::LEGACY_UNKNOWN];
         DB::table('indikator_kinerjas')
             ->whereNull('created_by_role')
             ->orWhereNotIn('created_by_role', $allowedRoles)
-            ->update(['created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN]);
+            ->update(['created_by_role' => self::LEGACY_UNKNOWN]);
 
         // 3. Wajibkan non-null pada kolom created_by_role tanpa default (fail-closed)
         Schema::table('indikator_kinerjas', function (Blueprint $table) {

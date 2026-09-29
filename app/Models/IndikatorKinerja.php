@@ -25,7 +25,7 @@ class IndikatorKinerja extends Model
         'satuan',
         'tipe_perhitungan', 'unit_id', 'arah', 'presisi', 'desimal_tampilan', 'wajib_catatan',
         'jenis_agregasi',
-        'is_aktif',
+        'status',
         'created_by_role',
     ];
 
@@ -53,7 +53,12 @@ class IndikatorKinerja extends Model
     }
 
     protected $casts = [
-        'is_aktif' => 'boolean', 'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
+        'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
+    ];
+
+    /** Nilai bawaan lifecycle indikator baru. */
+    protected $attributes = [
+        'status' => 'aktif',
     ];
 
     protected static function booted(): void

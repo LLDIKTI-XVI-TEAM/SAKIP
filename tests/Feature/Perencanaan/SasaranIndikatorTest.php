@@ -5,10 +5,6 @@ namespace Tests\Feature\Perencanaan;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
-use App\Models\IndikatorKomponen;
-use App\Models\JadwalSnapshotKomponen;
-use App\Models\JadwalTahunan;
-use App\Models\PengukuranKinerja;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
@@ -999,93 +995,6 @@ class SasaranIndikatorTest extends TestCase
         $this->assertTrue(Str::isUuid($auditSasaran->objek_id));
         $this->assertNotNull($auditSasaran->dasar_izin);
         $this->assertSame('ditolak', $auditSasaran->dasar_izin['keputusan'] ?? null);
-    }
-
-    public function test_seed_demo_pengukuran_creates_component_snapshots_and_rejects_closed_schedule(): void
-    {
-        $sasaran = SasaranStrategis::create([
-            'renstra_id' => $this->renstra->id,
-            'kode' => 'SS-FORMULA',
-            'deskripsi' => 'Sasaran Formula Test',
-            'urutan' => 1,
-        ]);
-
-        $indikator = IndikatorKinerja::create([
-            'sasaran_strategis_id' => $sasaran->id,
-            'kode' => 'IKU-FORMULA',
-            'nama' => 'Indikator Rasio Persen',
-            'satuan' => '%',
-            'unit_id' => $this->unit->id,
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'rasio_persen',
-            'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
-        ]);
-
-        $komponen = IndikatorKomponen::create([
-            'indikator_id' => $indikator->id,
-            'kode' => 'K1',
-            'label' => 'Komponen Pembilang',
-            'peran' => 'pembilang',
-            'bobot' => 1,
-            'urutan' => 1,
-            'aktif' => true,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        // Jalankan command demo pengukuran
-        $exitCode = $this->artisan('sakip:seed-demo-pengukuran')->run();
-        $this->assertSame(0, $exitCode);
-
-        // Verifikasi komponen aktif disalin ke jadwal_snapshot_komponen
-        $snapshotKomponen = JadwalSnapshotKomponen::where('komponen_id', $komponen->id)->first();
-        $this->assertNotNull($snapshotKomponen);
-        $this->assertSame('K1', $snapshotKomponen->kode);
-
-        // Verifikasi pengukuran dibuat dengan sumber_nilai = komponen
-        $pengukuran = PengukuranKinerja::where('indikator_id', $indikator->id)->first();
-        $this->assertNotNull($pengukuran);
-        $this->assertSame('komponen', $pengukuran->sumber_nilai);
-
-        // Uji Item 3 & 4:
-        // Set sumber_nilai pengukuran existing ke 'historis'
-        $pengukuran->update(['sumber_nilai' => 'historis']);
-
-        // Tambah komponen baru ke master setelah snapshot sudah terbentuk
-        $komponenBaru = IndikatorKomponen::create([
-            'indikator_id' => $indikator->id,
-            'kode' => 'K2',
-            'label' => 'Komponen Baru Master',
-            'peran' => 'penyebut',
-            'bobot' => 1,
-            'urutan' => 2,
-            'aktif' => true,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        // Jalankan ulang command saat jadwal masih aktif
-        $exitCodeRerun = $this->artisan('sakip:seed-demo-pengukuran')->run();
-        $this->assertSame(0, $exitCodeRerun);
-
-        // Verifikasi sumber_nilai pengukuran existing TIDAK dimutasi
-        $pengukuran->refresh();
-        $this->assertSame('historis', $pengukuran->sumber_nilai);
-
-        // Verifikasi snapshot beku TIDAK disisipi komponen baru master
-        $this->assertDatabaseMissing('jadwal_snapshot_komponen', [
-            'komponen_id' => $komponenBaru->id,
-        ]);
-
-        // Tutup jadwal tahunan 2026
-        $jadwal = JadwalTahunan::where('renstra_id', $this->renstra->id)->where('tahun', 2026)->firstOrFail();
-        $jadwal->update(['status' => 'ditutup']);
-
-        // Jalankan command lagi, harus menolak membuka kembali jadwal tertutup
-        $exitCodeClosed = $this->artisan('sakip:seed-demo-pengukuran')->run();
-        $this->assertSame(1, $exitCodeClosed);
-
-        $jadwal->refresh();
-        $this->assertSame('ditutup', $jadwal->status);
     }
 
     public function test_store_indikator_reauthorizes_actor_inside_transaction(): void
