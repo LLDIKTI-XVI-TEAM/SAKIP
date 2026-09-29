@@ -2,7 +2,6 @@
 
 namespace App\Actions\PerjanjianKinerja;
 
-use App\Exceptions\ReauthorizationDenialException;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -111,7 +110,7 @@ class UpdatePerjanjianKinerja
         $storedPaths = [];
 
         try {
-            return DB::transaction(function () use ($pk, $data, $alasan, $actor, $expectedIso, &$storedPaths) {
+            $result = DB::transaction(function () use ($pk, $data, $alasan, $actor, $expectedIso, &$storedPaths): array {
                 $requiredCodes = [PermissionCodes::PK_UPDATE];
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $requiredCodes[] = PermissionCodes::BERKAS_UPLOAD;
@@ -121,22 +120,24 @@ class UpdatePerjanjianKinerja
 
                 $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
                 if (! $decision->allowed) {
-                    throw new ReauthorizationDenialException(
-                        $decision,
-                        'pk_update_denied',
-                        'Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.'
-                    );
+                    return [
+                        'status' => 'denied',
+                        'decision' => $decision,
+                        'denial_reason' => 'pk_update_denied',
+                        'message' => 'Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.',
+                    ];
                 }
 
                 $uploadDecision = null;
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $uploadDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_UPLOAD);
                     if (! $uploadDecision->allowed) {
-                        throw new ReauthorizationDenialException(
-                            $uploadDecision,
-                            'berkas_upload_denied',
-                            'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'
-                        );
+                        return [
+                            'status' => 'denied',
+                            'decision' => $uploadDecision,
+                            'denial_reason' => 'berkas_upload_denied',
+                            'message' => 'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.',
+                        ];
                     }
                 }
 
@@ -181,9 +182,18 @@ class UpdatePerjanjianKinerja
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
-                return $pkLocked;
+                return [
+                    'status' => 'success',
+                    'pk' => $pkLocked,
+                ];
             });
-        } catch (ReauthorizationDenialException $exception) {
+        } catch (Throwable $exception) {
+            $this->attachmentService->hapusFile($storedPaths);
+
+            throw $exception;
+        }
+
+        if ($result['status'] === 'denied') {
             $this->attachmentService->hapusFile($storedPaths);
 
             $this->auditLogger->catat(
@@ -198,17 +208,15 @@ class UpdatePerjanjianKinerja
                 nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
                     'nomor_pk' => $data['nomor_pk'] ?? null,
                     'tanggal_pk' => $data['tanggal_pk'] ?? null,
-                    'alasan_penolakan' => $exception->denialReason,
+                    'alasan_penolakan' => $result['denial_reason'],
                 ]),
                 alasan: $alasan,
-                dasarIzin: $exception->decision->toAuditBasis(),
+                dasarIzin: $result['decision']->toAuditBasis(),
             );
 
-            throw new AuthorizationException($exception->getMessage());
-        } catch (Throwable $exception) {
-            $this->attachmentService->hapusFile($storedPaths);
-
-            throw $exception;
+            throw new AuthorizationException($result['message']);
         }
+
+        return $result['pk'];
     }
 }
