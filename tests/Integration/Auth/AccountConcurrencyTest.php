@@ -246,6 +246,42 @@ class AccountConcurrencyTest extends TestCase
         ];
     }
 
+    public function test_grant_creation_reauthorizes_after_waiting_for_active_role_lock(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $role = Role::where('kode', 'admin')->sole();
+        $actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $permission = Permission::where('kode', 'delegasi:update')->sole();
+        $unit = Unit::create(['nama' => 'Unit sebelum pencabutan permission role', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $revokeWhileBlocked = function (array $pids) use ($role, $permission): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringContainsString('for share', $query);
+            // Cabut permission setelah worker terbukti menunggu lock role, sebelum transaksi parent dilepas.
+            $this->assertSame(1, DB::table('role_permissions')->where('role_id', $role->id)->where('permission_id', $permission->id)->delete());
+        };
+
+        $results = $this->race('grant-create', $role->id, '', [[
+            'actor_id' => $actor->id, 'permission' => $permission->kode,
+            'data' => [
+                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+                'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture role lock',
+            ],
+        ]], barrierTable: 'roles', assertBlocked: $revokeWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertDatabaseCount('user_permission_granted', 0);
+        $this->assertSame(0, AuditLog::where('tindakan', 'user_permission_granted.tambah')->count());
+        $audit = AuditLog::where('tindakan', 'user_permission_granted.ditolak')->sole();
+        $this->assertSame($actor->id, $audit->actor_id);
+        $this->assertEquals([
+            'permission' => 'delegasi:update', 'keputusan' => 'ditolak', 'alasan' => 'no_allow',
+            'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => [],
+        ], $audit->dasar_izin);
+    }
+
     public function test_revoke_grant_locks_users_before_grant_row(): void
     {
         $this->seed(AccessCatalogSeeder::class);

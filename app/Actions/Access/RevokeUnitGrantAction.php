@@ -3,7 +3,6 @@
 namespace App\Actions\Access;
 
 use App\Models\Permission;
-use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
@@ -46,16 +45,7 @@ class RevokeUnitGrantAction
             $lockedTargetUser = $lockedUsers->get($grant->user_id) ?? User::with('roles')->whereKey($grant->user_id)->sharedLock()->firstOrFail();
 
             // Kunci role sumber terurut agar perubahan preset tidak menyela evaluasi izin.
-            $actorRoleIds = DB::table('user_roles')
-                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
-                ->where('user_roles.user_id', $currentActor->id)
-                ->where('roles.aktif', true)
-                ->pluck('roles.id')
-                ->all();
-            sort($actorRoleIds);
-            if (! empty($actorRoleIds)) {
-                Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
-            }
+            $currentActor->lockActiveRoles();
 
             $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::DELEGASI_UPDATE);
             if (! $currentDecision->allowed) {

@@ -2,7 +2,6 @@
 
 namespace App\Actions\Unit;
 
-use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -34,16 +33,7 @@ class CreateUnitAction
                 $currentActor = User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
 
                 // Urutan User → Role terurut menjaga izin tetap stabil selama mutasi.
-                $actorRoleIds = DB::table('user_roles')
-                    ->join('roles', 'roles.id', '=', 'user_roles.role_id')
-                    ->where('user_roles.user_id', $currentActor->id)
-                    ->where('roles.aktif', true)
-                    ->pluck('roles.id')
-                    ->all();
-                sort($actorRoleIds);
-                if (! empty($actorRoleIds)) {
-                    Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
-                }
+                $currentActor->lockActiveRoles();
 
                 // Evaluasi ulang wewenang aktor di dalam transaksi
                 $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::UNIT_CREATE);
