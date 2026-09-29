@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +20,12 @@ class UpdateUnitAction
         private readonly PermissionResolver $permissionResolver,
     ) {}
 
-    /** @param array{nama:string,status:'aktif'|'nonaktif',version_token:?string,expected_nama:?string,expected_status:?string,snapshot:?array{nama?:mixed,status?:mixed}} $data */
+    /**
+     * Perbarui Unit hanya bila izin aktor dan snapshot terhadap Unit terkunci masih sah.
+     * Mutasi dan audit sukses atomik; penolakan izin/stale diaudit sesudah transaksi.
+     *
+     * @param  array{nama:string,status:'aktif'|'nonaktif',version_token:?string,expected_nama:?string,expected_status:?string,snapshot:?array{nama?:mixed,status?:mixed}}  $data
+     */
     public function handle(User $actor, string $id, array $data): string
     {
         try {
@@ -40,7 +46,7 @@ class UpdateUnitAction
                 }
 
                 // Evaluasi ulang wewenang aktor di dalam transaksi
-                $currentDecision = $this->permissionResolver->resolve($currentActor, 'unit:update');
+                $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::UNIT_UPDATE);
                 if (! $currentDecision->allowed) {
                     return [
                         'status' => 'denied',

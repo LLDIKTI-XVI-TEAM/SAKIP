@@ -7,6 +7,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,7 +20,12 @@ class CreateUnitAction
         private readonly PermissionResolver $permissionResolver,
     ) {}
 
-    /** @param array{nama:string,status?:'aktif'|'nonaktif'|null} $data */
+    /**
+     * Tambah Unit setelah izin aktor diperiksa ulang di bawah lock pengguna dan role.
+     * Mutasi dan audit sukses atomik; penolakan izin diaudit sesudah transaksi.
+     *
+     * @param  array{nama:string,status?:'aktif'|'nonaktif'|null}  $data
+     */
     public function handle(User $actor, array $data): Unit
     {
         try {
@@ -40,7 +46,7 @@ class CreateUnitAction
                 }
 
                 // Evaluasi ulang wewenang aktor di dalam transaksi
-                $currentDecision = $this->permissionResolver->resolve($currentActor, 'unit:create');
+                $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::UNIT_CREATE);
                 if (! $currentDecision->allowed) {
                     return [
                         'status' => 'denied',

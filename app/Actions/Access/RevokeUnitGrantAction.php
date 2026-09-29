@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 
 class RevokeUnitGrantAction
@@ -17,7 +18,12 @@ class RevokeUnitGrantAction
         private readonly PermissionResolver $permissionResolver,
     ) {}
 
-    /** @return array{permName:string,userName:string} */
+    /**
+     * Cabut Grant Unit dengan urutan lock pengguna terurut sebelum grant dan otorisasi ulang.
+     * Referensi nonaktif tetap dapat dibersihkan; pencabutan dan audit sukses atomik.
+     *
+     * @return array{permName:string,userName:string}
+     */
     public function handle(User $actor, string $id, string $alasan): array
     {
         $result = DB::transaction(function () use ($id, $actor, $alasan) {
@@ -51,7 +57,7 @@ class RevokeUnitGrantAction
                 Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
             }
 
-            $currentDecision = $this->permissionResolver->resolve($currentActor, 'delegasi:update');
+            $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::DELEGASI_UPDATE);
             if (! $currentDecision->allowed) {
                 return [
                     'status' => 'denied',

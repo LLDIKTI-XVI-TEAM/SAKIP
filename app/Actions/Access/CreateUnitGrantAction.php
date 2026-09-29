@@ -10,6 +10,7 @@ use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -23,6 +24,9 @@ class CreateUnitGrantAction
     ) {}
 
     /**
+     * Beri Grant Unit setelah izin aktor serta target, unit, dan permission diverifikasi ulang.
+     * Pengguna terurut dikunci sebelum role, unit, dan permission; mutasi dan audit sukses atomik.
+     *
      * @param  array{user_id:string,permission_id:string,unit_id?:string|null,alasan:string}  $data
      * @return array{permission_kode:string,unit_nama:string,target_nama:string}
      */
@@ -105,7 +109,7 @@ class CreateUnitGrantAction
                 }
 
                 // Otorisasi ulang aktor di dalam transaksi untuk mencegah race condition pencabutan hak akses
-                $currentDecision = $this->permissionResolver->resolve($currentActor, 'delegasi:update');
+                $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::DELEGASI_UPDATE);
                 if (! $currentDecision->allowed) {
                     return [
                         'status' => 'denied',

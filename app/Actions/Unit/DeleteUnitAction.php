@@ -7,6 +7,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,11 @@ class DeleteUnitAction
         private readonly PermissionResolver $permissionResolver,
     ) {}
 
-    /** hanya untuk audit FK; izin mutasi selalu diperiksa ulang setelah lock. */
+    /**
+     * Hapus Unit tanpa relasi setelah izin dan peran Superadmin diperiksa ulang di bawah lock.
+     * Mutasi dan audit sukses atomik. Keputusan awal hanya menjadi basis audit FK setelah rollback;
+     * izin mutasi selalu memakai keputusan terkini.
+     */
     public function handle(User $actor, string $id, string $alasan, PermissionDecision $initialDecision): string
     {
         try {
@@ -39,7 +44,7 @@ class DeleteUnitAction
                 }
 
                 // Otorisasi ulang aktor di dalam transaksi sebelum mutasi sensitif
-                $currentDecision = $this->permissionResolver->resolve($currentActor, 'unit:delete');
+                $currentDecision = $this->permissionResolver->resolve($currentActor, PermissionCodes::UNIT_DELETE);
                 if (! $currentDecision->allowed || ! $currentActor->hasRole('superadmin')) {
                     return [
                         'status' => 'denied',
