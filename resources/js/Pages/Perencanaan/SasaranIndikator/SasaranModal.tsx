@@ -60,7 +60,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
         } else if (wasOpen) {
             reset();
         }
-    }, [isOpen, sasaran, renstraId]);
+    }, [isOpen, sasaran, renstraId, clearErrors, reset, setData]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

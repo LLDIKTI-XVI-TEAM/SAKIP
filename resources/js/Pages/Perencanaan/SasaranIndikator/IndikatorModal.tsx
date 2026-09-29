@@ -109,7 +109,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         } else if (wasOpen) {
             reset();
         }
-    }, [isOpen, indikator, defaultSasaranId]);
+    }, [isOpen, indikator, defaultSasaranId, clearErrors, reset, sasarans, setData, units]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
