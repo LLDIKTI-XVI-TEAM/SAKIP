@@ -25,7 +25,9 @@ import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModa
 
 interface ShowProps {
     pk: RenstraPkSummary;
+    jadwal_status?: string | null;
     is_jadwal_aktif: boolean;
+    is_jadwal_terkunci?: boolean;
     storageSettings?: StorageSettings;
     can: {
         update: boolean;
@@ -42,11 +44,12 @@ function formatBytes(value: number | null): string {
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: ShowProps) {
+export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const isTerkunci = is_jadwal_terkunci ?? is_jadwal_aktif;
 
     const deleteForm = useForm<{
         alasan: string;
@@ -113,13 +116,17 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                 </div>
 
                 {/* Banner Guard Imutabilitas */}
-                {is_jadwal_aktif && (
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200">
+                {isTerkunci && (
+                    <div className="rounded-xl border border-success/20 bg-success/10 p-4 text-ink">
                         <div className="flex items-start gap-3">
-                            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" aria-hidden="true" />
+                            <ShieldCheck className="h-5 w-5 shrink-0 text-success mt-0.5" aria-hidden="true" />
                             <div>
-                                <h3 className="text-sm font-bold">Jadwal Tahunan Berstatus Aktif (Terkunci)</h3>
-                                <p className="mt-1 text-xs leading-relaxed text-emerald-900/80 dark:text-emerald-300">
+                                <h3 className="text-sm font-bold text-ink">
+                                    {jadwal_status === 'ditutup'
+                                        ? 'Jadwal Tahunan Berstatus Ditutup (Terkunci)'
+                                        : 'Jadwal Tahunan Berstatus Aktif (Terkunci)'}
+                                </h3>
+                                <p className="mt-1 text-xs leading-relaxed text-muted">
                                     Tahun pelaksanaan ini telah diaktifkan dalam Jadwal Tahunan SAKIP. Sesuai prinsip imutabilitas dokumen hukum formal, lampiran berkas yang sudah ada tidak dapat dihapus. Pembaruan rincian tetap dimungkinkan dengan mencantumkan alasan perubahan beralasan.
                                 </p>
                             </div>
@@ -360,6 +367,8 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                     onClose={() => setIsEditModalOpen(false)}
                     pk={pk}
                     isJadwalAktif={is_jadwal_aktif}
+                    isJadwalTerkunci={isTerkunci}
+                    jadwalStatus={jadwal_status}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

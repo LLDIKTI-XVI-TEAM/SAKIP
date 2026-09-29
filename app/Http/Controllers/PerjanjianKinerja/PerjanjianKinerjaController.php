@@ -50,8 +50,49 @@ class PerjanjianKinerjaController extends Controller
             ->orderByDesc('tahun')
             ->orderByDesc('created_at');
 
-        $perjanjianKinerja = $query->paginate(15)->withQueryString();
-        $renstras = Renstra::orderByDesc('tahun_mulai')->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']);
+        $perjanjianKinerja = $query->paginate(15)->withQueryString()->through(fn (RenstraPk $pk) => [
+            'id' => $pk->id,
+            'renstra_id' => $pk->renstra_id,
+            'tahun' => $pk->tahun,
+            'nomor_pk' => $pk->nomor_pk,
+            'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
+            'created_at' => $pk->created_at?->toISOString(),
+            'updated_at' => $pk->updated_at?->toISOString(),
+            'berkas_count' => (int) ($pk->berkas_count ?? 0),
+            'renstra' => $pk->renstra ? [
+                'id' => $pk->renstra->id,
+                'kode' => $pk->renstra->kode,
+                'nama' => $pk->renstra->nama,
+                'tahun_mulai' => $pk->renstra->tahun_mulai,
+                'tahun_selesai' => $pk->renstra->tahun_selesai,
+                'is_aktif' => (bool) $pk->renstra->is_aktif,
+            ] : null,
+            'creator' => $pk->creator ? [
+                'id' => $pk->creator->id,
+                'nama' => $pk->creator->nama,
+            ] : null,
+            'jadwal_tahunan' => $pk->jadwalTahunan ? [
+                'id' => $pk->jadwalTahunan->id,
+                'renstra_id' => $pk->jadwalTahunan->renstra_id,
+                'renstra_pk_id' => $pk->jadwalTahunan->renstra_pk_id,
+                'tahun' => $pk->jadwalTahunan->tahun,
+                'status' => $pk->jadwalTahunan->status,
+                'activated_at' => $pk->jadwalTahunan->activated_at,
+                'is_terkunci' => $pk->jadwalTahunan->is_terkunci,
+            ] : null,
+        ]);
+
+        $renstras = Renstra::orderByDesc('tahun_mulai')
+            ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif'])
+            ->map(fn (Renstra $r) => [
+                'id' => $r->id,
+                'kode' => $r->kode,
+                'nama' => $r->nama,
+                'tahun_mulai' => $r->tahun_mulai,
+                'tahun_selesai' => $r->tahun_selesai,
+                'is_aktif' => (bool) $r->is_aktif,
+            ])
+            ->all();
 
         $user = $request->user();
 
@@ -105,21 +146,72 @@ class PerjanjianKinerjaController extends Controller
         ]);
 
         $isJadwalAktif = $perjanjianKinerja->isJadwalAktif();
+        $isJadwalTerkunci = $perjanjianKinerja->isJadwalTerkunci();
+        $jadwalStatus = $perjanjianKinerja->jadwalStatus();
         $user = request()->user();
         $canReadBerkas = $user?->can('downloadBerkas', $perjanjianKinerja) ?? false;
 
-        if (! $canReadBerkas) {
-            $perjanjianKinerja->berkas->makeHidden(['path', 'tautan', 'isi_teks']);
-        }
+        $pkData = [
+            'id' => $perjanjianKinerja->id,
+            'renstra_id' => $perjanjianKinerja->renstra_id,
+            'tahun' => $perjanjianKinerja->tahun,
+            'nomor_pk' => $perjanjianKinerja->nomor_pk,
+            'tanggal_pk' => $perjanjianKinerja->tanggal_pk?->format('Y-m-d'),
+            'created_at' => $perjanjianKinerja->created_at?->toISOString(),
+            'updated_at' => $perjanjianKinerja->updated_at?->toISOString(),
+            'renstra' => $perjanjianKinerja->renstra ? [
+                'id' => $perjanjianKinerja->renstra->id,
+                'kode' => $perjanjianKinerja->renstra->kode,
+                'nama' => $perjanjianKinerja->renstra->nama,
+                'tahun_mulai' => $perjanjianKinerja->renstra->tahun_mulai,
+                'tahun_selesai' => $perjanjianKinerja->renstra->tahun_selesai,
+                'is_aktif' => (bool) $perjanjianKinerja->renstra->is_aktif,
+            ] : null,
+            'creator' => $perjanjianKinerja->creator ? [
+                'id' => $perjanjianKinerja->creator->id,
+                'nama' => $perjanjianKinerja->creator->nama,
+            ] : null,
+            'jadwal_tahunan' => $perjanjianKinerja->jadwalTahunan ? [
+                'id' => $perjanjianKinerja->jadwalTahunan->id,
+                'renstra_id' => $perjanjianKinerja->jadwalTahunan->renstra_id,
+                'renstra_pk_id' => $perjanjianKinerja->jadwalTahunan->renstra_pk_id,
+                'tahun' => $perjanjianKinerja->jadwalTahunan->tahun,
+                'status' => $perjanjianKinerja->jadwalTahunan->status,
+                'activated_at' => $perjanjianKinerja->jadwalTahunan->activated_at,
+                'is_terkunci' => $perjanjianKinerja->jadwalTahunan->is_terkunci,
+            ] : null,
+            'berkas' => $perjanjianKinerja->berkas->map(function (Berkas $b) use ($canReadBerkas) {
+                $item = [
+                    'id' => $b->id,
+                    'mode' => $b->mode,
+                    'nama_asli' => $b->nama_asli,
+                    'mime' => $b->mime,
+                    'ukuran_bytes' => $b->ukuran_bytes,
+                    'created_at' => $b->dibuat_pada?->toISOString() ?? $b->created_at?->toISOString(),
+                    'pengunggah' => $b->pengunggah ? [
+                        'id' => $b->pengunggah->id,
+                        'nama' => $b->pengunggah->nama,
+                    ] : null,
+                ];
+
+                if ($canReadBerkas) {
+                    $item['tautan'] = $b->tautan;
+                    $item['isi_teks'] = $b->isi_teks;
+                }
+
+                return $item;
+            })->values()->all(),
+        ];
 
         return Inertia::render('PerjanjianKinerja/Show', [
-            'pk' => $perjanjianKinerja,
+            'pk' => $pkData,
+            'jadwal_status' => $jadwalStatus,
             'is_jadwal_aktif' => $isJadwalAktif,
-            'is_jadwal_terkunci' => $isJadwalAktif,
+            'is_jadwal_terkunci' => $isJadwalTerkunci,
             'storageSettings' => $this->storageSettings(),
             'can' => [
                 'update' => $user?->can('update', $perjanjianKinerja) ?? false,
-                'delete_berkas' => ! $isJadwalAktif && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
+                'delete_berkas' => ! $isJadwalTerkunci && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
                 'read_berkas' => $canReadBerkas,
                 'upload_berkas' => $user?->can('uploadBerkas', $perjanjianKinerja) ?? false,
             ],

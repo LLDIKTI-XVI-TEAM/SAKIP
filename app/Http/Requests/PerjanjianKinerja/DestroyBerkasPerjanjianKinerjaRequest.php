@@ -5,8 +5,8 @@ namespace App\Http\Requests\PerjanjianKinerja;
 use App\Models\Berkas;
 use App\Models\RenstraPk;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
-use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 

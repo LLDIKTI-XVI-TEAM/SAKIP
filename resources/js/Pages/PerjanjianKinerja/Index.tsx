@@ -312,7 +312,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                         <button
                                                             type="button"
                                                             onClick={() => setEditingPk(item)}
-                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-amber-600 transition-colors cursor-pointer"
+                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors cursor-pointer"
                                                             title="Edit Dokumen PK"
                                                         >
                                                             <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -379,7 +379,9 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     isOpen={Boolean(editingPk)}
                     onClose={() => setEditingPk(null)}
                     pk={editingPk}
-                    isJadwalAktif={Boolean(editingPk?.jadwal_tahunan?.is_terkunci ?? (editingPk?.jadwal_tahunan?.status === 'aktif' || editingPk?.jadwal_tahunan?.status === 'ditutup' || Boolean(editingPk?.jadwal_tahunan?.activated_at)))}
+                    isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
+                    isJadwalTerkunci={Boolean(editingPk?.jadwal_tahunan?.is_terkunci ?? (editingPk?.jadwal_tahunan?.status === 'aktif' || editingPk?.jadwal_tahunan?.status === 'ditutup' || Boolean(editingPk?.jadwal_tahunan?.activated_at)))}
+                    jadwalStatus={editingPk?.jadwal_tahunan?.status ?? null}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

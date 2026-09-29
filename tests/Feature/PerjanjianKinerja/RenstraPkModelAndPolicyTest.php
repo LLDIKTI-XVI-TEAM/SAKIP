@@ -416,7 +416,7 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertSame('draft', $jadwalPernahAktif->status);
         $this->assertTrue($jadwalPernahAktif->is_terkunci);
 
-        // Uji relasi dan guard RenstraPk::isJadwalTerkunci()
+        // Uji relasi dan guard RenstraPk: pemisahan status aktif vs terkunci
         $pk = RenstraPk::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
@@ -426,6 +426,18 @@ class RenstraPkModelAndPolicyTest extends TestCase
         ]);
         $this->assertTrue($pk->isJadwalTerkunci());
         $this->assertTrue($pk->isJadwalAktif());
+        $this->assertSame('aktif', $pk->jadwalStatus());
+
+        $pkDitutup = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-DITUTUP-TEST',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $user->id,
+        ]);
+        $this->assertTrue($pkDitutup->isJadwalTerkunci());
+        $this->assertFalse($pkDitutup->isJadwalAktif());
+        $this->assertSame('ditutup', $pkDitutup->jadwalStatus());
 
         $pkDraft = RenstraPk::create([
             'renstra_id' => $renstra->id,
@@ -436,5 +448,6 @@ class RenstraPkModelAndPolicyTest extends TestCase
         ]);
         $this->assertFalse($pkDraft->isJadwalTerkunci());
         $this->assertFalse($pkDraft->isJadwalAktif());
+        $this->assertSame('draft', $pkDraft->jadwalStatus());
     }
 }

@@ -206,6 +206,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
                 'nomor_pk' => 'PK-PERBAIKAN-01',
                 'tanggal_pk' => '2026-01-22',
                 'alasan' => 'Koreksi penomoran internal LLDIKTI XVI',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? now()->toISOString(),
             ]);
 
         $response->assertSessionHasNoErrors();

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Pencil, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Pencil, Save, ShieldCheck } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { PerjanjianKinerjaFormFields } from '@/Components/PerjanjianKinerjaFormFields';
@@ -15,6 +15,8 @@ interface PerjanjianKinerjaEditModalProps {
     onClose: () => void;
     pk: RenstraPkSummary | null;
     isJadwalAktif?: boolean;
+    isJadwalTerkunci?: boolean;
+    jadwalStatus?: string | null;
     storageSettings?: StorageSettings;
     canUploadBerkas?: boolean;
 }
@@ -24,14 +26,19 @@ export function PerjanjianKinerjaEditModal({
     onClose,
     pk,
     isJadwalAktif = false,
+    isJadwalTerkunci,
+    jadwalStatus,
     storageSettings,
     canUploadBerkas = true,
 }: PerjanjianKinerjaEditModalProps) {
+    const isTerkunci = isJadwalTerkunci ?? isJadwalAktif;
+
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<PerjanjianKinerjaFormData>({
         renstra_id: pk?.renstra_id ?? '',
         tahun: pk?.tahun ?? new Date().getFullYear(),
         nomor_pk: pk?.nomor_pk ?? '',
         tanggal_pk: pk?.tanggal_pk ? pk.tanggal_pk.split('T')[0] : '',
+        expected_updated_at: pk?.updated_at ?? '',
         alasan: '',
         lampiran: [],
         _method: 'put',
@@ -55,6 +62,7 @@ export function PerjanjianKinerjaEditModal({
                 tahun: pk.tahun,
                 nomor_pk: pk.nomor_pk,
                 tanggal_pk: pk.tanggal_pk ? pk.tanggal_pk.split('T')[0] : '',
+                expected_updated_at: pk.updated_at ?? '',
                 alasan: '',
                 lampiran: [],
                 _method: 'put',
@@ -136,13 +144,27 @@ export function PerjanjianKinerjaEditModal({
             }
         >
             <form id="edit-pk-modal-form" onSubmit={handleSubmit}>
-                {isJadwalAktif && (
-                    <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200">
+                {errors.konflik && (
+                    <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 p-4 text-ink flex items-start gap-3" role="alert">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-danger mt-0.5" aria-hidden="true" />
+                        <div>
+                            <h3 className="text-sm font-bold text-danger">Konflik Pembaruan Data</h3>
+                            <p className="mt-1 text-xs leading-relaxed text-ink">{errors.konflik}</p>
+                        </div>
+                    </div>
+                )}
+
+                {isTerkunci && (
+                    <div className="mb-6 rounded-xl border border-success/20 bg-success/10 p-4 text-ink">
                         <div className="flex items-start gap-3">
-                            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" aria-hidden="true" />
+                            <ShieldCheck className="h-5 w-5 shrink-0 text-success mt-0.5" aria-hidden="true" />
                             <div>
-                                <h3 className="text-sm font-bold">Jadwal Tahunan Aktif / Terkunci</h3>
-                                <p className="mt-1 text-xs leading-relaxed text-emerald-900/80 dark:text-emerald-300">
+                                <h3 className="text-sm font-bold text-ink">
+                                    {jadwalStatus === 'ditutup'
+                                        ? 'Jadwal Tahunan Ditutup (Terkunci)'
+                                        : 'Jadwal Tahunan Aktif / Terkunci'}
+                                </h3>
+                                <p className="mt-1 text-xs leading-relaxed text-muted">
                                     Pembaruan metadata atau penambahan lampiran baru tetap diizinkan. Namun, lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal.
                                 </p>
                             </div>

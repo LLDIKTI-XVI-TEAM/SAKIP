@@ -213,5 +213,20 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
 
         expect(screen.queryByText('Jadwal Tahunan Aktif / Terkunci')).toBeNull();
     });
+
+    it('menampilkan banner jadwal ditutup terkunci saat jadwalStatus ditutup', () => {
+        render(
+            <PerjanjianKinerjaEditModal
+                isOpen={true}
+                onClose={() => {}}
+                pk={samplePk}
+                isJadwalTerkunci={true}
+                jadwalStatus="ditutup"
+            />
+        );
+
+        expect(screen.getByText('Jadwal Tahunan Ditutup (Terkunci)')).toBeTruthy();
+        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+    });
 });
 

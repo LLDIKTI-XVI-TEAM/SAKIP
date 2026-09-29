@@ -45,8 +45,6 @@ final class PermissionCodes
     // Perjanjian Kinerja (PK) (ISS-02.08)
     public const PK_CREATE = 'pk:create';
 
-    public const PK_READ = 'pk:read';
-
     public const PK_UPDATE = 'pk:update';
 
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)

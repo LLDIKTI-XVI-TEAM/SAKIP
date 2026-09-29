@@ -78,6 +78,15 @@ class RenstraPk extends Model
 
     public function isJadwalAktif(): bool
     {
+        return JadwalTahunan::where('status', 'aktif')
+            ->where(function ($q) {
+                $q->where('renstra_pk_id', $this->id)
+                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
+            })->exists();
+    }
+
+    public function isJadwalTerkunci(): bool
+    {
         return JadwalTahunan::where(function ($q) {
             $q->where('status', 'aktif')
                 ->orWhere('status', 'ditutup')
@@ -89,9 +98,14 @@ class RenstraPk extends Model
             })->exists();
     }
 
-    public function isJadwalTerkunci(): bool
+    public function jadwalStatus(): ?string
     {
-        return $this->isJadwalAktif();
+        return JadwalTahunan::where(function ($q) {
+            $q->where('renstra_pk_id', $this->id)
+                ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
+        })
+            ->orderByRaw("case when status = 'aktif' then 0 when status = 'ditutup' then 1 else 2 end")
+            ->value('status');
     }
 
     public function getMorphClass(): string

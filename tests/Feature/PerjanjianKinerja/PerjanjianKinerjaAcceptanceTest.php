@@ -374,6 +374,7 @@ class PerjanjianKinerjaAcceptanceTest extends TestCase
                 'nomor_pk' => 'PK-SUPERADMIN-ALLOWED',
                 'tanggal_pk' => '2026-01-20',
                 'alasan' => 'Penyesuaian nomor oleh Superadmin',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? now()->toISOString(),
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect();
