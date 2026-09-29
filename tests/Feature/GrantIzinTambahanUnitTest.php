@@ -3,20 +3,30 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\IndikatorKinerja;
+use App\Models\PenugasanIndikator;
 use App\Models\Permission;
+use App\Models\Renstra;
 use App\Models\Role;
+use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
+use App\Services\PermissionResolver as AuditPermissionResolver;
+use App\Support\PermissionDecision;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Tests\TestCase;
 
 class GrantIzinTambahanUnitTest extends TestCase
@@ -179,10 +189,130 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->globalPermission = Permission::where('kode', 'pengaturan:update')->firstOrFail();
     }
 
-    /**
-     * TEST-1 / AC-1: Given permission butuh_scope = unit, when grant dibuat dengan user, unit, dan alasan valid,
-     * then user_permission_granted terbentuk dengan unit_id terisi dan peristiwa diaudit.
-     */
+    #[DataProvider('grantMutations')]
+    public function test_grant_denied_malformed_input_preserves_initial_decision_and_single_audit(string $operation): void
+    {
+        $decision = new PermissionDecision(false, 'delegasi:update', [
+            'alasan' => 'no_allow', 'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => [],
+        ]);
+        $this->mock(AuditPermissionResolver::class)->shouldReceive('resolve')->once()
+            ->with(\Mockery::on(fn ($actor) => $actor->id === $this->pegawaiUser->id), 'delegasi:update')->andReturn($decision);
+        $id = (string) Str::uuid();
+        $this->actingAs($this->pegawaiUser)->call(
+            $operation === 'create' ? 'POST' : 'DELETE',
+            $operation === 'create' ? '/akses/grant' : '/akses/grant/'.$id,
+            ['user_id' => [], 'permission_id' => 'invalid', 'unit_id' => [], 'alasan' => []],
+        )->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'user_permission_granted.ditolak')->sole();
+        $this->assertEquals($decision->toAuditBasis(), $audit->dasar_izin);
+        $this->assertSame($this->pegawaiUser->id, $audit->actor_id);
+        $this->assertSame('user_permission_granted', $audit->objek_tipe);
+        if ($operation === 'revoke') {
+            $this->assertSame($id, $audit->objek_id);
+        }
+        $this->assertDatabaseCount('user_permission_granted', 0);
+    }
+
+    #[DataProvider('grantMutations')]
+    public function test_grant_mutation_rolls_back_when_success_audit_fails(string $operation): void
+    {
+        $grant = $operation === 'revoke' ? UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Grant sebelum gagal audit', 'diberikan_oleh' => $this->adminUser->id,
+        ]) : null;
+        $event = $operation === 'create' ? 'user_permission_granted.tambah' : 'user_permission_granted.hapus';
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andReturnUsing(
+            function ($actor, $tindakan) use ($event, $operation): never {
+                $this->assertSame($event, $tindakan);
+                $this->assertDatabaseCount('user_permission_granted', $operation === 'create' ? 1 : 0);
+                throw new RuntimeException('Audit grant fixture gagal.');
+            },
+        );
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($this->adminUser)->call(
+                $operation === 'create' ? 'POST' : 'DELETE',
+                $operation === 'create' ? '/akses/grant' : '/akses/grant/'.$grant->id,
+                ['user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id, 'unit_id' => $this->unitA->id, 'alasan' => 'Alasan mutasi grant fixture'],
+            );
+            $this->fail('Kegagalan audit harus diteruskan.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit grant fixture gagal.', $exception->getMessage());
+        }
+        $this->assertDatabaseCount('user_permission_granted', $operation === 'create' ? 0 : 1);
+        if ($grant !== null) {
+            $this->assertDatabaseHas('user_permission_granted', ['id' => $grant->id, 'alasan' => 'Grant sebelum gagal audit']);
+        }
+        $this->assertSame(0, AuditLog::where('tindakan', $event)->count());
+    }
+
+    public static function grantMutations(): array
+    {
+        return [['create'], ['revoke']];
+    }
+
+    public function test_grant_audits_preserve_permission_basis_and_inactive_revoke_cleanup(): void
+    {
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Deny tetap berlaku meski grant disimpan', 'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+        $renstra = Renstra::create([
+            'kode' => 'R-GRANT', 'nama' => 'Renstra Grant', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
+            'is_aktif' => true, 'created_by' => $this->superadminUser->id,
+        ]);
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $renstra->id, 'kode' => 'S-GRANT', 'deskripsi' => 'Sasaran Grant',
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id, 'unit_id' => $this->unitA->id,
+            'kode' => 'I-GRANT', 'nama' => 'Indikator Grant', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual',
+        ]);
+        PenugasanIndikator::create([
+            'indikator_id' => $indikator->id, 'user_id' => $this->pegawaiUser->id,
+            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->superadminUser->id,
+            'alasan' => 'Penugasan PJ tetap berlaku saat grant berubah', 'created_at' => now(),
+        ]);
+        $this->assertDatabaseCount('penanggung_jawab', 1);
+        $rolesBefore = DB::table('user_roles')->orderBy('id')->get()->toJson();
+        $pjBefore = DB::table('penanggung_jawab')->orderBy('id')->get()->toJson();
+        $deniesBefore = DB::table('user_permission_denied')->orderBy('id')->get()->toJson();
+        $payload = ['user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id, 'unit_id' => $this->unitA->id, 'alasan' => '  Alasan pemberian fixture  '];
+        $this->actingAs($this->adminUser)->post('/akses/grant', $payload)->assertRedirect('/akses/grant');
+        $grant = UserPermissionGrant::sole();
+        $expected = [
+            'permission' => 'delegasi:update', 'keputusan' => 'diizinkan', 'alasan' => 'allow',
+            'sumber_allow' => ['roles' => [Role::where('kode', 'admin')->value('id')], 'grants' => []], 'deny' => [],
+        ];
+        $created = AuditLog::where('tindakan', 'user_permission_granted.tambah')->sole();
+        $this->assertEquals($expected, $created->dasar_izin);
+        $this->assertSame('Alasan pemberian fixture', $created->nilai_baru['alasan']);
+        $this->assertSame($this->adminUser->id, $created->nilai_baru['diberikan_oleh']);
+        $this->assertSame('user', $created->actor_type);
+        $this->assertSame('manual', $created->sumber);
+        $this->assertSame($rolesBefore, DB::table('user_roles')->orderBy('id')->get()->toJson());
+        $this->assertSame($pjBefore, DB::table('penanggung_jawab')->orderBy('id')->get()->toJson());
+        $this->assertSame($deniesBefore, DB::table('user_permission_denied')->orderBy('id')->get()->toJson());
+
+        // Cleanup grant tetap tersedia walau ketiga referensi telah nonaktif.
+        $this->pegawaiUser->update(['status' => 'nonaktif']);
+        $this->unitA->update(['status' => 'nonaktif']);
+        $this->unitPermission->update(['aktif' => false]);
+        $this->delete('/akses/grant/'.$grant->id, ['alasan' => '  Alasan pencabutan fixture  '])->assertRedirect('/akses/grant');
+
+        $deleted = AuditLog::where('tindakan', 'user_permission_granted.hapus')->sole();
+        $this->assertEquals($expected, $deleted->dasar_izin);
+        $this->assertSame('Alasan pemberian fixture', $deleted->nilai_lama['alasan_pemberian']);
+        $this->assertSame('Alasan pencabutan fixture', $deleted->alasan);
+        $this->assertNull($deleted->nilai_baru);
+        $this->assertDatabaseMissing('user_permission_granted', ['id' => $grant->id]);
+        $this->assertSame($rolesBefore, DB::table('user_roles')->orderBy('id')->get()->toJson());
+        $this->assertSame($pjBefore, DB::table('penanggung_jawab')->orderBy('id')->get()->toJson());
+        $this->assertSame($deniesBefore, DB::table('user_permission_denied')->orderBy('id')->get()->toJson());
+    }
+
+    /** Grant unit menyimpan target, alasan dan provenance audit. */
     public function test_grant_unit_scoped_permission_creates_record_and_audit_log(): void
     {
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [

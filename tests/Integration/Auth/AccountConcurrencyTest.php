@@ -5,11 +5,15 @@ namespace Tests\Integration\Auth;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserPermissionDeny;
+use App\Models\UserPermissionGrant;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
@@ -173,6 +177,111 @@ class AccountConcurrencyTest extends TestCase
         } finally {
             $connection->setDatabaseName($original);
         }
+    }
+
+    #[DataProvider('unitAndGrantMutations')]
+    public function test_unit_and_grant_actions_reauthorize_after_waiting_for_actor_lock(string $operation, string $permission, string $denialEvent): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $role = Role::where('kode', 'superadmin')->sole();
+        $actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $unit = Unit::create(['nama' => 'Unit sebelum pencabutan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $payload = [
+            'actor_id' => $actor->id, 'unit_id' => $unit->id, 'permission' => $permission,
+            'data' => ['nama' => 'Mutasi yang harus ditolak', 'status' => 'aktif', 'version_token' => $unit->getVersionToken(), 'expected_nama' => null, 'expected_status' => null, 'snapshot' => null],
+        ];
+        $grant = null;
+        if (in_array($operation, ['grant-create', 'grant-revoke'], true)) {
+            $target = User::factory()->create(['status' => 'aktif']);
+            $payload['data'] = [
+                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+                'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture',
+            ];
+            if ($operation === 'grant-revoke') {
+                $grant = UserPermissionGrant::create([...$payload['data'], 'diberikan_oleh' => $actor->id]);
+                $payload['grant_id'] = $grant->id;
+            }
+        }
+        $denyId = null;
+        $prepare = fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+        $revokeWhileBlocked = function (array $pids) use ($actor, $permission, &$denyId): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('users', $query);
+            $this->assertStringContainsString('for share', $query);
+            // Pencabutan baru dibuat setelah worker terbukti menunggu lock aktor.
+            $denyId = UserPermissionDeny::create([
+                'user_id' => $actor->id, 'permission_id' => Permission::where('kode', $permission)->value('id'),
+                'unit_id' => null, 'alasan' => 'Pencabutan saat mutasi menunggu', 'ditetapkan_oleh' => $actor->id,
+            ])->id;
+        };
+
+        $results = $this->race($operation, $actor->id, '', [$payload], $prepare, assertBlocked: $revokeWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertDatabaseCount('unit', 1);
+        $this->assertDatabaseHas('unit', ['id' => $unit->id, 'nama' => 'Unit sebelum pencabutan', 'status' => 'aktif']);
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['unit.tambah', 'unit.ubah', 'unit.hapus'])->count());
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['user_permission_granted.tambah', 'user_permission_granted.hapus'])->count());
+        $this->assertDatabaseCount('user_permission_granted', $grant === null ? 0 : 1);
+        if ($grant !== null) {
+            $this->assertDatabaseHas('user_permission_granted', ['id' => $grant->id, 'alasan' => 'Alasan grant fixture']);
+        }
+        $audit = AuditLog::where('tindakan', $denialEvent)->sole();
+        $this->assertSame($actor->id, $audit->actor_id);
+        $this->assertEquals([
+            'permission' => $permission, 'keputusan' => 'ditolak', 'alasan' => 'explicit_deny',
+            'sumber_allow' => ['roles' => [$role->id], 'grants' => []], 'deny' => [$denyId],
+        ], $audit->dasar_izin);
+    }
+
+    public static function unitAndGrantMutations(): array
+    {
+        return [
+            ['unit-create', 'unit:create', 'unit.tambah_ditolak'],
+            ['unit-update', 'unit:update', 'unit.ubah_ditolak'],
+            ['unit-delete', 'unit:delete', 'unit.hapus_ditolak'],
+            ['grant-create', 'delegasi:update', 'user_permission_granted.ditolak'],
+            ['grant-revoke', 'delegasi:update', 'user_permission_granted.ditolak'],
+        ];
+    }
+
+    public function test_revoke_grant_locks_users_before_grant_row(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $unit = Unit::create(['nama' => 'Unit lock grant', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $grant = UserPermissionGrant::create([
+            'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+            'unit_id' => $unit->id, 'alasan' => 'Grant uji lock', 'diberikan_oleh' => $actor->id,
+        ]);
+        $prepare = fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+        $assertGrantUnlocked = function (array $pids) use ($grant): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('users', $query);
+            $this->assertStringContainsString('for share', $query);
+            // NOWAIT harus berhasil: worker yang menunggu pengguna belum boleh memegang grant.
+            try {
+                $row = DB::selectOne('select id from user_permission_granted where id = ? for update nowait', [$grant->id]);
+            } catch (QueryException $exception) {
+                if (($exception->errorInfo[0] ?? null) !== '55P03') {
+                    throw $exception;
+                }
+                $this->fail('Worker memegang grant sebelum memperoleh lock pengguna.');
+            }
+            $this->assertSame($grant->id, $row->id);
+        };
+
+        $results = $this->race('grant-revoke', $actor->id, '', [[
+            'actor_id' => $actor->id, 'permission' => 'delegasi:update', 'grant_id' => $grant->id,
+            'data' => ['alasan' => 'Alasan pencabutan fixture'],
+        ]], $prepare, assertBlocked: $assertGrantUnlocked);
+
+        $this->assertSame(['revoked'], $results);
+        $this->assertDatabaseMissing('user_permission_granted', ['id' => $grant->id]);
+        $this->assertSame(1, AuditLog::where('tindakan', 'user_permission_granted.hapus')->where('objek_id', $grant->id)->count());
     }
 
     /**

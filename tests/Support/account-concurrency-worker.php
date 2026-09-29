@@ -6,10 +6,17 @@ use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Unit\CreateUnitAction;
+use App\Actions\Unit\DeleteUnitAction;
+use App\Actions\Unit\UpdateUnitAction;
 use App\Models\User;
+use App\Services\PermissionResolver;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
@@ -37,7 +44,18 @@ try {
     $identity = $argv[2];
     try {
         $assignment = isset($argv[3]) ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
+        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke'], true)) {
+            $actor = User::findOrFail($assignment['actor_id']);
+            $initialDecision = app(PermissionResolver::class)->resolve($actor, $assignment['permission']);
+            if (! $initialDecision->allowed) {
+                throw new RuntimeException('Fixture harus diizinkan sebelum menunggu lock.');
+            }
+        }
         $result = match ($argv[1]) {
+            'grant-create', 'grant-revoke' => performGrantMutation($argv[1], $assignment),
+            'unit-create' => app(CreateUnitAction::class)->handle($actor, $assignment['data'])->id,
+            'unit-update' => app(UpdateUnitAction::class)->handle($actor, $assignment['unit_id'], $assignment['data']),
+            'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment']),
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
@@ -51,6 +69,11 @@ try {
             'revoke-deny' => 'revoked',
             default => $result,
         };
+    } catch (HttpException $exception) {
+        if (! in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete'], true) || $exception->getStatusCode() !== 403) {
+            throw $exception;
+        }
+        $result = 'denied';
     } catch (DomainException $exception) {
         if ($argv[1] !== 'bootstrap' || ! ($assignment['expect_ineligible'] ?? false)
             || $exception->getMessage() !== 'Keadaan awal bootstrap tidak sesuai; tidak ada data yang diubah.') {
@@ -78,4 +101,24 @@ try {
     // Jangan mencetak SQL, konfigurasi koneksi, atau kredensial dari exception.
     fwrite(STDERR, get_class($exception)."\n");
     exit(1);
+}
+
+/** Jalur HTTP yang sama membuktikan urutan lock sebelum dan sesudah ekstraksi controller. */
+function performGrantMutation(string $operation, array $assignment): string
+{
+    Auth::setUser(User::findOrFail($assignment['actor_id']));
+    $request = Request::create(
+        $operation === 'grant-create' ? '/akses/grant' : '/akses/grant/'.$assignment['grant_id'],
+        $operation === 'grant-create' ? 'POST' : 'DELETE',
+        $assignment['data'],
+    );
+    $kernel = app(Illuminate\Contracts\Http\Kernel::class);
+    $response = $kernel->handle($request);
+    $kernel->terminate($request, $response);
+
+    return match ($response->getStatusCode()) {
+        403 => 'denied',
+        302 => $operation === 'grant-create' ? 'created' : 'revoked',
+        default => throw new RuntimeException('Status mutasi grant tidak sesuai: '.$response->getStatusCode()),
+    };
 }
