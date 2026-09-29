@@ -4,8 +4,12 @@ namespace App\Http\Requests\PerjanjianKinerja;
 
 use App\Models\Pengaturan;
 use App\Models\RenstraPk;
+use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -24,6 +28,64 @@ class StorePerjanjianKinerjaRequest extends FormRequest
         }
 
         return true;
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user();
+
+        if ($user) {
+            $resolver = app(PermissionResolver::class);
+            $createDecision = $resolver->resolve($user, PermissionCodes::PK_CREATE);
+
+            $lampiran = $this->input('lampiran');
+            $uploadDecision = null;
+            if (! empty($lampiran) && is_array($lampiran)) {
+                $uploadDecision = $resolver->resolve($user, PermissionCodes::BERKAS_UPLOAD);
+            }
+
+            $primaryDecision = ! $createDecision->allowed ? $createDecision : ($uploadDecision ?? $createDecision);
+            $rawAlasan = $this->input('alasan');
+            $alasan = $this->sanitizeAlasan($rawAlasan);
+
+            $nilaiBaru = array_filter([
+                'renstra_id' => $this->input('renstra_id'),
+                'tahun' => $this->input('tahun'),
+                'nomor_pk' => $this->input('nomor_pk'),
+                'tanggal_pk' => $this->input('tanggal_pk'),
+                'alasan_penolakan' => ! $createDecision->allowed ? 'pk_create_denied' : 'berkas_upload_denied',
+            ], fn ($val) => $val !== null);
+
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'renstra_pk.buat_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: (string) Str::uuid(),
+                nilaiBaru: $nilaiBaru,
+                alasan: $alasan,
+                dasarIzin: $primaryDecision->toAuditBasis(),
+            );
+        }
+
+        parent::failedAuthorization();
+    }
+
+    protected function sanitizeAlasan(mixed $rawAlasan): ?string
+    {
+        if (! is_string($rawAlasan) || trim($rawAlasan) === '') {
+            return null;
+        }
+
+        $clean = mb_convert_encoding($rawAlasan, 'UTF-8', 'UTF-8');
+        $clean = str_replace("\0", '', $clean);
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean) ?? '';
+        $clean = trim($clean);
+
+        if ($clean === '') {
+            return null;
+        }
+
+        return mb_substr($clean, 0, 1000, 'UTF-8');
     }
 
     /**

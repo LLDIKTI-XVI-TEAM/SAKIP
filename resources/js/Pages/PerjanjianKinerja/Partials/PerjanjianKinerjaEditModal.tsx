@@ -141,7 +141,7 @@ export function PerjanjianKinerjaEditModal({
                         <div className="flex items-start gap-3">
                             <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" aria-hidden="true" />
                             <div>
-                                <h3 className="text-sm font-bold">Jadwal Tahunan Telah Aktif</h3>
+                                <h3 className="text-sm font-bold">Jadwal Tahunan Aktif / Terkunci</h3>
                                 <p className="mt-1 text-xs leading-relaxed text-emerald-900/80 dark:text-emerald-300">
                                     Pembaruan metadata atau penambahan lampiran baru tetap diizinkan. Namun, lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal.
                                 </p>

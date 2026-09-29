@@ -39,7 +39,7 @@ class PerjanjianKinerjaController extends Controller
             ->with([
                 'renstra:id,kode,nama,tahun_mulai,tahun_selesai,is_aktif',
                 'creator:id,nama',
-                'jadwalTahunan:id,renstra_pk_id,tahun,status',
+                'jadwalTahunan:id,renstra_id,renstra_pk_id,tahun,status,activated_at',
             ])
             ->withCount('berkas')
             ->when(! empty($filters['renstra_id']), fn ($q) => $q->where('renstra_id', $filters['renstra_id']))
@@ -113,6 +113,7 @@ class PerjanjianKinerjaController extends Controller
         return Inertia::render('PerjanjianKinerja/Show', [
             'pk' => $perjanjianKinerja,
             'is_jadwal_aktif' => $isJadwalAktif,
+            'is_jadwal_terkunci' => $isJadwalAktif,
             'storageSettings' => $this->storageSettings(),
             'can' => [
                 'update' => $user?->can('update', $perjanjianKinerja) ?? false,

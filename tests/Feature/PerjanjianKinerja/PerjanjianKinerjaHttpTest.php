@@ -883,4 +883,215 @@ class PerjanjianKinerjaHttpTest extends TestCase
             'actor_id' => $this->perencanaan->id,
         ]);
     }
+
+    public function test_post_perjanjian_kinerja_unauthorized_records_audit_log_penolakan(): void
+    {
+        $this->actingAs($this->pegawai)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-UNAUTH-POST',
+                'tanggal_pk' => '2026-01-15',
+                'alasan' => 'Mencoba buat PK tanpa izin',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'renstra_pk.buat_ditolak',
+            'objek_tipe' => 'renstra_pk',
+            'actor_id' => $this->pegawai->id,
+        ]);
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.buat_ditolak')
+            ->where('actor_id', $this->pegawai->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertNotNull($audit->objek_id);
+        $this->assertSame('pk_create_denied', $audit->nilai_baru['alasan_penolakan'] ?? null);
+        $this->assertSame('pk:create', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan'] ?? null);
+        $this->assertSame(2026, $audit->nilai_baru['tahun'] ?? null);
+        $this->assertSame('PK-UNAUTH-POST', $audit->nilai_baru['nomor_pk'] ?? null);
+        $this->assertSame('Mencoba buat PK tanpa izin', $audit->alasan);
+
+        // Memastikan dicatat tepat 1 kali (tidak ada duplikasi)
+        $this->assertSame(1, AuditLog::where('tindakan', 'renstra_pk.buat_ditolak')->count());
+    }
+
+    public function test_post_perjanjian_kinerja_with_attachment_when_berkas_upload_denied_audits_berkas_upload_as_denial_basis(): void
+    {
+        // Berikan explicit deny berkas:upload kepada perencanaan
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Uji coba explicit deny berkas:upload pada store',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-STORE-DENIED-UPLOAD',
+                'tanggal_pk' => '2026-01-15',
+                'lampiran' => [
+                    [
+                        'mode' => 'tautan',
+                        'tautan' => 'https://example.com/pk-store-denied',
+                    ],
+                ],
+                'alasan' => 'Mencoba lampiran saat deny berkas:upload',
+            ])
+            ->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.buat_ditolak')
+            ->where('actor_id', $this->perencanaan->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('berkas_upload_denied', $audit->nilai_baru['alasan_penolakan'] ?? null);
+        $this->assertSame('berkas:upload', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan'] ?? null);
+        $this->assertSame('Mencoba lampiran saat deny berkas:upload', $audit->alasan);
+    }
+
+    public function test_put_perjanjian_kinerja_unauthorized_records_audit_log_penolakan(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-ORIGINAL',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->pegawai)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-HACKED',
+                'tanggal_pk' => '2026-02-01',
+                'alasan' => 'Mencoba edit tanpa izin update',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'renstra_pk.ubah_ditolak',
+            'objek_tipe' => 'renstra_pk',
+            'objek_id' => $pk->id,
+            'actor_id' => $this->pegawai->id,
+        ]);
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.ubah_ditolak')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('pk_update_denied', $audit->nilai_baru['alasan_penolakan'] ?? null);
+        $this->assertSame('pk:update', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan'] ?? null);
+        $this->assertSame('PK-ORIGINAL', $audit->nilai_lama['nomor_pk'] ?? null);
+        $this->assertSame('PK-HACKED', $audit->nilai_baru['nomor_pk'] ?? null);
+        $this->assertSame('Mencoba edit tanpa izin update', $audit->alasan);
+
+        // Memastikan dicatat tepat 1 kali (tidak ada duplikasi)
+        $this->assertSame(1, AuditLog::where('tindakan', 'renstra_pk.ubah_ditolak')->where('objek_id', $pk->id)->count());
+    }
+
+    public function test_put_perjanjian_kinerja_with_attachment_when_berkas_upload_denied_audits_berkas_upload_as_denial_basis(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-PUT-UPLOAD-TEST',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Berikan explicit deny berkas:upload kepada perencanaan
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:upload')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Uji coba explicit deny berkas:upload pada update',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-PUT-UPLOAD-MUTASI',
+                'tanggal_pk' => '2026-01-20',
+                'alasan' => 'Mencoba tambah lampiran saat deny upload',
+                'lampiran' => [
+                    [
+                        'mode' => 'tautan',
+                        'tautan' => 'https://example.com/pk-put-denied',
+                    ],
+                ],
+            ])
+            ->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'renstra_pk.ubah_ditolak')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('berkas_upload_denied', $audit->nilai_baru['alasan_penolakan'] ?? null);
+        $this->assertSame('berkas:upload', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan'] ?? null);
+        $this->assertSame('Mencoba tambah lampiran saat deny upload', $audit->alasan);
+    }
+
+    public function test_post_and_put_perjanjian_kinerja_unauthorized_sanitizes_alasan_and_handles_nul(): void
+    {
+        $oversizedAlasan = "Uji alasan panjang: \0".str_repeat('X', 2500);
+
+        // POST unauthorized dengan alasan mengandung NUL byte dan oversized
+        $this->actingAs($this->pegawai)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-OVERSIZED-POST',
+                'tanggal_pk' => '2026-01-15',
+                'alasan' => $oversizedAlasan,
+            ])
+            ->assertForbidden();
+
+        $postAudit = AuditLog::where('tindakan', 'renstra_pk.buat_ditolak')
+            ->where('actor_id', $this->pegawai->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertFalse(str_contains($postAudit->alasan, "\0"));
+        $this->assertLessThanOrEqual(1000, mb_strlen($postAudit->alasan, 'UTF-8'));
+
+        // PUT unauthorized dengan alasan mengandung NUL byte dan oversized
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-FOR-OVERSIZED-PUT',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->pegawai)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-OVERSIZED-PUT',
+                'tanggal_pk' => '2026-02-01',
+                'alasan' => $oversizedAlasan,
+            ])
+            ->assertForbidden();
+
+        $putAudit = AuditLog::where('tindakan', 'renstra_pk.ubah_ditolak')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertFalse(str_contains($putAudit->alasan, "\0"));
+        $this->assertLessThanOrEqual(1000, mb_strlen($putAudit->alasan, 'UTF-8'));
+    }
 }

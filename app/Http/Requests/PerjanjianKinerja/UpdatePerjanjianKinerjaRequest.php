@@ -4,6 +4,9 @@ namespace App\Http\Requests\PerjanjianKinerja;
 
 use App\Models\Pengaturan;
 use App\Models\RenstraPk;
+use App\Services\AuditLogger;
+use App\Services\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
@@ -29,6 +32,69 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
         }
 
         return true;
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user();
+        $pk = $this->route('perjanjian_kinerja');
+
+        if ($user && $pk instanceof RenstraPk) {
+            $resolver = app(PermissionResolver::class);
+            $updateDecision = $resolver->resolve($user, PermissionCodes::PK_UPDATE);
+
+            $lampiran = $this->input('lampiran');
+            $uploadDecision = null;
+            if (! empty($lampiran) && is_array($lampiran)) {
+                $uploadDecision = $resolver->resolve($user, PermissionCodes::BERKAS_UPLOAD);
+            }
+
+            $primaryDecision = ! $updateDecision->allowed ? $updateDecision : ($uploadDecision ?? $updateDecision);
+            $rawAlasan = $this->input('alasan');
+            $alasan = $this->sanitizeAlasan($rawAlasan);
+
+            $nilaiLama = [
+                'nomor_pk' => $pk->nomor_pk,
+                'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
+            ];
+
+            $nilaiBaru = array_filter([
+                'nomor_pk' => $this->input('nomor_pk'),
+                'tanggal_pk' => $this->input('tanggal_pk'),
+                'alasan_penolakan' => ! $updateDecision->allowed ? 'pk_update_denied' : 'berkas_upload_denied',
+            ], fn ($val) => $val !== null);
+
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'renstra_pk.ubah_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: $pk->id,
+                nilaiLama: $nilaiLama,
+                nilaiBaru: $nilaiBaru,
+                alasan: $alasan,
+                dasarIzin: $primaryDecision->toAuditBasis(),
+            );
+        }
+
+        parent::failedAuthorization();
+    }
+
+    protected function sanitizeAlasan(mixed $rawAlasan): ?string
+    {
+        if (! is_string($rawAlasan) || trim($rawAlasan) === '') {
+            return null;
+        }
+
+        $clean = mb_convert_encoding($rawAlasan, 'UTF-8', 'UTF-8');
+        $clean = str_replace("\0", '', $clean);
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean) ?? '';
+        $clean = trim($clean);
+
+        if ($clean === '') {
+            return null;
+        }
+
+        return mb_substr($clean, 0, 1000, 'UTF-8');
     }
 
     /**

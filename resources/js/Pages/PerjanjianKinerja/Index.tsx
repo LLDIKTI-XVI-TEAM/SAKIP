@@ -6,6 +6,7 @@ import {
     Eye,
     FileSpreadsheet,
     FileText,
+    Lock,
     Pencil,
     Plus,
     Search,
@@ -239,7 +240,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                 </TableRow>
                             ) : (
                                 perjanjianKinerja.data.map((item) => {
-                                    const isJadwalAktif = item.jadwal_tahunan?.status === 'aktif';
+                                    const statusJadwal = item.jadwal_tahunan?.status;
 
                                     return (
                                         <TableRow key={item.id}>
@@ -272,10 +273,15 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                 {item.tanggal_pk ? formatTanggal(item.tanggal_pk) : '-'}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap">
-                                                {isJadwalAktif ? (
+                                                {statusJadwal === 'aktif' ? (
                                                     <Badge variant="success">
                                                         <ShieldCheck className="h-3 w-3 mr-1" aria-hidden="true" />
-                                                        Jadwal Aktif
+                                                        Aktif
+                                                    </Badge>
+                                                ) : statusJadwal === 'ditutup' ? (
+                                                    <Badge variant="secondary">
+                                                        <Lock className="h-3 w-3 mr-1" aria-hidden="true" />
+                                                        Ditutup
                                                     </Badge>
                                                 ) : (
                                                     <Badge variant="muted">
@@ -373,7 +379,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     isOpen={Boolean(editingPk)}
                     onClose={() => setEditingPk(null)}
                     pk={editingPk}
-                    isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
+                    isJadwalAktif={Boolean(editingPk?.jadwal_tahunan?.is_terkunci ?? (editingPk?.jadwal_tahunan?.status === 'aktif' || editingPk?.jadwal_tahunan?.status === 'ditutup' || Boolean(editingPk?.jadwal_tahunan?.activated_at)))}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

@@ -7,6 +7,7 @@ import {
     Download,
     ExternalLink,
     FileText,
+    Lock,
     Pencil,
     ShieldAlert,
     ShieldCheck,
@@ -144,14 +145,19 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
                         </div>
 
                         <div>
-                            {is_jadwal_aktif ? (
+                            {pk.jadwal_tahunan?.status === 'aktif' ? (
                                 <Badge variant="success">
                                     <ShieldCheck className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-                                    Jadwal Aktif
+                                    Aktif
+                                </Badge>
+                            ) : pk.jadwal_tahunan?.status === 'ditutup' ? (
+                                <Badge variant="secondary">
+                                    <Lock className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                                    Ditutup
                                 </Badge>
                             ) : (
                                 <Badge variant="muted">
-                                    Jadwal Belum Aktif
+                                    Belum Aktif
                                 </Badge>
                             )}
                         </div>

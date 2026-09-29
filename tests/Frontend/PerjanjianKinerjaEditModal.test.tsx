@@ -186,4 +186,32 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
         const reopenedNomorInput = screen.getByLabelText<HTMLInputElement>(/Nomor Dokumen Perjanjian Kinerja/);
         expect(reopenedNomorInput.value).toBe('PK/LLDIKTI16/2026/001');
     });
+
+    it('menampilkan banner informasi saat jadwal tahunan aktif atau terkunci', () => {
+        render(
+            <PerjanjianKinerjaEditModal
+                isOpen={true}
+                onClose={() => {}}
+                pk={samplePk}
+                isJadwalAktif={true}
+            />
+        );
+
+        expect(screen.getByText('Jadwal Tahunan Aktif / Terkunci')).toBeTruthy();
+        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+    });
+
+    it('menyembunyikan banner informasi saat jadwal tahunan belum aktif / tidak terkunci', () => {
+        render(
+            <PerjanjianKinerjaEditModal
+                isOpen={true}
+                onClose={() => {}}
+                pk={samplePk}
+                isJadwalAktif={false}
+            />
+        );
+
+        expect(screen.queryByText('Jadwal Tahunan Aktif / Terkunci')).toBeNull();
+    });
 });
+

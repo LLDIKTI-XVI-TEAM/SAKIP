@@ -89,6 +89,11 @@ class RenstraPk extends Model
             })->exists();
     }
 
+    public function isJadwalTerkunci(): bool
+    {
+        return $this->isJadwalAktif();
+    }
+
     public function getMorphClass(): string
     {
         return 'renstra_pk';

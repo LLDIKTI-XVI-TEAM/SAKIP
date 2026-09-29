@@ -52,6 +52,8 @@ export interface RenstraPkSummary {
     jadwal_tahunan?: {
         id: string;
         status: string;
+        is_terkunci?: boolean;
+        activated_at?: string | null;
     } | null;
 }
 

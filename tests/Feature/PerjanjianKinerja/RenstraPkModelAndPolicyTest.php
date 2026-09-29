@@ -4,6 +4,7 @@ namespace Tests\Feature\PerjanjianKinerja;
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Berkas;
+use App\Models\JadwalTahunan;
 use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -11,6 +12,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Policies\RenstraPkPolicy;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -269,5 +271,170 @@ class RenstraPkModelAndPolicyTest extends TestCase
         // User dengan role aktif mendapatkan pk = true
         $capabilitiesSuperadmin = $method->invoke($middleware, $superadmin);
         $this->assertTrue($capabilitiesSuperadmin['pk']);
+    }
+
+    public function test_migration_backfills_null_timestamps_and_enforces_not_null(): void
+    {
+        $user = User::factory()->create(['status' => 'aktif']);
+        $renstra = Renstra::create([
+            'kode' => 'REN-TS-TEST',
+            'nama' => 'Renstra Timestamp Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+            'created_by' => $user->id,
+        ]);
+
+        $migration = require database_path('migrations/2026_09_28_000001_migrate_renstra_pk_berkasable_type.php');
+
+        // Rollback migrasi sementara untuk menguji skenario legacy dengan kolom timestamp nullable
+        $migration->down();
+
+        $pk1Id = (string) Str::uuid();
+        $pk2Id = (string) Str::uuid();
+
+        // Baris legacy 1: created_at & updated_at NULL, memiliki riwayat audit renstra_pk.buat
+        DB::table('renstra_pk')->insert([
+            'id' => $pk1Id,
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-LEGACY-01',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $user->id,
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
+
+        $auditTime = Carbon::parse('2026-01-16 08:30:00');
+        DB::table('audit_log')->insert([
+            'id' => (string) Str::uuid(),
+            'tindakan' => 'renstra_pk.buat',
+            'objek_tipe' => 'renstra_pk',
+            'objek_id' => $pk1Id,
+            'actor_type' => 'user',
+            'actor_id' => $user->id,
+            'sumber' => 'manual',
+            'waktu' => $auditTime,
+        ]);
+
+        // Baris legacy 2: created_at & updated_at NULL, tanpa riwayat audit (fallback ke tanggal_pk)
+        DB::table('renstra_pk')->insert([
+            'id' => $pk2Id,
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-LEGACY-02',
+            'tanggal_pk' => '2027-02-10',
+            'created_by' => $user->id,
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
+
+        // Jalankan migrasi
+        $migration->up();
+
+        $row1 = DB::table('renstra_pk')->where('id', $pk1Id)->first();
+        $this->assertNotNull($row1->created_at);
+        $this->assertNotNull($row1->updated_at);
+        $this->assertSame($auditTime->toDateTimeString(), Carbon::parse($row1->created_at)->toDateTimeString());
+
+        $row2 = DB::table('renstra_pk')->where('id', $pk2Id)->first();
+        $this->assertNotNull($row2->created_at);
+        $this->assertNotNull($row2->updated_at);
+        $this->assertSame('2027-02-10 00:00:00', Carbon::parse($row2->created_at)->toDateTimeString());
+
+        // Verifikasi bahwa kolom sekarang NOT NULL di database level (menolak insert NULL)
+        $this->expectException(QueryException::class);
+        DB::table('renstra_pk')->insert([
+            'id' => (string) Str::uuid(),
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'nomor_pk' => 'PK-FAIL-NULL-TS',
+            'tanggal_pk' => '2028-01-01',
+            'created_by' => $user->id,
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
+    }
+
+    public function test_jadwal_tahunan_status_and_is_terkunci_behavior(): void
+    {
+        $user = User::factory()->create(['status' => 'aktif']);
+        $renstra = Renstra::create([
+            'kode' => 'REN-JADWAL',
+            'nama' => 'Renstra Jadwal Test',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+            'created_by' => $user->id,
+        ]);
+
+        // Skenario 1: Status draft dan activated_at null -> belum aktif, tidak terkunci
+        $jadwalDraft = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2025,
+            'penutupan' => '2025-12-31',
+            'status' => 'draft',
+            'activated_at' => null,
+            'created_by' => $user->id,
+        ]);
+        $this->assertSame('draft', $jadwalDraft->status);
+        $this->assertFalse($jadwalDraft->is_terkunci);
+
+        // Skenario 2: Status aktif -> terkunci
+        $jadwalAktif = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+            'created_by' => $user->id,
+        ]);
+        $this->assertSame('aktif', $jadwalAktif->status);
+        $this->assertTrue($jadwalAktif->is_terkunci);
+
+        // Skenario 3: Status ditutup -> terkunci
+        $jadwalDitutup = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'penutupan' => '2027-12-31',
+            'status' => 'ditutup',
+            'activated_at' => now()->subMonths(6),
+            'created_by' => $user->id,
+        ]);
+        $this->assertSame('ditutup', $jadwalDitutup->status);
+        $this->assertTrue($jadwalDitutup->is_terkunci);
+
+        // Skenario 4: activated_at tidak null meskipun status draft -> tetap terkunci
+        $jadwalPernahAktif = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'penutupan' => '2028-12-31',
+            'status' => 'draft',
+            'activated_at' => now()->subDays(10),
+            'created_by' => $user->id,
+        ]);
+        $this->assertSame('draft', $jadwalPernahAktif->status);
+        $this->assertTrue($jadwalPernahAktif->is_terkunci);
+
+        // Uji relasi dan guard RenstraPk::isJadwalTerkunci()
+        $pk = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-LOCK-TEST',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $user->id,
+        ]);
+        $this->assertTrue($pk->isJadwalTerkunci());
+        $this->assertTrue($pk->isJadwalAktif());
+
+        $pkDraft = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2025,
+            'nomor_pk' => 'PK-DRAFT-TEST',
+            'tanggal_pk' => '2025-01-15',
+            'created_by' => $user->id,
+        ]);
+        $this->assertFalse($pkDraft->isJadwalTerkunci());
+        $this->assertFalse($pkDraft->isJadwalAktif());
     }
 }
