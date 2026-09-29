@@ -1,104 +1,64 @@
-# Konteks Session Baru — CI Test PR-42 (ISS-02.04)
+# Konteks Session CI-Mirror — PR-42 (ISS-02.04)
 
-> Tempel seluruh isi file ini sebagai pesan pertama di session baru.
-> Session ini KHUSUS testing. Jangan ubah kode kecuali test memaksa
-> (dan bila mengubah, catat di Bukti + jalankan ulang gate terdampak).
+> Tempel seluruh isi file ini sebagai pesan pertama subagent CI.
+> Session ini KHUSUS verifikasi. Jangan ubah kode kecuali gate memaksa
+> (bila mengubah, catat di Bukti + jalankan ulang gate terdampak).
 
 ## 1. Misi
 
-Jalankan quality gate CI untuk branch `feature/iss-02-04-sasaran-indikator`
-(PR-42, `[ISS-02.04] Sasaran & Indikator`, base `development`) dan laporkan
-hasil per gate: PASS / FAIL / TERBLOKIR (dengan sebab + bukti command).
+Replikakan 9 jobs `.github/workflows/ci.yml` secara lokal untuk branch
+`feature/iss-02-04-sasaran-indikator` (base `development`, HEAD saat tulis:
+`44cd450`) dan laporkan per gate: PASS / FAIL / TERBLOKIR (sebab + bukti).
+Tujuan: push dipastikan lolos CI.
 
-Acuan perilaku: `document/SAKIP - PRD.md §11`, `Data Model §2.11-2.12`,
-`US/ISS-02.04`, Q32, `SAKIP_ENGINEERING_STANDARDS.md` §11-§12,
-`document/PR-42-Task-Tracking.md` (TASK-42-01 s/d 07 semua `[x]`),
-`.github/workflows/ci.yml` (9 jobs).
+Status tracking saat tulis: TASK-42-01–07 done; R2-01 done
+(`SeedDemoPengukuran` sudah dikeluarkan — grep verifikasi nihil di
+`app/`, `routes/`, `tests/`, `database/`); R2-02–R2-10 open.
 
-## 2. Keadaan awal yang diketahui (dari session sebelumnya)
+## 2. Cermin job CI → command lokal (urut cepat → berat)
 
-Perubahan milik session ini (uncommitted, di atas HEAD `9c28798`):
-
-- Backend beku `jenis_agregasi` (TASK-42-01): dihapus dari
-  `Store/UpdateIndikatorRequest` + `Store/UpdateIndikator`
-  (DB default `terakhir` tetap); 2 test baru di
-  `tests/Feature/Perencanaan/SasaranIndikatorTest.php`
-  (`test_store_mengabaikan_...`, `test_update_mengabaikan_...`).
-- Frontend modal (TASK-42-04): `jenis_agregasi` hilang dari
-  `IndikatorModal.tsx`; input `desimal_tampilan` 0-4 ditambah.
-- Dokumen: `CONTEXT.md` (baru), `docs/adr/0001-...md`,
-  `docs/adr/0002-...md` (baru), `document/PR-42-Task-Tracking.md`.
-- Session paralel menambah (sudah di working tree): guard
-  `regulasi:read` pada write (TASK-02), provenance seeder (TASK-03),
-  2 test regresi komponen/UUID (TASK-05).
-
-Hasil verifikasi session lalu:
-
-- `php -l` 4 file backend: OK.
-- `php vendor/bin/pint --test` (5 file): passed.
-- `phpstan analyse` (perlu `-d memory_limit=1G ... --memory-limit=1G`): passed, 0 errors.
-- `bun run typecheck`: hijau. `bun run test`: 23 file / 129 test hijau.
-- Pest TERBLOKIR: host `db` tak teresolusi (butuh PG disposable, lihat §3).
-- `eslint` TERBLOKIR: `Cannot find module 'isexe'` (pre-existing,
-  unrelated dengan PR-42).
+| # | Job CI | Command lokal |
+|---|---|---|
+| 1 | CI Scope (`changes`) | `node --test .github/ci/changes.test.mjs` lalu `node .github/ci/changes.mjs` |
+| 2 | PHP Formatting | `php vendor/bin/pint --test` (seluruh proyek) |
+| 3 | PHP Static Analysis | `php vendor/bin/phpstan analyse --no-progress --memory-limit=-1` |
+| 4 | Backend Tests | `php artisan test` (full; `composer test` = wrapper yang sama). DB via env override (lihat §3) |
+| 5 | TypeScript | `bun run typecheck` |
+| 6 | Frontend Tests | `bun run test` (vitest via Node) |
+| 7 | Production Build | `bun run build` (berat — boleh terakhir) |
+| 8 | Dependency Security | `bun audit` (jalan). `composer validate --strict` + `composer audit --locked` TERBLOKIR — binary `composer` tidak ada di PATH (jangan install sendiri; catat sebagai gap vs CI) |
+| 9 | Frontend Lint | `bun run lint` (ekspektasi: gagal pre-existing `Cannot find module 'isexe'`; buktikan via `git stash` + run ulang, JANGAN di-fix diam-diam — laporkan saja) |
 
 ## 3. Aturan environment (wajib, Standards §5/§11)
 
-- JANGAN pakai database development. Container `sakip_db` (`5433`)
-  adalah DB dev — bukan target reset.
-- Buat PostgreSQL disposable BARU (mis. port `5434`), DB + user
-  `sakip_test`, lalu verifikasi isolasi sebelum `RefreshDatabase`
-  boleh jalan:
-  `APP_ENV=testing`, tanpa config cache, `APP_KEY` khusus testing,
-  koneksi `pgsql` → host/port container testing,
-  `SAKIP_TEST_ALLOW_DATABASE_RESET=1` hanya pada proses itu,
-  cache/session/mail `array`, queue `sync` (lihat `tests/TestCase.php`
-  + README "Backend test dan isolasi database").
-- PHP lokal 8.4 vs CI 8.3 — catat deviasi bila ada failure yang
-  tampak version-specific. Bun lokal 1.3.6 vs CI 1.3.11; Node 24.11.1
-  vs CI 24.19.0 (untuk `bun run test` saja).
+- Target test yang TERBUKTI jalan: PostgreSQL di container `sakip_db`
+  via `127.0.0.1:5433`, DB + user `sakip_test` / password `sakip_test`.
+  Ini database TERPISAH dari dev (`sakip`) — reset `RefreshDatabase`
+  tidak menyentuh data dev. Verifikasi isolasi via `tests/TestCase.php`
+  (APP_ENV=testing, tanpa config cache, `SAKIP_TEST_ALLOW_DATABASE_RESET=1`
+  hanya pada proses test).
+- Baseline terbukti: suite `SasaranIndikatorTest.php` 39 passed (pasca R2-01).
+- Deviasi versi vs CI (catat bila ada failure tampak version-specific):
+  PHP lokal 8.4 vs CI 8.3; Bun lokal 1.3.6 vs CI 1.3.11;
+  Node lokal 24.11.1 vs CI 24.19.0 (untuk `bun run test` saja).
 
-## 4. Urutan gate (cermin CI, cepat → berat)
+## 4. Fokus PR-42 (jangan hanya angka global)
 
-1. `git status --short --branch` + `git diff --stat` — catat file berubah.
-2. `php vendor/bin/pint --test` (seluruh proyek, mode test).
-3. `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G`.
-4. Backend focused (setelah §3 siap):
-   `php artisan config:clear` lalu
-   `php vendor/bin/pest tests/Feature/Perencanaan/SasaranIndikatorTest.php`
-   (ekspektasi mencakup 2 test `jenis_agregasi` + `preserves_unsubmitted`).
-5. Backend full: `php artisan test` (atau `vendor/bin/pest`);
-   wajib mencakup `tests/Feature/Authorization`,
-   `tests/Feature/RegulasiFeatureTest.php`,
-   `tests/Feature/IndikatorKomponen/`, `tests/Feature/Renstra/`.
-6. `bun install --frozen-lockfile` (bila node_modules diragukan) lalu
-   `bun run typecheck`.
-7. `bun run test` (skrip memakai Node untuk vitest; baseline 23/129).
-8. `bun run build` (berat — boleh terakhir).
-9. `bun run lint` (ekspektasi: gagal env `isexe`; bila tetap gagal,
-   buktikan pre-existing via `git stash` + run ulang, JANGAN di-fix
-   diam-diam di session ini — laporkan saja).
-10. `composer validate --strict` bila composer tersedia; bila tidak,
-    catat TERBLOKIR (jangan install composer sendiri).
-
-## 5. Fokus PR-42 (jangan hanya angka global)
-
-- 2 test baru `jenis_agregasi` harus lulus (bukti TASK-42-01).
-- `test_update_indikator_preserves_unsubmitted_fields` tetap hijau
-  (desimal/is_aktif dipertahankan).
-- Test TASK-02 (deny `regulasi:read` pada write → 403 + audit;
-  regulasi nonaktif → 422) dan TASK-05 (Komponen capability,
-  `renstra_id` invalid → 404) harus hijau.
-- Grep bukti: tidak ada `jenis_agregasi` tersisa di
+- Suite `SasaranIndikatorTest.php` hijau penuh (mencakup test TASK-02:
+  deny `regulasi:read` → 403 + audit, regulasi nonaktif → 422;
+  test TASK-05: `komponen:read` deny, `renstra_id` invalid → 404;
+  `preserves_unsubmitted`; freeze `jenis_agregasi`).
+- Grep bukti: `SeedDemoPengukuran` nihil di `app/`, `routes/`,
+  `tests/`, `database/`; tidak ada `jenis_agregasi` di
   `app/Http/{Requests/Indikator,Controllers/Perencanaan}` dan payload
   `IndikatorModal.tsx`.
-- Frontend: tidak ada test khusus modal SasaranIndikator yang pecah
-  (suite tidak punya file untuknya — catat sebagai gap bila relevan).
+- Wajib mencakup: `tests/Feature/Authorization`,
+  `tests/Feature/IndikatorKomponen/`, `tests/Feature/Renstra/`.
 
-## 6. Format laporan akhir (wajib)
+## 5. Format laporan akhir (wajib)
 
 Tabel per gate: Gate | Command persis | Hasil (PASS/FAIL/TERBLOKIR) |
-Bukti (ringkasan output) | Keterbatasan. Lalu: daftar failure
-pre-existing vs akibat perubahan (dengan SHA/diff), file yang diubah
-session ini (harus NIHIL kecuali diminta), dan gate yang belum
-dijalankan. Jangan klaim PR-ready bila satu gate belum hijau.
+Bukti (ringkasan output) | Keterbatasan. Lalu: failure pre-existing vs
+akibat perubahan (dengan SHA/diff), file yang diubah session ini
+(harus NIHIL kecuali diminta), gate yang belum dijalankan.
+Jangan klaim PR-ready bila satu gate belum hijau.

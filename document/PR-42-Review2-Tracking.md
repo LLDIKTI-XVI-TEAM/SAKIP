@@ -171,6 +171,13 @@ migrasi lama. Ikuti Standards §5. Update checkbox + Bukti.
      sunset `is_aktif` selesai).
 - DoD: grep `is_aktif` nihil di `app/`+`resources/js` (di luar
   migrasi lama); guard-test hijau; `pint`+`phpstan` hijau.
+- Temuan CI lokal SHA `44cd450` (subagent ses_f1248c268, PG disposable
+  5434, `sakip_db` tak tersentuh): PHPStan 1 error
+  `IndexSasaranIndikator.php:92` (`$is_aktif` undefined); backend
+  minimal 116 passed/53 failed — dominan `null tahun_mulai_berlaku`
+  + `is_aktif does not exist` (fixture seeder menulis kolom lama).
+  Frontend hijau penuh (typecheck, 129 test, build). Ini daftar
+  reader konkret yang WAJIB disentuh task ini (tak terbatas pada ini).
 - Selesai: — | Bukti: —
 
 ```text

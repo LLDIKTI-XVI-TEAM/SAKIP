@@ -20,6 +20,10 @@ dikerjakan session lain, lalu statusnya dicatat di sini.
 - Satu session = satu task. Jangan campur eksekusi ke main session.
 - Setiap selesai 1 task: session pelaksana update file handoff;
   main session update tabel registry ini.
+- Setiap task selesai → main session spawn subagent CI-mirror dengan
+  `document/PR-42-CI-Test-Context.md` ditempel sebagai pesan pertama;
+  push hanya setelah laporan CI-mirror hijau (atau sisa gap tercatat
+  eksplisit sebagai TERBLOKIR/pre-existing).
 - Standar kode selalu `document/SAKIP_ENGINEERING_STANDARDS.md`;
   glosarium selalu `CONTEXT.md`.
 
@@ -35,7 +39,7 @@ dikerjakan session lain, lalu statusnya dicatat di sini.
 | PR-42-06 | Verifikasi demo command | `document/PR-42-Task-Tracking.md` | done | session paralel | — |
 | PR-42-07 | ADR provenance + lintas-Renstra | `document/PR-42-Task-Tracking.md` | done | main session | `docs/adr/0001,0002` |
 | PR-42-08 | Refactor Perencanaan ke Actions | `document/PR-42-Task-Tracking.md` | done | main session | pint + phpstan passed |
-| PR-42-CI | CI test semua perubahan | `document/PR-42-CI-Test-Context.md` | open | — | tempel isi file ke session baru |
+| PR-42-CI | CI test semua perubahan | `document/PR-42-CI-Test-Context.md` | run 1 done (SHA `44cd450`): BELUM PR-ready | subagent ses_f1248c268 | hijau: pint, typecheck, 129 FE test, build, bun audit; merah: phpstan is_aktif + backend 53 failed (tunggu R2-04c); terblokir: eslint isexe, composer audit |
 | R2-01 | [BLOCKER] Keluarkan SeedDemo dari PR-42 | `document/PR-42-Review2-Tracking.md` | done, belum commit | subagent ses_f126e5049 | grep nihil + pint/phpstan passed; Pest klaim paralel (belum re-verifikasi); commit menyusul bila diminta |
 | R2-04 | Rekonsiliasi lifecycle (tahap 1 analisis) | `document/PR-42-Review2-Tracking.md` | tahap 1 done, 7/7 keputusan user FINAL | subagent ses_f126e5029 | lanjut R2-04b → R2-04c |
 | R2-04b | Lifecycle: migrasi skema + model | `document/PR-42-Review2-Tracking.md` | open | — | hanya migrasi baru + model |
