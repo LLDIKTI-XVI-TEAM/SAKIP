@@ -1736,6 +1736,250 @@ class SasaranIndikatorTest extends TestCase
         $this->assertTrue($dbThrew, 'Trigger sasaran_strategis_renstra_guard harus melempar 23514.');
     }
 
+    public function test_store_mengabaikan_jenis_agregasi_dari_request(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-AGGR-IGN',
+            'deskripsi' => 'Sasaran Agregasi Freeze',
+            'urutan' => 1,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-AGGR-IGN',
+            'nama' => 'Indikator Agregasi Diabaikan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'jenis_agregasi' => 'formula_acak',
+        ]);
+
+        $response->assertRedirect();
+        $indikator = IndikatorKinerja::where('kode', 'IKU-AGGR-IGN')->firstOrFail();
+        $this->assertNotSame('formula_acak', $indikator->jenis_agregasi, 'jenis_agregasi dari request harus diabaikan (beku MVP)');
+    }
+
+    public function test_update_mengabaikan_jenis_agregasi_dari_request(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-AGGR-UPD',
+            'deskripsi' => 'Sasaran Agregasi Update',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-AGGR-UPD',
+            'nama' => 'Nama Awal',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'jenis_agregasi' => 'rata_rata',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-AGGR-UPD',
+            'nama' => 'Nama Baru',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'jenis_agregasi' => 'diubah_acak',
+        ]);
+
+        $response->assertRedirect();
+        $indikator->refresh();
+        $this->assertSame('Nama Baru', $indikator->nama);
+        $this->assertSame('rata_rata', $indikator->jenis_agregasi, 'jenis_agregasi harus dipertahankan dan tidak diubah dari request');
+    }
+
+    public function test_regulasi_read_denied_blocks_store_and_update_with_audit(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-REG-GUARD',
+            'deskripsi' => 'Sasaran Regulasi Guard',
+            'urutan' => 1,
+        ]);
+
+        $indikatorExisting = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-GUARD-EXIST',
+            'nama' => 'Indikator Existing Tanpa Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        // Berikan explicit deny regulasi:read pada user perencanaan (tetap punya indikator:create/update)
+        $regulasiPermission = Permission::where('kode', 'regulasi:read')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $regulasiPermission->id,
+            'unit_id' => null,
+            'alasan' => 'Dilarang menautkan regulasi untuk pengujian guard Q3',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        // 1. Store dengan regulasi_id valid harus ditolak 403 + audit
+        $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-DENIED',
+            'nama' => 'Indikator Tebak Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+        ]);
+
+        $responseStore->assertForbidden();
+        $this->assertDatabaseMissing('indikator_kinerjas', ['kode' => 'IKU-REG-DENIED']);
+
+        $auditBuat = AuditLog::where('tindakan', 'indikator.buat_ditolak')->latest('waktu')->first();
+        $this->assertNotNull($auditBuat);
+        $this->assertSame('regulasi:read', $auditBuat->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $auditBuat->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('membaca data regulasi', $auditBuat->alasan ?? '');
+
+        // 2. Update dengan regulasi_id valid harus ditolak 403 + audit
+        $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikatorExisting->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-GUARD-EXIST',
+            'nama' => 'Indikator Existing Coba Taut Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+        ]);
+
+        $responseUpdate->assertForbidden();
+        $this->assertNull($indikatorExisting->fresh()->regulasi_id);
+
+        $auditUbah = AuditLog::where('tindakan', 'indikator.ubah_ditolak')
+            ->where('objek_id', (string) $indikatorExisting->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditUbah);
+        $this->assertSame('regulasi:read', $auditUbah->dasar_izin['permission'] ?? null);
+        $this->assertSame('ditolak', $auditUbah->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('membaca data regulasi', $auditUbah->alasan ?? '');
+    }
+
+    public function test_regulasi_nonaktif_ditolak_validasi(): void
+    {
+        $regulasiNonaktif = Regulasi::create([
+            'jenis' => 'permen',
+            'nomor' => '99/2024',
+            'tahun' => 2024,
+            'tentang' => 'Regulasi Nonaktif Untuk Pengujian',
+            'aktif' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-REG-AKTIF',
+            'deskripsi' => 'Sasaran Regulasi Aktif Guard',
+            'urutan' => 1,
+        ]);
+
+        // 1. Store dengan regulasi nonaktif ditolak 422
+        $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-NONAKTIF',
+            'nama' => 'Indikator Regulasi Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $regulasiNonaktif->id,
+        ]);
+
+        $responseStore->assertSessionHasErrors(['regulasi_id']);
+        $this->assertDatabaseMissing('indikator_kinerjas', ['kode' => 'IKU-REG-NONAKTIF']);
+
+        // 2. Update dengan regulasi nonaktif ditolak 422
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-AKTIF-EDIT',
+            'nama' => 'Indikator Edit Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-REG-AKTIF-EDIT',
+            'nama' => 'Indikator Edit Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $regulasiNonaktif->id,
+        ]);
+
+        $responseUpdate->assertSessionHasErrors(['regulasi_id']);
+        $this->assertNull($indikator->fresh()->regulasi_id);
+    }
+
+    public function test_komponen_read_denied_hides_capability_and_blocks_route(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-KOMP-DENY',
+            'deskripsi' => 'Sasaran Komponen Deny Test',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-KOMP-DENY',
+            'nama' => 'Indikator Rasio Untuk Uji Komponen Read',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'is_aktif' => true,
+        ]);
+
+        // Berikan explicit deny komponen:read pada user perencanaan
+        $komponenPermission = Permission::where('kode', 'komponen:read')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $komponenPermission->id,
+            'unit_id' => null,
+            'alasan' => 'Dilarang membaca komponen untuk pengujian regresi Q10',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        // 1. Props index tidak lagi mengklaim can.komponen_read=true
+        $responseIndex = $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator');
+        $responseIndex->assertOk();
+        $responseIndex->assertInertia(fn (Assert $page) => $page
+            ->where('can.komponen_read', false)
+        );
+
+        // 2. Route komponen langsung tetap ditolak 403 sesuai kontrak
+        $responseKomponen = $this->actingAs($this->perencanaan)->get("/indikator/{$indikator->id}/komponen");
+        $responseKomponen->assertForbidden();
+    }
+
     private function buatUserDenganRole(string $roleName, string $email): User
     {
         $role = Role::where('kode', $roleName)->firstOrFail();

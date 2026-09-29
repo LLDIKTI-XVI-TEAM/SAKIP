@@ -76,8 +76,7 @@ class UpdateIndikatorRequest extends FormRequest
             'presisi' => ['nullable', 'integer', 'between:0,4'],
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
-            'jenis_agregasi' => ['nullable', 'string', 'max:50'],
-            'regulasi_id' => ['nullable', 'uuid', 'exists:regulasi,id'],
+            'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
             'is_aktif' => ['nullable', 'boolean'],
         ];
     }
@@ -103,7 +102,7 @@ class UpdateIndikatorRequest extends FormRequest
             'arah.in' => 'Arah penilaian harus berupa naik_baik atau turun_baik.',
             'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
             'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
-            'regulasi_id.exists' => 'Rujukan regulasi tidak valid.',
+            'regulasi_id.exists' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
         ];
     }
 }

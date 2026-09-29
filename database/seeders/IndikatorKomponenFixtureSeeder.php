@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\Renstra;
+use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
@@ -13,6 +14,13 @@ use Illuminate\Support\Str;
 
 class IndikatorKomponenFixtureSeeder extends Seeder
 {
+    /**
+     * Menanam fixture IKU-3 dan IKU-8 beserta komponennya.
+     *
+     * Provenance jujur: created_by_role diturunkan dari peran aktual creator,
+     * bukan hardcode. Bila creator belum punya peran, peran perencanaan
+     * dilekatkan dulu agar jejak audit mencerminkan penugasan nyata.
+     */
     public function run(): void
     {
         $creator = User::first() ?? User::create([
@@ -22,6 +30,31 @@ class IndikatorKomponenFixtureSeeder extends Seeder
             'email' => 'perencanaan@sakip.local',
             'status' => 'aktif',
         ]);
+
+        $creator->loadMissing('roles');
+
+        if ($creator->roles->isEmpty()) {
+            $perencanaanRole = Role::where('kode', 'perencanaan')->where('aktif', true)->first();
+
+            if ($perencanaanRole !== null) {
+                $creator->roles()->attach($perencanaanRole->id, [
+                    'id' => (string) Str::uuid(),
+                    // Kolom user_roles.sumber_pemberian hanya mengizinkan
+                    // manual|sso_onboarding|bootstrap (CHECK DB), sehingga
+                    // penugasan fixture dicatat sebagai manual oleh diri sendiri.
+                    'sumber_pemberian' => 'manual',
+                    'diberikan_oleh' => $creator->id,
+                    'created_at' => now(),
+                ]);
+                $creator->load('roles');
+            }
+        }
+
+        $creatorRole = $creator->roles->first()?->kode;
+
+        if ($creatorRole === null) {
+            throw new \LogicException('Seeder membutuhkan minimal satu peran aktif pada katalog (jalankan AccessCatalogSeeder dulu).');
+        }
 
         $unit = Unit::first() ?? Unit::create([
             'nama' => 'Bagian Perencanaan dan Kerjasama',
@@ -59,7 +92,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
                 'presisi' => 2,
                 'desimal_tampilan' => 2,
                 'is_aktif' => true,
-                'created_by_role' => 'perencanaan',
+                'created_by_role' => $creatorRole,
             ]
         );
 
@@ -102,7 +135,7 @@ class IndikatorKomponenFixtureSeeder extends Seeder
                 'presisi' => 2,
                 'desimal_tampilan' => 2,
                 'is_aktif' => true,
-                'created_by_role' => 'perencanaan',
+                'created_by_role' => $creatorRole,
             ]
         );
 

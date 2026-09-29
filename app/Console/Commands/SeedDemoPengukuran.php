@@ -39,14 +39,14 @@ class SeedDemoPengukuran extends Command
 
         try {
             // 1. Ambil Pengguna Aktif (utamakan yang memiliki peran perencanaan atau superadmin)
+            // Fail-closed: tanpa fallback pengguna tanpa peran agar provenance PIC tidak dipalsukan.
             $user = User::where('email', 'dayensite@gmail.com')
                 ->where('status', 'aktif')
                 ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
                 ->first()
                 ?? User::where('status', 'aktif')
                     ->whereHas('roles', fn ($q) => $q->whereIn('kode', ['perencanaan', 'superadmin']))
-                    ->first()
-                ?? User::where('status', 'aktif')->first();
+                    ->first();
 
             if (! $user) {
                 $this->error('Pengguna aktif dengan wewenang yang sesuai tidak ditemukan di sistem.');
@@ -112,7 +112,12 @@ class SeedDemoPengukuran extends Command
                 DB::rollBack();
 
                 return self::FAILURE;
-            } else {
+            } elseif ($jadwal->renstra_pk_id !== $pk->id) {
+                // Keputusan TASK-42-06: PERTAHANKAN sinkronisasi FK ke PK tahun berjalan
+                // (keduanya firstOrCreate per renstra+tahun sehingga pasangannya tunggal),
+                // tetapi hanya bila berbeda agar tidak ada tulis ulang yang sia-sia.
+                // Jadwal ditutup sudah ditolak di atas, jadi baris yang disentuh di sini
+                // selalu jadwal aktif yang masih boleh dikonfigurasi.
                 $jadwal->update(['renstra_pk_id' => $pk->id]);
             }
 

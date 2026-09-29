@@ -51,7 +51,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         presisi: 2,
         desimal_tampilan: 2,
         wajib_catatan: false,
-        jenis_agregasi: 'terakhir',
         is_aktif: true,
         regulasi_id: '' as string,
     });
@@ -82,7 +81,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         presisi: indikator.presisi ?? 2,
                         desimal_tampilan: indikator.desimal_tampilan ?? 2,
                         wajib_catatan: Boolean(indikator.wajib_catatan),
-                        jenis_agregasi: indikator.jenis_agregasi ?? 'terakhir',
                         is_aktif: Boolean(indikator.is_aktif),
                         regulasi_id: indikator.regulasi_id ?? '',
                     });
@@ -100,7 +98,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         presisi: 2,
                         desimal_tampilan: 2,
                         wajib_catatan: false,
-                        jenis_agregasi: 'terakhir',
                         is_aktif: true,
                         regulasi_id: '',
                     });
@@ -255,7 +252,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <Select
                             id="indikator_arah"
@@ -293,6 +290,19 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             value={data.presisi}
                             onChange={(e) => setData('presisi', parseInt(e.target.value, 10) || 0)}
                             error={errors.presisi}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <Input
+                            id="indikator_desimal_tampilan"
+                            label="Desimal Tampilan"
+                            type="number"
+                            min={0}
+                            max={4}
+                            value={data.desimal_tampilan}
+                            onChange={(e) => setData('desimal_tampilan', parseInt(e.target.value, 10) || 0)}
+                            error={errors.desimal_tampilan}
                             required
                         />
                     </div>
