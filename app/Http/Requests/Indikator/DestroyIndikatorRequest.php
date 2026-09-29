@@ -32,9 +32,9 @@ class DestroyIndikatorRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'alasan.required' => 'Alasan penghapusan wajib diisi.',
-            'alasan.min' => 'Alasan penghapusan minimal 10 karakter.',
-            'alasan.max' => 'Alasan penghapusan maksimal 1000 karakter.',
+            'alasan.required' => 'Alasan pengarsipan wajib diisi.',
+            'alasan.min' => 'Alasan pengarsipan minimal 10 karakter.',
+            'alasan.max' => 'Alasan pengarsipan maksimal 1000 karakter.',
         ];
     }
 }

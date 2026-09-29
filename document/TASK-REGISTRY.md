@@ -43,8 +43,9 @@ dikerjakan session lain, lalu statusnya dicatat di sini.
 | R2-01 | [BLOCKER] Keluarkan SeedDemo dari PR-42 | `document/PR-42-Review2-Tracking.md` | done, belum commit | subagent ses_f126e5049 | grep nihil + pint/phpstan passed; Pest klaim paralel (belum re-verifikasi); commit menyusul bila diminta |
 | R2-04 | Rekonsiliasi lifecycle (tahap 1 analisis) | `document/PR-42-Review2-Tracking.md` | tahap 1 done, 7/7 keputusan user FINAL | subagent ses_f126e5029 | lanjut R2-04b → R2-04c |
 | R2-04b | Lifecycle: migrasi skema + model | `document/PR-42-Review2-Tracking.md` | open | — | hanya migrasi baru + model |
-| R2-04c | Lifecycle: reader/guard/arsip + ADR | `document/PR-42-Review2-Tracking.md` | open | — | setelah R2-04b |
-| R2-02 | Pindah-unit endpoint khusus (backend) | `document/PR-42-Review2-Tracking.md` | open | — | tergantung R2-04 |
+| R2-04c | Lifecycle: reader/guard/arsip + ADR | `document/PR-42-Review2-Tracking.md` | done, jawaban user FINAL, belum commit | subagent ses_f123afbaff | 1) hanya create baru diblokir 2) reaktivasi = BACKLOG-01 3) backfill manual wajib (prosedur di migrasi) |
+| BACKLOG-01 | Alur reaktivasi arsip→aktif | — (issue berikutnya, di luar PR-42) | open | — | diputuskan 2026-09-29, belum dipecah |
+| R2-02 | Pindah-unit endpoint khusus (backend) | `document/PR-42-Review2-Tracking.md` | done, 5 OPEN QUESTION, belum commit | subagent ses_f122752eaf | PATCH pindah-unit + PUT tolak unit beda; pint/phpstan passed |
 | R2-03 | Pindah-unit UI terpisah | `document/PR-42-Review2-Tracking.md` | open | — | setelah R2-02 |
 | R2-05 | Re-auth konsisten semua mutation | `document/PR-42-Review2-Tracking.md` | open | — | — |
 | R2-06 | Design System tokens | `document/PR-42-Review2-Tracking.md` | open | — | — |

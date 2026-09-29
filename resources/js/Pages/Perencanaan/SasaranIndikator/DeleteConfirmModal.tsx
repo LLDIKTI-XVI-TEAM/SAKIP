@@ -26,15 +26,15 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
     const isSasaran = target.type === 'sasaran';
     const title = isSasaran
         ? `Hapus Sasaran Strategis [${(target.item as SasaranStrategisItem).kode}]?`
-        : `Hapus/Nonaktifkan Indikator [${(target.item as IndikatorKinerjaItem).kode}]?`;
+        : `Arsipkan Indikator [${(target.item as IndikatorKinerjaItem).kode}]?`;
 
     const description = isSasaran
         ? `Tindakan ini akan menghapus sasaran strategis "${(target.item as SasaranStrategisItem).kode}". Perhatian: Sasaran yang memiliki indikator kinerja tidak dapat dihapus sebelum indikatornya dipindahkan atau dihapus.`
-        : `Tindakan ini akan menghapus indikator kinerja "${(target.item as IndikatorKinerjaItem).nama}". Jika indikator ini telah memiliki riwayat pengukuran atau target, sistem akan menonaktifkannya untuk menjaga integritas data.`;
+        : `Tindakan ini akan mengarsipkan indikator kinerja "${(target.item as IndikatorKinerjaItem).nama}". Indikator yang diarsipkan tetap tersimpan sebagai riwayat dan tidak lagi menerima target pengisian baru.`;
 
     const handleConfirm = () => {
         if (data.alasan.trim().length < 10) {
-            setReasonError('Alasan penghapusan minimal 10 karakter.');
+            setReasonError('Alasan pengarsipan minimal 10 karakter.');
             return;
         }
 
@@ -66,7 +66,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             reason={data.alasan}
             error={reasonError || errors.alasan}
             busy={processing}
-            confirmLabel={isSasaran ? 'Hapus Sasaran' : 'Hapus / Nonaktifkan'}
+            confirmLabel={isSasaran ? 'Hapus Sasaran' : 'Arsipkan Indikator'}
             destructive
             onReasonChange={(reason) => {
                 setData('alasan', reason);

@@ -22,6 +22,7 @@ export interface RegulasiOption {
 
 export type IndikatorArah = 'naik_baik' | 'turun_baik';
 export type IndikatorTipePerhitungan = 'manual' | 'rasio_persen' | 'penjumlahan';
+export type IndikatorStatus = 'aktif' | 'arsip';
 
 export interface IndikatorKinerjaItem {
     id: string;
@@ -39,7 +40,7 @@ export interface IndikatorKinerjaItem {
     desimal_tampilan?: number;
     wajib_catatan: boolean;
     jenis_agregasi?: string;
-    is_aktif: boolean;
+    status: IndikatorStatus;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
 }

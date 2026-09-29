@@ -40,9 +40,9 @@ class JenisBerkasController extends Controller
 
         $referencedIndikatorIds = JenisBerkas::whereNotNull('indikator_id')->pluck('indikator_id')->all();
 
-        $indikators = IndikatorKinerja::where('is_aktif', true)
+        $indikators = IndikatorKinerja::where('status', 'aktif')
             ->orWhereIn('id', $referencedIndikatorIds)
-            ->select('id', 'kode', 'nama', 'is_aktif')
+            ->select('id', 'kode', 'nama', 'status')
             ->orderBy('kode')
             ->get();
 

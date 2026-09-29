@@ -462,13 +462,13 @@ class RegulasiService
             ->lockForUpdate()
             ->get();
         $indikatorKinerjas = $regulasi->indikatorKinerjas()
-            ->select(['id', 'is_aktif'])
+            ->select(['id', 'status'])
             ->lockForUpdate()
             ->get();
 
         return [
             'jumlah_renstra_aktif' => $renstras->where('is_aktif', true)->count(),
-            'jumlah_indikator_aktif' => $indikatorKinerjas->where('is_aktif', true)->count(),
+            'jumlah_indikator_aktif' => $indikatorKinerjas->where('status', 'aktif')->count(),
         ];
     }
 

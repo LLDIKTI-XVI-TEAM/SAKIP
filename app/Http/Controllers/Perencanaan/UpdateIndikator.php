@@ -24,7 +24,6 @@ class UpdateIndikator extends Controller
             $actor,
             $indikator,
             $request->validated(),
-            $request->only(['alasan_pindah_unit', 'alasan']),
         );
         $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
 

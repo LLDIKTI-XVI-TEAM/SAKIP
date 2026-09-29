@@ -4,7 +4,6 @@ namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
-use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
@@ -25,17 +24,16 @@ class UpdateIndikator
      *
      * Seperti StoreIndikator: izin dievaluasi ulang di dalam transaksi
      * terkunci, `nilaiLama` diambil dari baris terkunci (anti lost-update),
-     * kedua Sasaran (lama dan tujuan) dikunci deterministik terurut agar
-     * pemindahan lintas Renstra tertolak sebelum mutasi (Q6/ADR 0002), dan
-     * pindah unit tujuan wajib aktif + alasan ≥10 karakter + audit
-     * `indikator.pindah_unit` terpisah (Q2). Kolom `jenis_agregasi` beku MVP
-     * dan tidak pernah ditulis dari request (Q1/Q5).
-     *
-     * @param  array{alasan_pindah_unit?: mixed, alasan?: mixed}  $input  Input mentah untuk fallback alasan pindah.
+     * dan kedua Sasaran (lama dan tujuan) dikunci deterministik terurut agar
+     * pemindahan lintas Renstra tertolak sebelum mutasi. Jalur ini tidak
+     * boleh mengubah unit penanggung jawab: `unit_id` wajib sama dengan
+     * baris terkunci dan pemindahan unit hanya dilayani endpoint pindah-unit
+     * khusus. Kolom `jenis_agregasi` beku MVP dan tidak pernah ditulis dari
+     * request.
      */
-    public function handle(User $actor, IndikatorKinerja $indikator, array $validated, array $input): IndikatorKinerja
+    public function handle(User $actor, IndikatorKinerja $indikator, array $validated): IndikatorKinerja
     {
-        $result = DB::transaction(function () use ($indikator, $validated, $actor, $input) {
+        $result = DB::transaction(function () use ($indikator, $validated, $actor) {
             // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
             $kunci = $this->lockedActor->handle($actor, PermissionCodes::INDIKATOR_UPDATE);
             /** @var User|null $lockedActor */
@@ -103,37 +101,13 @@ class UpdateIndikator
                 ]);
             }
 
-            // 4. Kunci dan periksa status unit: unit lama tetap diizinkan walaupun nonaktif untuk edit biasa,
-            // namun perpindahan ke unit baru wajib berstatus aktif
-            $isUnitChanged = $lockedIndikator->unit_id !== $validated['unit_id'];
-
-            /** @var Unit|null $targetUnit */
-            $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
-            if (! $targetUnit) {
+            // 4. Edit umum tidak boleh memindahkan unit penanggung jawab.
+            // `unit_id` wajib sama dengan baris terkunci (anti-TOCTOU);
+            // pemindahan unit hanya lewat endpoint pindah-unit khusus.
+            if ($validated['unit_id'] !== $lockedIndikator->unit_id) {
                 throw ValidationException::withMessages([
-                    'unit_id' => 'Unit penanggung jawab tidak valid.',
+                    'unit_id' => 'Unit penanggung jawab tidak dapat diubah melalui edit umum. Gunakan endpoint pindah unit khusus untuk memindahkan indikator ke unit lain.',
                 ]);
-            }
-
-            if ($isUnitChanged && $targetUnit->status !== 'aktif') {
-                throw ValidationException::withMessages([
-                    'unit_id' => 'Unit penanggung jawab tujuan tidak valid atau sudah nonaktif.',
-                ]);
-            }
-
-            // 5. Validasi alasan perpindahan terhadap baris yang dikunci
-            $alasanPindah = null;
-            if ($isUnitChanged) {
-                $rawAlasanPindah = $validated['alasan_pindah_unit']
-                    ?? $validated['alasan']
-                    ?? $input['alasan_pindah_unit']
-                    ?? $input['alasan'];
-                $alasanPindah = is_string($rawAlasanPindah) ? trim($rawAlasanPindah) : '';
-                if ($alasanPindah === '' || mb_strlen($alasanPindah) < 10) {
-                    throw ValidationException::withMessages([
-                        'alasan_pindah_unit' => 'Perpindahan unit penanggung jawab memerlukan alasan minimal 10 karakter.',
-                    ]);
-                }
             }
 
             $updateData = [
@@ -163,39 +137,13 @@ class UpdateIndikator
             if (array_key_exists('wajib_catatan', $validated) && $validated['wajib_catatan'] !== null) {
                 $updateData['wajib_catatan'] = (bool) $validated['wajib_catatan'];
             }
-            if (array_key_exists('is_aktif', $validated) && $validated['is_aktif'] !== null) {
-                $updateData['is_aktif'] = (bool) $validated['is_aktif'];
-            }
 
             $lockedIndikator->update($updateData);
 
             $nilaiBaru = $lockedIndikator->withoutRelations()->toArray();
 
-            // 6. Audit perpindahan unit penanggung jawab jika unit berubah
-            if ($isUnitChanged) {
-                $oldUnitName = DB::table('unit')->where('id', $nilaiLama['unit_id'])->value('nama') ?? $nilaiLama['unit_id'];
-                $newUnitName = $targetUnit->nama ?? $nilaiBaru['unit_id'];
-
-                $this->auditLogger->catat(
-                    actor: $actor,
-                    tindakan: 'indikator.pindah_unit',
-                    objekTipe: 'indikator',
-                    objekId: (string) $lockedIndikator->id,
-                    nilaiLama: [
-                        'unit_id' => $nilaiLama['unit_id'],
-                        'unit_nama' => $oldUnitName,
-                    ],
-                    nilaiBaru: [
-                        'unit_id' => $nilaiBaru['unit_id'],
-                        'unit_nama' => $newUnitName,
-                    ],
-                    alasan: $alasanPindah,
-                    dasarIzin: $dasarIzin,
-                );
-            }
-
-            // 7. Audit perubahan data umum jika ada field non-unit yang berubah (delta unit dikeluarkan)
-            $generalFields = ['sasaran_strategis_id', 'regulasi_id', 'kode', 'nama', 'definisi_operasional', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'wajib_catatan', 'is_aktif'];
+            // 5. Audit perubahan data umum jika ada field yang berubah
+            $generalFields = ['sasaran_strategis_id', 'regulasi_id', 'kode', 'nama', 'definisi_operasional', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'wajib_catatan'];
             $hasGeneralChanges = false;
             foreach ($generalFields as $field) {
                 if (($nilaiLama[$field] ?? null) !== ($nilaiBaru[$field] ?? null)) {
@@ -212,9 +160,6 @@ class UpdateIndikator
 
                 $nilaiLamaUbah = $nilaiLama;
                 $nilaiBaruUbah = $nilaiBaru;
-                if ($isUnitChanged) {
-                    unset($nilaiLamaUbah['unit_id'], $nilaiBaruUbah['unit_id']);
-                }
 
                 $this->auditLogger->catat(
                     actor: $actor,

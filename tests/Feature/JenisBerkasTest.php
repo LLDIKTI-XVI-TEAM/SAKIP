@@ -73,7 +73,9 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Indikator Uji',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => true,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
     }
@@ -452,7 +454,9 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Indikator Lama Dinonaktifkan',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => false,
+            'status' => 'arsip',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
 
@@ -471,7 +475,7 @@ class JenisBerkasTest extends TestCase
             ->component('JenisBerkas/Index')
             ->has('indikators', fn (AssertableInertia $prop) => $prop
                 ->where('0.kode', 'I-NONAKTIF')
-                ->where('0.is_aktif', false)
+                ->where('0.status', 'arsip')
                 ->etc()
             )
         );
@@ -621,7 +625,9 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Indikator Nonaktif',
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => false,
+            'status' => 'arsip',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
 
@@ -647,7 +653,9 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Indikator Nonaktif A',
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => false,
+            'status' => 'arsip',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
 
@@ -658,7 +666,9 @@ class JenisBerkasTest extends TestCase
             'nama' => 'Indikator Nonaktif B',
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => false,
+            'status' => 'arsip',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
 

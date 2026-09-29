@@ -89,7 +89,7 @@ class IndexSasaranIndikator
                                 'desimal_tampilan' => $indikator->desimal_tampilan,
                                 'wajib_catatan' => $indikator->wajib_catatan,
                                 'jenis_agregasi' => $indikator->jenis_agregasi,
-                                'is_aktif' => $indikator->is_aktif,
+                                'status' => $indikator->status,
                                 'created_by_role' => $indikator->created_by_role,
                                 'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
                                     'id' => $indikator->regulasi->id,

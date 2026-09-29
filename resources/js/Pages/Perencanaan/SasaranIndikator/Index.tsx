@@ -359,7 +359,7 @@ export default function SasaranIndikatorIndex({
                                                         <tr
                                                             key={ind.id}
                                                             className={`hover:bg-soft/40 transition-colors ${
-                                                                !ind.is_aktif ? 'opacity-60 bg-soft/20' : ''
+                                                                ind.status === 'arsip' ? 'opacity-60 bg-soft/20' : ''
                                                             }`}
                                                         >
                                                             <td className="px-4 py-3 font-semibold text-ink align-top">
@@ -431,10 +431,10 @@ export default function SasaranIndikatorIndex({
                                                                 )}
                                                             </td>
                                                             <td className="px-4 py-3 align-top text-center">
-                                                                {ind.is_aktif ? (
-                                                                    <Badge variant="success" size="sm" dot>Aktif</Badge>
+                                                                {ind.status === 'arsip' ? (
+                                                                    <Badge variant="muted" size="sm">Arsip</Badge>
                                                                 ) : (
-                                                                    <Badge variant="muted" size="sm">Non-aktif</Badge>
+                                                                    <Badge variant="success" size="sm" dot>Aktif</Badge>
                                                                 )}
                                                             </td>
                                                             <td className="px-4 py-3 align-top text-right">
@@ -467,8 +467,8 @@ export default function SasaranIndikatorIndex({
                                                                             type="button"
                                                                             onClick={() => setDeleteTarget({ type: 'indikator', item: ind })}
                                                                             className="p-1 rounded-md text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
-                                                                            title="Hapus / Nonaktifkan Indikator"
-                                                                            aria-label={`Hapus indikator ${ind.kode}`}
+                                                                            title="Arsipkan Indikator"
+                                                                            aria-label={`Arsipkan indikator ${ind.kode}`}
                                                                         >
                                                                             <Trash2 className="h-3.5 w-3.5" />
                                                                         </button>

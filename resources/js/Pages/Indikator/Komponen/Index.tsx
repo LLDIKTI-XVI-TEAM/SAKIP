@@ -43,7 +43,7 @@ export interface IndikatorKinerjaData {
     arah: string;
     presisi: number;
     desimal_tampilan: number;
-    is_aktif: boolean;
+    status: 'aktif' | 'arsip';
     sasaran_strategis?: {
         id: string;
         kode: string;
@@ -419,10 +419,10 @@ export default function KomponenIndex({
                             <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                                 {indikator.kode}
                             </span>
-                            {indikator.is_aktif ? (
-                                <Badge variant="success" size="sm">Aktif</Badge>
+                            {indikator.status === 'arsip' ? (
+                                <Badge variant="muted" size="sm">Arsip</Badge>
                             ) : (
-                                <Badge variant="muted" size="sm">Nonaktif</Badge>
+                                <Badge variant="success" size="sm">Aktif</Badge>
                             )}
                         </div>
                         <h2 className="text-sm font-semibold text-ink">

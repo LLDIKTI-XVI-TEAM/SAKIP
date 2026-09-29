@@ -3,6 +3,7 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
@@ -115,6 +116,15 @@ class StoreIndikator
                 ]);
             }
 
+            // 5b. Turunkan tahun mulai berlaku dari Renstra induk via Sasaran
+            // (kolom NOT NULL; fail-closed bila Renstra tak terbaca).
+            $tahunMulaiBerlaku = Renstra::whereKey($sasaran->renstra_id)->sharedLock()->value('tahun_mulai');
+            if ($tahunMulaiBerlaku === null) {
+                throw ValidationException::withMessages([
+                    'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak memiliki Renstra induk yang sah.',
+                ]);
+            }
+
             $created = IndikatorKinerja::create([
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
                 'regulasi_id' => $validated['regulasi_id'] ?? null,
@@ -128,7 +138,9 @@ class StoreIndikator
                 'presisi' => $validated['presisi'] ?? 2,
                 'desimal_tampilan' => $validated['desimal_tampilan'] ?? 2,
                 'wajib_catatan' => (bool) ($validated['wajib_catatan'] ?? false),
-                'is_aktif' => (bool) ($validated['is_aktif'] ?? true),
+                'status' => IndikatorKinerja::STATUS_AKTIF,
+                'tahun_mulai_berlaku' => (int) $tahunMulaiBerlaku,
+                'created_by' => $lockedActor->id,
                 'created_by_role' => $createdRole,
             ]);
 

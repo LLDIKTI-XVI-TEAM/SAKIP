@@ -72,7 +72,9 @@ class IndikatorKomponenModelTest extends TestCase
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
-            'is_aktif' => true,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $user->id,
             'created_by_role' => 'perencanaan',
         ]);
 

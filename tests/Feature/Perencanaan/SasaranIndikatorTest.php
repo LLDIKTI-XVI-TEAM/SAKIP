@@ -15,6 +15,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Authorization\RolePermissionPresets;
+use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -23,6 +24,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -154,10 +156,12 @@ class SasaranIndikatorTest extends TestCase
             'presisi' => 2,
             'wajib_catatan' => true,
             'regulasi_id' => $this->regulasi->id,
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         $indikator = IndikatorKinerja::where('kode', 'IKU-01')->firstOrFail();
+        $this->assertSame(2025, $indikator->tahun_mulai_berlaku);
+        $this->assertSame($this->perencanaan->id, $indikator->created_by);
         $this->assertDatabaseHas('audit_log', [
             'tindakan' => 'indikator.buat',
             'objek_tipe' => 'indikator',
@@ -278,6 +282,9 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => $this->renstra->tahun_mulai,
+            'created_by' => $this->perencanaan->id,
         ]);
     }
 
@@ -299,6 +306,9 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => $this->renstra->tahun_mulai,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'role_khayalan',
         ]);
     }
@@ -323,6 +333,9 @@ class SasaranIndikatorTest extends TestCase
                 'unit_id' => $this->unit->id,
                 'arah' => 'naik_baik',
                 'tipe_perhitungan' => 'manual',
+                'status' => 'aktif',
+                'tahun_mulai_berlaku' => $this->renstra->tahun_mulai,
+                'created_by' => $this->perencanaan->id,
                 'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
             ]);
         } catch (\InvalidArgumentException $e) {
@@ -342,6 +355,9 @@ class SasaranIndikatorTest extends TestCase
                 'unit_id' => $this->unit->id,
                 'arah' => 'naik_baik',
                 'tipe_perhitungan' => 'manual',
+                'status' => 'aktif',
+                'tahun_mulai_berlaku' => $this->renstra->tahun_mulai,
+                'created_by' => $this->perencanaan->id,
                 'created_by_role' => IndikatorKinerja::PROVENANCE_LEGACY_UNKNOWN,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -362,7 +378,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 6,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-IMMUTABLE',
             'nama' => 'Indikator Immutable Role',
@@ -386,7 +402,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 7,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-IMMUTABLE-DB',
             'nama' => 'Indikator Immutable DB Role',
@@ -419,7 +435,7 @@ class SasaranIndikatorTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-REG-TEST',
             'nama' => 'Indikator Regulasi Test',
@@ -429,7 +445,7 @@ class SasaranIndikatorTest extends TestCase
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => $this->regulasi->id,
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Update indikator mengganti regulasi_id
@@ -484,7 +500,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-AUTH-TEST',
             'nama' => 'Indikator Auth Test',
@@ -493,7 +509,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Pegawai tidak memiliki permission sasaran:create
@@ -534,7 +550,7 @@ class SasaranIndikatorTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_8_pencegahan_hard_delete_indikator_dengan_dependensi(): void
+    public function test_8_destroy_indikator_selalu_mengarsipkan_tanpa_hapus_fisik(): void
     {
         $sasaran = SasaranStrategis::create([
             'renstra_id' => $this->renstra->id,
@@ -543,7 +559,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikatorDenganTarget = IndikatorKinerja::create([
+        $indikatorDenganTarget = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-HAS-TARGET',
             'nama' => 'Indikator dengan Dependensi Target',
@@ -552,7 +568,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         TargetKinerja::create([
@@ -565,26 +581,26 @@ class SasaranIndikatorTest extends TestCase
             'target_tw4' => 85.00,
         ]);
 
-        // Hapus indikator yang punya dependensi: tidak hard-delete, tapi is_aktif = false
+        // Arsipkan indikator yang punya dependensi: baris dipertahankan dengan status = arsip
         $response = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikatorDenganTarget->id}", [
-            'alasan' => 'Indikator dinonaktifkan karena perubahan struktur Renstra',
+            'alasan' => 'Indikator diarsipkan karena perubahan struktur Renstra',
         ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('indikator_kinerjas', [
             'id' => $indikatorDenganTarget->id,
-            'is_aktif' => false,
+            'status' => 'arsip',
         ]);
 
         $this->assertDatabaseHas('audit_log', [
-            'tindakan' => 'indikator.nonaktifkan',
+            'tindakan' => 'indikator.arsipkan',
             'objek_tipe' => 'indikator',
             'objek_id' => $indikatorDenganTarget->id,
             'actor_id' => $this->perencanaan->id,
         ]);
 
-        // Indikator tanpa dependensi: hard delete berhasil
-        $indikatorPolos = IndikatorKinerja::create([
+        // Indikator tanpa dependensi pun diarsipkan (never-delete mutlak), bukan hapus fisik
+        $indikatorPolos = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-POLOS',
             'nama' => 'Indikator Polos Tanpa Dependensi',
@@ -593,24 +609,81 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         $deleteResponse = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikatorPolos->id}", [
-            'alasan' => 'Indikator polos dihapus permanen oleh perencanaan',
+            'alasan' => 'Indikator polos diarsipkan oleh perencanaan',
         ]);
 
         $deleteResponse->assertRedirect();
-        $this->assertDatabaseMissing('indikator_kinerjas', [
+        $this->assertDatabaseHas('indikator_kinerjas', [
             'id' => $indikatorPolos->id,
+            'status' => 'arsip',
         ]);
 
         $this->assertDatabaseHas('audit_log', [
-            'tindakan' => 'indikator.hapus',
+            'tindakan' => 'indikator.arsipkan',
             'objek_tipe' => 'indikator',
             'objek_id' => $indikatorPolos->id,
             'actor_id' => $this->perencanaan->id,
         ]);
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'indikator.hapus',
+            'objek_tipe' => 'indikator',
+            'objek_id' => $indikatorPolos->id,
+        ]);
+    }
+
+    public function test_guard_arsip_menolak_pembuatan_pengukuran_dan_rencana_aksi_baru(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-ARSIP-GUARD',
+            'deskripsi' => 'Sasaran Guard Arsip',
+            'urutan' => 1,
+        ]);
+
+        $indikatorAktif = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ARSIP-AKTIF',
+            'nama' => 'Indikator Aktif Untuk Guard',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ]);
+
+        $indikatorArsip = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ARSIP',
+            'nama' => 'Indikator Diarsipkan Untuk Guard',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'status' => 'arsip',
+        ]);
+
+        $guard = app(IndikatorArsipGuard::class);
+
+        // Indikator aktif lolos untuk kedua jenis pembuatan baru
+        $guard->pastikanDapatDibuatkan($indikatorAktif, 'pengukuran');
+        $guard->pastikanDapatDibuatkan($indikatorAktif, 'rencana_aksi');
+
+        // Indikator arsip ditolak untuk kedua jenis, tanpa pengecualian peran
+        foreach (['pengukuran', 'rencana_aksi'] as $jenis) {
+            try {
+                $guard->pastikanDapatDibuatkan($indikatorArsip, $jenis);
+                $this->fail("Guard harus menolak pembuatan {$jenis} baru untuk indikator arsip.");
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('indikator_id', $e->errors());
+                $this->assertStringContainsString('diarsipkan', $e->errors()['indikator_id'][0]);
+            }
+        }
+
+        // Guard tidak memutasi baris indikator
+        $this->assertSame('arsip', $indikatorArsip->fresh()->status);
     }
 
     public function test_pencegahan_hapus_sasaran_yang_memiliki_indikator(): void
@@ -622,7 +695,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        IndikatorKinerja::create([
+        $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-CHILD',
             'nama' => 'Indikator Anak',
@@ -631,7 +704,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         $response = $this->actingAs($this->perencanaan)->delete("/perencanaan/sasaran/{$sasaran->id}", [
@@ -661,7 +734,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        IndikatorKinerja::create([
+        $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'regulasi_id' => $this->regulasi->id,
             'kode' => 'IKU-REG-DENY',
@@ -671,7 +744,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Berikan explicit deny regulasi:read pada user perencanaan
@@ -705,7 +778,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-PRESERVE',
             'nama' => 'Nama Awal',
@@ -717,11 +790,11 @@ class SasaranIndikatorTest extends TestCase
             'desimal_tampilan' => 4,
             'wajib_catatan' => true,
             'jenis_agregasi' => 'rata_rata',
-            'is_aktif' => false,
+            'status' => 'arsip',
             'created_by_role' => 'perencanaan',
         ]);
 
-        // Submit pembaruan tanpa menyertakan desimal_tampilan, jenis_agregasi, maupun is_aktif
+        // Submit pembaruan tanpa menyertakan desimal_tampilan, jenis_agregasi, maupun status
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-PRESERVE',
@@ -737,13 +810,13 @@ class SasaranIndikatorTest extends TestCase
 
         $this->assertSame('Nama Baru Diperbarui', $indikator->nama);
         $this->assertSame('Dokumen', $indikator->satuan);
-        $this->assertFalse($indikator->is_aktif, 'is_aktif harus tetap false dan tidak diaktifkan ulang secara otomatis');
+        $this->assertSame('arsip', $indikator->status, 'status harus tetap arsip dan tidak diaktifkan ulang secara otomatis');
         $this->assertSame(4, $indikator->desimal_tampilan, 'desimal_tampilan harus dipertahankan');
         $this->assertSame('rata_rata', $indikator->jenis_agregasi, 'jenis_agregasi harus dipertahankan');
         $this->assertTrue($indikator->wajib_catatan, 'wajib_catatan harus dipertahankan');
     }
 
-    public function test_destroy_indikator_with_extended_dependencies_deactivates_safely(): void
+    public function test_destroy_indikator_with_extended_dependencies_mengarsipkan_dengan_aman(): void
     {
         $sasaran = SasaranStrategis::create([
             'renstra_id' => $this->renstra->id,
@@ -753,7 +826,7 @@ class SasaranIndikatorTest extends TestCase
         ]);
 
         // 1. Dependensi penanggung_jawab
-        $indikatorPic = IndikatorKinerja::create([
+        $indikatorPic = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-PIC',
             'nama' => 'Indikator dengan PIC',
@@ -762,7 +835,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         DB::table('penanggung_jawab')->insert([
@@ -781,16 +854,16 @@ class SasaranIndikatorTest extends TestCase
         $responsePic->assertRedirect();
         $this->assertDatabaseHas('indikator_kinerjas', [
             'id' => $indikatorPic->id,
-            'is_aktif' => false,
+            'status' => 'arsip',
         ]);
         $this->assertDatabaseHas('audit_log', [
-            'tindakan' => 'indikator.nonaktifkan',
+            'tindakan' => 'indikator.arsipkan',
             'objek_tipe' => 'indikator',
             'objek_id' => $indikatorPic->id,
         ]);
 
         // 2. Dependensi jenis_berkas
-        $indikatorBerkas = IndikatorKinerja::create([
+        $indikatorBerkas = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-BERKAS',
             'nama' => 'Indikator dengan Jenis Berkas',
@@ -799,7 +872,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         DB::table('jenis_berkas')->insert([
@@ -819,10 +892,10 @@ class SasaranIndikatorTest extends TestCase
         $responseBerkas->assertRedirect();
         $this->assertDatabaseHas('indikator_kinerjas', [
             'id' => $indikatorBerkas->id,
-            'is_aktif' => false,
+            'status' => 'arsip',
         ]);
         $this->assertDatabaseHas('audit_log', [
-            'tindakan' => 'indikator.nonaktifkan',
+            'tindakan' => 'indikator.arsipkan',
             'objek_tipe' => 'indikator',
             'objek_id' => $indikatorBerkas->id,
         ]);
@@ -857,7 +930,7 @@ class SasaranIndikatorTest extends TestCase
         $createResponse->assertSessionHasErrors(['unit_id']);
 
         // 2. Buat indikator dengan unit aktif terlebih dahulu
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-UNIT-VALID',
             'nama' => 'Indikator Awal',
@@ -866,7 +939,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // 3. Update memindahkan kepemilikan ke unit nonaktif harus ditolak
@@ -907,7 +980,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-REASON-TEST',
             'nama' => 'Indikator Reason Test',
@@ -916,7 +989,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Hapus indikator tanpa alasan atau alasan pendek (< 10 karakter)
@@ -1096,7 +1169,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaranAsal->id,
             'kode' => 'IKU-LINTAS',
             'nama' => 'Indikator Uji Lintas Renstra',
@@ -1121,7 +1194,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame($sasaranAsal->id, $indikator->fresh()->sasaran_strategis_id);
     }
 
-    public function test_update_indikator_perpindahan_unit_wajibkan_alasan_dan_dicatat_pada_audit_pindah_unit(): void
+    public function test_update_umum_menolak_perubahan_unit_dan_mengarahkan_ke_endpoint_pindah_unit(): void
     {
         $unitBaru = Unit::create(['nama' => 'Unit Baru Transfer', 'status' => 'aktif', 'created_by' => $this->perencanaan->id]);
 
@@ -1132,7 +1205,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-TRANSFER',
             'nama' => 'Indikator Transfer Unit',
@@ -1143,8 +1216,8 @@ class SasaranIndikatorTest extends TestCase
             'created_by_role' => 'perencanaan',
         ]);
 
-        // 1. Perpindahan unit tanpa alasan ditolak validasi
-        $responseNoReason = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+        // Perpindahan unit via jalur edit umum ditolak dan mengarahkan ke endpoint khusus
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-TRANSFER',
             'nama' => 'Indikator Transfer Unit',
@@ -1153,33 +1226,51 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
         ]);
-        $responseNoReason->assertSessionHasErrors(['alasan_pindah_unit']);
+        $response->assertSessionHasErrors(['unit_id']);
 
-        // 2. Perpindahan unit dengan alasan < 10 karakter ditolak validasi
-        $responseShortReason = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
-            'sasaran_strategis_id' => $sasaran->id,
-            'kode' => 'IKU-TRANSFER',
-            'nama' => 'Indikator Transfer Unit',
-            'satuan' => '%',
-            'unit_id' => $unitBaru->id,
-            'alasan_pindah_unit' => 'pendek',
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
-        ]);
-        $responseShortReason->assertSessionHasErrors(['alasan_pindah_unit']);
+        $errors = session('errors');
+        $this->assertNotNull($errors);
+        $this->assertStringContainsString('pindah unit', (string) $errors->getBag('default')->first('unit_id'));
 
-        // 3. Perpindahan unit dengan alasan valid berhasil dan dicatat sebagai indikator.pindah_unit
-        $responseValid = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+        $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
+    }
+
+    public function test_pindah_unit_via_endpoint_sukses_mencatat_audit_tunggal_tepat(): void
+    {
+        $unitBaru = Unit::create(['nama' => 'Unit Baru Pindah Khusus', 'status' => 'aktif', 'created_by' => $this->perencanaan->id]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-PINDAH',
+            'deskripsi' => 'Sasaran Pindah Unit',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
-            'kode' => 'IKU-TRANSFER',
-            'nama' => 'Indikator Transfer Unit',
+            'kode' => 'IKU-PINDAH',
+            'nama' => 'Indikator Pindah Unit',
             'satuan' => '%',
-            'unit_id' => $unitBaru->id,
-            'alasan_pindah_unit' => 'Pemindahan tupoksi indikator ke unit baru hasil restrukturisasi.',
+            'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
         ]);
-        $responseValid->assertRedirect();
+
+        $ubahSebelum = AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', (string) $indikator->id)->count();
+        $alasan = 'Pemindahan tupoksi indikator ke unit baru hasil restrukturisasi.';
+
+        $response = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
+            'unit_id' => $unitBaru->id,
+            'alasan' => $alasan,
+        ]);
+        $response->assertRedirect();
+
+        $fresh = $indikator->fresh();
+        $this->assertSame($unitBaru->id, $fresh->unit_id);
+        $this->assertSame($sasaran->id, $fresh->sasaran_strategis_id);
+        $this->assertSame('IKU-PINDAH', $fresh->kode);
 
         $auditPindah = AuditLog::where('tindakan', 'indikator.pindah_unit')
             ->where('objek_id', (string) $indikator->id)
@@ -1187,27 +1278,88 @@ class SasaranIndikatorTest extends TestCase
             ->first();
         $this->assertNotNull($auditPindah);
         $this->assertSame($this->unit->id, $auditPindah->nilai_lama['unit_id']);
+        $this->assertSame($this->unit->nama, $auditPindah->nilai_lama['unit_nama']);
         $this->assertSame($unitBaru->id, $auditPindah->nilai_baru['unit_id']);
-        $this->assertSame('Pemindahan tupoksi indikator ke unit baru hasil restrukturisasi.', $auditPindah->alasan);
+        $this->assertSame($unitBaru->nama, $auditPindah->nilai_baru['unit_nama']);
+        $this->assertSame($alasan, $auditPindah->alasan);
 
-        // 4. Update data umum tanpa memindahkan unit tetap dicatat sebagai indikator.ubah
-        $responseGeneral = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+        // Delta unit tidak ditulis sebagai audit indikator.ubah
+        $this->assertSame($ubahSebelum, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', (string) $indikator->id)->count());
+    }
+
+    public function test_pindah_unit_menolak_target_nonaktif(): void
+    {
+        $unitNonaktif = Unit::create([
+            'nama' => 'Unit Nonaktif Tujuan Pindah',
+            'status' => 'nonaktif',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-PINDAH-NONAKTIF',
+            'deskripsi' => 'Sasaran Pindah Nonaktif',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
-            'kode' => 'IKU-TRANSFER-EDIT',
-            'nama' => 'Nama Baru Setelah Transfer',
-            'satuan' => 'Poin',
-            'unit_id' => $unitBaru->id,
+            'kode' => 'IKU-PINDAH-NONAKTIF',
+            'nama' => 'Indikator Pindah Nonaktif',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
         ]);
-        $responseGeneral->assertRedirect();
 
-        $auditUbah = AuditLog::where('tindakan', 'indikator.ubah')
-            ->where('objek_id', (string) $indikator->id)
-            ->latest('waktu')
-            ->first();
-        $this->assertNotNull($auditUbah);
-        $this->assertSame('IKU-TRANSFER-EDIT', $auditUbah->nilai_baru['kode']);
+        $response = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
+            'unit_id' => $unitNonaktif->id,
+            'alasan' => 'Mencoba pindah ke unit yang sudah nonaktif.',
+        ]);
+
+        $response->assertSessionHasErrors(['unit_id']);
+        $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
+    }
+
+    public function test_pindah_unit_menolak_tanpa_alasan_atau_alasan_pendek(): void
+    {
+        $unitBaru = Unit::create(['nama' => 'Unit Baru Tanpa Alasan', 'status' => 'aktif', 'created_by' => $this->perencanaan->id]);
+
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-PINDAH-ALASAN',
+            'deskripsi' => 'Sasaran Pindah Alasan',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-PINDAH-ALASAN',
+            'nama' => 'Indikator Pindah Alasan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        // Tanpa alasan ditolak validasi
+        $responseTanpaAlasan = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
+            'unit_id' => $unitBaru->id,
+        ]);
+        $responseTanpaAlasan->assertSessionHasErrors(['alasan']);
+
+        // Alasan < 10 karakter ditolak validasi
+        $responsePendek = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
+            'unit_id' => $unitBaru->id,
+            'alasan' => 'pendek',
+        ]);
+        $responsePendek->assertSessionHasErrors(['alasan']);
+
+        $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
     }
 
     public function test_store_indikator_fails_closed_when_allowed_only_by_direct_grant_without_role(): void
@@ -1266,7 +1418,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 2,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-INACTIVE-USER',
             'nama' => 'Indikator Inactive User',
@@ -1337,7 +1489,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaranAsal->id,
             'kode' => 'IKU-TRIG-LINTAS',
             'nama' => 'Indikator Trigger Lintas',
@@ -1361,7 +1513,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertTrue($threw, 'Trigger check_indikator_same_renstra harus melempar 23514 pada update lintas Renstra.');
     }
 
-    public function test_update_indikator_menolak_unit_tujuan_nonaktif_di_dalam_transaksi(): void
+    public function test_update_umum_menolak_perubahan_ke_unit_tujuan_nonaktif(): void
     {
         $unitNonaktif = Unit::create([
             'nama' => 'Unit Nonaktif Target',
@@ -1376,7 +1528,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-UNIT-NONAKTIF',
             'nama' => 'Indikator Unit Nonaktif',
@@ -1393,7 +1545,6 @@ class SasaranIndikatorTest extends TestCase
             'nama' => 'Indikator Unit Nonaktif',
             'satuan' => '%',
             'unit_id' => $unitNonaktif->id,
-            'alasan_pindah_unit' => 'Mencoba pindah ke unit yang sudah nonaktif.',
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
         ]);
@@ -1402,7 +1553,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
     }
 
-    public function test_update_indikator_merged_edit_tidak_menduplikasi_delta_unit_pada_audit_ubah(): void
+    public function test_update_umum_menolak_edit_gabungan_yang_memuat_perubahan_unit(): void
     {
         $unitBaru = Unit::create([
             'nama' => 'Unit Baru Gabungan',
@@ -1417,7 +1568,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-MERGED',
             'nama' => 'Nama Awal Sebelum Gabungan',
@@ -1434,31 +1585,19 @@ class SasaranIndikatorTest extends TestCase
             'nama' => 'Nama Baru Setelah Gabungan',
             'satuan' => '%',
             'unit_id' => $unitBaru->id,
-            'alasan_pindah_unit' => 'Alasan sah perpindahan unit pada edit gabungan.',
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
         ]);
 
-        $response->assertRedirect();
+        // Edit gabungan yang memuat perubahan unit ditolak utuh: tidak ada mutasi parsial dan tidak ada audit
+        $response->assertSessionHasErrors(['unit_id']);
 
-        // 1. Audit indikator.pindah_unit mencatat perpindahan unit
-        $auditPindah = AuditLog::where('tindakan', 'indikator.pindah_unit')
-            ->where('objek_id', (string) $indikator->id)
-            ->latest('waktu')
-            ->first();
-        $this->assertNotNull($auditPindah);
-        $this->assertSame($this->unit->id, $auditPindah->nilai_lama['unit_id']);
-        $this->assertSame($unitBaru->id, $auditPindah->nilai_baru['unit_id']);
-
-        // 2. Audit indikator.ubah mencatat perubahan field umum dan TIDAK memuat delta unit_id
-        $auditUbah = AuditLog::where('tindakan', 'indikator.ubah')
-            ->where('objek_id', (string) $indikator->id)
-            ->latest('waktu')
-            ->first();
-        $this->assertNotNull($auditUbah);
-        $this->assertSame('IKU-MERGED-NEW', $auditUbah->nilai_baru['kode']);
-        $this->assertArrayNotHasKey('unit_id', $auditUbah->nilai_lama);
-        $this->assertArrayNotHasKey('unit_id', $auditUbah->nilai_baru);
+        $fresh = $indikator->fresh();
+        $this->assertSame('IKU-MERGED', $fresh->kode);
+        $this->assertSame('Nama Awal Sebelum Gabungan', $fresh->nama);
+        $this->assertSame($this->unit->id, $fresh->unit_id);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', (string) $indikator->id)->count());
     }
 
     public function test_update_indikator_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
@@ -1470,7 +1609,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-UPDATE-DENIED',
             'nama' => 'Nama Asal Tidak Boleh Berubah',
@@ -1542,7 +1681,7 @@ class SasaranIndikatorTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-OLD-UNIT',
             'nama' => 'Nama Sebelum Edit Saat Unit Nonaktif',
@@ -1584,7 +1723,6 @@ class SasaranIndikatorTest extends TestCase
             'nama' => 'Nama Transfer Gagal',
             'satuan' => '%',
             'unit_id' => $unitLainNonaktif->id,
-            'alasan_pindah_unit' => 'Mencoba pindah ke unit lain yang nonaktif.',
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
         ]);
@@ -1611,7 +1749,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        IndikatorKinerja::create([
+        $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-IMMUTABLE-RENSTRA',
             'nama' => 'Indikator di Bawah Sasaran',
@@ -1679,7 +1817,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-AGGR-UPD',
             'nama' => 'Nama Awal',
@@ -1717,7 +1855,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikatorExisting = IndikatorKinerja::create([
+        $indikatorExisting = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-REG-GUARD-EXIST',
             'nama' => 'Indikator Existing Tanpa Regulasi',
@@ -1726,7 +1864,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Berikan explicit deny regulasi:read pada user perencanaan (tetap punya indikator:create/update)
@@ -1819,7 +1957,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertDatabaseMissing('indikator_kinerjas', ['kode' => 'IKU-REG-NONAKTIF']);
 
         // 2. Update dengan regulasi nonaktif ditolak 422
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-REG-AKTIF-EDIT',
             'nama' => 'Indikator Edit Regulasi',
@@ -1828,7 +1966,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
@@ -1855,7 +1993,7 @@ class SasaranIndikatorTest extends TestCase
             'urutan' => 1,
         ]);
 
-        $indikator = IndikatorKinerja::create([
+        $indikator = $this->buatIndikator([
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-KOMP-DENY',
             'nama' => 'Indikator Rasio Untuk Uji Komponen Read',
@@ -1864,7 +2002,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'rasio_persen',
             'created_by_role' => 'perencanaan',
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         // Berikan explicit deny komponen:read pada user perencanaan
@@ -1887,6 +2025,33 @@ class SasaranIndikatorTest extends TestCase
         // 2. Route komponen langsung tetap ditolak 403 sesuai kontrak
         $responseKomponen = $this->actingAs($this->perencanaan)->get("/indikator/{$indikator->id}/komponen");
         $responseKomponen->assertForbidden();
+    }
+
+    /**
+     * Membuat Indikator langsung via model dengan kolom lifecycle wajib
+     * terisi (status + tahun_mulai_berlaku + created_by + created_by_role).
+     * Nilai eksplisit pada $atribut menang atas bawaan.
+     */
+    private function buatIndikator(array $atribut): IndikatorKinerja
+    {
+        $tahunMulai = $this->renstra->tahun_mulai;
+        $sasaranId = $atribut['sasaran_strategis_id'] ?? null;
+        if (is_string($sasaranId)) {
+            $renstraId = SasaranStrategis::whereKey($sasaranId)->value('renstra_id');
+            if (is_string($renstraId)) {
+                $tahun = Renstra::whereKey($renstraId)->value('tahun_mulai');
+                if ($tahun !== null) {
+                    $tahunMulai = (int) $tahun;
+                }
+            }
+        }
+
+        return IndikatorKinerja::create(array_merge([
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => $tahunMulai,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
+        ], $atribut));
     }
 
     private function buatUserDenganRole(string $roleName, string $email): User

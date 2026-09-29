@@ -36,7 +36,6 @@ class StoreIndikatorRequest extends FormRequest
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
-            'is_aktif' => ['nullable', 'boolean'],
         ];
     }
 

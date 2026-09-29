@@ -75,7 +75,9 @@ class StoragePolicyTest extends TestCase
             'nama' => 'Indikator Storage Uji',
             'satuan' => 'dokumen',
             'tipe_perhitungan' => 'manual',
-            'is_aktif' => true,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
 

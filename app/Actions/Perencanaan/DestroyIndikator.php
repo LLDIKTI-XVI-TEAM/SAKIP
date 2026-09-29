@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class DestroyIndikator
@@ -15,16 +14,19 @@ class DestroyIndikator
     public function __construct(private readonly AuditLogger $auditLogger, private readonly PermissionResolver $resolver) {}
 
     /**
-     * Menghapus Indikator yang benar-benar tanpa riwayat, atau menonaktifkan
-     * (`is_aktif = false`, setara `arsip` dokumen) bila memiliki dependensi.
+     * Mengarsipkan Indikator (never-delete mutlak, ADR 0003).
      *
-     * Cakupan dependensi (target, pengukuran, rencana aksi, komponen,
-     * snapshot, penanggung jawab, jenis berkas) diperiksa di dalam transaksi
-     * terkunci; pelanggaran FK restrict yang tak terduga menjadi fail-safe
-     * nonaktivasi lewat savepoint. Otorisasi ditangani FormRequest/Policy di
-     * batas request; di sini hanya mencatat dasar izin efektif.
+     * Tidak ada jalur hapus fisik: baris selalu dipertahankan dengan
+     * `status = arsip` beserta audit `indikator.arsipkan`, baik memiliki
+     * dependensi maupun tidak. Idempoten — pemanggilan ulang pada baris
+     * yang sudah diarsipkan tetap tercatat sebagai audit baru agar jejak
+     * percobaan pengarsipan utuh. Reaktivasi (arsip → aktif) tidak
+     * disediakan di PR ini.
      *
-     * @return array{deactivated: bool, kode: string}
+     * Otorisasi ditangani FormRequest/Policy di batas request; di sini
+     * hanya mencatat dasar izin efektif.
+     *
+     * @return array{diarsipkan: bool, kode: string}
      */
     public function handle(User $actor, IndikatorKinerja $indikator, string $alasan): array
     {
@@ -36,72 +38,21 @@ class DestroyIndikator
             $lockedIndikator = IndikatorKinerja::where('id', $indikator->id)->lockForUpdate()->firstOrFail();
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
 
-            // Cakup seluruh referensi dependensi ke indikator ini
-            $hasDependencies = DB::table('target_kinerjas')->where('indikator_kinerja_id', $lockedIndikator->id)->exists()
-                || DB::table('pengukuran_kinerjas')->where('indikator_id', $lockedIndikator->id)->exists()
-                || DB::table('rencana_aksi')->where('indikator_id', $lockedIndikator->id)->exists()
-                || DB::table('indikator_komponen')->where('indikator_id', $lockedIndikator->id)->exists()
-                || DB::table('jadwal_snapshot')->where('indikator_id', $lockedIndikator->id)->exists()
-                || DB::table('penanggung_jawab')->where('indikator_id', $lockedIndikator->id)->exists()
-                || DB::table('jenis_berkas')->where('indikator_id', $lockedIndikator->id)->exists();
+            // Never-delete: arsipkan baris apa pun kondisinya, jangan hapus fisik.
+            $lockedIndikator->update(['status' => IndikatorKinerja::STATUS_ARSIP]);
 
-            if ($hasDependencies) {
-                // Jangan hard-delete data yang memiliki dependensi/riwayat, nonaktifkan secara aman
-                $lockedIndikator->update(['is_aktif' => false]);
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'indikator.arsipkan',
+                objekTipe: 'indikator',
+                objekId: (string) $lockedIndikator->id,
+                nilaiLama: $nilaiLama,
+                nilaiBaru: $lockedIndikator->withoutRelations()->toArray(),
+                alasan: $alasan,
+                dasarIzin: $dasarIzin,
+            );
 
-                $this->auditLogger->catat(
-                    actor: $actor,
-                    tindakan: 'indikator.nonaktifkan',
-                    objekTipe: 'indikator',
-                    objekId: (string) $lockedIndikator->id,
-                    nilaiLama: $nilaiLama,
-                    nilaiBaru: $lockedIndikator->withoutRelations()->toArray(),
-                    alasan: $alasan,
-                    dasarIzin: $dasarIzin,
-                );
-
-                return ['deactivated' => true, 'kode' => $nilaiLama['kode']];
-            }
-
-            try {
-                // Gunakan nested transaction (savepoint) sebagai fail-safe bila terjadi pelanggaran FK restrict yang tak terduga
-                DB::transaction(function () use ($lockedIndikator) {
-                    $lockedIndikator->delete();
-                });
-
-                $this->auditLogger->catat(
-                    actor: $actor,
-                    tindakan: 'indikator.hapus',
-                    objekTipe: 'indikator',
-                    objekId: (string) $lockedIndikator->id,
-                    nilaiLama: $nilaiLama,
-                    nilaiBaru: null,
-                    alasan: $alasan,
-                    dasarIzin: $dasarIzin,
-                );
-
-                return ['deactivated' => false, 'kode' => $nilaiLama['kode']];
-            } catch (QueryException $e) {
-                // Fail-safe: jika ada constraint FK (SQLSTATE 23503), alihkan ke nonaktifkan
-                if (($e->errorInfo[0] ?? null) === '23503') {
-                    $lockedIndikator->update(['is_aktif' => false]);
-
-                    $this->auditLogger->catat(
-                        actor: $actor,
-                        tindakan: 'indikator.nonaktifkan',
-                        objekTipe: 'indikator',
-                        objekId: (string) $lockedIndikator->id,
-                        nilaiLama: $nilaiLama,
-                        nilaiBaru: $lockedIndikator->withoutRelations()->toArray(),
-                        alasan: $alasan,
-                        dasarIzin: $dasarIzin,
-                    );
-
-                    return ['deactivated' => true, 'kode' => $nilaiLama['kode']];
-                }
-
-                throw $e;
-            }
+            return ['diarsipkan' => true, 'kode' => $nilaiLama['kode']];
         });
     }
 }

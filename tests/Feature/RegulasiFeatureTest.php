@@ -373,7 +373,9 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'kode' => 'IKU-REGULASI',
         'nama' => 'Indikator uji regulasi',
         'satuan' => '%',
-        'is_aktif' => true,
+        'status' => 'aktif',
+        'tahun_mulai_berlaku' => 2025,
+        'created_by' => $this->perencanaan->id,
         'created_by_role' => 'perencanaan',
     ]);
 

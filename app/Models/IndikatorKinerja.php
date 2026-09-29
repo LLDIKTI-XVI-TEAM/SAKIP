@@ -26,10 +26,17 @@ class IndikatorKinerja extends Model
         'tipe_perhitungan', 'unit_id', 'arah', 'presisi', 'desimal_tampilan', 'wajib_catatan',
         'jenis_agregasi',
         'status',
+        'tahun_mulai_berlaku',
+        'created_by',
         'created_by_role',
     ];
 
     public const PROVENANCE_LEGACY_UNKNOWN = 'legacy_unknown';
+
+    /** Nilai lifecycle indikator (pengganti flag aktif lama yang di-sunset, ADR 0003). */
+    public const STATUS_AKTIF = 'aktif';
+
+    public const STATUS_ARSIP = 'arsip';
 
     /**
      * Peran yang diizinkan untuk pembuatan indikator baru via model (hanya peran resmi).
@@ -54,12 +61,19 @@ class IndikatorKinerja extends Model
 
     protected $casts = [
         'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
+        'tahun_mulai_berlaku' => 'integer',
     ];
 
     /** Nilai bawaan lifecycle indikator baru. */
     protected $attributes = [
         'status' => 'aktif',
     ];
+
+    /** True bila indikator telah diarsipkan dan tidak menerima kerja operasional baru. */
+    public function isArsip(): bool
+    {
+        return $this->status === self::STATUS_ARSIP;
+    }
 
     protected static function booted(): void
     {

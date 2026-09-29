@@ -72,7 +72,7 @@ class StoreJenisBerkasRequest extends FormRequest
                 'nullable',
                 'uuid',
                 Rule::exists('indikator_kinerjas', 'id')->where(function ($query) {
-                    $query->where('is_aktif', true);
+                    $query->where('status', 'aktif');
                 }),
             ],
             'wajib' => ['boolean'],
@@ -92,7 +92,7 @@ class StoreJenisBerkasRequest extends FormRequest
     {
         return [
             'tahap.in' => 'Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.',
-            'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah dinonaktifkan.',
+            'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah diarsipkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
         ];
     }

@@ -24,7 +24,7 @@ class DashboardSummaryTest extends TestCase
     public function test_index_excludes_another_schedule_in_the_same_year_and_period(): void
     {
         $oldSchedule = JadwalTahunan::create([...$this->jadwal->only(['renstra_id', 'tahun', 'renstra_pk_id', 'penutupan']), 'status' => 'ditutup']);
-        $oldIndicator = IndikatorKinerja::create([...$this->pengukuran->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'tipe_perhitungan', 'created_by_role']), 'kode' => 'I-LAMA']);
+        $oldIndicator = IndikatorKinerja::create([...$this->pengukuran->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'tipe_perhitungan', 'created_by_role']), 'kode' => 'I-LAMA', 'status' => 'aktif', 'tahun_mulai_berlaku' => 2025, 'created_by' => $this->actor->id]);
         $oldContext = JadwalSnapshot::create([...$this->context->only(['periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan']),
             'jadwal_id' => $oldSchedule->id, 'indikator_id' => $oldIndicator->id]);
         PengukuranKinerja::create([...$this->pengukuran->only(['tahun', 'periode_id', 'sumber_nilai', 'created_by']),

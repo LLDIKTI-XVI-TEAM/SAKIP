@@ -51,7 +51,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         presisi: 2,
         desimal_tampilan: 2,
         wajib_catatan: false,
-        is_aktif: true,
         regulasi_id: '' as string,
     });
 
@@ -81,7 +80,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         presisi: indikator.presisi ?? 2,
                         desimal_tampilan: indikator.desimal_tampilan ?? 2,
                         wajib_catatan: Boolean(indikator.wajib_catatan),
-                        is_aktif: Boolean(indikator.is_aktif),
                         regulasi_id: indikator.regulasi_id ?? '',
                     });
                 } else {
@@ -98,7 +96,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         presisi: 2,
                         desimal_tampilan: 2,
                         wajib_catatan: false,
-                        is_aktif: true,
                         regulasi_id: '',
                     });
                 }
@@ -346,19 +343,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             Wajib Melampirkan Catatan Penjelasan saat Pengisian Realisasi
                         </label>
                     </div>
-
-                    {isEdit && (
-                        <div className="flex items-center gap-3">
-                            <Switch
-                                id="indikator_is_aktif"
-                                checked={data.is_aktif}
-                                onChange={(val) => setData('is_aktif', val)}
-                            />
-                            <label htmlFor="indikator_is_aktif" className="text-sm font-medium text-ink cursor-pointer">
-                                Status Indikator Aktif
-                            </label>
-                        </div>
-                    )}
                 </div>
             </form>
         </Modal>

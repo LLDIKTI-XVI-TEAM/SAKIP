@@ -44,7 +44,7 @@ Update checkbox + Bukti. Jangan sentuh logika Sasaran/Indikator.
 ```
 
 ### R2-02 · [MAJOR] Pindah unit jadi endpoint khusus (backend)
-- [ ] Status: belum (tergantung R2-04 untuk kontrak status; baca dulu)
+- [x] Status: SELESAI (2026-09-29) — belum di-merge, belum di-commit (tergantung R2-04 untuk kontrak status; baca dulu)
 - Untuk apa: Plan 2.8 = aksi khusus terpisah dari edit umum (ISS-02.05).
 - Yang dibuat:
   1. `PATCH /perencanaan/indikator/{indikator}/pindah-unit`:
@@ -58,7 +58,7 @@ Update checkbox + Bukti. Jangan sentuh logika Sasaran/Indikator.
   3. Test: pindah via endpoint sukses + audit; pindah via PUT umum → 422.
 - Standards: §2, §4, §5, §7.
 - DoD: test baru hijau; tidak ada jalur edit umum yang mengubah unit.
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-29 | Bukti: endpoint `PATCH /perencanaan/indikator/{indikator}/pindah-unit` (`whereUuid`, name `perencanaan.indikator.pindah-unit`) + `PindahUnitIndikatorRequest` (`unit_id` wajib + hanya unit aktif, `alasan` wajib min 10) + Action `PindahUnitIndikator` (transaksi terkunci: lock aktor + ACL + resolve ulang + fail-closed; lock indikator + kedua unit deterministik terurut; tidak menyentuh sasaran sehingga tanpa guard lintas-Renstra; target nonaktif → 422; audit tunggal `indikator.pindah_unit` nilai lama/baru + tanpa audit `indikator.ubah` untuk delta unit; penolakan izin → audit `indikator.pindah_unit_ditolak` + 403); `UpdateIndikatorRequest` (`unit_id` wajib sama dengan existing via `Rule::in`, pesan mengarahkan ke endpoint pindah-unit) + Action `UpdateIndikator` (guard kesamaan unit di dalam transaksi, logika `isUnitChanged`/`alasan_pindah_unit` dihapus, audit `indikator.ubah` tanpa pengecualian unit); test ditulis ulang/ditambah di `SasaranIndikatorTest.php` (PUT umum berisi perubahan unit → 422 + pesan pindah-unit; PATCH sukses + audit tepat + tanpa `indikator.ubah`; PATCH target nonaktif → 422; PATCH tanpa/pendek alasan → 422; edit gabungan berisi perubahan unit ditolak utuh); `pint --test` passed; `phpstan` 0 errors; Pest TIDAK dijalankan (butuh PG disposable). Referensi `alasan_pindah_unit` tersisa hanya di `IndikatorModal.tsx` (scope R2-03 frontend). Belum di-commit.
 
 ```text
 Prompt handoff R2-02:
@@ -151,7 +151,7 @@ migrasi lama. Ikuti Standards §5. Update checkbox + Bukti.
 ```
 
 ### R2-04c · Lifecycle: reader/guard/arsip-only + ADR + test
-- [ ] Status: belum (setelah R2-04b)
+- [x] Status: SELESAI (2026-09-29) — belum di-merge, belum di-commit
 - Untuk apa: selaraskan seluruh pembaca ke `status` + tegakkan
   never-delete + guard arsip di PR ini (keputusan 6).
 - Yang dibuat:
@@ -177,8 +177,17 @@ migrasi lama. Ikuti Standards §5. Update checkbox + Bukti.
   minimal 116 passed/53 failed — dominan `null tahun_mulai_berlaku`
   + `is_aktif does not exist` (fixture seeder menulis kolom lama).
   Frontend hijau penuh (typecheck, 129 test, build). Ini daftar
-  reader konkret yang WAJIB disentuh task ini (tak terbatas pada ini).
-- Selesai: — | Bukti: —
+   reader konkret yang WAJIB disentuh task ini (tak terbatas pada ini).
+- Selesai: 2026-09-29 | Bukti: `DestroyIndikator` arsip-only
+  (`status=arsip` + audit `indikator.arsipkan`, tanpa `delete()`/23503);
+  `is_aktif` dicabut dari Store/Update Request+Action+`IndikatorModal`;
+  `StoreIndikator` mengisi `status/tahun_mulai_berlaku/created_by`;
+  reader ke `status` (Index payload, guard hapus Regulasi, JenisBerkas);
+  guard `IndikatorArsipGuard` (422) + test; ADR `docs/adr/0003`; grep
+  `is_aktif` nihil di `app/`+`resources/js` kecuali domain Renstra;
+  `pint --test` passed; `phpstan` 0 errors; `bun run typecheck` passed;
+  Pest TIDAK dijalankan (butuh PG disposable). Reaktivasi tidak
+  disediakan (open). Belum di-commit.
 
 ```text
 Prompt handoff R2-04c:
