@@ -3,6 +3,7 @@
 namespace Tests\Feature\IndikatorKomponen;
 
 use App\Models\IndikatorKinerja;
+use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\IndikatorKomponenFixtureSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,15 @@ use Tests\TestCase;
 class IndikatorKomponenFixtureTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Fixture seeder menurunkan created_by_role dari peran aktual creator,
+        // sehingga katalog akses (termasuk peran perencanaan) harus ada dulu.
+        $this->seed(AccessCatalogSeeder::class);
+    }
 
     /**
      * TEST-5: IKU 3 fixture hanya memiliki tepat dua komponen efektif sakip dan zi_wbk dengan bobot 0.5.

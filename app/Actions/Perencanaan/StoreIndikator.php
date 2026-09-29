@@ -61,6 +61,20 @@ class StoreIndikator
                 ];
             }
 
+            // 2b. Guard rujukan regulasi (Q3): bila regulasi_id diisi, aktor wajib
+            // lolos regulasi:read memakai state terkunci agar tebakan UUID tak
+            // bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
+            if (($validated['regulasi_id'] ?? null) !== null && $validated['regulasi_id'] !== '') {
+                $regulasiDecision = $this->resolver->resolve($lockedActor, PermissionCodes::REGULASI_READ);
+                if (! $regulasiDecision->allowed) {
+                    return [
+                        'status' => 'denied',
+                        'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
+                        'dasarIzin' => $regulasiDecision->toAuditBasis(),
+                    ];
+                }
+            }
+
             // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan resolusi Q32
             // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
             $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];

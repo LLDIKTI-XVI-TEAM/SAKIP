@@ -60,6 +60,20 @@ class UpdateIndikator
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
+            // 2b. Guard rujukan regulasi (Q3): bila regulasi_id diisi non-null,
+            // aktor wajib lolos regulasi:read memakai state terkunci agar tebakan
+            // UUID tak bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
+            if (array_key_exists('regulasi_id', $validated) && $validated['regulasi_id'] !== null && $validated['regulasi_id'] !== '') {
+                $regulasiDecision = $this->resolver->resolve($lockedActor, PermissionCodes::REGULASI_READ);
+                if (! $regulasiDecision->allowed) {
+                    return [
+                        'status' => 'denied',
+                        'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
+                        'dasarIzin' => $regulasiDecision->toAuditBasis(),
+                    ];
+                }
+            }
+
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::query()
                 ->whereKey($indikator->getKey())
