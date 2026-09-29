@@ -2,6 +2,7 @@
 
 namespace App\Actions\PerjanjianKinerja;
 
+use App\Exceptions\ReauthorizationDenialException;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\User;
@@ -13,6 +14,7 @@ use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -33,12 +35,42 @@ class CreatePerjanjianKinerja
     {
         $createDecision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_CREATE);
         if (! $createDecision->allowed) {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'renstra_pk.buat_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: (string) Str::uuid(),
+                nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                    'renstra_id' => $data['renstra_id'] ?? null,
+                    'tahun' => $data['tahun'] ?? null,
+                    'nomor_pk' => $data['nomor_pk'] ?? null,
+                    'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                    'alasan_penolakan' => 'pk_create_denied',
+                ]),
+                alasan: 'Penolakan izin awal pencatatan Perjanjian Kinerja.',
+                dasarIzin: $createDecision->toAuditBasis(),
+            );
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.');
         }
 
         if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
             $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
             if (! $uploadDecision->allowed) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra_pk.buat_ditolak',
+                    objekTipe: 'renstra_pk',
+                    objekId: (string) Str::uuid(),
+                    nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                        'renstra_id' => $data['renstra_id'] ?? null,
+                        'tahun' => $data['tahun'] ?? null,
+                        'nomor_pk' => $data['nomor_pk'] ?? null,
+                        'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                        'alasan_penolakan' => 'berkas_upload_denied',
+                    ]),
+                    alasan: 'Penolakan izin awal unggah lampiran berkas Perjanjian Kinerja.',
+                    dasarIzin: $uploadDecision->toAuditBasis(),
+                );
                 throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
             }
         }
@@ -71,14 +103,22 @@ class CreatePerjanjianKinerja
 
                 $createDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_CREATE);
                 if (! $createDecision->allowed) {
-                    throw new AuthorizationException('Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.');
+                    throw new ReauthorizationDenialException(
+                        $createDecision,
+                        'pk_create_denied',
+                        'Pengguna tidak memiliki izin untuk mencatat Perjanjian Kinerja.'
+                    );
                 }
 
                 $uploadDecision = null;
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $uploadDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_UPLOAD);
                     if (! $uploadDecision->allowed) {
-                        throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
+                        throw new ReauthorizationDenialException(
+                            $uploadDecision,
+                            'berkas_upload_denied',
+                            'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'
+                        );
                     }
                 }
 
@@ -121,6 +161,26 @@ class CreatePerjanjianKinerja
 
                 return $pk;
             });
+        } catch (ReauthorizationDenialException $exception) {
+            $this->attachmentService->hapusFile($storedPaths);
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'renstra_pk.buat_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: (string) Str::uuid(),
+                nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                    'renstra_id' => $data['renstra_id'] ?? null,
+                    'tahun' => $data['tahun'] ?? null,
+                    'nomor_pk' => $data['nomor_pk'] ?? null,
+                    'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                    'alasan_penolakan' => $exception->denialReason,
+                ]),
+                alasan: 'Penolakan izin pada saat validasi wewenang mutasi Perjanjian Kinerja.',
+                dasarIzin: $exception->decision->toAuditBasis(),
+            );
+
+            throw new AuthorizationException($exception->getMessage());
         } catch (QueryException $exception) {
             $this->attachmentService->hapusFile($storedPaths);
 

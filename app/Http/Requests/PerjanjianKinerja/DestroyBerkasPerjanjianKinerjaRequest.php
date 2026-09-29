@@ -6,6 +6,7 @@ use App\Models\Berkas;
 use App\Models\RenstraPk;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\PerjanjianKinerja\PerjanjianKinerjaAttachmentService;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
@@ -64,26 +65,7 @@ class DestroyBerkasPerjanjianKinerjaRequest extends FormRequest
             $rawAlasan = $this->input('alasan');
             $alasan = $this->sanitizeAlasan($rawAlasan);
 
-            $metadata = [
-                'id' => $berkas->id,
-                'mode' => $berkas->mode,
-                'nama_asli' => $berkas->nama_asli,
-            ];
-
-            if ($berkas->mode === 'file') {
-                $metadata += [
-                    'mime' => $berkas->mime,
-                    'ukuran_bytes' => $berkas->ukuran_bytes,
-                ];
-            } elseif ($berkas->mode === 'tautan') {
-                $metadata += [
-                    'tautan' => $berkas->tautan,
-                ];
-            } else {
-                $metadata += [
-                    'panjang_teks' => mb_strlen((string) $berkas->isi_teks),
-                ];
-            }
+            $metadata = app(PerjanjianKinerjaAttachmentService::class)->metadataBerkasUntukAudit($berkas);
 
             app(AuditLogger::class)->catat(
                 actor: $user,

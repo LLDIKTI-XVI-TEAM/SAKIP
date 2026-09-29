@@ -59,7 +59,7 @@ final class PermissionCodes
 
     public const JENIS_BERKAS_DELETE = 'jenis_berkas:delete';
 
-    // --- 9 Kode Permission Scope Unit untuk Form Grant (ISS-01.04, §6 Dokumen Konfirmasi Permission) ---
+    // --- Kode Permission Scope Unit (ISS-01.04, Q32) ---
 
     public const RENCANA_AKSI_READ = 'rencana_aksi:read';
 

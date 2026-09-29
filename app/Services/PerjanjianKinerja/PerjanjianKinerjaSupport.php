@@ -7,11 +7,13 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Throwable;
 
 class PerjanjianKinerjaSupport
 {
@@ -42,6 +44,51 @@ class PerjanjianKinerjaSupport
         }
 
         return mb_substr($clean, 0, 1000, 'UTF-8');
+    }
+
+    /**
+     * Membatasi dan membersihkan metadata audit penolakan agar aman, terprediksi, dan bounded.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    public static function boundDeniedMetadata(array $input): array
+    {
+        $bounded = [];
+
+        if (isset($input['renstra_id']) && is_string($input['renstra_id']) && Str::isUuid($input['renstra_id'])) {
+            $bounded['renstra_id'] = $input['renstra_id'];
+        }
+
+        if (isset($input['tahun'])) {
+            if (is_int($input['tahun']) || (is_string($input['tahun']) && ctype_digit($input['tahun']))) {
+                $tahun = (int) $input['tahun'];
+                if ($tahun >= 1900 && $tahun <= 2100) {
+                    $bounded['tahun'] = $tahun;
+                }
+            }
+        }
+
+        if (isset($input['nomor_pk']) && (is_string($input['nomor_pk']) || is_numeric($input['nomor_pk']))) {
+            $nomor = trim(str_replace("\0", '', (string) $input['nomor_pk']));
+            if ($nomor !== '') {
+                $bounded['nomor_pk'] = mb_substr($nomor, 0, 255, 'UTF-8');
+            }
+        }
+
+        if (isset($input['tanggal_pk']) && is_string($input['tanggal_pk'])) {
+            try {
+                $bounded['tanggal_pk'] = Carbon::parse($input['tanggal_pk'])->format('Y-m-d');
+            } catch (Throwable) {
+                // Jangan simpan tanggal yang tidak valid
+            }
+        }
+
+        if (isset($input['alasan_penolakan']) && is_string($input['alasan_penolakan'])) {
+            $bounded['alasan_penolakan'] = mb_substr(trim($input['alasan_penolakan']), 0, 100, 'UTF-8');
+        }
+
+        return $bounded;
     }
 
     /**
@@ -103,15 +150,14 @@ class PerjanjianKinerjaSupport
     }
 
     /**
-     * Validasi lanjutan untuk upload lampiran berkas pada siklus after() FormRequest.
+     * Validasi lanjutan untuk upload lampiran berkas pada Validator.
+     * Menerima array lampiran dan array resolved UploadedFile tanpa dependency ke FormRequest.
+     *
+     * @param  array<array-key, mixed>  $lampiran
+     * @param  array<array-key, mixed>  $files
      */
-    public static function validateLampiranAfter(FormRequest $request, Validator $validator): void
+    public static function validateLampiranItems(array $lampiran, array $files, Validator $validator): void
     {
-        $lampiran = $request->input('lampiran', []);
-        if (! is_array($lampiran)) {
-            return;
-        }
-
         $isUploadActive = filter_var(
             Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
             FILTER_VALIDATE_BOOLEAN
@@ -124,13 +170,13 @@ class PerjanjianKinerjaSupport
 
             $mode = $item['mode'] ?? null;
             if ($mode === 'file') {
+                $file = $files[$index] ?? null;
                 if (! $isUploadActive) {
                     $validator->errors()->add("lampiran.{$index}.file", 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.');
-                } elseif (! $request->hasFile("lampiran.{$index}.file")) {
+                } elseif (! ($file instanceof UploadedFile)) {
                     $validator->errors()->add("lampiran.{$index}.file", 'Pilih file yang akan dilampirkan.');
                 } else {
-                    $file = $request->file("lampiran.{$index}.file");
-                    if ($file instanceof UploadedFile && mb_strlen($file->getClientOriginalName()) > 255) {
+                    if (mb_strlen($file->getClientOriginalName()) > 255) {
                         $validator->errors()->add("lampiran.{$index}.file", 'Nama file lampiran tidak boleh melebihi 255 karakter.');
                     }
                 }

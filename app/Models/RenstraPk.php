@@ -73,39 +73,51 @@ class RenstraPk extends Model
     public function jadwalTahunan(): HasOne
     {
         return $this->hasOne(JadwalTahunan::class, 'renstra_pk_id')
-            ->orderByRaw("case when status = 'aktif' then 0 else 1 end");
+            ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 WHEN status = 'ditutup' THEN 1 ELSE 2 END")
+            ->orderByDesc('activated_at')
+            ->orderByDesc('closed_at')
+            ->orderByDesc('penutupan')
+            ->orderByDesc('id');
     }
 
-    public function isJadwalAktif(): bool
+    public function resolveJadwalTahunan(): ?JadwalTahunan
     {
-        return JadwalTahunan::where('status', 'aktif')
-            ->where(function ($q) {
-                $q->where('renstra_pk_id', $this->id)
-                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
-            })->exists();
-    }
+        if ($this->relationLoaded('jadwalTahunan') && $this->jadwalTahunan !== null) {
+            return $this->jadwalTahunan;
+        }
 
-    public function isJadwalTerkunci(): bool
-    {
-        return JadwalTahunan::where(function ($q) {
-            $q->where('status', 'aktif')
-                ->orWhere('status', 'ditutup')
-                ->orWhereNotNull('activated_at');
-        })
-            ->where(function ($q) {
-                $q->where('renstra_pk_id', $this->id)
-                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
-            })->exists();
-    }
+        $jadwal = $this->jadwalTahunan()->first();
+        if ($jadwal !== null) {
+            return $jadwal;
+        }
 
-    public function jadwalStatus(): ?string
-    {
         return JadwalTahunan::where(function ($q) {
             $q->where('renstra_pk_id', $this->id)
                 ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
         })
-            ->orderByRaw("case when status = 'aktif' then 0 when status = 'ditutup' then 1 else 2 end")
-            ->value('status');
+            ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 WHEN status = 'ditutup' THEN 1 ELSE 2 END")
+            ->orderByDesc('activated_at')
+            ->orderByDesc('closed_at')
+            ->orderByDesc('penutupan')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function isJadwalAktif(): bool
+    {
+        return $this->resolveJadwalTahunan()?->status === 'aktif';
+    }
+
+    public function isJadwalTerkunci(): bool
+    {
+        $jadwal = $this->resolveJadwalTahunan();
+
+        return $jadwal?->is_terkunci ?? false;
+    }
+
+    public function jadwalStatus(): ?string
+    {
+        return $this->resolveJadwalTahunan()?->status;
     }
 
     public function getMorphClass(): string

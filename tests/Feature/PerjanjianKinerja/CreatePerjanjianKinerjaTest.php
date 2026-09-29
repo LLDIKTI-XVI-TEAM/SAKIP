@@ -264,6 +264,13 @@ class CreatePerjanjianKinerjaTest extends TestCase
             $this->assertDatabaseMissing('renstra_pk', [
                 'nomor_pk' => 'PK-CONCURRENT-CREATE',
             ]);
+            $this->assertDatabaseHas('audit_log', [
+                'tindakan' => 'renstra_pk.buat_ditolak',
+                'actor_id' => $concurrentActor->id,
+            ]);
+            $this->assertDatabaseMissing('audit_log', [
+                'tindakan' => 'renstra_pk.buat',
+            ]);
         }
     }
 

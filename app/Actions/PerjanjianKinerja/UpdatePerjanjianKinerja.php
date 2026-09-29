@@ -2,6 +2,7 @@
 
 namespace App\Actions\PerjanjianKinerja;
 
+use App\Exceptions\ReauthorizationDenialException;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -63,12 +64,46 @@ class UpdatePerjanjianKinerja
 
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::PK_UPDATE);
         if (! $decision->allowed) {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'renstra_pk.ubah_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: $pk->id,
+                nilaiLama: [
+                    'nomor_pk' => $pk->nomor_pk,
+                    'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
+                ],
+                nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                    'nomor_pk' => $data['nomor_pk'] ?? null,
+                    'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                    'alasan_penolakan' => 'pk_update_denied',
+                ]),
+                alasan: $alasan,
+                dasarIzin: $decision->toAuditBasis(),
+            );
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
         }
 
         if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
             $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
             if (! $uploadDecision->allowed) {
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'renstra_pk.ubah_ditolak',
+                    objekTipe: 'renstra_pk',
+                    objekId: $pk->id,
+                    nilaiLama: [
+                        'nomor_pk' => $pk->nomor_pk,
+                        'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
+                    ],
+                    nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                        'nomor_pk' => $data['nomor_pk'] ?? null,
+                        'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                        'alasan_penolakan' => 'berkas_upload_denied',
+                    ]),
+                    alasan: $alasan,
+                    dasarIzin: $uploadDecision->toAuditBasis(),
+                );
                 throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
             }
         }
@@ -86,14 +121,22 @@ class UpdatePerjanjianKinerja
 
                 $decision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
                 if (! $decision->allowed) {
-                    throw new AuthorizationException('Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.');
+                    throw new ReauthorizationDenialException(
+                        $decision,
+                        'pk_update_denied',
+                        'Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.'
+                    );
                 }
 
                 $uploadDecision = null;
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $uploadDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_UPLOAD);
                     if (! $uploadDecision->allowed) {
-                        throw new AuthorizationException('Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.');
+                        throw new ReauthorizationDenialException(
+                            $uploadDecision,
+                            'berkas_upload_denied',
+                            'Pengguna tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'
+                        );
                     }
                 }
 
@@ -140,6 +183,28 @@ class UpdatePerjanjianKinerja
 
                 return $pkLocked;
             });
+        } catch (ReauthorizationDenialException $exception) {
+            $this->attachmentService->hapusFile($storedPaths);
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'renstra_pk.ubah_ditolak',
+                objekTipe: 'renstra_pk',
+                objekId: $pk->id,
+                nilaiLama: [
+                    'nomor_pk' => $pk->nomor_pk,
+                    'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
+                ],
+                nilaiBaru: PerjanjianKinerjaSupport::boundDeniedMetadata([
+                    'nomor_pk' => $data['nomor_pk'] ?? null,
+                    'tanggal_pk' => $data['tanggal_pk'] ?? null,
+                    'alasan_penolakan' => $exception->denialReason,
+                ]),
+                alasan: $alasan,
+                dasarIzin: $exception->decision->toAuditBasis(),
+            );
+
+            throw new AuthorizationException($exception->getMessage());
         } catch (Throwable $exception) {
             $this->attachmentService->hapusFile($storedPaths);
 

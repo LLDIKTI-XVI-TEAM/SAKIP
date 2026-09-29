@@ -2,6 +2,7 @@
 
 namespace App\Actions\PerjanjianKinerja;
 
+use App\Exceptions\ReauthorizationDenialException;
 use App\Jobs\CleanupStorageFileJob;
 use App\Models\Berkas;
 use App\Models\JadwalTahunan;
@@ -48,87 +49,128 @@ class DeleteBerkasPerjanjianKinerja
         $berkasDeleteDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_DELETE);
 
         if (! $pkUpdateDecision->allowed || ! $berkasDeleteDecision->allowed) {
+            $deniedDecision = ! $pkUpdateDecision->allowed ? $pkUpdateDecision : $berkasDeleteDecision;
+            $denialReason = ! $pkUpdateDecision->allowed ? 'pk_update_denied' : 'berkas_delete_denied';
+
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'berkas.hapus_ditolak',
+                objekTipe: 'berkas',
+                objekId: $berkas->id,
+                nilaiLama: $this->attachmentService->metadataBerkasUntukAudit($berkas),
+                nilaiBaru: ['alasan_penolakan' => $denialReason],
+                alasan: $alasan,
+                dasarIzin: $deniedDecision->toAuditBasis(),
+            );
+
             throw new AuthorizationException('Pengguna tidak memiliki izin untuk menghapus lampiran Perjanjian Kinerja.');
         }
 
         $path = null;
 
-        $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, &$path): ?string {
-            $lockedActor = PerjanjianKinerjaSupport::lockActorAndPermissions($actor, [
-                PermissionCodes::PK_UPDATE,
-                PermissionCodes::BERKAS_DELETE,
-            ]);
+        try {
+            $penolakan = DB::transaction(function () use ($pk, $berkas, $actor, $alasan, &$path): ?string {
+                $lockedActor = PerjanjianKinerjaSupport::lockActorAndPermissions($actor, [
+                    PermissionCodes::PK_UPDATE,
+                    PermissionCodes::BERKAS_DELETE,
+                ]);
 
-            $pkUpdateDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
-            $berkasDeleteDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_DELETE);
+                $pkUpdateDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::PK_UPDATE);
+                $berkasDeleteDecision = $this->permissionResolver->resolve($lockedActor, PermissionCodes::BERKAS_DELETE);
 
-            if (! $pkUpdateDecision->allowed || ! $berkasDeleteDecision->allowed) {
-                throw new AuthorizationException('Pengguna tidak memiliki izin untuk menghapus lampiran Perjanjian Kinerja.');
-            }
+                if (! $pkUpdateDecision->allowed) {
+                    throw new ReauthorizationDenialException(
+                        $pkUpdateDecision,
+                        'pk_update_denied',
+                        'Pengguna tidak memiliki izin untuk memperbarui Perjanjian Kinerja.'
+                    );
+                }
 
-            /** @var RenstraPk $pkLocked */
-            $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
+                if (! $berkasDeleteDecision->allowed) {
+                    throw new ReauthorizationDenialException(
+                        $berkasDeleteDecision,
+                        'berkas_delete_denied',
+                        'Pengguna tidak memiliki izin untuk menghapus lampiran berkas.'
+                    );
+                }
 
-            // Kunci baris jadwal_tahunan terkait untuk mencegah race condition / TOCTOU aktivasi jadwal
-            $jadwalTerkait = JadwalTahunan::where(function ($q) use ($pkLocked) {
-                $q->where('renstra_pk_id', $pkLocked->id)
-                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $pkLocked->renstra_id)->where('tahun', $pkLocked->tahun));
-            })->lockForUpdate()->get();
+                /** @var RenstraPk $pkLocked */
+                $pkLocked = RenstraPk::where('id', $pk->id)->lockForUpdate()->firstOrFail();
 
-            $isJadwalMengunci = $jadwalTerkait->contains(function ($j) {
-                return $j->status === 'aktif'
-                    || $j->status === 'ditutup'
-                    || ! is_null($j->activated_at);
-            });
+                // Kunci baris jadwal_tahunan terkait untuk mencegah race condition / TOCTOU aktivasi jadwal
+                $jadwalTerkait = JadwalTahunan::where(function ($q) use ($pkLocked) {
+                    $q->where('renstra_pk_id', $pkLocked->id)
+                        ->orWhere(fn ($sub) => $sub->where('renstra_id', $pkLocked->renstra_id)->where('tahun', $pkLocked->tahun));
+                })->lockForUpdate()->get();
 
-            if ($isJadwalMengunci) {
+                $isJadwalMengunci = $jadwalTerkait->contains(function ($j) {
+                    return $j->status === 'aktif'
+                        || $j->status === 'ditutup'
+                        || ! is_null($j->activated_at);
+                });
+
+                if ($isJadwalMengunci) {
+                    $this->auditLogger->catat(
+                        actor: $lockedActor,
+                        tindakan: 'berkas.hapus_ditolak',
+                        objekTipe: 'berkas',
+                        objekId: $berkas->id,
+                        nilaiLama: $this->attachmentService->metadataBerkasUntukAudit($berkas),
+                        nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
+                        alasan: $alasan,
+                        dasarIzin: $berkasDeleteDecision->toAuditBasis(),
+                    );
+
+                    return 'jadwal_tahunan_aktif';
+                }
+
+                /** @var Berkas|null $berkasLocked */
+                $berkasLocked = Berkas::where('id', $berkas->id)
+                    ->where('berkasable_id', $pkLocked->id)
+                    ->whereIn('berkasable_type', ['renstra_pk', RenstraPk::class])
+                    ->whereNull('dihapus_pada')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $berkasLocked) {
+                    throw ValidationException::withMessages([
+                        'berkas' => 'Lampiran berkas sudah dihapus atau tidak ditemukan.',
+                    ]);
+                }
+
+                $path = $berkasLocked->mode === 'file' && is_string($berkasLocked->path) ? $berkasLocked->path : null;
+                $nilaiLama = $this->attachmentService->metadataBerkasUntukAudit($berkasLocked);
+
+                $berkasLocked->dihapus_oleh = $lockedActor->id;
+                $berkasLocked->save();
+                $berkasLocked->delete();
+
                 $this->auditLogger->catat(
                     actor: $lockedActor,
-                    tindakan: 'berkas.hapus_ditolak',
+                    tindakan: 'berkas.hapus',
                     objekTipe: 'berkas',
-                    objekId: $berkas->id,
-                    nilaiLama: $this->attachmentService->metadataBerkasUntukAudit($berkas),
-                    nilaiBaru: ['alasan_penolakan' => 'jadwal_tahunan_aktif'],
+                    objekId: $berkasLocked->id,
+                    nilaiLama: $nilaiLama,
                     alasan: $alasan,
                     dasarIzin: $berkasDeleteDecision->toAuditBasis(),
                 );
 
-                return 'jadwal_tahunan_aktif';
-            }
-
-            /** @var Berkas|null $berkasLocked */
-            $berkasLocked = Berkas::where('id', $berkas->id)
-                ->where('berkasable_id', $pkLocked->id)
-                ->whereIn('berkasable_type', ['renstra_pk', RenstraPk::class])
-                ->whereNull('dihapus_pada')
-                ->lockForUpdate()
-                ->first();
-
-            if (! $berkasLocked) {
-                throw ValidationException::withMessages([
-                    'berkas' => 'Lampiran berkas sudah dihapus atau tidak ditemukan.',
-                ]);
-            }
-
-            $path = $berkasLocked->mode === 'file' && is_string($berkasLocked->path) ? $berkasLocked->path : null;
-            $nilaiLama = $this->attachmentService->metadataBerkasUntukAudit($berkasLocked);
-
-            $berkasLocked->dihapus_oleh = $lockedActor->id;
-            $berkasLocked->save();
-            $berkasLocked->delete();
-
+                return null;
+            });
+        } catch (ReauthorizationDenialException $exception) {
             $this->auditLogger->catat(
-                actor: $lockedActor,
-                tindakan: 'berkas.hapus',
+                actor: $actor,
+                tindakan: 'berkas.hapus_ditolak',
                 objekTipe: 'berkas',
-                objekId: $berkasLocked->id,
-                nilaiLama: $nilaiLama,
+                objekId: $berkas->id,
+                nilaiLama: $this->attachmentService->metadataBerkasUntukAudit($berkas),
+                nilaiBaru: ['alasan_penolakan' => $exception->denialReason],
                 alasan: $alasan,
-                dasarIzin: $berkasDeleteDecision->toAuditBasis(),
+                dasarIzin: $exception->decision->toAuditBasis(),
             );
 
-            return null;
-        });
+            throw new AuthorizationException($exception->getMessage());
+        }
 
         if ($penolakan === 'jadwal_tahunan_aktif') {
             throw ValidationException::withMessages([

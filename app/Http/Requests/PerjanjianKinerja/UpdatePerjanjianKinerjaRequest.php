@@ -56,11 +56,11 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
                 'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
             ];
 
-            $nilaiBaru = array_filter([
+            $nilaiBaru = PerjanjianKinerjaSupport::boundDeniedMetadata([
                 'nomor_pk' => $this->input('nomor_pk'),
                 'tanggal_pk' => $this->input('tanggal_pk'),
                 'alasan_penolakan' => ! $updateDecision->allowed ? 'pk_update_denied' : 'berkas_upload_denied',
-            ], fn ($val) => $val !== null);
+            ]);
 
             app(AuditLogger::class)->catat(
                 actor: $user,
@@ -114,6 +114,15 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
      */
     public function after(): array
     {
-        return [fn (Validator $validator) => PerjanjianKinerjaSupport::validateLampiranAfter($this, $validator)];
+        return [
+            function (Validator $validator) {
+                $lampiran = (array) $this->input('lampiran', []);
+                $files = [];
+                foreach (array_keys($lampiran) as $index) {
+                    $files[$index] = $this->file("lampiran.{$index}.file");
+                }
+                PerjanjianKinerjaSupport::validateLampiranItems($lampiran, $files, $validator);
+            },
+        ];
     }
 }

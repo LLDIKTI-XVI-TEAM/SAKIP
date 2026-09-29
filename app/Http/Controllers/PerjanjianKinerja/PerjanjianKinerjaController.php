@@ -10,9 +10,8 @@ use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
 use App\Models\Berkas;
-use App\Models\Pengaturan;
-use App\Models\Renstra;
 use App\Models\RenstraPk;
+use App\Services\PerjanjianKinerja\PerjanjianKinerjaQueryService;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +23,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PerjanjianKinerjaController extends Controller
 {
+    public function __construct(
+        protected PerjanjianKinerjaQueryService $queryService,
+    ) {}
+
     /**
      * Menampilkan daftar Perjanjian Kinerja tahunan.
      */
@@ -37,75 +40,12 @@ class PerjanjianKinerjaController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $query = RenstraPk::query()
-            ->with([
-                'renstra:id,kode,nama,tahun_mulai,tahun_selesai,is_aktif',
-                'creator:id,nama',
-                'jadwalTahunan:id,renstra_id,renstra_pk_id,tahun,status,activated_at',
-            ])
-            ->withCount('berkas')
-            ->when(! empty($filters['renstra_id']), fn ($q) => $q->where('renstra_id', $filters['renstra_id']))
-            ->when(! empty($filters['tahun']), fn ($q) => $q->where('tahun', $filters['tahun']))
-            ->when(! empty($filters['q']), fn ($q) => $q->where('nomor_pk', 'ilike', '%'.$filters['q'].'%'))
-            ->orderByDesc('tahun')
-            ->orderByDesc('created_at');
-
-        $perjanjianKinerja = $query->paginate(15)->withQueryString()->through(fn (RenstraPk $pk) => [
-            'id' => $pk->id,
-            'renstra_id' => $pk->renstra_id,
-            'tahun' => $pk->tahun,
-            'nomor_pk' => $pk->nomor_pk,
-            'tanggal_pk' => $pk->tanggal_pk?->format('Y-m-d'),
-            'created_at' => $pk->created_at?->toISOString(),
-            'updated_at' => $pk->updated_at?->toISOString(),
-            'berkas_count' => (int) ($pk->berkas_count ?? 0),
-            'renstra' => $pk->renstra ? [
-                'id' => $pk->renstra->id,
-                'kode' => $pk->renstra->kode,
-                'nama' => $pk->renstra->nama,
-                'tahun_mulai' => $pk->renstra->tahun_mulai,
-                'tahun_selesai' => $pk->renstra->tahun_selesai,
-                'is_aktif' => (bool) $pk->renstra->is_aktif,
-            ] : null,
-            'creator' => $pk->creator ? [
-                'id' => $pk->creator->id,
-                'nama' => $pk->creator->nama,
-            ] : null,
-            'jadwal_tahunan' => $pk->jadwalTahunan ? [
-                'id' => $pk->jadwalTahunan->id,
-                'renstra_id' => $pk->jadwalTahunan->renstra_id,
-                'renstra_pk_id' => $pk->jadwalTahunan->renstra_pk_id,
-                'tahun' => $pk->jadwalTahunan->tahun,
-                'status' => $pk->jadwalTahunan->status,
-                'activated_at' => $pk->jadwalTahunan->activated_at,
-                'is_terkunci' => $pk->jadwalTahunan->is_terkunci,
-            ] : null,
-        ]);
-
-        $renstras = Renstra::orderByDesc('tahun_mulai')
-            ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif'])
-            ->map(fn (Renstra $r) => [
-                'id' => $r->id,
-                'kode' => $r->kode,
-                'nama' => $r->nama,
-                'tahun_mulai' => $r->tahun_mulai,
-                'tahun_selesai' => $r->tahun_selesai,
-                'is_aktif' => (bool) $r->is_aktif,
-            ])
-            ->all();
-
-        $user = $request->user();
-
         return Inertia::render('PerjanjianKinerja/Index', [
-            'perjanjianKinerja' => $perjanjianKinerja,
-            'renstras' => $renstras,
-            'storageSettings' => $this->storageSettings(),
+            'perjanjianKinerja' => $this->queryService->paginateIndex($filters),
+            'renstras' => $this->queryService->getRenstraOptions(),
+            'storageSettings' => $this->queryService->getStorageSettings(),
             'filters' => $request->only(['renstra_id', 'tahun', 'q']),
-            'can' => [
-                'create' => $user?->can('create', RenstraPk::class) ?? false,
-                'update' => $user?->can('update', RenstraPk::class) ?? false,
-                'upload_berkas' => $user?->can('uploadBerkas', RenstraPk::class) ?? false,
-            ],
+            'can' => $this->queryService->resolveIndexCapabilities($request->user()),
         ]);
     }
 
@@ -138,83 +78,16 @@ class PerjanjianKinerjaController extends Controller
     {
         Gate::authorize('view', $perjanjianKinerja);
 
-        $perjanjianKinerja->load([
-            'renstra',
-            'creator:id,nama',
-            'berkas.pengunggah:id,nama',
-            'jadwalTahunan',
-        ]);
-
-        $isJadwalAktif = $perjanjianKinerja->isJadwalAktif();
-        $isJadwalTerkunci = $perjanjianKinerja->isJadwalTerkunci();
-        $jadwalStatus = $perjanjianKinerja->jadwalStatus();
         $user = request()->user();
-        $canReadBerkas = $user?->can('downloadBerkas', $perjanjianKinerja) ?? false;
-
-        $pkData = [
-            'id' => $perjanjianKinerja->id,
-            'renstra_id' => $perjanjianKinerja->renstra_id,
-            'tahun' => $perjanjianKinerja->tahun,
-            'nomor_pk' => $perjanjianKinerja->nomor_pk,
-            'tanggal_pk' => $perjanjianKinerja->tanggal_pk?->format('Y-m-d'),
-            'created_at' => $perjanjianKinerja->created_at?->toISOString(),
-            'updated_at' => $perjanjianKinerja->updated_at?->toISOString(),
-            'renstra' => $perjanjianKinerja->renstra ? [
-                'id' => $perjanjianKinerja->renstra->id,
-                'kode' => $perjanjianKinerja->renstra->kode,
-                'nama' => $perjanjianKinerja->renstra->nama,
-                'tahun_mulai' => $perjanjianKinerja->renstra->tahun_mulai,
-                'tahun_selesai' => $perjanjianKinerja->renstra->tahun_selesai,
-                'is_aktif' => (bool) $perjanjianKinerja->renstra->is_aktif,
-            ] : null,
-            'creator' => $perjanjianKinerja->creator ? [
-                'id' => $perjanjianKinerja->creator->id,
-                'nama' => $perjanjianKinerja->creator->nama,
-            ] : null,
-            'jadwal_tahunan' => $perjanjianKinerja->jadwalTahunan ? [
-                'id' => $perjanjianKinerja->jadwalTahunan->id,
-                'renstra_id' => $perjanjianKinerja->jadwalTahunan->renstra_id,
-                'renstra_pk_id' => $perjanjianKinerja->jadwalTahunan->renstra_pk_id,
-                'tahun' => $perjanjianKinerja->jadwalTahunan->tahun,
-                'status' => $perjanjianKinerja->jadwalTahunan->status,
-                'activated_at' => $perjanjianKinerja->jadwalTahunan->activated_at,
-                'is_terkunci' => $perjanjianKinerja->jadwalTahunan->is_terkunci,
-            ] : null,
-            'berkas' => $perjanjianKinerja->berkas->map(function (Berkas $b) use ($canReadBerkas) {
-                $item = [
-                    'id' => $b->id,
-                    'mode' => $b->mode,
-                    'nama_asli' => $b->nama_asli,
-                    'mime' => $b->mime,
-                    'ukuran_bytes' => $b->ukuran_bytes,
-                    'created_at' => $b->dibuat_pada?->toISOString() ?? $b->created_at?->toISOString(),
-                    'pengunggah' => $b->pengunggah ? [
-                        'id' => $b->pengunggah->id,
-                        'nama' => $b->pengunggah->nama,
-                    ] : null,
-                ];
-
-                if ($canReadBerkas) {
-                    $item['tautan'] = $b->tautan;
-                    $item['isi_teks'] = $b->isi_teks;
-                }
-
-                return $item;
-            })->values()->all(),
-        ];
+        $detail = $this->queryService->presentDetail($perjanjianKinerja, $user);
 
         return Inertia::render('PerjanjianKinerja/Show', [
-            'pk' => $pkData,
-            'jadwal_status' => $jadwalStatus,
-            'is_jadwal_aktif' => $isJadwalAktif,
-            'is_jadwal_terkunci' => $isJadwalTerkunci,
-            'storageSettings' => $this->storageSettings(),
-            'can' => [
-                'update' => $user?->can('update', $perjanjianKinerja) ?? false,
-                'delete_berkas' => ! $isJadwalTerkunci && ($user?->can('deleteBerkas', $perjanjianKinerja) ?? false),
-                'read_berkas' => $canReadBerkas,
-                'upload_berkas' => $user?->can('uploadBerkas', $perjanjianKinerja) ?? false,
-            ],
+            'pk' => $detail['pk'],
+            'jadwal_status' => $detail['jadwal_status'],
+            'is_jadwal_aktif' => $detail['is_jadwal_aktif'],
+            'is_jadwal_terkunci' => $detail['is_jadwal_terkunci'],
+            'storageSettings' => $this->queryService->getStorageSettings(),
+            'can' => $this->queryService->resolveShowCapabilities($user, $perjanjianKinerja, $detail['is_jadwal_terkunci']),
         ]);
     }
 
@@ -291,23 +164,5 @@ class PerjanjianKinerjaController extends Controller
         $storage = Storage::disk('local');
 
         return $storage->download($berkas->path, $berkas->nama_asli);
-    }
-
-    /**
-     * @return array{unggahan_aktif: bool, ukuran_maks_kb: int, format_diizinkan: string}
-     */
-    protected function storageSettings(): array
-    {
-        $settings = Pengaturan::whereIn('kunci', [
-            'berkas.unggahan_aktif',
-            'berkas.ukuran_maks_kb',
-            'berkas.format_diizinkan',
-        ])->pluck('nilai', 'kunci');
-
-        return [
-            'unggahan_aktif' => filter_var($settings->get('berkas.unggahan_aktif') ?? true, FILTER_VALIDATE_BOOLEAN),
-            'ukuran_maks_kb' => (int) $settings->get('berkas.ukuran_maks_kb', 10240),
-            'format_diizinkan' => (string) $settings->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png'),
-        ];
     }
 }

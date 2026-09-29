@@ -70,17 +70,6 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
         setIsDeleteModalOpen(false);
     };
 
-    const handleDeleteSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedBerkas) return;
-
-        deleteForm.delete(`/perjanjian-kinerja/${pk.id}/berkas/${selectedBerkas.id}`, {
-            onSuccess: () => {
-                closeDeleteModal();
-            },
-        });
-    };
-
     return (
         <AuthenticatedLayout
             title={`PK Tahun ${pk.tahun} - ${pk.nomor_pk}`}

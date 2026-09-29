@@ -325,6 +325,15 @@ class DeleteBerkasPerjanjianKinerjaTest extends TestCase
                 'id' => $berkas->id,
                 'dihapus_pada' => null,
             ]);
+            $this->assertDatabaseHas('audit_log', [
+                'tindakan' => 'berkas.hapus_ditolak',
+                'objek_id' => $berkas->id,
+                'actor_id' => $concurrentActor->id,
+            ]);
+            $this->assertDatabaseMissing('audit_log', [
+                'tindakan' => 'berkas.hapus',
+                'objek_id' => $berkas->id,
+            ]);
         }
     }
 

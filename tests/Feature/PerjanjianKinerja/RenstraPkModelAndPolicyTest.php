@@ -450,4 +450,157 @@ class RenstraPkModelAndPolicyTest extends TestCase
         $this->assertFalse($pkDraft->isJadwalAktif());
         $this->assertSame('draft', $pkDraft->jadwalStatus());
     }
+
+    public function test_jadwal_tahunan_deterministic_selection(): void
+    {
+        $user = User::factory()->create(['status' => 'aktif']);
+        $renstra = Renstra::create([
+            'kode' => 'RENSTRA-DET',
+            'nama' => 'Renstra Deterministic',
+            'tahun_mulai' => 2025,
+            'tahun_selesai' => 2029,
+            'is_aktif' => true,
+            'created_by' => $user->id,
+        ]);
+
+        // Skenario 1: Hanya active -> active dipilih
+        $pk1 = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2025,
+            'nomor_pk' => 'PK-DET-1',
+            'tanggal_pk' => '2025-01-10',
+            'created_by' => $user->id,
+        ]);
+        $jActive = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2025,
+            'penutupan' => '2025-12-31',
+            'status' => 'aktif',
+            'renstra_pk_id' => $pk1->id,
+            'activated_at' => now(),
+            'created_by' => $user->id,
+        ]);
+        $pk1->refresh();
+        $this->assertSame($jActive->id, $pk1->jadwalTahunan->id);
+        $this->assertSame('aktif', $pk1->jadwalStatus());
+        $this->assertTrue($pk1->isJadwalAktif());
+        $this->assertTrue($pk1->isJadwalTerkunci());
+
+        // Skenario 2: Active + ditutup -> active dipilih
+        $pk2 = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-DET-2',
+            'tanggal_pk' => '2026-01-10',
+            'created_by' => $user->id,
+        ]);
+        $jClosed2 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'penutupan' => '2026-06-30',
+            'status' => 'ditutup',
+            'renstra_pk_id' => $pk2->id,
+            'activated_at' => now()->subMonths(6),
+            'closed_at' => now()->subMonths(1),
+            'created_by' => $user->id,
+        ]);
+        $jActive2 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2026,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'renstra_pk_id' => $pk2->id,
+            'activated_at' => now(),
+            'created_by' => $user->id,
+        ]);
+        $pk2->refresh();
+        $this->assertSame($jActive2->id, $pk2->jadwalTahunan->id);
+        $this->assertSame('aktif', $pk2->jadwalStatus());
+        $this->assertTrue($pk2->isJadwalAktif());
+        $this->assertTrue($pk2->isJadwalTerkunci());
+
+        // Skenario 3: Ditutup + draft/non-active -> ditutup dipilih
+        $pk3 = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-DET-3',
+            'tanggal_pk' => '2027-01-10',
+            'created_by' => $user->id,
+        ]);
+        $jDraft3 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'penutupan' => '2027-12-31',
+            'status' => 'draft',
+            'renstra_pk_id' => $pk3->id,
+            'activated_at' => null,
+            'created_by' => $user->id,
+        ]);
+        $jClosed3 = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2027,
+            'penutupan' => '2027-06-30',
+            'status' => 'ditutup',
+            'renstra_pk_id' => $pk3->id,
+            'activated_at' => now()->subMonths(6),
+            'closed_at' => now()->subMonths(1),
+            'created_by' => $user->id,
+        ]);
+        $pk3->refresh();
+        $this->assertSame($jClosed3->id, $pk3->jadwalTahunan->id);
+        $this->assertSame('ditutup', $pk3->jadwalStatus());
+        $this->assertFalse($pk3->isJadwalAktif());
+        $this->assertTrue($pk3->isJadwalTerkunci());
+
+        // Skenario 4: Beberapa record dengan status sama -> tie-breaker deterministik
+        $pk4 = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'nomor_pk' => 'PK-DET-4',
+            'tanggal_pk' => '2028-01-10',
+            'created_by' => $user->id,
+        ]);
+        $jDraft4A = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'penutupan' => '2028-06-30',
+            'status' => 'draft',
+            'renstra_pk_id' => $pk4->id,
+            'created_by' => $user->id,
+        ]);
+        $jDraft4B = JadwalTahunan::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2028,
+            'penutupan' => '2028-12-31',
+            'status' => 'draft',
+            'renstra_pk_id' => $pk4->id,
+            'created_by' => $user->id,
+        ]);
+        $pk4->refresh();
+        $selectedId = $pk4->jadwalTahunan->id;
+        $this->assertNotNull($selectedId);
+        $this->assertSame($selectedId, $pk4->resolveJadwalTahunan()->id);
+        $this->assertSame('draft', $pk4->jadwalStatus());
+        // Uji determinisme berulang
+        for ($i = 0; $i < 5; $i++) {
+            $pk4Fresh = RenstraPk::with('jadwalTahunan')->find($pk4->id);
+            $this->assertSame($selectedId, $pk4Fresh->jadwalTahunan->id);
+            $this->assertSame($selectedId, $pk4Fresh->resolveJadwalTahunan()->id);
+        }
+
+        // Skenario 5: Tidak ada schedule -> behavior existing tetap benar
+        $pk5 = RenstraPk::create([
+            'renstra_id' => $renstra->id,
+            'tahun' => 2029,
+            'nomor_pk' => 'PK-DET-5',
+            'tanggal_pk' => '2029-01-10',
+            'created_by' => $user->id,
+        ]);
+        $pk5->refresh();
+        $this->assertNull($pk5->jadwalTahunan);
+        $this->assertNull($pk5->resolveJadwalTahunan());
+        $this->assertNull($pk5->jadwalStatus());
+        $this->assertFalse($pk5->isJadwalAktif());
+        $this->assertFalse($pk5->isJadwalTerkunci());
+    }
 }

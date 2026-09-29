@@ -176,6 +176,15 @@ class UpdatePerjanjianKinerjaTest extends TestCase
                 'nomor_pk' => 'PK-CONCURRENT-UPDATE-MUTATED',
             ]);
             $this->assertSame('PK-CONCURRENT-UPDATE-ORIG', $pk->fresh()->nomor_pk);
+            $this->assertDatabaseHas('audit_log', [
+                'tindakan' => 'renstra_pk.ubah_ditolak',
+                'objek_id' => $pk->id,
+                'actor_id' => $concurrentActor->id,
+            ]);
+            $this->assertDatabaseMissing('audit_log', [
+                'tindakan' => 'renstra_pk.ubah',
+                'objek_id' => $pk->id,
+            ]);
         }
     }
 
