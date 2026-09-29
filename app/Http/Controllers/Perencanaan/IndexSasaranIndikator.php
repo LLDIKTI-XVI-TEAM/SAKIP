@@ -35,15 +35,16 @@ class IndexSasaranIndikator extends Controller
         $requestedRenstraId = $request->query('renstra_id');
         $selectedRenstra = null;
 
-        if ($request->has('renstra_id') && $requestedRenstraId !== null && $requestedRenstraId !== '') {
-            if (! is_string($requestedRenstraId) || ! Str::isUuid($requestedRenstraId)) {
+        if ($request->has('renstra_id')) {
+            if (! is_string($requestedRenstraId) || trim($requestedRenstraId) === '' || ! Str::isUuid($requestedRenstraId)) {
                 abort(404, 'Renstra tidak ditemukan.');
             }
             $selectedRenstra = $renstras->firstWhere('id', $requestedRenstraId);
             if (! $selectedRenstra) {
                 abort(404, 'Renstra tidak ditemukan.');
             }
-        } elseif (! $request->has('renstra_id') || $requestedRenstraId === null || $requestedRenstraId === '') {
+        } else {
+            // Fallback hanya ketika parameter renstra_id tidak dikirim sama sekali
             if ($renstras->isNotEmpty()) {
                 $selectedRenstra = $renstras->firstWhere('is_aktif', true) ?? $renstras->first();
             }

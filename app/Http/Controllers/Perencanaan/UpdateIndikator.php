@@ -35,18 +35,19 @@ class UpdateIndikator extends Controller
             /** @var User|null $lockedActor */
             $lockedActor = User::whereKey($actor->id)->lockForUpdate()->first();
             if (! $lockedActor || $lockedActor->status !== 'aktif') {
+                $inactiveDecision = $resolver->resolve($lockedActor ?? $actor, PermissionCodes::INDIKATOR_UPDATE);
+
                 return [
                     'status' => 'denied',
-                    'dasarIzin' => [
-                        'status' => 'denied',
-                        'alasan' => 'Akun pengguna tidak aktif.',
-                    ],
+                    'alasan' => 'Pembaruan indikator kinerja ditolak karena akun pengguna tidak aktif.',
+                    'dasarIzin' => $inactiveDecision->toAuditBasis(),
                 ];
             }
 
             // 2. Kunci seluruh baris ACL yang menentukan keputusan izin aktor
+            // Hanya kunci grant global (whereNull unit_id) agar tidak deadlock dengan pencabutan grant unit pada RevokeGrant
             DB::table('user_roles')->where('user_id', $lockedActor->id)->sharedLock()->get();
-            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->whereNull('unit_id')->sharedLock()->get();
             DB::table('user_permission_denied')->where('user_id', $lockedActor->id)->sharedLock()->get();
 
             $actorRoleIds = DB::table('user_roles')
@@ -70,6 +71,7 @@ class UpdateIndikator extends Controller
             if (! $currentDecision->allowed) {
                 return [
                     'status' => 'denied',
+                    'alasan' => 'Pembaruan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
                     'dasarIzin' => $currentDecision->toAuditBasis(),
                 ];
             }
@@ -105,17 +107,25 @@ class UpdateIndikator extends Controller
                 ]);
             }
 
-            // 5. Kunci dan periksa ulang status unit tujuan (Point 8)
+            // 5. Kunci dan periksa status unit: unit lama tetap diizinkan walaupun nonaktif untuk edit biasa,
+            // namun perpindahan ke unit baru wajib berstatus aktif (Point 8 & Codereview)
+            $isUnitChanged = $lockedIndikator->unit_id !== $validated['unit_id'];
+
             /** @var Unit|null $targetUnit */
             $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
-            if (! $targetUnit || $targetUnit->status !== 'aktif') {
+            if (! $targetUnit) {
                 throw ValidationException::withMessages([
-                    'unit_id' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
+                    'unit_id' => 'Unit penanggung jawab tidak valid.',
+                ]);
+            }
+
+            if ($isUnitChanged && $targetUnit->status !== 'aktif') {
+                throw ValidationException::withMessages([
+                    'unit_id' => 'Unit penanggung jawab tujuan tidak valid atau sudah nonaktif.',
                 ]);
             }
 
             // 6. Validasi alasan perpindahan terhadap baris yang dikunci (Point 5)
-            $isUnitChanged = $lockedIndikator->unit_id !== $validated['unit_id'];
             $alasanPindah = null;
             if ($isUnitChanged) {
                 $rawAlasanPindah = $validated['alasan_pindah_unit']
@@ -239,7 +249,7 @@ class UpdateIndikator extends Controller
                 objekId: (string) $indikator->id,
                 nilaiLama: null,
                 nilaiBaru: null,
-                alasan: 'Pembaruan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                alasan: $result['alasan'] ?? 'Pembaruan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
                 dasarIzin: $result['dasarIzin'],
             );
             abort(403, 'Anda tidak berwenang mengubah indikator kinerja.');

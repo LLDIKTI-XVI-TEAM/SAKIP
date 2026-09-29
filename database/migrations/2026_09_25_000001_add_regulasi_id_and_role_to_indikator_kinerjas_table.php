@@ -142,6 +142,25 @@ return new class extends Migration
                 BEFORE UPDATE OF sasaran_strategis_id ON indikator_kinerjas
                 FOR EACH ROW EXECUTE FUNCTION check_indikator_same_renstra();
         SQL);
+
+        // 8. Tambahkan trigger PostgreSQL untuk menegakkan invariant bahwa sasaran strategis yang memiliki indikator tidak boleh dipindahkan ke Renstra lain
+        DB::unprepared(<<<'SQL'
+            CREATE OR REPLACE FUNCTION check_sasaran_renstra_immutability() RETURNS trigger AS $$
+            BEGIN
+                IF OLD.renstra_id IS NOT NULL AND NEW.renstra_id IS DISTINCT FROM OLD.renstra_id THEN
+                    IF EXISTS (SELECT 1 FROM indikator_kinerjas WHERE sasaran_strategis_id = OLD.id) THEN
+                        RAISE EXCEPTION 'Sasaran strategis yang memiliki indikator kinerja tidak boleh dipindahkan ke Renstra lain.' USING ERRCODE = '23514';
+                    END IF;
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS sasaran_strategis_renstra_guard ON sasaran_strategis;
+            CREATE TRIGGER sasaran_strategis_renstra_guard
+                BEFORE UPDATE OF renstra_id ON sasaran_strategis
+                FOR EACH ROW EXECUTE FUNCTION check_sasaran_renstra_immutability();
+        SQL);
     }
 
     /**
@@ -150,6 +169,8 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasColumn('indikator_kinerjas', 'created_by_role')) {
+            DB::statement('DROP TRIGGER IF EXISTS sasaran_strategis_renstra_guard ON sasaran_strategis');
+            DB::statement('DROP FUNCTION IF EXISTS check_sasaran_renstra_immutability()');
             DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_same_renstra_guard ON indikator_kinerjas');
             DB::statement('DROP FUNCTION IF EXISTS check_indikator_same_renstra()');
             DB::statement('DROP TRIGGER IF EXISTS indikator_kinerjas_no_legacy_unknown_insert ON indikator_kinerjas');

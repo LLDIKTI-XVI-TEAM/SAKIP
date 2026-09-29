@@ -25,6 +25,17 @@ class SasaranStrategis extends Model
         'urutan' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(function (SasaranStrategis $sasaran) {
+            if ($sasaran->isDirty('renstra_id') && $sasaran->getOriginal('renstra_id') !== null) {
+                if ($sasaran->indikatorKinerjas()->exists()) {
+                    throw new \InvalidArgumentException('Sasaran strategis yang telah memiliki indikator kinerja tidak boleh dipindahkan ke Renstra lain.');
+                }
+            }
+        });
+    }
+
     public function renstra(): BelongsTo
     {
         return $this->belongsTo(Renstra::class, 'renstra_id');

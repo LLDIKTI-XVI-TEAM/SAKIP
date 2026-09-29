@@ -33,18 +33,19 @@ class StoreIndikator extends Controller
             /** @var User|null $lockedActor */
             $lockedActor = User::whereKey($actor->id)->lockForUpdate()->first();
             if (! $lockedActor || $lockedActor->status !== 'aktif') {
+                $inactiveDecision = $resolver->resolve($lockedActor ?? $actor, PermissionCodes::INDIKATOR_CREATE);
+
                 return [
                     'status' => 'denied',
-                    'dasarIzin' => [
-                        'status' => 'denied',
-                        'alasan' => 'Akun pengguna tidak aktif.',
-                    ],
+                    'alasan' => 'Pembuatan indikator kinerja ditolak karena akun pengguna tidak aktif.',
+                    'dasarIzin' => $inactiveDecision->toAuditBasis(),
                 ];
             }
 
             // 2. Kunci seluruh baris ACL yang menentukan keputusan izin aktor
+            // Hanya kunci grant global (whereNull unit_id) agar tidak deadlock dengan pencabutan grant unit pada RevokeGrant
             DB::table('user_roles')->where('user_id', $lockedActor->id)->sharedLock()->get();
-            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->sharedLock()->get();
+            DB::table('user_permission_granted')->where('user_id', $lockedActor->id)->whereNull('unit_id')->sharedLock()->get();
             DB::table('user_permission_denied')->where('user_id', $lockedActor->id)->sharedLock()->get();
 
             $actorRoleIds = DB::table('user_roles')
@@ -68,6 +69,7 @@ class StoreIndikator extends Controller
             if (! $currentDecision->allowed) {
                 return [
                     'status' => 'denied',
+                    'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
                     'dasarIzin' => $currentDecision->toAuditBasis(),
                 ];
             }
@@ -88,10 +90,10 @@ class StoreIndikator extends Controller
             if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
                 return [
                     'status' => 'denied',
-                    'dasarIzin' => [
-                        'status' => 'denied',
-                        'alasan' => 'Izin pembuatan indikator tidak bersumber dari peran resmi yang sah untuk provenance.',
-                    ],
+                    'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang pembuatan tidak bersumber dari peran resmi yang sah untuk provenance.',
+                    'dasarIzin' => array_merge($currentDecision->toAuditBasis(), [
+                        'penolakan_provenance' => 'Izin pembuatan indikator tidak bersumber dari peran resmi yang sah untuk provenance.',
+                    ]),
                 ];
             }
 
@@ -155,7 +157,7 @@ class StoreIndikator extends Controller
                 objekId: (string) Str::uuid(),
                 nilaiLama: null,
                 nilaiBaru: null,
-                alasan: 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                alasan: $result['alasan'] ?? 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
                 dasarIzin: $result['dasarIzin'],
             );
             abort(403, 'Anda tidak berwenang menambah indikator kinerja.');

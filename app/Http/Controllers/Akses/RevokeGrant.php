@@ -62,14 +62,13 @@ class RevokeGrant extends Controller
         ]);
 
         $result = DB::transaction(function () use ($id, $actor, $validated, $auditLogger, $permissionResolver) {
-            /** @var UserPermissionGrant $grant */
-            $grant = UserPermissionGrant::with(['permission', 'unit'])
-                ->whereKey($id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $grantRow = DB::table('user_permission_granted')->where('id', $id)->first(['user_id']);
+            if (! $grantRow) {
+                abort(404);
+            }
 
-            // Kunci aktor dan pengguna target dengan urutan ID konsisten untuk menghindari deadlock
-            $userIds = [$actor->id, $grant->user_id];
+            // Kunci aktor dan pengguna target dengan urutan ID konsisten (user -> grant) untuk menghindari deadlock
+            $userIds = array_values(array_unique([$actor->id, $grantRow->user_id]));
             sort($userIds);
             $lockedUsers = User::with('roles')->whereIn('id', $userIds)->orderBy('id')->sharedLock()->get()->keyBy('id');
 
@@ -77,7 +76,13 @@ class RevokeGrant extends Controller
             $currentActor = $lockedUsers->get($actor->id) ?? User::with('roles')->whereKey($actor->id)->sharedLock()->firstOrFail();
 
             /** @var User $lockedTargetUser */
-            $lockedTargetUser = $lockedUsers->get($grant->user_id) ?? User::with('roles')->whereKey($grant->user_id)->sharedLock()->firstOrFail();
+            $lockedTargetUser = $lockedUsers->get($grantRow->user_id) ?? User::with('roles')->whereKey($grantRow->user_id)->sharedLock()->firstOrFail();
+
+            /** @var UserPermissionGrant $grant */
+            $grant = UserPermissionGrant::with(['permission', 'unit'])
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             // Kunci role aktif sumber aktor dengan sharedLock (mengikuti hierarki User -> Role -> Permission)
             // berurutan ID untuk mencegah race condition pencabutan wewenang role oleh ChangeRolePermission
