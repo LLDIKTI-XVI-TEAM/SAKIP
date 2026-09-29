@@ -48,7 +48,14 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         isi_teks: '',
         action: 'draft' as 'draft' | 'ajukan',
     });
-    const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => { recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}/pratinjau`, mutation: false }); }, [recovery.handleHttpException, pengukuran.id]);
+    const { handleHttpException } = recovery;
+    const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => {
+        handleHttpException(response, {
+            effectiveMethod: 'post',
+            path: `/pengukuran/${pengukuran.id}/pratinjau`,
+            mutation: false,
+        });
+    }, [handleHttpException, pengukuran.id]);
     const fieldErrors: Record<string, string | undefined> = errors;
     const disabled = !can.update || historical || processing;
     const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);

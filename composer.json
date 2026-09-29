@@ -79,7 +79,7 @@
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
         "lint": "@php vendor/bin/pint --test",
-        "analyse": "@php vendor/bin/phpstan analyse --no-progress --memory-limit=1G",
+        "analyse": "@php vendor/bin/phpstan analyse --no-progress --memory-limit=-1",
         "qa": [
             "@lint",
             "@analyse",

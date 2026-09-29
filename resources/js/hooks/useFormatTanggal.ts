@@ -82,19 +82,15 @@ export function useFormatTanggal(): (
     let timeZone = 'Asia/Makassar';
     let formatTanggalKey = 'd F Y';
 
-    try {
-        const { props } = usePage<SharedPageProps>();
-        const pengaturan = props?.pengaturan;
-        if (pengaturan) {
-            if (typeof pengaturan['tampilan.zona_waktu'] === 'string') {
-                timeZone = pengaturan['tampilan.zona_waktu'];
-            }
-            if (typeof pengaturan['tampilan.format_tanggal'] === 'string') {
-                formatTanggalKey = pengaturan['tampilan.format_tanggal'];
-            }
+    const { props } = usePage<SharedPageProps>();
+    const pengaturan = props.pengaturan;
+    if (pengaturan) {
+        if (typeof pengaturan['tampilan.zona_waktu'] === 'string') {
+            timeZone = pengaturan['tampilan.zona_waktu'];
         }
-    } catch {
-        // Fallback jika di luar context Inertia
+        if (typeof pengaturan['tampilan.format_tanggal'] === 'string') {
+            formatTanggalKey = pengaturan['tampilan.format_tanggal'];
+        }
     }
 
     return (date, options) => {

@@ -74,7 +74,14 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
     const [scope, setScope] = useState<'global' | 'unit'>('global');
     const [message, setMessage] = useState('');
     const recovery = useAuthRecovery();
-    const handleLookupRecovery = useCallback((response: HttpExceptionResponse) => { recovery.handleHttpException(response, { effectiveMethod: 'get', path: '/akses/deny/opsi', mutation: false }); }, [recovery.handleHttpException]);
+    const { handleHttpException } = recovery;
+    const handleLookupRecovery = useCallback((response: HttpExceptionResponse) => {
+        handleHttpException(response, {
+            effectiveMethod: 'get',
+            path: '/akses/deny/opsi',
+            mutation: false,
+        });
+    }, [handleHttpException]);
     const form = useForm<DenyForm>({ user_id: '', permission_id: '', unit_id: null, alasan: '' });
     const needsReload = Boolean(form.errors.deny_id || message);
     const missingSelection = !deny && (!form.data.user_id || !form.data.permission_id || (scope === 'unit' && !form.data.unit_id));
