@@ -17,6 +17,7 @@ export interface ModalProps {
     hideScrollbar?: boolean;
     scrollable?: boolean;
     ariaLabel?: string;
+    autoFocus?: boolean;
 }
 
 // Global modal stack to ensure only the topmost modal handles Escape
@@ -36,6 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
     hideScrollbar = false,
     scrollable = true,
     ariaLabel,
+    autoFocus = true,
 }) => {
     const modalId = useId();
     const titleId = title ? `${modalId}-title` : undefined;
@@ -55,6 +57,10 @@ export const Modal: React.FC<ModalProps> = ({
         // Focus the first form field or focusable element once when modal opens
         const focusInitialElement = () => {
             if (!modalRef.current) return;
+            if (!autoFocus) {
+                modalRef.current.focus();
+                return;
+            }
             const primaryField = modalRef.current.querySelector<HTMLElement>(
                 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
             );
@@ -135,7 +141,7 @@ export const Modal: React.FC<ModalProps> = ({
                 previousFocusedElement.current.focus();
             }
         };
-    }, [isOpen, modalId]);
+    }, [isOpen, modalId, autoFocus]);
 
     if (!isOpen) return null;
 
@@ -150,7 +156,7 @@ export const Modal: React.FC<ModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs transition-opacity duration-200"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -165,22 +171,22 @@ export const Modal: React.FC<ModalProps> = ({
                 tabIndex={-1}
                 className={twMerge(
                     clsx(
-                        'w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] transition-all transform duration-200 outline-none',
+                        'w-full bg-surface rounded-xl shadow-xl border border-border overflow-hidden flex flex-col max-h-[95vh] transition-all transform duration-200 outline-none',
                         sizeClasses[size],
                         className
                     )
                 )}
             >
                 {(title || showCloseButton) && (
-                    <div className="flex items-start justify-between px-5 py-3 sm:px-6 sm:py-3.5 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-start justify-between px-5 py-3 sm:px-6 sm:py-3.5 border-b border-border bg-soft/50">
                         <div>
                             {title && (
-                                <h3 id={titleId} className="text-base font-bold text-slate-900 leading-tight">
+                                <h3 id={titleId} className="text-base font-bold text-ink leading-tight">
                                     {title}
                                 </h3>
                             )}
                             {description && (
-                                <p id={descriptionId} className="text-xs text-slate-500 mt-0.5">
+                                <p id={descriptionId} className="text-xs text-muted mt-0.5">
                                     {description}
                                 </p>
                             )}
@@ -189,7 +195,7 @@ export const Modal: React.FC<ModalProps> = ({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer ml-auto"
+                                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-soft transition-colors cursor-pointer ml-auto"
                                 aria-label="Tutup dialog"
                             >
                                 <X className="w-5 h-5" />
@@ -229,7 +235,7 @@ export const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {footer && (
-                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-soft/50">
                         {footer}
                     </div>
                 )}

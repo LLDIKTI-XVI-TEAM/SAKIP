@@ -4,6 +4,7 @@ namespace App\Services\Authorization;
 
 use App\Models\Permission;
 use App\Models\User;
+use App\Support\PermissionDecision;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -84,5 +85,19 @@ class PermissionResolver
     public function allows(User $user, string $kode, ?string $unitId = null): bool
     {
         return $this->decide($user, $kode, $unitId)['allowed'];
+    }
+
+    public function resolve(User $user, string $permissionCode, ?string $unitId = null): PermissionDecision
+    {
+        $decision = $this->decide($user, $permissionCode, $unitId);
+
+        return new PermissionDecision($decision['allowed'], $permissionCode, [
+            'alasan' => $decision['reason'],
+            'sumber_allow' => [
+                'roles' => $decision['roles'],
+                'grants' => $decision['grants'],
+            ],
+            'deny' => $decision['denies'],
+        ]);
     }
 }

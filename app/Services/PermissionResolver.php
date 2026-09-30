@@ -2,25 +2,17 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Services\Authorization\PermissionResolver as AuthorizationPermissionResolver;
-use App\Support\PermissionDecision;
 
-class PermissionResolver
-{
-    public function __construct(private readonly AuthorizationPermissionResolver $authorizationPermissionResolver) {}
-
-    public function resolve(User $user, string $permissionCode, ?string $unitId = null): PermissionDecision
-    {
-        $decision = $this->authorizationPermissionResolver->decide($user, $permissionCode, $unitId);
-
-        return new PermissionDecision($decision['allowed'], $permissionCode, [
-            'alasan' => $decision['reason'],
-            'sumber_allow' => [
-                'roles' => $decision['roles'],
-                'grants' => $decision['grants'],
-            ],
-            'deny' => $decision['denies'],
-        ]);
-    }
-}
+/**
+ * Compatibility wrapper for legacy consumers.
+ * Canonical implementation resides at \App\Services\Authorization\PermissionResolver.
+ *
+ * Dipertahankan secara eksklusif untuk backward compatibility modul eksternal
+ * pada branch development (seperti Renstra, Regulasi, Master Unit) sebelum modul-modul
+ * tersebut dimigrasikan ke canonical namespace pada PR masing-masing. Seluruh use-case
+ * Perjanjian Kinerja wajib menggunakan canonical resolver.
+ *
+ * @deprecated Gunakan \App\Services\Authorization\PermissionResolver secara langsung.
+ */
+class PermissionResolver extends AuthorizationPermissionResolver {}
