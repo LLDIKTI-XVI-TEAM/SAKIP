@@ -47,7 +47,16 @@ export function AuditReasonModal({
     }, [open]);
 
     return (
-        <dialog ref={dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/55">
+        <dialog
+            ref={dialog}
+            aria-labelledby={`${id}-title`}
+            aria-describedby={`${id}-description`}
+            onCancel={(event) => {
+                event.preventDefault();
+                if (!busy) onClose();
+            }}
+            className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/60 backdrop:backdrop-blur-md"
+        >
             {open && <div
                 className="w-full max-w-lg rounded-xl bg-surface"
             >

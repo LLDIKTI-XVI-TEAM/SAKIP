@@ -16,4 +16,13 @@ class JadwalTahunan extends Model
     protected $fillable = ['renstra_id', 'tahun', 'rencana_aksi_mulai', 'rencana_aksi_selesai', 'penutupan', 'status', 'renstra_pk_id', 'activated_at', 'closed_at', 'koreksi_mulai', 'koreksi_sampai', 'lingkup_koreksi'];
 
     protected $casts = ['tahun' => 'integer', 'penutupan' => 'date', 'koreksi_mulai' => 'datetime', 'koreksi_sampai' => 'datetime', 'lingkup_koreksi' => 'array'];
+
+    protected $appends = ['is_terkunci'];
+
+    public function getIsTerkunciAttribute(): bool
+    {
+        return $this->status === 'aktif'
+            || $this->status === 'ditutup'
+            || $this->activated_at !== null;
+    }
 }

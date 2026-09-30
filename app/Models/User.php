@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property 'aktif'|'nonaktif' $status
@@ -24,6 +25,24 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Role::class, 'user_roles')
             ->withPivot(['id', 'sumber_pemberian', 'diberikan_oleh', 'audit_id', 'created_at']);
+    }
+
+    /**
+     * Kunci bersama role aktif secara terurut sebelum izin aktor dievaluasi ulang.
+     * Pemanggil wajib sudah membuka transaksi dan mengunci baris pengguna ini.
+     */
+    public function lockActiveRoles(): void
+    {
+        $actorRoleIds = DB::table('user_roles')
+            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->where('user_roles.user_id', $this->id)
+            ->where('roles.aktif', true)
+            ->pluck('roles.id')
+            ->all();
+        sort($actorRoleIds);
+        if (! empty($actorRoleIds)) {
+            Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+        }
     }
 
     /** Pemeriksaan label peran bukan pengganti resolver permission. */

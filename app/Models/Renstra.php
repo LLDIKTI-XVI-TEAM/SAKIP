@@ -193,6 +193,12 @@ class Renstra extends Model
         return $this->hasMany(RenstraPk::class, 'renstra_id');
     }
 
+    /** @return HasMany<RenstraPk, $this> */
+    public function perjanjianKinerja(): HasMany
+    {
+        return $this->hasMany(RenstraPk::class, 'renstra_id')->orderBy('tahun');
+    }
+
     /** @return HasMany<JadwalTahunan, $this> */
     public function jadwalTahunan(): HasMany
     {

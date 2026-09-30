@@ -4,18 +4,19 @@ import { twMerge } from 'tailwind-merge';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label?: string;
+    labelClassName?: string;
     error?: string;
     helperText?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, helperText, className, id, ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, labelClassName, error, helperText, className, id, ...props }) => {
     const generatedId = React.useId();
     const inputId = id || props.name || generatedId;
 
     return (
         <div className="w-full">
             {label && (
-                <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-ink">
+                <label htmlFor={inputId} className={twMerge(clsx('mb-1.5 block text-sm font-medium text-ink', labelClassName))}>
                     {label}
                     {props.required && <span className="ml-1 text-danger font-normal" aria-hidden="true">*</span>}
                 </label>

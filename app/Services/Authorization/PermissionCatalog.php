@@ -83,6 +83,8 @@ final class PermissionCatalog
         'komponen:create' => 'Menambah komponen indikator',
         'komponen:update' => 'Mengubah komponen indikator',
         'komponen:delete' => 'Menghapus/menonaktifkan komponen indikator',
+        'pk:create' => 'Mencatat Perjanjian Kinerja baru',
+        'pk:update' => 'Mengubah dan melampirkan berkas Perjanjian Kinerja',
     ];
 
     /** Katalog kode tunggal; perubahan kode dilakukan melalui rilis dan seeder. @return list<string> */

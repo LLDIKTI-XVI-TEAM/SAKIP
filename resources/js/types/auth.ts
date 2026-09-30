@@ -32,6 +32,9 @@ export interface SharedPageProps extends PageProps {
             jenisBerkas?: boolean;
             storagePolicy?: boolean;
             storagePolicyUpdate?: boolean;
+            pk?: boolean;
+            'pk:create'?: boolean;
+            'pk:update'?: boolean;
         };
     };
     flash?: {
