@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Actions\Perencanaan;
+namespace App\Services\Authorization;
 
 use App\Models\Permission;
 use App\Models\Role;

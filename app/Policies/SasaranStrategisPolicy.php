@@ -6,6 +6,7 @@ use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
@@ -33,7 +34,10 @@ class SasaranStrategisPolicy
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::SASARAN_CREATE);
 
         if (! $decision->allowed) {
-            $alasan = request()->input('alasan');
+            $alasan = AlasanAudit::sanitasi(
+                request()->input('alasan'),
+                'Percobaan membuat sasaran strategis ditolak oleh sistem otorisasi.'
+            );
             $this->auditLogger->catat(
                 actor: $user,
                 tindakan: 'sasaran.buat_ditolak',
@@ -41,7 +45,7 @@ class SasaranStrategisPolicy
                 objekId: (string) Str::uuid(),
                 nilaiLama: null,
                 nilaiBaru: null,
-                alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : 'Percobaan membuat sasaran strategis ditolak oleh sistem otorisasi.',
+                alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );
         }
@@ -84,7 +88,10 @@ class SasaranStrategisPolicy
         string $tindakan,
         PermissionDecision $decision,
     ): void {
-        $alasan = request()->input('alasan');
+        $alasan = AlasanAudit::sanitasi(
+            request()->input('alasan'),
+            "Percobaan {$tindakan} ditolak oleh sistem otorisasi."
+        );
 
         $this->auditLogger->catat(
             actor: $user,
@@ -93,7 +100,7 @@ class SasaranStrategisPolicy
             objekId: $sasaran->id,
             nilaiLama: $sasaran->withoutRelations()->toArray(),
             nilaiBaru: null,
-            alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : "Percobaan {$tindakan} ditolak oleh sistem otorisasi.",
+            alasan: $alasan,
             dasarIzin: $decision->toAuditBasis(),
         );
     }

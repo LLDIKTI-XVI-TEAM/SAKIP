@@ -8,6 +8,7 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Authorization\RoleCatalog;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
@@ -36,8 +37,10 @@ class StoreIndikator
      *
      * Penolakan dicatat sebagai audit `indikator.buat_ditolak` di luar
      * transaksi (agar tidak ikut rollback) lalu 403 dilempar.
+     *
+     * @return array{indikator: IndikatorKinerja, renstraId: ?string}
      */
-    public function handle(User $actor, array $validated): IndikatorKinerja
+    public function handle(User $actor, array $validated): array
     {
         $result = DB::transaction(function () use ($validated, $actor) {
             // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
@@ -158,6 +161,7 @@ class StoreIndikator
             return [
                 'status' => 'created',
                 'indikator' => $created,
+                'renstraId' => $sasaran->renstra_id,
             ];
         });
 
@@ -175,6 +179,6 @@ class StoreIndikator
             abort(403, 'Anda tidak berwenang menambah indikator kinerja.');
         }
 
-        return $result['indikator'];
+        return ['indikator' => $result['indikator'], 'renstraId' => $result['renstraId']];
     }
 }

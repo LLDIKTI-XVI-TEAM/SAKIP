@@ -6,7 +6,6 @@ use App\Actions\Perencanaan\UpdateIndikator as UpdateIndikatorAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Indikator\UpdateIndikatorRequest;
 use App\Models\IndikatorKinerja;
-use App\Models\SasaranStrategis;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 
@@ -20,15 +19,15 @@ class UpdateIndikator extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $indikator = $action->handle(
+        $hasil = $action->handle(
             $actor,
             $indikator,
             $request->validated(),
         );
-        $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
+        $indikator = $hasil['indikator'];
 
         return redirect()
-            ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $renstraId])
+            ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $hasil['renstraId']])
             ->with('success', "Indikator kinerja '{$indikator->kode}' berhasil diperbarui.");
     }
 }

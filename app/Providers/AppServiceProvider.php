@@ -4,14 +4,17 @@ namespace App\Providers;
 
 use App\Models\Regulasi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RegulasiPolicy;
+use App\Policies\RenstraPkPolicy;
 use App\Policies\RenstraPolicy;
 use App\Policies\UnitPolicy;
 use App\Services\Auth\KeycloakIdentityProvider;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -30,9 +33,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Relation::morphMap([
+            'renstra_pk' => RenstraPk::class,
+        ]);
+
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(Regulasi::class, RegulasiPolicy::class);
         Gate::policy(Renstra::class, RenstraPolicy::class);
+        Gate::policy(RenstraPk::class, RenstraPkPolicy::class);
 
         foreach (PermissionCatalog::codes() as $code) {
             Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {

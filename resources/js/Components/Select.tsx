@@ -11,6 +11,7 @@ export interface SelectOption {
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
     label?: string;
+    labelClassName?: string;
     error?: string;
     helperText?: string;
     options?: SelectOption[];
@@ -18,6 +19,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export function Select({
     label,
+    labelClassName,
     error,
     helperText,
     options,
@@ -32,7 +34,7 @@ export function Select({
     return (
         <div className="w-full">
             {label && (
-                <label htmlFor={selectId} className="mb-1.5 block text-sm font-medium text-ink">
+                <label htmlFor={selectId} className={twMerge(clsx('mb-1.5 block text-sm font-medium text-ink', labelClassName))}>
                     {label}
                     {props.required && <span className="ml-1 text-danger font-normal" aria-hidden="true">*</span>}
                 </label>

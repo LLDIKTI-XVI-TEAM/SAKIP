@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
@@ -41,6 +42,9 @@ class HandleInertiaRequests extends Middleware
                         'storagePolicy' => $can['storagePolicy'],
                         'storagePolicyUpdate' => $can['storagePolicyUpdate'],
                         'sasaranIndikator' => $can['sasaranIndikator'],
+                        'pk' => $can['pk'],
+                        'pk:create' => $can['pk:create'],
+                        'pk:update' => $can['pk:update'],
                     ],
                 ];
             },
@@ -85,6 +89,9 @@ class HandleInertiaRequests extends Middleware
             'storagePolicy' => false,
             'storagePolicyUpdate' => false,
             'sasaranIndikator' => false,
+            'pk' => false,
+            'pk:create' => false,
+            'pk:update' => false,
         ];
 
         if ($user === null || $user->status !== 'aktif') {
@@ -133,6 +140,9 @@ class HandleInertiaRequests extends Middleware
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
             'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
+            'pk' => $user->can('viewAny', RenstraPk::class),
+            'pk:create' => $resolver->allows($user, 'pk:create'),
+            'pk:update' => $resolver->allows($user, 'pk:update'),
         ];
 
         if ($request) {

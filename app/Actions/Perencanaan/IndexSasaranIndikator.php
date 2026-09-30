@@ -8,7 +8,7 @@ use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Authorization\PermissionResolver;
+use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Str;
 
@@ -27,7 +27,7 @@ class IndexSasaranIndikator
      */
     public function handle(User $user, mixed $requestedRenstraId, bool $renstraParamPresent): array
     {
-        $canReadRegulasi = $this->resolver->allows($user, PermissionCodes::REGULASI_READ);
+        $canReadRegulasi = $this->resolver->resolve($user, PermissionCodes::REGULASI_READ)->allowed;
 
         $renstras = Renstra::orderByDesc('is_aktif')
             ->orderByDesc('tahun_mulai')
@@ -121,15 +121,15 @@ class IndexSasaranIndikator
             'units' => $units,
             'regulasis' => $regulasis,
             'can' => [
-                'sasaran_create' => $this->resolver->allows($user, PermissionCodes::SASARAN_CREATE),
-                'sasaran_update' => $this->resolver->allows($user, PermissionCodes::SASARAN_UPDATE),
-                'sasaran_delete' => $this->resolver->allows($user, PermissionCodes::SASARAN_DELETE),
-                'indikator_create' => $this->resolver->allows($user, PermissionCodes::INDIKATOR_CREATE),
-                'indikator_read' => $this->resolver->allows($user, PermissionCodes::INDIKATOR_READ),
-                'indikator_update' => $this->resolver->allows($user, PermissionCodes::INDIKATOR_UPDATE),
-                'indikator_delete' => $this->resolver->allows($user, PermissionCodes::INDIKATOR_DELETE),
+                'sasaran_create' => $this->resolver->resolve($user, PermissionCodes::SASARAN_CREATE)->allowed,
+                'sasaran_update' => $this->resolver->resolve($user, PermissionCodes::SASARAN_UPDATE)->allowed,
+                'sasaran_delete' => $this->resolver->resolve($user, PermissionCodes::SASARAN_DELETE)->allowed,
+                'indikator_create' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_CREATE)->allowed,
+                'indikator_read' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_READ)->allowed,
+                'indikator_update' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_UPDATE)->allowed,
+                'indikator_delete' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_DELETE)->allowed,
                 'regulasi_read' => $canReadRegulasi,
-                'komponen_read' => $this->resolver->allows($user, PermissionCodes::KOMPONEN_READ),
+                'komponen_read' => $this->resolver->resolve($user, PermissionCodes::KOMPONEN_READ)->allowed,
             ],
         ];
     }

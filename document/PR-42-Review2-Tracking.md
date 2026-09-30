@@ -219,7 +219,7 @@ Update checkbox + Bukti.
 ```
 
 ### R2-06 · [MAJOR] Kepatuhan Design System
-- [ ] Status: belum
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
 - Untuk apa: `Index.tsx` masih `text-amber-700/bg-amber-50/
   border-amber-200/emerald-*/blue-*`; `IndikatorModal.tsx` masih
   `dark:*`; aplikasi light-only, token semantik saja.
@@ -231,7 +231,7 @@ Update checkbox + Bukti.
   sebelum/sesudah (desktop) sebagai bukti di PR.
 - DoD: grep `amber-/emerald-/blue-*-700|dark:` nihil di modul
   SasaranIndikator; visual setara.
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-30 | Bukti: `resources/js/Pages/Perencanaan/SasaranIndikator/Index.tsx` 3 span mentah → `Badge` reusable (`Wajib Catatan` amber → `warning`/`warning-dark`; `Naik Baik` emerald → `success`; `Turun Baik` blue → `info`/`info-dark`; pill arah dipertahankan via `rounded-full`); `dark:*` nihil di seluruh modul SasaranIndikator (klaim `dark:*` di `IndikatorModal.tsx` pada deskripsi task tidak terbukti di HEAD — grep nihil sebelum maupun sesudah, tanpa perubahan di file itu); `JenisBerkas/` + `Indikator/Komponen/` digrep sebagai temuan (nihil `amber-/emerald-/blue-700/blue-50/blue-200/dark:`, tidak diubah sesuai instruksi); grep DoD (`amber-|emerald-|blue-|dark:`) nihil di modul; visual setara via deskripsi (ikon+label+ukuran `sm`/`text-[11px]` sama; bentuk pill dipertahankan; palet kuning/hijau/biru lembut → tint semantik; screenshot capture tidak tersedia di env ini); `bun run typecheck` hijau; `bun run test` hijau 24 file/135 test. Belum di-commit.
 
 ```text
 Prompt handoff R2-06:
@@ -260,7 +260,7 @@ Jangan ubah kode kecuali diminta. Update checkbox + Bukti.
 ```
 
 ### R2-08 · [MINOR] Konsolidasi PermissionResolver + rapikan layer
-- [ ] Status: belum (diperluas review putaran 3: +helper +adapter)
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
 - Untuk apa: dua resolver membingungkan; `ResolveLockedActor` bukan
   use-case (milik Service); controller indikator masih query
   `renstra_id` setelah Action.
@@ -272,7 +272,7 @@ Jangan ubah kode kecuali diminta. Update checkbox + Bukti.
      murni adapter tanpa query parent.
 - DoD: satu import resolver; helper di Service; controller tanpa
   query; `phpstan` + suite modul hijau.
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-30 | Bukti: `ResolveLockedActor` pindah `app/Actions/Perencanaan/` → `app/Services/Authorization/` (namespace baru, logika lock/resolve identik — `use App\Services\PermissionResolver` wrapper dipertahankan) + import baru di 7 Action (Store/Update/PindahUnitIndikator, Store/Update/DestroySasaran, DestroyIndikator); resolver canonical modul Perencanaan = `App\Services\PermissionResolver` wrapper (`resolve()`; `Authorization\PermissionResolver` tetap sebagai engine di bawahnya, bukan dihapus) — satu-satunya file menyimpang `IndexSasaranIndikator` dimigrasi (`allows()` → `resolve()->allowed`, keputusan izin identik); `Store/Update/PindahUnitIndikator` Action kini kembalikan `array{indikator, renstraId}` (renstraId dari baris terkunci dalam transaksi: Store pakai `$sasaran`, Update pakai `$targetSasaran`, PindahUnit via helper `renstraIdUntuk()` sharedLock) + 3 controller tanpa query (`SasaranStrategis::where` dihapus, pesan/route/flash tetap); `pint --test` passed (12 file); `phpstan` 0 errors; grep nihil untuk `Actions\Perencanaan\ResolveLockedActor` repo-wide + nihil `Authorization\PermissionResolver` di `app/Actions/Perencanaan`; Pest TIDAK dijalankan (butuh PG disposable). Belum di-commit.
 
 ```text
 Prompt handoff R2-08:
@@ -372,7 +372,7 @@ Update checkbox + Bukti. JANGAN commit.
 ```
 
 ### R2-13 · [MINOR] Sanitasi alasan audit penolakan di Policy
-- [ ] Status: belum
+- [x] Status: SELESAI (2026-09-30) — belum di-commit
 - Untuk apa: `SasaranStrategisPolicy` + `IndikatorKinerjaPolicy` kirim
   `request()->input('alasan')` mentah ke audit append-only sebelum
   validasi selesai (tanpa bound max).
@@ -383,7 +383,7 @@ Update checkbox + Bukti. JANGAN commit.
 - Standards: §7 (audit aman).
 - DoD: payload panjang/kosong → audit tetap terbatas/waras; test baru
   hijau; `pint`+`phpstan` hijau.
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-30 | Bukti: helper shared `app/Support/AlasanAudit.php` baru (final; `BATAS_MAKS=1000`; trim + `mb_substr` UTF-8 per karakter; non-string/kosong → fallback) dipakai 4 situs di kedua Policy (inline `create` + `catatPenolakan` update/delete) tanpa ubah pesan fallback existing; allow/deny TIDAK berubah (semua skenario test menegaskan 403); test BARU `tests/Feature/Perencanaan/PolicyAlasanSanitasiTest.php` 8 passed/19 assertions (panjang→dibatasi 1000 incl. multibyte `é`×1500; kosong/spasi/tanpa-alasan→fallback generik; valid→utuh; mencakup jalur create + update kedua Policy); file test existing tak tersentuh; `php vendor/bin/pint --test` 4 file passed; `phpstan` 0 errors; Pest focused di PG disposable podman `postgres:17-alpine` port 5435 (DB `sakip_test`, fresh migrate; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r213` dihapus setelah run). HEAD `5549e5e`. Belum di-commit.
 
 ```text
 Prompt handoff R2-13:

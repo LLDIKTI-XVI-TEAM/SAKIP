@@ -6,6 +6,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
+use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
@@ -33,7 +34,10 @@ class IndikatorKinerjaPolicy
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::INDIKATOR_CREATE);
 
         if (! $decision->allowed) {
-            $alasan = request()->input('alasan');
+            $alasan = AlasanAudit::sanitasi(
+                request()->input('alasan'),
+                'Percobaan membuat indikator kinerja ditolak oleh sistem otorisasi.'
+            );
             $this->auditLogger->catat(
                 actor: $user,
                 tindakan: 'indikator.buat_ditolak',
@@ -41,7 +45,7 @@ class IndikatorKinerjaPolicy
                 objekId: (string) Str::uuid(),
                 nilaiLama: null,
                 nilaiBaru: null,
-                alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : 'Percobaan membuat indikator kinerja ditolak oleh sistem otorisasi.',
+                alasan: $alasan,
                 dasarIzin: $decision->toAuditBasis(),
             );
         }
@@ -84,7 +88,10 @@ class IndikatorKinerjaPolicy
         string $tindakan,
         PermissionDecision $decision,
     ): void {
-        $alasan = request()->input('alasan');
+        $alasan = AlasanAudit::sanitasi(
+            request()->input('alasan'),
+            "Percobaan {$tindakan} ditolak oleh sistem otorisasi."
+        );
 
         $this->auditLogger->catat(
             actor: $user,
@@ -93,7 +100,7 @@ class IndikatorKinerjaPolicy
             objekId: $indikator->id,
             nilaiLama: $indikator->withoutRelations()->toArray(),
             nilaiBaru: null,
-            alasan: is_string($alasan) && trim($alasan) !== '' ? $alasan : "Percobaan {$tindakan} ditolak oleh sistem otorisasi.",
+            alasan: $alasan,
             dasarIzin: $decision->toAuditBasis(),
         );
     }

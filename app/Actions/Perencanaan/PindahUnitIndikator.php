@@ -3,9 +3,11 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\ResolveLockedActor;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,8 +31,10 @@ class PindahUnitIndikator
      * ditolak sebagai validasi. Audit yang ditulis hanya satu baris
      * `indikator.pindah_unit` berisi nilai lama/baru — tidak ada audit
      * `indikator.ubah` untuk delta unit.
+     *
+     * @return array{indikator: IndikatorKinerja, renstraId: ?string}
      */
-    public function handle(User $actor, IndikatorKinerja $indikator, array $validated): IndikatorKinerja
+    public function handle(User $actor, IndikatorKinerja $indikator, array $validated): array
     {
         $result = DB::transaction(function () use ($indikator, $validated, $actor) {
             // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
@@ -125,6 +129,7 @@ class PindahUnitIndikator
             return [
                 'status' => 'moved',
                 'indikator' => $lockedIndikator,
+                'renstraId' => $this->renstraIdUntuk($lockedIndikator->sasaran_strategis_id),
             ];
         });
 
@@ -142,6 +147,17 @@ class PindahUnitIndikator
             abort(403, 'Anda tidak berwenang memindahkan unit penanggung jawab indikator.');
         }
 
-        return $result['indikator'];
+        return ['indikator' => $result['indikator'], 'renstraId' => $result['renstraId']];
+    }
+
+    /**
+     * Membaca renstra induk sasaran memakai kunci bersama di dalam transaksi
+     * pemanggil agar controller tidak perlu query parent sendiri.
+     */
+    private function renstraIdUntuk(string $sasaranId): ?string
+    {
+        $renstraId = SasaranStrategis::whereKey($sasaranId)->sharedLock()->value('renstra_id');
+
+        return is_string($renstraId) ? $renstraId : null;
     }
 }

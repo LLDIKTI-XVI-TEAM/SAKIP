@@ -6,6 +6,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\ResolveLockedActor;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +31,10 @@ class UpdateIndikator
      * baris terkunci dan pemindahan unit hanya dilayani endpoint pindah-unit
      * khusus. Kolom `jenis_agregasi` beku MVP dan tidak pernah ditulis dari
      * request.
+     *
+     * @return array{indikator: IndikatorKinerja, renstraId: ?string}
      */
-    public function handle(User $actor, IndikatorKinerja $indikator, array $validated): IndikatorKinerja
+    public function handle(User $actor, IndikatorKinerja $indikator, array $validated): array
     {
         $result = DB::transaction(function () use ($indikator, $validated, $actor) {
             // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
@@ -176,6 +179,7 @@ class UpdateIndikator
             return [
                 'status' => 'updated',
                 'indikator' => $lockedIndikator,
+                'renstraId' => $targetSasaran->renstra_id,
             ];
         });
 
@@ -193,6 +197,6 @@ class UpdateIndikator
             abort(403, 'Anda tidak berwenang mengubah indikator kinerja.');
         }
 
-        return $result['indikator'];
+        return ['indikator' => $result['indikator'], 'renstraId' => $result['renstraId']];
     }
 }

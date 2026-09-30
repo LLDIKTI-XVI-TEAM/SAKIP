@@ -369,9 +369,9 @@ export default function SasaranIndikatorIndex({
                                                                         </p>
                                                                     )}
                                                                     {ind.wajib_catatan && (
-                                                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                                                            <FileCheck2 className="h-3 w-3" /> Wajib Catatan
-                                                                        </span>
+                                                                        <Badge variant="warning" size="sm">
+                                                                            <FileCheck2 className="h-3 w-3" aria-hidden="true" /> Wajib Catatan
+                                                                        </Badge>
                                                                     )}
                                                                 </div>
                                                             </td>
@@ -390,13 +390,13 @@ export default function SasaranIndikatorIndex({
                                                                 <div className="flex flex-col gap-1.5">
                                                                     <div className="flex items-center gap-1 text-xs">
                                                                         {ind.arah === 'naik_baik' ? (
-                                                                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                                                                <TrendingUp className="h-3 w-3" /> Naik Baik
-                                                                            </span>
+                                                                            <Badge variant="success" size="sm" className="rounded-full">
+                                                                                <TrendingUp className="h-3 w-3" aria-hidden="true" /> Naik Baik
+                                                                            </Badge>
                                                                         ) : (
-                                                                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                                                                <TrendingDown className="h-3 w-3" /> Turun Baik
-                                                                            </span>
+                                                                            <Badge variant="info" size="sm" className="rounded-full">
+                                                                                <TrendingDown className="h-3 w-3" aria-hidden="true" /> Turun Baik
+                                                                            </Badge>
                                                                         )}
                                                                     </div>
                                                                     <div className="flex items-center gap-1 text-xs text-muted">

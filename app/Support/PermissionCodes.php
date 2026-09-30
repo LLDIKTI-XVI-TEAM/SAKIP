@@ -42,6 +42,11 @@ final class PermissionCodes
 
     public const RENSTRA_DELETE = 'renstra:delete';
 
+    // Perjanjian Kinerja (PK)
+    public const PK_CREATE = 'pk:create';
+
+    public const PK_UPDATE = 'pk:update';
+
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 
@@ -69,7 +74,7 @@ final class PermissionCodes
 
     public const INDIKATOR_DELETE = 'indikator:delete';
 
-    // --- 9 Kode Permission Scope Unit untuk Form Grant (ISS-01.04, §6 Dokumen Konfirmasi Permission) ---
+    // --- Kode Permission Scope Unit (ISS-01.04, Q32) ---
 
     public const RENCANA_AKSI_READ = 'rencana_aksi:read';
 
