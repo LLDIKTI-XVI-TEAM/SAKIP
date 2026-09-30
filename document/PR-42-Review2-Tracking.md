@@ -69,7 +69,7 @@ Update checkbox + Bukti.
 ```
 
 ### R2-03 · [MAJOR] Pindah unit UI terpisah (frontend)
-- [ ] Status: belum (setelah R2-02)
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
 - Untuk apa: cerminkan pemisahan backend di modal.
 - Yang dibuat:
   1. Hapus blok alasan-pindah + logika `unit_id` berubah dari
@@ -80,7 +80,7 @@ Update checkbox + Bukti.
 - Standards: §9, design-system.
 - Verifikasi: `bun run typecheck`, `bun run test`.
 - DoD: edit umum tak bisa pindah unit dari UI; alur pindah khusus jalan.
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-30 | Bukti: `IndikatorModal.tsx` mode edit: field unit jadi read-only (nama unit + teks penjelas mengarah ke aksi Pindah Unit; dropdown hanya saat create); `alasan_pindah_unit` dihapus dari form + blok kondisionalnya; submit edit mengunci `unit_id` ke nilai tersimpan via `transform` agar lolos `Rule::in` `UpdateIndikatorRequest`; `PindahUnitModal.tsx` baru (select unit tujuan aktif tanpa unit asal + alasan wajib min 10 + submit PATCH `/perencanaan/indikator/{id}/pindah-unit` + loading/error/success state; pesan sukses via flash server; modal tutup + reset hanya di `onSuccess`); tombol aksi per baris di `Index.tsx` gate `can.indikator_update`; grep `alasan_pindah_unit` nihil di `resources/`; `bun run typecheck` hijau; `bun run test` hijau 24 file/135 test (129 existing + 6 baru `tests/Frontend/PindahUnitIndikator.test.tsx`: gate tombol, opsi tujuan, validasi klien tanpa PATCH, PATCH valid berisi unit_id/alasan, edit read-only tanpa field alasan). Pest/PHP tidak dijalankan (sesuai instruksi task). Belum di-commit.
 
 ```text
 Prompt handoff R2-03:
@@ -198,7 +198,7 @@ reader/guard/arsip + ADR sesuai detail task. Ikuti Standards
 ```
 
 ### R2-05 · [MAJOR] Re-authorization konsisten semua mutation
-- [ ] Status: belum
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
 - Untuk apa: pola `ResolveLockedActor` (lock aktor + lock ACL +
   resolve ulang + fail-closed) baru di Store/Update Indikator.
 - Yang dibuat: terapkan pola yang sama di `Store/Update/DestroySasaran`
@@ -208,7 +208,7 @@ reader/guard/arsip + ADR sesuai detail task. Ikuti Standards
 - DoD: test tiap action: cabut izin di antara authorize ↔ mutasi →
   mutasi gagal + audit penolakan (pola allow-then-deny seperti temuan
   review test L1589, bukan deny-sejak-awal).
-- Selesai: — | Bukti: —
+- Selesai: 2026-09-30 | Bukti: `Store/Update/DestroySasaran` + `DestroyIndikator` (arsip-only) kini memakai `ResolveLockedActor` dari lokasi sekarang tanpa pemindahan (milik R2-08): lock aktor + lock ACL + resolve ulang di dalam transaksi; akun nonaktif/DENY → audit penolakan di luar transaksi + abort 403 (`sasaran.buat_ditolak`/`sasaran.ubah_ditolak`/`sasaran.hapus_ditolak`/`indikator.hapus_ditolak`, objekId `Str::uuid` untuk buat / id baris untuk ubah-hapus-arsip, `dasar_izin` transaction-time); pesan/audit sukses tidak berubah; guard beranak `DestroySasaran` dipertahankan (status `has_children` → audit + `ValidationException` seperti semula, `dasar_izin` kini transaction-time); 4 test allow-then-deny baru di `SasaranIndikatorTest.php` (mock `PermissionResolver`: panggilan 1 allow agar lolos Gate, panggilan 2+ DENY `revoked_inside_transaction` → 403 + mutasi nihil + audit denied + `dasar_izin.alasan` transaction-time); `pint --test` passed (5 file); `phpstan` 0 errors; Pest TIDAK dijalankan (butuh PG disposable). Belum di-commit.
 
 ```text
 Prompt handoff R2-05:
@@ -259,16 +259,19 @@ dan R2-06). Lakukan browser smoke sesuai detail task, tulis hasilnya.
 Jangan ubah kode kecuali diminta. Update checkbox + Bukti.
 ```
 
-### R2-08 · [MINOR] Konsolidasi PermissionResolver
-- [ ] Status: belum
-- Untuk apa: dua resolver (`Services` wrapper vs `Authorization`)
-  membingungkan; Standards minta satu yang konsisten.
-- Yang dibuat: tetapkan satu canonical (rekomendasi: wrapper
-  `App\Services\PermissionResolver` bila `allows()` ditambahkan di
-  sana, atau sebaliknya), migrasi `IndexSasaranIndikator` +
-  pemakai lain, tanpa mengubah keputusan izin.
-- DoD: satu import resolver di seluruh modul Perencanaan;
-  `phpstan` + suite modul hijau.
+### R2-08 · [MINOR] Konsolidasi PermissionResolver + rapikan layer
+- [ ] Status: belum (diperluas review putaran 3: +helper +adapter)
+- Untuk apa: dua resolver membingungkan; `ResolveLockedActor` bukan
+  use-case (milik Service); controller indikator masih query
+  `renstra_id` setelah Action.
+- Yang dibuat:
+  1. Tetapkan satu resolver canonical; migrasi pemakai modul ini.
+  2. Pindahkan `ResolveLockedActor` → mis.
+     `app/Services/Authorization/` (nama jelas), tanpa ubah perilaku.
+  3. Action kembalikan `renstra_id` (atau relasi) agar controller
+     murni adapter tanpa query parent.
+- DoD: satu import resolver; helper di Service; controller tanpa
+  query; `phpstan` + suite modul hijau.
 - Selesai: — | Bukti: —
 
 ```text
@@ -348,4 +351,44 @@ Kerjakan R2-11 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Selaraskan fixture dengan
 kontrak lifecycle sesuai detail task; JANGAN ubah logika grant.
 Ikuti Standards §11. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-12 · PR description sesuai HEAD
+- [x] Status: selesai (tanpa kode; hanya body PR remote + tracking; JANGAN commit)
+- Untuk apa: body PR masih perilaku lama (fallback is_aktif,
+  controller-oriented, audit/test lama). Traceability harus ikut HEAD.
+- Yang dibuat: baca body via `gh pr view 42 --json body`; tulis ulang
+  (scope ISS-02.04 + corrective ADR 0001–0003 + Action pattern +
+  lifecycle arsip/never-delete + endpoint pindah-unit + gate terbaru);
+  pertahankan referensi `Closes #26`; terapkan via `gh pr edit 42`.
+- DoD: body mencerminkan HEAD; tidak ada klaim perilaku yang dihapus.
+- Selesai: 2026-09-30 | Bukti: body ditulis ulang untuk HEAD `41976fc` (scope Plan 2.5–2.7/2.19 + ADR 0001–0003 + 9 Action `app/Actions/Perencanaan/` + lifecycle `aktif|arsip` + never-delete + `PATCH /perencanaan/indikator/{indikator}/pindah-unit` + migrasi `2026_09_30_064700_add_lifecycle` + gate pint/phpstan/typecheck/FE 129/Pest via CI); diterapkan via `gh pr edit 42 --body-file` (UTF-8 tanpa BOM); verifikasi baca-balik `gh pr view 42 --json body`: paragraf kunci hadir (Action pattern, ADR 0001–0003, PATCH pindah-unit, never-delete, migrasi lifecycle, `Closes #26`, `41976fc`, 129/129) dan klaim lama nihil (`10 passed (45 assertions`, `91 passed`, `controller-oriented`, `fallback penonaktifan`, `is_aktif = false` — penyebutan `is_aktif` tersisa hanya untuk sunset/backfill). Tanpa ubah kode; tanpa commit.
+
+```text
+Prompt handoff R2-12:
+Kerjakan R2-12 dari document/PR-42-Review2-Tracking.md. Tulis ulang
+body PR-42 sesuai HEAD lalu terapkan via gh pr edit. Tanpa kode.
+Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-13 · [MINOR] Sanitasi alasan audit penolakan di Policy
+- [ ] Status: belum
+- Untuk apa: `SasaranStrategisPolicy` + `IndikatorKinerjaPolicy` kirim
+  `request()->input('alasan')` mentah ke audit append-only sebelum
+  validasi selesai (tanpa bound max).
+- Yang dibuat: helper sanitasi/bounding konsisten (trim + batas
+  maks 1000, fallback pesan generik bila kosong) dipakai kedua Policy;
+  test di FILE TEST BARU (jangan sentuh file test existing —
+  hindari konflik dengan R2-05/R2-10).
+- Standards: §7 (audit aman).
+- DoD: payload panjang/kosong → audit tetap terbatas/waras; test baru
+  hijau; `pint`+`phpstan` hijau.
+- Selesai: — | Bukti: —
+
+```text
+Prompt handoff R2-13:
+Kerjakan R2-13 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Sanitasi alasan audit Policy
+sesuai detail task; test di file BARU. Update checkbox + Bukti.
+JANGAN commit.
 ```

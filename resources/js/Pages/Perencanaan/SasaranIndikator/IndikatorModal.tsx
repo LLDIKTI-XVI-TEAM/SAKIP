@@ -45,7 +45,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         definisi_operasional: '',
         satuan: '%',
         unit_id: units[0]?.id ?? '',
-        alasan_pindah_unit: '',
         arah: 'naik_baik' as IndikatorArah,
         tipe_perhitungan: 'manual' as IndikatorTipePerhitungan,
         presisi: 2,
@@ -74,7 +73,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         definisi_operasional: indikator.definisi_operasional ?? '',
                         satuan: indikator.satuan,
                         unit_id: indikator.unit_id,
-                        alasan_pindah_unit: '',
                         arah: indikator.arah,
                         tipe_perhitungan: indikator.tipe_perhitungan,
                         presisi: indikator.presisi ?? 2,
@@ -90,7 +88,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         definisi_operasional: '',
                         satuan: '%',
                         unit_id: units[0]?.id ?? '',
-                        alasan_pindah_unit: '',
                         arah: 'naik_baik',
                         tipe_perhitungan: 'manual',
                         presisi: 2,
@@ -108,13 +105,17 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        transform((formData) => ({
-            ...formData,
-            regulasi_id: formData.regulasi_id || null,
-            definisi_operasional: formData.definisi_operasional || null,
-        }));
-
         if (isEdit && indikator) {
+            // Jalur edit umum tidak boleh memindahkan unit: kunci unit_id
+            // ke nilai tersimpan agar lolos Rule::in backend. Pemindahan
+            // unit hanya lewat endpoint pindah-unit khusus.
+            transform((formData) => ({
+                ...formData,
+                unit_id: indikator.unit_id,
+                regulasi_id: formData.regulasi_id || null,
+                definisi_operasional: formData.definisi_operasional || null,
+            }));
+
             put(`/perencanaan/indikator/${indikator.id}`, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -123,6 +124,12 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                 },
             });
         } else {
+            transform((formData) => ({
+                ...formData,
+                regulasi_id: formData.regulasi_id || null,
+                definisi_operasional: formData.definisi_operasional || null,
+            }));
+
             post('/perencanaan/indikator', {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -132,6 +139,15 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
             });
         }
     };
+
+    // Nama unit tersimpan untuk tampilan read-only saat edit. Unit aktif
+    // difilter server sehingga unit lama yang nonaktif fallback ke nama
+    // yang tersimpan pada payload indikator.
+    const unitNamaSaatIni =
+        units.find((u) => u.id === indikator?.unit_id)?.nama
+        ?? indikator?.unit_nama
+        ?? indikator?.unit_id
+        ?? '';
 
     return (
         <Modal
@@ -217,37 +233,33 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <Select
-                            id="indikator_unit_id"
-                            label="Unit Penanggung Jawab"
-                            value={data.unit_id}
-                            onChange={(e) => setData('unit_id', e.target.value)}
-                            error={errors.unit_id}
-                            required
-                        >
-                            {units.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.nama}
-                                </option>
-                            ))}
-                        </Select>
+                        {isEdit ? (
+                            <Input
+                                id="indikator_unit_id"
+                                label="Unit Penanggung Jawab"
+                                value={unitNamaSaatIni}
+                                disabled
+                                readOnly
+                                helperText='Unit tidak dapat diubah melalui edit umum. Gunakan aksi "Pindah Unit" pada tabel untuk memindahkan kepemilikan beserta alasan audit.'
+                            />
+                        ) : (
+                            <Select
+                                id="indikator_unit_id"
+                                label="Unit Penanggung Jawab"
+                                value={data.unit_id}
+                                onChange={(e) => setData('unit_id', e.target.value)}
+                                error={errors.unit_id}
+                                required
+                            >
+                                {units.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.nama}
+                                    </option>
+                                ))}
+                            </Select>
+                        )}
                     </div>
                 </div>
-
-                {isEdit && data.unit_id !== indikator?.unit_id && (
-                    <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                        <Textarea
-                            id="indikator_alasan_pindah_unit"
-                            label="Alasan Perpindahan Unit Penanggung Jawab"
-                            placeholder="Jelaskan alasan pemindahan kepemilikan unit indikator ini (minimal 10 karakter)..."
-                            value={data.alasan_pindah_unit}
-                            onChange={(e) => setData('alasan_pindah_unit', e.target.value)}
-                            error={errors.alasan_pindah_unit}
-                            helperText="Perpindahan unit penanggung jawab memerlukan konfirmasi alasan dan akan dicatat terpisah pada audit log."
-                            required
-                        />
-                    </div>
-                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>

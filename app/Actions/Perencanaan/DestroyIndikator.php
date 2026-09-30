@@ -5,13 +5,12 @@ namespace App\Actions\Perencanaan;
 use App\Models\IndikatorKinerja;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 
 class DestroyIndikator
 {
-    public function __construct(private readonly AuditLogger $auditLogger, private readonly PermissionResolver $resolver) {}
+    public function __construct(private readonly AuditLogger $auditLogger, private readonly ResolveLockedActor $lockedActor) {}
 
     /**
      * Mengarsipkan Indikator (never-delete mutlak, ADR 0003).
@@ -23,17 +22,43 @@ class DestroyIndikator
      * percobaan pengarsipan utuh. Reaktivasi (arsip → aktif) tidak
      * disediakan di PR ini.
      *
-     * Otorisasi ditangani FormRequest/Policy di batas request; di sini
-     * hanya mencatat dasar izin efektif.
+     * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
+     * state terkini (anti-TOCTOU): pencabutan peran/grant/deny atau
+     * penonaktifan akun di tengah jalan membuat operasi gagal tertutup.
+     * Penolakan dicatat sebagai audit `indikator.hapus_ditolak` di luar
+     * transaksi (agar tidak ikut rollback) lalu 403 dilempar.
      *
      * @return array{diarsipkan: bool, kode: string}
      */
     public function handle(User $actor, IndikatorKinerja $indikator, string $alasan): array
     {
         $alasan = trim($alasan);
-        $dasarIzin = $this->resolver->resolve($actor, PermissionCodes::INDIKATOR_DELETE)->toAuditBasis();
 
-        return DB::transaction(function () use ($indikator, $actor, $alasan, $dasarIzin) {
+        $result = DB::transaction(function () use ($indikator, $actor, $alasan) {
+            // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
+            $kunci = $this->lockedActor->handle($actor, PermissionCodes::INDIKATOR_DELETE);
+            /** @var User|null $lockedActor */
+            $lockedActor = $kunci['aktor'];
+            $currentDecision = $kunci['keputusan'];
+            if (! $lockedActor || $lockedActor->status !== 'aktif') {
+                return [
+                    'status' => 'denied',
+                    'alasan' => 'Pengarsipan indikator kinerja ditolak karena akun pengguna tidak aktif.',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
+                ];
+            }
+
+            // 2. Evaluasi ulang keputusan izin di dalam transaksi yang terkunci memakai state terkini
+            if (! $currentDecision->allowed) {
+                return [
+                    'status' => 'denied',
+                    'alasan' => 'Pengarsipan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                    'dasarIzin' => $currentDecision->toAuditBasis(),
+                ];
+            }
+
+            $dasarIzin = $currentDecision->toAuditBasis();
+
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::where('id', $indikator->id)->lockForUpdate()->firstOrFail();
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
@@ -52,7 +77,23 @@ class DestroyIndikator
                 dasarIzin: $dasarIzin,
             );
 
-            return ['diarsipkan' => true, 'kode' => $nilaiLama['kode']];
+            return ['status' => 'archived', 'diarsipkan' => true, 'kode' => $nilaiLama['kode']];
         });
+
+        if ($result['status'] === 'denied') {
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'indikator.hapus_ditolak',
+                objekTipe: 'indikator',
+                objekId: (string) $indikator->id,
+                nilaiLama: null,
+                nilaiBaru: null,
+                alasan: $result['alasan'] ?? 'Pengarsipan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                dasarIzin: $result['dasarIzin'],
+            );
+            abort(403, 'Anda tidak berwenang mengarsipkan indikator kinerja.');
+        }
+
+        return ['diarsipkan' => true, 'kode' => $result['kode']];
     }
 }

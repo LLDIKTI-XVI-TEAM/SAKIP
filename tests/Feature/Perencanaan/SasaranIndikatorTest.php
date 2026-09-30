@@ -1666,6 +1666,211 @@ class SasaranIndikatorTest extends TestCase
         $this->assertStringContainsString('wewenang tidak lagi berlaku saat transaksi', $auditDenied->alasan ?? '');
     }
 
+    public function test_store_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
+    {
+        $callCount = 0;
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        $mockResolver->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use (&$callCount) {
+            $callCount++;
+            if ($callCount === 1) {
+                // Resolusi awal pada Gate / Policy diizinkan sehingga request berhasil masuk ke controller
+                return new PermissionDecision(true, $code, [
+                    'alasan' => 'allow',
+                    'sumber_allow' => ['roles' => ['role-perencanaan-test'], 'grants' => []],
+                    'deny' => [],
+                ]);
+            }
+
+            // Resolusi kedua di dalam transaksi StoreSasaran ditolak (simulasi wewenang dicabut saat transaksi)
+            return new PermissionDecision(false, $code, [
+                'alasan' => 'revoked_inside_transaction',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]);
+        });
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-STORE-DENIED',
+            'deskripsi' => 'Sasaran Yang Harus Ditolak',
+            'urutan' => 1,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertGreaterThanOrEqual(2, $callCount, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
+        $this->assertDatabaseMissing('sasaran_strategis', ['kode' => 'SS-STORE-DENIED']);
+
+        $auditDenied = AuditLog::where('tindakan', 'sasaran.buat_ditolak')
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditDenied);
+        $this->assertSame('revoked_inside_transaction', $auditDenied->dasar_izin['alasan'] ?? null);
+        $this->assertSame('ditolak', $auditDenied->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('wewenang tidak lagi berlaku saat transaksi', $auditDenied->alasan ?? '');
+    }
+
+    public function test_update_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-UPDATE-DENIED',
+            'deskripsi' => 'Deskripsi Asal Tidak Boleh Berubah',
+            'urutan' => 1,
+        ]);
+
+        $callCount = 0;
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        $mockResolver->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use (&$callCount) {
+            $callCount++;
+            if ($callCount === 1) {
+                // Resolusi awal pada Gate / Policy diizinkan sehingga request berhasil masuk ke controller
+                return new PermissionDecision(true, $code, [
+                    'alasan' => 'allow',
+                    'sumber_allow' => ['roles' => ['role-perencanaan-test'], 'grants' => []],
+                    'deny' => [],
+                ]);
+            }
+
+            // Resolusi kedua di dalam transaksi UpdateSasaran ditolak (simulasi wewenang dicabut saat transaksi)
+            return new PermissionDecision(false, $code, [
+                'alasan' => 'revoked_inside_transaction',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]);
+        });
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-UPDATE-DENIED-MOD',
+            'deskripsi' => 'Deskripsi Berubah Yang Harus Ditolak',
+            'urutan' => 2,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertGreaterThanOrEqual(2, $callCount, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
+        $this->assertSame('Deskripsi Asal Tidak Boleh Berubah', $sasaran->fresh()->deskripsi);
+
+        $auditDenied = AuditLog::where('tindakan', 'sasaran.ubah_ditolak')
+            ->where('objek_id', (string) $sasaran->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditDenied);
+        $this->assertSame('revoked_inside_transaction', $auditDenied->dasar_izin['alasan'] ?? null);
+        $this->assertSame('ditolak', $auditDenied->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('wewenang tidak lagi berlaku saat transaksi', $auditDenied->alasan ?? '');
+    }
+
+    public function test_destroy_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-DESTROY-DENIED',
+            'deskripsi' => 'Sasaran Tanpa Anak Yang Harus Tetap Ada',
+            'urutan' => 1,
+        ]);
+
+        $callCount = 0;
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        $mockResolver->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use (&$callCount) {
+            $callCount++;
+            if ($callCount === 1) {
+                // Resolusi awal pada Gate / Policy diizinkan sehingga request berhasil masuk ke controller
+                return new PermissionDecision(true, $code, [
+                    'alasan' => 'allow',
+                    'sumber_allow' => ['roles' => ['role-perencanaan-test'], 'grants' => []],
+                    'deny' => [],
+                ]);
+            }
+
+            // Resolusi kedua di dalam transaksi DestroySasaran ditolak (simulasi wewenang dicabut saat transaksi)
+            return new PermissionDecision(false, $code, [
+                'alasan' => 'revoked_inside_transaction',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]);
+        });
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->perencanaan)->delete("/perencanaan/sasaran/{$sasaran->id}", [
+            'alasan' => 'Alasan penghapusan yang cukup panjang untuk validasi.',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertGreaterThanOrEqual(2, $callCount, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
+        $this->assertDatabaseHas('sasaran_strategis', ['id' => $sasaran->id]);
+
+        $auditDenied = AuditLog::where('tindakan', 'sasaran.hapus_ditolak')
+            ->where('objek_id', (string) $sasaran->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditDenied);
+        $this->assertSame('revoked_inside_transaction', $auditDenied->dasar_izin['alasan'] ?? null);
+        $this->assertSame('ditolak', $auditDenied->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('wewenang tidak lagi berlaku saat transaksi', $auditDenied->alasan ?? '');
+    }
+
+    public function test_arsip_indikator_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-ARSIP-DENIED',
+            'deskripsi' => 'Sasaran Arsip Denied',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ARSIP-DENIED',
+            'nama' => 'Indikator Yang Harus Tetap Aktif',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $callCount = 0;
+        $mockResolver = $this->createMock(PermissionResolver::class);
+        $mockResolver->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use (&$callCount) {
+            $callCount++;
+            if ($callCount === 1) {
+                // Resolusi awal pada Gate / Policy diizinkan sehingga request berhasil masuk ke controller
+                return new PermissionDecision(true, $code, [
+                    'alasan' => 'allow',
+                    'sumber_allow' => ['roles' => ['role-perencanaan-test'], 'grants' => []],
+                    'deny' => [],
+                ]);
+            }
+
+            // Resolusi kedua di dalam transaksi DestroyIndikator ditolak (simulasi wewenang dicabut saat transaksi)
+            return new PermissionDecision(false, $code, [
+                'alasan' => 'revoked_inside_transaction',
+                'sumber_allow' => ['roles' => [], 'grants' => []],
+                'deny' => [],
+            ]);
+        });
+        $this->app->instance(PermissionResolver::class, $mockResolver);
+
+        $response = $this->actingAs($this->perencanaan)->delete("/perencanaan/indikator/{$indikator->id}", [
+            'alasan' => 'Alasan pengarsipan yang cukup panjang untuk validasi.',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertGreaterThanOrEqual(2, $callCount, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
+        $this->assertSame('aktif', $indikator->fresh()->status);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.arsipkan')->where('objek_id', (string) $indikator->id)->count());
+
+        $auditDenied = AuditLog::where('tindakan', 'indikator.hapus_ditolak')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('waktu')
+            ->first();
+        $this->assertNotNull($auditDenied);
+        $this->assertSame('revoked_inside_transaction', $auditDenied->dasar_izin['alasan'] ?? null);
+        $this->assertSame('ditolak', $auditDenied->dasar_izin['keputusan'] ?? null);
+        $this->assertStringContainsString('wewenang tidak lagi berlaku saat transaksi', $auditDenied->alasan ?? '');
+    }
+
     public function test_update_indikator_mengizinkan_edit_biasa_saat_unit_saat_ini_sudah_nonaktif(): void
     {
         $sasaran = SasaranStrategis::create([

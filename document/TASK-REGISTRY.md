@@ -46,11 +46,13 @@ dikerjakan session lain, lalu statusnya dicatat di sini.
 | R2-04c | Lifecycle: reader/guard/arsip + ADR | `document/PR-42-Review2-Tracking.md` | done, jawaban user FINAL, belum commit | subagent ses_f123afbaff | 1) hanya create baru diblokir 2) reaktivasi = BACKLOG-01 3) backfill manual wajib (prosedur di migrasi) |
 | BACKLOG-01 | Alur reaktivasi arsip→aktif | — (issue berikutnya, di luar PR-42) | open | — | diputuskan 2026-09-29, belum dipecah |
 | R2-02 | Pindah-unit endpoint khusus (backend) | `document/PR-42-Review2-Tracking.md` | done, 5 OPEN QUESTION, belum commit | subagent ses_f122752eaf | PATCH pindah-unit + PUT tolak unit beda; pint/phpstan passed |
-| R2-03 | Pindah-unit UI terpisah | `document/PR-42-Review2-Tracking.md` | open | — | setelah R2-02 |
-| R2-05 | Re-auth konsisten semua mutation | `document/PR-42-Review2-Tracking.md` | open | — | — |
+| R2-03 | Pindah-unit UI terpisah | `document/PR-42-Review2-Tracking.md` | done, belum commit | — | IndikatorModal edit read-only + PindahUnitModal baru + tombol gate can.indikator_update; typecheck hijau; FE 135/135 hijau (6 baru); Pest tidak dijalankan; 4 open question ke user |
+| R2-05 | Re-auth konsisten semua mutation | `document/PR-42-Review2-Tracking.md` | done, belum commit | — | 4 Action + 4 test allow-then-deny; pint/phpstan passed; Pest terblokir PG disposable; 4 open question ke user |
 | R2-06 | Design System tokens | `document/PR-42-Review2-Tracking.md` | open | — | — |
 | R2-07 | Browser smoke + QA | `document/PR-42-Review2-Tracking.md` | open | — | setelah R2-03 + R2-06 |
-| R2-08 | Konsolidasi PermissionResolver | `document/PR-42-Review2-Tracking.md` | open | — | — |
+| R2-08 | Konsolidasi resolver + rapikan layer (diperluas) | `document/PR-42-Review2-Tracking.md` | open | — | +helper→Service +controller murni (temuan 5,6,7) |
+| R2-12 | PR description sesuai HEAD | `document/PR-42-Review2-Tracking.md` | done, tanpa kode, belum commit | session pelaksana R2-12 | body HEAD `41976fc` via `gh pr edit` + verifikasi baca-balik (kunci hadir, klaim lama nihil, `Closes #26` utuh); refresh body lagi setelah commit worktree; 3 open question ke user |
+| R2-13 | Sanitasi alasan audit Policy | `document/PR-42-Review2-Tracking.md` | open | — | test di file baru |
 | R2-09 | Migration deterministik | `document/PR-42-Review2-Tracking.md` | done | subagent ses_f125ef9f8 | konstanta beku lokal; perilaku identik; pint/phpstan passed |
 | R2-04b | Lifecycle: migrasi skema + model | `document/PR-42-Review2-Tracking.md` | revisi done, 1 OPEN QUESTION | subagent revisi | NULL→throw; fallback user dihapus (throw+SQL manual); backup per-baris; 1 tanya down() baris pasca-cutover |
 | R2-10 | Bersihkan komentar + pecah test | `document/PR-42-Review2-Tracking.md` | open | — | — |
