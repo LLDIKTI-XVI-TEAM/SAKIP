@@ -15,6 +15,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\RoleAssignmentReceipt;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -111,6 +112,23 @@ class AccountConcurrencyTest extends TestCase
         $this->assertContains(DB::table('user_roles')->where('user_id', $target->id)->value('role_id'), $roles);
         $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.tambah')->count());
         $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.ditolak')->count());
+    }
+
+    public function test_two_receipt_consumers_have_one_winner_on_database_cache(): void
+    {
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $reference = app(RoleAssignmentReceipt::class)->issue($actor->id, 'concurrent-session', ['status' => 'assigned', 'has_active_pj' => true]);
+        $this->assertNotNull($reference);
+        $key = DB::table('cache')->sole()->key.':consume';
+        DB::table('cache_locks')->insert(['key' => $key, 'owner' => 'expired-fixture', 'expiration' => 0]);
+        $prepare = fn () => DB::table('cache_locks')->where('key', $key)->lockForUpdate()->sole();
+        $payload = ['actor_id' => $actor->id, 'session_id' => 'concurrent-session', 'reference' => $reference];
+
+        $results = $this->race('receipt-consume', $actor->id, '', [$payload, $payload], $prepare);
+
+        $this->assertEqualsCanonicalizing(['consumed', 'unknown'], $results);
+        $this->assertDatabaseCount('cache', 0);
+        $this->assertDatabaseCount('audit_log', 0);
     }
 
     #[DataProvider('denyScopes')]
