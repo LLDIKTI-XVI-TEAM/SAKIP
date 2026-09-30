@@ -8,7 +8,7 @@ use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Str;
 
@@ -20,7 +20,7 @@ class IndexSasaranIndikator
      * Menyusun payload halaman Sasaran & Indikator untuk satu Renstra.
      * Otorisasi halaman (`viewAny`) tetap di controller; di sini hanya
      * angewand: `regulasi_id`/`regulasi` disembunyikan (null) dan katalog
-     * regulasi dikosongkan bila pembaca kena deny `regulasi:read` (Q32),
+     * regulasi dikosongkan bila pembaca tidak berwenang `regulasi:read`,
      * serta `renstra_id` non-UUID ditolak 404 sebelum menyentuh query UUID.
      *
      * @return array{renstras: mixed, selectedRenstraId: ?string, sasarans: mixed, units: mixed, regulasis: mixed, can: array<string, bool>}

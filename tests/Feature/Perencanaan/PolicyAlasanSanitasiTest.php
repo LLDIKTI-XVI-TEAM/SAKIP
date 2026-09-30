@@ -276,6 +276,139 @@ class PolicyAlasanSanitasiTest extends TestCase
         );
     }
 
+    public function test_sasaran_buat_alasan_nul_tetap_403_audit_tersimpan(): void
+    {
+        $this->tolakIzin('sasaran:create');
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
+            'alasan' => "upaya\0tanpa\0izin",
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'sasaran.buat_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame('upayatanpaizin', $audit->alasan);
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+    }
+
+    public function test_indikator_buat_alasan_nul_tetap_403_audit_tersimpan(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
+        ]);
+        $this->tolakIzin('indikator:create');
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
+            'nama' => 'Indikator uji sanitasi alasan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'alasan' => "coba\0alasan",
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'indikator.buat_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame('cobaalasan', $audit->alasan);
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+    }
+
+    public function test_sasaran_ubah_alasan_nul_tetap_403_audit_tersimpan(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
+        ]);
+        $this->tolakIzin('sasaran:update');
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 2,
+            'alasan' => "  ubah\0sasaran  ",
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'sasaran.ubah_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame('ubahsasaran', $audit->alasan);
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+    }
+
+    public function test_indikator_ubah_alasan_nul_tetap_403_audit_tersimpan(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
+            'nama' => 'Indikator uji sanitasi alasan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => $this->renstra->tahun_mulai,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
+        ]);
+        $this->tolakIzin('indikator:update');
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
+            'nama' => 'Indikator uji sanitasi alasan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'alasan' => "alasan\0indikator",
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame('alasanindikator', $audit->alasan);
+        $this->assertStringNotContainsString("\0", $audit->alasan);
+    }
+
+    public function test_sasaran_buat_alasan_invalid_utf8_memakai_fallback_generik(): void
+    {
+        $this->tolakIzin('sasaran:create');
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
+            'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
+            'alasan' => "\xFF\xFE",
+        ]);
+
+        $response->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'sasaran.buat_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame(
+            'Percobaan membuat sasaran strategis ditolak oleh sistem otorisasi.',
+            $audit->alasan
+        );
+    }
+
     private function tolakIzin(string $kodePermission): void
     {
         $permission = Permission::where('kode', $kodePermission)->firstOrFail();

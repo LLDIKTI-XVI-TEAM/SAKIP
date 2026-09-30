@@ -6,8 +6,8 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
-use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -61,7 +61,7 @@ class UpdateIndikator
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
-            // 2b. Guard rujukan regulasi (Q3): bila regulasi_id diisi non-null,
+            // 2b. Guard rujukan regulasi: bila regulasi_id diisi non-null,
             // aktor wajib lolos regulasi:read memakai state terkunci agar tebakan
             // UUID tak bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
             if (array_key_exists('regulasi_id', $validated) && $validated['regulasi_id'] !== null && $validated['regulasi_id'] !== '') {

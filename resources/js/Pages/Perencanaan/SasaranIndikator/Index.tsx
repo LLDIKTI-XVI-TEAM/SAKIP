@@ -432,11 +432,12 @@ export default function SasaranIndikatorIndex({
                                                                     {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
                                                                         <Link
                                                                             href={`/indikator/${ind.id}/komponen`}
-                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary inline-flex items-center"
+                                                                            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-ink shadow-xs transition-all duration-150 hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:ring-offset-1"
                                                                             title="Konfigurasi Komponen Perhitungan"
-                                                                            aria-label={`Konfigurasi komponen ${ind.kode}`}
+                                                                            aria-label={`Kelola komponen ${ind.kode}`}
                                                                         >
-                                                                            <Calculator className="h-3.5 w-3.5" />
+                                                                            <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                            Kelola Komponen
                                                                         </Link>
                                                                     )}
 

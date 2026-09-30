@@ -8,9 +8,9 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Authorization\RoleCatalog;
-use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,7 +30,7 @@ class StoreIndikator
      * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
      * state terkini (-TOCTOU): pencabutan peran/grant/deny atau penonaktifan
      * akun di tengah jalan membuat operasi gagal tertutup. Provenance
-     * `created_by_role` diambil dari peran pemberi pada keputusan Q32 —
+     * `created_by_role` diambil dari peran pemberi pada keputusan izin —
      * izin yang hanya bersumber grant langsung tanpa peran ditolak tanpa
      * mengarang peran (fail-closed, ADR 0001). Unit tujuan dan Sasaran induk
      * dikunci dan diperiksa ulang di dalam transaksi yang sama.
@@ -65,7 +65,7 @@ class StoreIndikator
                 ];
             }
 
-            // 2b. Guard rujukan regulasi (Q3): bila regulasi_id diisi, aktor wajib
+            // 2b. Guard rujukan regulasi: bila regulasi_id diisi, aktor wajib
             // lolos regulasi:read memakai state terkunci agar tebakan UUID tak
             // bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
             if (($validated['regulasi_id'] ?? null) !== null && $validated['regulasi_id'] !== '') {
@@ -79,7 +79,7 @@ class StoreIndikator
                 }
             }
 
-            // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan resolusi Q32
+            // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan hasil resolusi izin
             // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
             $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
             $createdRole = null;

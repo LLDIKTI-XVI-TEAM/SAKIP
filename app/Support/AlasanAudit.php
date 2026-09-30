@@ -7,8 +7,11 @@ namespace App\Support;
  *
  * Policy membaca `request()->input('alasan')` sebelum validasi selesai,
  * sehingga nilai mentah tidak boleh ditulis tanpa batas ke jejak audit
- * yang tidak dapat diubah lagi. Helper ini memangkas spasi tepi,
- * membatasi panjang 1000 karakter, dan memakai pesan generik bila kosong.
+ * yang tidak dapat diubah lagi. Helper ini menolak byte NUL (PostgreSQL
+ * menolak NUL pada kolom text sehingga input jahat bisa memicu 500
+ * alih-alih 403 + audit), menolak string dengan encoding UTF-8 tidak valid,
+ * memangkas spasi tepi, membatasi panjang 1000 karakter, dan memakai pesan
+ * generik bila kosong.
  */
 final class AlasanAudit
 {
@@ -18,6 +21,14 @@ final class AlasanAudit
     {
         if (! is_string($mentah)) {
             return $bawaan;
+        }
+
+        if (! mb_check_encoding($mentah, 'UTF-8')) {
+            return $bawaan;
+        }
+
+        if (str_contains($mentah, "\0")) {
+            $mentah = str_replace("\0", '', $mentah);
         }
 
         $rapi = trim($mentah);

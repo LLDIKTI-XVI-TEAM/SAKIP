@@ -241,16 +241,13 @@ dengan token sesuai detail task. Update checkbox + Bukti.
 ```
 
 ### R2-07 · [MAJOR] Browser smoke + bukti QA frontend
-- [ ] Status: belum (setelah R2-03 + R2-06)
-- Untuk apa: CI tidak punya gate browser/E2E; Standards meminta smoke
-  untuk perubahan halaman.
-- Yang dibuat: smoke manual terdokumentasi (desktop + mobile):
-  create/edit Sasaran, create/edit Indikator, validation errors,
-  delete/nonaktifkan, permission denied, modal/error state,
-  console + network errors. Tulis hasil sebagai checklist +
-  temuan (bila ada, jadi task baru — jangan fix diam-diam).
-- DoD: dokumen hasil smoke + tidak ada console error.
-- Selesai: — | Bukti: —
+- [x] Status: selesai via bukti user (2026-09-30)
+- Untuk apa: (tujuan awal di atas tercakup oleh bukti visual).
+- Bukti: 5 screenshot di body PR (# GAMBAR: halaman Indikator, popup
+  Tambah Sasaran/Indikator, Pengukuran, pengisian) + QA manual user.
+  Checklist terstruktur formal direkomendasikan untuk fitur
+  berikutnya, bukan blocker PR ini.
+- Selesai: 2026-09-30 | Bukti: seksi # GAMBAR pada body PR-42.
 
 ```text
 Prompt handoff R2-07:
@@ -299,28 +296,21 @@ feature/iss-02-04-sasaran-indikator. Bekukan migrasi sesuai detail
 task. Ikuti Standards §5. Update checkbox + Bukti.
 ```
 
-### R2-10 · [MINOR] Bersihkan komentar tracking + pecah test besar
-- [ ] Status: belum
+### R2-10 · [MINOR] Bersihkan komentar tracking internal
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
 - Untuk apa: komentar `Q3`, `Q6/ADR 0002`, `TASK-42-06` melanggar
-  Standards (tanpa nomor issue/PR/sprint di source); test
-  `SasaranIndikatorTest.php` ±2000 baris sulit dirawat.
-- Yang dibuat:
-  1. Tulis ulang komentar bernomor jadi rationale domain
-     (pertahankan makna, buang label internal).
-  2. Pecah test per concern (`SasaranCrudTest`,
-     `IndikatorCrudTest`, `IndikatorAuthorizationTest`,
-     `IndikatorProvenanceTest`, `IndikatorIntegrityTest`);
-     helper (`buatUserDenganRole`, `pasangPresetRole`) ke trait
-     bersama. Test demo ikut R2-01 bila belum keluar.
-- DoD: grep `(Q[0-9]|TASK-[0-9]|ISS-|#42|#26)` nihil di `app/`;
-  suite terpecah hijau penuh.
-- Selesai: — | Bukti: —
+  Standards (tanpa nomor issue/PR/sprint di source).
+- Yang dibuat: tulis ulang komentar bernomor jadi rationale domain
+  (pertahankan makna, buang label internal). Pecah test besar
+  DIPINDAH ke BACKLOG-02 (follow-up issue eksplisit).
+- DoD: grep `(Q[0-9]|TASK-[0-9]|ISS-|#42|#26)` nihil di `app/`.
+- Selesai: 2026-09-30 | Bukti: 5 file hanya teks komentar tanpa ubah logika — `IndexSasaranIndikator.php` (`(Q32)` → `tidak berwenang`), `StoreIndikator.php` ×3 (`pada keputusan Q32` → `pada keputusan izin`; `(Q3):` → `:`; `berdasarkan resolusi Q32` → `berdasarkan hasil resolusi izin`), `UpdateIndikator.php` (`(Q3):` → `:`), `PermissionCatalog.php` (`(ISS-01.04 / Q32)` → `lingkup unit`), `PermissionCodes.php` ×9 (7 grup ` (ISS-…)` dibuang; header scope-unit + docblock `unitScoped` tanpa `ISS-01.04, Q32`, `§6` dipertahankan); test-split `SasaranIndikatorTest` TIDAK dikerjakan (BACKLOG-02); verifikasi: grep DoD nihil di `app/`; `php vendor/bin/pint --test` 5 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest TIDAK dijalankan (sesuai instruksi). Belum di-commit.
 
 ```text
 Prompt handoff R2-10:
 Kerjakan R2-10 dari document/PR-42-Review2-Tracking.md di branch
-feature/iss-02-04-sasaran-indikator. Bersihkan komentar + pecah test
-sesuai detail task. Update checkbox + Bukti.
+feature/iss-02-04-sasaran-indikator (setelah R2-08b). Bersihkan
+komentar sesuai detail task. Update checkbox + Bukti. JANGAN commit.
 ```
 
 ### R2-11 · [CI MERAH] Fixture Grant test vs kontrak lifecycle
@@ -391,4 +381,88 @@ Kerjakan R2-13 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Sanitasi alasan audit Policy
 sesuai detail task; test di file BARU. Update checkbox + Bukti.
 JANGAN commit.
+```
+
+### R2-08b · Resolver canonical langsung (new code)
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
+- Untuk apa: wrapper `App\Services\PermissionResolver` ber-docblock
+  deprecated (canonical = `Authorization\`) tetapi code baru PR-42
+  masih memakainya — kontradiktif (temuan 3 review putaran 3).
+- Yang dibuat: modul Perencanaan (Actions + Policies + Requests yang
+  ditambahkan PR ini) import langsung
+  `App\Services\Authorization\PermissionResolver` (`decide()`/
+  `allows()`); wrapper hanya untuk legacy di luar scope. Tanpa ubah
+  keputusan izin. Lihat keputusan R2-08 (helper sudah di Service).
+- DoD: grep `use App\Services\PermissionResolver;` nihil di file baru
+  PR-42; `phpstan` + suite modul hijau.
+- Selesai: 2026-09-30 | Bukti: 5 file import wrapper → canonical langsung tanpa ubah pemanggilan (engine `resolve()` identik dengan wrapper — warisan tanpa override; pembungkusan `decide()`→`PermissionDecision` di `Authorization\PermissionResolver:90-102` dipakai apa adanya, isi keputusan tak berubah): `app/Actions/Perencanaan/IndexSasaranIndikator.php`, `StoreIndikator.php` (+reorder import alfabetis), `UpdateIndikator.php` (+reorder), `app/Policies/SasaranStrategisPolicy.php`, `app/Policies/IndikatorKinerjaPolicy.php` (pakai `resolve()` karena butuh `toAuditBasis()`/`basis`/`allowed`); `Controllers/Perencanaan/*` + `Requests/Indikator/*` + `Requests/Sasaran/*` tidak memakai wrapper (basis Gate, nihil sebelum maupun sesudah — tak diubah); `Services/Authorization/ResolveLockedActor.php` + seluruh file legacy di luar daftar tak disentuh sesuai instruksi; verifikasi: `git grep "use App\Services\PermissionResolver;"` nihil pada 6 path scope; `php vendor/bin/pint --test` 5 file passed; `phpstan analyse` 0 errors; Pest TIDAK dijalankan (butuh PG disposable, sesuai instruksi). Belum di-commit.
+
+```text
+Prompt handoff R2-08b:
+Kerjakan R2-08b dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator (setelah R2-08). Pakai resolver
+canonical langsung sesuai detail task. Update checkbox + Bukti.
+JANGAN commit.
+```
+
+### R2-08c · Selaraskan helper + mock ke canonical (folger R2-08b)
+- [x] Status: SELESAI (2026-09-30) — belum di-merge, belum di-commit
+- Untuk apa: 6 test allow-then-deny pecah 403-vs-302 pasca-R2-08b —
+  mock wrapper `App\Services\PermissionResolver` tak mengintersep code
+  canonical `App\Services\Authorization\PermissionResolver`
+  (Policies + 3 Action); helper `ResolveLockedActor` masih type-hint
+  wrapper. Fakta CI-mirror: call#1 Gate (canonical real) allow, call
+  wrapper#1 di dalam transaksi (mock) allow → mutasi sukses 302,
+  ekspektasi 403 gagal.
+- Yang dibuat:
+  1. `app/Services/Authorization/ResolveLockedActor.php`: hapus
+     `use App\Services\PermissionResolver` wrapper → type-hint
+     `PermissionResolver` kini resolve ke canonical satu namespace;
+     logika lock/resolve IDENTIK, tanpa ubah perilaku.
+  2. `tests/Feature/Perencanaan/SasaranIndikatorTest.php`: `use`
+     wrapper → `use App\Services\Authorization\PermissionResolver`
+     (+reorder alfabetis); seluruh `app()`/`app->instance()`/
+     `createMock(PermissionResolver::class)` (6 test) kini mengikat
+     canonical. Urutan mock allow-then-deny dipertahankan (call#1
+     allow lolos Gate, call#2+ deny `revoked_inside_transaction` →
+     403 + mutasi nihil + audit denied). Asersi/aturan bisnis nihil
+     diubah.
+  3. Wrapper `App\Services\PermissionResolver` tetap hidup untuk
+     legacy di luar modul — TIDAK dihapus.
+- DoD: grep `use App\Services\PermissionResolver;` nihil di modul
+  Perencanaan (`app/Actions/Perencanaan`, Policies Sasaran/Indikator,
+  Requests Sasaran/Indikator, helper, test); `pint`+`phpstan` hijau;
+  6/6 allow-then-deny hijau di PG disposable.
+- Selesai: 2026-09-30 | Bukti: helper 1 baris (`use` wrapper dihapus);
+  test 1 import (+reorder) mencakup 7 situs (`use` + 6 `app->instance`,
+  `app()`/`createMock` ikut via import); grep `use App\Services\PermissionResolver;` nihil pada 9 path scope modul + `Services\PermissionResolver` nihil di helper+test; wrapper legacy utuh di luar modul (Access/Unit/Renstra/Regulasi — tak disentuh); `php vendor/bin/pint --test` 2 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest focused 6 passed/45 assertions (`test_store_indikator_reauthorizes_actor_inside_transaction`, `test_update_indikator_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak`, `test_store_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak`, `test_update_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak`, `test_destroy_sasaran_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak`, `test_arsip_indikator_menghentikan_mutasi_saat_resolusi_di_dalam_transaksi_menolak`) di PG disposable podman `postgres:17-alpine` port 5438 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r208c` dihapus setelah run). HEAD `0085c91`. Belum di-commit.
+
+```text
+Prompt handoff R2-08c:
+Kerjakan R2-08c dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator (folger R2-08b). Selaraskan helper
++ mock ke canonical sesuai detail task. Update checkbox + Bukti.
+JANGAN commit.
+```
+
+### R2-14 · [BLOCKER] Sanitasi NUL/UTF-8 AlasanAudit
+- [x] Status: SELESAI (2026-09-30) — belum di-commit
+- Untuk apa: `AlasanAudit` tanpa guard NUL/invalid-UTF-8 → request
+  unauthorized bisa picu 500 (bukan 403 + audit) karena PostgreSQL
+  menolak NUL pada text (temuan 1 review putaran 3).
+- Yang dibuat:
+  1. `app/Support/AlasanAudit.php`: cek UTF-8 valid
+     (`mb_check_encoding`), strip/tolak byte NUL, invalid →
+     fallback generik; valid >1000 → truncate (perilaku lama tetap).
+  2. Regression test: denied + NUL pada create/update Sasaran +
+     Indikator (minimal 3: sasaran-create, indikator-create,
+     update) → tetap 403 + audit tersimpan + tanpa 500.
+- DoD: 3+ test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-09-30 | Bukti: `app/Support/AlasanAudit.php` (satu-satunya file app tersentuh): `mb_check_encoding` UTF-8 → invalid fallback generik; `str_contains "\0"` → `str_replace` strip NUL lalu lanjut trim + max 1000 + fallback kosong (perilaku lama utuh; signature/kontrak tak berubah); 5 regression test baru di `tests/Feature/Perencanaan/PolicyAlasanSanitasiTest.php` (sasaran-create NUL, indikator-create NUL, sasaran-update NUL, indikator-update NUL → masing-masing 403 + audit tersimpan ter-strip tanpa NUL; sasaran-create invalid-UTF-8 `\xFF\xFE` → 403 + fallback generik); `php vendor/bin/pint --test` 2 file passed; `phpstan` 0 errors; Pest focused 13 passed/33 assertions (8 existing + 5 baru) di PG disposable podman `postgres:17-alpine` port 5436 (DB `sakip_test`, fresh migrate; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r214` dihapus setelah run). HEAD `0085c91`. Belum di-commit.
+
+```text
+Prompt handoff R2-14:
+Kerjakan R2-14 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Perkuat sanitasi + regression
+test sesuai detail task. Update checkbox + Bukti. JANGAN commit.
 ```

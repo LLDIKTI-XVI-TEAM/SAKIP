@@ -5,7 +5,6 @@ namespace App\Services\Authorization;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\PermissionResolver;
 use App\Support\PermissionDecision;
 use Illuminate\Support\Facades\DB;
 
