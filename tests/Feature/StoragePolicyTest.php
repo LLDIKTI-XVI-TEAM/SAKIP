@@ -187,6 +187,40 @@ class StoragePolicyTest extends TestCase
         return [['perencanaan', false], ['admin', true]];
     }
 
+    public function test_storage_seeder_preserves_existing_settings_and_only_fills_missing_defaults(): void
+    {
+        Pengaturan::where('kunci', '!=', 'berkas.ukuran_maks_kb')->delete();
+        Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->update([
+            'nilai' => '2048',
+            'updated_by' => $this->admin->id,
+            'updated_at' => '2026-01-01 00:00:00.123456',
+        ]);
+        $existing = Pengaturan::sole()->getAttributes();
+        $auditCount = AuditLog::count();
+
+        $this->seed(StoragePolicySeeder::class);
+
+        $this->assertSame($existing, Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->sole()->getAttributes());
+        $this->assertDatabaseCount('pengaturan', 5);
+        foreach ([
+            'berkas.unggahan_aktif' => ['true', 'boolean'],
+            'berkas.format_diizinkan' => ['pdf,docx,xlsx,jpg,jpeg,png', 'string'],
+            'berkas.tautan_selalu_diizinkan' => ['true', 'boolean'],
+            'berkas.versi' => ['1', 'integer'],
+        ] as $key => [$value, $type]) {
+            $setting = Pengaturan::where('kunci', $key)->sole();
+            $this->assertSame([$value, $type, 'berkas', null], [$setting->nilai, $setting->tipe, $setting->grup, $setting->updated_by]);
+            $this->assertTrue(Str::isUuid($setting->id));
+            $this->assertNotNull($setting->updated_at);
+        }
+        $initialized = Pengaturan::orderBy('kunci')->get()->toArray();
+
+        $this->seed(StoragePolicySeeder::class);
+
+        $this->assertSame($initialized, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
     public function test_direct_storage_action_caller_cannot_initialize_or_mutate_after_permission_revocation(): void
     {
         $this->assertTrue(app(PermissionResolver::class)->allows($this->superadmin, 'pengaturan:update'));
