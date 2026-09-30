@@ -3,6 +3,8 @@
 namespace App\Actions\Audit;
 
 use App\Models\AuditLog;
+use App\Support\AuditReason;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class WriteAuditLog
@@ -44,6 +46,12 @@ class WriteAuditLog
             throw new InvalidArgumentException('Audit memerlukan provenance aktor dan alasan yang sah.');
         }
 
+        $reason = AuditReason::sanitize($attributes['alasan']);
+        if (trim($reason) === '') {
+            // Input yang habis setelah sanitasi adalah error field; provenance tidak sah tetap error pemanggil.
+            throw ValidationException::withMessages(['alasan' => 'Alasan wajib memuat teks yang dapat dibaca.']);
+        }
+
         return AuditLog::create([
             'actor_id' => $actor,
             'actor_type' => $type,
@@ -56,7 +64,7 @@ class WriteAuditLog
             'objek_id' => $attributes['objek_id'],
             'nilai_lama' => $attributes['nilai_lama'] ?? null,
             'nilai_baru' => $attributes['nilai_baru'] ?? null,
-            'alasan' => $attributes['alasan'],
+            'alasan' => $reason,
             'dasar_izin' => $attributes['dasar_izin'] ?? null,
         ]);
     }

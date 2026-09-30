@@ -4,26 +4,33 @@ namespace App\Http\Requests;
 
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DeleteJenisBerkasRequest extends FormRequest
 {
+    /** @var array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}|null */
+    private ?array $authorizationDecision = null;
+
     public function authorize(): bool
     {
         $user = $this->user()?->fresh();
 
-        return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:delete');
+        $this->authorizationDecision = $user !== null
+            ? app(PermissionResolver::class)->decide($user, 'jenis_berkas:delete')
+            : null;
+
+        return $this->authorizationDecision['allowed'] ?? false;
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user()?->fresh();
-        if ($user) {
+        if ($user && $this->authorizationDecision !== null) {
             $id = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
-            $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:delete');
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
-                ? trim($rawAlasan)
+            $rawAlasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000, 'UTF-8');
+            $alasan = $rawAlasan !== ''
+                ? $rawAlasan
                 : 'Percobaan penghapusan persyaratan jenis berkas ditolak karena tidak memiliki izin.';
 
             app(AuditLogger::class)->catat(
@@ -32,7 +39,7 @@ class DeleteJenisBerkasRequest extends FormRequest
                 objekTipe: 'jenis_berkas',
                 objekId: $id,
                 alasan: $alasan,
-                dasarIzin: $decision,
+                dasarIzin: $this->authorizationDecision,
             );
         }
 
