@@ -11,7 +11,7 @@ use App\Services\Authorization\PermissionResolver as AuthorizationPermissionReso
  * Dipertahankan secara eksklusif untuk backward compatibility modul eksternal
  * pada branch development (seperti Renstra, Regulasi, Master Unit) sebelum modul-modul
  * tersebut dimigrasikan ke canonical namespace pada PR masing-masing. Seluruh use-case
- * Perjanjian Kinerja (ISS-02.08) wajib menggunakan canonical resolver.
+ * Perjanjian Kinerja wajib menggunakan canonical resolver.
  *
  * @deprecated Gunakan \App\Services\Authorization\PermissionResolver secara langsung.
  */

@@ -42,7 +42,7 @@ final class PermissionCodes
 
     public const RENSTRA_DELETE = 'renstra:delete';
 
-    // Perjanjian Kinerja (PK) (ISS-02.08)
+    // Perjanjian Kinerja (PK)
     public const PK_CREATE = 'pk:create';
 
     public const PK_UPDATE = 'pk:update';

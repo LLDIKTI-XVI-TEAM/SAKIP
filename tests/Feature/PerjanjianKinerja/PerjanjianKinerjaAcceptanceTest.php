@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * Pengujian Akseptansi End-to-End untuk Pencatatan Perjanjian Kinerja & Lampiran Legal (ISS-02.08)
+ * Pengujian Akseptansi End-to-End untuk Pencatatan Perjanjian Kinerja & Lampiran Legal
  *
  * TEST-1: Pencatatan PK Valid (Model, Timestamps, Audit Log)
  * TEST-2: Penolakan Duplikasi Tahun PK (Keunikan renstra_id + tahun)

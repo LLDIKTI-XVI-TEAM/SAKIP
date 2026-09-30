@@ -26,15 +26,10 @@ class UpdatePerjanjianKinerja
     /**
      * Menjalankan use-case pembaruan metadata dan lampiran Perjanjian Kinerja secara teraudit.
      *
-     * Catatan Arsitektural Batas Scope:
-     * Aksi ini berada dalam batas ruang lingkup ISS-02.08 (pencatatan dan pemeliharaan administratif
-     * dokumen Perjanjian Kinerja serta berkas legal pendukung). Aksi ini memerlukan izin pk:update,
-     * alasan wajib, serta merekam jejak audit (renstra_pk.ubah).
-     *
-     * Mekanisme koreksi formal (ISS-02.09) dengan versioning snapshot historis, pembuatan snapshot
-     * pengganti saat snapshot lama dirujuk oleh versi Rencana Aksi atau Pengukuran Kinerja, rujukan
-     * sumber koreksi resmi, dan alur pengesahan ulang TIDAK ditangani pada aksi ini melainkan
-     * menjadi concern terpisah pada modul koreksi ISS-02.09.
+     * Catatan Arsitektural Batas Lingkup:
+     * Aksi ini hanya menangani pemeliharaan metadata PK dan lampiran. Aksi ini memerlukan izin pk:update,
+     * alasan wajib, serta merekam jejak audit (renstra_pk.ubah). Koreksi snapshot historis dan pengesahan
+     * ulang ditangani use-case terpisah.
      *
      * @param  array<string, mixed>  $data
      */
