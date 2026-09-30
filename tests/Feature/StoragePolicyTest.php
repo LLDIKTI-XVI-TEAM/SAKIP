@@ -614,6 +614,24 @@ class StoragePolicyTest extends TestCase
         $this->assertNotContains('berkas.tautan_selalu_diizinkan', $loggedKeys);
     }
 
+    public function test_storage_policy_preserves_text_after_unsafe_bytes_in_audit_reason(): void
+    {
+        $version = (int) Pengaturan::where('kunci', 'berkas.versi')->value('nilai');
+
+        $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+            'berkas_ukuran_maks_kb' => 15360,
+            'alasan' => "Penyesuaian\xFF\0\x01 kebijakan storage",
+        ]))->assertSessionHasNoErrors()->assertRedirect('/pengaturan/storage');
+
+        $this->assertSame('15360', Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->value('nilai'));
+        $this->assertSame((string) ($version + 1), Pengaturan::where('kunci', 'berkas.versi')->value('nilai'));
+        $audit = AuditLog::where('tindakan', 'pengaturan.ubah')->sole();
+        $this->assertSame('Penyesuaian? kebijakan storage', $audit->alasan);
+        $this->assertSame($this->admin->id, $audit->actor_id);
+        $this->assertTrue($audit->dasar_izin['allowed']);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission']);
+    }
+
     /**
      * TEST-5: Submit no-op tidak memicu perubahan timestamp atau pencatatan audit log palsu.
      */

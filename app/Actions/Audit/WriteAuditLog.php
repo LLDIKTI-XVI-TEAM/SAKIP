@@ -3,6 +3,7 @@
 namespace App\Actions\Audit;
 
 use App\Models\AuditLog;
+use App\Support\AuditReason;
 use InvalidArgumentException;
 
 class WriteAuditLog
@@ -40,7 +41,8 @@ class WriteAuditLog
                 && in_array($event, ['user_roles.tambah', 'user_roles.ubah', 'pengguna.aktivasi', 'role_permissions.ubah', 'auth.bootstrap'], true),
             default => false,
         };
-        if (! $valid || ! is_string($attributes['alasan'] ?? null) || trim($attributes['alasan']) === '') {
+        $reason = AuditReason::sanitize($attributes['alasan'] ?? null);
+        if (! $valid || trim($reason) === '') {
             throw new InvalidArgumentException('Audit memerlukan provenance aktor dan alasan yang sah.');
         }
 
@@ -56,7 +58,7 @@ class WriteAuditLog
             'objek_id' => $attributes['objek_id'],
             'nilai_lama' => $attributes['nilai_lama'] ?? null,
             'nilai_baru' => $attributes['nilai_baru'] ?? null,
-            'alasan' => $attributes['alasan'],
+            'alasan' => $reason,
             'dasar_izin' => $attributes['dasar_izin'] ?? null,
         ]);
     }

@@ -549,6 +549,37 @@ class JenisBerkasTest extends TestCase
         ];
     }
 
+    #[DataProvider('unsafeDeniedReasons')]
+    public function test_denial_keeps_safe_bounded_reason_and_domain_unchanged(string $method, string $suffix, array $input, string $expected): void
+    {
+        $jb = JenisBerkas::create(['nama' => 'Persyaratan terlindungi', 'tahap' => 'pengukuran', 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
+        $before = $jb->fresh()->getAttributes();
+        $auditCount = AuditLog::count();
+
+        $this->actingAs($this->pegawai)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id).$suffix, $input)->assertForbidden();
+
+        $audit = AuditLog::where('actor_id', $this->pegawai->id)->sole();
+        $this->assertSame($expected, $audit->alasan);
+        $this->assertSame($auditCount + 1, AuditLog::count());
+        $this->assertFalse($audit->dasar_izin['allowed']);
+        $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+        $this->assertSame('user', $audit->actor_type);
+        $this->assertSame('manual', $audit->sumber);
+        $this->assertSame($before, $jb->fresh()->getAttributes());
+        $this->assertDatabaseCount('jenis_berkas', 1);
+    }
+
+    public static function unsafeDeniedReasons(): array
+    {
+        return [
+            'create UTF-8 rusak' => ['POST', '', ['alasan' => "Alasan\xFF lanjutan"], 'Alasan? lanjutan'],
+            'update NUL' => ['PUT', '', ['alasan' => "Alasan\0 lanjutan"], 'Alasan lanjutan'],
+            'delete terlalu panjang' => ['DELETE', '', ['alasan' => str_repeat('é', 1100)], str_repeat('é', 1000)],
+            'batas teknis hanya kontrol' => ['PATCH', '/batas-teknis', ['alasan' => "\x01\x7F"], 'Percobaan pembaruan batas teknis jenis berkas ditolak karena tidak memiliki izin pengaturan:update.'],
+            'create nama mentah' => ['POST', '', ['nama' => "Bukti\0\xFF\x01".str_repeat('é', 300)], 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin. (Nama: Bukti?'.str_repeat('é', 249).')'],
+        ];
+    }
+
     #[DataProvider('mutationMethods')]
     public function test_initial_denial_precedes_malformed_validation_and_records_one_canonical_decision(string $method, string $suffix): void
     {

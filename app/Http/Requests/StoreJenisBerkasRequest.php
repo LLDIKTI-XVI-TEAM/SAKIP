@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -29,10 +30,10 @@ class StoreJenisBerkasRequest extends FormRequest
     {
         $user = $this->user()?->fresh();
         if ($user && $this->authorizationDecision !== null) {
-            $rawAlasan = $this->input('alasan');
-            $nama = is_string($this->input('nama')) ? trim($this->input('nama')) : '';
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
-                ? trim($rawAlasan)
+            $rawAlasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000, 'UTF-8');
+            $nama = mb_substr(trim(AuditReason::sanitize($this->input('nama'))), 0, 255, 'UTF-8');
+            $alasan = $rawAlasan !== ''
+                ? $rawAlasan
                 : 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin.'.($nama !== '' ? ' (Nama: '.$nama.')' : '');
 
             app(AuditLogger::class)->catat(

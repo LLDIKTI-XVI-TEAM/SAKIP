@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\JenisBerkas;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -29,9 +30,9 @@ class UpdateBatasTeknisJenisBerkasRequest extends FormRequest
         $user = $this->user()?->fresh();
         if ($user && $this->authorizationDecision !== null) {
             $id = (string) ($this->route('id') ?? '');
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
-                ? trim($rawAlasan)
+            $rawAlasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000, 'UTF-8');
+            $alasan = $rawAlasan !== ''
+                ? $rawAlasan
                 : 'Percobaan pembaruan batas teknis jenis berkas ditolak karena tidak memiliki izin pengaturan:update.';
 
             app(AuditLogger::class)->catat(
