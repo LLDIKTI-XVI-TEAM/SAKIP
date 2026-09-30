@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
+import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
 import type {
     IndikatorKinerjaItem,
@@ -136,7 +137,7 @@ export default function SasaranIndikatorIndex({
 
                         {/* Renstra Selector and Top Actions */}
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="w-64">
+                            <div className="w-52">
                                 <Select
                                     id="renstra_filter"
                                     value={selectedRenstraId || ''}
@@ -151,27 +152,12 @@ export default function SasaranIndikatorIndex({
                                 </Select>
                             </div>
 
-                            {can.sasaran_create && selectedRenstraId && (
-                                <Button
-                                    variant="primary"
-                                    onClick={openCreateSasaran}
-                                    className="gap-2"
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Tambah Sasaran
-                                </Button>
-                            )}
-
-                            {can.indikator_create && sasarans.length > 0 && (
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => openCreateIndikator()}
-                                    className="gap-2"
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Tambah Indikator
-                                </Button>
-                            )}
+                            <TambahMenu
+                                showSasaran={can.sasaran_create && Boolean(selectedRenstraId)}
+                                showIndikator={can.indikator_create && sasarans.length > 0}
+                                onAddSasaran={openCreateSasaran}
+                                onAddIndikator={() => openCreateIndikator()}
+                            />
                         </div>
                     </div>
 

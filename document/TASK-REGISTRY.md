@@ -54,3 +54,4 @@ dikerjakan session lain, lalu statusnya dicatat di sini.
 | R2-09 | Migration deterministik | `document/PR-42-Review2-Tracking.md` | done | subagent ses_f125ef9f8 | konstanta beku lokal; perilaku identik; pint/phpstan passed |
 | R2-04b | Lifecycle: migrasi skema + model | `document/PR-42-Review2-Tracking.md` | revisi done, 1 OPEN QUESTION | subagent revisi | NULL→throw; fallback user dihapus (throw+SQL manual); backup per-baris; 1 tanya down() baris pasca-cutover |
 | R2-10 | Bersihkan komentar + pecah test | `document/PR-42-Review2-Tracking.md` | open | — | — |
+| FE-01 | Header rapi: dropdown Renstra kecil + 1 tombol Tambah | di bawah (handoff inline) | done, belum commit | — | Index.tsx header → Renstra w-52 + TambahMenu.tsx baru (menu Tambah Sasaran/Indikator, gate can.* persis, a11y menu); typecheck hijau; 129/129 FE test hijau (23 file); tanpa commit |
