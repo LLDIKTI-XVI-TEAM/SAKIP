@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Berkas;
 use App\Models\Pengaturan;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Support\PermissionCodes;
@@ -13,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -115,7 +117,13 @@ class RenstraService
      */
     public function update(Renstra $renstra, array $data, User $actor): Renstra
     {
+        // Nilai nullable dinormalkan tanpa menghapus key, sehingga izin baca FK tetap wajib.
+        if (is_string($data['regulasi_id'] ?? null) && trim($data['regulasi_id']) === '') {
+            $data['regulasi_id'] = null;
+        }
         $storedPaths = [];
+        $auditReason = is_string($data['alasan'] ?? null) ? mb_substr(trim($data['alasan']), 0, 1000) : null;
+        $denialRecorded = false;
         $decision = $this->permissionResolver->resolve($actor, PermissionCodes::RENSTRA_UPDATE);
 
         if (! $decision->allowed) {
@@ -126,17 +134,35 @@ class RenstraService
                 objekTipe: 'renstra',
                 objekId: $renstra->id,
                 nilaiLama: $this->snapshot($renstra),
-                alasan: $data['alasan'] ?? null,
+                alasan: $auditReason,
                 dasarIzin: $decision->toAuditBasis(),
             );
 
             $this->pastikanIzinDiizinkan($decision);
         }
 
-        $this->validasiRentangTahun($data);
+        $authorizationDenied = false;
 
         try {
-            $hasil = DB::transaction(function () use ($renstra, $data, $actor, $decision, &$storedPaths): Renstra|array {
+            $hasil = DB::transaction(function () use ($renstra, $data, &$actor, &$decision, &$authorizationDenied, &$storedPaths, &$auditReason): Renstra|array {
+                $authorizationDenied = false;
+                // Retry deadlock membuang berkas attempt yang telah rollback sebelum menyimpan ulang.
+                $this->hapusFile($storedPaths);
+                $storedPaths = [];
+                // Writer akses mengunci pengguna; urutan aktor lalu master menjaga keputusan izin tetap live.
+                $actor = User::query()->lockForUpdate()->findOrFail($actor->id);
+                $decision = $this->permissionResolver->resolve($actor, PermissionCodes::RENSTRA_UPDATE);
+                if ($decision->allowed && array_key_exists('regulasi_id', $data)) {
+                    $relatedDecision = $this->permissionResolver->resolve($actor, PermissionCodes::REGULASI_READ);
+                    if (! $relatedDecision->allowed) {
+                        $decision = $relatedDecision;
+                    }
+                }
+                // Writer Regulasi mengunci induk sebelum Renstra; gunakan urutan yang sama.
+                $regulasiPilihan = null;
+                if ($decision->allowed && is_string($data['regulasi_id'] ?? null) && Str::isUuid($data['regulasi_id'])) {
+                    $regulasiPilihan = Regulasi::query()->sharedLock()->find($data['regulasi_id']);
+                }
                 $renstraTerkini = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
                 $renstraTerkini->load(['berkas', 'regulasi']);
                 $nilaiLama = $this->snapshot($renstraTerkini);
@@ -154,7 +180,15 @@ class RenstraService
                 $dasarHukum = array_key_exists('dasar_hukum', $data) ? $data['dasar_hukum'] : $renstraTerkini->dasar_hukum;
                 $penolakan = null;
 
-                if ($renstraTerkini->status === Renstra::STATUS_DIARSIPKAN) {
+                if (! $decision->allowed) {
+                    $authorizationDenied = true;
+                    $penolakan = ['field' => 'authorization', 'pesan' => 'Izin efektif Anda tidak mengizinkan tindakan ini.', 'alasan_penolakan' => 'izin_tidak_efektif'];
+                } elseif (! is_string($data['expected_state'] ?? null)
+                    || ! hash_equals($renstraTerkini->stateToken(), $data['expected_state'])) {
+                    $penolakan = ['field' => 'expected_state', 'pesan' => 'Renstra telah berubah. Muat data terbaru sebelum mengirim perubahan kembali.', 'alasan_penolakan' => 'state_berubah'];
+                } elseif ($renstraTerkini->status === Renstra::STATUS_NONAKTIF) {
+                    $penolakan = ['field' => 'renstra', 'pesan' => 'Renstra nonaktif hanya dapat dibaca dan diarsipkan.', 'alasan_penolakan' => 'status_nonaktif'];
+                } elseif ($renstraTerkini->status === Renstra::STATUS_DIARSIPKAN) {
                     $penolakan = [
                         'field' => 'renstra',
                         'pesan' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
@@ -166,7 +200,7 @@ class RenstraService
                         'pesan' => 'Lampiran baru hanya dapat ditambahkan pada Renstra berstatus draft.',
                         'alasan_penolakan' => 'renstra_bukan_draft_lampiran_imutabel',
                     ];
-                } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && trim((string) $dasarHukum) === '') {
+                } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && (! is_string($dasarHukum) || trim($dasarHukum) === '')) {
                     $penolakan = [
                         'field' => 'dasar_hukum',
                         'pesan' => 'Dasar hukum Renstra aktif wajib terisi.',
@@ -185,6 +219,44 @@ class RenstraService
                     ];
                 }
 
+                if ($penolakan === null) {
+                    // Validasi hasil gabungan, termasuk ketika request hanya mengganti satu batas tahun.
+                    $isActive = $renstraTerkini->status === Renstra::STATUS_AKTIF;
+                    $validator = Validator::make(array_replace($data, [
+                        'tahun_mulai' => $data['tahun_mulai'] ?? $renstraTerkini->tahun_mulai,
+                        'tahun_selesai' => $data['tahun_selesai'] ?? $data['tahun_akhir'] ?? $renstraTerkini->tahun_selesai,
+                        'deskripsi' => $deskripsi,
+                        'dasar_hukum' => $dasarHukum,
+                    ]), [
+                        'nama' => ['sometimes', 'required', 'string', 'max:255'],
+                        'kode' => ['sometimes', 'nullable', 'string', 'max:50'],
+                        'tahun_mulai' => ['required', 'integer', 'between:2000,2100'],
+                        'tahun_selesai' => ['required', 'integer', 'between:2000,2100', 'gte:tahun_mulai'],
+                        'deskripsi' => ['nullable', 'string', 'max:5000'],
+                        'dasar_hukum' => ['nullable', 'string', 'max:5000'],
+                        'regulasi_id' => ['nullable', 'uuid'],
+                        'alasan' => $isActive ? ['required', 'string', 'min:5', 'max:1000'] : ['nullable', 'string', 'max:1000'],
+                        'nomor_kebijakan' => [$isActive ? 'required' : 'nullable', 'string', 'max:255'],
+                        'tanggal_kebijakan' => [$isActive ? 'required' : 'nullable', 'date_format:Y-m-d'],
+                    ], [
+                        'tahun_selesai.gte' => 'Tahun selesai harus lebih besar atau sama dengan tahun mulai.',
+                        'alasan.required' => 'Alasan revisi Renstra aktif wajib diisi.',
+                        'nomor_kebijakan.required' => 'Nomor kebijakan/Kepmen wajib diisi.',
+                        'tanggal_kebijakan.required' => 'Tanggal kebijakan/Kepmen wajib diisi.',
+                        'tanggal_kebijakan.date_format' => 'Tanggal kebijakan harus berupa tanggal kalender yang valid.',
+                    ]);
+                    if ($validator->fails()) {
+                        $penolakan = ['field' => 'renstra', 'pesan' => 'Data revisi tidak valid.', 'alasan_penolakan' => 'validasi_revisi', 'errors' => $validator->errors()->messages()];
+                    } elseif (! empty($data['regulasi_id']) && ($regulasiPilihan === null
+                        || (! $regulasiPilihan->aktif && $regulasiPilihan->id !== $regulasiIdLama))) {
+                        $penolakan = ['field' => 'regulasi_id', 'pesan' => 'Regulasi harus aktif atau merupakan rujukan yang sudah tersimpan.', 'alasan_penolakan' => 'regulasi_tidak_tersedia'];
+                    } elseif (($tahunMulai !== $renstraTerkini->tahun_mulai || $tahunSelesai !== $renstraTerkini->tahun_selesai)
+                        && $renstraTerkini->jadwalTahunan()->where(fn ($query) => $query->where('tahun', '<', $tahunMulai)->orWhere('tahun', '>', $tahunSelesai))->exists()) {
+                        // Semua status Jadwal tetap harus tercakup; histori tidak digeser mengikuti revisi master.
+                        $penolakan = ['field' => 'tahun_mulai', 'pesan' => 'Rentang tahun harus tetap mencakup seluruh tahun Jadwal yang sudah ada.', 'alasan_penolakan' => 'tahun_jadwal_di_luar_rentang'];
+                    }
+                }
+
                 if ($penolakan !== null) {
                     $this->auditLogger->catat(
                         actor: $actor,
@@ -193,7 +265,7 @@ class RenstraService
                         objekId: $renstraTerkini->id,
                         nilaiLama: $nilaiLama,
                         nilaiBaru: ['alasan_penolakan' => $penolakan['alasan_penolakan']],
-                        alasan: $data['alasan'] ?? null,
+                        alasan: $auditReason,
                         dasarIzin: $decision->toAuditBasis(),
                     );
 
@@ -213,7 +285,26 @@ class RenstraService
                     $updateData['kode'] = $data['kode'];
                 }
 
+                if ($renstraTerkini->status === Renstra::STATUS_AKTIF) {
+                    // Rujukan resmi hanya metadata audit; tidak membentuk versi atau kolom master baru.
+                    $auditReason = trim($data['alasan'])."\nRujukan: ".trim($data['nomor_kebijakan']).' tanggal '.$data['tanggal_kebijakan'];
+                }
+
                 $renstraTerkini->fill($updateData);
+                if (! $renstraTerkini->isDirty() && empty($data['lampiran'])) {
+                    $this->auditLogger->catat(
+                        actor: $actor,
+                        tindakan: 'renstra.ubah_tanpa_perubahan',
+                        objekTipe: 'renstra',
+                        objekId: $renstraTerkini->id,
+                        nilaiLama: $nilaiLama,
+                        nilaiBaru: $nilaiLama + ['hasil' => 'tidak_berubah'],
+                        alasan: $auditReason ?? 'Tidak ada perubahan master yang disimpan.',
+                        dasarIzin: $decision->toAuditBasis(),
+                    );
+
+                    return $renstraTerkini;
+                }
                 $renstraTerkini->save();
 
                 if (! empty($data['lampiran'])) {
@@ -233,7 +324,7 @@ class RenstraService
                     objekId: $renstraTerkini->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $this->snapshot($renstraTerkini),
-                    alasan: $data['alasan'] ?? null,
+                    alasan: $auditReason,
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
@@ -245,16 +336,21 @@ class RenstraService
                         objekId: $renstraTerkini->id,
                         nilaiLama: ['regulasi_id' => $regulasiIdLama],
                         nilaiBaru: ['regulasi_id' => $renstraTerkini->regulasi_id],
-                        alasan: $data['alasan'] ?? null,
+                        alasan: $auditReason,
                         dasarIzin: $decision->toAuditBasis(),
                     );
                 }
 
                 return $renstraTerkini;
-            });
+            }, attempts: 3);
 
             if (is_array($hasil)) {
-                throw ValidationException::withMessages([
+                $denialRecorded = true;
+                if ($authorizationDenied) {
+                    throw new AuthorizationException($hasil['pesan']);
+                }
+                // Audit denial sudah commit; melempar validasi di luar transaksi mencegah audit ikut rollback.
+                throw ValidationException::withMessages($hasil['errors'] ?? [
                     $hasil['field'] => $hasil['pesan'],
                 ]);
             }
@@ -270,7 +366,7 @@ class RenstraService
                     objekTipe: 'renstra',
                     objekId: $renstra->id,
                     nilaiBaru: ['alasan_penolakan' => 'rentang_aktif_beririsan'],
-                    alasan: $data['alasan'] ?? null,
+                    alasan: $auditReason,
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
@@ -280,6 +376,10 @@ class RenstraService
             }
 
             if ($this->adalahDuplikasiKode($exception)) {
+                $this->auditLogger->catat(
+                    actor: $actor, tindakan: 'renstra.ubah_ditolak', objekTipe: 'renstra', objekId: $renstra->id,
+                    nilaiBaru: ['alasan_penolakan' => 'kode_duplikat'], alasan: $auditReason, dasarIzin: $decision->toAuditBasis(),
+                );
                 throw ValidationException::withMessages([
                     'kode' => 'Kode Renstra sudah terdaftar pada sistem.',
                 ]);
@@ -290,18 +390,29 @@ class RenstraService
             $this->hapusFile($storedPaths);
             $uploadDecision = $this->permissionResolver->resolve($actor, PermissionCodes::BERKAS_UPLOAD);
 
-            if (! empty($data['lampiran']) && ! $uploadDecision->allowed) {
+            if (! $authorizationDenied && ! empty($data['lampiran']) && ! $uploadDecision->allowed) {
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'renstra.ubah_ditolak',
                     objekTipe: 'renstra',
                     objekId: $renstra->id,
                     nilaiBaru: ['alasan_penolakan' => 'berkas_upload_denied'],
-                    alasan: $data['alasan'] ?? null,
+                    alasan: $auditReason,
                     dasarIzin: $uploadDecision->toAuditBasis(),
                 );
             }
 
+            throw $exception;
+        } catch (ValidationException $exception) {
+            $this->hapusFile($storedPaths);
+            if (! $denialRecorded) {
+                // Recheck unggahan dapat menolak setelah prevalidasi; domain telah rollback.
+                $this->auditLogger->catat(
+                    actor: $actor, tindakan: 'renstra.ubah_ditolak', objekTipe: 'renstra', objekId: $renstra->id,
+                    nilaiBaru: ['alasan_penolakan' => 'validasi_mutasi', 'field_tidak_valid' => array_keys($exception->errors())],
+                    alasan: $auditReason, dasarIzin: $decision->toAuditBasis(),
+                );
+            }
             throw $exception;
         } catch (Throwable $exception) {
             $this->hapusFile($storedPaths);

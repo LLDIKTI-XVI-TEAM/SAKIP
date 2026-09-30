@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertCircle,
-    ArrowLeft,
     Download,
-    Edit3,
     ExternalLink,
     FileText,
     Link2,
     Lock,
+    Quote,
     Target,
     Trash2,
-    Type,
     User,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { Modal } from '@/Components/Modal';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import type { SharedPageProps } from '@/types/auth';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
@@ -24,7 +26,12 @@ import type { RegulasiJenis } from '@/types/regulasi';
 
 interface ShowRenstraProps {
     renstra: RenstraDetail;
+    expected_state: string;
+    lifecycle: { warnings: string[]; nonactivation_blocked: boolean };
     can?: {
+        activate?: boolean;
+        deactivate?: boolean;
+        archive?: boolean;
         update?: boolean;
         delete?: boolean;
         deleteAttachment?: boolean;
@@ -59,17 +66,65 @@ function formatBytes(bytes: number | null): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function ShowRenstra({
-    renstra,
-    can = { update: false, delete: false, deleteAttachment: false },
-}: ShowRenstraProps) {
-    const isAktif = renstra.status === 'aktif' || Boolean(renstra.is_aktif);
-    const berkasList = Array.isArray(renstra.berkas) ? renstra.berkas : [];
-    const pembuatNama = typeof renstra.pembuat === 'object' && renstra.pembuat !== null
-        ? (renstra.pembuat.nama || renstra.pembuat.name || 'Sistem')
-        : typeof renstra.pembuat === 'string' && renstra.pembuat.trim() !== ''
-        ? renstra.pembuat
-        : 'Sistem';
+const transitions = {
+    activate: { path: 'aktifkan', label: 'Aktifkan Renstra', description: 'Aktifkan dokumen ini sebagai Renstra yang berlaku. Naskah lampiran akan terkunci.' },
+    deactivate: { path: 'nonaktifkan', label: 'Nonaktifkan Renstra', description: 'Nonaktifkan dokumen ini. Master menjadi hanya baca dan dapat diarsipkan.' },
+    archive: { path: 'arsipkan', label: 'Arsipkan Renstra', description: 'Arsipkan dokumen nonaktif ini. Pengarsipan bersifat final; seluruh histori tetap terbaca.' },
+};
+type StatusIntent = keyof typeof transitions;
+
+export default function ShowRenstra(props: ShowRenstraProps) {
+    return <RenstraDetailPage key={props.renstra.id} {...props} />;
+}
+
+function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: ShowRenstraProps) {
+    const isAktif = renstra.status === 'aktif';
+    const berkasList = renstra.berkas ?? [];
+    const pembuatNama = renstra.pembuat?.nama ?? 'Sistem';
+    const [intent, setIntent] = useState<StatusIntent | null>(null);
+    const [statusFailure, setStatusFailure] = useState('');
+    const submitting = useRef(false);
+    const recovery = useAuthRecovery();
+    const statusForm = useForm({ expected_state });
+    const statusErrors: Record<string, string | undefined> = statusForm.errors;
+    const statusBlocked = Boolean(recovery.recovery || statusFailure || statusErrors.expected_state);
+    const unknownOutcome = () => setStatusFailure('Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+    const statusNotice = <>
+        <AuthRecoveryNotice recovery={recovery.recovery} pending={statusForm.processing} />
+        {!recovery.recovery && (statusFailure || statusErrors.expected_state) && <div role="alert" className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+            <p>{statusFailure || statusErrors.expected_state}</p>
+            <Button type="button" variant="outline" disabled={statusForm.processing} onClick={() => router.get(`/renstra/${renstra.id}`, {}, { preserveState: false })}>Muat data terbaru</Button>
+        </div>}
+    </>;
+    const openStatus = (next: StatusIntent) => {
+        if (statusForm.processing || submitting.current || statusBlocked) return;
+        statusForm.clearErrors();
+        statusForm.setData('expected_state', expected_state);
+        setIntent(next);
+    };
+    const confirmStatus = () => {
+        if (!intent || submitting.current || statusForm.processing || statusBlocked) return;
+        submitting.current = true;
+        const path = `/renstra/${renstra.id}/${transitions[intent].path}`;
+        statusForm.post(path, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const flash = page.props.flash as SharedPageProps['flash'];
+                const error = page.flash.error ?? flash?.error;
+                if (error) { setStatusFailure(error); return; }
+                setIntent(null);
+            },
+            onHttpException: (response) => {
+                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) {
+                    setStatusFailure(response.status === 403 ? 'Akses perubahan status ditolak. Periksa akses dan data terbaru.' : 'Perubahan status belum terkonfirmasi. Periksa data terbaru sebelum mencoba kembali.');
+                }
+                return false;
+            },
+            onNetworkError: () => { unknownOutcome(); return false; },
+            onCancel: unknownOutcome,
+            onFinish: () => { submitting.current = false; },
+        });
+    };
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasRenstra | null>(null);
     const [deleteBerkasOpen, setDeleteBerkasOpen] = useState(false);
     const [reasonError, setReasonError] = useState<string | undefined>();
@@ -121,6 +176,7 @@ export default function ShowRenstra({
 
     return (
         <AuthenticatedLayout
+            hasCustomHeading
             title={`Detail Renstra: ${renstra.kode}`}
             breadcrumbs={[
                 { label: 'Master Renstra', href: '/renstra' },
@@ -144,18 +200,16 @@ export default function ShowRenstra({
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
                             href="/renstra"
-                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="inline-flex items-center rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
                         >
-                            <ArrowLeft className="h-4 w-4 text-muted" aria-hidden="true" />
                             Kembali ke Master
                         </Link>
 
-                        {can.update && renstra.status !== 'diarsipkan' && (
+                        {can.update && (
                             <Link
                                 href={`/renstra/${renstra.id}/edit`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                className="inline-flex items-center rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
                             >
-                                <Edit3 className="h-4 w-4" aria-hidden="true" />
                                 Edit Dokumen
                             </Link>
                         )}
@@ -171,12 +225,25 @@ export default function ShowRenstra({
                                 }}
                                 className="text-danger border-danger/30 hover:bg-danger/10 hover:text-danger"
                             >
-                                <Trash2 className="h-4 w-4" aria-hidden="true" />
                                 Hapus Renstra
                             </Button>
                         )}
+
+                        {(['activate', 'deactivate', 'archive'] as const).map((action) => can[action] && <Button
+                            key={action} type="button" variant={action === 'activate' ? 'primary' : 'outline'}
+                            disabled={statusForm.processing || statusBlocked || (action === 'deactivate' && lifecycle.nonactivation_blocked)}
+                            onClick={() => openStatus(action)}>
+                            {transitions[action].label}
+                        </Button>)}
                     </div>
                 </div>
+
+                {!intent && statusNotice}
+                {can.deactivate && lifecycle.nonactivation_blocked && <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-ink">Tutup seluruh Jadwal aktif sebelum menonaktifkan Renstra.</p>}
+                {can.activate && lifecycle.warnings.length > 0 && <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-ink">
+                    {lifecycle.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+                </div>}
+                {['nonaktif', 'diarsipkan'].includes(renstra.status) && <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">Dokumen ini hanya dapat dibaca. Jadwal dan data historis tetap utuh.</p>}
 
                 <div className="grid gap-6 md:grid-cols-3">
                     <div className="md:col-span-2 space-y-6">
@@ -214,7 +281,7 @@ export default function ShowRenstra({
 
                                 {renstra.deskripsi && (
                                     <div className="border-t border-border pt-4">
-                                        <div className="text-xs font-medium text-muted mb-1">Deskripsi / Ringkasan Renstra</div>
+                                        <div className="text-xs font-medium text-muted mb-1">Deskripsi</div>
                                         <div className="text-sm text-ink leading-relaxed whitespace-pre-line bg-soft/50 rounded-lg p-3.5 border border-border/60">
                                             {renstra.deskripsi}
                                         </div>
@@ -254,9 +321,9 @@ export default function ShowRenstra({
                                     <div className="rounded-xl border border-dashed border-border bg-soft/40 p-8 text-center">
                                         <FileText className="mx-auto h-8 w-8 text-muted opacity-40 mb-2" aria-hidden="true" />
                                         <p className="text-sm font-medium text-ink">Belum ada lampiran naskah</p>
-                                        <p className="text-xs text-muted mt-1">
+                                        {renstra.status === 'draft' && can.update && <p className="text-xs text-muted mt-1">
                                             Lampiran dapat ditambahkan melalui menu Edit Renstra sebelum dokumen disahkan menjadi aktif.
-                                        </p>
+                                        </p>}
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -269,7 +336,7 @@ export default function ShowRenstra({
                                                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                                         {item.mode === 'file' && <FileText className="h-4 w-4" aria-hidden="true" />}
                                                         {item.mode === 'tautan' && <Link2 className="h-4 w-4" aria-hidden="true" />}
-                                                        {item.mode === 'teks' && <Type className="h-4 w-4" aria-hidden="true" />}
+                                                        {item.mode === 'teks' && <Quote className="h-4 w-4" aria-hidden="true" />}
                                                     </span>
 
                                                     <div className="min-w-0 flex-1">
@@ -405,6 +472,23 @@ export default function ShowRenstra({
                     </div>
                 </div>
             </div>
+
+            <Modal isOpen={intent !== null} title={intent ? transitions[intent].label : ''}
+                description={intent ? transitions[intent].description : ''}
+                onClose={() => { if (!statusForm.processing) setIntent(null); }}
+                showCloseButton={!statusForm.processing}
+                footer={<>
+                    <Button type="button" variant="outline" disabled={statusForm.processing} onClick={() => setIntent(null)}>Batal</Button>
+                    <Button type="button" variant="primary" isLoading={statusForm.processing} disabled={statusBlocked} onClick={confirmStatus}>Konfirmasi</Button>
+                </>}>
+                <div className="space-y-3 text-sm text-ink">
+                    <p>{renstra.nama} ({renstra.tahun_mulai}–{renstra.tahun_selesai})</p>
+                    <p>Tindakan ini dicatat dalam audit. Jadwal dan data historis tetap utuh.</p>
+                    {intent === 'activate' && lifecycle.warnings.map((warning) => <p key={warning} className="text-warning-dark">{warning}</p>)}
+                    {statusNotice}
+                    {Object.entries(statusErrors).filter(([field]) => field !== 'expected_state').map(([field, error]) => <p key={field} role="alert" className="text-danger">{error}</p>)}
+                </div>
+            </Modal>
 
             <AuditReasonModal
                 open={deleteBerkasOpen}

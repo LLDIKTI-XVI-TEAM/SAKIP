@@ -331,6 +331,17 @@ test('AC-3: Rujukan regulasi valid dapat ditampilkan dan dikosongkan tanpa kehil
     expect($renstra->regulasi_id)->toBe($regulasi->id);
     expect($renstra->regulasi->nomor)->toBe('Permen 123/2024');
 
+    $this->actingAs($this->perencanaan)->get('/renstra')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Renstra/Index')
+            ->has('renstra.data.0', fn (Assert $item) => $item
+                ->where('regulasi_nomor', 'Permen 123/2024')
+                ->missing('regulasi')
+                ->missing('sasaran_strategis_count')
+                ->etc()
+            )
+        );
+
     $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -342,6 +353,7 @@ test('AC-3: Rujukan regulasi valid dapat ditampilkan dan dikosongkan tanpa kehil
         );
 
     $payload['regulasi_id'] = null;
+    $payload['expected_state'] = $renstra->stateToken();
     $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", $payload)
         ->assertRedirect("/renstra/{$renstra->id}");
 
@@ -368,6 +380,9 @@ test('Update Renstra aktif mewajibkan alasan audit', function (): void {
     $responseTanpaAlasan = $this->actingAs($this->perencanaan)
         ->from("/renstra/{$renstra->id}/edit")
         ->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => 'Nama Baru Tanpa Alasan',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -378,6 +393,9 @@ test('Update Renstra aktif mewajibkan alasan audit', function (): void {
 
     $responseDenganAlasan = $this->actingAs($this->perencanaan)
         ->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => 'Renstra Nama Telah Diperbarui',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -392,7 +410,7 @@ test('Update Renstra aktif mewajibkan alasan audit', function (): void {
         ->where('objek_id', $renstra->id)
         ->firstOrFail();
 
-    expect($audit->alasan)->toBe('Penyesuaian redaksional nama dokumen Renstra.');
+    expect($audit->alasan)->toBe("Penyesuaian redaksional nama dokumen Renstra.\nRujukan: 123/M/2026 tanggal 2026-09-20");
 });
 
 test('Pembaruan Renstra aktif menolak rentang yang beririsan dengan Renstra aktif lain', function (): void {
@@ -414,6 +432,9 @@ test('Pembaruan Renstra aktif menolak rentang yang beririsan dengan Renstra akti
     $this->actingAs($this->perencanaan)
         ->from("/renstra/{$renstra->id}/edit")
         ->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => $renstra->nama,
             'tahun_mulai' => 2029,
             'tahun_selesai' => 2034,
@@ -560,6 +581,9 @@ test('Pembaruan Renstra aktif tidak boleh mengosongkan dasar hukum', function ()
     $this->actingAs($this->perencanaan)
         ->from("/renstra/{$renstra->id}/edit")
         ->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => $renstra->nama,
             'tahun_mulai' => $renstra->tahun_mulai,
             'tahun_selesai' => $renstra->tahun_selesai,
@@ -586,6 +610,9 @@ test('Lampiran baru hanya dapat ditambahkan pada Renstra draft', function (): vo
         $this->actingAs($this->perencanaan)
             ->from("/renstra/{$renstra->id}/edit")
             ->put("/renstra/{$renstra->id}", [
+                'expected_state' => $renstra->stateToken(),
+                'nomor_kebijakan' => '123/M/2026',
+                'tanggal_kebijakan' => '2026-09-20',
                 'nama' => $renstra->nama,
                 'tahun_mulai' => $renstra->tahun_mulai,
                 'tahun_selesai' => $renstra->tahun_selesai,
@@ -593,23 +620,27 @@ test('Lampiran baru hanya dapat ditambahkan pada Renstra draft', function (): vo
                 'alasan' => 'Mencoba menambah lampiran setelah status draft.',
                 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak.']],
             ])
-            ->assertSessionHasErrors(['lampiran']);
+            ->assertSessionHasErrors($status === Renstra::STATUS_NONAKTIF ? ['renstra'] : ['lampiran']);
 
         expect($renstra->berkas()->exists())->toBeFalse();
         $this->assertDatabaseHas('audit_log', [
             'objek_id' => $renstra->id,
             'tindakan' => 'renstra.ubah_ditolak',
         ]);
-        $this->actingAs($this->perencanaan)
-            ->get("/renstra/{$renstra->id}/edit")
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Renstra/Edit')
-                ->where('can.uploadAttachment', false)
-            );
+        $response = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit");
+        if ($status === Renstra::STATUS_NONAKTIF) {
+            $response->assertForbidden();
+        } else {
+            $response->assertInertia(fn (Assert $page) => $page
+                ->component('Renstra/Edit')->where('can.uploadAttachment', false));
+        }
     }
 
     $draft = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-TAMBAH-LAMPIRAN-DRAFT']);
     $this->actingAs($this->perencanaan)->put("/renstra/{$draft->id}", [
+        'expected_state' => $draft->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => $draft->nama,
         'tahun_mulai' => $draft->tahun_mulai,
         'tahun_selesai' => $draft->tahun_selesai,
@@ -888,6 +919,9 @@ test('Perubahan regulasi_id pada Renstra mencatat audit renstra.ubah_regulasi', 
     ]);
 
     $response = $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'expected_state' => $renstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => $renstra->nama,
         'tahun_mulai' => $renstra->tahun_mulai,
         'tahun_selesai' => $renstra->tahun_selesai,
@@ -1001,6 +1035,9 @@ test('Renstra yang berstatus diarsipkan tidak dapat diubah dan menu edit ditolak
     $response = $this->actingAs($this->perencanaan)
         ->from("/renstra/{$renstra->id}")
         ->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => 'Renstra Berubah Nama',
             'tahun_mulai' => $renstra->tahun_mulai,
             'tahun_selesai' => $renstra->tahun_selesai,
@@ -1249,6 +1286,9 @@ test('Deny berkas upload saat mengubah Renstra dicatat di luar transaksi', funct
     ]);
 
     $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'expected_state' => $renstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => $renstra->nama,
         'tahun_mulai' => $renstra->tahun_mulai,
         'tahun_selesai' => $renstra->tahun_selesai,
@@ -1281,6 +1321,9 @@ test('Deny unggah didahulukan dari validasi lampiran yang tidak lengkap', functi
     ])->assertForbidden();
 
     $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'expected_state' => $renstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => $renstra->nama,
         'tahun_mulai' => $renstra->tahun_mulai,
         'tahun_selesai' => $renstra->tahun_selesai,
@@ -1434,6 +1477,9 @@ test('Deny regulasi read menolak rujukan eksplisit tanpa menghalangi edit field 
 
     foreach ([$regulasiBaru->id, $regulasiLama->id, null] as $regulasiId) {
         $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+            'expected_state' => $renstra->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => 'Perubahan rujukan ditolak',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -1442,6 +1488,9 @@ test('Deny regulasi read menolak rujukan eksplisit tanpa menghalangi edit field 
     }
 
     $this->actingAs($this->perencanaan)->put("/renstra/{$renstra->id}", [
+        'expected_state' => $renstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => 'Edit tanpa mengubah rujukan',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
@@ -1479,6 +1528,9 @@ test('Deny regulasi read menolak field kosong tanpa membocorkan keadaan rujukan'
         ])->assertForbidden();
 
         $this->actingAs($this->perencanaan)->put("/renstra/{$renstraTanpaRujukan->id}", [
+            'expected_state' => $renstraTanpaRujukan->stateToken(),
+            'nomor_kebijakan' => '123/M/2026',
+            'tanggal_kebijakan' => '2026-09-20',
             'nama' => 'Perubahan rujukan kosong ditolak',
             'tahun_mulai' => 2025,
             'tahun_selesai' => 2029,
@@ -1487,6 +1539,9 @@ test('Deny regulasi read menolak field kosong tanpa membocorkan keadaan rujukan'
     }
 
     $this->actingAs($this->perencanaan)->put("/renstra/{$renstraTanpaRujukan->id}", [
+        'expected_state' => $renstraTanpaRujukan->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'nama' => 'Edit tanpa field rujukan',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
@@ -1577,6 +1632,9 @@ test('Validasi regulasi_id pada Renstra menolak regulasi nonaktif kecuali jika s
 
     // 3. Update mempertahankan regulasi lama yang nonaktif berhasil
     $responseUpdateKeep = $this->actingAs($this->perencanaan)->put("/renstra/{$createdRenstra->id}", [
+        'expected_state' => $createdRenstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'kode' => 'RENSTRA-REGULASI-CREATE-VALID',
         'nama' => 'Uji Coba Regulasi Pertahankan Rujukan Lama',
         'tahun_mulai' => 2025,
@@ -1587,6 +1645,9 @@ test('Validasi regulasi_id pada Renstra menolak regulasi nonaktif kecuali jika s
 
     // 4. Update mengganti ke regulasi nonaktif lain ditolak
     $responseUpdateChangeInactive = $this->actingAs($this->perencanaan)->put("/renstra/{$createdRenstra->id}", [
+        'expected_state' => $createdRenstra->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
         'kode' => 'RENSTRA-REGULASI-CREATE-VALID',
         'nama' => 'Uji Coba Ganti Regulasi Nonaktif Lain',
         'tahun_mulai' => 2025,

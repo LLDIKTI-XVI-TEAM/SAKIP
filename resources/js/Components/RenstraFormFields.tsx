@@ -1,5 +1,4 @@
 import React from 'react';
-import { FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
@@ -23,10 +22,10 @@ interface RenstraFormFieldsProps {
     setLampiran: (updater: (previous: LampiranDraft[]) => LampiranDraft[]) => void;
 }
 
-const modeMeta: Record<LampiranMode, { label: string; icon: typeof FileText; description: string }> = {
-    file: { label: 'File', icon: FileText, description: 'Dokumen PDF atau Word naskah Renstra sesuai batas kebijakan berkas.' },
-    tautan: { label: 'Tautan', icon: Link2, description: 'Alamat tautan repositori dokumen resmi atau cloud storage.' },
-    teks: { label: 'Teks', icon: Type, description: 'Kutipan substansi atau rangkuman naskah Renstra.' },
+const modeMeta: Record<LampiranMode, { label: string; description: string }> = {
+    file: { label: 'File', description: 'Dokumen PDF atau Word naskah Renstra sesuai batas kebijakan berkas.' },
+    tautan: { label: 'Tautan', description: 'Alamat tautan repositori dokumen resmi atau cloud storage.' },
+    teks: { label: 'Teks', description: 'Kutipan substansi atau rangkuman naskah Renstra.' },
 };
 
 function newLampiran(): LampiranDraft {
@@ -179,7 +178,7 @@ export function RenstraFormFields({
                 <div className="space-y-5">
                     <Textarea
                         name="deskripsi"
-                        label="Deskripsi / Ringkasan Renstra"
+                        label="Deskripsi"
                         value={data.deskripsi}
                         onChange={(event) => setField('deskripsi', event.target.value)}
                         error={errors.deskripsi}
@@ -242,7 +241,6 @@ export function RenstraFormFields({
                             disabled={disabled}
                             className="shrink-0 whitespace-nowrap self-start sm:self-center"
                         >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
                             Tambah Lampiran
                         </Button>
                     )}
@@ -273,20 +271,21 @@ export function RenstraFormFields({
                                 <div key={item.clientId} className="rounded-xl border border-border bg-surface p-4 sm:p-5 shadow-sm">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
                                                 {index + 1}
                                             </span>
-                                            <div className="flex gap-1.5">
+                                            <div className="flex gap-3">
                                                 {(['file', 'tautan', 'teks'] as LampiranMode[]).map((mode) => (
                                                     <button
                                                         key={mode}
                                                         type="button"
                                                         onClick={() => updateModeLampiran(index, mode)}
                                                         disabled={disabled}
-                                                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                        aria-pressed={item.mode === mode}
+                                                        className={`border-b-2 px-0.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 ${
                                                             item.mode === mode
-                                                                ? 'bg-primary text-white shadow-xs'
-                                                                : 'bg-soft text-muted hover:bg-border hover:text-ink'
+                                                                ? 'border-primary text-primary'
+                                                                : 'border-transparent text-muted hover:text-ink'
                                                         }`}
                                                     >
                                                         {modeMeta[mode].label}
@@ -299,9 +298,8 @@ export function RenstraFormFields({
                                             type="button"
                                             onClick={() => removeLampiran(index)}
                                             disabled={disabled}
-                                            className="inline-flex items-center gap-1.5 self-end text-xs font-medium text-danger hover:underline disabled:opacity-50"
+                                            className="self-end text-xs font-medium text-danger hover:underline disabled:opacity-50"
                                         >
-                                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                             Hapus Lampiran
                                         </button>
                                     </div>

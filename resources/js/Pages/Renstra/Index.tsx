@@ -135,41 +135,28 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
     };
 
     return (
-        <AuthenticatedLayout title="Master Renstra" breadcrumbs={[{ label: 'Master Renstra' }]}>
+        <AuthenticatedLayout
+            title="Master Renstra"
+            breadcrumbs={[{ label: 'Master Renstra' }]}
+            headerActions={can['renstra:create'] && (
+                <button
+                    type="button"
+                    onClick={openCreateModal}
+                    className="relative top-1 sm:top-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>Tambah Renstra</span>
+                </button>
+            )}
+        >
             <Head title="Master Renstra" />
 
             <div className="space-y-6">
                 <Card>
-                    <CardContent className="p-5 sm:p-6">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl leading-tight">
-                                    Master Rencana Strategis
-                                </h1>
-                                <p className="mt-0.5 text-sm text-muted leading-snug">
-                                    Penyusunan dokumen induk Renstra, penetapan periode, dasar rujukan regulasi, dan naskah digital.
-                                </p>
-                            </div>
-
-                            {can['renstra:create'] && (
-                                <button
-                                    type="button"
-                                    onClick={openCreateModal}
-                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    <span>Tambah Renstra</span>
-                                </button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
                     <CardContent className="p-4 sm:p-5">
                         <form onSubmit={applyFilters} className="flex flex-col gap-3 sm:flex-row sm:items-end">
                             <div className="flex-1">
-                                <label htmlFor="search-input" className="mb-1 block text-xs font-medium text-ink">
+                                <label htmlFor="search-input" className="sr-only">
                                     Pencarian Dokumen
                                 </label>
                                 <div className="relative">
@@ -186,7 +173,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                             </div>
 
                             <div className="w-full sm:w-48">
-                                <label htmlFor="status-select" className="mb-1 block text-xs font-medium text-ink">
+                                <label htmlFor="status-select" className="sr-only">
                                     Status Dokumen
                                 </label>
                                 <div className="relative">
@@ -249,8 +236,8 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                 </Badge>
                                             </td>
                                             <td className="px-5 py-4 text-xs text-muted">
-                                                {item.regulasi?.nomor || item.regulasi_nomor ? (
-                                                    <span className="font-medium text-ink">{item.regulasi?.nomor || item.regulasi_nomor}</span>
+                                                {item.regulasi_nomor ? (
+                                                    <span className="font-medium text-ink">{item.regulasi_nomor}</span>
                                                 ) : (
                                                     <span className="text-muted italic">Tidak ada</span>
                                                 )}
@@ -278,7 +265,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Link>
                                                     </Tooltip>
 
-                                                    {can['renstra:update'] && item.status !== 'diarsipkan' && (
+                                                    {item.can_update && (
                                                         <Tooltip content="Edit Dokumen">
                                                             <Link
                                                                 href={`/renstra/${item.id}/edit`}
@@ -378,7 +365,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                             type="submit"
                             form="form-tambah-renstra"
                             variant="primary"
-                            isLoading={createForm.processing}
+                            disabled={createForm.processing}
                         >
                             Simpan Renstra
                         </Button>

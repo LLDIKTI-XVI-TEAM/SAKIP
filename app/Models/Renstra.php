@@ -131,6 +131,38 @@ class Renstra extends Model
         }
     }
 
+    /**
+     * Allowlist master untuk audit dan perbandingan state; relasi tidak ikut diserialisasi.
+     *
+     * @return array<string, mixed>
+     */
+    public function masterAttributes(): array
+    {
+        return [
+            'id' => $this->id,
+            'kode' => $this->kode,
+            'nama' => $this->nama,
+            'tahun_mulai' => $this->tahun_mulai,
+            'tahun_selesai' => $this->tahun_selesai,
+            'deskripsi' => $this->deskripsi,
+            'dasar_hukum' => $this->dasar_hukum,
+            'regulasi_id' => $this->regulasi_id,
+            'status' => $this->status,
+            'is_aktif' => $this->is_aktif,
+            'created_by' => $this->created_by,
+            'updated_at' => $this->updated_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Pembanding state persisted, bukan izin atau identitas request.
+     * Hitung sebelum masking props agar FK yang tersembunyi tetap terlindungi dari stale update.
+     */
+    public function stateToken(): string
+    {
+        return hash('sha256', json_encode($this->masterAttributes(), JSON_THROW_ON_ERROR));
+    }
+
     /** @return BelongsTo<User, $this> */
     public function pembuat(): BelongsTo
     {

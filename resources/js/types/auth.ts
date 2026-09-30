@@ -45,5 +45,5 @@ export interface SharedPageProps extends PageProps {
 }
 
 declare module '@inertiajs/core' {
-    interface PageFlashData { authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable' }
+    interface PageFlashData { success?: string | null; error?: string | null; warning?: string | null; message?: string | null; authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable' }
 }
