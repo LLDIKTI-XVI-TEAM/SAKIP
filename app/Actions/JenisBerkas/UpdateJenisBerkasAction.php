@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\JenisBerkas\JenisBerkasWarnings;
+use App\Support\AuditReason;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -242,9 +243,10 @@ class UpdateJenisBerkasAction
         });
 
         if ($denied !== null) {
+            $alasan = AuditReason::sanitize($data['alasan']);
             $this->auditLogger->catat(
                 actor: $actor, tindakan: 'jenis_berkas.ubah_ditolak', objekTipe: 'jenis_berkas', objekId: $id,
-                alasan: $data['alasan'], dasarIzin: $denied,
+                alasan: trim($alasan) !== '' ? $alasan : 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.', dasarIzin: $denied,
             );
             abort(403);
         }

@@ -461,7 +461,7 @@ class JenisBerkasTest extends TestCase
         $deny = app(CreateDeny::class)->handle($this->admin, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sebelum pemanggilan Action');
         $jb = JenisBerkas::create(['nama' => 'Persyaratan awal', 'tahap' => 'pengukuran', 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
         $before = $jb->fresh()->getAttributes();
-        $data = ['alasan' => 'Alasan perubahan fixture sah', 'expected_updated_at' => $jb->updated_at->toISOString()];
+        $data = ['alasan' => str_repeat("\x01", 10), 'expected_updated_at' => $jb->updated_at->toISOString()];
         try {
             match ($method) {
                 'POST' => app(CreateJenisBerkasAction::class)->handle($actor, ['nama' => 'Persyaratan baru', 'tahap' => 'pengukuran', 'izinkan_file' => true]),
@@ -478,6 +478,8 @@ class JenisBerkasTest extends TestCase
         $audit = AuditLog::where('actor_id', $actor->id)->sole();
         $this->assertFalse($audit->dasar_izin['allowed']);
         $this->assertContains($deny->id, $audit->dasar_izin['denies']);
+        $this->assertNotSame('', trim($audit->alasan));
+        $this->assertStringNotContainsString("\x01", $audit->alasan);
     }
 
     #[DataProvider('markingMutationMethods')]
@@ -578,6 +580,33 @@ class JenisBerkasTest extends TestCase
             'batas teknis hanya kontrol' => ['PATCH', '/batas-teknis', ['alasan' => "\x01\x7F"], 'Percobaan pembaruan batas teknis jenis berkas ditolak karena tidak memiliki izin pengaturan:update.'],
             'create nama mentah' => ['POST', '', ['nama' => "Bukti\0\xFF\x01".str_repeat('é', 300)], 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin. (Nama: Bukti?'.str_repeat('é', 249).')'],
         ];
+    }
+
+    #[DataProvider('reasonRequiredMutations')]
+    public function test_authorized_control_only_reason_returns_field_error_without_mutation(string $method, string $suffix): void
+    {
+        $actor = $this->userWithRole('superadmin');
+        $jb = JenisBerkas::create(['nama' => 'Persyaratan awal', 'tahap' => 'pengukuran', 'izinkan_file' => true, 'created_by' => $actor->id]);
+        $before = $jb->fresh()->getAttributes();
+        $auditCount = AuditLog::count();
+        $payload = ['alasan' => str_repeat("\x01", 10), 'expected_updated_at' => $jb->updated_at->toISOString()];
+        if ($method === 'PUT') {
+            $payload += ['nama' => 'Persyaratan diubah', 'tahap' => 'pengukuran', 'izinkan_file' => true];
+        } elseif ($method === 'PATCH') {
+            $payload += ['ukuran_maks_kb' => 2048];
+        }
+
+        $this->actingAs($actor)->from('/jenis-berkas')->withHeader('X-Inertia', 'true')
+            ->call($method, '/jenis-berkas/'.$jb->id.$suffix, $payload)
+            ->assertRedirect('/jenis-berkas')->assertSessionHasErrors('alasan');
+
+        $this->assertSame($before, $jb->fresh()->getAttributes());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
+    public static function reasonRequiredMutations(): array
+    {
+        return [['PUT', ''], ['PATCH', '/batas-teknis'], ['DELETE', '']];
     }
 
     #[DataProvider('mutationMethods')]

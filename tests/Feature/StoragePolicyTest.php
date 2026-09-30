@@ -632,6 +632,30 @@ class StoragePolicyTest extends TestCase
         $this->assertSame('pengaturan:update', $audit->dasar_izin['permission']);
     }
 
+    #[DataProvider('validationResponseFormats')]
+    public function test_authorized_control_only_storage_reason_returns_field_error_without_mutation(bool $json): void
+    {
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
+        $auditCount = AuditLog::count();
+        $payload = $this->validPayload(['berkas_ukuran_maks_kb' => 15360, 'alasan' => str_repeat("\x01", 10)]);
+        $this->actingAs($this->admin)->from('/pengaturan/storage');
+
+        if ($json) {
+            $this->putJson('/pengaturan/storage', $payload)->assertUnprocessable()->assertJsonValidationErrors('alasan');
+        } else {
+            $this->withHeader('X-Inertia', 'true')->put('/pengaturan/storage', $payload)
+                ->assertRedirect('/pengaturan/storage')->assertSessionHasErrors('alasan');
+        }
+
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
+    public static function validationResponseFormats(): array
+    {
+        return ['Inertia' => [false], 'JSON' => [true]];
+    }
+
     /**
      * TEST-5: Submit no-op tidak memicu perubahan timestamp atau pencatatan audit log palsu.
      */

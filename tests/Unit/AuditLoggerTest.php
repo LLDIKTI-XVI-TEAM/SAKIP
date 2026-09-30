@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -40,10 +41,10 @@ class AuditLoggerTest extends TestCase
     }
 
     #[DataProvider('invalidAuditAttributes')]
-    public function test_writer_rejects_invalid_reason_or_provenance(array $invalid): void
+    public function test_writer_rejects_invalid_reason_or_provenance(array $invalid, string $exception = InvalidArgumentException::class): void
     {
         $user = User::factory()->create();
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException($exception);
 
         app(WriteAuditLog::class)->handle(array_replace([
             'actor_type' => 'user', 'actor_id' => $user->id, 'sumber' => 'manual',
@@ -56,7 +57,8 @@ class AuditLoggerTest extends TestCase
     {
         return [
             'alasan kosong' => [['alasan' => '  ']],
-            'alasan hanya kontrol' => [['alasan' => "\x01\x7F"]],
+            'alasan bukan string' => [['alasan' => []]],
+            'alasan hanya kontrol' => [['alasan' => "\x01\x7F"], ValidationException::class],
             'provenance tidak sah' => [['sumber' => 'payload']],
         ];
     }

@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -85,9 +86,10 @@ class DeleteJenisBerkasAction
         });
 
         if ($denied !== null) {
+            $alasan = AuditReason::sanitize($data['alasan']);
             $this->auditLogger->catat(
                 actor: $actor, tindakan: 'jenis_berkas.hapus_ditolak', objekTipe: 'jenis_berkas', objekId: $id,
-                alasan: $data['alasan'], dasarIzin: $denied,
+                alasan: trim($alasan) !== '' ? $alasan : 'Percobaan penghapusan persyaratan jenis berkas ditolak karena tidak memiliki izin.', dasarIzin: $denied,
             );
             abort(403);
         }

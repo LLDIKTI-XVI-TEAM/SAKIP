@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\JenisBerkas\JenisBerkasWarnings;
+use App\Support\AuditReason;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -95,9 +96,10 @@ class UpdateBatasTeknisJenisBerkasAction
         });
 
         if ($denied !== null) {
+            $alasan = AuditReason::sanitize($data['alasan']);
             $this->auditLogger->catat(
                 actor: $actor, tindakan: 'jenis_berkas.batas_teknis_ubah_ditolak', objekTipe: 'jenis_berkas', objekId: $id,
-                alasan: $data['alasan'], dasarIzin: $denied,
+                alasan: trim($alasan) !== '' ? $alasan : 'Percobaan pembaruan batas teknis jenis berkas ditolak karena tidak memiliki izin pengaturan:update.', dasarIzin: $denied,
             );
             abort(403);
         }
