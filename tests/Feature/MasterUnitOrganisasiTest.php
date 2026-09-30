@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -14,6 +15,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\AuditLogger;
 use App\Services\PermissionResolver;
 use App\Support\PermissionDecision;
 use Carbon\Carbon;
@@ -21,8 +23,11 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Tests\TestCase;
 
 class MasterUnitOrganisasiTest extends TestCase
@@ -94,9 +99,164 @@ class MasterUnitOrganisasiTest extends TestCase
         ]);
     }
 
-    /**
-     * AC-1 / TEST-1: Admin dapat membuat unit organisasi dengan data valid dan status default aktif.
-     */
+    #[DataProvider('unitMutations')]
+    public function test_unit_denied_malformed_input_preserves_authorization_order(string $operation): void
+    {
+        $response = $this->actingAs($this->pegawai)->call(
+            $operation === 'delete' ? 'DELETE' : 'POST',
+            $operation === 'create' ? '/unit' : '/unit/'.$this->unitInduk->id,
+            ['nama' => [], 'status' => 'invalid', 'alasan' => []],
+        );
+
+        $response->assertForbidden();
+        $this->assertSame($operation === 'delete' ? 1 : 0, AuditLog::where('tindakan', 'like', 'unit.%')->count());
+        $this->assertDatabaseHas('unit', ['id' => $this->unitInduk->id, 'nama' => $this->unitInduk->nama]);
+    }
+
+    #[DataProvider('unitMutations')]
+    public function test_unit_mutation_rolls_back_when_success_audit_fails(string $operation): void
+    {
+        $event = ['create' => 'unit.tambah', 'update' => 'unit.ubah', 'delete' => 'unit.hapus'][$operation];
+        $unit = $this->unitInduk;
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andReturnUsing(
+            function ($actor, $tindakan) use ($event, $unit, $operation): never {
+                $this->assertSame($event, $tindakan);
+                // Kegagalan terjadi sesudah write domain, sebelum transaksi boleh commit.
+                $this->assertSame($operation !== 'delete', Unit::whereKey($unit->id)->exists());
+                if ($operation !== 'delete') {
+                    $this->assertTrue(Unit::where('nama', 'Mutasi Sebelum Audit')->exists());
+                }
+                throw new RuntimeException('Audit fixture gagal.');
+            },
+        );
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($this->superadmin)->call(
+                $operation === 'delete' ? 'DELETE' : 'POST',
+                $operation === 'create' ? '/unit' : '/unit/'.$unit->id,
+                ['nama' => 'Mutasi Sebelum Audit', 'status' => 'aktif', 'version_token' => $unit->getVersionToken(), 'alasan' => 'Alasan penghapusan fixture'],
+            );
+            $this->fail('Kegagalan audit harus diteruskan.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit fixture gagal.', $exception->getMessage());
+        }
+        $this->assertDatabaseHas('unit', ['id' => $unit->id, 'nama' => $unit->nama]);
+        $this->assertDatabaseMissing('unit', ['nama' => 'Mutasi Sebelum Audit']);
+        $this->assertSame(0, AuditLog::where('tindakan', $event)->count());
+    }
+
+    public static function unitMutations(): array
+    {
+        return [['create'], ['update'], ['delete']];
+    }
+
+    public function test_delete_denial_keeps_single_initial_allow_decision_when_superadmin_guard_rejects(): void
+    {
+        $decision = new PermissionDecision(true, 'unit:delete', [
+            'alasan' => 'allow', 'sumber_allow' => ['roles' => ['fixture-role'], 'grants' => []], 'deny' => [],
+        ]);
+        $this->mock(PermissionResolver::class)->shouldReceive('resolve')->once()
+            ->with(\Mockery::on(fn ($actor) => $actor->id === $this->admin->id), 'unit:delete')->andReturn($decision);
+
+        $this->actingAs($this->admin)->delete('/unit/'.$this->unitInduk->id, ['alasan' => []])->assertForbidden();
+
+        $audit = AuditLog::where('tindakan', 'unit.hapus_ditolak')->sole();
+        $this->assertEquals($decision->toAuditBasis(), $audit->dasar_izin);
+        $this->assertSame('Hanya peran Superadmin yang berwenang menghapus unit organisasi.', $audit->alasan);
+        $this->assertDatabaseHas('unit', ['id' => $this->unitInduk->id]);
+    }
+
+    public function test_unit_audit_preserves_permission_basis(): void
+    {
+        $this->actingAs($this->superadmin)->post('/unit', ['nama' => 'Unit Provenance'])->assertRedirect('/unit');
+        $audit = AuditLog::where('tindakan', 'unit.tambah')->sole();
+        $roleId = Role::where('kode', 'superadmin')->value('id');
+        $this->assertEquals([
+            'permission' => 'unit:create', 'keputusan' => 'diizinkan', 'alasan' => 'allow',
+            'sumber_allow' => ['roles' => [$roleId], 'grants' => []], 'deny' => [],
+        ], $audit->dasar_izin);
+        $this->assertSame('user', $audit->actor_type);
+        $this->assertSame('manual', $audit->sumber);
+
+        $deny = UserPermissionDeny::create([
+            'user_id' => $this->superadmin->id, 'permission_id' => Permission::where('kode', 'unit:delete')->value('id'),
+            'unit_id' => null, 'alasan' => 'Fixture explicit deny', 'ditetapkan_oleh' => $this->superadmin->id,
+        ]);
+        $this->delete('/unit/'.$this->unitInduk->id, ['alasan' => 'Alasan penghapusan'])->assertForbidden();
+        $denial = AuditLog::where('tindakan', 'unit.hapus_ditolak')->sole();
+        $this->assertEquals([
+            'permission' => 'unit:delete', 'keputusan' => 'ditolak', 'alasan' => 'explicit_deny',
+            'sumber_allow' => ['roles' => [$roleId], 'grants' => []], 'deny' => [$deny->id],
+        ], $denial->dasar_izin);
+    }
+
+    public function test_delete_foreign_key_audit_preserves_initial_decision(): void
+    {
+        $initial = new PermissionDecision(true, 'unit:delete', [
+            'alasan' => 'allow', 'sumber_allow' => ['roles' => ['initial-role'], 'grants' => []], 'deny' => [],
+        ]);
+        $current = new PermissionDecision(true, 'unit:delete', [
+            'alasan' => 'allow', 'sumber_allow' => ['roles' => ['current-role'], 'grants' => []], 'deny' => [],
+        ]);
+        $this->mock(PermissionResolver::class)->shouldReceive('resolve')->twice()->andReturn($initial, $current);
+        Event::listen('eloquent.deleting: '.Unit::class, function (Unit $unit): void {
+            // Relasi muncul sesudah guard; FK PostgreSQL tetap menjadi pertahanan terakhir.
+            UserPermissionDeny::create([
+                'user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
+                'unit_id' => $unit->id, 'alasan' => 'Fixture relasi sebelum delete', 'ditetapkan_oleh' => $this->superadmin->id,
+            ]);
+        });
+        try {
+            $this->actingAs($this->superadmin)->delete('/unit/'.$this->unitInduk->id, ['alasan' => 'Alasan penghapusan'])->assertForbidden();
+        } finally {
+            Event::forget('eloquent.deleting: '.Unit::class);
+        }
+        $audit = AuditLog::where('tindakan', 'unit.hapus_ditolak')->sole();
+        $this->assertEquals($initial->toAuditBasis(), $audit->dasar_izin);
+        $this->assertSame('Unit organisasi tidak dapat dihapus karena masih memiliki keterkaitan relasi data.', $audit->alasan);
+        $this->assertDatabaseHas('unit', ['id' => $this->unitInduk->id]);
+        $this->assertDatabaseMissing('user_permission_denied', ['unit_id' => $this->unitInduk->id]);
+    }
+
+    #[DataProvider('versionAliases')]
+    public function test_update_unit_preserves_version_alias_precedence(array $input, bool $stale): void
+    {
+        $unit = $this->unitInduk;
+        foreach ($input as $key => $value) {
+            if ($value === 'CURRENT_TOKEN') {
+                $input[$key] = $unit->getVersionToken();
+            } elseif ($value === 'CURRENT_SNAPSHOT') {
+                $input[$key] = ['nama' => $unit->nama, 'status' => $unit->status];
+            } elseif ($value === 'CURRENT_JSON') {
+                $input[$key] = json_encode(['nama' => $unit->nama, 'status' => $unit->status]);
+            }
+        }
+        $response = $this->actingAs($this->admin)->post('/unit/'.$unit->id, [
+            'nama' => 'Unit Sesudah Alias', 'status' => 'aktif', ...$input,
+        ]);
+        if ($stale) {
+            $response->assertSessionHasErrors(['nama', 'status', 'version_token', 'snapshot', 'expected_state', 'konflik']);
+            $this->assertSame($unit->nama, $unit->fresh()->nama);
+        } else {
+            $response->assertSessionHasNoErrors()->assertRedirect('/unit');
+            $this->assertSame('Unit Sesudah Alias', $unit->fresh()->nama);
+        }
+    }
+
+    public static function versionAliases(): array
+    {
+        return [
+            'versi_token' => [['versi_token' => 'CURRENT_TOKEN'], false],
+            'token' => [['token' => 'CURRENT_TOKEN'], false],
+            'expected_state' => [['expected_state' => 'CURRENT_TOKEN'], false],
+            'first token wins' => [['version_token' => 'stale', 'versi_token' => 'CURRENT_TOKEN'], true],
+            'snapshot overrides direct values' => [['expected_nama' => 'stale', 'expected_status' => 'nonaktif', 'snapshot' => 'CURRENT_SNAPSHOT'], false],
+            'json expected snapshot' => [['expected_snapshot' => 'CURRENT_JSON'], false],
+            'invalid first snapshot retained' => [['version_token' => 'CURRENT_TOKEN', 'snapshot' => 'invalid-json', 'expected_snapshot' => ['nama' => 'stale', 'status' => 'nonaktif']], true],
+        ];
+    }
+
+    /** Admin dapat membuat unit dengan data valid dan status default aktif. */
     public function test_admin_can_create_unit(): void
     {
         $payload = [
