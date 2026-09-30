@@ -319,3 +319,33 @@ Kerjakan R2-10 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Bersihkan komentar + pecah test
 sesuai detail task. Update checkbox + Bukti.
 ```
+
+### R2-11 · [CI MERAH] Fixture Grant test vs kontrak lifecycle
+- [x] Status: selesai (belum di-commit)
+- Untuk apa: `composer test` merah 1/597 —
+  `test_grant_audits_preserve_permission_basis_and_inactive_revoke_cleanup`
+  (`tests/Feature/GrantIzinTambahanUnitTest.php:268`) membuat
+  `IndikatorKinerja` langsung tanpa kolom wajib pasca-R2-04b
+  (`created_by_role` → guard model throw; plus `status`,
+  `tahun_mulai_berlaku`, `created_by` NOT NULL). Test ditulis
+  pra-lifecycle (masuk via merge development).
+- Yang dibuat (HANYA file ini, jangan ubah logika grant):
+  1. Lengkapi create `:268` dengan `status => aktif`,
+     `tahun_mulai_berlaku` (2025, konsisten renstra 2025–2029 di test),
+     `created_by => $this->superadminUser->id`, `created_by_role`
+     dari peran aktual pembuat (pola `CreatesPengukuranFixture`).
+  2. Grep file yang sama untuk create `IndikatorKinerja` lain yang
+     kurang kolom wajib baru; perbaiki semua yang pecah.
+- Standards: §11 (fixture eksplisit, deterministik).
+- Verifikasi: `php vendor/bin/pint --test` file itu + focused Pest
+  di DB disposable (JANGAN DB dev; lihat `PR-42-CI-Test-Context.md` §3).
+- DoD: test merah menjadi hijau; tidak ada perubahan perilaku grant.
+- Selesai: 2026-09-30 | Bukti: `tests/Feature/GrantIzinTambahanUnitTest.php:268` dilengkapi `status=aktif`, `tahun_mulai_berlaku=2025`, `created_by=$this->superadminUser->id`, `created_by_role=$this->superadminUser->roles->first()?->kode ?? 'superadmin'` (pola `CreatesPengukuranFixture`; fallback tak terpakai — aktor ber-role superadmin); grep file yang sama: satu-satunya `IndikatorKinerja::create` hanya `:268`, `Renstra::create` `:261` (`is_aktif=true`+`created_by`, tetap valid untuk domain Renstra) dan `SasaranStrategis::create` `:265` (tanpa kolom baru) tidak perlu diubah; logika grant/domain nihil disentuh; `php vendor/bin/pint --test` file itu passed; Pest focused `test_grant_audits_preserve_permission_basis_and_inactive_revoke_cleanup` 1 passed/21 assertions di PG disposable podman `postgres:17-alpine` port 5434 (DB `sakip_test`, fresh migrate incl. cutover lifecycle; dev `sakip_db:5433` tak tersentuh; container dihapus setelah run). Belum di-commit.
+
+```text
+Prompt handoff R2-11:
+Kerjakan R2-11 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Selaraskan fixture dengan
+kontrak lifecycle sesuai detail task; JANGAN ubah logika grant.
+Ikuti Standards §11. Update checkbox + Bukti. JANGAN commit.
+```

@@ -268,6 +268,9 @@ class GrantIzinTambahanUnitTest extends TestCase
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id, 'unit_id' => $this->unitA->id,
             'kode' => 'I-GRANT', 'nama' => 'Indikator Grant', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual',
+            'status' => 'aktif', 'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->superadminUser->id,
+            'created_by_role' => $this->superadminUser->roles->first()?->kode ?? 'superadmin',
         ]);
         PenugasanIndikator::create([
             'indikator_id' => $indikator->id, 'user_id' => $this->pegawaiUser->id,
