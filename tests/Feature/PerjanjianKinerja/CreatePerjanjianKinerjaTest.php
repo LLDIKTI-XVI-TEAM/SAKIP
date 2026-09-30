@@ -301,4 +301,22 @@ class CreatePerjanjianKinerjaTest extends TestCase
             ]);
         }
     }
+
+    public function test_create_pk_with_nul_byte_in_text_lampiran_throws_validation_exception_defensively(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->action->handle([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-DEFENSIVE-NUL',
+            'tanggal_pk' => '2026-01-10',
+            'lampiran' => [
+                [
+                    'mode' => 'teks',
+                    'isi_teks' => "Teks catatan dengan byte NUL \0 tidak diizinkan",
+                    'nama_asli' => 'Catatan Rusak NUL',
+                ],
+            ],
+        ], $this->actor);
+    }
 }

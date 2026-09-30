@@ -86,21 +86,26 @@ class RenstraPk extends Model
             return $this->jadwalTahunan;
         }
 
-        $jadwal = $this->jadwalTahunan()->first();
-        if ($jadwal !== null) {
-            return $jadwal;
+        $jadwal = $this->relationLoaded('jadwalTahunan')
+            ? null
+            : $this->jadwalTahunan()->first();
+
+        if ($jadwal === null) {
+            $jadwal = JadwalTahunan::where(function ($q) {
+                $q->where('renstra_pk_id', $this->id)
+                    ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
+            })
+                ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 WHEN status = 'ditutup' THEN 1 ELSE 2 END")
+                ->orderByDesc('activated_at')
+                ->orderByDesc('closed_at')
+                ->orderByDesc('penutupan')
+                ->orderByDesc('id')
+                ->first();
         }
 
-        return JadwalTahunan::where(function ($q) {
-            $q->where('renstra_pk_id', $this->id)
-                ->orWhere(fn ($sub) => $sub->where('renstra_id', $this->renstra_id)->where('tahun', $this->tahun));
-        })
-            ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 WHEN status = 'ditutup' THEN 1 ELSE 2 END")
-            ->orderByDesc('activated_at')
-            ->orderByDesc('closed_at')
-            ->orderByDesc('penutupan')
-            ->orderByDesc('id')
-            ->first();
+        $this->setRelation('jadwalTahunan', $jadwal);
+
+        return $jadwal;
     }
 
     public function isJadwalAktif(): bool

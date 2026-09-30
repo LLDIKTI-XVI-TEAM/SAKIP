@@ -3,6 +3,7 @@
 namespace App\Services\PerjanjianKinerja;
 
 use App\Models\Berkas;
+use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -34,6 +35,35 @@ class PerjanjianKinerjaQueryService
 
         /** @var LengthAwarePaginator<int, RenstraPk> $paginator */
         $paginator = $query->paginate(15)->withQueryString();
+
+        // Resolusi fallback jadwal tahunan legacy untuk baris yang tidak memiliki relasi langsung renstra_pk_id.
+        // Dilakukan dalam satu batch query terikat untuk mencegah N+1 problem dengan tetap menjaga ranking deterministik yang identik.
+        $missingItems = $paginator->getCollection()->filter(fn (RenstraPk $pk) => $pk->jadwalTahunan === null);
+        if ($missingItems->isNotEmpty()) {
+            $fallbackJadwals = JadwalTahunan::where(function ($q) use ($missingItems) {
+                foreach ($missingItems as $pk) {
+                    $q->orWhere(function ($sub) use ($pk) {
+                        $sub->where('renstra_id', $pk->renstra_id)
+                            ->where('tahun', $pk->tahun);
+                    });
+                }
+            })
+                ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 WHEN status = 'ditutup' THEN 1 ELSE 2 END")
+                ->orderByDesc('activated_at')
+                ->orderByDesc('closed_at')
+                ->orderByDesc('penutupan')
+                ->orderByDesc('id')
+                ->get(['id', 'renstra_id', 'renstra_pk_id', 'tahun', 'status', 'activated_at'])
+                ->groupBy(fn (JadwalTahunan $j) => $j->renstra_id.'_'.$j->tahun);
+
+            foreach ($missingItems as $pk) {
+                $key = $pk->renstra_id.'_'.$pk->tahun;
+                $topJadwal = $fallbackJadwals->get($key)?->first();
+                if ($topJadwal !== null) {
+                    $pk->setRelation('jadwalTahunan', $topJadwal);
+                }
+            }
+        }
 
         /** @var LengthAwarePaginator<int, array<string, mixed>> $result */
         $result = $paginator->through(fn (RenstraPk $pk) => [
@@ -105,9 +135,10 @@ class PerjanjianKinerjaQueryService
             'jadwalTahunan',
         ]);
 
-        $isJadwalAktif = $perjanjianKinerja->isJadwalAktif();
-        $isJadwalTerkunci = $perjanjianKinerja->isJadwalTerkunci();
-        $jadwalStatus = $perjanjianKinerja->jadwalStatus();
+        $jadwal = $perjanjianKinerja->resolveJadwalTahunan();
+        $isJadwalAktif = $jadwal?->status === 'aktif';
+        $isJadwalTerkunci = $jadwal?->is_terkunci ?? false;
+        $jadwalStatus = $jadwal?->status;
         $canReadBerkas = $user?->can('downloadBerkas', $perjanjianKinerja) ?? false;
 
         $pkData = [
@@ -130,14 +161,14 @@ class PerjanjianKinerjaQueryService
                 'id' => $perjanjianKinerja->creator->id,
                 'nama' => $perjanjianKinerja->creator->nama,
             ] : null,
-            'jadwal_tahunan' => $perjanjianKinerja->jadwalTahunan ? [
-                'id' => $perjanjianKinerja->jadwalTahunan->id,
-                'renstra_id' => $perjanjianKinerja->jadwalTahunan->renstra_id,
-                'renstra_pk_id' => $perjanjianKinerja->jadwalTahunan->renstra_pk_id,
-                'tahun' => $perjanjianKinerja->jadwalTahunan->tahun,
-                'status' => $perjanjianKinerja->jadwalTahunan->status,
-                'activated_at' => $perjanjianKinerja->jadwalTahunan->activated_at,
-                'is_terkunci' => $perjanjianKinerja->jadwalTahunan->is_terkunci,
+            'jadwal_tahunan' => $jadwal ? [
+                'id' => $jadwal->id,
+                'renstra_id' => $jadwal->renstra_id,
+                'renstra_pk_id' => $jadwal->renstra_pk_id,
+                'tahun' => $jadwal->tahun,
+                'status' => $jadwal->status,
+                'activated_at' => $jadwal->activated_at,
+                'is_terkunci' => $jadwal->is_terkunci,
             ] : null,
             'berkas' => $perjanjianKinerja->berkas->map(function (Berkas $b) use ($canReadBerkas) {
                 $item = [

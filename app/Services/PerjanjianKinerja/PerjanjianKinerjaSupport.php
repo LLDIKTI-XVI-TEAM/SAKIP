@@ -122,6 +122,22 @@ class PerjanjianKinerjaSupport
     }
 
     /**
+     * Memvalidasi apakah isi teks lampiran legal memenuhi syarat integritas (bebas byte NUL dan valid UTF-8).
+     */
+    public static function isValidIsiTeks(mixed $value): bool
+    {
+        if (! is_string($value)) {
+            return false;
+        }
+
+        if (str_contains($value, "\0")) {
+            return false;
+        }
+
+        return mb_check_encoding($value, 'UTF-8');
+    }
+
+    /**
      * Menghasilkan aturan validasi untuk lampiran dokumen Perjanjian Kinerja (mode file, tautan, teks).
      *
      * @return array<string, mixed>
@@ -144,7 +160,19 @@ class PerjanjianKinerjaSupport
             'lampiran.*.mode' => ['required_with:lampiran', Rule::in(['file', 'tautan', 'teks'])],
             'lampiran.*.file' => $fileRules,
             'lampiran.*.tautan' => ['exclude_unless:lampiran.*.mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
-            'lampiran.*.isi_teks' => ['exclude_unless:lampiran.*.mode,teks', 'required', 'string', 'max:10000'],
+            'lampiran.*.isi_teks' => [
+                'exclude_unless:lampiran.*.mode,teks',
+                'required',
+                'string',
+                'max:10000',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! is_string($value) || str_contains($value, "\0")) {
+                        $fail('Isi teks lampiran tidak boleh mengandung karakter byte NUL.');
+                    } elseif (! mb_check_encoding($value, 'UTF-8')) {
+                        $fail('Isi teks lampiran harus berupa teks UTF-8 yang valid.');
+                    }
+                },
+            ],
             'lampiran.*.nama_asli' => ['nullable', 'string', 'max:255'],
         ];
     }

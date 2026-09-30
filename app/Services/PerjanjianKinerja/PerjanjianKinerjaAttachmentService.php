@@ -152,6 +152,16 @@ class PerjanjianKinerjaAttachmentService
                         'lampiran' => 'Isi catatan dokumen lampiran wajib diisi untuk mode teks.',
                     ]);
                 }
+                if (! PerjanjianKinerjaSupport::isValidIsiTeks($isiTeks)) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Isi teks lampiran tidak boleh mengandung karakter byte NUL dan harus berformat UTF-8 valid.',
+                    ]);
+                }
+                if (mb_strlen((string) $isiTeks) > 10000) {
+                    throw ValidationException::withMessages([
+                        'lampiran' => 'Isi teks lampiran tidak boleh melebihi 10.000 karakter.',
+                    ]);
+                }
                 $attributes += [
                     'nama_asli' => mb_substr((string) ($item['nama_asli'] ?? ($item['nama'] ?? 'Catatan Dokumen PK')), 0, 255),
                     'isi_teks' => $isiTeks,

@@ -1095,4 +1095,202 @@ class PerjanjianKinerjaHttpTest extends TestCase
         $this->assertFalse(str_contains($putAudit->alasan, "\0"));
         $this->assertLessThanOrEqual(1000, mb_strlen($putAudit->alasan, 'UTF-8'));
     }
+
+    public function test_store_pk_with_valid_text_lampiran_preserves_newline_and_tab(): void
+    {
+        $textWithWhitespace = "Baris pertama dokumen PK.\nBaris kedua dengan indentasi:\tKlausul 1.\r\nBaris ketiga.";
+
+        $response = $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-TEXT-VALID-WHITESPACE',
+                'tanggal_pk' => '2026-01-15',
+                'lampiran' => [
+                    [
+                        'mode' => 'teks',
+                        'isi_teks' => $textWithWhitespace,
+                        'nama_asli' => 'Catatan Format Teks',
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $pk = RenstraPk::where('nomor_pk', 'PK-TEXT-VALID-WHITESPACE')->firstOrFail();
+        $berkas = $pk->berkas()->where('mode', 'teks')->firstOrFail();
+        $this->assertSame($textWithWhitespace, $berkas->isi_teks);
+    }
+
+    public function test_store_pk_with_text_lampiran_containing_nul_byte_is_rejected_with_422(): void
+    {
+        $textWithNul = "Teks catatan dengan byte NUL \0 tersembunyi";
+
+        $response = $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-TEXT-NUL-BYTE',
+                'tanggal_pk' => '2026-01-15',
+                'lampiran' => [
+                    [
+                        'mode' => 'teks',
+                        'isi_teks' => $textWithNul,
+                        'nama_asli' => 'Catatan Rusak NUL',
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(302); // Inertia/Laravel redirect back with errors
+        $response->assertSessionHasErrors(['lampiran.0.isi_teks']);
+
+        $this->assertDatabaseMissing('renstra_pk', [
+            'nomor_pk' => 'PK-TEXT-NUL-BYTE',
+        ]);
+        $this->assertDatabaseMissing('berkas', [
+            'nama_asli' => 'Catatan Rusak NUL',
+        ]);
+    }
+
+    public function test_update_pk_with_text_lampiran_containing_nul_byte_is_rejected_with_422(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-UPDATE-TARGET',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $textWithNul = "Catatan pembaruan mengandung NUL \0 berbahaya";
+
+        $response = $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-UPDATE-MODIFIED',
+                'tanggal_pk' => '2026-01-20',
+                'alasan' => 'Alasan update valid',
+                'expected_updated_at' => $pk->updated_at->toISOString(),
+                'lampiran' => [
+                    [
+                        'mode' => 'teks',
+                        'isi_teks' => $textWithNul,
+                        'nama_asli' => 'Catatan Rusak Update',
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors(['lampiran.0.isi_teks']);
+
+        $this->assertDatabaseMissing('berkas', [
+            'berkasable_id' => $pk->id,
+            'nama_asli' => 'Catatan Rusak Update',
+        ]);
+    }
+
+    public function test_show_pk_with_legacy_fallback_jadwal_tahunan_has_consistent_schedule_projection(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-LEGACY-FALLBACK',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Jadwal dibuat hanya dengan renstra_id dan tahun (renstra_pk_id = null)
+        $jadwalFallback = JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'penutupan' => '2027-12-31',
+            'status' => 'aktif',
+            'renstra_pk_id' => null,
+            'activated_at' => now(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)
+            ->get("/perjanjian-kinerja/{$pk->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('PerjanjianKinerja/Show')
+            ->where('jadwal_status', fn ($status) => $status === 'aktif')
+            ->where('is_jadwal_aktif', true)
+            ->where('is_jadwal_terkunci', true)
+            ->where('pk.jadwal_tahunan.id', $jadwalFallback->id)
+            ->where('pk.jadwal_tahunan.status', fn ($status) => $status === 'aktif')
+            ->where('pk.jadwal_tahunan.is_terkunci', true)
+        );
+    }
+
+    public function test_index_pk_with_legacy_fallback_jadwal_tahunan_projects_schedule_consistently(): void
+    {
+        $pkA = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2028,
+            'nomor_pk' => 'PK-INDEX-FALLBACK-A',
+            'tanggal_pk' => '2028-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $pkB = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2029,
+            'nomor_pk' => 'PK-INDEX-FALLBACK-B',
+            'tanggal_pk' => '2029-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $jadwalA = JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2028,
+            'penutupan' => '2028-12-31',
+            'status' => 'aktif',
+            'renstra_pk_id' => null,
+            'activated_at' => now(),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $jadwalB = JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2029,
+            'penutupan' => '2029-12-31',
+            'status' => 'ditutup',
+            'renstra_pk_id' => null,
+            'activated_at' => now()->subMonths(6),
+            'closed_at' => now()->subMonths(1),
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $response = $this->actingAs($this->perencanaan)
+            ->get('/perjanjian-kinerja?renstra_id='.$this->renstra->id);
+
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $response->assertOk();
+        $response->assertInertia(function (Assert $page) use ($pkA, $pkB, $jadwalA, $jadwalB) {
+            $page->component('PerjanjianKinerja/Index');
+            $data = $page->toArray()['props']['perjanjianKinerja']['data'];
+            $items = collect($data)->keyBy('id');
+
+            $this->assertNotNull($items[$pkA->id]['jadwal_tahunan']);
+            $this->assertSame($jadwalA->id, $items[$pkA->id]['jadwal_tahunan']['id']);
+            $this->assertSame('aktif', $items[$pkA->id]['jadwal_tahunan']['status']);
+
+            $this->assertNotNull($items[$pkB->id]['jadwal_tahunan']);
+            $this->assertSame($jadwalB->id, $items[$pkB->id]['jadwal_tahunan']['id']);
+            $this->assertSame('ditutup', $items[$pkB->id]['jadwal_tahunan']['status']);
+        });
+
+        // Pastikan tidak ada query N+1 per baris untuk resolusi jadwal
+        // Query untuk jadwal_tahunan fallback maksimal 1 kali batch query
+        $jadwalQueries = array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'jadwal_tahunan'));
+        $this->assertLessThanOrEqual(2, count($jadwalQueries)); // Eager load awal + maksimal 1 batch fallback
+    }
 }
