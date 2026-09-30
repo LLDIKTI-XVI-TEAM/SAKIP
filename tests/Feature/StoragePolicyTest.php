@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Access\CreateDeny;
+use App\Actions\Audit\WriteAuditLog;
+use App\Actions\Pengaturan\UpdateStoragePolicyAction;
 use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Http\Requests\Pengaturan\UpdateStoragePolicyRequest;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -19,12 +24,17 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Storage\StorageMetricsService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\StoragePolicySeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Redirector;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class StoragePolicyTest extends TestCase
@@ -130,6 +140,134 @@ class StoragePolicyTest extends TestCase
         ]);
 
         return $user;
+    }
+
+    public function test_initial_storage_denial_audits_the_decision_that_rejected_the_request(): void
+    {
+        $denied = ['allowed' => false, 'permission' => 'pengaturan:update', 'reason' => 'no_allow', 'roles' => [], 'grants' => [], 'denies' => []];
+        $calls = 0;
+        $this->partialMock(PermissionResolver::class)->shouldReceive('decide')->andReturnUsing(function () use ($denied, &$calls): array {
+            $calls++;
+
+            return $calls === 1 ? $denied : [...$denied, 'allowed' => true, 'reason' => 'allow'];
+        });
+        $request = UpdateStoragePolicyRequest::create('/pengaturan/storage', 'PUT', ['alasan' => ['tidak valid']]);
+        $request->setContainer($this->app)->setRedirector(app(Redirector::class));
+        $request->setUserResolver(fn () => $this->pegawai);
+        try {
+            $request->validateResolved();
+            $this->fail('FormRequest harus menolak keputusan pertama.');
+        } catch (AuthorizationException) {
+            $this->assertEquals($denied, AuditLog::where('actor_id', $this->pegawai->id)->sole()->dasar_izin);
+            $this->assertSame(1, $calls, 'Audit menggunakan keputusan penolakan yang sama, bukan resolusi kedua.');
+        }
+    }
+
+    #[DataProvider('storagePageRoles')]
+    public function test_storage_page_initializes_only_missing_defaults_after_authorization(string $role, bool $canUpdate): void
+    {
+        Pengaturan::where('kunci', '!=', 'berkas.ukuran_maks_kb')->delete();
+        Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->update(['nilai' => '2048']);
+        $existing = Pengaturan::sole()->getAttributes();
+        $auditCount = AuditLog::count();
+
+        $this->actingAs($this->{$role})->get('/pengaturan/storage')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('settings.berkas_ukuran_maks_kb', 2048)->where('settings.expected_version', 1)->where('can.update', $canUpdate));
+
+        $this->assertSame($existing, Pengaturan::where('kunci', 'berkas.ukuran_maks_kb')->sole()->getAttributes());
+        $this->assertDatabaseCount('pengaturan', 5);
+        $initialized = Pengaturan::orderBy('kunci')->get()->toArray();
+        $this->actingAs($this->{$role})->get('/pengaturan/storage')->assertOk();
+        $this->assertSame($initialized, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
+    public static function storagePageRoles(): array
+    {
+        return [['perencanaan', false], ['admin', true]];
+    }
+
+    public function test_direct_storage_action_caller_cannot_initialize_or_mutate_after_permission_revocation(): void
+    {
+        $this->assertTrue(app(PermissionResolver::class)->allows($this->superadmin, 'pengaturan:update'));
+        $deny = app(CreateDeny::class)->handle($this->admin, $this->superadmin->id, Permission::where('kode', 'pengaturan:update')->value('id'), null, 'Pencabutan sebelum pemanggilan Action storage');
+        Pengaturan::query()->delete();
+        try {
+            app(UpdateStoragePolicyAction::class)->handle($this->superadmin, $this->validPayload(['berkas_unggahan_aktif' => false]));
+            $this->fail('Pemanggil langsung wajib diperiksa sebelum inisialisasi atau mutasi.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+        $this->assertDatabaseCount('pengaturan', 0);
+        $audit = AuditLog::where('actor_id', $this->superadmin->id)->sole();
+        $this->assertFalse($audit->dasar_izin['allowed']);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission']);
+        $this->assertContains($deny->id, $audit->dasar_izin['denies']);
+    }
+
+    public function test_denied_storage_requests_do_not_initialize_defaults_even_with_malformed_payload(): void
+    {
+        app(CreateDeny::class)->handle($this->admin, $this->pegawai->id, Permission::where('kode', 'jenis_berkas:read')->value('id'), null, 'Fixture larangan membaca storage');
+        Pengaturan::query()->delete();
+        $this->actingAs($this->pegawai)->get('/pengaturan/storage')->assertForbidden();
+        $this->actingAs($this->pegawai)->put('/pengaturan/storage', ['alasan' => ['tidak valid']])->assertForbidden();
+        $this->assertDatabaseCount('pengaturan', 0);
+        $audit = AuditLog::where('tindakan', 'pengaturan.ubah_ditolak')->sole();
+        $this->assertFalse($audit->dasar_izin['allowed']);
+        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission']);
+        $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+    }
+
+    #[DataProvider('storageAuditFailures')]
+    public function test_storage_audit_failure_rolls_back_defaults_version_and_waiver_markers(bool $failPkMarker): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        Pengaturan::query()->update(['updated_at' => now()]);
+        Pengaturan::where('kunci', 'berkas.format_diizinkan')->delete();
+        JenisBerkas::create([
+            'nama' => 'Persyaratan wajib file', 'tahap' => 'pengukuran', 'wajib' => true,
+            'aktif' => true, 'izinkan_file' => true, 'izinkan_tautan' => false, 'izinkan_teks' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+        RenstraPk::create([
+            'renstra_id' => Renstra::firstOrFail()->id, 'tahun' => 2027, 'nomor_pk' => 'PK/ROLLBACK/01',
+            'tanggal_pk' => now()->toDateString(), 'created_by' => $this->perencanaan->id,
+        ]);
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
+        $auditCount = AuditLog::count();
+        $writer = app(WriteAuditLog::class);
+        $events = [];
+        $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $data) use ($writer, $failPkMarker, &$events) {
+            $events[] = [$data['tindakan'], $data['objek_tipe']];
+            if ((! $failPkMarker && count($events) === 2)
+                || ($failPkMarker && $data['tindakan'] === 'berkas.tandai_tidak_dapat_dipenuhi' && $data['objek_tipe'] === 'renstra_pk')) {
+                throw new RuntimeException('Audit storage gagal');
+            }
+
+            return $writer->handle($data);
+        });
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
+                'berkas_unggahan_aktif' => false, 'berkas_ukuran_maks_kb' => 2048,
+            ]));
+            $this->fail('Kegagalan audit harus membatalkan seluruh mutasi storage.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit storage gagal', $exception->getMessage());
+        }
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame($auditCount, AuditLog::count());
+        if ($failPkMarker) {
+            $this->assertContains(['berkas.tandai_tidak_dapat_dipenuhi', 'jenis_berkas'], $events);
+            $this->assertSame(['berkas.tandai_tidak_dapat_dipenuhi', 'renstra_pk'], end($events));
+        } else {
+            $this->assertSame([['pengaturan.ubah', 'pengaturan'], ['pengaturan.ubah', 'pengaturan']], $events);
+        }
+    }
+
+    public static function storageAuditFailures(): array
+    {
+        return ['second setting audit' => [false], 'PK marker after Jenis marker' => [true]];
     }
 
     /**
@@ -397,6 +535,7 @@ class StoragePolicyTest extends TestCase
      */
     public function test_storage_policy_update_records_atomic_audit_log_with_reason_and_permission_basis(): void
     {
+        $version = (int) Pengaturan::where('kunci', 'berkas.versi')->value('nilai');
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => false,
             'berkas_ukuran_maks_kb' => 15360,
@@ -407,7 +546,8 @@ class StoragePolicyTest extends TestCase
 
         $response->assertSessionHasNoErrors();
         $response->assertRedirect('/pengaturan/storage');
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', 'Kebijakan storage berhasil diperbarui (3 kunci diubah).');
+        $this->assertSame((string) ($version + 1), Pengaturan::where('kunci', 'berkas.versi')->value('nilai'));
 
         // Pastikan nilai database terupdate
         $this->assertSame('false', Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai'));
@@ -445,6 +585,7 @@ class StoragePolicyTest extends TestCase
      */
     public function test_no_op_policy_update_does_not_modify_timestamps_or_create_false_audit_logs(): void
     {
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
         $oldUpdatedAt = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('updated_at');
 
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
@@ -461,6 +602,7 @@ class StoragePolicyTest extends TestCase
 
         $currentUpdatedAt = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('updated_at');
         $this->assertEquals($oldUpdatedAt, $currentUpdatedAt);
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
 
         // Tidak ada audit log baru yang terbentuk
         $this->assertSame(0, AuditLog::where('objek_tipe', 'pengaturan')->count());
@@ -575,15 +717,18 @@ class StoragePolicyTest extends TestCase
      */
     public function test_concurrency_conflict_throws_validation_error_on_stale_expected_updated_at(): void
     {
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
         $staleTimestamp = now()->subMinutes(10)->toISOString();
 
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'expected_updated_at' => $staleTimestamp,
-            'berkas_ukuran_maks_kb' => 20480,
+            'berkas_ukuran_maks_kb' => 10240, // No-op tetap diperiksa sesudah stale token.
             'alasan' => 'Mencoba simpan dengan timestamp kedaluwarsa.',
         ]));
 
         $response->assertSessionHasErrors(['konflik']);
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengaturan.ubah')->count());
     }
 
     /**
@@ -591,13 +736,18 @@ class StoragePolicyTest extends TestCase
      */
     public function test_concurrency_conflict_throws_validation_error_on_stale_expected_version(): void
     {
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'expected_version' => 9999, // Versi salah/basi
-            'berkas_ukuran_maks_kb' => 20480,
+            'expected_updated_at' => 'timestamp-tidak-valid', // Versi diperiksa sebelum parsing timestamp.
+            'berkas_ukuran_maks_kb' => 10240,
             'alasan' => 'Mencoba simpan dengan versi monotonik kedaluwarsa.',
         ]));
 
         $response->assertSessionHasErrors(['konflik']);
+        $response->assertSessionDoesntHaveErrors('expected_updated_at');
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengaturan.ubah')->count());
     }
 
     /**
@@ -882,7 +1032,9 @@ class StoragePolicyTest extends TestCase
      */
     public function test_update_storage_policy_rejects_unwhitelisted_fields(): void
     {
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
         $payload = $this->validPayload([
+            'berkas_unggahan_aktif' => false,
             'berkas_retensi_hari' => 30, // Field asing yang tidak didukung
         ]);
 
@@ -893,27 +1045,31 @@ class StoragePolicyTest extends TestCase
             "Field 'berkas_retensi_hari' tidak diizinkan pada pembaruan kebijakan storage.",
             session('errors')->first('berkas_retensi_hari')
         );
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengaturan.ubah')->count());
     }
 
     /**
-     * TEST-15: Pemeriksaan ulang izin di dalam transaksi membatalkan mutasi dan mencatat audit penolakan jika izin dicabut secara konkuren.
+     * Keputusan awal lolos, keputusan di dalam transaksi menolak: audit memakai keputusan kedua.
      */
     public function test_update_storage_policy_aborts_and_audits_denial_when_permission_revoked(): void
     {
         $mockResolver = $this->createMock(PermissionResolver::class);
-        // FormRequest::authorize() memanggil allows() -> lolos (true)
-        $mockResolver->method('allows')->willReturn(true);
-        // Re-check di dalam transaksi controller memanggil decide() -> dicabut (false)
-        $mockResolver->method('decide')->willReturn([
+        $denied = [
             'allowed' => false,
             'permission' => 'pengaturan:update',
             'reason' => 'revoked_concurrently',
             'roles' => [],
             'grants' => [],
             'denies' => [],
-        ]);
+        ];
+        $mockResolver->expects($this->exactly(2))->method('decide')->willReturnOnConsecutiveCalls(
+            [...$denied, 'allowed' => true, 'reason' => 'allow'],
+            $denied,
+        );
 
         $this->app->instance(PermissionResolver::class, $mockResolver);
+        $before = Pengaturan::orderBy('kunci')->get()->toArray();
 
         $response = $this->actingAs($this->admin)->put('/pengaturan/storage', $this->validPayload([
             'berkas_unggahan_aktif' => false,
@@ -924,6 +1080,11 @@ class StoragePolicyTest extends TestCase
         $deniedAudit = AuditLog::where('tindakan', 'pengaturan.ubah_ditolak')->latest('waktu')->first();
         $this->assertNotNull($deniedAudit);
         $this->assertSame('revoked_concurrently', $deniedAudit->dasar_izin['reason']);
+        $this->assertEquals($denied, $deniedAudit->dasar_izin);
+        $this->assertStringContainsString('di dalam transaksi', $deniedAudit->alasan);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengaturan.ubah_ditolak')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengaturan.ubah')->count());
+        $this->assertSame($before, Pengaturan::orderBy('kunci')->get()->toArray());
     }
 
     /**

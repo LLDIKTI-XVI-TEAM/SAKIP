@@ -2,18 +2,18 @@
 
 namespace Database\Seeders;
 
-use App\Http\Controllers\Pengaturan\StoragePolicyController;
 use App\Models\Pengaturan;
+use App\Services\Storage\StoragePolicyDefaults;
 use Illuminate\Database\Seeder;
 
 class StoragePolicySeeder extends Seeder
 {
     /**
-     * Jalankan seeder untuk 4 kunci kebijakan penyimpanan default.
+     * Jalankan seeder untuk default kebijakan storage.
      */
     public function run(): void
     {
-        foreach (StoragePolicyController::POLICY_KEYS as $key => $meta) {
+        foreach (StoragePolicyDefaults::POLICY_KEYS as $key => $meta) {
             Pengaturan::firstOrCreate(
                 ['kunci' => $key],
                 [

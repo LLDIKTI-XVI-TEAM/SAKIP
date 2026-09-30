@@ -11,18 +11,24 @@ use Illuminate\Validation\Validator;
 
 class StoreJenisBerkasRequest extends FormRequest
 {
+    /** @var array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}|null */
+    private ?array $authorizationDecision = null;
+
     public function authorize(): bool
     {
         $user = $this->user()?->fresh();
 
-        return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:create');
+        $this->authorizationDecision = $user !== null
+            ? app(PermissionResolver::class)->decide($user, 'jenis_berkas:create')
+            : null;
+
+        return $this->authorizationDecision['allowed'] ?? false;
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user()?->fresh();
-        if ($user) {
-            $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:create');
+        if ($user && $this->authorizationDecision !== null) {
             $rawAlasan = $this->input('alasan');
             $nama = is_string($this->input('nama')) ? trim($this->input('nama')) : '';
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
@@ -35,7 +41,7 @@ class StoreJenisBerkasRequest extends FormRequest
                 objekTipe: 'jenis_berkas',
                 objekId: (string) Str::uuid(),
                 alasan: $alasan,
-                dasarIzin: $decision,
+                dasarIzin: $this->authorizationDecision,
             );
         }
 

@@ -11,29 +11,55 @@ use Illuminate\Validation\Validator;
 
 class UpdateStoragePolicyRequest extends FormRequest
 {
+    /** @var array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}|null */
+    private ?array $authorizationDecision = null;
+
     public function authorize(): bool
     {
         $user = $this->user();
 
-        return $user !== null && app(PermissionResolver::class)->allows($user, 'pengaturan:update');
+        $this->authorizationDecision = $user !== null
+            ? app(PermissionResolver::class)->decide($user, 'pengaturan:update')
+            : null;
+
+        return $this->authorizationDecision['allowed'] ?? false;
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user();
-        if ($user !== null) {
-            $decision = app(PermissionResolver::class)->decide($user, 'pengaturan:update');
+        if ($user !== null && $this->authorizationDecision !== null) {
             app(AuditLogger::class)->catat(
                 actor: $user,
                 tindakan: 'pengaturan.ubah_ditolak',
                 objekTipe: 'pengaturan',
                 objekId: (string) Str::uuid(),
                 alasan: 'Percobaan pembaruan kebijakan storage ditolak karena pengguna tidak memiliki izin pengaturan:update.',
-                dasarIzin: $decision,
+                dasarIzin: $this->authorizationDecision,
             );
         }
 
         throw new AuthorizationException('Anda tidak memiliki wewenang untuk mengubah kebijakan storage aplikasi (memerlukan izin pengaturan:update).');
+    }
+
+    /**
+     * Boolean mengikuti semantik transport existing; representasi ukuran tervalidasi tetap dipertahankan.
+     *
+     * @return array{berkas_unggahan_aktif: bool, berkas_ukuran_maks_kb: int|numeric-string, berkas_format_diizinkan: string, berkas_tautan_selalu_diizinkan: bool, expected_updated_at: string, expected_version: int, alasan: string}
+     */
+    public function mutationData(): array
+    {
+        $data = $this->validated();
+
+        return [
+            'berkas_unggahan_aktif' => $this->boolean('berkas_unggahan_aktif'),
+            'berkas_ukuran_maks_kb' => $data['berkas_ukuran_maks_kb'],
+            'berkas_format_diizinkan' => $data['berkas_format_diizinkan'],
+            'berkas_tautan_selalu_diizinkan' => $this->boolean('berkas_tautan_selalu_diizinkan'),
+            'expected_updated_at' => $data['expected_updated_at'],
+            'expected_version' => (int) $data['expected_version'],
+            'alasan' => $data['alasan'],
+        ];
     }
 
     /**

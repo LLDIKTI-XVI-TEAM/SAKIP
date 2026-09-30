@@ -4,7 +4,15 @@ namespace Tests\Feature;
 
 use App\Actions\Access\CreateDeny;
 use App\Actions\Audit\WriteAuditLog;
+use App\Actions\JenisBerkas\CreateJenisBerkasAction;
+use App\Actions\JenisBerkas\DeleteJenisBerkasAction;
+use App\Actions\JenisBerkas\UpdateBatasTeknisJenisBerkasAction;
+use App\Actions\JenisBerkas\UpdateJenisBerkasAction;
 use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Http\Requests\DeleteJenisBerkasRequest;
+use App\Http\Requests\StoreJenisBerkasRequest;
+use App\Http\Requests\UpdateBatasTeknisJenisBerkasRequest;
+use App\Http\Requests\UpdateJenisBerkasRequest;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
@@ -22,13 +30,19 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Redirector;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class JenisBerkasTest extends TestCase
@@ -386,28 +400,181 @@ class JenisBerkasTest extends TestCase
     /**
      * TEST-6: Mutasi dan audit dibungkus dalam transaksi atomik (rollback jika audit gagal).
      */
-    public function test_mutation_and_audit_are_atomic_in_single_transaction(): void
+    #[DataProvider('mutationMethods')]
+    public function test_mutation_and_audit_are_atomic_in_single_transaction(string $method, string $suffix): void
     {
+        $actor = $this->userWithRole('superadmin');
+        $jb = JenisBerkas::create([
+            'nama' => 'Persyaratan sebelum audit gagal', 'tahap' => 'pengukuran', 'izinkan_file' => true,
+            'format_diizinkan' => 'pdf', 'ukuran_maks_kb' => 1024, 'created_by' => $actor->id,
+        ]);
+        $before = $jb->fresh()->getAttributes();
+        $auditCount = AuditLog::count();
         $this->withoutExceptionHandling();
         $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('Audit system down'));
-
         $payload = [
             'nama' => 'Laporan Harusnya Rollback',
             'tahap' => 'pengukuran',
             'wajib' => true,
             'izinkan_file' => true,
+            'alasan' => 'Alasan perubahan fixture audit',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+            'ukuran_maks_kb' => 2048,
         ];
+        if ($method === 'PATCH') {
+            unset($payload['nama'], $payload['tahap'], $payload['wajib'], $payload['izinkan_file']);
+        }
 
         try {
-            $this->actingAs($this->perencanaan)->post('/jenis-berkas', $payload);
+            $this->actingAs($actor)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id).$suffix, $payload);
+            $this->fail('Kegagalan audit harus diteruskan dan membatalkan mutasi.');
         } catch (RuntimeException $e) {
             $this->assertSame('Audit system down', $e->getMessage());
         }
 
-        // Jenis berkas tidak boleh tersimpan tanpa audit
-        $this->assertDatabaseMissing('jenis_berkas', [
-            'nama' => 'Laporan Harusnya Rollback',
-        ]);
+        $this->assertDatabaseCount('jenis_berkas', 1);
+        $this->assertSame($before, $jb->fresh()->getAttributes());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
+    public static function mutationMethods(): array
+    {
+        return [
+            'create' => ['POST', ''],
+            'update' => ['PUT', ''],
+            'delete' => ['DELETE', ''],
+            'technical' => ['PATCH', '/batas-teknis'],
+        ];
+    }
+
+    #[DataProvider('mutationMethods')]
+    public function test_direct_action_caller_cannot_mutate_with_valid_payload_after_permission_revocation(string $method, string $suffix): void
+    {
+        $actor = $this->userWithRole('superadmin');
+        $permission = match ($method) {
+            'POST' => 'jenis_berkas:create',
+            'PUT' => 'jenis_berkas:update',
+            'DELETE' => 'jenis_berkas:delete',
+            'PATCH' => 'pengaturan:update',
+        };
+        $this->assertTrue(app(PermissionResolver::class)->allows($actor, $permission));
+        $deny = app(CreateDeny::class)->handle($this->admin, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sebelum pemanggilan Action');
+        $jb = JenisBerkas::create(['nama' => 'Persyaratan awal', 'tahap' => 'pengukuran', 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
+        $before = $jb->fresh()->getAttributes();
+        $data = ['alasan' => 'Alasan perubahan fixture sah', 'expected_updated_at' => $jb->updated_at->toISOString()];
+        try {
+            match ($method) {
+                'POST' => app(CreateJenisBerkasAction::class)->handle($actor, ['nama' => 'Persyaratan baru', 'tahap' => 'pengukuran', 'izinkan_file' => true]),
+                'PUT' => app(UpdateJenisBerkasAction::class)->handle($actor, $jb->id, $data + ['nama' => 'Persyaratan baru', 'tahap' => 'pengukuran', 'izinkan_file' => true]),
+                'DELETE' => app(DeleteJenisBerkasAction::class)->handle($actor, $jb->id, $data),
+                'PATCH' => app(UpdateBatasTeknisJenisBerkasAction::class)->handle($actor, $jb->id, $data + ['ukuran_maks_kb' => 2048]),
+            };
+            $this->fail('Pemanggil langsung wajib diperiksa oleh Action.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+        $this->assertDatabaseCount('jenis_berkas', 1);
+        $this->assertSame($before, $jb->fresh()->getAttributes());
+        $audit = AuditLog::where('actor_id', $actor->id)->sole();
+        $this->assertFalse($audit->dasar_izin['allowed']);
+        $this->assertContains($deny->id, $audit->dasar_izin['denies']);
+    }
+
+    #[DataProvider('markingMutationMethods')]
+    public function test_marking_failure_rolls_back_requirement_and_success_audit(string $method): void
+    {
+        Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas']);
+        $jb = JenisBerkas::create(['nama' => 'Persyaratan awal', 'tahap' => 'pengukuran', 'wajib' => false, 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
+        $before = $jb->fresh()->getAttributes();
+        $auditCount = AuditLog::count();
+        $writer = app(WriteAuditLog::class);
+        $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $data) use ($writer) {
+            if ($data['tindakan'] === 'berkas.tandai_tidak_dapat_dipenuhi') {
+                throw new RuntimeException('Penanda gagal ditulis');
+            }
+
+            return $writer->handle($data);
+        });
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($this->perencanaan)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id), [
+                'nama' => 'Persyaratan wajib file', 'tahap' => 'pengukuran', 'wajib' => true, 'aktif' => true, 'izinkan_file' => true,
+                'alasan' => 'Menguji rollback penanda', 'expected_updated_at' => $jb->updated_at->toISOString(),
+            ]);
+            $this->fail('Kegagalan penanda harus membatalkan seluruh transaksi.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Penanda gagal ditulis', $exception->getMessage());
+        }
+        $this->assertDatabaseCount('jenis_berkas', 1);
+        $this->assertSame($before, $jb->fresh()->getAttributes());
+        $this->assertSame($auditCount, AuditLog::count());
+    }
+
+    public static function markingMutationMethods(): array
+    {
+        return [['POST'], ['PUT']];
+    }
+
+    #[DataProvider('requestDenials')]
+    public function test_initial_denial_audits_the_decision_that_rejected_the_request(string $requestClass, string $permission): void
+    {
+        $denied = ['allowed' => false, 'permission' => $permission, 'reason' => 'no_allow', 'roles' => [], 'grants' => [], 'denies' => []];
+        $calls = 0;
+        $this->partialMock(PermissionResolver::class)->shouldReceive('decide')->andReturnUsing(function () use ($denied, &$calls): array {
+            $calls++;
+
+            return $calls === 1 ? $denied : [...$denied, 'allowed' => true, 'reason' => 'allow'];
+        });
+        $request = $requestClass::create('/jenis-berkas/'.Str::uuid(), 'DELETE', ['alasan' => ['tidak valid']]);
+        $route = (new Route('DELETE', 'jenis-berkas/{id}', fn () => null))->bind($request);
+        $request->setContainer($this->app)->setRedirector(app(Redirector::class));
+        $request->setUserResolver(fn () => $this->pegawai);
+        $request->setRouteResolver(fn () => $route);
+        try {
+            $request->validateResolved();
+            $this->fail('FormRequest harus menolak keputusan pertama.');
+        } catch (AuthorizationException) {
+            $this->assertEquals($denied, AuditLog::where('actor_id', $this->pegawai->id)->sole()->dasar_izin);
+            $this->assertSame(1, $calls, 'Audit menggunakan keputusan penolakan yang sama, bukan resolusi kedua.');
+        }
+    }
+
+    public static function requestDenials(): array
+    {
+        return [
+            [StoreJenisBerkasRequest::class, 'jenis_berkas:create'],
+            [UpdateJenisBerkasRequest::class, 'jenis_berkas:update'],
+            [DeleteJenisBerkasRequest::class, 'jenis_berkas:delete'],
+            [UpdateBatasTeknisJenisBerkasRequest::class, 'pengaturan:update'],
+        ];
+    }
+
+    #[DataProvider('mutationMethods')]
+    public function test_initial_denial_precedes_malformed_validation_and_records_one_canonical_decision(string $method, string $suffix): void
+    {
+        $jb = JenisBerkas::create(['nama' => 'Persyaratan terlindungi', 'tahap' => 'pengukuran', 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
+        $before = $jb->fresh()->getAttributes();
+        $auditCount = AuditLog::count();
+        $this->actingAs($this->pegawai)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id).$suffix, [
+            'nama' => [], 'tahap' => 'invalid', 'alasan' => ['bukan string'], 'expected_updated_at' => 'invalid',
+        ])->assertForbidden();
+        $audit = AuditLog::where('actor_id', $this->pegawai->id)->sole();
+        $this->assertSame($auditCount + 1, AuditLog::count());
+        $this->assertFalse($audit->dasar_izin['allowed']);
+        [$permission, $event] = match ($method) {
+            'POST' => ['jenis_berkas:create', 'jenis_berkas.buat_ditolak'],
+            'PUT' => ['jenis_berkas:update', 'jenis_berkas.ubah_ditolak'],
+            'DELETE' => ['jenis_berkas:delete', 'jenis_berkas.hapus_ditolak'],
+            'PATCH' => ['pengaturan:update', 'jenis_berkas.batas_teknis_ubah_ditolak'],
+        };
+        $this->assertSame($permission, $audit->dasar_izin['permission']);
+        $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+        $this->assertSame($event, $audit->tindakan);
+        $this->assertSame('manual', $audit->sumber);
+        $this->assertEqualsCanonicalizing(['allowed', 'permission', 'reason', 'roles', 'grants', 'denies'], array_keys($audit->dasar_izin));
+        $this->assertIsString($audit->alasan);
+        $this->assertDatabaseCount('jenis_berkas', 1);
+        $this->assertSame($before, $jb->fresh()->getAttributes());
     }
 
     /**
@@ -1138,6 +1305,8 @@ class JenisBerkasTest extends TestCase
             'id' => $jb->id,
             'nama' => 'Syarat Substantif Kebal',
             'tahap' => 'pengukuran',
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5000,
         ]);
     }
 
