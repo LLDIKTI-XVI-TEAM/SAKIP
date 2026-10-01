@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * @property string $id
@@ -156,11 +157,11 @@ class Renstra extends Model
 
     /**
      * Pembanding state persisted, bukan izin atau identitas request.
-     * Hitung sebelum masking props agar FK yang tersembunyi tetap terlindungi dari stale update.
+     * HMAC menjaga FK sebelum masking tetap terlindungi dari stale update tanpa bisa ditebak dari props.
      */
     public function stateToken(): string
     {
-        return hash('sha256', json_encode($this->masterAttributes(), JSON_THROW_ON_ERROR));
+        return hash_hmac('sha256', json_encode($this->masterAttributes(), JSON_THROW_ON_ERROR), Crypt::getKey());
     }
 
     /** @return BelongsTo<User, $this> */

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Renstra;
 
-use App\Actions\Renstra\UpdateRenstra as UpdateRenstraAction;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Renstra\UpdateRenstraRequest;
 use App\Models\Renstra;
@@ -16,7 +16,9 @@ class UpdateRenstra extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        $changed = $action->execute($renstra, $request->validated(), $actor);
+        $data = $request->validated();
+        $updated = $action->handle($actor, $renstra, $data);
+        $changed = $updated->wasChanged() || ! empty($data['lampiran']);
 
         Inertia::flash('success', $changed ? 'Rencana Strategis (Renstra) berhasil diperbarui.' : 'Tidak ada perubahan master yang disimpan.');
 

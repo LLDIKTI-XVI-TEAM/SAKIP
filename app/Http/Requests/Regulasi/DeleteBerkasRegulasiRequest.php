@@ -7,6 +7,7 @@ use App\Models\Regulasi;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
+/** Payload validated(): array{alasan: string}; induk tidak cocok tetap ditolak 403 sebelum controller. */
 class DeleteBerkasRegulasiRequest extends FormRequest
 {
     public function authorize(): bool

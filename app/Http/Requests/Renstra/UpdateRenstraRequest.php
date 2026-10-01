@@ -5,22 +5,27 @@ namespace App\Http\Requests\Renstra;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Support\Facades\Gate;
 
 class UpdateRenstraRequest extends RenstraMutationRequest
 {
+    private ?PermissionDecision $initialDecision = null;
+
     public function authorize(): bool
     {
         $renstra = $this->route('renstra');
         $user = $this->user();
 
-        return $renstra instanceof Renstra
-            && $user instanceof User
-            && Gate::allows('update', $renstra)
-            && $this->relatedPermissionsAllowed($user);
+        if (! $renstra instanceof Renstra || ! $user instanceof User) {
+            return false;
+        }
+        $this->initialDecision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+
+        return $this->initialDecision->allowed && $this->relatedPermissionsAllowed($user);
     }
 
     protected function failedAuthorization(): void
@@ -28,11 +33,10 @@ class UpdateRenstraRequest extends RenstraMutationRequest
         $user = $this->user();
         $renstra = $this->route('renstra');
 
-        if ($user instanceof User && $renstra instanceof Renstra) {
+        if ($user instanceof User && $renstra instanceof Renstra && $this->initialDecision !== null) {
             $decision = $this->deniedRelatedDecision
-                ?? app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? mb_substr(trim($rawAlasan), 0, 1000) : null;
+                ?? $this->initialDecision;
+            $alasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000);
 
             app(AuditLogger::class)->catat(
                 actor: $user,
@@ -57,9 +61,12 @@ class UpdateRenstraRequest extends RenstraMutationRequest
         $renstra = $this->route('renstra');
         $isAktif = $renstra instanceof Renstra && ($renstra->status === Renstra::STATUS_AKTIF || $renstra->is_aktif);
 
-        return $this->mutationRules(requireReason: $isAktif) + [
+        $rules = $this->mutationRules(requireReason: $isAktif);
+        $rules['alasan'][] = AuditReason::validate(...);
+
+        return $rules + [
             'expected_state' => ['required', 'string', 'regex:/\A[a-f0-9]{64}\z/'],
-            'nomor_kebijakan' => [$isAktif ? 'required' : 'nullable', 'string', 'max:255'],
+            'nomor_kebijakan' => [$isAktif ? 'required' : 'nullable', 'string', 'max:255', AuditReason::validate(...)],
             'tanggal_kebijakan' => [$isAktif ? 'required' : 'nullable', 'date_format:Y-m-d'],
         ];
     }

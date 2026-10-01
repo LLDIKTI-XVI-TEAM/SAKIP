@@ -6,7 +6,9 @@ use App\Models\Berkas;
 use App\Models\Regulasi;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
+use App\Services\Regulasi\RegulasiAttachments;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
@@ -16,6 +18,7 @@ class RegulasiPolicy
     public function __construct(
         private readonly PermissionResolver $permissionResolver,
         private readonly AuditLogger $auditLogger,
+        private readonly RegulasiAttachments $attachments,
     ) {}
 
     public function viewAny(User $user): Response
@@ -79,7 +82,8 @@ class RegulasiPolicy
         string $tindakan,
         PermissionDecision $decision,
     ): void {
-        $alasan = request()->input('alasan');
+        // authorize() mendahului validasi; sanitasi alasan tidak boleh mengganti penolakan menjadi 422/redirect.
+        $alasan = mb_substr(trim(AuditReason::sanitize(request()->input('alasan'))), 0, 1000);
 
         $this->auditLogger->catat(
             actor: $user,
@@ -87,7 +91,7 @@ class RegulasiPolicy
             objekTipe: 'regulasi',
             objekId: $regulasi->id,
             nilaiLama: $regulasi->withoutRelations()->toArray(),
-            alasan: is_string($alasan) ? $alasan : null,
+            alasan: trim($alasan) !== '' ? $alasan : 'Tindakan regulasi ditolak karena izin tidak efektif.',
             dasarIzin: $decision->toAuditBasis(),
         );
     }
@@ -97,33 +101,15 @@ class RegulasiPolicy
         Berkas $berkas,
         PermissionDecision $decision,
     ): void {
-        $alasan = request()->input('alasan');
-
-        $metadata = [
-            'id' => $berkas->id,
-            'mode' => $berkas->mode,
-            'jenis_berkas_id' => $berkas->jenis_berkas_id,
-        ];
-
-        if ($berkas->mode === 'file') {
-            $metadata += [
-                'nama_asli' => $berkas->nama_asli,
-                'mime' => $berkas->mime,
-                'ukuran_bytes' => $berkas->ukuran_bytes,
-            ];
-        } elseif ($berkas->mode === 'tautan') {
-            $metadata['tautan'] = $berkas->tautan;
-        } else {
-            $metadata['panjang_teks'] = mb_strlen((string) $berkas->isi_teks);
-        }
+        $alasan = mb_substr(trim(AuditReason::sanitize(request()->input('alasan'))), 0, 1000);
 
         $this->auditLogger->catat(
             actor: $user,
             tindakan: 'berkas.hapus_ditolak',
             objekTipe: 'berkas',
             objekId: $berkas->id,
-            nilaiLama: $metadata,
-            alasan: is_string($alasan) ? $alasan : null,
+            nilaiLama: $this->attachments->metadataBerkasUntukAudit($berkas),
+            alasan: trim($alasan) !== '' ? $alasan : 'Penghapusan lampiran regulasi ditolak karena izin tidak efektif.',
             dasarIzin: $decision->toAuditBasis(),
         );
     }

@@ -2,34 +2,38 @@
 
 namespace App\Http\Requests\Renstra;
 
-use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
-use Illuminate\Support\Facades\Gate;
+use App\Support\PermissionDecision;
 use Illuminate\Support\Str;
 
 class StoreRenstraRequest extends RenstraMutationRequest
 {
+    private ?PermissionDecision $initialDecision = null;
+
     public function authorize(): bool
     {
         $user = $this->user();
 
-        return $user instanceof User
-            && Gate::allows('create', Renstra::class)
-            && $this->relatedPermissionsAllowed($user);
+        if (! $user instanceof User) {
+            return false;
+        }
+        $this->initialDecision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_CREATE);
+
+        return $this->initialDecision->allowed && $this->relatedPermissionsAllowed($user);
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user();
 
-        if ($user instanceof User) {
+        if ($user instanceof User && $this->initialDecision !== null) {
             $decision = $this->deniedRelatedDecision
-                ?? app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_CREATE);
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
+                ?? $this->initialDecision;
+            $alasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000);
 
             app(AuditLogger::class)->catat(
                 actor: $user,
@@ -37,9 +41,9 @@ class StoreRenstraRequest extends RenstraMutationRequest
                 objekTipe: 'renstra',
                 objekId: (string) Str::uuid(),
                 nilaiBaru: [
-                    'nama' => $this->input('nama'),
-                    'tahun_mulai' => $this->input('tahun_mulai'),
-                    'tahun_selesai' => $this->input('tahun_selesai') ?? $this->input('tahun_akhir'),
+                    'nama' => is_string($this->input('nama')) ? mb_substr(AuditReason::sanitize($this->input('nama')), 0, 255) : null,
+                    'tahun_mulai' => $this->auditYear($this->input('tahun_mulai')),
+                    'tahun_selesai' => $this->auditYear($this->input('tahun_selesai') ?? $this->input('tahun_akhir')),
                     ...($this->deniedRelatedReason === null ? [] : ['alasan_penolakan' => $this->deniedRelatedReason]),
                 ],
                 alasan: $alasan,
@@ -48,6 +52,17 @@ class StoreRenstraRequest extends RenstraMutationRequest
         }
 
         parent::failedAuthorization();
+    }
+
+    /** Metadata sebelum validasi hanya menyimpan bentuk tahun sah, tanpa mengubah tipe input sah. */
+    private function auditYear(mixed $value): int|float|string|null
+    {
+        if ((is_int($value) || is_float($value) || (is_string($value) && strlen($value) <= 32))
+            && filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 2000, 'max_range' => 2100]]) !== false) {
+            return $value;
+        }
+
+        return null;
     }
 
     /**

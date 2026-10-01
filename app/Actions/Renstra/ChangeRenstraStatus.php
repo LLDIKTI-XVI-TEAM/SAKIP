@@ -5,7 +5,7 @@ namespace App\Actions\Renstra;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -20,7 +20,7 @@ class ChangeRenstraStatus
         private readonly AuditLogger $audit,
     ) {}
 
-    /** Transisi berasal dari intent server; state dan izin diperiksa setelah lock aktor lalu master. */
+    /** Transisi berasal dari intent server; state dan izin diperiksa setelah lock aktor, role aktif, lalu master. */
     public function execute(Renstra $renstra, User $actor, string $intent, string $expectedState): Renstra
     {
         [$from, $to, $reason] = match ($intent) {
@@ -38,6 +38,8 @@ class ChangeRenstraStatus
             return DB::transaction(function () use ($renstra, &$actor, &$decision, &$before, $intent, $expectedState, $from, $to, $reason, &$denialCode): Renstra {
                 $denialCode = 'izin_ditolak';
                 $actor = User::query()->lockForUpdate()->findOrFail($actor->id);
+                // Writer preset mengunci role; tahan sumber izin sampai mutasi dan audit commit.
+                $actor->lockActiveRoles();
                 $current = Renstra::query()->lockForUpdate()->findOrFail($renstra->id);
                 $before = $current->masterAttributes();
                 $decision = $this->resolver->resolve($actor, PermissionCodes::RENSTRA_UPDATE);

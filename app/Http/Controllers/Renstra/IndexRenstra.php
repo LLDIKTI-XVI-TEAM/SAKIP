@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Renstra;
 use App\Http\Controllers\Controller;
 use App\Models\Regulasi;
 use App\Models\Renstra;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;

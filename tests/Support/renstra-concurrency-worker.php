@@ -1,9 +1,9 @@
 <?php
 
 use App\Actions\Renstra\ChangeRenstraStatus;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\Renstra;
 use App\Models\User;
-use App\Services\RenstraService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\QueryException;
@@ -52,7 +52,7 @@ try {
     }
     try {
         if ($payload['operation'] === 'revision') {
-            app(RenstraService::class)->update($renstra, $payload['data'], $actor);
+            app(UpdateRenstraAction::class)->handle($actor, $renstra, $payload['data']);
         } else {
             app(ChangeRenstraStatus::class)->execute($renstra, $actor, $payload['operation'], $payload['expected_state']);
         }

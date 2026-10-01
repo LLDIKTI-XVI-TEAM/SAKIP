@@ -2,17 +2,19 @@
 
 namespace Tests\Integration\Renstra;
 
+use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
 use App\Actions\Renstra\ChangeRenstraStatus;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
-use App\Services\PermissionResolver;
-use App\Services\RenstraService;
 use App\Support\PermissionDecision;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
@@ -137,6 +140,55 @@ class RenstraConcurrencyTest extends TestCase
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'renstra.activate_ditolak')->count());
     }
 
+    #[DataProvider('presetRevocationOperations')]
+    public function test_pencabutan_preset_saat_menunggu_lock_diperiksa_ulang(string $operation): void
+    {
+        $actors = $this->actors();
+        $master = $this->master($actors[0], 'RACE-PRESET');
+        $before = $master->fresh()->getAttributes();
+        $prepare = function (): void {
+            // Sama dengan writer preset: role lebih dahulu, lalu mutasi membership.
+            $role = Role::query()->where('kode', 'perencanaan')->lockForUpdate()->sole();
+            $role->permissions()->detach(Permission::query()->where('kode', 'renstra:update')->sole()->id);
+        };
+        $payload = ['actor_id' => $actors[0]->id, 'renstra_id' => $master->id,
+            'operation' => $operation, 'pause_before_save' => true, 'expected_state' => $master->stateToken(),
+            'data' => ['nama' => 'Nama yang harus ditolak', 'expected_state' => $master->stateToken()]];
+        $this->assertSame(['denied'], $this->race([$payload], prepare: $prepare));
+        $this->assertSame($before, $master->fresh()->getAttributes());
+        $action = $operation === 'revision' ? 'renstra.ubah' : 'renstra.activate';
+        $this->assertSame(0, DB::table('audit_log')->where('tindakan', $action)->count());
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', $action.'_ditolak')->count());
+    }
+
+    public static function presetRevocationOperations(): array
+    {
+        return [['activate'], ['revision']];
+    }
+
+    public function test_revisi_mempertahankan_pk_yang_commit_saat_menunggu_lock_master(): void
+    {
+        $actors = $this->actors();
+        $master = $this->master($actors[0], 'RACE-PK', 'aktif');
+        $before = $master->fresh()->getAttributes();
+        $prepare = function () use ($actors, $master): void {
+            // Jalur PK nyata memegang Renstra FOR SHARE sampai transaksi induk commit.
+            app(CreatePerjanjianKinerja::class)->handle([
+                'renstra_id' => $master->id, 'tahun' => 2025, 'nomor_pk' => 'PK-RACE', 'tanggal_pk' => '2025-01-01',
+            ], $actors[1]);
+        };
+        $result = $this->race([['actor_id' => $actors[0]->id, 'renstra_id' => $master->id, 'operation' => 'revision',
+            'data' => ['tahun_mulai' => 2026, 'alasan' => 'Kebijakan baru', 'nomor_kebijakan' => '123/M/2026',
+                'tanggal_kebijakan' => '2026-09-20', 'expected_state' => $master->stateToken()]]], prepare: $prepare);
+        $this->assertSame(['tahun_mulai'], $result);
+        $this->assertSame($before, $master->fresh()->getAttributes());
+        $pk = RenstraPk::query()->where('renstra_id', $master->id)->sole();
+        $this->assertSame(2025, $pk->tahun);
+        $this->assertFalse($pk->jadwalTahunan()->exists());
+        $this->assertSame(0, DB::table('audit_log')->where('tindakan', 'renstra.ubah')->count());
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'renstra.ubah_ditolak')->count());
+    }
+
     public function test_regulasi_yang_dinonaktifkan_saat_menunggu_lock_tidak_dapat_dipilih(): void
     {
         $actors = $this->actors();
@@ -150,6 +202,29 @@ class RenstraConcurrencyTest extends TestCase
         $this->assertSame(['regulasi_id'], $result);
         $this->assertNull($master->fresh()->regulasi_id);
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'renstra.ubah_ditolak')->count());
+    }
+
+    public function test_revoke_saat_revisi_menunggu_lock_tetap_mencatat_alasan_aman(): void
+    {
+        $actors = $this->actors();
+        $master = $this->master($actors[0], 'RACE-REVISI-DENY');
+        $before = $master->fresh()->getAttributes();
+        $prepare = function () use ($actors): void {
+            User::query()->whereKey($actors[0]->id)->lockForUpdate()->firstOrFail();
+            UserPermissionDeny::query()->create([
+                'user_id' => $actors[0]->id,
+                'permission_id' => Permission::query()->where('kode', 'renstra:update')->sole()->id,
+                'ditetapkan_oleh' => $actors[1]->id, 'alasan' => 'Fixture revoke revisi',
+            ]);
+        };
+        $result = $this->race([[
+            'actor_id' => $actors[0]->id, 'renstra_id' => $master->id, 'operation' => 'revision',
+            'data' => ['nama' => 'Perubahan ditolak', 'alasan' => "Revisi\0uji", 'expected_state' => $master->stateToken()],
+        ]], prepare: $prepare);
+
+        $this->assertSame(['denied'], $result);
+        $this->assertSame($before, $master->fresh()->getAttributes());
+        $this->assertSame('Revisiuji', DB::table('audit_log')->where('tindakan', 'renstra.ubah_ditolak')->sole()->alasan);
     }
 
     public function test_retry_deadlock_revisi_membersihkan_berkas_attempt_gagal_dan_mengaudit_sekali(): void
@@ -169,10 +244,10 @@ class RenstraConcurrencyTest extends TestCase
 
             return $realAudit->catat(...$arguments);
         });
-        app(RenstraService::class)->update($master, [
+        app(UpdateRenstraAction::class)->handle($actor, $master, [
             'nama' => 'Renstra setelah retry', 'expected_state' => $master->stateToken(),
             'lampiran' => [['mode' => 'file', 'file' => UploadedFile::fake()->create('naskah.pdf', 1, 'application/pdf')]],
-        ], $actor);
+        ]);
         $this->assertSame(2, $attempt);
         $this->assertSame('Renstra setelah retry', $master->fresh()->nama);
         $this->assertSame(1, $master->berkas()->count());
@@ -218,7 +293,7 @@ class RenstraConcurrencyTest extends TestCase
         $master = $this->master($actor, 'RETRY-IZIN-REVISI');
         $allowed = app(PermissionResolver::class)->resolve($actor, 'renstra:update');
         $denied = new PermissionDecision(false, 'renstra:update', ['alasan' => 'fixture_deny']);
-        $this->mock(PermissionResolver::class)->shouldReceive('resolve')->times(3)->andReturn($allowed, $denied, $allowed);
+        $this->mock(PermissionResolver::class)->shouldReceive('resolve')->times(2)->andReturn($denied, $allowed);
         $realAudit = app(AuditLogger::class);
         $attempt = 0;
         $this->mock(AuditLogger::class)->shouldReceive('catat')->andReturnUsing(function (...$arguments) use ($realAudit, &$attempt) {
@@ -232,7 +307,7 @@ class RenstraConcurrencyTest extends TestCase
             return $realAudit->catat(...$arguments);
         });
         try {
-            app(RenstraService::class)->update($master, ['nama' => '', 'expected_state' => $master->stateToken()], $actor);
+            app(UpdateRenstraAction::class)->handle($actor, $master, ['nama' => '', 'expected_state' => $master->stateToken()]);
             $this->fail('Nama kosong harus menghasilkan validation error.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('nama', $exception->errors());
@@ -277,12 +352,15 @@ class RenstraConcurrencyTest extends TestCase
             $this->assertCount(count($pids), array_unique($pids));
             if ($prepare !== null || $sameMaster) {
                 $expectedBlocked = $prepare !== null ? count($pids) : 1;
-                $this->until(function () use ($pids, $expectedBlocked): bool {
+                $this->until(function () use ($pids, $expectedBlocked, $prepare, $processes): bool {
                     DB::select('select pg_stat_clear_snapshot()');
 
-                    return DB::table('pg_stat_activity')->whereIn('pid', $pids)->where('wait_event_type', 'Lock')->count() === $expectedBlocked;
+                    return DB::table('pg_stat_activity')->whereIn('pid', $pids)->where('wait_event_type', 'Lock')->count() === $expectedBlocked
+                        || ($prepare !== null && collect($processes)->contains(fn (Process $p): bool => str_contains($p->getOutput(), 'SAVING')));
                 }, $processes);
                 if ($prepare !== null) {
+                    $this->assertSame($expectedBlocked, DB::table('pg_stat_activity')->whereIn('pid', $pids)->where('wait_event_type', 'Lock')->count(),
+                        'Mutasi mencapai save sebelum sumber izin yang sedang berubah terkunci.');
                     $parentPid = (int) DB::selectOne('select pg_backend_pid() as pid')->pid;
                     foreach ($pids as $pid) {
                         $this->assertTrue((bool) DB::selectOne('select ? = any(pg_blocking_pids(?)) as blocked', [$parentPid, $pid])->blocked);

@@ -1,21 +1,24 @@
 <?php
 
 use App\Actions\Renstra\ChangeRenstraStatus;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\AuditLogger;
 use App\Services\Authorization\RolePermissionPresets;
-use App\Services\RenstraService;
 use Database\Seeders\RegulasiPermissionSeeder;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -90,7 +93,7 @@ test('revisi aktif mewajibkan nomor dan tanggal kebijakan selain alasan', functi
     expect($this->renstra->fresh()->nama)->toBe('Renstra Perencanaan');
 });
 
-test('caller service tetap wajib memberikan alasan revisi aktif', function (): void {
+test('caller Action tetap wajib memberikan alasan revisi aktif', function (): void {
     $this->renstra->update(['status' => Renstra::STATUS_AKTIF]);
     $data = payloadLifecycleRevision($this->renstra, [
         'alasan' => '',
@@ -98,7 +101,7 @@ test('caller service tetap wajib memberikan alasan revisi aktif', function (): v
         'tanggal_kebijakan' => '2026-09-20',
     ]);
 
-    expect(fn () => app(RenstraService::class)->update($this->renstra, $data, $this->actor))
+    expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, $data))
         ->toThrow(ValidationException::class);
 });
 
@@ -110,24 +113,78 @@ test('aktivasi menolak rentang persisted yang di luar batas valid', function ():
     expect($this->renstra->fresh()->status)->toBe(Renstra::STATUS_DRAFT);
 });
 
-test('caller service menolak Regulasi nonaktif yang bukan rujukan lama', function (): void {
+test('caller Action menolak Regulasi nonaktif yang bukan rujukan lama', function (): void {
     $regulasi = Regulasi::query()->create([
         'jenis' => 'kepmen', 'nomor' => '123/M/2026', 'tahun' => 2026,
         'tentang' => 'Kebijakan pengujian', 'aktif' => false, 'created_by' => $this->actor->id,
     ]);
-    expect(fn () => app(RenstraService::class)->update($this->renstra,
-        payloadLifecycleRevision($this->renstra, ['regulasi_id' => $regulasi->id]), $this->actor))
+    expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, ['regulasi_id' => $regulasi->id])))
         ->toThrow(ValidationException::class);
     expect($this->renstra->fresh()->regulasi_id)->toBeNull();
 });
 
-test('input alasan malformed pada service menghasilkan validasi dan satu audit denial', function (): void {
+test('input alasan malformed pada Action menghasilkan validasi dan satu audit denial', function (): void {
     $this->renstra->update(['status' => Renstra::STATUS_AKTIF]);
-    expect(fn () => app(RenstraService::class)->update($this->renstra,
-        payloadLifecycleRevision($this->renstra, [
-            'alasan' => ['invalid'], 'nomor_kebijakan' => '123/M/2026', 'tanggal_kebijakan' => '2026-09-20',
-        ]), $this->actor))->toThrow(ValidationException::class);
+    expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, [
+        'alasan' => ['invalid'], 'nomor_kebijakan' => '123/M/2026', 'tanggal_kebijakan' => '2026-09-20',
+    ])))->toThrow(ValidationException::class);
     expect(AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->count())->toBe(1);
+});
+
+test('audit penolakan izin mempertahankan isi alasan setelah NUL', function (string $permission): void {
+    UserPermissionDeny::query()->create([
+        'user_id' => $this->actor->id,
+        'permission_id' => Permission::query()->where('kode', $permission)->sole()->id,
+        'ditetapkan_oleh' => $this->actor->id,
+        'alasan' => 'Fixture penolakan revisi',
+    ]);
+    $before = $this->renstra->fresh()->getAttributes();
+
+    $this->actingAs($this->actor)->put("/renstra/{$this->renstra->id}", payloadLifecycleRevision($this->renstra, [
+        'alasan' => "Revisi\0uji\x1B", 'regulasi_id' => null,
+    ]))->assertForbidden();
+
+    $audit = AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->sole();
+    expect($audit->alasan)->toBe('Revisiuji')
+        ->and($audit->dasar_izin['keputusan'])->toBe('ditolak')
+        ->and($this->renstra->fresh()->getAttributes())->toBe($before);
+})->with(['renstra:update', 'regulasi:read']);
+
+test('revisi menolak teks audit rusak pada request dan batas mutasi', function (string $field, string $value): void {
+    $this->renstra->update(['status' => Renstra::STATUS_AKTIF]);
+    $before = $this->renstra->fresh()->getAttributes();
+    $payload = payloadLifecycleRevision($this->renstra, [
+        'nomor_kebijakan' => '123/M/2026', 'tanggal_kebijakan' => '2026-09-20', $field => $value,
+    ]);
+
+    $this->actingAs($this->actor)->put("/renstra/{$this->renstra->id}", $payload)->assertSessionHasErrors($field);
+    try {
+        app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, $payload);
+        $this->fail('Teks audit rusak wajib ditolak sebelum mutasi.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey($field);
+    }
+
+    expect($this->renstra->fresh()->getAttributes())->toBe($before)
+        ->and(AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->count())->toBe(2);
+})->with([
+    'alasan NUL' => ['alasan', "Revisi\0uji"],
+    'alasan UTF-8' => ['alasan', "Revisi\xC3\x28uji"],
+    'nomor NUL' => ['nomor_kebijakan', "123\0M/2026"],
+    'nomor UTF-8' => ['nomor_kebijakan', "123\xC3\x28M/2026"],
+]);
+
+test('alasan maksimal tetap menyimpan nomor dan tanggal kebijakan utuh', function (): void {
+    $this->renstra->update(['status' => Renstra::STATUS_AKTIF]);
+    $reason = str_repeat('a', 1000);
+    $payload = payloadLifecycleRevision($this->renstra, [
+        'alasan' => $reason, 'nomor_kebijakan' => '123/M/2026', 'tanggal_kebijakan' => '2026-09-20',
+    ]);
+
+    $this->actingAs($this->actor)->put("/renstra/{$this->renstra->id}", $payload)->assertSessionHasNoErrors();
+
+    expect(AuditLog::query()->where('tindakan', 'renstra.ubah')->sole()->alasan)
+        ->toBe($reason."\nRujukan: 123/M/2026 tanggal 2026-09-20");
 });
 
 test('lifecycle berurutan menyimpan status boolean dan audit server tanpa input alasan', function (): void {
@@ -208,6 +265,39 @@ test('revisi range mempertahankan seluruh tahun Jadwal dari semua status', funct
     expect($this->renstra->fresh()->tahun_mulai)->toBe(2025);
 })->with(['draft', 'aktif', 'ditutup']);
 
+test('revisi rentang mencakup tahun PK meskipun belum memiliki Jadwal', function (int $year, int $start, int $end, bool $rejected, string $status): void {
+    $this->renstra->update(['status' => $status]);
+    $pk = RenstraPk::query()->create([
+        'renstra_id' => $this->renstra->id, 'tahun' => $year, 'nomor_pk' => 'PK-REGRESI',
+        'tanggal_pk' => '2025-01-01', 'created_by' => $this->actor->id,
+    ]);
+    $before = $pk->fresh()->getAttributes();
+    $response = $this->actingAs($this->actor)->put("/renstra/{$this->renstra->id}", payloadLifecycleRevision($this->renstra, [
+        'tahun_mulai' => $start, 'tahun_selesai' => $end, 'nomor_kebijakan' => '123/M/2026', 'tanggal_kebijakan' => '2026-09-20',
+    ]));
+    if ($rejected) {
+        $response->assertSessionHasErrors('tahun_mulai');
+        expect($this->renstra->fresh()->tahun_mulai)->toBe(2025)->and($this->renstra->fresh()->tahun_selesai)->toBe(2029);
+        expect(AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->sole()->nilai_baru['alasan_penolakan'])->toBe('tahun_pk_di_luar_rentang');
+        expect(AuditLog::query()->where('tindakan', 'renstra.ubah')->count())->toBe(0);
+    } else {
+        $response->assertSessionHasNoErrors();
+        expect($this->renstra->fresh()->tahun_mulai)->toBe($start)->and($this->renstra->fresh()->tahun_selesai)->toBe($end);
+    }
+    expect($pk->fresh()->getAttributes())->toBe($before)->and($pk->jadwalTahunan()->exists())->toBeFalse();
+})->with([[2025, 2026, 2029, true, 'aktif'], [2029, 2025, 2028, true, 'draft'], [2025, 2024, 2030, false, 'aktif']]);
+
+test('arsip nonaktif tetap tanpa syarat tambahan dan mempertahankan Jadwal existing', function (): void {
+    $this->renstra->update(['status' => 'nonaktif']);
+    $jadwal = JadwalTahunan::query()->create(['renstra_id' => $this->renstra->id, 'tahun' => 2026, 'penutupan' => '2026-12-31', 'status' => 'aktif']);
+    $before = $jadwal->fresh()->getAttributes();
+    $this->actingAs($this->actor)->post("/renstra/{$this->renstra->id}/arsipkan", [
+        'expected_state' => $this->renstra->stateToken(),
+    ])->assertSessionHasNoErrors();
+    expect($this->renstra->fresh()->status)->toBe('diarsipkan')->and($jadwal->fresh()->getAttributes())->toBe($before);
+    expect(AuditLog::query()->where('tindakan', 'renstra.archive')->count())->toBe(1);
+});
+
 test('tanggal kalender tidak valid menolak revisi resmi', function (string $date): void {
     $this->renstra->update(['status' => 'aktif']);
     $this->actingAs($this->actor)->put("/renstra/{$this->renstra->id}", payloadLifecycleRevision($this->renstra, [
@@ -255,7 +345,7 @@ test('kegagalan audit me-rollback perubahan domain', function (string $operation
     $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andThrow(new RuntimeException('Fixture audit gagal'));
     $mutation = $operation === 'status'
         ? fn () => app(ChangeRenstraStatus::class)->execute($this->renstra, $this->actor, 'activate', $this->renstra->stateToken())
-        : fn () => app(RenstraService::class)->update($this->renstra, payloadLifecycleRevision($this->renstra), $this->actor);
+        : fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra));
     expect($mutation)->toThrow(RuntimeException::class, 'Fixture audit gagal');
     expect($this->renstra->fresh()->getAttributes())->toBe($before);
     expect(AuditLog::query()->count())->toBe($auditCount);
@@ -314,33 +404,50 @@ test('rujukan lama nonaktif tetap boleh dipertahankan dan token berasal dari mas
         'aktif' => false, 'created_by' => $this->actor->id,
     ]);
     $this->renstra->update(['regulasi_id' => $regulasi->id]);
-    app(RenstraService::class)->update($this->renstra, payloadLifecycleRevision($this->renstra, ['regulasi_id' => $regulasi->id]), $this->actor);
+    app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, ['regulasi_id' => $regulasi->id]));
     UserPermissionDeny::query()->create([
         'user_id' => $this->actor->id, 'permission_id' => Permission::query()->where('kode', 'regulasi:read')->sole()->id,
         'ditetapkan_oleh' => $this->actor->id, 'alasan' => 'Fixture masking',
     ]);
     $this->actingAs($this->actor)->get("/renstra/{$this->renstra->id}/edit")->assertInertia(fn (Assert $page) => $page
         ->where('renstra.regulasi_id', null)->where('expected_state', $this->renstra->fresh()->stateToken()));
+    $master = $this->renstra->fresh();
+    $token = $master->stateToken();
+    // Mengetahui kandidat UUID Regulasi tidak cukup untuk mencocokkan token dari props.
+    expect($token)->not->toBe(hash('sha256', json_encode($master->masterAttributes(), JSON_THROW_ON_ERROR)));
+    expect($token)->toMatch('/^[a-f0-9]{64}$/')->toBe($master->stateToken());
+    $this->actingAs($this->actor)->put("/renstra/{$master->id}", payloadLifecycleRevision($master))->assertSessionHasNoErrors();
+    expect($master->fresh()->regulasi_id)->toBe($regulasi->id);
+});
+
+test('token state Renstra bergantung pada kunci server', function (): void {
+    $token = $this->renstra->stateToken();
+    $original = Crypt::getFacadeRoot();
+    try {
+        Crypt::swap(new Encrypter(str_repeat('R', 32), 'AES-256-CBC'));
+        expect($this->renstra->stateToken())->not->toBe($token);
+    } finally {
+        Crypt::swap($original);
+    }
 });
 
 test('recheck setelan unggahan pada service mencatat satu denial setelah rollback', function (): void {
     Pengaturan::query()->create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas']);
     $file = UploadedFile::fake()->create('naskah.pdf', 1, 'application/pdf');
-    expect(fn () => app(RenstraService::class)->update($this->renstra, payloadLifecycleRevision($this->renstra, [
+    expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, [
         'lampiran' => [['mode' => 'file', 'file' => $file]],
-    ]), $this->actor))->toThrow(ValidationException::class);
+    ])))->toThrow(ValidationException::class);
     expect($this->renstra->fresh()->nama)->toBe('Renstra Perencanaan')->and($this->renstra->berkas()->count())->toBe(0);
     expect(AuditLog::query()->where('tindakan', 'renstra.ubah_ditolak')->count())->toBe(1);
 });
 
-test('caller service tidak dapat menyimpan tahun kosong sebagai nol', function (): void {
-    expect(fn () => app(RenstraService::class)->update($this->renstra,
-        payloadLifecycleRevision($this->renstra, ['tahun_mulai' => '', 'tahun_selesai' => '']), $this->actor))
+test('caller Action tidak dapat menyimpan tahun kosong sebagai nol', function (): void {
+    expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, ['tahun_mulai' => '', 'tahun_selesai' => ''])))
         ->toThrow(ValidationException::class);
     expect($this->renstra->fresh()->tahun_mulai)->toBe(2025);
 });
 
-test('caller service menormalkan FK Regulasi kosong sebagai null', function (): void {
-    app(RenstraService::class)->update($this->renstra, payloadLifecycleRevision($this->renstra, ['regulasi_id' => '']), $this->actor);
+test('caller Action menormalkan FK Regulasi kosong sebagai null', function (): void {
+    app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, ['regulasi_id' => '']));
     expect($this->renstra->fresh()->regulasi_id)->toBeNull();
 });
