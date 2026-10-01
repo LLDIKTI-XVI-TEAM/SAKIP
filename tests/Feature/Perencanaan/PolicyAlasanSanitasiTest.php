@@ -138,6 +138,7 @@ class PolicyAlasanSanitasiTest extends TestCase
             'deskripsi' => 'Sasaran uji sanitasi alasan',
             'urutan' => 2,
             'alasan' => str_repeat('b', 1500),
+            'expected_updated_at' => $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();
@@ -265,6 +266,7 @@ class PolicyAlasanSanitasiTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'alasan' => '   ',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();
@@ -338,6 +340,7 @@ class PolicyAlasanSanitasiTest extends TestCase
             'deskripsi' => 'Sasaran uji sanitasi alasan',
             'urutan' => 2,
             'alasan' => "  ubah\0sasaran  ",
+            'expected_updated_at' => $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();
@@ -379,6 +382,7 @@ class PolicyAlasanSanitasiTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'alasan' => "alasan\0indikator",
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();

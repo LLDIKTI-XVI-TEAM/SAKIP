@@ -80,6 +80,21 @@ class StoreIndikator
                 }
             }
 
+            // 2c. Urutan kunci global: Regulasi dikunci SEBELUM Unit/Sasaran
+            // bila regulasi_id tujuan non-null (null = lewati, tanpa kunci).
+            // Kunci bersama diambil di sini agar jalur tulis indikator dan
+            // jalur hapus regulasi selalu memperoleh baris Regulasi dahulu;
+            // pemeriksaan aktif tetap pada 5c agar urutan galat tak berubah.
+            $rawRegulasiId = $validated['regulasi_id'] ?? null;
+            if ($rawRegulasiId === '') {
+                $rawRegulasiId = null;
+            }
+            /** @var Regulasi|null $targetRegulasiTerkunci */
+            $targetRegulasiTerkunci = null;
+            if ($rawRegulasiId !== null) {
+                $targetRegulasiTerkunci = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
+            }
+
             // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan hasil resolusi izin
             // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
             $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
@@ -129,19 +144,14 @@ class StoreIndikator
                 ]);
             }
 
-            // 5c. Kunci regulasi target dan periksa ulang status aktif di dalam
-            // transaksi (anti-TOCTOU antara validasi request dan INSERT).
-            // Tanpa regulasi_id (null) tidak perlu izin/kunci — tulis null.
+            // 5c. Validasi ulang status aktif memakai baris regulasi yang sudah
+            // dikunci pada 2c (tanpa kunci ulang, agar urutan kunci global
+            // Regulasi sebelum Unit/Sasaran terjaga). Tanpa regulasi_id (null)
+            // tidak perlu izin/kunci — tulis null.
             // Non-null lolos guard 2b di atas sehingga berizin baca.
-            $rawRegulasiId = $validated['regulasi_id'] ?? null;
-            if ($rawRegulasiId === '') {
-                $rawRegulasiId = null;
-            }
             $effectiveRegulasiId = null;
             if ($rawRegulasiId !== null) {
-                /** @var Regulasi|null $targetRegulasi */
-                $targetRegulasi = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
-                if (! $targetRegulasi || ! $targetRegulasi->aktif) {
+                if (! $targetRegulasiTerkunci || ! $targetRegulasiTerkunci->aktif) {
                     throw ValidationException::withMessages([
                         'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
                     ]);

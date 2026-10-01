@@ -61,6 +61,9 @@ class PindahUnitIndikator
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
+            // Urutan kunci global: jalur ini tidak membaca/menulis regulasi_id
+            // sehingga tidak mengunci baris Regulasi sama sekali (kasus null =
+            // lewati, permanen) — tidak ada jalur Indikator→Regulasi di sini.
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::query()
                 ->whereKey($indikator->getKey())

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Kinerja\IndikatorPerhitunganService;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class UpdateIndikator
         private readonly AuditLogger $auditLogger,
         private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
+        private readonly IndikatorPerhitunganService $perhitunganService,
     ) {}
 
     /**
@@ -68,7 +70,7 @@ class UpdateIndikator
             // pelepasan (regulasi_id null) DIABAIKAN — nilai lama dipertahankan
             // dan request tetap sukses — agar null tak meloloskan pelepasan
             // tanpa izin baca. Penautan non-null tanpa izin baca tetap 403.
-            // Dengan izin baca, target dikunci + dicek ulang di bawah.
+            // Dengan izin baca, target dikunci pada 2c + dicek ulang pada 4b.
             $inputHasRegulasi = array_key_exists('regulasi_id', $validated);
             $rawRegulasiId = $validated['regulasi_id'] ?? null;
             if ($rawRegulasiId === '') {
@@ -90,6 +92,17 @@ class UpdateIndikator
                         ];
                     }
                 }
+            }
+
+            // 2c. Urutan kunci global: Regulasi dikunci SEBELUM Indikator bila
+            // regulasi_id tujuan non-null (null = lewati, tanpa kunci).
+            // Kunci bersama diambil di sini agar jalur update dan jalur hapus
+            // regulasi selalu memperoleh kedua baris dalam urutan yang sama;
+            // pemeriksaan aktif ditunda ke 4b agar urutan galat tak berubah.
+            /** @var Regulasi|null $targetRegulasiTerkunci */
+            $targetRegulasiTerkunci = null;
+            if ($wantsLink && ! $abaikanRegulasi) {
+                $targetRegulasiTerkunci = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
             }
 
             /** @var IndikatorKinerja $lockedIndikator */
@@ -165,17 +178,25 @@ class UpdateIndikator
                     ? trim($validated['definisi_operasional'])
                     : null;
             }
-            // 4b. Kunci regulasi target dan periksa ulang status aktif di dalam
-            // transaksi (anti-TOCTOU antara validasi request dan UPDATE),
-            // mengikuti pola kunci unit/sasaran di atas. Tanpa izin baca +
-            // null sudah ditandai abaikan di 2b — nilai lama dipertahankan.
+            // 4b. Validasi ulang status aktif memakai baris regulasi yang sudah
+            // dikunci pada 2c (tanpa kunci ulang setelah Indikator, agar urutan
+            // kunci global Regulasi sebelum Indikator terjaga), mengikuti pola
+            // kunci unit/sasaran di atas. Tanpa izin baca + null sudah ditandai
+            // abaikan di 2b — nilai lama dipertahankan. Rujukan yang TIDAK
+            // BERUBAH (sama dengan baris terkunci) dipertahankan apa adanya
+            // meski sudah nonaktif (grandfather historis, pola
+            // RenstraMutationRequest); syarat aktif hanya untuk regulasi BARU.
             if ($inputHasRegulasi && ! $abaikanRegulasi) {
                 if ($wantsClear) {
                     $updateData['regulasi_id'] = null;
                 } else {
-                    /** @var Regulasi|null $targetRegulasi */
-                    $targetRegulasi = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
-                    if (! $targetRegulasi || ! $targetRegulasi->aktif) {
+                    if (! $targetRegulasiTerkunci) {
+                        throw ValidationException::withMessages([
+                            'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+                        ]);
+                    }
+                    $regulasiTidakBerubah = (string) $rawRegulasiId === (string) $lockedIndikator->regulasi_id;
+                    if (! $regulasiTidakBerubah && ! $targetRegulasiTerkunci->aktif) {
                         throw ValidationException::withMessages([
                             'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
                         ]);
@@ -191,6 +212,25 @@ class UpdateIndikator
             }
             if (array_key_exists('wajib_catatan', $validated) && $validated['wajib_catatan'] !== null) {
                 $updateData['wajib_catatan'] = (bool) $validated['wajib_catatan'];
+            }
+
+            // 4c. Validasi komponen saat tipe perhitungan berubah (Data Model
+            // §2.12): kandidat tipe + komponen aktif existing dinilai via
+            // service domain pada state kandidat tanpa mutasi, atomik dalam
+            // transaksi setelah kunci dan sebelum update. Tipe tak berubah
+            // dilewati tanpa overhead. Gagal → 422 + messages dari service.
+            $kandidatTipe = $validated['tipe_perhitungan'];
+            if ($kandidatTipe !== $lockedIndikator->tipe_perhitungan) {
+                $kandidat = clone $lockedIndikator;
+                $kandidat->tipe_perhitungan = $kandidatTipe;
+                $kandidat->setRelation('komponen', $lockedIndikator->komponen()->get());
+
+                $validasiKomponen = $this->perhitunganService->validateDefinisiKomponen($kandidat);
+                if (! $validasiKomponen['is_valid']) {
+                    throw ValidationException::withMessages([
+                        'tipe_perhitungan' => $validasiKomponen['messages'],
+                    ]);
+                }
             }
 
             $lockedIndikator->update($updateData);

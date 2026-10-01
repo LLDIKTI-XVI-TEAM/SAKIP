@@ -30,6 +30,21 @@ class UpdateIndikatorRequest extends FormRequest
         /** @var IndikatorKinerja|null $indikator */
         $indikator = $this->route('indikator');
 
+        $currentRegulasiId = $indikator?->regulasi_id;
+
+        // Grandfather historis (pola RenstraMutationRequest): rujukan yang
+        // tidak berubah tetap valid meski sudah nonaktif; syarat aktif
+        // hanya untuk regulasi BARU yang ditautkan.
+        $regulasiExistsRule = Rule::exists('regulasi', 'id')->where(function ($query) use ($currentRegulasiId) {
+            if ($currentRegulasiId !== null) {
+                $query->where(function ($q) use ($currentRegulasiId) {
+                    $q->where('aktif', true)->orWhere('id', $currentRegulasiId);
+                });
+            } else {
+                $query->where('aktif', true);
+            }
+        });
+
         return [
             'sasaran_strategis_id' => [
                 'required',
@@ -59,8 +74,8 @@ class UpdateIndikatorRequest extends FormRequest
             'presisi' => ['nullable', 'integer', 'between:0,4'],
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
-            'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
-            'expected_updated_at' => ['nullable', 'date'],
+            'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
+            'expected_updated_at' => ['required', 'date'],
         ];
     }
 
@@ -82,6 +97,7 @@ class UpdateIndikatorRequest extends FormRequest
             'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
             'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
             'regulasi_id.exists' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+            'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
             'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }

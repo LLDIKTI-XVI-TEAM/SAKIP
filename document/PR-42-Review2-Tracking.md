@@ -587,3 +587,118 @@ Kerjakan R2-20 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Kunci parent sesuai detail
 task + test. Update checkbox + Bukti. JANGAN commit.
 ```
+
+### R2-21 · [MAJOR] Global lock order Regulasi→Indikator
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: `UpdateIndikator` lock Indikator→Regulasi sedangkan
+  delete Regulasi lock Regulasi→Indikator = inversi deadlock
+  (40P01/500 pada request konkuren valid).
+- Yang dibuat:
+  1. Aturan global: Regulasi SELALU dikunci SEBELUM Indikator
+     (bila `regulasi_id` non-null; null = lewati).
+     Berlaku untuk Store/Update/PindahUnit Indikator (cek ketiganya).
+  2. Periksa jalur delete Regulasi (`RegulasiService`) — sesuaikan
+     MINIMAL bila urutannya berlawanan (JANGAN refactor modul Regulasi).
+  3. Test dua-koneksi PostgreSQL: TxA pegang Indikator + TxB pegang
+     Regulasi → lanjutkan keduanya → tanpa 40P01, outcome
+     deterministik, tanpa mutasi/audit parsial (pakai 2 PDO +
+     `lock_timeout` pendek; bila tak dimungkinkan, dokumentasikan
+     batas bukti + test sekuensial pengganti).
+- DoD: tidak ada jalur `Indikator→Regulasi` tersisa; test hijau;
+  `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `StoreIndikator` (2c kunci `Regulasi::sharedLock` SEBELUM Unit/Sasaran/Renstra; 5c validasi `aktif` dari baris terkunci tanpa kunci ulang — urutan galat unit→sasaran→renstra→regulasi + pesan/audit sukses `indikator.buat` tak berubah; null = lewati) + `UpdateIndikator` (2c `sharedLock` regulasi tujuan SEBELUM `lockForUpdate` indikator — pola lock-dulu-validasi-kemudian 4b dipertahankan; deny+null→abaikan/403 R2-17 utuh) + `PindahUnitIndikator` (hanya komentar dokumentasi: `regulasi_id` tak dibaca/ditulis → tanpa kunci Regulasi sama sekali → tanpa jalur `Indikator→Regulasi`) + `RegulasiService::delete`/`referensiAktifTerkunci` TANPA perubahan (sudah `Regulasi(X)→Renstra refs(X)→Indikator refs(X)`, selaras aturan; bukan refactor) + `DestroyIndikator` ikut dicek (arsip: `Indikator(X)→Sasaran(S)`, tanpa kunci Regulasi → tanpa perubahan); urutan lock final — Store: `Regulasi(S)→Unit(S)→Sasaran(S)→Renstra(S)→INSERT`; Update: `Regulasi(S)→Indikator(X)→Sasaran(S)`; PindahUnit: `Indikator(X)→Unit(S pair terurut)→Sasaran(S)`; Delete-Regulasi: `Regulasi(X)→Renstra refs(X)→Indikator refs(X)`; test `tests/Feature/Perencanaan/RegulasiIndikatorLockOrderTest.php` 3 passed/24 assertions (update-taut regulasi kedua sukses+diaudit; hapus regulasi berujuk aktif ditolak tanpa mutasi parsial; dua-koneksi sekuensial: sisi-hapus pegang Regulasi X → sisi-ubah minta Regulasi S → menunggu 55P03 bukan 40P01 → sisi-hapus lanjut kunci Indikator X karena sisi-ubah tak pernah pegang; 2 ronde NOWAIT holder-sehat buktikan kedua arah saling-tunggu urutan lama; outcome deterministik + `indikator.ubah`/`regulasi.hapus*` nihil); batas bukti: sekuensial satu-proses (bukan 2-proses paralel ala `AccountConcurrencyTest::race`), tanpa klaim 40P01 end-to-end; temuan tengah jalan: (a) sonde gabungan INVALID — holder yang transaksinya sudah abort tak lagi menahan waiter pada stack PDO pgsql/PG17 (dibuktikan 5 probe mandiri dua-PDO) → dipecah dua ronde holder-sehat; (b) teardown `DatabaseMigrations` rollback menabrak down() lifecycle pre-existing (menolak baris pasca-cutover tanpa backup) → override `runDatabaseMigrations` teardown `migrate:fresh` + guard disposable (preseden `AccountConcurrencyTest`); verifikasi: `php vendor/bin/pint --test` 4 file passed; `phpstan` 0 errors; `SasaranIndikatorTest` 50 passed/279 assertions + `StaleTest` 2/2 + `RegulasiFeatureTest` 17/17 hijau di PG disposable podman `postgres:17-alpine` port 5447 (DB/user `sakip_test`, container `sakip_test_r221b` milik sesi ini, dihapus setelah run; dev `sakip_db:5433` + container sesi lain `sakip_test_r221:5446` tak tersentuh). Catatan: 2c `UpdateIndikator` + kerangka test sudah ada tak-tercommit di worktree saat sesi mulai (sesi paralel aktif); diverifikasi, diperbaiki (sonde + teardown), dilengkapi (Store/PindahUnit/cek-Regulasi/gates) di sini. HEAD `326de48`. Belum di-commit.
+
+```text
+Prompt handoff R2-21:
+Kerjakan R2-21 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Samakan lock order + test
+2-koneksi sesuai detail task. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-22 · [MAJOR] Token stale wajib (bukan opsional)
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: tanpa token, direct caller menonaktifkan proteksi
+  (R2-19 nullable = bypass permanen).
+- Yang dibuat:
+  1. `expected_updated_at`: `nullable` → `required|date` di
+     UpdateSasaran + UpdateIndikator Request (frontend sudah kirim).
+  2. Perbarui SEMUA test PUT existing yang tanpa token (tambah token
+     fresh dari model) — ini bagian terbesar task; JANGAN hapus
+     asersi lain.
+  3. Regression test: stale payload TANPA token → ditolak (409) +
+     tanpa overwrite + tanpa audit sukses (Sasaran + Indikator).
+- DoD: tidak ada PUT-test tanpa token tersisa; suite hijau;
+  `typecheck` + FE test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `UpdateSasaranRequest`/`UpdateIndikatorRequest` (`required|date` + pesan `Timestamp versi wajib disertakan. Muat ulang halaman...`; logika banding-ISO + 409 `konflik` di Action R2-19 tak berubah, cabang null-skip dipertahankan sebagai defense-in-depth untuk pemanggil Action langsung); frontend NIHIL diubah (kedua modal sudah kirim `expected_updated_at` dari `updated_at` model; tipe `updated_at?` sudah ada); 19 PUT di `SasaranIndikatorTest.php` + 1 di `RegulasiIndikatorLockOrderTest.php` + 4 deny-path di `PolicyAlasanSanitasiTest.php` (403 via Policy sebelum validasi, token ditambah agar DoD literal terpenuhi) semuanya kini kirim token fresh (`fresh()->updated_at?->toISOString() ?? fresh()->created_at`); asersi lain NIHIL diubah; 2 regression baru di `SasaranIndikatorStaleTest.php` (T1 dibaca → mutasi lain jadi T2 → kirim TANPA token → web 302 `expected_updated_at` + JSON 422 `expected_updated_at`, tanpa overwrite, `*.ubah` tepat 1); verifikasi: `bun run typecheck` hijau; `php vendor/bin/pint --test` 6 file passed; `phpstan` 0 errors; `bun run test` 26 file/145 test hijau; Pest di PG disposable podman `postgres:17-alpine` port 5450 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`/`DatabaseMigrations`; dev `sakip_db:5433` + container sesi lain `sakip_test_r221:5446` tak tersentuh; container `sakip_test_r222` dihapus): StaleTest 4 passed/40 assertions (2 existing + 2 baru), SasaranIndikatorTest 50 passed/279 assertions, PolicyAlasanSanitasi 13 + LockOrder 3 = 16 passed/57 assertions. HEAD `326de48`. Belum di-commit.
+
+```text
+Prompt handoff R2-22:
+Kerjakan R2-22 dari document/PR-42-Review2-Tracking.md (setelah
+R2-21) di branch feature/iss-02-04-sasaran-indikator. Wajibkan token
++ perbarui test + regression sesuai detail task. Update checkbox +
+Bukti. JANGAN commit.
+```
+
+### R2-23 · [NEW] Token versi monotonik (mikrodetik)
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: `timestamps()` presisi detik + tanpa kenaikan monotonik —
+  2 save sedetik lolos guard usang. Preseden repo: `JenisBerkas`
+  (`timestamp(6)` + `$dateFormat Y-m-d H:i:s.u` + monotonik).
+- Yang dibuat:
+  1. Migrasi BARU: `sasaran_strategis` + `indikator_kinerjas`
+     `updated_at` (dan `created_at` bila satu paket) → timestamp(6);
+     daftar beku lokal, tanpa import App.
+  2. Kedua model: `$dateFormat = 'Y-m-d H:i:s.u'` + pastikan tiap
+     update menaikkan nilai (bump bila sama).
+  3. Compare `expected_updated_at` tetap (frontend tak berubah);
+     tambah test: 2 save sedetik → kedua 409 + data pertama utuh.
+- DoD: test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: migrasi BARU `2026_10_01_000001_upgrade_sasaran_indikator_timestamps_precision` (tanpa ubah migrasi lama; `TABLES`/`COLUMNS` beku lokal; hanya `Migration`/`DB` facade, tanpa import `App`; up: 4 kolom → `timestamp(6)` + backfill NULL + default `CURRENT_TIMESTAMP`; down: drop default + kembali `timestamp(0)`) + `SasaranStrategis`/`IndikatorKinerja` (`$dateFormat Y-m-d H:i:s.u` + hook `saving` monotonik pola `JenisBerkas:47-61` — `Carbon::now()`, bila `<=` original `updated_at` maka `+1µs`; `saving` mengalahkan `updateTimestamps` karena kolom sudah dirty; guard `updating` existing dipertahankan) + compare `expected_updated_at` di `UpdateSasaran`/`UpdateIndikator` NIHIL diubah (ISO-compare R2-19; `toISOString` terbukti 6 digit sehingga bump 1µs terdeteksi) + frontend NIHIL diubah + 2 test baru di `SasaranIndikatorStaleTest.php` (waktu dibekukan `Carbon::setTestNow` + `try/finally`: save A 302 + `updated_at` bergeser dari token → save B web 302 `konflik` + JSON 409 `konflik` + data A utuh + `*.ubah` tepat 1; sasaran + indikator); verifikasi: `php vendor/bin/pint --test` 4 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; `bun run typecheck` hijau (tanpa perubahan kontrak); Pest di PG disposable podman `postgres:17-alpine` port 5453 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r223` dihapus): StaleTest 6 passed/62 assertions (4 existing + 2 baru), SasaranIndikatorTest 54 passed/301 assertions (regresi nihil vs baseline R2-25); kolom `timestamp(6)` terkonfirmasi via `information_schema` + round-trip down(→0)/up(→6) manual terbukti di DB disposable. HEAD `326de48`. Belum di-commit.
+
+```text
+Prompt handoff R2-23:
+Kerjakan R2-23 dari document/PR-42-Review2-Tracking.md (setelah
+R2-25) di branch feature/iss-02-04-sasaran-indikator. Monotonik-kan
+token sesuai detail task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-24 · [NEW] Grandfather regulasi nonaktif tak berubah
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: regulasi lama yang dinonaktifkan belakangan membuat edit
+  nama/satuan wajib melepas rujukan historis (pola unit di
+  `RenstraMutationRequest:74-81` justru mengizinkan bertahan).
+- Yang dibuat: di UpdateIndikator, bila `regulasi_id` SAMA dengan
+  nilai terkunci → lewati syarat `aktif` (pertahankan); syarat aktif
+  hanya untuk regulasi BARU yang ditautkan. Test: edit nama dengan
+  regulasi lama nonaktif → 302 sukses + rujukan utuh; ganti ke
+  regulasi nonaktif lain → 422.
+- DoD: 2 test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `UpdateIndikator` 4b — `! $targetRegulasiTerkunci` tetap 422 (baris hilang), `$regulasiTidakBerubah = (string) raw === (string) locked` lewati cek `aktif`, regulasi BARU nonaktif tetap 422 (pesan `Rujukan regulasi tidak valid atau sudah nonaktif.` + audit `indikator.ubah`/`ubah_ditolak` tak berubah; lock `Regulasi(S)` 2c R2-21 dipertahankan) + `UpdateIndikatorRequest` grandfather pola `RenstraMutationRequest:74-81` (`aktif=true OR id=current`, null → aktif-only) — DEVIASI dari instruksi "HANYA Action": tanpa ini validasi request menolak 422 sebelum Action (dibuktikan: `Rule::exists→where aktif` dievaluasi pra-transaksi); test baru `test_r224_regulasi_lama_nonaktif_tetap_dipertahankan_saat_edit_nama` (nonaktif via DB → edit nama same-id → 302 + `assertSessionHasNoErrors` + nama baru + regulasi_id utuh) + `test_r224_ganti_ke_regulasi_nonaktif_lain_ditolak_422` (ganti ke nonaktif LAIN → 422 + rujukan+nama lama utuh); verifikasi: `php vendor/bin/pint --test` 3 file passed; `phpstan` 0 errors; Pest `SasaranIndikatorTest` 52 passed/287 assertions (50 existing + 2 baru) + LockOrder/Stale/Policy 20 passed/97 assertions di PG disposable podman `postgres:17-alpine` port 5451 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` + container sesi lain `sakip_test_r221:5446` tak tersentuh; container `sakip_test_r224` dihapus setelah run). Belum di-commit.
+
+```text
+Prompt handoff R2-24:
+Kerjakan R2-24 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Grandfather regulasi sesuai
+detail task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-25 · [NEW] Validasi komponen saat ubah tipe perhitungan
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: ubah tipe tanpa cek komponen langgar Data Model:789-792
+  (rasio→manual dsb. = master inkonsisten, snapshot berikutnya rusak).
+- Yang dibuat: di UpdateIndikator, validasi kandidat
+  `tipe_perhitungan` + komponen aktif existing via
+   `IndikatorPerhitunganService::validateDefinisiKomponen`
+   (bangun state kandidat tanpa mutasi) secara atomik dalam
+   transaksi; gagal → 422 + messages. Test: rasio berkomponen →
+   manual ditolak; ke penjumlahan valid → lolos.
+- DoD: test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `UpdateIndikator` 4c — bila `tipe_perhitungan` SAMA dengan baris terkunci dilewati tanpa query tambahan; bila BERUBAH, state kandidat dibangun via `clone` + `setRelation('komponen', komponen()->get())` (baris terkunci tak termutasi) lalu dinilai `IndikatorPerhitunganService::validateDefinisiKomponen` atomik dalam transaksi setelah kunci sebelum `update`; gagal → `ValidationException` `tipe_perhitungan` + messages service (422 web); lock R2-21, grandfather R2-24, pesan/audit sukses `indikator.ubah`/`ubah_ditolak` tak berubah; test baru `test_r225_ubah_tipe_rasio_berkomponen_ke_manual_ditolak_422` (rasio valid pembilang+penyebut aktif → manual → 422 `tipe_perhitungan` + tipe/nama/peran/aktif utuh + `indikator.ubah` nihil) + `test_r225_ubah_tipe_rasio_tanpa_komponen_ke_manual_lolos` (rasio tanpa komponen → manual → 302 + tipe/nama baru + `indikator.ubah` tercatat); verifikasi: `php vendor/bin/pint --test` 2 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest `SasaranIndikatorTest` 54 passed/301 assertions (52 existing + 2 baru) + LockOrder/Stale/Policy 20 passed/97 assertions di PG disposable podman `postgres:17-alpine` port 5452 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` + container sesi lain `sakip_test_r221:5446` tak tersentuh; container `sakip_test_r225` dihapus setelah run). Belum di-commit.
+
+```text
+Prompt handoff R2-25:
+Kerjakan R2-25 dari document/PR-42-Review2-Tracking.md (setelah
+R2-24) di branch feature/iss-02-04-sasaran-indikator. Validasi tipe
+vs komponen sesuai detail task + test. Update checkbox + Bukti.
+JANGAN commit.
+```

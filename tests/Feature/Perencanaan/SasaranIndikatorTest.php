@@ -5,6 +5,7 @@ namespace Tests\Feature\Perencanaan;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
+use App\Models\IndikatorKomponen;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
@@ -458,6 +459,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => $regulasiBaru->id,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertRedirect();
@@ -483,6 +485,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => null,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $this->assertDatabaseHas('indikator_kinerjas', [
@@ -803,6 +806,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertRedirect();
@@ -951,6 +955,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $inactiveUnit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $updateTransferResponse->assertSessionHasErrors(['unit_id']);
@@ -964,6 +969,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $updateSameResponse->assertRedirect();
@@ -1188,6 +1194,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertSessionHasErrors(['sasaran_strategis_id']);
@@ -1225,6 +1232,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $unitBaru->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
         $response->assertSessionHasErrors(['unit_id']);
 
@@ -1456,6 +1464,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
         $responseUpdate->assertForbidden();
 
@@ -1547,6 +1556,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $unitNonaktif->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertSessionHasErrors(['unit_id']);
@@ -1587,6 +1597,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $unitBaru->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         // Edit gabungan yang memuat perubahan unit ditolak utuh: tidak ada mutasi parsial dan tidak ada audit
@@ -1650,6 +1661,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();
@@ -1745,6 +1757,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 'SS-UPDATE-DENIED-MOD',
             'deskripsi' => 'Deskripsi Berubah Yang Harus Ditolak',
             'urutan' => 2,
+            'expected_updated_at' => $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertForbidden();
@@ -1909,6 +1922,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $unitLama->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertRedirect();
@@ -1930,6 +1944,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $unitLainNonaktif->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $responseTransferDenied->assertSessionHasErrors(['unit_id']);
@@ -2043,6 +2058,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'jenis_agregasi' => 'diubah_acak',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $response->assertRedirect();
@@ -2113,6 +2129,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => $this->regulasi->id,
+            'expected_updated_at' => $indikatorExisting->fresh()->updated_at?->toISOString() ?? $indikatorExisting->fresh()->created_at->toISOString(),
         ]);
 
         $responseUpdate->assertForbidden();
@@ -2183,6 +2200,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => $regulasiNonaktif->id,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $responseUpdate->assertSessionHasErrors(['regulasi_id']);
@@ -2274,6 +2292,7 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => null,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $responseUpdate->assertRedirect();
@@ -2346,10 +2365,106 @@ class SasaranIndikatorTest extends TestCase
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'regulasi_id' => $this->regulasi->id,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
         $responseUpdate->assertSessionHasErrors(['regulasi_id']);
         $this->assertNull($indikator->fresh()->regulasi_id);
+    }
+
+    public function test_r224_regulasi_lama_nonaktif_tetap_dipertahankan_saat_edit_nama(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R224-SAMA',
+            'deskripsi' => 'Sasaran R2-24 Grandfather Sama',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R224-SAMA',
+            'nama' => 'Indikator R2-24 Nama Lama',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        // Regulasi lama dinonaktifkan belakangan via DB langsung.
+        Regulasi::whereKey($this->regulasi->id)->update(['aktif' => false]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R224-SAMA',
+            'nama' => 'Indikator R2-24 Nama Baru',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('Indikator R2-24 Nama Baru', $indikator->fresh()->nama);
+        $this->assertSame($this->regulasi->id, $indikator->fresh()->regulasi_id);
+    }
+
+    public function test_r224_ganti_ke_regulasi_nonaktif_lain_ditolak_422(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R224-BARU',
+            'deskripsi' => 'Sasaran R2-24 Grandfather Baru',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R224-BARU',
+            'nama' => 'Indikator R2-24 Rujukan Lama',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $regulasiLainNonaktif = Regulasi::create([
+            'jenis' => 'permen',
+            'nomor' => '77/R224/2024',
+            'tahun' => 2024,
+            'tentang' => 'Regulasi Lain Nonaktif R2-24',
+            'aktif' => false,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        // Regulasi lama ikut dinonaktifkan agar jelas: yang sama
+        // dipertahankan, yang BARU nonaktif tetap ditolak.
+        Regulasi::whereKey($this->regulasi->id)->update(['aktif' => false]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R224-BARU',
+            'nama' => 'Indikator R2-24 Rujukan Lama',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $regulasiLainNonaktif->id,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors(['regulasi_id']);
+        $this->assertSame($this->regulasi->id, $indikator->fresh()->regulasi_id);
+        $this->assertSame('Indikator R2-24 Rujukan Lama', $indikator->fresh()->nama);
     }
 
     public function test_r220_store_sasaran_gagal_terkontrol_saat_renstra_dihapus_tengah_jalan(): void
@@ -2389,6 +2504,117 @@ class SasaranIndikatorTest extends TestCase
 
         $this->assertDatabaseMissing('sasaran_strategis', ['kode' => 'SS-R220-RACE-LOST']);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'sasaran.buat']);
+    }
+
+    public function test_r225_ubah_tipe_rasio_berkomponen_ke_manual_ditolak_422(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R225-TOLAK',
+            'deskripsi' => 'Sasaran R2-25 Tolak Ubah Tipe',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R225-TOLAK',
+            'nama' => 'Indikator R2-25 Rasio Berkomponen',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $pembilang = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'n',
+            'label' => 'Pembilang R2-25',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $penyebut = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 't',
+            'label' => 'Penyebut R2-25',
+            'peran' => 'penyebut',
+            'bobot' => 1.0,
+            'urutan' => 2,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R225-TOLAK',
+            'nama' => 'Indikator R2-25 Rasio Berkomponen',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors(['tipe_perhitungan']);
+        $this->assertSame('rasio_persen', $indikator->fresh()->tipe_perhitungan);
+        $this->assertSame('Indikator R2-25 Rasio Berkomponen', $indikator->fresh()->nama);
+        $this->assertTrue($pembilang->fresh()->aktif);
+        $this->assertTrue($penyebut->fresh()->aktif);
+        $this->assertSame('pembilang', $pembilang->fresh()->peran);
+        $this->assertSame('penyebut', $penyebut->fresh()->peran);
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'indikator.ubah',
+            'objek_id' => $indikator->id,
+        ]);
+    }
+
+    public function test_r225_ubah_tipe_rasio_tanpa_komponen_ke_manual_lolos(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R225-LOLOS',
+            'deskripsi' => 'Sasaran R2-25 Lolos Ubah Tipe',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R225-LOLOS',
+            'nama' => 'Indikator R2-25 Nama Lama',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R225-LOLOS',
+            'nama' => 'Indikator R2-25 Nama Baru',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('manual', $indikator->fresh()->tipe_perhitungan);
+        $this->assertSame('Indikator R2-25 Nama Baru', $indikator->fresh()->nama);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'indikator.ubah',
+            'objek_id' => $indikator->id,
+        ]);
     }
 
     /**

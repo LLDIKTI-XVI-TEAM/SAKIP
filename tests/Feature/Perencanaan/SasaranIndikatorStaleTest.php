@@ -170,6 +170,256 @@ class SasaranIndikatorStaleTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_update_sasaran_tanpa_token_ditolak_422_tanpa_overwrite_dan_tanpa_audit_kedua(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-NOTOKEN',
+            'deskripsi' => 'Deskripsi awal',
+            'urutan' => 1,
+        ]);
+
+        // T1 dibaca tetapi TIDAK dikirim pada percobaan kedua.
+        $tokenT1 = $sasaran->updated_at?->toISOString() ?? $sasaran->created_at->toISOString();
+
+        Carbon::setTestNow(now()->addSeconds(5));
+
+        // Mutasi lain memakai T1 → baris kini pada T2.
+        $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-NOTOKEN',
+            'deskripsi' => 'Deskripsi oleh tab pertama',
+            'urutan' => 1,
+            'expected_updated_at' => $tokenT1,
+        ]);
+        $responseA->assertSessionHasNoErrors();
+        $responseA->assertRedirect();
+
+        $this->assertSame('Deskripsi oleh tab pertama', $sasaran->fresh()->deskripsi);
+
+        Carbon::setTestNow(now()->addSeconds(5));
+
+        // Direct request TANPA token: wajib ditolak validasi, bukan bypass.
+        $payloadTanpaToken = [
+            'kode' => 'SS-NOTOKEN',
+            'deskripsi' => 'Deskripsi overwrite tanpa token',
+            'urutan' => 1,
+        ];
+
+        $responseB = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", $payloadTanpaToken);
+        $responseB->assertSessionHasErrors('expected_updated_at');
+
+        $responseBJson = $this->actingAs($this->perencanaan)->putJson("/perencanaan/sasaran/{$sasaran->id}", $payloadTanpaToken);
+        $responseBJson->assertStatus(422);
+        $responseBJson->assertJsonValidationErrors(['expected_updated_at']);
+
+        $this->assertSame('Deskripsi oleh tab pertama', $sasaran->fresh()->deskripsi);
+
+        $this->assertSame(1, AuditLog::where('tindakan', 'sasaran.ubah')->where('objek_id', $sasaran->id)->count());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_update_indikator_tanpa_token_ditolak_422_tanpa_overwrite_dan_tanpa_audit_kedua(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-NOTOKEN-IKU',
+            'deskripsi' => 'Sasaran uji token wajib',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-NOTOKEN',
+            'nama' => 'Nama Awal',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        // T1 dibaca tetapi TIDAK dikirim pada percobaan kedua.
+        $tokenT1 = $indikator->updated_at?->toISOString() ?? $indikator->created_at->toISOString();
+
+        Carbon::setTestNow(now()->addSeconds(5));
+
+        // Mutasi lain memakai T1 → baris kini pada T2.
+        $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-NOTOKEN',
+            'nama' => 'Nama Oleh Tab Pertama',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $tokenT1,
+        ]);
+        $responseA->assertSessionHasNoErrors();
+        $responseA->assertRedirect();
+
+        $this->assertSame('Nama Oleh Tab Pertama', $indikator->fresh()->nama);
+
+        Carbon::setTestNow(now()->addSeconds(5));
+
+        // Direct request TANPA token: wajib ditolak validasi, bukan bypass.
+        $payloadTanpaToken = [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-NOTOKEN',
+            'nama' => 'Nama Overwrite Tanpa Token',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ];
+
+        $responseB = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", $payloadTanpaToken);
+        $responseB->assertSessionHasErrors('expected_updated_at');
+
+        $responseBJson = $this->actingAs($this->perencanaan)->putJson("/perencanaan/indikator/{$indikator->id}", $payloadTanpaToken);
+        $responseBJson->assertStatus(422);
+        $responseBJson->assertJsonValidationErrors(['expected_updated_at']);
+
+        $this->assertSame('Nama Oleh Tab Pertama', $indikator->fresh()->nama);
+
+        $this->assertSame(1, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $indikator->id)->count());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_update_sasaran_dua_save_detik_sama_save_kedua_ditolak_409(): void
+    {
+        $beku = Carbon::parse('2026-10-01 12:00:00');
+        Carbon::setTestNow($beku);
+
+        try {
+            $sasaran = SasaranStrategis::create([
+                'renstra_id' => $this->renstra->id,
+                'kode' => 'SS-SAMADETIK',
+                'deskripsi' => 'Deskripsi awal',
+                'urutan' => 1,
+            ]);
+
+            $tokenAwal = $sasaran->updated_at?->toISOString() ?? $sasaran->created_at->toISOString();
+
+            $payloadA = [
+                'kode' => 'SS-SAMADETIK',
+                'deskripsi' => 'Deskripsi oleh save pertama',
+                'urutan' => 1,
+                'expected_updated_at' => $tokenAwal,
+            ];
+
+            $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", $payloadA);
+            $responseA->assertSessionHasNoErrors();
+            $responseA->assertRedirect();
+
+            $this->assertSame('Deskripsi oleh save pertama', $sasaran->fresh()->deskripsi);
+            $this->assertNotSame($tokenAwal, $sasaran->fresh()->updated_at?->toISOString());
+
+            // Waktu dibekukan: tanpa kenaikan monotonik, save kedua
+            // dalam detik yang sama akan menghasilkan updated_at identik
+            // dan lolos guard usang.
+            $payloadB = [
+                'kode' => 'SS-SAMADETIK',
+                'deskripsi' => 'Deskripsi oleh save kedua usang',
+                'urutan' => 1,
+                'expected_updated_at' => $tokenAwal,
+            ];
+
+            $responseB = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", $payloadB);
+            $responseB->assertSessionHasErrors('konflik');
+
+            $responseBJson = $this->actingAs($this->perencanaan)->putJson("/perencanaan/sasaran/{$sasaran->id}", $payloadB);
+            $responseBJson->assertStatus(409);
+            $responseBJson->assertJsonValidationErrors(['konflik']);
+
+            $this->assertSame('Deskripsi oleh save pertama', $sasaran->fresh()->deskripsi);
+
+            $this->assertSame(1, AuditLog::where('tindakan', 'sasaran.ubah')->where('objek_id', $sasaran->id)->count());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_update_indikator_dua_save_detik_sama_save_kedua_ditolak_409(): void
+    {
+        $beku = Carbon::parse('2026-10-01 12:00:00');
+        Carbon::setTestNow($beku);
+
+        try {
+            $sasaran = SasaranStrategis::create([
+                'renstra_id' => $this->renstra->id,
+                'kode' => 'SS-SAMADETIK-IKU',
+                'deskripsi' => 'Sasaran uji monotonik',
+                'urutan' => 1,
+            ]);
+
+            $indikator = IndikatorKinerja::create([
+                'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-SAMADETIK',
+                'nama' => 'Nama Awal',
+                'satuan' => '%',
+                'unit_id' => $this->unit->id,
+                'arah' => 'naik_baik',
+                'tipe_perhitungan' => 'manual',
+                'status' => 'aktif',
+                'tahun_mulai_berlaku' => 2025,
+                'created_by' => $this->perencanaan->id,
+                'created_by_role' => 'perencanaan',
+            ]);
+
+            $tokenAwal = $indikator->updated_at?->toISOString() ?? $indikator->created_at->toISOString();
+
+            $payloadA = [
+                'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-SAMADETIK',
+                'nama' => 'Nama Oleh Save Pertama',
+                'satuan' => '%',
+                'unit_id' => $this->unit->id,
+                'arah' => 'naik_baik',
+                'tipe_perhitungan' => 'manual',
+                'expected_updated_at' => $tokenAwal,
+            ];
+
+            $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", $payloadA);
+            $responseA->assertSessionHasNoErrors();
+            $responseA->assertRedirect();
+
+            $this->assertSame('Nama Oleh Save Pertama', $indikator->fresh()->nama);
+            $this->assertNotSame($tokenAwal, $indikator->fresh()->updated_at?->toISOString());
+
+            // Waktu dibekukan: tanpa kenaikan monotonik, save kedua
+            // dalam detik yang sama akan menghasilkan updated_at identik
+            // dan lolos guard usang.
+            $payloadB = [
+                'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-SAMADETIK',
+                'nama' => 'Nama Oleh Save Kedua Usang',
+                'satuan' => '%',
+                'unit_id' => $this->unit->id,
+                'arah' => 'naik_baik',
+                'tipe_perhitungan' => 'manual',
+                'expected_updated_at' => $tokenAwal,
+            ];
+
+            $responseB = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", $payloadB);
+            $responseB->assertSessionHasErrors('konflik');
+
+            $responseBJson = $this->actingAs($this->perencanaan)->putJson("/perencanaan/indikator/{$indikator->id}", $payloadB);
+            $responseBJson->assertStatus(409);
+            $responseBJson->assertJsonValidationErrors(['konflik']);
+
+            $this->assertSame('Nama Oleh Save Pertama', $indikator->fresh()->nama);
+
+            $this->assertSame(1, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $indikator->id)->count());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     private function buatUserDenganRole(string $roleName, string $email): User
     {
         $role = Role::where('kode', $roleName)->firstOrFail();
