@@ -1,5 +1,10 @@
 <?php
 
+use App\Actions\Audit\WriteAuditLog;
+use App\Actions\Renstra\CreateRenstraAction;
+use App\Actions\Renstra\DeleteRenstraAction;
+use App\Actions\Renstra\DeleteRenstraAttachmentAction;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\Berkas;
 use App\Models\Permission;
@@ -8,14 +13,19 @@ use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
+use App\Services\Authorization\PermissionResolver as CanonicalPermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
 use App\Services\PermissionResolver;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Database\Seeders\RegulasiPermissionSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1594,4 +1604,226 @@ test('Validasi regulasi_id pada Renstra menolak regulasi nonaktif kecuali jika s
         'regulasi_id' => $regulasiNonaktif2->id,
     ]);
     $responseUpdateChangeInactive->assertSessionHasErrors(['regulasi_id']);
+});
+
+/** Jalur langsung membuktikan guard use case tanpa bergantung pada FormRequest. */
+function mutasiRenstraLangsung(string $operation, User $actor, Renstra $renstra, Berkas $berkas, array $extra = []): mixed
+{
+    $data = array_replace(['nama' => $renstra->nama, 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture Renstra'], $extra);
+
+    return match ($operation) {
+        'create' => app(CreateRenstraAction::class)->handle($actor, ['kode' => 'RENSTRA-BARU', ...$data]),
+        'update' => app(UpdateRenstraAction::class)->handle($actor, $renstra, $data),
+        'delete' => app(DeleteRenstraAction::class)->handle($actor, $renstra, $data['alasan']),
+        'attachment' => app(DeleteRenstraAttachmentAction::class)->handle($actor, $renstra, $berkas, $data['alasan']),
+    };
+}
+
+function tolakIzinRenstra(User $actor, string $permission): UserPermissionDeny
+{
+    return UserPermissionDeny::create(['user_id' => $actor->id, 'permission_id' => Permission::where('kode', $permission)->value('id'), 'alasan' => 'Penolakan izin fixture Renstra', 'ditetapkan_oleh' => $actor->id]);
+}
+
+test('pasangan tahun efektif update memakai tahun akhir tersimpan ketika kedua alias dihilangkan', function (): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $before = $renstra->fresh()->getAttributes();
+    $this->actingAs($this->perencanaan)->put('/renstra/'.$renstra->id, ['nama' => 'Rentang terbalik', 'tahun_mulai' => 2030])
+        ->assertSessionHasErrors(['tahun_akhir', 'tahun_selesai']);
+    expect($renstra->fresh()->getAttributes())->toBe($before);
+    expect(AuditLog::where('tindakan', 'renstra.ubah')->exists())->toBeFalse();
+});
+
+test('default dan alias tahun serta omission tetap menyimpan kontrak Renstra', function (): void {
+    $this->actingAs($this->perencanaan)->post('/renstra', ['nama' => 'Default tahun', 'tahun_mulai' => 2025])->assertRedirect('/renstra');
+    $renstra = Renstra::sole();
+    expect($renstra->kode)->toBe('RENSTRA-2025-2025')->and($renstra->tahun_selesai)->toBe(2025);
+    $this->put('/renstra/'.$renstra->id, ['nama' => $renstra->nama, 'tahun_mulai' => 2025, 'tahun_akhir' => 2029, 'keterangan' => 'Alias deskripsi'])->assertRedirect();
+    expect($renstra->fresh()->tahun_selesai)->toBe(2029)->and($renstra->fresh()->deskripsi)->toBe('Alias deskripsi');
+    $this->put('/renstra/'.$renstra->id, ['nama' => $renstra->nama, 'tahun_mulai' => 2026, 'deskripsi' => null])->assertRedirect();
+    expect($renstra->fresh()->tahun_selesai)->toBe(2029)->and($renstra->fresh()->deskripsi)->toBeNull();
+    $this->put('/renstra/'.$renstra->id, ['nama' => $renstra->nama, 'tahun_mulai' => 2026, 'tahun_selesai' => 2030, 'tahun_akhir' => 2029])->assertRedirect();
+    expect($renstra->fresh()->tahun_selesai)->toBe(2030);
+});
+
+test('audit request memakai keputusan penolakan pertama yang sama', function (string $operation, string $permission, string $event): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    $real = app(PermissionResolver::class);
+    $calls = 0;
+    $resolver = Mockery::mock(PermissionResolver::class);
+    $resolver->shouldReceive('resolve')->andReturnUsing(function ($actor, string $code, ...$args) use ($real, $permission, &$calls): PermissionDecision {
+        if ($code === $permission) {
+            $calls++;
+
+            return new PermissionDecision($calls > 1, $code, ['alasan' => 'fixture_keputusan_awal', 'sumber_allow' => [], 'deny' => ['deny-awal']]);
+        }
+
+        return $real->resolve($actor, $code, ...$args);
+    });
+    app()->instance(PermissionResolver::class, $resolver);
+    app()->instance(CanonicalPermissionResolver::class, $resolver);
+    $path = $operation === 'create' ? '/renstra' : '/renstra/'.$renstra->id.($operation === 'attachment' ? '/berkas/'.$berkas->id : '');
+    $this->actingAs($this->perencanaan)->call(match ($operation) {
+        'create' => 'POST', 'update' => 'PUT', default => 'DELETE'
+    }, $path, ['alasan' => 'Penolakan fixture'])->assertForbidden();
+    $audit = AuditLog::where('tindakan', $event)->sole();
+    expect($audit->dasar_izin['keputusan'])->toBe('ditolak')->and($audit->dasar_izin['deny'])->toBe(['deny-awal']);
+    expect($calls)->toBe(1);
+})->with([
+    ['create', PermissionCodes::RENSTRA_CREATE, 'renstra.buat_ditolak'],
+    ['update', PermissionCodes::RENSTRA_UPDATE, 'renstra.ubah_ditolak'],
+    ['delete', PermissionCodes::RENSTRA_DELETE, 'renstra.hapus_ditolak'],
+    ['attachment', PermissionCodes::BERKAS_DELETE, 'berkas.hapus_ditolak'],
+]);
+
+test('penolakan request dengan alasan kontrol tetap 403', function (string $operation, string $permission, string $event): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    tolakIzinRenstra($this->perencanaan, $permission);
+    $path = $operation === 'create' ? '/renstra' : '/renstra/'.$renstra->id.($operation === 'attachment' ? '/berkas/'.$berkas->id : '');
+    $this->actingAs($this->perencanaan)->call(match ($operation) {
+        'create' => 'POST', 'update' => 'PUT', default => 'DELETE'
+    }, $path, ['alasan' => str_repeat("\x01", 12)])->assertForbidden();
+    $audit = AuditLog::where('tindakan', $event)->sole();
+    expect(trim($audit->alasan))->not->toBe('')->and($audit->dasar_izin['keputusan'])->toBe('ditolak');
+})->with([
+    ['create', PermissionCodes::RENSTRA_CREATE, 'renstra.buat_ditolak'],
+    ['update', PermissionCodes::RENSTRA_UPDATE, 'renstra.ubah_ditolak'],
+    ['delete', PermissionCodes::RENSTRA_DELETE, 'renstra.hapus_ditolak'],
+    ['attachment', PermissionCodes::BERKAS_DELETE, 'berkas.hapus_ditolak'],
+]);
+
+test('metadata create ditolak membatasi input raw dan UTF8 sebelum audit', function (bool $structured): void {
+    $payload = $structured
+        ? ['nama' => ['rahasia' => 'jangan salin'], 'tahun_mulai' => ['nested'], 'tahun_selesai' => ['nested']]
+        : ['nama' => str_repeat('é', 300)."\xB1", 'tahun_mulai' => str_repeat('2', 2000), 'tahun_selesai' => "2029\xB1"];
+    $this->actingAs($this->pembaca)->post('/renstra', $payload)->assertForbidden();
+    $meta = AuditLog::where('tindakan', 'renstra.buat_ditolak')->sole()->nilai_baru;
+    foreach (['nama', 'tahun_mulai', 'tahun_selesai'] as $field) {
+        expect(is_array($meta[$field]))->toBeFalse();
+        if ($structured) {
+            expect($meta[$field])->toBeNull();
+        } else {
+            expect(mb_check_encoding((string) $meta[$field], 'UTF-8'))->toBeTrue();
+            expect(mb_strlen((string) $meta[$field]))->toBeLessThanOrEqual(255);
+        }
+    }
+})->with([true, false]);
+
+test('guard parent berlaku pada penghapusan lampiran langsung', function (): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    $deny = tolakIzinRenstra($this->perencanaan, PermissionCodes::RENSTRA_DELETE);
+    tolakIzinRenstra($this->perencanaan, PermissionCodes::RENSTRA_UPDATE);
+    expect(fn () => mutasiRenstraLangsung('attachment', $this->perencanaan, $renstra, $berkas))->toThrow(AuthorizationException::class);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+    $audit = AuditLog::where('tindakan', 'berkas.hapus_ditolak')->sole();
+    expect($audit->dasar_izin['permission'])->toBe(PermissionCodes::RENSTRA_DELETE)->and($audit->dasar_izin['deny'])->toContain($deny->id);
+});
+
+test('lampiran induk lain menghasilkan 404 pada request dan batas mutasi', function (): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $other = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-LAIN']);
+    $berkas = $other->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    $this->actingAs($this->perencanaan)->delete('/renstra/'.$renstra->id.'/berkas/'.$berkas->id, ['alasan' => 'Induk yang berbeda'])->assertNotFound();
+    expect(fn () => mutasiRenstraLangsung('attachment', $this->perencanaan, $renstra, $berkas))->toThrow(ModelNotFoundException::class);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+});
+
+test('rollback audit mempertahankan DB dan berkas existing serta menghapus hanya unggahan baru', function (string $operation): void {
+    $disk = Storage::fake('local');
+    $renstra = buatRenstra($this->perencanaan);
+    $path = 'berkas/renstra/'.$renstra->id.'/existing.pdf';
+    $disk->put($path, 'Arsip existing');
+    $berkas = $renstra->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $before = $renstra->fresh()->getAttributes();
+    $auditCount = AuditLog::count();
+    $writer = app(WriteAuditLog::class);
+    $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $attributes) use ($writer): AuditLog {
+        if ($attributes['tindakan'] !== 'berkas.unggah') {
+            throw new RuntimeException('Audit fixture gagal');
+        }
+
+        return $writer->handle($attributes);
+    });
+    expect(fn () => mutasiRenstraLangsung($operation, $this->perencanaan, $renstra, $berkas, ['lampiran' => [['mode' => 'file', 'file' => UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf')]]]))->toThrow(RuntimeException::class, 'Audit fixture gagal');
+    expect($renstra->fresh()->getAttributes())->toBe($before)->and($berkas->fresh()->trashed())->toBeFalse();
+    $this->assertDatabaseCount('renstras', 1);
+    $this->assertDatabaseCount('berkas', 1);
+    $this->assertDatabaseCount('audit_log', $auditCount);
+    expect($disk->allFiles('berkas/renstra'))->toBe([$path]);
+})->with(['create', 'update', 'delete', 'attachment']);
+
+test('kegagalan cleanup fisik aman dan tidak menutupi hasil utama', function (bool $compensate, bool $throws): void {
+    $disk = Storage::fake('local');
+    $renstra = buatRenstra($this->perencanaan);
+    $path = 'berkas/renstra/'.$renstra->id.'/existing.pdf';
+    $disk->put($path, 'Arsip existing');
+    $berkas = $renstra->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $failingDisk = Mockery::mock($disk)->makePartial();
+    $delete = $failingDisk->shouldReceive('delete')->once();
+    $throws ? $delete->andThrow(new RuntimeException('Pesan storage privat')) : $delete->andReturn(false);
+    Storage::set('local', $failingDisk);
+    Log::spy();
+    if ($compensate) {
+        $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('Audit fixture utama'));
+        expect(fn () => mutasiRenstraLangsung('update', $this->perencanaan, $renstra, $berkas, ['lampiran' => [['mode' => 'file', 'file' => UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf')]]]))->toThrow(RuntimeException::class, 'Audit fixture utama');
+        expect($berkas->fresh()->trashed())->toBeFalse();
+    } else {
+        mutasiRenstraLangsung('attachment', $this->perencanaan, $renstra, $berkas);
+        expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeTrue();
+        expect(AuditLog::where('tindakan', 'berkas.hapus')->count())->toBe(1);
+    }
+    Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $context['jumlah_file'] === 1 && array_intersect(['path', 'exception', 'message'], array_keys($context)) === []);
+})->with([[true, false], [true, true], [false, false], [false, true]]);
+
+test('dependensi PK dan jadwal masing-masing mencegah penghapusan Renstra', function (string $dependency): void {
+    $renstra = buatRenstra($this->perencanaan);
+    if ($dependency === 'pk') {
+        $renstra->renstraPk()->create(['tahun' => 2025, 'nomor_pk' => 'PK-2025', 'tanggal_pk' => '2025-01-01', 'created_by' => $this->perencanaan->id]);
+    } else {
+        $renstra->jadwalTahunan()->create(['tahun' => 2025, 'status' => 'draft', 'penutupan' => '2025-12-31']);
+    }
+    $this->actingAs($this->perencanaan)->delete('/renstra/'.$renstra->id, ['alasan' => 'Tidak boleh kehilangan dependensi'])->assertSessionHasErrors('renstra');
+    expect($renstra->fresh())->not->toBeNull();
+    expect(AuditLog::where('tindakan', 'renstra.hapus_ditolak')->sole()->nilai_baru['has_'.$dependency])->toBeTrue();
+})->with(['pk', 'jadwal']);
+
+test('penolakan unggah pada batas mutasi memakai keputusan asli tanpa resolusi ulang', function (string $operation): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    $real = app(CanonicalPermissionResolver::class);
+    $calls = 0;
+    $this->mock(CanonicalPermissionResolver::class)->shouldReceive('resolve')->andReturnUsing(function ($actor, string $code, ...$args) use ($real, &$calls): PermissionDecision {
+        if ($code === PermissionCodes::BERKAS_UPLOAD) {
+            $calls++;
+
+            return new PermissionDecision($calls > 1, $code, ['alasan' => 'explicit_deny', 'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => ['deny-unggah-asli']]);
+        }
+
+        return $real->resolve($actor, $code, ...$args);
+    });
+    expect(fn () => mutasiRenstraLangsung($operation, $this->perencanaan, $renstra, $berkas, ['lampiran' => [['mode' => 'teks', 'isi_teks' => 'Ditolak']]]))->toThrow(AuthorizationException::class);
+    $audit = AuditLog::where('tindakan', $operation === 'create' ? 'renstra.buat_ditolak' : 'renstra.ubah_ditolak')->sole();
+    expect($calls)->toBe(1)->and($audit->dasar_izin['keputusan'])->toBe('ditolak')->and($audit->dasar_izin['deny'])->toBe(['deny-unggah-asli']);
+    expect($audit->nilai_baru)->toBe(['alasan_penolakan' => 'berkas_upload_denied']);
+    $this->assertDatabaseCount('renstras', 1);
+    $this->assertDatabaseCount('berkas', 1);
+})->with(['create', 'update']);
+
+test('update tanpa perubahan tetap diaudit pada baris Renstra yang sama', function (): void {
+    $renstra = buatRenstra($this->perencanaan);
+    $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Awal', 'uploaded_by' => $this->perencanaan->id]);
+    mutasiRenstraLangsung('update', $this->perencanaan, $renstra, $berkas);
+    $audit = AuditLog::where('tindakan', 'renstra.ubah')->sole();
+    expect($audit->objek_id)->toBe($renstra->id)->and($audit->nilai_baru)->toBe($audit->nilai_lama);
+    expect($audit->nilai_baru['lampiran'][0]['uploaded_by'])->toBe($this->perencanaan->id);
+    $this->assertDatabaseCount('renstras', 1);
+});
+
+test('metadata penolakan mempertahankan bentuk tahun yang sah menurut validator integer', function (): void {
+    $this->actingAs($this->pembaca)->post('/renstra', ['nama' => 'Renstra é valid', 'tahun_mulai' => '+2025', 'tahun_selesai' => 2029.0])->assertForbidden();
+    expect(AuditLog::where('tindakan', 'renstra.buat_ditolak')->sole()->nilai_baru)->toBe([
+        'nama' => 'Renstra é valid', 'tahun_mulai' => '+2025', 'tahun_selesai' => 2029,
+    ]);
 });

@@ -5,7 +5,7 @@ namespace App\Policies;
 use App\Models\Berkas;
 use App\Models\Renstra;
 use App\Models\User;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
@@ -43,16 +43,20 @@ class RenstraPolicy
 
     public function deleteAttachment(User $user, ?Renstra $renstra = null, ?Berkas $berkas = null): Response
     {
+        return $this->response($this->deleteAttachmentDecision($user));
+    }
+
+    /** Parent delete menang saat kedua alternatif ditolak, sesuai basis audit alur lampiran. */
+    public function deleteAttachmentDecision(User $user): PermissionDecision
+    {
         $parentDeleteDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
         $parentUpdateDecision = $this->permissionResolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
 
         if (! $parentDeleteDecision->allowed && ! $parentUpdateDecision->allowed) {
-            return $this->response($parentDeleteDecision);
+            return $parentDeleteDecision;
         }
 
-        $berkasDecision = $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
-
-        return $this->response($berkasDecision);
+        return $this->permissionResolver->resolve($user, PermissionCodes::BERKAS_DELETE);
     }
 
     public function uploadAttachment(User $user, ?Renstra $renstra = null): Response

@@ -5,14 +5,16 @@ namespace App\Http\Requests\Renstra;
 use App\Models\Berkas;
 use App\Models\Renstra;
 use App\Models\User;
+use App\Policies\RenstraPolicy;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
-use App\Support\PermissionCodes;
+use App\Support\AuditReason;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 
 class DestroyBerkasRenstraRequest extends FormRequest
 {
+    private ?PermissionDecision $initialDecision = null;
+
     public function authorize(): bool
     {
         $renstra = $this->route('renstra');
@@ -26,7 +28,13 @@ class DestroyBerkasRenstraRequest extends FormRequest
             abort(404, 'Lampiran tidak terkait dengan Renstra ini.');
         }
 
-        return Gate::allows('deleteAttachment', [$renstra, $berkas]);
+        $user = $this->user();
+        if (! $user instanceof User) {
+            return false;
+        }
+        $this->initialDecision = app(RenstraPolicy::class)->deleteAttachmentDecision($user);
+
+        return $this->initialDecision->allowed;
     }
 
     protected function failedAuthorization(): void
@@ -34,19 +42,10 @@ class DestroyBerkasRenstraRequest extends FormRequest
         $user = $this->user();
         $berkas = $this->route('berkas');
 
-        if ($user instanceof User && $berkas instanceof Berkas) {
-            $resolver = app(PermissionResolver::class);
-            $parentDelete = $resolver->resolve($user, PermissionCodes::RENSTRA_DELETE);
-            $parentUpdate = $resolver->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+        if ($user instanceof User && $berkas instanceof Berkas && $this->initialDecision !== null) {
+            $decision = $this->initialDecision;
 
-            if (! $parentDelete->allowed && ! $parentUpdate->allowed) {
-                $decision = $parentDelete;
-            } else {
-                $decision = $resolver->resolve($user, PermissionCodes::BERKAS_DELETE);
-            }
-
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
+            $alasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000);
 
             $metadata = [
                 'id' => $berkas->id,

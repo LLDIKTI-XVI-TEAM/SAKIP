@@ -1,5 +1,10 @@
 <?php
 
+use App\Actions\Audit\WriteAuditLog;
+use App\Actions\Regulasi\CreateRegulasiAction;
+use App\Actions\Regulasi\DeleteRegulasiAction;
+use App\Actions\Regulasi\DeleteRegulasiAttachmentAction;
+use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Models\AuditLog;
 use App\Models\Berkas;
 use App\Models\IndikatorKinerja;
@@ -11,13 +16,13 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDenial;
-use App\Services\RegulasiService;
 use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -41,6 +46,7 @@ beforeEach(function (): void {
 
 test('create regulasi menyimpan tiga mode lampiran dan audit', function (): void {
     Storage::fake('local');
+    tolakIzin($this->perencanaan, PermissionCodes::BERKAS_UPLOAD);
 
     $response = $this->actingAs($this->perencanaan)->post('/regulasi', [
         'jenis' => 'kepmen',
@@ -147,7 +153,7 @@ test('kombinasi jenis nomor tahun duplikat ditolak', function (): void {
     $this->assertDatabaseCount('regulasi', 1);
 });
 
-test('konflik unique dari service diterjemahkan menjadi error validasi nomor', function (): void {
+test('konflik unique dari action diterjemahkan menjadi error validasi nomor', function (): void {
     $data = [
         'jenis' => 'perpres',
         'nomor' => 'RACE-UNIQUE-2026',
@@ -155,17 +161,17 @@ test('konflik unique dari service diterjemahkan menjadi error validasi nomor', f
         'tentang' => 'Dokumen awal untuk menguji konflik unique di database.',
         'aktif' => true,
     ];
-    $service = app(RegulasiService::class);
+    $action = app(CreateRegulasiAction::class);
 
-    $service->create($data, $this->perencanaan);
+    $action->handle($this->perencanaan, $data);
 
     $exception = null;
 
     try {
-        $service->create([
+        $action->handle($this->perencanaan, [
             ...$data,
             'tentang' => 'Dokumen kedua yang tiba setelah validasi awal berhasil.',
-        ], $this->perencanaan);
+        ]);
     } catch (ValidationException $caught) {
         $exception = $caught;
     }
@@ -175,8 +181,7 @@ test('konflik unique dari service diterjemahkan menjadi error validasi nomor', f
     $this->assertDatabaseCount('regulasi', 1);
 });
 
-test('service menghentikan semua mutasi saat resolver izin menolak', function (): void {
-    $service = app(RegulasiService::class);
+test('action menghentikan semua mutasi saat resolver izin menolak', function (): void {
     $regulasi = buatRegulasi($this->perencanaan);
     $berkas = $regulasi->berkas()->create([
         'jenis_berkas_id' => null,
@@ -186,45 +191,45 @@ test('service menghentikan semua mutasi saat resolver izin menolak', function ()
     ]);
 
     tolakIzin($this->perencanaan, PermissionCodes::REGULASI_UPDATE);
-    expect(fn () => $service->update($regulasi, [
+    expect(fn () => app(UpdateRegulasiAction::class)->handle($this->perencanaan, $regulasi, [
         'jenis' => $regulasi->jenis,
         'nomor' => $regulasi->nomor,
         'tahun' => $regulasi->tahun,
         'tentang' => 'Perubahan yang tidak boleh tersimpan.',
         'aktif' => true,
         'versi' => $regulasi->versi,
-        'alasan' => 'Izin dicabut tepat sebelum service memulai perubahan.',
-    ], $this->perencanaan))->toThrow(AuthorizationException::class);
+        'alasan' => 'Izin dicabut tepat sebelum mutasi memulai perubahan.',
+    ]))->toThrow(AuthorizationException::class);
     $this->assertDatabaseMissing('regulasi', [
         'id' => $regulasi->id,
         'tentang' => 'Perubahan yang tidak boleh tersimpan.',
     ]);
 
     tolakIzin($this->perencanaan, PermissionCodes::REGULASI_DELETE);
-    expect(fn () => $service->delete(
-        $regulasi,
-        'Izin penghapusan dicabut sebelum service memulai transaksi.',
+    expect(fn () => app(DeleteRegulasiAction::class)->handle(
         $this->perencanaan,
+        $regulasi,
+        'Izin penghapusan dicabut sebelum mutasi memulai transaksi.',
     ))->toThrow(AuthorizationException::class);
     $this->assertDatabaseHas('regulasi', ['id' => $regulasi->id]);
 
     tolakIzin($this->perencanaan, PermissionCodes::BERKAS_DELETE);
-    expect(fn () => $service->deleteAttachment(
+    expect(fn () => app(DeleteRegulasiAttachmentAction::class)->handle(
+        $this->perencanaan,
         $regulasi,
         $berkas,
-        'Izin penghapusan lampiran dicabut sebelum service memulai transaksi.',
-        $this->perencanaan,
+        'Izin penghapusan lampiran dicabut sebelum mutasi memulai transaksi.',
     ))->toThrow(AuthorizationException::class);
     expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeFalse();
 
     tolakIzin($this->perencanaan, PermissionCodes::REGULASI_CREATE);
-    expect(fn () => $service->create([
+    expect(fn () => app(CreateRegulasiAction::class)->handle($this->perencanaan, [
         'jenis' => 'keputusan_lainnya',
         'nomor' => 'CREATE-DENIED-2026',
         'tahun' => 2026,
         'tentang' => 'Regulasi ini tidak boleh dibuat setelah izin dicabut.',
         'aktif' => true,
-    ], $this->perencanaan))->toThrow(AuthorizationException::class);
+    ]))->toThrow(AuthorizationException::class);
     $this->assertDatabaseMissing('regulasi', ['nomor' => 'CREATE-DENIED-2026']);
 
     $this->assertDatabaseHas('audit_log', [
@@ -347,7 +352,7 @@ test('delete regulasi tanpa rujukan aktif berhasil dan diaudit', function (): vo
         ->and($auditBerkas->dasar_izin['permission'])->toBe(PermissionCodes::REGULASI_DELETE);
 });
 
-test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
+test('delete ditolak saat regulasi dirujuk data aktif', function (bool $renstraAktif): void {
     $regulasi = buatRegulasi($this->perencanaan);
     $renstra = Renstra::query()->create([
         'regulasi_id' => $regulasi->id,
@@ -356,7 +361,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'nama' => 'Renstra dengan regulasi aktif',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
-        'is_aktif' => true,
+        'is_aktif' => $renstraAktif,
     ]);
     $sasaran = SasaranStrategis::query()->create([
         'renstra_id' => $renstra->id,
@@ -373,7 +378,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
         'kode' => 'IKU-REGULASI',
         'nama' => 'Indikator uji regulasi',
         'satuan' => '%',
-        'is_aktif' => true,
+        'is_aktif' => ! $renstraAktif,
     ]);
 
     DB::enableQueryLog();
@@ -395,7 +400,7 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (): void {
 
     expect($lockQueries)->not->toBeEmpty();
     DB::disableQueryLog();
-});
+})->with(['rujukan renstra' => true, 'rujukan indikator' => false]);
 
 test('explicit deny menang dan dasar izin penolakan diaudit', function (): void {
     $regulasi = buatRegulasi($this->perencanaan);
@@ -562,6 +567,7 @@ test('download file privat memerlukan permission read', function (): void {
 
 test('hapus lampiran menggunakan permission berkas dan mencatat audit', function (): void {
     Storage::fake('local');
+    tolakIzin($this->perencanaan, PermissionCodes::REGULASI_DELETE);
     $regulasi = buatRegulasi($this->perencanaan);
     $path = "berkas/regulasi/{$regulasi->id}/aturan.pdf";
     Storage::disk('local')->put($path, 'isi-pdf-uji');
@@ -594,17 +600,25 @@ test('hapus lampiran menggunakan permission berkas dan mencatat audit', function
         ->and($audit->dasar_izin['permission'])->toBe(PermissionCodes::BERKAS_DELETE);
 });
 
-test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (): void {
+test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (bool $renstraAktif): void {
     $regulasi = buatRegulasi($this->perencanaan);
-    Renstra::query()->create([
+    $renstra = Renstra::query()->create([
         'regulasi_id' => $regulasi->id,
         'kode' => 'RENSTRA-LAMPIRAN',
         'created_by' => $this->perencanaan->id,
         'nama' => 'Renstra dengan regulasi aktif',
         'tahun_mulai' => 2025,
         'tahun_selesai' => 2029,
-        'is_aktif' => true,
+        'is_aktif' => $renstraAktif,
     ]);
+    if (! $renstraAktif) {
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'SS-LAMPIRAN', 'deskripsi' => 'Sasaran fixture lampiran']);
+        IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id, 'regulasi_id' => $regulasi->id,
+            'unit_id' => Unit::create(['nama' => 'Unit fixture lampiran', 'created_by' => $this->perencanaan->id])->id,
+            'kode' => 'IK-LAMPIRAN', 'nama' => 'Indikator fixture lampiran', 'satuan' => '%', 'is_aktif' => true,
+        ]);
+    }
     $berkas = $regulasi->berkas()->create([
         'jenis_berkas_id' => null,
         'mode' => 'teks',
@@ -623,7 +637,247 @@ test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (): voi
         'tindakan' => 'berkas.hapus_ditolak',
         'objek_id' => $berkas->id,
     ]);
+})->with(['rujukan renstra' => true, 'rujukan indikator' => false]);
+
+test('penolakan regulasi dengan alasan kontrol tetap 403 dan mempertahankan dasar izin', function (string $operation, string $permission, string $event): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    tolakIzin($this->perencanaan, $permission);
+    $path = '/regulasi/'.$regulasi->id.($operation === 'attachment' ? '/berkas/'.$berkas->id : '');
+    $response = $this->actingAs($this->perencanaan)->call($operation === 'update' ? 'PUT' : 'DELETE', $path, ['alasan' => str_repeat("\x01", 12)]);
+    $response->assertForbidden();
+    $audit = AuditLog::where('tindakan', $event)->sole();
+    expect($audit->dasar_izin['keputusan'])->toBe('ditolak')
+        ->and($audit->dasar_izin['permission'])->toBe($permission)
+        ->and(trim($audit->alasan))->not->toBe('');
+    expect($regulasi->fresh()->versi)->toBe(1);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+})->with([
+    ['update', PermissionCodes::REGULASI_UPDATE, 'regulasi.ubah_ditolak'],
+    ['delete', PermissionCodes::REGULASI_DELETE, 'regulasi.hapus_ditolak'],
+    ['attachment', PermissionCodes::BERKAS_DELETE, 'berkas.hapus_ditolak'],
+]);
+
+test('audit penolakan regulasi membatasi alasan multibyte sebelum validasi', function (string $operation, string $permission, string $event): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    $regulasiBefore = $regulasi->fresh()->getAttributes();
+    $berkasBefore = $berkas->fresh()->getAttributes();
+    tolakIzin($this->perencanaan, $permission);
+    $auditCount = AuditLog::count();
+    $path = '/regulasi/'.$regulasi->id.($operation === 'attachment' ? '/berkas/'.$berkas->id : '');
+
+    $this->actingAs($this->perencanaan)->call($operation === 'update' ? 'PUT' : 'DELETE', $path, [
+        'alasan' => "\x01 ".str_repeat('é', 1200)." \x01",
+    ])->assertForbidden();
+
+    $audit = AuditLog::where('tindakan', $event)->sole();
+    expect($audit->alasan)->toBe(str_repeat('é', 1000))
+        ->and(mb_check_encoding($audit->alasan, 'UTF-8'))->toBeTrue()
+        ->and($audit->dasar_izin['keputusan'])->toBe('ditolak')
+        ->and($audit->dasar_izin['permission'])->toBe($permission)
+        ->and(AuditLog::count())->toBe($auditCount + 1)
+        ->and($regulasi->fresh()->getAttributes())->toBe($regulasiBefore)
+        ->and($berkas->fresh()->getAttributes())->toBe($berkasBefore);
+})->with([
+    ['update', PermissionCodes::REGULASI_UPDATE, 'regulasi.ubah_ditolak'],
+    ['delete', PermissionCodes::REGULASI_DELETE, 'regulasi.hapus_ditolak'],
+    ['attachment', PermissionCodes::BERKAS_DELETE, 'berkas.hapus_ditolak'],
+]);
+
+test('mutasi regulasi memeriksa status aktor segar', function (string $operation): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    User::whereKey($this->perencanaan->id)->update(['status' => 'nonaktif']);
+
+    expect(fn () => mutasiRegulasiLangsung($operation, $this->perencanaan, $regulasi, $berkas))->toThrow(AuthorizationException::class);
+    $this->assertDatabaseCount('regulasi', 1);
+    expect($regulasi->fresh()->versi)->toBe(1);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+})->with(['create', 'update', 'delete', 'attachment']);
+
+test('hapus lampiran menolak induk berbeda pada request dan batas mutasi', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $other = $regulasi->replicate();
+    $other->nomor = 'INDUK-LAIN';
+    $other->save();
+    $berkas = $other->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip induk lain', 'uploaded_by' => $this->perencanaan->id]);
+
+    $this->actingAs($this->perencanaan)->delete('/regulasi/'.$regulasi->id.'/berkas/'.$berkas->id, ['alasan' => 'Tidak boleh menghapus arsip induk lain'])->assertForbidden();
+    expect(fn () => mutasiRegulasiLangsung('attachment', $this->perencanaan, $regulasi, $berkas))->toThrow(AuthorizationException::class);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+    $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.hapus', 'objek_id' => $berkas->id]);
 });
+
+test('kegagalan audit menggulung mutasi regulasi dan hanya menghapus unggahan baru', function (string $operation): void {
+    Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $path = 'berkas/regulasi/'.$regulasi->id.'/existing.pdf';
+    Storage::disk('local')->put($path, 'Arsip existing');
+    $berkas = $regulasi->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $before = $regulasi->fresh()->getAttributes();
+    $auditCount = AuditLog::count();
+    $writer = app(WriteAuditLog::class);
+    $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $attributes) use ($writer): AuditLog {
+        if ($attributes['tindakan'] !== 'berkas.unggah') {
+            throw new RuntimeException('Kegagalan audit fixture');
+        }
+
+        return $writer->handle($attributes);
+    });
+
+    expect(fn () => mutasiRegulasiLangsung($operation, $this->perencanaan, $regulasi, $berkas, [
+        'lampiran' => [['mode' => 'file', 'file' => UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf')]],
+    ]))->toThrow(RuntimeException::class, 'Kegagalan audit fixture');
+
+    $this->assertDatabaseCount('regulasi', 1);
+    $this->assertDatabaseCount('berkas', 1);
+    $this->assertDatabaseCount('audit_log', $auditCount);
+    expect($regulasi->fresh()->getAttributes())->toBe($before);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+    expect(Storage::disk('local')->allFiles('berkas/regulasi'))->toBe([$path]);
+})->with(['create', 'update', 'delete', 'attachment']);
+
+test('kegagalan kompensasi unggahan dicatat aman tanpa menutupi error utama', function (bool $throws): void {
+    $disk = Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    $failingDisk = Mockery::mock($disk)->makePartial();
+    $delete = $failingDisk->shouldReceive('delete')->once();
+    if ($throws) {
+        $delete->andThrow(new RuntimeException('Pesan storage privat tidak boleh disalin'));
+    } else {
+        $delete->andReturn(false);
+    }
+    Storage::set('local', $failingDisk);
+    Log::spy();
+    $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('Kegagalan utama fixture'));
+
+    expect(fn () => mutasiRegulasiLangsung('update', $this->perencanaan, $regulasi, $berkas, [
+        'lampiran' => [['mode' => 'file', 'file' => UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf')]],
+    ]))->toThrow(RuntimeException::class, 'Kegagalan utama fixture');
+    $this->assertDatabaseCount('berkas', 1);
+    expect($regulasi->fresh()->versi)->toBe(1);
+    Log::shouldHaveReceived('warning')->once()->withArgs(function (string $message, array $context): bool {
+        return $context['operasi'] === 'regulasi.kompensasi_unggahan'
+            && $context['jumlah_file'] === 1
+            && array_intersect(['path', 'exception', 'message'], array_keys($context)) === [];
+    });
+})->with([false, true]);
+
+test('update tanpa perubahan tetap menaikkan versi dan mencatat audit', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    mutasiRegulasiLangsung('update', $this->perencanaan, $regulasi, $berkas);
+    expect($regulasi->fresh()->versi)->toBe(2);
+    expect(AuditLog::where('tindakan', 'regulasi.ubah')->sole()->nilai_baru['versi'])->toBe(2);
+});
+
+test('kegagalan penghapusan fisik sesudah commit tidak menggulung data', function (bool $throws): void {
+    $disk = Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $path = 'berkas/regulasi/'.$regulasi->id.'/existing.pdf';
+    $disk->put($path, 'Arsip existing');
+    $berkas = $regulasi->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $failingDisk = Mockery::mock($disk)->makePartial();
+    $delete = $failingDisk->shouldReceive('delete')->once()->with([$path]);
+    if ($throws) {
+        $delete->andThrow(new RuntimeException('Pesan storage privat tidak boleh disalin'));
+    } else {
+        $delete->andReturn(false);
+    }
+    Storage::set('local', $failingDisk);
+    Log::spy();
+
+    mutasiRegulasiLangsung('attachment', $this->perencanaan, $regulasi, $berkas);
+
+    expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeTrue();
+    expect(AuditLog::where('tindakan', 'berkas.hapus')->count())->toBe(1);
+    Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $context['operasi'] === 'regulasi.hapus_lampiran' && $context['jumlah_file'] === 1 && array_intersect(['path', 'exception', 'message'], array_keys($context)) === []);
+})->with([false, true]);
+
+test('gagal unggah kedua menggulung data dan file baru tanpa menghapus arsip existing', function (string $operation): void {
+    Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $path = 'berkas/regulasi/'.$regulasi->id.'/existing.pdf';
+    Storage::disk('local')->put($path, 'Arsip existing');
+    $berkas = $regulasi->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $file = Mockery::mock(UploadedFile::fake()->create('gagal.pdf', 10, 'application/pdf'))->makePartial();
+    $file->shouldReceive('store')->once()->andReturn(false);
+    $auditCount = AuditLog::count();
+
+    expect(fn () => mutasiRegulasiLangsung($operation, $this->perencanaan, $regulasi, $berkas, ['lampiran' => [
+        ['mode' => 'file', 'file' => UploadedFile::fake()->create('pertama.pdf', 10, 'application/pdf')],
+        ['mode' => 'file', 'file' => $file],
+    ]]))->toThrow(RuntimeException::class, 'Lampiran gagal disimpan ke private storage.');
+
+    $this->assertDatabaseCount('regulasi', 1);
+    $this->assertDatabaseCount('berkas', 1);
+    $this->assertDatabaseCount('audit_log', $auditCount);
+    expect($regulasi->fresh()->versi)->toBe(1);
+    expect(Storage::disk('local')->allFiles('berkas/regulasi'))->toBe([$path]);
+})->with(['create', 'update']);
+
+test('file existing baru dihapus sesudah audit mutasi berhasil', function (string $operation): void {
+    Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $path = 'berkas/regulasi/'.$regulasi->id.'/existing.pdf';
+    Storage::disk('local')->put($path, 'Arsip existing');
+    $berkas = $regulasi->berkas()->create(['mode' => 'file', 'path' => $path, 'nama_asli' => 'existing.pdf', 'uploaded_by' => $this->perencanaan->id]);
+    $writer = app(WriteAuditLog::class);
+    $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $attributes) use ($writer, $path): AuditLog {
+        Storage::disk('local')->assertExists($path);
+        expect(DB::transactionLevel())->toBeGreaterThan(1);
+
+        return $writer->handle($attributes);
+    });
+
+    mutasiRegulasiLangsung($operation, $this->perencanaan, $regulasi, $berkas);
+
+    Storage::disk('local')->assertMissing($path);
+    expect(Berkas::withTrashed()->findOrFail($berkas->id)->trashed())->toBeTrue();
+    expect(AuditLog::where('tindakan', 'berkas.hapus')->count())->toBe(1);
+})->with(['delete', 'attachment']);
+
+test('alasan mutasi yang habis setelah sanitasi tidak menyimpan perubahan parsial', function (string $operation): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Arsip awal', 'uploaded_by' => $this->perencanaan->id]);
+    $auditCount = AuditLog::count();
+
+    try {
+        mutasiRegulasiLangsung($operation, $this->perencanaan, $regulasi, $berkas, ['alasan' => str_repeat("\x01", 12)]);
+        test()->fail('Mutasi memerlukan alasan yang dapat dibaca.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('alasan');
+    }
+
+    expect($regulasi->fresh()->versi)->toBe(1);
+    expect($berkas->fresh()->trashed())->toBeFalse();
+    $this->assertDatabaseCount('audit_log', $auditCount);
+})->with(['update', 'delete', 'attachment']);
+
+test('capability GET tidak mengaudit sementara GET edit ditolak tetap dicatat sekali', function (): void {
+    $regulasi = buatRegulasi($this->perencanaan);
+    $auditCount = AuditLog::count();
+    $this->actingAs($this->pembaca)->get('/regulasi')->assertOk();
+    $this->get('/regulasi/'.$regulasi->id)->assertOk();
+    $this->assertDatabaseCount('audit_log', $auditCount);
+    $this->get('/regulasi/'.$regulasi->id.'/edit')->assertForbidden();
+    expect(AuditLog::where('tindakan', 'regulasi.ubah_ditolak')->sole()->dasar_izin['keputusan'])->toBe('ditolak');
+});
+
+/** Fixture langsung membuktikan invariant mutasi tanpa bergantung pada validasi HTTP. */
+function mutasiRegulasiLangsung(string $operation, User $actor, Regulasi $regulasi, Berkas $berkas, array $overrides = []): mixed
+{
+    $data = ['jenis' => $regulasi->jenis, 'nomor' => $regulasi->nomor, 'tahun' => $regulasi->tahun, 'tentang' => $regulasi->tentang, 'aktif' => true, 'alasan' => 'Alasan fixture mutasi langsung', ...$overrides];
+
+    return match ($operation) {
+        'create' => app(CreateRegulasiAction::class)->handle($actor, [...$data, 'nomor' => 'REGULASI-BARU']),
+        'update' => app(UpdateRegulasiAction::class)->handle($actor, $regulasi, [...$data, 'versi' => $regulasi->versi]),
+        'delete' => app(DeleteRegulasiAction::class)->handle($actor, $regulasi, $data['alasan']),
+        'attachment' => app(DeleteRegulasiAttachmentAction::class)->handle($actor, $regulasi, $berkas, $data['alasan']),
+    };
+}
 
 function userDenganRole(string $roleName, string $email): User
 {
@@ -659,7 +913,7 @@ function tolakIzin(User $user, string $permissionCode): void
         'user_id' => $user->id,
         'permission_id' => $permission->id,
         'unit_id' => null,
-        'alasan' => 'Izin dicabut untuk memastikan service gagal tertutup.',
+        'alasan' => 'Izin dicabut untuk memastikan mutasi gagal tertutup.',
         'ditetapkan_oleh' => $user->id,
     ]);
 }

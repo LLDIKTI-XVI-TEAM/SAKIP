@@ -5,6 +5,7 @@ namespace App\Http\Requests\Regulasi;
 use App\Models\Regulasi;
 use Illuminate\Support\Facades\Gate;
 
+/** Membuat induk beserta lampiran dengan izin regulasi:create; versi berasal dari server. */
 class StoreRegulasiRequest extends RegulasiMutationRequest
 {
     public function authorize(): bool

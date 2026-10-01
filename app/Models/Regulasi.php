@@ -82,4 +82,28 @@ class Regulasi extends Model
     {
         return $this->hasMany(IndikatorKinerja::class, 'regulasi_id');
     }
+
+    /**
+     * Penghapus induk maupun lampiran memakai guard yang sama setelah lock induk diperoleh.
+     *
+     * @return array{jumlah_renstra_aktif: int, jumlah_indikator_aktif: int}
+     */
+    public function lockReferenceCounts(): array
+    {
+        // Mengunci semua rujukan, bukan hanya yang aktif, agar status/rujukan tidak berubah
+        // setelah guard dievaluasi. Lock regulasi induk menahan insert rujukan baru via FK.
+        $renstras = $this->renstras()
+            ->select(['id', 'is_aktif'])
+            ->lockForUpdate()
+            ->get();
+        $indikatorKinerjas = $this->indikatorKinerjas()
+            ->select(['id', 'is_aktif'])
+            ->lockForUpdate()
+            ->get();
+
+        return [
+            'jumlah_renstra_aktif' => $renstras->where('is_aktif', true)->count(),
+            'jumlah_indikator_aktif' => $indikatorKinerjas->where('is_aktif', true)->count(),
+        ];
+    }
 }

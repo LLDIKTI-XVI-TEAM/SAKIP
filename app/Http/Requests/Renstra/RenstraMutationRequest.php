@@ -5,13 +5,22 @@ namespace App\Http\Requests\Renstra;
 use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\User;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
+/**
+ * @method array{nama: string, tahun_mulai: int|numeric-string, kode?: string|null,
+ *     tahun_selesai?: int|numeric-string, tahun_akhir?: int|numeric-string,
+ *     deskripsi?: string|null, keterangan?: string|null, dasar_hukum?: string|null,
+ *     regulasi_id?: string|null, alasan?: string|null,
+ *     lampiran?: array<array-key, array{mode: 'file'|'tautan'|'teks', file?: UploadedFile, tautan?: string, isi_teks?: string}>
+ * } validated($key = null, $default = null)
+ */
 abstract class RenstraMutationRequest extends FormRequest
 {
     protected ?bool $isUploadActiveCached = null;
