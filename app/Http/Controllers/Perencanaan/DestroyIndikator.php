@@ -6,7 +6,6 @@ use App\Actions\Perencanaan\DestroyIndikator as DestroyIndikatorAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Indikator\DestroyIndikatorRequest;
 use App\Models\IndikatorKinerja;
-use App\Models\SasaranStrategis;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 
@@ -20,13 +19,12 @@ class DestroyIndikator extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $renstraId = SasaranStrategis::where('id', $indikator->sasaran_strategis_id)->value('renstra_id');
-        $result = $action->handle($actor, $indikator, (string) $request->validated('alasan'));
+        $hasil = $action->handle($actor, $indikator, (string) $request->validated('alasan'));
 
-        $message = "Indikator kinerja '{$result['kode']}' telah diarsipkan dan tidak lagi menerima target pengisian baru.";
+        $message = "Indikator kinerja '{$hasil['kode']}' telah diarsipkan dan tidak lagi menerima target pengisian baru.";
 
         return redirect()
-            ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $renstraId])
+            ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $hasil['renstraId']])
             ->with('success', $message);
     }
 }

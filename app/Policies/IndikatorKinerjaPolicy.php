@@ -69,7 +69,7 @@ class IndikatorKinerjaPolicy
         $decision = $this->permissionResolver->resolve($user, PermissionCodes::INDIKATOR_DELETE);
 
         if (! $decision->allowed) {
-            $this->catatPenolakan($user, $indikator, 'indikator.hapus_ditolak', $decision);
+            $this->catatPenolakan($user, $indikator, 'indikator.arsipkan_ditolak', $decision);
         }
 
         return $this->response($decision);

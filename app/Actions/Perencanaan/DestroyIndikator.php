@@ -3,6 +3,7 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
@@ -26,10 +27,10 @@ class DestroyIndikator
      * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
      * state terkini (anti-TOCTOU): pencabutan peran/grant/deny atau
      * penonaktifan akun di tengah jalan membuat operasi gagal tertutup.
-     * Penolakan dicatat sebagai audit `indikator.hapus_ditolak` di luar
+     * Penolakan dicatat sebagai audit `indikator.arsipkan_ditolak` di luar
      * transaksi (agar tidak ikut rollback) lalu 403 dilempar.
      *
-     * @return array{diarsipkan: bool, kode: string}
+     * @return array{kode: string, renstraId: ?string}
      */
     public function handle(User $actor, IndikatorKinerja $indikator, string $alasan): array
     {
@@ -78,13 +79,17 @@ class DestroyIndikator
                 dasarIzin: $dasarIzin,
             );
 
-            return ['status' => 'archived', 'diarsipkan' => true, 'kode' => $nilaiLama['kode']];
+            return [
+                'status' => 'archived',
+                'kode' => $nilaiLama['kode'],
+                'renstraId' => $this->renstraIdUntuk($lockedIndikator->sasaran_strategis_id),
+            ];
         });
 
         if ($result['status'] === 'denied') {
             $this->auditLogger->catat(
                 actor: $actor,
-                tindakan: 'indikator.hapus_ditolak',
+                tindakan: 'indikator.arsipkan_ditolak',
                 objekTipe: 'indikator',
                 objekId: (string) $indikator->id,
                 nilaiLama: null,
@@ -95,6 +100,17 @@ class DestroyIndikator
             abort(403, 'Anda tidak berwenang mengarsipkan indikator kinerja.');
         }
 
-        return ['diarsipkan' => true, 'kode' => $result['kode']];
+        return ['kode' => $result['kode'], 'renstraId' => $result['renstraId']];
+    }
+
+    /**
+     * Membaca renstra induk sasaran memakai kunci bersama di dalam transaksi
+     * pemanggil agar controller tidak perlu query parent sendiri.
+     */
+    private function renstraIdUntuk(string $sasaranId): ?string
+    {
+        $renstraId = SasaranStrategis::whereKey($sasaranId)->sharedLock()->value('renstra_id');
+
+        return is_string($renstraId) ? $renstraId : null;
     }
 }

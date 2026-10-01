@@ -466,3 +466,48 @@ Kerjakan R2-14 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Perkuat sanitasi + regression
 test sesuai detail task. Update checkbox + Bukti. JANGAN commit.
 ```
+
+### R2-15 · [MAJOR] Vocab audit arsipkan_ditolak + controller murni
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: success `indikator.arsipkan` vs denied
+  `indikator.hapus_ditolak` tidak konsisten (query `arsipkan*`
+  melewatkan denied); + `DestroyIndikator` controller masih query
+  `renstra_id` sendiri.
+- Yang dibuat:
+  1. Rename denied → `indikator.arsipkan_ditolak` di
+     `DestroyIndikator` Action + `IndikatorKinerjaPolicy::delete`
+     (+ pesan menyertakan kata arsip, bukan hapus).
+  2. Perbarui asersi test yang mengharapkan `hapus_ditolak`
+     (grep `hapus_ditolak` di tests/).
+  3. `DestroyIndikator` Action kembalikan `['kode','renstraId']`;
+     controller murni request → Action → redirect (hapus query).
+- DoD: grep `hapus_ditolak` nihil di app/+tests/ (di luar migrasi/
+  histori audit lama bila ada); `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `app/Actions/Perencanaan/DestroyIndikator.php` (denied `indikator.hapus_ditolak` → `indikator.arsipkan_ditolak` di docblock + audit luar-transaksi; return luar kini `['kode','renstraId']` — `renstraId` dari baris terkunci dalam transaksi via helper `renstraIdUntuk()` sharedLock pola `PindahUnitIndikator`, key `diarsipkan` dihapus; audit sukses `indikator.arsipkan` + abort `Anda tidak berwenang mengarsipkan indikator kinerja.` tak berubah) + `app/Policies/IndikatorKinerjaPolicy.php::delete` (`indikator.hapus_ditolak` → `indikator.arsipkan_ditolak`; fallback audit otomatis berkata arsip, deny Response generik tak berubah) + `app/Http/Controllers/Perencanaan/DestroyIndikator.php` (query `SasaranStrategis::where` + import dihapus; murni request → Action → redirect pakai `$hasil['renstraId']`; pesan/route/flash identik) + `tests/Feature/Perencanaan/SasaranIndikatorTest.php:1864` (satu-satunya situs `indikator.hapus_ditolak` di tests/ → `indikator.arsipkan_ditolak`; 4 asersi sukses `indikator.arsipkan` utuh); verifikasi: grep `indikator.hapus_ditolak` nihil di `app/`+`tests/`; `php vendor/bin/pint --test` 4 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest focused 6 passed/35 assertions (`test_arsip_indikator_..._menolak`, `test_8_destroy_indikator_...`, `test_destroy_indikator_with_extended_dependencies_...`, `test_7_unauthorized_direct_request_ditolak_403`, `test_destroy_request_validates_minimum_reason_length`, `test_guard_arsip_...`) di PG disposable podman `postgres:17-alpine` port 5439 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r215` dihapus setelah run). Catatan scope: `hapus_ditolak` non-indikator (sasaran/unit/renstra/berkas/regulasi/jenis_berkas/komponen) tetap ada — di luar scope R2-15; DoD literal dibaca sebagai `indikator.hapus_ditolak`. HEAD `1a0bb3f`. Belum di-commit.
+
+```text
+Prompt handoff R2-15:
+Kerjakan R2-15 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Samakan vocab + murnikan
+controller sesuai detail task. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-16 · [MINOR] Seeder creator deterministik
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: `IndikatorKomponenFixtureSeeder` memakai `User::first()`
+  (tergantung urutan data) + `updateOrCreate` membawa
+  `created_by_role` immutable pada update.
+- Yang dibuat: creator fixture deterministik (lookup email/keycloak
+  fixture yang diketahui; buat bila belum ada) + pisahkan field
+  create-only (`created_by_role`, `created_by`) dari field update
+  (jangan sertakan pada update).
+- DoD: seeder deterministik di DB kosong maupun berisi; bukan
+  production path (tetap).
+- Selesai: 2026-10-01 | Bukti: `database/seeders/IndikatorKomponenFixtureSeeder.php` satu-satunya file kode tersentuh — creator kini lookup deterministik `User::where email perencanaan@sakip.local orderBy id` (konvensi email fixture yang sudah ada di file; tanpa konvensi auth baru, login tetap Keycloak SSO + JIT); baris baru memakai `keycloak_id` tetap `fixture-perencanaan-sakip-local` (baris lama se-email dipakai apa adanya, tidak ditulis ulang); peran via katalog existing (`Role where kode perencanaan`, attach `manual`, pola provenance `CreatesPengukuranFixture` dipertahankan incl. throw bila katalog kosong); 6 `updateOrCreate` diganti helper `syncIndikator`/`syncKomponen` (payload update hanya field mutable; `created_by`/`created_by_role` hanya pada create; `kode`+kunci tetap ikut create); `php vendor/bin/pint --test` file itu passed; `phpstan` 0 errors; outcome di PG disposable podman `postgres:17-alpine` port 5441 (DB/user `sakip_test`, fresh migrate; dev `sakip_db:5433` tak tersentuh; container dihapus): seed-1 OK, seed-2 idempoten OK (1 user fixture + 2 IKU + 4 komponen, `created_by_role` perencanaan), seed-3 pasca-decoy user OK (creator tetap fixture, 2 IKU + 4 komponen menunjuk fixture); Pest focused `IndikatorKomponenFixtureTest` 3 passed/24 assertions. Temuan tengah jalan: helper awal lupa ikutkan `kode` pada create (ditangkap outcome check, sudah diperbaiki + gate diulang hijau). Belum di-commit.
+
+```text
+Prompt handoff R2-16:
+Kerjakan R2-16 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Deterministikkan seeder sesuai
+detail task. Update checkbox + Bukti. JANGAN commit.
+```

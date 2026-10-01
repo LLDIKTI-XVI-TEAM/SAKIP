@@ -1861,7 +1861,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame('aktif', $indikator->fresh()->status);
         $this->assertSame(0, AuditLog::where('tindakan', 'indikator.arsipkan')->where('objek_id', (string) $indikator->id)->count());
 
-        $auditDenied = AuditLog::where('tindakan', 'indikator.hapus_ditolak')
+        $auditDenied = AuditLog::where('tindakan', 'indikator.arsipkan_ditolak')
             ->where('objek_id', (string) $indikator->id)
             ->latest('waktu')
             ->first();
