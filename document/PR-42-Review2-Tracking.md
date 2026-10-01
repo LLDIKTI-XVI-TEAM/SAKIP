@@ -749,3 +749,15 @@ R2-26) di branch feature/iss-02-04-sasaran-indikator. Fail-closed
 di Action sesuai detail task + test. Update checkbox + Bukti.
 JANGAN commit.
 ```
+
+### R2-28 � Adaptasi Phase C (Regulasi/Renstra) ke vocabulary status
+- [x] Status: SELESAI (2026-10-01) — belum di-commit (staging merge milik main session, tak disentuh)
+- Untuk apa: Phase C development masih is_aktif (DeleteRegulasiAction, lockReferenceCounts, fixture RegulasiFeatureTest) vs skema pasca-R2 yang DROP is_aktif + kolom NOT NULL baru = runtime pecah (unknown column + NOT NULL violation).
+- Yang dibuat: ganti is_aktif ? status (+ 	ahun_mulai_berlaku/created_by bila wajib) pada jalur Regulasi/Renstra Phase C yang tersentuh merge (baca RegulasiService-pengganti/Actions + fixture); JANGAN refactor Phase C di luar itu.
+- DoD: grep is_aktif nihil di jalur tersebut; pint+phpstan hijau; test Regulasi hijau di PG disposable.
+- Selesai: 2026-10-01 | Bukti: `app/Models/Regulasi.php::lockReferenceCounts` (pengganti `RegulasiService::referensiAktifTerkunci` yang terhapus di merge; `DeleteRegulasiAction`/`DeleteRegulasiAttachmentAction` sendiri nihil `is_aktif`, hanya memanggil helper ini): sisi indikator `select is_aktif` → `select status` + `where is_aktif true` → `where status aktif` (kolom `indikator_kinerjas.is_aktif` sudah DROP pasca-migrasi `2026_09_30_064700`; tanpa fix = unknown column); sisi renstra SENGAJA dipertahankan `is_aktif` (kolom `renstras.is_aktif` masih ada + sync via mutator, preseden R2-04c "kecuali domain Renstra") + `tests/Feature/RegulasiFeatureTest.php` 2 fixture `IndikatorKinerja::create` (`delete ditolak...` + `hapus lampiran ditolak...`): `is_aktif` → `status` (`! $renstraAktif ? aktif : arsip` / `aktif`) + `tahun_mulai_berlaku=$renstra->tahun_mulai` + `created_by=$this->perencanaan->id` + `created_by_role=roles->first()->kode ?? perencanaan` (pola R2-11/`CreatesPengukuranFixture`; `Renstra::create is_aktif` di fixture yang sama + `CreateRenstraAction:108` + `RenstraAttachments:147` + seluruh `RenstraFeatureTest` SENGAJA tak disentuh — domain Renstra valid); verifikasi: `php vendor/bin/pint --test` 2 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest di PG disposable podman `postgres:17-alpine` port 5456 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r228` dihapus setelah run): focused 4 passed/18 assertions (2 guard × 2 dataset) + full `RegulasiFeatureTest` 51 passed/322 assertions + `RenstraFeatureTest` 74 passed/652 assertions. HEAD `e46c38b` + staged merge Phase C tak diganggu. Belum di-commit.
+
+```text
+Prompt handoff R2-28:
+Kerjakan R2-28 dari document/PR-42-Review2-Tracking.md di working tree merge (JANGAN commit merge). Adaptasi Phase C sesuai detail task. Update checkbox + Bukti. JANGAN commit.
+```

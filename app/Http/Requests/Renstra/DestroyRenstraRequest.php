@@ -5,20 +5,27 @@ namespace App\Http\Requests\Renstra;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 
 class DestroyRenstraRequest extends FormRequest
 {
+    private ?PermissionDecision $initialDecision = null;
+
     public function authorize(): bool
     {
         $renstra = $this->route('renstra');
 
-        return $renstra instanceof Renstra
-            ? Gate::allows('delete', $renstra)
-            : false;
+        $user = $this->user();
+        if (! $renstra instanceof Renstra || ! $user instanceof User) {
+            return false;
+        }
+        $this->initialDecision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_DELETE);
+
+        return $this->initialDecision->allowed;
     }
 
     protected function failedAuthorization(): void
@@ -26,10 +33,9 @@ class DestroyRenstraRequest extends FormRequest
         $user = $this->user();
         $renstra = $this->route('renstra');
 
-        if ($user instanceof User && $renstra instanceof Renstra) {
-            $decision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_DELETE);
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
+        if ($user instanceof User && $renstra instanceof Renstra && $this->initialDecision !== null) {
+            $decision = $this->initialDecision;
+            $alasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000);
 
             app(AuditLogger::class)->catat(
                 actor: $user,
