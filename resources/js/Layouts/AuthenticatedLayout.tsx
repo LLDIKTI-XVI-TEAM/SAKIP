@@ -1,4 +1,5 @@
 import { LogoutActions } from '@/Components/Auth/LogoutActions';
+import { NotificationDropdown } from '@/Components/NotificationDropdown';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
@@ -10,20 +11,22 @@ import {
     AlertCircle,
     Info,
     UserCheck,
-    UserPlus,
+    UserCog,
     Menu,
     X,
     Building2,
     ShieldCheck,
+    ShieldAlert,
     BookOpen,
-    FileText,
+    FileSignature,
+    ClipboardList,
+    KeyRound,
     Search,
-    Bell,
     User,
-    Home,
     Settings,
     HardDrive,
     Layers,
+    ChevronDown,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -61,6 +64,12 @@ export function AuthenticatedLayout({
     const drawerRef = useRef<HTMLElement>(null);
 
     const [logoFailed, setLogoFailed] = useState(false);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
+    const profileButtonRef = useRef<HTMLButtonElement>(null);
+    const mobileProfileMenuRef = useRef<HTMLDivElement>(null);
+    const mobileProfileButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setLogoFailed(false);
@@ -86,6 +95,55 @@ export function AuthenticatedLayout({
 
         return () => mediaQuery.removeEventListener('change', updateViewport);
     }, []);
+
+    // Close profile dropdown on click outside or Escape
+    useEffect(() => {
+        if (!isProfileMenuOpen && !isMobileProfileOpen) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (
+                isProfileMenuOpen &&
+                profileMenuRef.current &&
+                !profileMenuRef.current.contains(target) &&
+                profileButtonRef.current &&
+                !profileButtonRef.current.contains(target)
+            ) {
+                setIsProfileMenuOpen(false);
+            }
+
+            if (
+                isMobileProfileOpen &&
+                mobileProfileMenuRef.current &&
+                !mobileProfileMenuRef.current.contains(target) &&
+                mobileProfileButtonRef.current &&
+                !mobileProfileButtonRef.current.contains(target)
+            ) {
+                setIsMobileProfileOpen(false);
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                if (isProfileMenuOpen) {
+                    setIsProfileMenuOpen(false);
+                    profileButtonRef.current?.focus();
+                }
+                if (isMobileProfileOpen) {
+                    setIsMobileProfileOpen(false);
+                    mobileProfileButtonRef.current?.focus();
+                }
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isProfileMenuOpen, isMobileProfileOpen]);
 
     const sidebarHidden = !isDesktopViewport && !navigationOpen;
     const isMobileDrawerOpen = navigationOpen && !isDesktopViewport;
@@ -141,26 +199,59 @@ export function AuthenticatedLayout({
         };
     }, [isMobileDrawerOpen]);
 
-    const navigation = [
-        { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
-        { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
-        { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
-        { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },
-        { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
-        { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
-        { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
-        { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
-        { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },
-        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth.can.grant ?? false },
-        { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
-        { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
-        { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
-        { href: '/akses/izin-peran', label: 'Peran & Izin', icon: UserCheck, visible: auth.can.viewRolePermissions },
-        { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
+    const navigationGroups = [
+        {
+            title: 'Utama',
+            items: [
+                { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: auth.can.dashboard },
+            ],
+        },
+        {
+            title: 'Perencanaan & Kinerja',
+            items: [
+                { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileSignature, visible: auth?.can?.pk ?? false },
+                { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
+                { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
+                { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
+                { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
+            ],
+        },
+        {
+            title: 'Master Data',
+            items: [
+                { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },
+                { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: ClipboardList, visible: auth.can.jenisBerkas ?? false },
+            ],
+        },
+        {
+            title: 'Manajemen Akses',
+            items: [
+                { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
+                { href: '/akses/peran', label: 'Penetapan Peran', icon: UserCog, visible: auth.can.assignRole },
+                { href: '/akses/deny', label: 'Pembatasan Izin', icon: ShieldAlert, visible: auth.can.manageDeny },
+                { href: '/akses/izin-peran', label: 'Peran & Izin', icon: KeyRound, visible: auth.can.viewRolePermissions },
+                { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth.can.grant ?? false },
+            ],
+        },
+        {
+            title: 'Sistem',
+            items: [
+                { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
+                { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
+            ],
+        },
     ];
 
+    const currentPath = url.split('?')[0];
+    const isItemActive = (href: string) => {
+        if (href === '/pengaturan') {
+            return currentPath === '/pengaturan';
+        }
+        return currentPath === href || currentPath.startsWith(`${href}/`);
+    };
+
     return (
-        <div className="min-h-screen bg-page font-sans text-ink flex flex-col md:flex-row">
+        <div className="min-h-screen bg-page font-sans text-ink flex flex-col md:flex-row w-full max-w-full overflow-x-clip md:overflow-x-visible">
             {/* Skip to Content for Accessibility */}
             <a
                 href="#main-content"
@@ -170,7 +261,7 @@ export function AuthenticatedLayout({
             </a>
 
             {/* Mobile Header Bar */}
-            <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
+            <header className="flex h-16 w-full items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
                     {!logoFailed && logoUrl && (
                         <img
@@ -186,17 +277,57 @@ export function AuthenticatedLayout({
                         <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
                     </div>
                 </div>
-                <button
-                    ref={menuButtonRef}
-                    type="button"
-                    aria-expanded={navigationOpen}
-                    aria-controls="application-navigation"
-                    aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
-                    onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
-                >
-                    {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
-                </button>
+                <div className="flex items-center gap-1">
+                    {/* Mobile Profile Trigger */}
+                    <div className="relative">
+                        <button
+                            ref={mobileProfileButtonRef}
+                            type="button"
+                            aria-expanded={isMobileProfileOpen}
+                            aria-label="Menu akun"
+                            onClick={() => setIsMobileProfileOpen((isOpen) => !isOpen)}
+                            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 active:bg-surface/20 focus:outline-none focus:ring-2 focus:ring-white/40 touch-manipulation"
+                        >
+                            <User className="h-5 w-5" aria-hidden="true" />
+                        </button>
+
+                        {isMobileProfileOpen && (
+                            <div
+                                ref={mobileProfileMenuRef}
+                                role="menu"
+                                aria-label="Menu akun mobile"
+                                className="absolute right-0 top-full mt-2 w-64 origin-top-right overflow-hidden rounded-xl border border-border bg-surface shadow-xl z-50 text-ink"
+                            >
+                                <div className="border-b border-border px-4 py-3 bg-soft/40">
+                                    <p className="text-xs font-bold text-ink truncate font-sans">
+                                        {auth.user?.nama || 'Pengguna'}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-muted truncate font-sans">
+                                        {auth.user?.email || auth.user?.role || ''}
+                                    </p>
+                                    <div className="mt-1.5">
+                                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary capitalize">
+                                            {auth.user?.role || 'Belum ada peran'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <LogoutActions variant="dropdown" onAction={() => setIsMobileProfileOpen(false)} />
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        ref={menuButtonRef}
+                        type="button"
+                        aria-expanded={navigationOpen}
+                        aria-controls="application-navigation"
+                        aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+                        onClick={() => setNavigationOpen((isOpen) => !isOpen)}
+                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 active:bg-surface/20 focus:outline-none focus:ring-2 focus:ring-white/40 touch-manipulation"
+                    >
+                        {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
+                    </button>
+                </div>
             </header>
 
             {/* Mobile Backdrop */}
@@ -245,63 +376,74 @@ export function AuthenticatedLayout({
                     <button
                         type="button"
                         onClick={() => setNavigationOpen(false)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 md:hidden"
+                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 active:bg-surface/20 focus:outline-none focus:ring-2 focus:ring-white/40 md:hidden touch-manipulation"
                         aria-label="Tutup navigasi"
                     >
                         <X aria-hidden="true" className="h-5 w-5" />
                     </button>
                 </div>
 
-                {/* Scrollable Sidebar Body: Navigation & Profile */}
-                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between sidebar-scroll">
-                    <div className="px-3 py-3">
-                        <nav aria-label="Navigasi utama" className="space-y-1.5">
-                            {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
-                                const currentPath = url.split('?')[0];
-                                const active = href === '/pengaturan'
-                                    ? currentPath === '/pengaturan'
-                                    : currentPath === href || currentPath.startsWith(`${href}/`);
-                                return (
-                                    <Link
-                                        key={href}
-                                        href={href}
-                                        title={label}
-                                        aria-current={active ? 'page' : undefined}
-                                        onClick={() => setNavigationOpen(false)}
-                                        className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
-                                            active
-                                                ? 'bg-surface/15 text-white font-semibold shadow-xs'
-                                                : 'text-white/75 hover:bg-surface/10 hover:text-white'
-                                        }`}
-                                    >
-                                        <Icon
-                                            aria-hidden="true"
-                                            className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? 'text-white' : 'text-white/75 group-hover:text-white'}`}
-                                        />
-                                        <span className="truncate">{label}</span>
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    </div>
+                {/* Scrollable Sidebar Body: Navigation Only */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 sidebar-scroll">
+                    <nav aria-label="Navigasi utama" className="space-y-4">
+                        {navigationGroups.map((group) => {
+                            const visibleItems = group.items.filter((item) => item.visible);
+                            if (visibleItems.length === 0) return null;
 
-                    {/* Bottom User Profile Section */}
-                    <div className="mt-auto border-t border-white/10 bg-primary p-4 shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
-                                <User className="h-5 w-5" aria-hidden="true" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-bold text-white leading-tight">
-                                    {auth.user?.nama || 'Pengguna'}
-                                </p>
-                                <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
-                                    {auth.user?.role || 'Belum ada peran'}
-                                </p>
-                            </div>
+                            return (
+                                <div key={group.title} className="space-y-1">
+                                    <div className="px-3 pt-2 pb-1">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                                            {group.title}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        {visibleItems.map(({ href, label, icon: Icon }) => {
+                                            const active = isItemActive(href);
+                                            return (
+                                                <Link
+                                                    key={href}
+                                                    href={href}
+                                                    title={label}
+                                                    aria-current={active ? 'page' : undefined}
+                                                    onClick={() => setNavigationOpen(false)}
+                                                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 md:py-2 text-xs font-medium transition-colors min-h-[44px] md:min-h-0 touch-manipulation ${
+                                                        active
+                                                            ? 'bg-surface/20 text-white font-semibold shadow-xs'
+                                                            : 'text-white/75 hover:bg-surface/10 hover:text-white'
+                                                    }`}
+                                                >
+                                                    <Icon
+                                                        aria-hidden="true"
+                                                        className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+                                                            active ? 'text-white' : 'text-white/75 group-hover:text-white'
+                                                        }`}
+                                                    />
+                                                    <span className="truncate">{label}</span>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </nav>
+                </div>
+
+                {/* Fixed Bottom User Profile Section (Gambar 3 - pinned, never scrolls with nav) */}
+                <div className="border-t border-white/10 bg-primary p-4 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
+                            <User className="h-5 w-5" aria-hidden="true" />
                         </div>
-
-                        <LogoutActions sidebar />
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-white leading-tight">
+                                {auth.user?.nama || 'Pengguna'}
+                            </p>
+                            <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
+                                {auth.user?.role || 'Belum ada peran'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -310,7 +452,7 @@ export function AuthenticatedLayout({
             <div
                 aria-hidden={isMobileDrawerOpen || undefined}
                 inert={isMobileDrawerOpen || undefined}
-                className="min-w-0 flex-1 flex flex-col"
+                className="min-w-0 flex-1 flex flex-col w-full max-w-full"
             >
                 {/* Top White Header Bar */}
                 <header className="hidden md:flex h-[68px] items-center justify-between border-b border-border bg-surface px-4 xl:px-8 sticky top-0 z-30 shadow-2xs">
@@ -331,29 +473,65 @@ export function AuthenticatedLayout({
                     {/* Right Functional Chips */}
                     <div className="ml-auto flex items-center gap-2 xl:gap-4">
 
-                        <button
-                            type="button"
-                            disabled
-                            title="Notifikasi akan segera tersedia"
-                            aria-label="Notifikasi akan segera tersedia"
-                            className="inline-flex items-center justify-center rounded-lg p-2 text-muted disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <Bell className="h-5 w-5" aria-hidden="true" />
-                        </button>
+                        <NotificationDropdown />
 
-                        {/* User Profile Chip */}
-                        <div className="flex items-center gap-2.5 pl-2 border-l border-border">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-                                <User className="h-4 w-4" />
-                            </div>
-                            <div className="hidden xl:block text-left">
-                                <p className="text-xs font-bold text-primary leading-none truncate max-w-[140px]">
-                                    {auth.user?.nama || 'Pengguna'}
-                                </p>
-                                <p className="mt-1 text-[11px] text-muted leading-none capitalize">
-                                    {auth.user?.role || 'Belum ada peran'}
-                                </p>
-                            </div>
+                        {/* User Profile Dropdown Button (Gambar 2 - like SIMPEG) */}
+                        <div className="relative pl-2 border-l border-border">
+                            <button
+                                ref={profileButtonRef}
+                                id="profile-btn"
+                                type="button"
+                                aria-expanded={isProfileMenuOpen}
+                                aria-controls="profile-menu"
+                                aria-haspopup="menu"
+                                onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
+                                className="flex items-center gap-2.5 rounded-xl border border-border px-3 py-1.5 transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20 text-left cursor-pointer"
+                            >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                    <User className="h-4 w-4" aria-hidden="true" />
+                                </div>
+                                <div className="hidden xl:block text-left">
+                                    <p className="text-xs font-bold text-ink leading-tight truncate max-w-[140px]">
+                                        {auth.user?.nama || 'Pengguna'}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-muted leading-tight capitalize">
+                                        {auth.user?.role || 'Belum ada peran'}
+                                    </p>
+                                </div>
+                                <ChevronDown
+                                    className={`h-3.5 w-3.5 text-muted transition-transform duration-150 ${
+                                        isProfileMenuOpen ? 'rotate-180 text-primary' : ''
+                                    }`}
+                                    aria-hidden="true"
+                                />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {isProfileMenuOpen && (
+                                <div
+                                    ref={profileMenuRef}
+                                    id="profile-menu"
+                                    role="menu"
+                                    aria-label="Menu akun"
+                                    className="absolute right-0 top-full mt-2 w-64 origin-top-right overflow-hidden rounded-xl border border-border bg-surface shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+                                >
+                                    <div className="border-b border-border px-4 py-3 bg-soft/40">
+                                        <p className="text-xs font-bold text-ink truncate font-sans">
+                                            {auth.user?.nama || 'Pengguna'}
+                                        </p>
+                                        <p className="mt-0.5 text-[11px] text-muted truncate font-sans">
+                                            {auth.user?.email || auth.user?.role || ''}
+                                        </p>
+                                        <div className="mt-1.5">
+                                            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary capitalize">
+                                                {auth.user?.role || 'Belum ada peran'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <LogoutActions variant="dropdown" onAction={() => setIsProfileMenuOpen(false)} />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -426,7 +604,7 @@ export function AuthenticatedLayout({
                 <main
                     id="main-content"
                     tabIndex={-1}
-                    className={`flex-1 px-4 sm:px-6 lg:px-8 pb-8 ${title || normalizedBreadcrumbs.length > 0 ? 'pt-3 sm:pt-4' : 'pt-5 sm:pt-6 lg:pt-8'} max-w-7xl w-full mx-auto outline-none`}
+                    className={`flex-1 px-4 sm:px-6 lg:px-8 pb-8 ${title || normalizedBreadcrumbs.length > 0 ? 'pt-3 sm:pt-4' : 'pt-5 sm:pt-6'} max-w-7xl w-full mx-auto outline-none`}
                 >
                     {children}
                 </main>

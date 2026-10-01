@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 
@@ -268,3 +268,85 @@ describe('AuthenticatedLayout Navigation Active State', () => {
         expect(storageLink.getAttribute('aria-current')).toBeNull();
     });
 });
+
+describe('AuthenticatedLayout Sidebar Grouping', () => {
+    it('merender heading section grup menu dan menyembunyikan grup yang tidak memiliki item visible', () => {
+        mockCan = {
+            dashboard: true,
+            pengaturan: true,
+            pk: true,
+            pengukuran: true,
+            unit: true,
+            aktivasi: true,
+        };
+
+        render(
+            <AuthenticatedLayout title="Dashboard">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        expect(within(nav).getByText('Utama')).toBeTruthy();
+        expect(within(nav).getByText('Perencanaan & Kinerja')).toBeTruthy();
+        expect(within(nav).getByText('Master Data')).toBeTruthy();
+        expect(within(nav).getByText('Manajemen Akses')).toBeTruthy();
+        expect(within(nav).getByText('Sistem')).toBeTruthy();
+    });
+
+    it('tidak merender heading grup jika semua item di dalamnya tidak visible', () => {
+        mockCan = {
+            dashboard: true,
+        };
+
+        render(
+            <AuthenticatedLayout title="Dashboard">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        expect(within(nav).getByText('Utama')).toBeTruthy();
+        expect(within(nav).queryByText('Perencanaan & Kinerja')).toBeNull();
+        expect(within(nav).queryByText('Master Data')).toBeNull();
+        expect(within(nav).queryByText('Manajemen Akses')).toBeNull();
+        expect(within(nav).queryByText('Sistem')).toBeNull();
+    });
+});
+
+describe('AuthenticatedLayout User Profile & Dropdown Logout', () => {
+    it('merender profil pengguna di sidebar', () => {
+        render(
+            <AuthenticatedLayout title="Dashboard">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        expect(screen.getAllByText('Operator QA').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
+    });
+
+    it('membuka menu dropdown profil di navbar atas dan menampilkan aksi logout saat diklik', () => {
+        render(
+            <AuthenticatedLayout title="Dashboard">
+                <div>Konten</div>
+            </AuthenticatedLayout>
+        );
+
+        const profileBtn = screen.getByRole('button', { name: /Operator QA/i });
+        expect(profileBtn).toBeTruthy();
+        expect(screen.queryByRole('menu', { name: 'Menu akun' })).toBeNull();
+
+        fireEvent.click(profileBtn);
+
+        const menu = screen.getByRole('menu', { name: 'Menu akun' });
+        expect(menu).toBeTruthy();
+        expect(within(menu).getByRole('menuitem', { name: 'Keluar dari SAKIP' })).toBeTruthy();
+        expect(within(menu).getByRole('menuitem', { name: 'Keluar dari layanan terhubung' })).toBeTruthy();
+
+        // Menutup menu saat tombol ditekan kembali
+        fireEvent.click(profileBtn);
+        expect(screen.queryByRole('menu', { name: 'Menu akun' })).toBeNull();
+    });
+});
+
