@@ -5,6 +5,7 @@ namespace App\Http\Requests\Regulasi;
 use App\Models\Regulasi;
 use Illuminate\Support\Facades\Gate;
 
+/** Payload RegulasiData dengan versi dan alasan wajib; Action memeriksa ulang versi setelah lock. */
 class UpdateRegulasiRequest extends RegulasiMutationRequest
 {
     public function authorize(): bool

@@ -6,6 +6,7 @@ use App\Models\Regulasi;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
+/** Payload validated(): array{alasan: string}; audit penolakan awal memakai keputusan Policy yang sama. */
 class DeleteRegulasiRequest extends FormRequest
 {
     public function authorize(): bool
