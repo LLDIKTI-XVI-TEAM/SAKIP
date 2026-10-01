@@ -22,7 +22,7 @@ class UpdateIndikator extends Controller
         $hasil = $action->handle(
             $actor,
             $indikator,
-            $request->validated(),
+            [...$request->validated(), ...$request->only('expected_updated_at')],
         );
         $indikator = $hasil['indikator'];
 

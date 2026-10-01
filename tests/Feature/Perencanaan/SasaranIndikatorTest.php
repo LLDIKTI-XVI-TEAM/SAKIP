@@ -2232,6 +2232,165 @@ class SasaranIndikatorTest extends TestCase
         $responseKomponen->assertForbidden();
     }
 
+    public function test_r217_deny_null_diabaikan_nilai_lama_bertahan(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R217-DENY-NULL',
+            'deskripsi' => 'Sasaran R2-17 Deny Null',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-DENY-NULL',
+            'nama' => 'Indikator R2-17 Dengan Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $regulasiPermission = Permission::where('kode', 'regulasi:read')->firstOrFail();
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => $regulasiPermission->id,
+            'unit_id' => null,
+            'alasan' => 'Dilarang membaca regulasi untuk pengujian R2-17 lepas-rujuk',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        // Update melepas rujukan (null) tanpa izin baca: diabaikan,
+        // nilai lama bertahan, request tetap 302 sukses.
+        $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-DENY-NULL',
+            'nama' => 'Indikator R2-17 Diperbarui Tanpa Lepas',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => null,
+        ]);
+
+        $responseUpdate->assertRedirect();
+        $this->assertSame('Indikator R2-17 Diperbarui Tanpa Lepas', $indikator->fresh()->nama);
+        $this->assertSame($this->regulasi->id, $indikator->fresh()->regulasi_id);
+
+        // Store tanpa rujukan (null) tanpa izin baca: tetap sukses dengan null.
+        $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-DENY-NULL-BARU',
+            'nama' => 'Indikator Baru Tanpa Regulasi',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => null,
+        ]);
+
+        $responseStore->assertRedirect();
+        $this->assertDatabaseHas('indikator_kinerjas', [
+            'kode' => 'IKU-R217-DENY-NULL-BARU',
+            'regulasi_id' => null,
+        ]);
+    }
+
+    public function test_r217_regulasi_dinonaktifkan_via_db_ditolak_422(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R217-NONAKTIF',
+            'deskripsi' => 'Sasaran R2-17 Nonaktif Flag',
+            'urutan' => 1,
+        ]);
+
+        // Nonaktifkan flag langsung di DB lalu request (TOCTOU lapis transaksi).
+        Regulasi::whereKey($this->regulasi->id)->update(['aktif' => false]);
+
+        $responseStore = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-NONAKTIF',
+            'nama' => 'Indikator Regulasi Dimatikan',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+        ]);
+
+        $responseStore->assertSessionHasErrors(['regulasi_id']);
+        $this->assertDatabaseMissing('indikator_kinerjas', ['kode' => 'IKU-R217-NONAKTIF']);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-NONAKTIF-EDIT',
+            'nama' => 'Indikator Edit Regulasi Mati',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $responseUpdate = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R217-NONAKTIF-EDIT',
+            'nama' => 'Indikator Edit Regulasi Mati',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'regulasi_id' => $this->regulasi->id,
+        ]);
+
+        $responseUpdate->assertSessionHasErrors(['regulasi_id']);
+        $this->assertNull($indikator->fresh()->regulasi_id);
+    }
+
+    public function test_r220_store_sasaran_gagal_terkontrol_saat_renstra_dihapus_tengah_jalan(): void
+    {
+        $renstraId = $this->renstra->id;
+
+        // Simulasi hapus Renstra konkuren langsung via DB TEPAT setelah
+        // validasi pra-transaksi lolos: hapus saat Action mengunci aktor di
+        // dalam transaksi (retrieval User pertama request ini — actingAs
+        // melewati DB), sebelum cek Renstra terkunci. Tanpa cek ulang di
+        // transaksi, INSERT berikut melanggar FK → 500.
+        $terhapusTengahJalan = false;
+        User::retrieved(function ($model) use (&$terhapusTengahJalan, $renstraId) {
+            if (! $terhapusTengahJalan && $model->id === $this->perencanaan->id) {
+                $terhapusTengahJalan = true;
+                DB::table('renstras')->where('id', $renstraId)->delete();
+            }
+        });
+
+        $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
+            'renstra_id' => $renstraId,
+            'kode' => 'SS-R220-RACE-LOST',
+            'deskripsi' => 'Sasaran yang induknya hilang tengah jalan',
+            'urutan' => 1,
+        ]);
+
+        $this->assertTrue($terhapusTengahJalan, 'Simulasi hapus konkuren harus berjalan di dalam transaksi.');
+        $this->assertNotEquals(500, $response->getStatusCode(), 'Hapus Renstra konkuren wajib gagal terkontrol, bukan 500.');
+
+        // Gagal terkontrol: cek ulang transaksi menolak parent hilang
+        // (302 + errors = padanan 422 web, atau 404/422 langsung).
+        if ($response->getStatusCode() === 302) {
+            $response->assertSessionHasErrors(['renstra_id']);
+        } else {
+            $this->assertContains($response->getStatusCode(), [404, 422]);
+        }
+
+        $this->assertDatabaseMissing('sasaran_strategis', ['kode' => 'SS-R220-RACE-LOST']);
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'sasaran.buat']);
+    }
+
     /**
      * Membuat Indikator langsung via model dengan kolom lifecycle wajib
      * terisi (status + tahun_mulai_berlaku + created_by + created_by_role).

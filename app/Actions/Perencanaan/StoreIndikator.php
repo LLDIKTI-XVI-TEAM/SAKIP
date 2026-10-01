@@ -3,6 +3,7 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
@@ -128,9 +129,29 @@ class StoreIndikator
                 ]);
             }
 
+            // 5c. Kunci regulasi target dan periksa ulang status aktif di dalam
+            // transaksi (anti-TOCTOU antara validasi request dan INSERT).
+            // Tanpa regulasi_id (null) tidak perlu izin/kunci — tulis null.
+            // Non-null lolos guard 2b di atas sehingga berizin baca.
+            $rawRegulasiId = $validated['regulasi_id'] ?? null;
+            if ($rawRegulasiId === '') {
+                $rawRegulasiId = null;
+            }
+            $effectiveRegulasiId = null;
+            if ($rawRegulasiId !== null) {
+                /** @var Regulasi|null $targetRegulasi */
+                $targetRegulasi = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
+                if (! $targetRegulasi || ! $targetRegulasi->aktif) {
+                    throw ValidationException::withMessages([
+                        'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+                    ]);
+                }
+                $effectiveRegulasiId = $rawRegulasiId;
+            }
+
             $created = IndikatorKinerja::create([
                 'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
-                'regulasi_id' => $validated['regulasi_id'] ?? null,
+                'regulasi_id' => $effectiveRegulasiId,
                 'kode' => trim($validated['kode']),
                 'nama' => trim($validated['nama']),
                 'definisi_operasional' => isset($validated['definisi_operasional']) ? trim($validated['definisi_operasional']) : null,

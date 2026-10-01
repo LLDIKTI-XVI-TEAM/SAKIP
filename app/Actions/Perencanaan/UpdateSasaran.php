@@ -7,7 +7,10 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Support\PermissionCodes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UpdateSasaran
 {
@@ -55,6 +58,26 @@ class UpdateSasaran
                 ->whereKey($sasaran->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $expectedRaw = $validated['expected_updated_at'] ?? null;
+            if ($expectedRaw !== null && trim((string) $expectedRaw) !== '') {
+                try {
+                    $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
+                } catch (Throwable) {
+                    throw ValidationException::withMessages([
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                    ]);
+                }
+
+                $currentTimestamp = $lockedSasaran->updated_at ?? $lockedSasaran->created_at;
+                $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+
+                if ($currentIso === null || $currentIso !== $expectedIso) {
+                    throw ValidationException::withMessages([
+                        'konflik' => 'Data sasaran strategis telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    ])->status(409);
+                }
+            }
 
             $nilaiLama = $lockedSasaran->withoutRelations()->toArray();
 

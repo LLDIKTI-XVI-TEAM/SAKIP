@@ -2,6 +2,7 @@
 
 namespace App\Actions\Perencanaan;
 
+use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -9,6 +10,7 @@ use App\Services\Authorization\ResolveLockedActor;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class StoreSasaran
 {
@@ -50,6 +52,17 @@ class StoreSasaran
             }
 
             $dasarIzin = $currentDecision->toAuditBasis();
+
+            // 3. Kunci Renstra induk dan cek ulang keberadaan di dalam transaksi
+            // (anti-TOCTOU hapus konkuren: validasi FormRequest pra-transaksi
+            // tidak cukup; hapus setelah validasi lolos → FK/500 tanpa cek ulang).
+            /** @var Renstra|null $renstra */
+            $renstra = Renstra::whereKey($validated['renstra_id'])->sharedLock()->first();
+            if (! $renstra) {
+                throw ValidationException::withMessages([
+                    'renstra_id' => 'Renstra yang dipilih tidak valid.',
+                ]);
+            }
 
             $created = SasaranStrategis::create([
                 'renstra_id' => $validated['renstra_id'],

@@ -3,14 +3,17 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\Regulasi;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Support\PermissionCodes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UpdateIndikator
 {
@@ -61,17 +64,31 @@ class UpdateIndikator
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
-            // 2b. Guard rujukan regulasi: bila regulasi_id diisi non-null,
-            // aktor wajib lolos regulasi:read memakai state terkunci agar tebakan
-            // UUID tak bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
-            if (array_key_exists('regulasi_id', $validated) && $validated['regulasi_id'] !== null && $validated['regulasi_id'] !== '') {
+            // 2b. Guard rujukan regulasi: tanpa regulasi:read efektif,
+            // pelepasan (regulasi_id null) DIABAIKAN — nilai lama dipertahankan
+            // dan request tetap sukses — agar null tak meloloskan pelepasan
+            // tanpa izin baca. Penautan non-null tanpa izin baca tetap 403.
+            // Dengan izin baca, target dikunci + dicek ulang di bawah.
+            $inputHasRegulasi = array_key_exists('regulasi_id', $validated);
+            $rawRegulasiId = $validated['regulasi_id'] ?? null;
+            if ($rawRegulasiId === '') {
+                $rawRegulasiId = null;
+            }
+            $wantsClear = $inputHasRegulasi && $rawRegulasiId === null;
+            $wantsLink = $inputHasRegulasi && $rawRegulasiId !== null;
+            $abaikanRegulasi = false;
+            if ($wantsClear || $wantsLink) {
                 $regulasiDecision = $this->resolver->resolve($lockedActor, PermissionCodes::REGULASI_READ);
                 if (! $regulasiDecision->allowed) {
-                    return [
-                        'status' => 'denied',
-                        'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
-                        'dasarIzin' => $regulasiDecision->toAuditBasis(),
-                    ];
+                    if ($wantsClear) {
+                        $abaikanRegulasi = true;
+                    } else {
+                        return [
+                            'status' => 'denied',
+                            'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
+                            'dasarIzin' => $regulasiDecision->toAuditBasis(),
+                        ];
+                    }
                 }
             }
 
@@ -80,6 +97,26 @@ class UpdateIndikator
                 ->whereKey($indikator->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $expectedRaw = $validated['expected_updated_at'] ?? null;
+            if ($expectedRaw !== null && trim((string) $expectedRaw) !== '') {
+                try {
+                    $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
+                } catch (Throwable) {
+                    throw ValidationException::withMessages([
+                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                    ]);
+                }
+
+                $currentTimestamp = $lockedIndikator->updated_at ?? $lockedIndikator->created_at;
+                $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+
+                if ($currentIso === null || $currentIso !== $expectedIso) {
+                    throw ValidationException::withMessages([
+                        'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    ])->status(409);
+                }
+            }
 
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
 
@@ -128,8 +165,23 @@ class UpdateIndikator
                     ? trim($validated['definisi_operasional'])
                     : null;
             }
-            if (array_key_exists('regulasi_id', $validated)) {
-                $updateData['regulasi_id'] = $validated['regulasi_id'];
+            // 4b. Kunci regulasi target dan periksa ulang status aktif di dalam
+            // transaksi (anti-TOCTOU antara validasi request dan UPDATE),
+            // mengikuti pola kunci unit/sasaran di atas. Tanpa izin baca +
+            // null sudah ditandai abaikan di 2b — nilai lama dipertahankan.
+            if ($inputHasRegulasi && ! $abaikanRegulasi) {
+                if ($wantsClear) {
+                    $updateData['regulasi_id'] = null;
+                } else {
+                    /** @var Regulasi|null $targetRegulasi */
+                    $targetRegulasi = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
+                    if (! $targetRegulasi || ! $targetRegulasi->aktif) {
+                        throw ValidationException::withMessages([
+                            'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+                        ]);
+                    }
+                    $updateData['regulasi_id'] = $rawRegulasiId;
+                }
             }
             if (array_key_exists('presisi', $validated) && $validated['presisi'] !== null) {
                 $updateData['presisi'] = (int) $validated['presisi'];

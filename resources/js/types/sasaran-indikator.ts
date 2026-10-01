@@ -41,6 +41,7 @@ export interface IndikatorKinerjaItem {
     wajib_catatan: boolean;
     jenis_agregasi?: string;
     status: IndikatorStatus;
+    updated_at?: string | null;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
 }
@@ -51,6 +52,7 @@ export interface SasaranStrategisItem {
     kode: string;
     deskripsi: string;
     urutan: number;
+    updated_at?: string | null;
     indikator_kinerjas: IndikatorKinerjaItem[];
 }
 

@@ -37,8 +37,10 @@ class IndikatorKomponenFixtureSeeder extends Seeder
      * bukan hardcode. Bila creator belum punya peran, peran perencanaan
      * dilekatkan dulu agar jejak audit mencerminkan penugasan nyata.
      *
-     * created_by/created_by_role adalah create-only: hanya dipakai saat
+     * created_by/created_by_role/status adalah create-only: hanya dipakai saat
      * create, tidak pernah disertakan pada payload update (immutable).
+     * Baris existing dipertahankan apa adanya, termasuk yang berstatus arsip
+     * (arsip adalah final via endpoint/audit, bukan via seeder).
      */
     public function run(): void
     {
@@ -103,8 +105,9 @@ class IndikatorKomponenFixtureSeeder extends Seeder
             ]);
 
         // 1. Fixture IKU-3: Formula Final 2 Input Efektif (sakip & zi_wbk, bobot 0.5)
-        // created_by/created_by_role hanya untuk create (immutable, guard
+        // created_by/created_by_role/status hanya untuk create (immutable, guard
         // model + trigger DB menolak perubahan), tidak ikut payload update.
+        // Status existing dipertahankan (arsip final, tak direaktivasi seeder).
         $iku3Mutable = [
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
@@ -114,10 +117,10 @@ class IndikatorKomponenFixtureSeeder extends Seeder
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
-            'status' => 'aktif',
             'tahun_mulai_berlaku' => $renstra->tahun_mulai,
         ];
         $iku3CreateOnly = [
+            'status' => 'aktif',
             'created_by' => $creator->id,
             'created_by_role' => $creatorRole,
         ];
@@ -151,10 +154,10 @@ class IndikatorKomponenFixtureSeeder extends Seeder
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
-            'status' => 'aktif',
             'tahun_mulai_berlaku' => $renstra->tahun_mulai,
         ];
         $iku8CreateOnly = [
+            'status' => 'aktif',
             'created_by' => $creator->id,
             'created_by_role' => $creatorRole,
         ];

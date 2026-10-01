@@ -16,7 +16,7 @@ class UpdateSasaran extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $action->handle($actor, $sasaran, $request->validated());
+        $action->handle($actor, $sasaran, [...$request->validated(), ...$request->only('expected_updated_at')]);
 
         return redirect()
             ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $sasaran->renstra_id])

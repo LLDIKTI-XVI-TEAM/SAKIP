@@ -25,6 +25,7 @@ class UpdateSasaranRequest extends FormRequest
             'kode' => ['required', 'string', 'max:50'],
             'deskripsi' => ['required', 'string', 'max:2000'],
             'urutan' => ['nullable', 'integer', 'min:0'],
+            'expected_updated_at' => ['nullable', 'date'],
         ];
     }
 
@@ -36,6 +37,7 @@ class UpdateSasaranRequest extends FormRequest
         return [
             'kode.required' => 'Kode sasaran wajib diisi.',
             'deskripsi.required' => 'Deskripsi sasaran wajib diisi.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 }

@@ -28,6 +28,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
         kode: '',
         deskripsi: '',
         urutan: 1,
+        expected_updated_at: '' as string,
     });
 
     useEffect(() => {
@@ -47,6 +48,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                         kode: sasaran.kode,
                         deskripsi: sasaran.deskripsi,
                         urutan: sasaran.urutan,
+                        expected_updated_at: sasaran.updated_at ?? '',
                     });
                 } else {
                     setData({
@@ -54,6 +56,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                         kode: '',
                         deskripsi: '',
                         urutan: 1,
+                        expected_updated_at: '',
                     });
                 }
             }
@@ -113,6 +116,11 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
             }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
+                {((errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at) && (
+                    <p role="alert" className="text-sm font-medium text-danger">
+                        {(errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at}
+                    </p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
                         <Input

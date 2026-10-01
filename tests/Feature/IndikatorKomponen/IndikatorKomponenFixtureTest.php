@@ -104,4 +104,27 @@ class IndikatorKomponenFixtureTest extends TestCase
         $this->assertNotEquals(84, (float) $penyebut->bobot);
         $this->assertEquals(1.0, (float) $penyebut->bobot);
     }
+
+    /**
+     * R2-18: rerun seeder tidak mereaktivasi IKU arsip; komponen tetap sinkron.
+     */
+    public function test_rerun_seeder_tidak_mereaktivasi_iku_arsip(): void
+    {
+        $this->seed(IndikatorKomponenFixtureSeeder::class);
+
+        $iku3 = IndikatorKinerja::where('kode', 'IKU-3')->first();
+        $this->assertNotNull($iku3);
+
+        // Arsipkan langsung via model (lifecycle arsip final, tanpa endpoint/audit).
+        $iku3->update(['status' => 'arsip']);
+        $this->assertSame('arsip', $iku3->refresh()->status);
+
+        $this->seed(IndikatorKomponenFixtureSeeder::class);
+
+        $this->assertSame('arsip', $iku3->refresh()->status);
+
+        $komponen = $iku3->komponen()->where('aktif', true)->get();
+        $this->assertCount(2, $komponen);
+        $this->assertEqualsCanonicalizing(['sakip', 'zi_wbk'], $komponen->pluck('kode')->all());
+    }
 }

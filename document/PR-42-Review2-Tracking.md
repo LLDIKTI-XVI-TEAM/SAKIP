@@ -511,3 +511,79 @@ Kerjakan R2-16 dari document/PR-42-Review2-Tracking.md di branch
 feature/iss-02-04-sasaran-indikator. Deterministikkan seeder sesuai
 detail task. Update checkbox + Bukti. JANGAN commit.
 ```
+
+### R2-17 · [P2] Guard lepas-rujuk regulasi + kunci regulasi (Store/Update Indikator)
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: (a) `regulasi_id=null` lolos guard `regulasi:read` —
+  edit biasa bisa melepas dasar hukum tanpa izin baca; (b) baris
+  regulasi tak dikunci — TOCTOU flag `aktif` antara validasi dan INSERT.
+- Yang dibuat (Store + UpdateIndikator Action):
+  1. Tanpa `regulasi:read` efektif → abaikan `regulasi_id` dari
+     input (pertahankan nilai lama), JANGAN tulis null.
+  2. Dengan izin baca: muat regulasi target `sharedLock` di dalam
+     transaksi + cek ulang `aktif` (+404/422 bila hilang/nonaktif).
+  3. Test: deny + null → nilai lama bertahan; regulasi dinonaktifkan
+     tengah jalan → 422; tanpa izin + isi id → 403 (sudah ada).
+- DoD: 3+ test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `StoreIndikator` (guard 403 non-null tanpa baca dipertahankan + `5c` kunci `Regulasi::sharedLock` + cek ulang `aktif` → 422 `Rujukan regulasi tidak valid atau sudah nonaktif.`; null → tulis null tanpa kunci) + `UpdateIndikator` (`2b` deny+null → abaikan/pertahankan lama + 302, deny+isi → 403 existing; `4b` kunci `sharedLock` + cek ulang `aktif` → 422 pola unit/sasaran; pesan/audit sukses tak berubah) + 2 test baru di `SasaranIndikatorTest.php` (`test_r217_deny_null_diabaikan_nilai_lama_bertahan`: deny+null → 302 + nama berubah + regulasi lama bertahan + store-null sukses; `test_r217_regulasi_dinonaktifkan_via_db_ditolak_422`: flag `aktif=false` via DB langsung lalu request → 422 store+update; 403 isi-tanpa-izin tercakup test existing `test_regulasi_read_denied_blocks_store_and_update_with_audit` — tak diduplikasi); verifikasi: `php vendor/bin/pint --test` 3 file passed; `phpstan` 0 errors; Pest focused 5 passed/33 assertions + full `SasaranIndikatorTest.php` 50 passed/279 assertions di PG disposable podman `postgres:17-alpine` port 5442 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r217` dihapus setelah run). HEAD `ae19daa`. Belum di-commit.
+
+```text
+Prompt handoff R2-17:
+Kerjakan R2-17 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Kuatkan regulasi sesuai detail
+task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-18 · [P2] Seeder tak boleh reaktivasi arsip
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: `status` di payload mutable `syncIndikator` — rerun
+  mengaktifkan kembali IKU arsip tanpa endpoint/audit.
+- Yang dibuat: pindahkan `status` ke create-only (existing
+  dipertahankan apa adanya). Test: arsipkan IKU lalu rerun seeder
+  → tetap arsip.
+- DoD: test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `database/seeders/IndikatorKomponenFixtureSeeder.php` satu-satunya file kode tersentuh — `status => aktif` keluar dari `$iku3Mutable`/`$iku8Mutable` → masuk `$iku3CreateOnly`/`$iku8CreateOnly` (existing di-`update($mutable)` tanpa status, baris arsip dipertahankan; baris baru tetap `aktif` via create-only + default model); logika `syncIndikator`/`syncKomponen`/creator deterministik R2-16 tak berubah; test baru `test_rerun_seeder_tidak_mereaktivasi_iku_arsip` di `tests/Feature/IndikatorKomponen/IndikatorKomponenFixtureTest.php` (seed → arsipkan IKU-3 via model langsung → rerun seed → tetap `arsip` + 2 komponen `sakip`/`zi_wbk` sinkron); `php vendor/bin/pint --test` 2 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest focused `IndikatorKomponenFixtureTest` 4 passed/29 assertions (3 existing + 1 baru) di PG disposable podman `postgres:17-alpine` port 5442 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r218` dihapus setelah run). HEAD `ae19daa`. Belum di-commit.
+
+```text
+Prompt handoff R2-18:
+Kerjakan R2-18 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Bekukan status existing sesuai
+detail task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-19 · [P2] Tolak payload edit usang (stale-write guard)
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: lock serialisasi eksekusi tapi tak deteksi form usang —
+  tab kedua menimpa perubahan tab pertama diam-diam.
+- Yang dibuat (tanpa migrasi — pakai `updated_at` sebagai token):
+  1. Frontend kirim `expected_updated_at` (dari model saat modal
+     dibuka) pada PUT Sasaran/Indikator.
+  2. Backend bandingkan dengan baris terkunci → beda → 409 +
+     pesan muat-ulang (tanpa mutasi/audit sukses).
+  3. Test: dua payload berurutan → kedua 409 + data pertama utuh.
+- DoD: test hijau; `typecheck` + FE test hijau; `pint`+`phpstan`.
+- Selesai: 2026-10-01 | Bukti: `UpdateSasaranRequest`/`UpdateIndikatorRequest` tambah `expected_updated_at` nullable date + pesan `Format timestamp versi tidak valid.`; controller `UpdateSasaran`/`UpdateIndikator` teruskan via `[...validated(), ...only('expected_updated_at')]`; Action `UpdateSasaran`/`UpdateIndikator` bandingkan `Carbon::parse(expected)->toISOString()` vs `updated_at ?? created_at` baris terkunci setelah `lockForUpdate` (sebelum mutasi/audit; null/kosong → lewati agar klien lama tetap jalan; format invalid → `expected_updated_at` 422; beda → `konflik` + `->status(409)` = 302+session error untuk web, 409 JSON); pesan sukses/audit sukses tak berubah; `IndexSasaranIndikator` ekspos `updated_at` ISO untuk sasaran+indikator + tipe TS `updated_at?`; `SasaranModal`/`IndikatorModal` kirim `expected_updated_at` dari model saat dibuka + tampilkan `konflik ?? expected_updated_at` apa adanya (`role=alert text-danger`, tanpa UI khusus); test baru `SasaranIndikatorStaleTest.php` 2 passed/20 assertions (indikator + sasaran: A 302 sukses → B web 302 `konflik` + B-json 409 `konflik` + data A utuh + `*.ubah` tepat 1); regresi `SasaranIndikatorTest.php` 50 passed/279 assertions (tanpa token tetap lolos = nullable); `bun run typecheck` hijau; `php vendor/bin/pint --test` 8 file passed; `phpstan` 0 errors; `bun run test` 26 file/145 test hijau; Pest di PG disposable podman `postgres:17-alpine` port 5444 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r219` dihapus). Belum di-commit.
+
+```text
+Prompt handoff R2-19:
+Kerjakan R2-19 dari document/PR-42-Review2-Tracking.md (setelah
+R2-17) di branch feature/iss-02-04-sasaran-indikator. Pasang guard
+usang sesuai detail task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-20 · [P2] Kunci Renstra induk sebelum buat Sasaran
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: parent hanya divalidasi pre-transaksi — hapus Renstra
+  konkuren → FK/500, bukan 422 terkontrol.
+- Yang dibuat: `StoreSasaran` Action muat Renstra `sharedLock` +
+  cek ulang di transaksi (404/422 bila hilang). Test:
+  parent dihapus tengah jalan → gagal terkontrol.
+- DoD: test hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `app/Actions/Perencanaan/StoreSasaran.php` satu-satunya file app tersentuh — tambah import `Renstra` + `ValidationException` (urutan alfabetis); cek ulang `Renstra::whereKey(...)->sharedLock()->first()` setelah re-auth (`$dasarIzin`) sebelum `create`, hilang → `ValidationException` `renstra_id: Renstra yang dipilih tidak valid.` (selaras pesan `StoreSasaranRequest`; padanan 422 web / 404-422 langsung, tanpa audit sukses; pesan/audit sukses `sasaran.buat` + audit `sasaran.buat_ditolak` tak berubah); test baru `test_r220_store_sasaran_gagal_terkontrol_saat_renstra_dihapus_tengah_jalan` di `SasaranIndikatorTest.php` (simulasi race sejati via `User::retrieved`: hapus Renstra via `DB::table` saat Action mengunci aktor di dalam transaksi — setelah validasi pra-transaksi lolos, sebelum cek terkunci; tanpa fix INSERT melanggar FK → 500; assert race berjalan + bukan 500 + 302→`assertSessionHasErrors(['renstra_id'])` atau 404/422 + `sasaran_strategis` nihil + `audit_log sasaran.buat` nihil); `php vendor/bin/pint --test` 2 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest focused 3 passed/17 assertions (`test_1_create_sasaran_...`, `test_store_sasaran_..._menolak`, `test_r220_...`) di PG disposable podman `postgres:17-alpine` port 5443 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` + container sesi lain `sakip_test_r217:5442` tak tersentuh; container `sakip_test_r220` dihapus setelah run). HEAD `ae19daa`. Belum di-commit.
+
+```text
+Prompt handoff R2-20:
+Kerjakan R2-20 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Kunci parent sesuai detail
+task + test. Update checkbox + Bukti. JANGAN commit.
+```

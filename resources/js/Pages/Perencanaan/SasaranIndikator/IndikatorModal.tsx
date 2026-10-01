@@ -51,6 +51,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         desimal_tampilan: 2,
         wajib_catatan: false,
         regulasi_id: '' as string,
+        expected_updated_at: '' as string,
     });
 
     useEffect(() => {
@@ -79,6 +80,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         desimal_tampilan: indikator.desimal_tampilan ?? 2,
                         wajib_catatan: Boolean(indikator.wajib_catatan),
                         regulasi_id: indikator.regulasi_id ?? '',
+                        expected_updated_at: indikator.updated_at ?? '',
                     });
                 } else {
                     setData({
@@ -94,6 +96,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         desimal_tampilan: 2,
                         wajib_catatan: false,
                         regulasi_id: '',
+                        expected_updated_at: '',
                     });
                 }
             }
@@ -178,6 +181,11 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
             }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
+                {((errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at) && (
+                    <p role="alert" className="text-sm font-medium text-danger">
+                        {(errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at}
+                    </p>
+                )}
                 <div>
                     <Select
                         id="sasaran_strategis_id"

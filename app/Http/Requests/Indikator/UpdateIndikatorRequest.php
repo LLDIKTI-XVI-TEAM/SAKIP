@@ -60,6 +60,7 @@ class UpdateIndikatorRequest extends FormRequest
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
+            'expected_updated_at' => ['nullable', 'date'],
         ];
     }
 
@@ -81,6 +82,7 @@ class UpdateIndikatorRequest extends FormRequest
             'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
             'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
             'regulasi_id.exists' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 }

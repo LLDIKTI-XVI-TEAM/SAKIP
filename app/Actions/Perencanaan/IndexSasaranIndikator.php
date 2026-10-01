@@ -72,6 +72,7 @@ class IndexSasaranIndikator
                         'kode' => $sasaran->kode,
                         'deskripsi' => $sasaran->deskripsi,
                         'urutan' => $sasaran->urutan,
+                        'updated_at' => $sasaran->updated_at?->toISOString(),
                         'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi) {
                             return [
                                 'id' => $indikator->id,
@@ -90,6 +91,7 @@ class IndexSasaranIndikator
                                 'wajib_catatan' => $indikator->wajib_catatan,
                                 'jenis_agregasi' => $indikator->jenis_agregasi,
                                 'status' => $indikator->status,
+                                'updated_at' => $indikator->updated_at?->toISOString(),
                                 'created_by_role' => $indikator->created_by_role,
                                 'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
                                     'id' => $indikator->regulasi->id,
