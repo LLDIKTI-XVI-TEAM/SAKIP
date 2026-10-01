@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -11,22 +12,28 @@ use Illuminate\Validation\Validator;
 
 class StoreJenisBerkasRequest extends FormRequest
 {
+    /** @var array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}|null */
+    private ?array $authorizationDecision = null;
+
     public function authorize(): bool
     {
         $user = $this->user()?->fresh();
 
-        return $user !== null && app(PermissionResolver::class)->allows($user, 'jenis_berkas:create');
+        $this->authorizationDecision = $user !== null
+            ? app(PermissionResolver::class)->decide($user, 'jenis_berkas:create')
+            : null;
+
+        return $this->authorizationDecision['allowed'] ?? false;
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user()?->fresh();
-        if ($user) {
-            $decision = app(PermissionResolver::class)->decide($user, 'jenis_berkas:create');
-            $rawAlasan = $this->input('alasan');
-            $nama = is_string($this->input('nama')) ? trim($this->input('nama')) : '';
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
-                ? trim($rawAlasan)
+        if ($user && $this->authorizationDecision !== null) {
+            $rawAlasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000, 'UTF-8');
+            $nama = mb_substr(trim(AuditReason::sanitize($this->input('nama'))), 0, 255, 'UTF-8');
+            $alasan = $rawAlasan !== ''
+                ? $rawAlasan
                 : 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin.'.($nama !== '' ? ' (Nama: '.$nama.')' : '');
 
             app(AuditLogger::class)->catat(
@@ -35,7 +42,7 @@ class StoreJenisBerkasRequest extends FormRequest
                 objekTipe: 'jenis_berkas',
                 objekId: (string) Str::uuid(),
                 alasan: $alasan,
-                dasarIzin: $decision,
+                dasarIzin: $this->authorizationDecision,
             );
         }
 
