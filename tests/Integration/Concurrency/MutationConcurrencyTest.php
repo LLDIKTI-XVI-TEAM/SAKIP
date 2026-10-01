@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Integration\Auth;
+namespace Tests\Integration\Concurrency;
 
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
@@ -32,7 +32,7 @@ use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
-class AccountConcurrencyTest extends TestCase
+class MutationConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
 
@@ -752,7 +752,7 @@ class AccountConcurrencyTest extends TestCase
             $workers = $assignments === [] ? 2 : count($assignments);
             for ($index = 0; $index < $workers; $index++) {
                 $input = new InputStream;
-                $arguments = [PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $assignments[$index]['worker_operation'] ?? $operation, $subject];
+                $arguments = [PHP_BINARY, base_path('tests/Support/concurrency-worker.php'), $assignments[$index]['worker_operation'] ?? $operation, $subject];
                 if ($assignments !== []) {
                     $arguments[] = json_encode($assignments[$index], JSON_THROW_ON_ERROR);
                 }
