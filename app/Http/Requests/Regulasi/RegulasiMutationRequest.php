@@ -8,6 +8,18 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
+/**
+ * validated() mempertahankan bentuk input integer/boolean yang diterima validator.
+ * Field lampiran di luar mode aktif dikeluarkan sebelum diteruskan ke Action.
+ *
+ * @phpstan-type RegulasiData array{
+ *     jenis: 'kepmen'|'permen'|'perpres'|'keputusan_lainnya', nomor: string,
+ *     tahun: int|numeric-string, tentang: string, tanggal?: string|null,
+ *     tautan_sumber?: string|null, catatan?: string|null, aktif: bool|0|1|'0'|'1',
+ *     alasan?: string|null, versi?: int|numeric-string,
+ *     lampiran?: array<array-key, array{mode: 'file'|'tautan'|'teks', file?: \Illuminate\Http\UploadedFile, tautan?: string, isi_teks?: string}>
+ * }
+ */
 abstract class RegulasiMutationRequest extends FormRequest
 {
     protected ?bool $isUploadActiveCached = null;

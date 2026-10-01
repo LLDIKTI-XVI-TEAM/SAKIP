@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers\Renstra;
 
+use App\Actions\Renstra\DeleteRenstraAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Renstra\DestroyRenstraRequest;
 use App\Models\Renstra;
 use App\Models\User;
-use App\Services\RenstraService;
 use Illuminate\Http\RedirectResponse;
 
 class DestroyRenstra extends Controller
 {
-    public function __invoke(DestroyRenstraRequest $request, Renstra $renstra, RenstraService $service): RedirectResponse
+    public function __invoke(DestroyRenstraRequest $request, Renstra $renstra, DeleteRenstraAction $action): RedirectResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $service->delete($renstra, (string) $request->input('alasan'), $actor);
+        $action->handle($actor, $renstra, (string) $request->validated('alasan'));
 
         return redirect()
             ->route('renstra.index')

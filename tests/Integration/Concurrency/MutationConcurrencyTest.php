@@ -1,15 +1,20 @@
 <?php
 
-namespace Tests\Integration\Auth;
+namespace Tests\Integration\Concurrency;
 
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Regulasi\DeleteRegulasiAction;
+use App\Actions\Regulasi\UpdateRegulasiAction;
+use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
 use App\Models\Permission;
+use App\Models\Regulasi;
+use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
@@ -29,7 +34,7 @@ use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
-class AccountConcurrencyTest extends TestCase
+class MutationConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
 
@@ -505,6 +510,271 @@ class AccountConcurrencyTest extends TestCase
         $this->assertContains($denyId, $audit->dasar_izin['denies']);
     }
 
+    #[DataProvider('regulasiMutations')]
+    public function test_regulasi_reauthorizes_when_deny_commits_while_request_waits(string $operation, string $permission, string $denialEvent): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $manager = User::factory()->create(['status' => 'aktif']);
+        foreach ([$actor, $manager] as $user) {
+            $user->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $regulasi = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'LOCK-REGULASI', 'tahun' => 2026, 'tentang' => 'Regulasi awal', 'aktif' => true, 'created_by' => $actor->id]);
+        $berkas = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran awal', 'uploaded_by' => $actor->id]);
+        $before = $regulasi->fresh()->getAttributes();
+        $data = ['jenis' => 'kepmen', 'nomor' => $operation === 'regulasi-create' ? 'LOCK-CREATE' : $regulasi->nomor, 'tahun' => 2026, 'tentang' => 'Perubahan yang harus ditolak', 'aktif' => true, 'alasan' => 'Pembaruan fixture konkurensi'];
+        if ($operation === 'regulasi-update') {
+            $data['versi'] = $regulasi->versi;
+        }
+        $payload = ['actor_id' => $actor->id, 'permission' => $permission, 'regulasi_id' => $regulasi->id, 'berkas_id' => $berkas->id, 'data' => $data];
+        $prepare = function () use ($actor, $manager, $regulasi): void {
+            // Writer akses mengambil user lebih dahulu; barrier domain menahan perubahan induk.
+            User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
+            Regulasi::whereKey($regulasi->id)->lockForUpdate()->firstOrFail();
+        };
+        $denyId = null;
+        $denyWhileBlocked = function () use ($actor, $manager, $permission, &$denyId): void {
+            $denyId = app(CreateDeny::class)->handle($manager, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sah saat request regulasi menunggu')->id;
+        };
+
+        $results = $this->race($operation, $actor->id, '', [$payload], $prepare, assertBlocked: $denyWhileBlocked);
+
+        $this->assertSame(['denied'], $results, 'Keputusan izin sebelum lock tidak boleh dipakai untuk mutasi setelah deny committed.');
+        $this->assertDatabaseCount('regulasi', 1);
+        $this->assertSame($before, $regulasi->fresh()->getAttributes());
+        $this->assertFalse($berkas->fresh()->trashed());
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['regulasi.buat', 'regulasi.ubah', 'regulasi.hapus', 'berkas.hapus'])->count());
+        $audit = AuditLog::where('tindakan', $denialEvent)->sole();
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame($permission, $audit->dasar_izin['permission']);
+        $this->assertContains($denyId, $audit->dasar_izin['deny']);
+    }
+
+    public static function regulasiMutations(): array
+    {
+        return [
+            'create' => ['regulasi-create', 'regulasi:create', 'regulasi.buat_ditolak'],
+            'update' => ['regulasi-update', 'regulasi:update', 'regulasi.ubah_ditolak'],
+            'delete' => ['regulasi-delete', 'regulasi:delete', 'regulasi.hapus_ditolak'],
+            'attachment' => ['regulasi-attachment', 'berkas:delete', 'berkas.hapus_ditolak'],
+        ];
+    }
+
+    #[DataProvider('renstraMutations')]
+    public function test_renstra_reauthorizes_when_deny_commits_while_request_waits(string $operation, string $permission, string $variant = ''): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $manager = User::factory()->create(['status' => 'aktif']);
+        foreach ([$actor, $manager] as $user) {
+            $user->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $renstra = Renstra::create(['kode' => 'LOCK-RENSTRA', 'nama' => 'Renstra awal', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $actor->id]);
+        $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran awal', 'uploaded_by' => $actor->id]);
+        $before = $renstra->fresh()->getAttributes();
+        $data = ['kode' => $operation === 'renstra-create' ? 'LOCK-CREATE' : $renstra->kode, 'nama' => 'Perubahan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Pembaruan fixture konkurensi'];
+        if ($variant === 'upload') {
+            $data['lampiran'] = [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak']];
+        }
+        if ($variant === 'regulasi-null') {
+            $data['regulasi_id'] = null;
+        }
+        $parentDeny = null;
+        if ($variant === 'parent-update') {
+            $parentDeny = app(CreateDeny::class)->handle($manager, $actor->id, Permission::where('kode', 'renstra:delete')->value('id'), null, 'Hanya jalur update yang semula diizinkan');
+        }
+        $payload = ['actor_id' => $actor->id, 'permission' => $permission, 'renstra_id' => $renstra->id, 'berkas_id' => $berkas->id, 'data' => $data];
+        $prepare = function () use ($actor, $manager, $renstra): void {
+            // Writer izin mengambil user lebih dahulu; induk menahan jalur mutasi setelah otorisasi request.
+            User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
+            Renstra::whereKey($renstra->id)->lockForUpdate()->firstOrFail();
+        };
+        $denyId = null;
+        $denyWhileBlocked = function () use ($actor, $manager, $permission, &$denyId): void {
+            $denyId = app(CreateDeny::class)->handle($manager, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sah saat request Renstra menunggu')->id;
+        };
+
+        $results = $this->race($operation, $actor->id, '', [$payload], $prepare, assertBlocked: $denyWhileBlocked);
+
+        $this->assertSame([$variant === 'parent-berkas' ? 'validation-denied' : 'denied'], $results);
+        $this->assertDatabaseCount('renstras', 1);
+        $this->assertDatabaseCount('berkas', 1);
+        $this->assertSame($before, $renstra->fresh()->getAttributes());
+        $this->assertFalse($berkas->fresh()->trashed());
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['renstra.buat', 'renstra.ubah', 'renstra.hapus', 'berkas.hapus', 'berkas.unggah'])->count());
+        $event = match ($operation) {
+            'renstra-create' => 'renstra.buat_ditolak',
+            'renstra-update' => 'renstra.ubah_ditolak',
+            'renstra-delete' => 'renstra.hapus_ditolak',
+            default => 'berkas.hapus_ditolak',
+        };
+        $audit = AuditLog::where('tindakan', $event)->sole();
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame($parentDeny ? 'renstra:delete' : $permission, $audit->dasar_izin['permission']);
+        $this->assertContains($parentDeny?->id ?? $denyId, $audit->dasar_izin['deny']);
+    }
+
+    public static function renstraMutations(): array
+    {
+        return [
+            'create' => ['renstra-create', 'renstra:create'],
+            'update' => ['renstra-update', 'renstra:update'],
+            'delete' => ['renstra-delete', 'renstra:delete'],
+            'attachment' => ['renstra-attachment', 'berkas:delete'],
+            'upload create' => ['renstra-create', 'berkas:upload', 'upload'],
+            'upload update' => ['renstra-update', 'berkas:upload', 'upload'],
+            'regulasi null create' => ['renstra-create', 'regulasi:read', 'regulasi-null'],
+            'regulasi null update' => ['renstra-update', 'regulasi:read', 'regulasi-null'],
+            'attachment parent update' => ['renstra-attachment', 'renstra:update', 'parent-update'],
+            'parent berkas delete' => ['renstra-delete', 'berkas:delete', 'parent-berkas'],
+        ];
+    }
+
+    #[DataProvider('invalidatedRegulasiReferences')]
+    public function test_renstra_create_rechecks_reference_after_concurrent_regulasi_change(bool $deleteRegulasi): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $regulasi = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'RUJUKAN-CREATE', 'tahun' => 2026, 'tentang' => 'Rujukan awal aktif', 'aktif' => true, 'created_by' => $actor->id]);
+        $data = ['kode' => 'RENSTRA-RUJUKAN', 'nama' => 'Renstra dengan rujukan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasi->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran tidak boleh tersimpan']]];
+        $payload = [
+            'actor_id' => $actor->id, 'permission' => 'renstra:create', 'data' => $data,
+            'expected_error_field' => 'regulasi_id',
+            'expected_error_message' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
+        ];
+        $prepare = fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+        $changeWhileBlocked = function (array $pids) use ($actor, $regulasi, $deleteRegulasi): void {
+            // Lock pertama Action membuktikan FormRequest sudah menerima Regulasi yang masih aktif.
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertMatchesRegularExpression('/from "users".*for share/i', $query);
+            if ($deleteRegulasi) {
+                app(DeleteRegulasiAction::class)->handle($actor, $regulasi, 'Menghapus rujukan sebelum pembuatan Renstra');
+                $this->assertModelMissing($regulasi);
+            } else {
+                app(UpdateRegulasiAction::class)->handle($actor, $regulasi, [
+                    'jenis' => $regulasi->jenis, 'nomor' => $regulasi->nomor, 'tahun' => $regulasi->tahun,
+                    'tentang' => $regulasi->tentang, 'aktif' => false, 'versi' => $regulasi->versi,
+                    'alasan' => 'Menonaktifkan rujukan sebelum pembuatan Renstra',
+                ]);
+                $this->assertFalse($regulasi->fresh()->aktif);
+            }
+        };
+
+        $results = $this->race('renstra-create', $actor->id, '', [$payload], $prepare, assertBlocked: $changeWhileBlocked);
+
+        $this->assertSame(['validation-denied'], $results, 'Rujukan yang berubah sesudah validasi harus menjadi error regulasi_id, bukan sukses atau server error.');
+        $this->assertDatabaseCount('renstras', 0);
+        $this->assertDatabaseCount('berkas', 0);
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['renstra.buat', 'berkas.unggah'])->count());
+        $this->assertSame($regulasi->id, AuditLog::where('tindakan', $deleteRegulasi ? 'regulasi.hapus' : 'regulasi.ubah')->sole()->objek_id);
+
+        // Rujukan opsional tetap sah, baik omitted maupun null, dengan izin aktor yang sama.
+        unset($data['regulasi_id'], $data['lampiran']);
+        if ($deleteRegulasi) {
+            $data['regulasi_id'] = null;
+        }
+        $this->actingAs($actor)->post('/renstra', $data)->assertRedirect('/renstra')->assertSessionHasNoErrors();
+        $this->assertNull(Renstra::sole()->regulasi_id);
+    }
+
+    public static function invalidatedRegulasiReferences(): array
+    {
+        return ['deactivated' => [false], 'deleted' => [true]];
+    }
+
+    public function test_renstra_rechecks_inactive_reference_after_concurrent_reference_change(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $regulasiA = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'RUJUKAN-A', 'tahun' => 2026, 'tentang' => 'Rujukan lama nonaktif', 'aktif' => false, 'created_by' => $actor->id]);
+        $regulasiB = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'RUJUKAN-B', 'tahun' => 2026, 'tentang' => 'Rujukan baru aktif', 'aktif' => true, 'created_by' => $actor->id]);
+        $renstra = Renstra::create(['kode' => 'RUJUKAN-BERSAMA', 'nama' => 'Renstra awal', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'created_by' => $actor->id]);
+        $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran awal', 'uploaded_by' => $actor->id]);
+        $berkasBefore = $berkas->fresh()->getAttributes();
+        $expectedRenstra = null;
+        $payload = [
+            'actor_id' => $actor->id, 'permission' => 'renstra:update', 'renstra_id' => $renstra->id,
+            'expected_error_field' => 'regulasi_id',
+            'expected_error_message' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
+            'data' => ['nama' => 'Perubahan stale tidak boleh tersimpan', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran stale tidak boleh tersimpan']], 'alasan' => 'Mempertahankan rujukan dari formulir lama'],
+        ];
+        $prepare = fn () => Renstra::whereKey($renstra->id)->lockForUpdate()->firstOrFail();
+        $changeWhileBlocked = function (array $pids) use ($actor, $renstra, $regulasiA, $regulasiB, &$expectedRenstra): void {
+            // Query lock Action membuktikan request telah lolos FormRequest saat rujukannya masih A.
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertMatchesRegularExpression('/from "renstras".*for update/i', $query);
+            // Lock target sudah dipegang sebelum menunggu Renstra; savepoint memulihkan transaksi probe.
+            try {
+                DB::transaction(fn () => Regulasi::whereKey($regulasiA->id)->lock('for update nowait')->firstOrFail());
+                $this->fail('Worker harus mengunci Regulasi sebelum mencoba mengunci Renstra.');
+            } catch (QueryException $exception) {
+                $this->assertSame('55P03', $exception->errorInfo[0] ?? null);
+            }
+            $this->assertSame(1, DB::transactionLevel());
+            $updated = app(UpdateRenstraAction::class)->handle($actor, $renstra, [
+                'nama' => 'Perubahan sah ke rujukan B', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
+                'regulasi_id' => $regulasiB->id, 'alasan' => 'Mengganti rujukan dengan regulasi aktif',
+            ]);
+            $this->assertSame($regulasiB->id, $updated->regulasi_id);
+            $expectedRenstra = $updated->fresh()->getAttributes();
+        };
+
+        $results = $this->race('renstra-update', $actor->id, '', [$payload], $prepare, assertBlocked: $changeWhileBlocked);
+
+        $this->assertSame(['validation-denied'], $results, 'Pengecualian rujukan nonaktif harus memakai FK terkunci setelah perubahan konkuren.');
+        $this->assertSame($expectedRenstra, $renstra->fresh()->getAttributes());
+        $this->assertSame($berkasBefore, $berkas->fresh()->getAttributes());
+        $this->assertDatabaseCount('berkas', 1);
+        $this->assertSame(0, AuditLog::where('tindakan', 'berkas.unggah')->count());
+        $this->assertSame($regulasiB->id, AuditLog::where('tindakan', 'renstra.ubah')->sole()->nilai_baru['regulasi_id']);
+        $this->assertSame($regulasiB->id, AuditLog::where('tindakan', 'renstra.ubah_regulasi')->sole()->nilai_baru['regulasi_id']);
+    }
+
+    #[DataProvider('phaseCPresetMutations')]
+    public function test_regulasi_and_renstra_reauthorize_after_actual_preset_release(string $domain): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $role = Role::where('kode', 'pegawai')->firstOrFail();
+        $actor->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $permission = Permission::where('kode', $domain.':update')->firstOrFail();
+        $role->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        $record = $domain === 'regulasi'
+            ? Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'PRESET', 'tahun' => 2026, 'tentang' => 'Regulasi awal', 'aktif' => true, 'created_by' => $actor->id])
+            : Renstra::create(['kode' => 'PRESET', 'nama' => 'Renstra awal', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $actor->id]);
+        $before = $record->fresh()->getAttributes();
+        $data = $domain === 'regulasi'
+            ? ['jenis' => 'kepmen', 'nomor' => 'PRESET', 'tahun' => 2026, 'tentang' => 'Perubahan ditolak', 'aktif' => true, 'versi' => $record->versi, 'alasan' => 'Perubahan fixture preset']
+            : ['nama' => 'Perubahan ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture preset'];
+        $payload = ['actor_id' => $actor->id, 'permission' => $permission->kode, $domain.'_id' => $record->id, 'data' => $data];
+        $prepare = function (): void {
+            // Rilis preset memakai urutan role lalu permission; worker harus menunggu role yang sama.
+            Role::orderBy('id')->lockForUpdate()->get();
+        };
+        $releaseWhileBlocked = function (): void {
+            app(SyncRolePermissionPresets::class)->handle('fixture-phase-c', 'Pulihkan preset resmi saat mutasi menunggu', 'test-process:'.getmypid());
+        };
+
+        $results = $this->race($domain.'-update', $actor->id, '', [$payload], $prepare, 'roles', $releaseWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertSame($before, $record->fresh()->getAttributes());
+        $this->assertFalse($role->permissions()->whereKey($permission->id)->exists());
+        $this->assertSame(0, AuditLog::where('tindakan', $domain.'.ubah')->count());
+        $audit = AuditLog::where('tindakan', $domain.'.ubah_ditolak')->sole();
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame('no_allow', $audit->dasar_izin['alasan']);
+        $this->assertSame(['roles' => [], 'grants' => []], $audit->dasar_izin['sumber_allow']);
+        $this->assertSame([], $audit->dasar_izin['deny']);
+    }
+
+    public static function phaseCPresetMutations(): array
+    {
+        return [['regulasi'], ['renstra']];
+    }
+
     /**
      * Kedua proses harus terbukti menunggu lock PostgreSQL yang sama sebelum dilepas.
      * Fixture sudah committed; ini tidak memakai transaksi luar RefreshDatabase.
@@ -542,7 +812,7 @@ class AccountConcurrencyTest extends TestCase
             $workers = $assignments === [] ? 2 : count($assignments);
             for ($index = 0; $index < $workers; $index++) {
                 $input = new InputStream;
-                $arguments = [PHP_BINARY, base_path('tests/Support/account-concurrency-worker.php'), $assignments[$index]['worker_operation'] ?? $operation, $subject];
+                $arguments = [PHP_BINARY, base_path('tests/Support/concurrency-worker.php'), $assignments[$index]['worker_operation'] ?? $operation, $subject];
                 if ($assignments !== []) {
                     $arguments[] = json_encode($assignments[$index], JSON_THROW_ON_ERROR);
                 }

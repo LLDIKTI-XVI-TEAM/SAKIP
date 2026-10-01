@@ -5,21 +5,26 @@ namespace App\Http\Requests\Renstra;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
-use Illuminate\Support\Facades\Gate;
+use App\Support\PermissionDecision;
 
 class UpdateRenstraRequest extends RenstraMutationRequest
 {
+    private ?PermissionDecision $initialDecision = null;
+
     public function authorize(): bool
     {
         $renstra = $this->route('renstra');
         $user = $this->user();
 
-        return $renstra instanceof Renstra
-            && $user instanceof User
-            && Gate::allows('update', $renstra)
-            && $this->relatedPermissionsAllowed($user);
+        if (! $renstra instanceof Renstra || ! $user instanceof User) {
+            return false;
+        }
+        $this->initialDecision = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
+
+        return $this->initialDecision->allowed && $this->relatedPermissionsAllowed($user);
     }
 
     protected function failedAuthorization(): void
@@ -27,11 +32,10 @@ class UpdateRenstraRequest extends RenstraMutationRequest
         $user = $this->user();
         $renstra = $this->route('renstra');
 
-        if ($user instanceof User && $renstra instanceof Renstra) {
+        if ($user instanceof User && $renstra instanceof Renstra && $this->initialDecision !== null) {
             $decision = $this->deniedRelatedDecision
-                ?? app(PermissionResolver::class)->resolve($user, PermissionCodes::RENSTRA_UPDATE);
-            $rawAlasan = $this->input('alasan');
-            $alasan = is_string($rawAlasan) && trim($rawAlasan) !== '' ? trim($rawAlasan) : null;
+                ?? $this->initialDecision;
+            $alasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000);
 
             app(AuditLogger::class)->catat(
                 actor: $user,
