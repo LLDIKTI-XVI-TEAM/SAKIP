@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Perencanaan;
 
+use App\Actions\Perencanaan\UpdateIndikator;
+use App\Actions\Perencanaan\UpdateSasaran;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\Permission;
@@ -15,6 +17,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class SasaranIndikatorStaleTest extends TestCase
@@ -418,6 +421,126 @@ class SasaranIndikatorStaleTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_update_sasaran_action_tanpa_token_ditolak_409_tanpa_mutasi_dan_tanpa_audit(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-ACTION-TOKEN',
+            'deskripsi' => 'Deskripsi awal',
+            'urutan' => 1,
+        ]);
+
+        $deskripsiAwal = $sasaran->deskripsi;
+        $action = app(UpdateSasaran::class);
+
+        $payloadDasar = [
+            'kode' => 'SS-ACTION-TOKEN',
+            'deskripsi' => 'Deskripsi overwrite via Action langsung',
+            'urutan' => 1,
+        ];
+
+        $varian = [
+            'hilang' => $payloadDasar,
+            'kosong' => array_merge($payloadDasar, ['expected_updated_at' => '']),
+            'spasi' => array_merge($payloadDasar, ['expected_updated_at' => '   ']),
+        ];
+
+        foreach ($varian as $nama => $payload) {
+            try {
+                $action->handle($this->perencanaan, $sasaran->fresh(), $payload);
+                $this->fail("Varian {$nama} seharusnya ditolak 409.");
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('konflik', $e->errors());
+                $this->assertSame(
+                    'Data sasaran strategis telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    $e->errors()['konflik'][0]
+                );
+                $this->assertSame(409, $e->status);
+            }
+        }
+
+        $this->assertSame($deskripsiAwal, $sasaran->fresh()->deskripsi);
+        $this->assertSame(0, AuditLog::where('tindakan', 'sasaran.ubah')->where('objek_id', $sasaran->id)->count());
+
+        $tokenSegar = $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString();
+        $hasil = $action->handle($this->perencanaan, $sasaran->fresh(), array_merge($payloadDasar, [
+            'deskripsi' => 'Deskripsi bertoken valid',
+            'expected_updated_at' => $tokenSegar,
+        ]));
+
+        $this->assertSame('Deskripsi bertoken valid', $hasil->deskripsi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'sasaran.ubah')->where('objek_id', $sasaran->id)->count());
+    }
+
+    public function test_update_indikator_action_tanpa_token_ditolak_409_tanpa_mutasi_dan_tanpa_audit(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-ACTION-TOKEN-IKU',
+            'deskripsi' => 'Sasaran uji token Action',
+            'urutan' => 1,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ACTION-TOKEN',
+            'nama' => 'Nama Awal',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
+        ]);
+
+        $namaAwal = $indikator->nama;
+        $action = app(UpdateIndikator::class);
+
+        $payloadDasar = [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ACTION-TOKEN',
+            'nama' => 'Nama Overwrite via Action Langsung',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+        ];
+
+        $varian = [
+            'hilang' => $payloadDasar,
+            'kosong' => array_merge($payloadDasar, ['expected_updated_at' => '']),
+            'spasi' => array_merge($payloadDasar, ['expected_updated_at' => '   ']),
+        ];
+
+        foreach ($varian as $nama => $payload) {
+            try {
+                $action->handle($this->perencanaan, $indikator->fresh(), $payload);
+                $this->fail("Varian {$nama} seharusnya ditolak 409.");
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('konflik', $e->errors());
+                $this->assertSame(
+                    'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                    $e->errors()['konflik'][0]
+                );
+                $this->assertSame(409, $e->status);
+            }
+        }
+
+        $this->assertSame($namaAwal, $indikator->fresh()->nama);
+        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $indikator->id)->count());
+
+        $tokenSegar = $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString();
+        $hasil = $action->handle($this->perencanaan, $indikator->fresh(), array_merge($payloadDasar, [
+            'nama' => 'Nama bertoken valid',
+            'expected_updated_at' => $tokenSegar,
+        ]));
+
+        $this->assertSame('Nama bertoken valid', $hasil['indikator']->nama);
+        $this->assertSame(1, AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $indikator->id)->count());
     }
 
     private function buatUserDenganRole(string $roleName, string $email): User

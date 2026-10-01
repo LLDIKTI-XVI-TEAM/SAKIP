@@ -112,23 +112,27 @@ class UpdateIndikator
                 ->firstOrFail();
 
             $expectedRaw = $validated['expected_updated_at'] ?? null;
-            if ($expectedRaw !== null && trim((string) $expectedRaw) !== '') {
-                try {
-                    $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
-                } catch (Throwable) {
-                    throw ValidationException::withMessages([
-                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
-                    ]);
-                }
+            if ($expectedRaw === null || trim((string) $expectedRaw) === '') {
+                throw ValidationException::withMessages([
+                    'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                ])->status(409);
+            }
 
-                $currentTimestamp = $lockedIndikator->updated_at ?? $lockedIndikator->created_at;
-                $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+            try {
+                $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
+            } catch (Throwable) {
+                throw ValidationException::withMessages([
+                    'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                ]);
+            }
 
-                if ($currentIso === null || $currentIso !== $expectedIso) {
-                    throw ValidationException::withMessages([
-                        'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
-                    ])->status(409);
-                }
+            $currentTimestamp = $lockedIndikator->updated_at ?? $lockedIndikator->created_at;
+            $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+
+            if ($currentIso === null || $currentIso !== $expectedIso) {
+                throw ValidationException::withMessages([
+                    'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                ])->status(409);
             }
 
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
@@ -219,16 +223,34 @@ class UpdateIndikator
             // service domain pada state kandidat tanpa mutasi, atomik dalam
             // transaksi setelah kunci dan sebelum update. Tipe tak berubah
             // dilewati tanpa overhead. Gagal → 422 + messages dari service.
+            //
+            // Alur transisi tipe↔komponen (lifecycle, konsisten dengan guard
+            // sisi-komponen di IndikatorKomponenController yang mengunci
+            // parent yang sama):
+            // - manual→nonmanual DIIZINKAN tanpa komponen — keadaan transien
+            //   yang ditandai invalid oleh contract validation hingga
+            //   dikonfigurasi via Kelola Komponen (tanpa pengecualian ini
+            //   jalur buntu: komponen tak bisa dibuat saat manual, padahal
+            //   tipe baru mensyaratkan komponen sudah ada).
+            // - nonmanual→manual DITOLAK bila masih ada komponen aktif —
+            //   nonaktifkan dulu via Kelola Komponen (pesan 422 mengarahkan).
+            // - nonmanual→nonmanual lain tetap dinilai penuh via service.
             $kandidatTipe = $validated['tipe_perhitungan'];
-            if ($kandidatTipe !== $lockedIndikator->tipe_perhitungan) {
+            $tipeLama = $lockedIndikator->tipe_perhitungan;
+            $manualKeNonmanual = $tipeLama === 'manual' && $kandidatTipe !== 'manual';
+            if ($kandidatTipe !== $tipeLama && ! $manualKeNonmanual) {
                 $kandidat = clone $lockedIndikator;
                 $kandidat->tipe_perhitungan = $kandidatTipe;
                 $kandidat->setRelation('komponen', $lockedIndikator->komponen()->get());
 
                 $validasiKomponen = $this->perhitunganService->validateDefinisiKomponen($kandidat);
                 if (! $validasiKomponen['is_valid']) {
+                    $pesanTipe = $validasiKomponen['messages'];
+                    if ($kandidatTipe === 'manual') {
+                        $pesanTipe[] = 'Nonaktifkan komponen aktif terlebih dahulu via Kelola Komponen sebelum beralih ke tipe manual. Alur transisi: manual→nonmanual diizinkan tanpa komponen (keadaan transien invalid hingga dikonfigurasi via Kelola Komponen).';
+                    }
                     throw ValidationException::withMessages([
-                        'tipe_perhitungan' => $validasiKomponen['messages'],
+                        'tipe_perhitungan' => $pesanTipe,
                     ]);
                 }
             }

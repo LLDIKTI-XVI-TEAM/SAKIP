@@ -53,8 +53,6 @@ class IndikatorKomponenController extends Controller
 
     public function store(StoreIndikatorKomponenRequest $request, IndikatorKinerja $indikator, PermissionResolver $resolver): RedirectResponse
     {
-        abort_if($indikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
-
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:create');
 
@@ -63,8 +61,16 @@ class IndikatorKomponenController extends Controller
         $data['created_by'] = $actor->id;
 
         try {
-            DB::transaction(function () use ($data, $actor, $decision) {
-                $komponen = IndikatorKomponen::create($data);
+            DB::transaction(function () use ($indikator, $data, $actor, $decision) {
+                // Urutan kunci parent→child, konsisten dengan UpdateIndikator
+                // yang mengunci Indikator sebelum mutasi: parent dikunci
+                // FOR UPDATE dulu agar perubahan tipe konkuren terserialisasi
+                // dengan penambahan komponen (tanpa inversi = tanpa deadlock).
+                // Guard manual dibaca dari baris terkunci (anti-TOCTOU).
+                $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
+
+                $komponen = IndikatorKomponen::create(array_merge($data, ['indikator_id' => $lockedIndikator->id]));
                 $komponen = $komponen->fresh();
 
                 $this->auditLogger->catat(
@@ -94,9 +100,6 @@ class IndikatorKomponenController extends Controller
 
     public function update(UpdateIndikatorKomponenRequest $request, IndikatorKinerja $indikator, IndikatorKomponen $komponen, PermissionResolver $resolver): RedirectResponse
     {
-        abort_if($indikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
-        abort_if($komponen->indikator_id !== $indikator->id, 404);
-
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:update');
 
@@ -105,16 +108,25 @@ class IndikatorKomponenController extends Controller
         unset($data['alasan']);
 
         try {
-            DB::transaction(function () use ($komponen, $data, $actor, $alasan, $decision) {
-                $nilaiLama = $this->formatAuditSnapshot($komponen);
-                $komponen->update($data);
-                $nilaiBaru = $this->formatAuditSnapshot($komponen->fresh());
+            DB::transaction(function () use ($indikator, $komponen, $data, $actor, $alasan, $decision) {
+                // Urutan kunci parent→child seperti store: parent FOR UPDATE
+                // dulu, baru child FOR UPDATE. Guard manual + kepemilikan
+                // dibaca dari baris terkunci (anti-TOCTOU).
+                $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
+
+                $lockedKomponen = IndikatorKomponen::whereKey($komponen->getKey())->lockForUpdate()->firstOrFail();
+                abort_if($lockedKomponen->indikator_id !== $lockedIndikator->id, 404);
+
+                $nilaiLama = $this->formatAuditSnapshot($lockedKomponen);
+                $lockedKomponen->update($data);
+                $nilaiBaru = $this->formatAuditSnapshot($lockedKomponen->fresh());
 
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'komponen.ubah',
                     objekTipe: 'indikator_komponen',
-                    objekId: $komponen->id,
+                    objekId: $lockedKomponen->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $nilaiBaru,
                     alasan: $alasan,
@@ -137,42 +149,53 @@ class IndikatorKomponenController extends Controller
 
     public function destroy(DestroyIndikatorKomponenRequest $request, IndikatorKinerja $indikator, IndikatorKomponen $komponen, PermissionResolver $resolver): RedirectResponse
     {
-        abort_if($komponen->indikator_id !== $indikator->id, 404);
-
         $actor = $request->user()->fresh();
         $decision = $resolver->decide($actor, 'komponen:delete');
 
         $alasan = $request->validated('alasan');
 
-        $isReferenced = DB::table('jadwal_snapshot_komponen')->where('komponen_id', $komponen->id)->exists()
-            || DB::table('rencana_aksi_target')->where('komponen_id', $komponen->id)->exists()
-            || DB::table('pengukuran_komponen')->where('komponen_id', $komponen->id)->exists()
-            || DB::table('klaim_kegiatan')->where('komponen_id', $komponen->id)->exists();
-
-        if ($isReferenced) {
-            return redirect()->to("/indikator/{$indikator->id}/komponen")
-                ->with('error', 'Komponen tidak dapat dihapus karena sudah direferensikan pada data snapshot, pengukuran, rencana aksi, atau klaim kegiatan. Silakan nonaktifkan komponen sebagai alternatif.');
-        }
-
         try {
-            DB::transaction(function () use ($komponen, $actor, $alasan, $decision) {
-                $nilaiLama = $this->formatAuditSnapshot($komponen);
-                $komponen->delete();
+            $dirujuk = DB::transaction(function () use ($indikator, $komponen, $actor, $alasan, $decision) {
+                // Urutan kunci parent→child seperti store/update: parent
+                // FOR UPDATE dulu, baru child FOR UPDATE. Kepemilikan +
+                // cek rujukan dibaca dari baris terkunci (anti-TOCTOU).
+                $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                $lockedKomponen = IndikatorKomponen::whereKey($komponen->getKey())->lockForUpdate()->firstOrFail();
+                abort_if($lockedKomponen->indikator_id !== $lockedIndikator->id, 404);
+
+                $isReferenced = DB::table('jadwal_snapshot_komponen')->where('komponen_id', $lockedKomponen->id)->exists()
+                    || DB::table('rencana_aksi_target')->where('komponen_id', $lockedKomponen->id)->exists()
+                    || DB::table('pengukuran_komponen')->where('komponen_id', $lockedKomponen->id)->exists()
+                    || DB::table('klaim_kegiatan')->where('komponen_id', $lockedKomponen->id)->exists();
+
+                if ($isReferenced) {
+                    return true;
+                }
+
+                $nilaiLama = $this->formatAuditSnapshot($lockedKomponen);
+                $lockedKomponen->delete();
 
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'komponen.hapus',
                     objekTipe: 'indikator_komponen',
-                    objekId: $komponen->id,
+                    objekId: $lockedKomponen->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: null,
                     alasan: $alasan,
                     dasarIzin: $decision,
                 );
+
+                return false;
             });
         } catch (QueryException) {
             return redirect()->to("/indikator/{$indikator->id}/komponen")
                 ->with('error', 'Komponen tidak dapat dihapus karena memiliki keterkaitan data pada sistem. Silakan nonaktifkan komponen.');
+        }
+
+        if ($dirujuk) {
+            return redirect()->to("/indikator/{$indikator->id}/komponen")
+                ->with('error', 'Komponen tidak dapat dihapus karena sudah direferensikan pada data snapshot, pengukuran, rencana aksi, atau klaim kegiatan. Silakan nonaktifkan komponen sebagai alternatif.');
         }
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")

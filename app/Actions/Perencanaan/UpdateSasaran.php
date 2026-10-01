@@ -60,23 +60,27 @@ class UpdateSasaran
                 ->firstOrFail();
 
             $expectedRaw = $validated['expected_updated_at'] ?? null;
-            if ($expectedRaw !== null && trim((string) $expectedRaw) !== '') {
-                try {
-                    $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
-                } catch (Throwable) {
-                    throw ValidationException::withMessages([
-                        'expected_updated_at' => 'Format timestamp versi tidak valid.',
-                    ]);
-                }
+            if ($expectedRaw === null || trim((string) $expectedRaw) === '') {
+                throw ValidationException::withMessages([
+                    'konflik' => 'Data sasaran strategis telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                ])->status(409);
+            }
 
-                $currentTimestamp = $lockedSasaran->updated_at ?? $lockedSasaran->created_at;
-                $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+            try {
+                $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
+            } catch (Throwable) {
+                throw ValidationException::withMessages([
+                    'expected_updated_at' => 'Format timestamp versi tidak valid.',
+                ]);
+            }
 
-                if ($currentIso === null || $currentIso !== $expectedIso) {
-                    throw ValidationException::withMessages([
-                        'konflik' => 'Data sasaran strategis telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
-                    ])->status(409);
-                }
+            $currentTimestamp = $lockedSasaran->updated_at ?? $lockedSasaran->created_at;
+            $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+
+            if ($currentIso === null || $currentIso !== $expectedIso) {
+                throw ValidationException::withMessages([
+                    'konflik' => 'Data sasaran strategis telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+                ])->status(409);
             }
 
             $nilaiLama = $lockedSasaran->withoutRelations()->toArray();

@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
+use App\Services\Kinerja\IndikatorPerhitunganService;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -2615,6 +2616,314 @@ class SasaranIndikatorTest extends TestCase
             'tindakan' => 'indikator.ubah',
             'objek_id' => $indikator->id,
         ]);
+    }
+
+    public function test_r226_manual_ke_rasio_lolos_lalu_tambah_komponen_menjadi_valid(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R226-A',
+            'deskripsi' => 'Sasaran R2-26 Manual Ke Rasio',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-A',
+            'nama' => 'Indikator R2-26 Manual',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        // 1. manual→rasio_persen diizinkan tanpa komponen (transien invalid).
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-A',
+            'nama' => 'Indikator R2-26 Manual',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('rasio_persen', $indikator->fresh()->tipe_perhitungan);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'indikator.ubah',
+            'objek_id' => $indikator->id,
+        ]);
+
+        // Transien: contract menandai invalid hingga dikonfigurasi.
+        $kontrakTransien = app(IndikatorPerhitunganService::class)->getFormulaContract($indikator->fresh()->load('komponen'));
+        $this->assertFalse($kontrakTransien['is_valid']);
+
+        // 2. Konfigurasi lanjutan via Kelola Komponen: pembilang + penyebut.
+        $this->actingAs($this->perencanaan)->post("/indikator/{$indikator->id}/komponen", [
+            'kode' => 'n',
+            'label' => 'Pembilang R2-26',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'aktif' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->actingAs($this->perencanaan)->post("/indikator/{$indikator->id}/komponen", [
+            'kode' => 't',
+            'label' => 'Penyebut R2-26',
+            'peran' => 'penyebut',
+            'bobot' => 1.0,
+            'urutan' => 2,
+            'aktif' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // 3. Contract kini valid.
+        $kontrak = app(IndikatorPerhitunganService::class)->getFormulaContract($indikator->fresh()->load('komponen'));
+        $this->assertTrue($kontrak['is_valid']);
+        $this->assertSame([], $kontrak['messages']);
+    }
+
+    public function test_r226_manual_ke_penjumlahan_lolos_lalu_tambah_penjumlah_menjadi_valid(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R226-B',
+            'deskripsi' => 'Sasaran R2-26 Manual Ke Penjumlahan',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-B',
+            'nama' => 'Indikator R2-26 Manual',
+            'satuan' => 'poin',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        // 1. manual→penjumlahan diizinkan tanpa komponen (transien invalid).
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-B',
+            'nama' => 'Indikator R2-26 Manual',
+            'satuan' => 'poin',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'penjumlahan',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('penjumlahan', $indikator->fresh()->tipe_perhitungan);
+
+        // Transien: contract menandai invalid hingga dikonfigurasi.
+        $kontrakTransien = app(IndikatorPerhitunganService::class)->getFormulaContract($indikator->fresh()->load('komponen'));
+        $this->assertFalse($kontrakTransien['is_valid']);
+
+        // 2. Konfigurasi lanjutan via Kelola Komponen: satu penjumlah.
+        $this->actingAs($this->perencanaan)->post("/indikator/{$indikator->id}/komponen", [
+            'kode' => 'jml',
+            'label' => 'Penjumlah R2-26',
+            'peran' => 'penjumlah',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'aktif' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // 3. Contract kini valid.
+        $kontrak = app(IndikatorPerhitunganService::class)->getFormulaContract($indikator->fresh()->load('komponen'));
+        $this->assertTrue($kontrak['is_valid']);
+        $this->assertSame([], $kontrak['messages']);
+    }
+
+    public function test_r226_rasio_berkomponen_ke_manual_tetap_ditolak_422(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R226-C',
+            'deskripsi' => 'Sasaran R2-26 Tolak Ke Manual',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-C',
+            'nama' => 'Indikator R2-26 Rasio Berkomponen',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'n',
+            'label' => 'Pembilang R2-26',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 't',
+            'label' => 'Penyebut R2-26',
+            'peran' => 'penyebut',
+            'bobot' => 1.0,
+            'urutan' => 2,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-C',
+            'nama' => 'Indikator R2-26 Rasio Berkomponen',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ]);
+
+        $response->assertSessionHasErrors(['tipe_perhitungan']);
+
+        // Pesan 422 mengarahkan ke alur Kelola Komponen.
+        $errors = session('errors');
+        $this->assertNotNull($errors);
+        $this->assertStringContainsString('Kelola Komponen', implode(' ', $errors->get('tipe_perhitungan')));
+
+        $this->assertSame('rasio_persen', $indikator->fresh()->tipe_perhitungan);
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'indikator.ubah',
+            'objek_id' => $indikator->id,
+        ]);
+    }
+
+    /**
+     * Serialisasi tipe-diubah vs komponen-ditambah: kedua jalur mengunci
+     * parent IndikatorKinerja FOR UPDATE dalam urutan parent→child yang sama
+     * (UpdateIndikator + IndikatorKomponenController store/update/destroy),
+     * sehingga pemenang pertama ter-commit dan jalur kedua menilainya —
+     * tak ada kombinasi invalid yang bertahan.
+     *
+     * Batas bukti: orkestrasi sekuensial satu-proses (bukan dua proses
+     * paralel); kunci baris + SQLSTATE-nya nyata di produksi, tetapi race
+     * 2-proses sejati tak direproduksi di sini (preseden batas: R2-21).
+     */
+    public function test_r226_konkurensi_tipe_vs_komponen_tak_hasilkan_kombinasi_invalid(): void
+    {
+        $sasaran = SasaranStrategis::create([
+            'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-R226-D',
+            'deskripsi' => 'Sasaran R2-26 Konkurensi',
+            'urutan' => 1,
+        ]);
+
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-D',
+            'nama' => 'Indikator R2-26 Rasio',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+        ]);
+
+        $pembilang = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'n',
+            'label' => 'Pembilang R2-26',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 1,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $penyebut = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 't',
+            'label' => 'Penyebut R2-26',
+            'peran' => 'penyebut',
+            'bobot' => 1.0,
+            'urutan' => 2,
+            'satuan' => 'dokumen',
+            'aktif' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $payloadUbahKeManual = fn (): array => [
+            'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R226-D',
+            'nama' => 'Indikator R2-26 Rasio',
+            'satuan' => '%',
+            'unit_id' => $this->unit->id,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ];
+
+        // Urutan serialisasi 1 (tambah-dulu-menang): ubah-tipe melihat
+        // komponen yang sudah ter-commit → ditolak 422, kombinasi tetap valid.
+        $this->actingAs($this->perencanaan)
+            ->put("/perencanaan/indikator/{$indikator->id}", $payloadUbahKeManual())
+            ->assertSessionHasErrors(['tipe_perhitungan']);
+        $this->assertSame('rasio_persen', $indikator->fresh()->tipe_perhitungan);
+        $this->assertTrue(app(IndikatorPerhitunganService::class)->validateDefinisiKomponen($indikator->fresh()->load('komponen'))['is_valid']);
+
+        // Nonaktifkan kedua komponen via Kelola Komponen, lalu ubah-tipe lolos.
+        foreach ([$pembilang, $penyebut] as $urutan => $komponen) {
+            $this->actingAs($this->perencanaan)->put("/indikator/{$indikator->id}/komponen/{$komponen->id}", [
+                'kode' => $komponen->kode,
+                'label' => $komponen->label,
+                'peran' => $komponen->peran,
+                'bobot' => 1.0,
+                'urutan' => $urutan + 1,
+                'aktif' => false,
+                'alasan' => 'Menonaktifkan komponen sebelum beralih ke tipe manual.',
+            ])->assertRedirect()->assertSessionHasNoErrors();
+        }
+
+        $this->actingAs($this->perencanaan)
+            ->put("/perencanaan/indikator/{$indikator->id}", $payloadUbahKeManual())
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('manual', $indikator->fresh()->tipe_perhitungan);
+
+        // Urutan serialisasi 2 (ubah-dulu-menang): tambah-komponen melihat
+        // tipe manual yang sudah ter-commit → ditolak, kombinasi tetap valid.
+        $this->actingAs($this->perencanaan)->post("/indikator/{$indikator->id}/komponen", [
+            'kode' => 'm_baru',
+            'label' => 'Komponen susulan saat manual',
+            'peran' => 'pembilang',
+            'bobot' => 1.0,
+            'urutan' => 3,
+            'aktif' => true,
+        ])->assertSessionHasErrors(['indikator']);
+        $this->assertDatabaseMissing('indikator_komponen', [
+            'indikator_id' => $indikator->id,
+            'kode' => 'm_baru',
+        ]);
+
+        $this->assertTrue(app(IndikatorPerhitunganService::class)->validateDefinisiKomponen($indikator->fresh()->load('komponen'))['is_valid']);
     }
 
     /**

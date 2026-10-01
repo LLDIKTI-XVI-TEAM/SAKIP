@@ -702,3 +702,50 @@ R2-24) di branch feature/iss-02-04-sasaran-indikator. Validasi tipe
 vs komponen sesuai detail task + test. Update checkbox + Bukti.
 JANGAN commit.
 ```
+
+### R2-26 · [MAJOR] Lifecycle tipe↔komponen: path transisi + parent-lock bersama
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: R2-25 membuat manual→nonmanual BUNTU (komponen tak bisa
+  dibuat saat manual, tapi tipe baru mensyaratkan komponen sudah ada)
+  + race UpdateIndikator vs KomponenController (child tak lock parent).
+- Yang dibuat:
+  1. `IndikatorKomponenController@store/update/destroy`: lock parent
+     `IndikatorKinerja FOR UPDATE` dulu (urutan: parent → child),
+     konsisten dengan UpdateIndikator.
+  2. Jalur transisi didukung: manual→nonmanual DIIZINKAN tanpa
+     komponen (keadaan transien invalid ditandai via contract
+     validation yang sudah ada; konfigurasi lanjut via Kelola
+     Komponen); nonmanual→manual tetap DITOLAK bila masih ada
+     komponen aktif (nonaktifkan dulu via Komponen UI).
+     Dokumentasikan alur ini di pesan 422 + ADR singkat/catatan.
+  3. Regression test: manual→rasio lolos lalu tambah komponen jadi
+     valid; manual→penjumlahan sama; rasio berkomponen→manual ditolak;
+     konkurensi tipe-vs-komponen tak hasilkan kombinasi invalid.
+- DoD: 4 skenario hijau; `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `UpdateIndikator` 4c — `manual→nonmanual` dilewati dari validasi komponen (transien invalid ditandai contract hingga dikonfigurasi via Kelola Komponen); `nonmanual→manual`/`nonmanual→nonmanual` tetap dinilai penuh via `validateDefinisiKomponen`, penolakan ke manual menambah arahan `Nonaktifkan komponen aktif terlebih dahulu via Kelola Komponen...` + alur transisi di pesan 422 dan komentar blok; tipe sama dilewati seperti semula; pesan/audit sukses `indikator.ubah`/`ubah_ditolak` tak berubah + `IndikatorKomponenController` store/update/destroy kini kunci parent `IndikatorKinerja::lockForUpdate` dulu (parent→child, tanpa inversi vs UpdateIndikator = tanpa deadlock) + guard manual + kepemilikan + cek rujukan dibaca dari baris terkunci (anti-TOCTOU; cek rujukan destroy pindah ke dalam transaksi, pesan/audit sukses `komponen.buat/ubah/hapus` identik); 4 test baru di `SasaranIndikatorTest.php` (`test_r226_manual_ke_rasio_...` lolos + transien invalid + pembilang/penyebut → contract valid; `test_r226_manual_ke_penjumlahan_...` + penjumlah → valid; `test_r226_rasio_berkomponen_ke_manual_...` 422 + pesan memuat `Kelola Komponen` + tanpa `indikator.ubah`; `test_r226_konkurensi_...` sekuensial dua arah: tambah-dulu→ubah ditolak 422 + nonaktifkan-dua-komponen→manual lolos + tambah-saat-manual ditolak `indikator`, final contract valid; batas: satu-proses, race 2-proses sejati tak direproduksi — serialisasi dijamin `FOR UPDATE` parent di kedua jalur, preseden batas R2-21); verifikasi: `php vendor/bin/pint --test` 3 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest di PG disposable podman `postgres:17-alpine` port 5454 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r226` dihapus): r226 4 passed/40 assertions, `SasaranIndikatorTest` 58 passed/341 assertions, KomponenHttp+LockOrder+Stale+Policy 31 passed/160 assertions. HEAD `7919e6d`. Belum di-commit.
+
+```text
+Prompt handoff R2-26:
+Kerjakan R2-26 dari document/PR-42-Review2-Tracking.md di branch
+feature/iss-02-04-sasaran-indikator. Selaraskan lifecycle + parent
+lock sesuai detail task + test. Update checkbox + Bukti. JANGAN commit.
+```
+
+### R2-27 · [MINOR] Fail-closed token di Action (bukan skip)
+- [x] Status: SELESAI (2026-10-01) — belum di-commit
+- Untuk apa: Action lewati compare bila token null/kosong — invariant
+  hanya di FormRequest. Internal caller bisa bypass.
+- Yang dibuat: UpdateIndikator + UpdateSasaran Action: token
+  hilang/kosong → reject (409 konflik, tanpa mutasi/audit).
+  Perbarui pemanggil/test langsung Action yang tanpa token.
+- DoD: test panggil Action tanpa token → ditolak; suite hijau;
+  `pint`+`phpstan` hijau.
+- Selesai: 2026-10-01 | Bukti: `UpdateIndikator`/`UpdateSasaran` Action: cabang skip-null dibalik fail-closed — token hilang/null/kosong/spasi → `ValidationException` `konflik` + `->status(409)` dengan pesan existing (`Data indikator/sasaran ... telah diperbarui oleh pengguna lain. Silakan muat ulang...`), di lokasi yang sama setelah `lockForUpdate` sebelum mutasi/audit (tanpa mutasi/audit sukses; cabang format-invalid `expected_updated_at` 422 + compare beda 409 tak berubah); pemanggil langsung NIHIL — grep `UpdateSasaran|UpdateIndikator` di `app/` hanya Action+controller+Request, di `tests/` hanya komentar/LockOrder-doc, di `database/` nihil, sehingga controller (sudah bertoken via `validated()+only()`) tak diubah; 2 test baru di `SasaranIndikatorStaleTest.php` (`..._action_tanpa_token_...`: varian hilang/kosong/spasi → 409 `konflik` pesan eksak + `status` 409 + data utuh + `*.ubah` 0, lalu kontrol positif bertoken segar → sukses + `*.ubah` 1; asersi lain utuh); verifikasi: `php vendor/bin/pint --test` 3 file passed; `php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress --memory-limit=1G` 0 errors; Pest di PG disposable podman `postgres:17-alpine` port 5455 (DB/user `sakip_test`, fresh migrate via `RefreshDatabase`; dev `sakip_db:5433` tak tersentuh; container `sakip_test_r227` dihapus): StaleTest 8 passed/88 assertions (6 existing + 2 baru), SasaranIndikator+LockOrder+Policy 74 passed/398 assertions, KomponenHttp 9 passed/41 assertions. HEAD `7919e6d`. Belum di-commit.
+
+```text
+Prompt handoff R2-27:
+Kerjakan R2-27 dari document/PR-42-Review2-Tracking.md (setelah
+R2-26) di branch feature/iss-02-04-sasaran-indikator. Fail-closed
+di Action sesuai detail task + test. Update checkbox + Bukti.
+JANGAN commit.
+```
