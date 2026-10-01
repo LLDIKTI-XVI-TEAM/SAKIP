@@ -12,6 +12,7 @@ use App\Actions\Unit\UpdateUnitAction;
 use App\Models\User;
 use App\Services\Authorization\RoleAssignmentReceipt;
 use App\Services\PermissionResolver;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -73,6 +74,11 @@ try {
             'revoke-deny' => 'revoked',
             default => $result,
         };
+    } catch (AuthorizationException $exception) {
+        if ($argv[1] !== 'assign-role') {
+            throw $exception;
+        }
+        $result = 'denied';
     } catch (HttpException $exception) {
         if (! in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete'], true) || $exception->getStatusCode() !== 403) {
             throw $exception;

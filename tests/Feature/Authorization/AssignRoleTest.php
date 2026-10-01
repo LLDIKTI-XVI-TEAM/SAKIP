@@ -426,17 +426,22 @@ class AssignRoleTest extends TestCase
         $this->assertTrue($resolver->allows($this->actor, 'pengguna:read'));
         $this->assertTrue($resolver->allows($this->actor, 'akses:update'));
         $this->deny($permission);
-        try {
-            app(AssignRole::class)->handle($this->actor, $this->target->id, Role::where('kode', 'pimpinan')->value('id'), 'Ditolak', null);
-            $this->fail('Izin terbaru harus diperiksa.');
-        } catch (AuthorizationException) {
-            $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
+        foreach ([$this->target->id, (string) Str::uuid()] as $targetId) {
+            try {
+                app(AssignRole::class)->handle($this->actor, $targetId, Role::where('kode', 'pimpinan')->value('id'), 'Ditolak', null);
+                $this->fail('Izin terbaru harus diperiksa tanpa membocorkan keberadaan target.');
+            } catch (AuthorizationException) {
+                $this->assertDatabaseMissing('user_roles', ['user_id' => $targetId]);
+            }
+            $audit = AuditLog::where('sumber', 'manual')->where('objek_id', $targetId)->sole();
+            $this->assertSame('user_roles.ditolak', $audit->tindakan);
+            $this->assertSame($this->actor->id, $audit->actor_id);
+            $this->assertCount(2, $audit->dasar_izin);
+            $this->assertFalse($audit->dasar_izin[$permission === 'pengguna:read' ? 'pengguna_read' : 'akses_update']['allowed']);
+            $this->assertNull($audit->nilai_lama);
+            $this->assertNull($audit->nilai_baru);
         }
-        $audit = AuditLog::where('sumber', 'manual')->sole();
-        $this->assertSame('user_roles.ditolak', $audit->tindakan);
-        $this->assertSame($this->actor->id, $audit->actor_id);
-        $this->assertCount(2, $audit->dasar_izin);
-        $this->assertFalse($audit->dasar_izin[$permission === 'pengguna:read' ? 'pengguna_read' : 'akses_update']['allowed']);
+        $this->assertSame(2, AuditLog::where('sumber', 'manual')->count());
     }
 
     public static function requiredPermissions(): array
@@ -554,7 +559,9 @@ class AssignRoleTest extends TestCase
         $this->actingAs($this->target)->get('/akses/peran')->assertRedirect('/auth/pending');
         $this->actingAs($this->actor)->post('/akses/peran/not-uuid', $this->payload())->assertNotFound();
         $this->post('/akses/peran/'.Str::uuid(), $this->payload())->assertNotFound();
-        $url = $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertStatus(303)->headers->get('Location');
+        $payload = $this->payload();
+        $payload['role_id'] = strtoupper($payload['role_id']);
+        $url = $this->post('/akses/peran/'.$this->target->id, $payload)->assertStatus(303)->headers->get('Location');
         parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
         $index = $this->get($url)->assertRedirect()->headers->get('Location');
         $this->get($index)->assertInertia(fn (Assert $page) => $page

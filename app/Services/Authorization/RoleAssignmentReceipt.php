@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Mengirim hasil minimal Assign Role melalui receipt terikat aktor dan sesi.
+ * Delivery cache terpisah dari transaksi Action yang sudah commit agar kegagalan tidak mengulang mutasi.
+ */
 class RoleAssignmentReceipt
 {
     /**

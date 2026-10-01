@@ -4,6 +4,10 @@ namespace App\Services\Authorization;
 
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Membaca snapshot PJ efektif untuk daftar pengguna dan mutasi Assign Role.
+ * Query dipakai ulang; transaksi mutasi tetap dimiliki Action.
+ */
 class RoleAssignmentWarnings
 {
     /**

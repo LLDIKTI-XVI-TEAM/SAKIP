@@ -30,17 +30,23 @@ class AssignRole
         $result = DB::transaction(function () use ($actor, $targetId, $roleId, $reason, $expectedAssignment) {
             // Kunci user juga saat pivot belum ada; urutan tetap mencegah deadlock silang aktor/target.
             $users = User::whereIn('id', [$actor->id, $targetId])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            $target = $users->get($targetId) ?? User::whereKey($targetId)->firstOrFail();
             $currentActor = $users->get($actor->id) ?? User::whereKey($actor->id)->firstOrFail();
+            // Kunci role aktor dan tujuan dalam satu urutan, selaras writer preset; jangan mengunci aktor dahulu secara terpisah.
+            $roleIds = DB::table('user_roles')->where('user_id', $currentActor->id)->pluck('role_id')->all();
+            if (Str::isUuid($roleId)) {
+                $roleIds[] = $roleId;
+            }
+            $roles = Role::whereIn('id', $roleIds)->orderBy('id')->sharedLock()->get()->keyBy('id');
             $decisions = [
                 'pengguna_read' => $this->permissions->decide($currentActor, 'pengguna:read'),
                 'akses_update' => $this->permissions->decide($currentActor, 'akses:update'),
             ];
-            $audit = ['actor_type' => 'user', 'actor_id' => $currentActor->id, 'sumber' => 'manual', 'objek_tipe' => 'users', 'objek_id' => $target->id, 'dasar_izin' => $decisions];
+            $audit = ['actor_type' => 'user', 'actor_id' => $currentActor->id, 'sumber' => 'manual', 'objek_tipe' => 'users', 'objek_id' => $targetId, 'dasar_izin' => $decisions];
             if (! $decisions['pengguna_read']['allowed'] || ! $decisions['akses_update']['allowed']) {
                 return ['denied' => true, 'audit' => $audit, 'message' => 'Anda tidak berwenang menetapkan peran.'];
             }
-            $role = Str::isUuid($roleId) ? Role::whereKey($roleId)->sharedLock()->first() : null;
+            $target = $users->get($targetId) ?? User::whereKey($targetId)->firstOrFail();
+            $role = $roles->get(strtolower($roleId));
             if (! $role || ! $role->aktif || ! RoleCatalog::contains($role->kode)) {
                 return ['field' => 'role_id', 'audit' => $audit, 'message' => 'Pilih peran resmi yang aktif.'];
             }
