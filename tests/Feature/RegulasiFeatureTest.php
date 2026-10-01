@@ -16,6 +16,7 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDenial;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Database\Seeders\RegulasiPermissionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -42,6 +43,49 @@ beforeEach(function (): void {
     $this->seed(RegulasiPermissionSeeder::class);
     $this->perencanaan = userDenganRole('perencanaan', 'perencanaan-regulasi@example.test');
     $this->pembaca = userDenganRole('pegawai', 'pembaca-regulasi@example.test');
+});
+
+test('create regulasi ditolak mencatat satu audit aman dengan dasar izin awal', function (bool $explicitDeny, mixed $reason, ?string $expectedReason): void {
+    $actor = $explicitDeny ? $this->perencanaan : $this->pembaca;
+    if ($explicitDeny) {
+        tolakIzin($actor, PermissionCodes::REGULASI_CREATE);
+    }
+    $decision = app(PermissionResolver::class)->resolve($actor, PermissionCodes::REGULASI_CREATE);
+    $auditCount = AuditLog::count();
+
+    $this->actingAs($actor)->post('/regulasi', [
+        'jenis' => 'kepmen', 'nomor' => 'CREATE-DITOLAK', 'tahun' => 2026,
+        'tentang' => 'Regulasi yang tidak boleh tersimpan', 'aktif' => true,
+        'alasan' => $reason,
+        'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Isi lampiran tidak boleh masuk audit penolakan']],
+    ])->assertForbidden();
+
+    $audit = AuditLog::where('tindakan', 'regulasi.buat_ditolak')->sole();
+    expect($audit->actor_id)->toBe($actor->id)
+        ->and($audit->actor_type)->toBe('user')
+        ->and($audit->sumber)->toBe('manual')
+        ->and($audit->objek_tipe)->toBe('regulasi')
+        ->and(Str::isUuid($audit->objek_id))->toBeTrue()
+        ->and($audit->dasar_izin)->toEqual($decision->toAuditBasis())
+        ->and($audit->alasan)->toBe($expectedReason ?? 'Pembuatan regulasi ditolak karena izin efektif tidak mengizinkan tindakan ini.')
+        ->and(mb_check_encoding($audit->alasan, 'UTF-8'))->toBeTrue()
+        ->and($audit->nilai_lama)->toBeNull()
+        ->and($audit->nilai_baru)->toBeNull()
+        ->and(AuditLog::count())->toBe($auditCount + 1);
+    $this->assertDatabaseCount('regulasi', 0);
+    $this->assertDatabaseCount('berkas', 0);
+})->with([
+    'tanpa allow dan alasan bukan teks' => [false, ['nilai' => 'bukan teks'], null],
+    'explicit deny dan karakter kontrol' => [true, "\x01\x00", null],
+    'explicit deny dan alasan multibyte panjang' => [true, "\x01 ".str_repeat('é', 1200)." \x01", str_repeat('é', 1000)],
+]);
+
+test('akses halaman create regulasi yang ditolak tidak mencatat audit mutasi', function (): void {
+    $auditCount = AuditLog::count();
+
+    $this->actingAs($this->pembaca)->get('/regulasi/create')->assertForbidden();
+
+    $this->assertDatabaseCount('audit_log', $auditCount);
 });
 
 test('create regulasi menyimpan tiga mode lampiran dan audit', function (): void {

@@ -136,6 +136,9 @@ function performRenstraMutation(string $operation, array $assignment): string
 
         return 'validation-denied';
     }
+    if (isset($assignment['expected_error_field']) && $response->getStatusCode() >= 500) {
+        return 'http-'.$response->getStatusCode();
+    }
     if ($response->getStatusCode() !== 302 || $request->session()->has('errors') || ! $request->session()->has('success')) {
         throw new RuntimeException('Mutasi Renstra tidak mencapai hasil sukses atau penolakan izin.');
     }

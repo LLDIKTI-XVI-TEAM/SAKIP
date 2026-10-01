@@ -6,6 +6,8 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Regulasi\DeleteRegulasiAction;
+use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\JenisBerkas;
@@ -449,7 +451,7 @@ class AccountConcurrencyTest extends TestCase
     }
 
     #[DataProvider('regulasiMutations')]
-    public function test_regulasi_reauthorizes_when_deny_commits_while_request_waits(string $operation, string $permission, ?string $denialEvent): void
+    public function test_regulasi_reauthorizes_when_deny_commits_while_request_waits(string $operation, string $permission, string $denialEvent): void
     {
         $this->seed(AccessCatalogSeeder::class);
         $actor = User::factory()->create(['status' => 'aktif']);
@@ -482,20 +484,16 @@ class AccountConcurrencyTest extends TestCase
         $this->assertSame($before, $regulasi->fresh()->getAttributes());
         $this->assertFalse($berkas->fresh()->trashed());
         $this->assertSame(0, AuditLog::whereIn('tindakan', ['regulasi.buat', 'regulasi.ubah', 'regulasi.hapus', 'berkas.hapus'])->count());
-        if ($denialEvent !== null) {
-            $audit = AuditLog::where('tindakan', $denialEvent)->sole();
-            $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
-            $this->assertSame($permission, $audit->dasar_izin['permission']);
-            $this->assertContains($denyId, $audit->dasar_izin['deny']);
-        } else {
-            $this->assertSame(0, AuditLog::where('tindakan', 'like', 'regulasi.%')->count());
-        }
+        $audit = AuditLog::where('tindakan', $denialEvent)->sole();
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame($permission, $audit->dasar_izin['permission']);
+        $this->assertContains($denyId, $audit->dasar_izin['deny']);
     }
 
     public static function regulasiMutations(): array
     {
         return [
-            'create' => ['regulasi-create', 'regulasi:create', null],
+            'create' => ['regulasi-create', 'regulasi:create', 'regulasi.buat_ditolak'],
             'update' => ['regulasi-update', 'regulasi:update', 'regulasi.ubah_ditolak'],
             'delete' => ['regulasi-delete', 'regulasi:delete', 'regulasi.hapus_ditolak'],
             'attachment' => ['regulasi-attachment', 'berkas:delete', 'berkas.hapus_ditolak'],
@@ -570,6 +568,59 @@ class AccountConcurrencyTest extends TestCase
             'attachment parent update' => ['renstra-attachment', 'renstra:update', 'parent-update'],
             'parent berkas delete' => ['renstra-delete', 'berkas:delete', 'parent-berkas'],
         ];
+    }
+
+    #[DataProvider('invalidatedRegulasiReferences')]
+    public function test_renstra_create_rechecks_reference_after_concurrent_regulasi_change(bool $deleteRegulasi): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $regulasi = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'RUJUKAN-CREATE', 'tahun' => 2026, 'tentang' => 'Rujukan awal aktif', 'aktif' => true, 'created_by' => $actor->id]);
+        $data = ['kode' => 'RENSTRA-RUJUKAN', 'nama' => 'Renstra dengan rujukan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasi->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran tidak boleh tersimpan']]];
+        $payload = [
+            'actor_id' => $actor->id, 'permission' => 'renstra:create', 'data' => $data,
+            'expected_error_field' => 'regulasi_id',
+            'expected_error_message' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
+        ];
+        $prepare = fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+        $changeWhileBlocked = function (array $pids) use ($actor, $regulasi, $deleteRegulasi): void {
+            // Lock pertama Action membuktikan FormRequest sudah menerima Regulasi yang masih aktif.
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertMatchesRegularExpression('/from "users".*for share/i', $query);
+            if ($deleteRegulasi) {
+                app(DeleteRegulasiAction::class)->handle($actor, $regulasi, 'Menghapus rujukan sebelum pembuatan Renstra');
+                $this->assertModelMissing($regulasi);
+            } else {
+                app(UpdateRegulasiAction::class)->handle($actor, $regulasi, [
+                    'jenis' => $regulasi->jenis, 'nomor' => $regulasi->nomor, 'tahun' => $regulasi->tahun,
+                    'tentang' => $regulasi->tentang, 'aktif' => false, 'versi' => $regulasi->versi,
+                    'alasan' => 'Menonaktifkan rujukan sebelum pembuatan Renstra',
+                ]);
+                $this->assertFalse($regulasi->fresh()->aktif);
+            }
+        };
+
+        $results = $this->race('renstra-create', $actor->id, '', [$payload], $prepare, assertBlocked: $changeWhileBlocked);
+
+        $this->assertSame(['validation-denied'], $results, 'Rujukan yang berubah sesudah validasi harus menjadi error regulasi_id, bukan sukses atau server error.');
+        $this->assertDatabaseCount('renstras', 0);
+        $this->assertDatabaseCount('berkas', 0);
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['renstra.buat', 'berkas.unggah'])->count());
+        $this->assertSame($regulasi->id, AuditLog::where('tindakan', $deleteRegulasi ? 'regulasi.hapus' : 'regulasi.ubah')->sole()->objek_id);
+
+        // Rujukan opsional tetap sah, baik omitted maupun null, dengan izin aktor yang sama.
+        unset($data['regulasi_id'], $data['lampiran']);
+        if ($deleteRegulasi) {
+            $data['regulasi_id'] = null;
+        }
+        $this->actingAs($actor)->post('/renstra', $data)->assertRedirect('/renstra')->assertSessionHasNoErrors();
+        $this->assertNull(Renstra::sole()->regulasi_id);
+    }
+
+    public static function invalidatedRegulasiReferences(): array
+    {
+        return ['deactivated' => [false], 'deleted' => [true]];
     }
 
     public function test_renstra_rechecks_inactive_reference_after_concurrent_reference_change(): void

@@ -3,6 +3,7 @@
 namespace App\Actions\Renstra;
 
 use App\Models\Permission;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -90,6 +91,13 @@ class CreateRenstraAction
                         'tahun_akhir' => 'Rentang tahun tidak valid: tahun selesai/akhir harus lebih besar atau sama dengan tahun mulai.',
                         'tahun_selesai' => 'Rentang tahun tidak valid: tahun selesai/akhir harus lebih besar atau sama dengan tahun mulai.',
                     ]);
+                }
+                // Kunci Regulasi sebelum membuat Renstra agar keberadaan dan status rujukan tetap sah hingga commit.
+                if (isset($data['regulasi_id'])) {
+                    $regulasi = Regulasi::whereKey($data['regulasi_id'])->sharedLock()->first();
+                    if ($regulasi === null || ! $regulasi->aktif) {
+                        throw ValidationException::withMessages(['regulasi_id' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.']);
+                    }
                 }
                 $renstra = Renstra::create([
                     'kode' => $data['kode'] ?? 'RENSTRA-'.$start.'-'.$end,
