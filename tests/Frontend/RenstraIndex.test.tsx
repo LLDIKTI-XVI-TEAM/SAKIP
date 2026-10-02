@@ -10,7 +10,7 @@ vi.mock('@inertiajs/react', async (original) => ({
     Head: () => null,
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;
@@ -67,34 +67,35 @@ it('modal tambah tanpa izin baca regulasi tidak mengirim regulasi_id kosong', as
     expect(payload).not.toHaveProperty('regulasi_id');
 });
 
-it('Index menyembunyikan jumlah lampiran tanpa izin baca tetapi mempertahankan capability hapus', () => {
+it('Index menampilkan nomor regulasi tanpa relasi dan menyembunyikan jumlah lampiran tanpa izin baca', () => {
     render(
         <Index
             renstra={{
                 data: [{
-                    id: 1,
+                    id: 'renstra-test',
                     kode: 'RENSTRA-UJI',
                     nama: 'Renstra pengujian',
                     tahun_mulai: 2025,
                     tahun_selesai: 2029,
                     status: 'draft',
                     is_aktif: false,
-                    regulasi_id: null,
-                    regulasi_nomor: null,
+                    regulasi_id: '11111111-1111-4111-8111-111111111111',
+                    regulasi_nomor: 'Permen 123/2024',
                     berkas_count: null,
                     can_delete: true,
-                    pembuat: null,
+                    can_update: false,
                     created_at: null,
                     updated_at: null,
                 }],
                 current_page: 1, last_page: 1, from: 1, to: 1, total: 1, links: [],
             }}
             filters={{ q: '', status: null }}
-            can={{}}
+            can={{ readRegulasi: true }}
         />
     );
 
     expect(screen.getByText('Akses dibatasi')).toBeTruthy();
+    expect(screen.getByText('Permen 123/2024')).toBeTruthy();
     expect(screen.queryByText(/\d+ lampiran/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Hapus RENSTRA-UJI' })).toBeTruthy();
 });

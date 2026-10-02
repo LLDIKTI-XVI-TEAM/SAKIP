@@ -35,6 +35,7 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
 use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
 use App\Http\Controllers\Renstra\DestroyRenstra;
@@ -100,6 +101,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
 
     // Master Renstra
+    Route::post('/renstra/{renstra}/aktifkan', [ChangeRenstraStatusController::class, 'activate'])->whereUuid('renstra')->name('renstra.activate');
+    Route::post('/renstra/{renstra}/nonaktifkan', [ChangeRenstraStatusController::class, 'deactivate'])->whereUuid('renstra')->name('renstra.deactivate');
+    Route::post('/renstra/{renstra}/arsipkan', [ChangeRenstraStatusController::class, 'archive'])->whereUuid('renstra')->name('renstra.archive');
     Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
     Route::get('/renstra/create', CreateRenstra::class)->name('renstra.create');
     Route::post('/renstra', StoreRenstra::class)->name('renstra.store');

@@ -10,7 +10,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input: React.FC<InputProps> = ({ label, labelClassName, error, helperText, className, id, ...props }) => {
-    const inputId = id || props.name;
+    const generatedId = React.useId();
+    const inputId = id || props.name || generatedId;
 
     return (
         <div className="w-full">
@@ -22,6 +23,8 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
             )}
             <input
                 id={inputId}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-help` : undefined}
                 className={twMerge(
                     clsx(
                         'w-full h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
@@ -31,8 +34,8 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
                 )}
                 {...props}
             />
-            {error && <p className="mt-1.5 text-xs font-medium text-danger">{error}</p>}
-            {helperText && !error && <p className="mt-1.5 text-xs text-muted">{helperText}</p>}
+            {error && <p id={`${inputId}-error`} role="alert" className="mt-1.5 text-xs font-medium text-danger">{error}</p>}
+            {helperText && !error && <p id={`${inputId}-help`} className="mt-1.5 text-xs text-muted">{helperText}</p>}
         </div>
     );
 };

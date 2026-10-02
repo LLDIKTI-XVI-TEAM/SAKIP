@@ -12,7 +12,7 @@ export interface LampiranDraft {
 }
 
 export interface BerkasRenstra {
-    id: number;
+    id: string;
     mode: LampiranMode;
     nama_asli: string | null;
     mime: string | null;
@@ -23,7 +23,7 @@ export interface BerkasRenstra {
 }
 
 export interface RegulasiOption {
-    id: number;
+    id: string;
     jenis: RegulasiJenis;
     nomor: string;
     tentang: string;
@@ -31,25 +31,24 @@ export interface RegulasiOption {
 }
 
 export interface RenstraSummary {
-    id: number;
+    id: string;
     nama: string;
     kode: string;
     tahun_mulai: number;
     tahun_selesai: number;
     status: RenstraStatus;
     is_aktif: boolean;
-    regulasi_id: number | null;
+    regulasi_id: string | null;
     regulasi_nomor: string | null;
-    regulasi?: RegulasiOption | null;
     berkas_count: number | null;
     can_delete: boolean;
-    pembuat: string | null;
+    can_update: boolean;
     created_at: string | null;
     updated_at: string | null;
 }
 
 export interface RenstraDetail {
-    id: string | number;
+    id: string;
     nama: string;
     kode: string;
     tahun_mulai: number;
@@ -58,10 +57,9 @@ export interface RenstraDetail {
     is_aktif: boolean;
     deskripsi: string | null;
     dasar_hukum: string | null;
-    regulasi_id: string | number | null;
-    regulasi: RegulasiOption | null;
-    pembuat: { id: string | number; nama?: string; name?: string } | string | null;
-    versi?: number | null;
+    regulasi_id: string | null;
+    regulasi?: RegulasiOption | null;
+    pembuat: { id: string; nama: string } | null;
     berkas?: BerkasRenstra[];
     created_at: string | null;
     updated_at: string | null;
@@ -94,4 +92,10 @@ export interface Paginated<T> {
     to: number | null;
     total: number;
     links: PaginationLink[];
+}
+
+export interface RenstraEditFormData extends RenstraFormData {
+    expected_state: string;
+    nomor_kebijakan: string;
+    tanggal_kebijakan: string;
 }

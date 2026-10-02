@@ -178,28 +178,28 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
             >
                 {(title || showCloseButton) && (
-                    <div className="flex items-start justify-between px-5 py-3 sm:px-6 sm:py-3.5 border-b border-border bg-soft/50">
-                        <div>
+                    <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-b border-border bg-soft/50">
+                        <div className="flex items-center justify-between gap-3">
                             {title && (
-                                <h3 id={titleId} className="text-base font-bold text-ink leading-tight">
+                                <h3 id={titleId} className="min-w-0 text-base font-bold text-ink leading-tight">
                                     {title}
                                 </h3>
                             )}
-                            {description && (
-                                <p id={descriptionId} className="text-xs text-muted mt-0.5">
-                                    {description}
-                                </p>
+                            {showCloseButton && (
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="inline-flex shrink-0 items-center justify-center text-muted hover:text-ink p-1 rounded-lg hover:bg-soft transition-colors cursor-pointer ml-auto"
+                                    aria-label="Tutup dialog"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
                             )}
                         </div>
-                        {showCloseButton && (
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-soft transition-colors cursor-pointer ml-auto"
-                                aria-label="Tutup dialog"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                        {description && (
+                            <p id={descriptionId} className="text-xs text-muted mt-0.5">
+                                {description}
+                            </p>
                         )}
                     </div>
                 )}

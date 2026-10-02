@@ -1,3 +1,4 @@
+import type { Page } from '@inertiajs/core';
 import type { ReactNode } from 'react';
 import { router } from '@inertiajs/react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -49,7 +50,7 @@ const renstra: RenstraDetail = {
 };
 
 it('form edit Renstra aktif tidak menawarkan lampiran baru', () => {
-    render(<Edit renstra={renstra} regulasiPilihan={[]} can={{ uploadAttachment: false }} />);
+    render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: false }} />);
 
     expect(screen.getByRole('link', { name: 'Kembali' }).getAttribute('href')).toBe('/renstra/renstra-test');
     expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
@@ -88,7 +89,7 @@ it('form tambah mempertahankan perubahan field dan lampiran dalam satu batch', (
 
 it('form edit tanpa izin baca regulasi menyembunyikan pilihan dan tidak mengirim regulasi_id', () => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
-    render(<Edit renstra={{ ...renstra, status: 'draft', is_aktif: false }} regulasiPilihan={[]} can={{ uploadAttachment: false, readRegulasi: false }} />);
+    render(<Edit renstra={{ ...renstra, status: 'draft', is_aktif: false }} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: false, readRegulasi: false }} />);
 
     expect(screen.queryByLabelText('Rujukan Regulasi Utama')).toBeNull();
     expect(screen.getByText('Rujukan regulasi yang sudah tersimpan tetap dipertahankan.')).toBeTruthy();
@@ -110,11 +111,11 @@ it('form tambah tanpa izin baca regulasi tidak mengirim regulasi_id kosong', () 
 });
 
 it('halaman detail menampilkan jenis, nomor, tahun, dan tentang regulasi rujukan', () => {
-    render(<Show renstra={{
+    render(<Show expected_state={'a'.repeat(64)} lifecycle={{ warnings: [], nonactivation_blocked: false }} renstra={{
         ...renstra,
-        regulasi_id: 11,
+        regulasi_id: 'regulasi-test',
         regulasi: {
-            id: 11,
+            id: 'regulasi-test',
             jenis: 'permen',
             nomor: 'Permen 123/2024',
             tahun: 2024,
@@ -129,10 +130,10 @@ it('halaman detail menampilkan jenis, nomor, tahun, dan tentang regulasi rujukan
 });
 
 it('halaman detail memakai URL unduh yang dikirim server', () => {
-    render(<Show renstra={{
+    render(<Show expected_state={'a'.repeat(64)} lifecycle={{ warnings: [], nonactivation_blocked: false }} renstra={{
         ...renstra,
         berkas: [{
-            id: 7,
+            id: 'berkas-test',
             mode: 'file',
             nama_asli: 'naskah.pdf',
             mime: 'application/pdf',
@@ -144,4 +145,92 @@ it('halaman detail memakai URL unduh yang dikirim server', () => {
     }} />);
 
     expect(screen.getByRole('link', { name: 'Unduh' }).getAttribute('href')).toBe('/unduh/naskah-yang-diizinkan');
+});
+
+
+it('revisi aktif membuka konfirmasi sebelum mengirim request', () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: false }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Konfirmasi Revisi Renstra' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Mengikuti Kepmen terbaru' } });
+    fireEvent.change(screen.getByLabelText(/Nomor kebijakan/), { target: { value: '123/M/2026' } });
+    fireEvent.change(screen.getByLabelText(/Tanggal kebijakan/), { target: { value: '2026-09-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Revisi' }));
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0][1]).toMatchObject({
+        expected_state: 'a'.repeat(64), alasan: 'Mengikuti Kepmen terbaru',
+        nomor_kebijakan: '123/M/2026', tanggal_kebijakan: '2026-09-20',
+    });
+});
+
+
+it('flash error tanpa validation bag mempertahankan draft dan modal revisi', async () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} />);
+    fireEvent.change(screen.getByLabelText(/Nama Rencana Strategis/), { target: { value: 'Nama draft dipertahankan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Alasan yang tetap tersedia' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Revisi' }));
+    const options = post.mock.calls[0][2];
+    await act(async () => {
+        const errorPage: Page = { component: 'Renstra/Edit', props: { errors: {}, flash: { error: 'Penyimpanan ditolak server' } }, flash: {}, url: '/renstra/renstra-test/edit', version: null, rescuedProps: [], rememberedState: {} };
+        await options?.onSuccess?.(errorPage);
+    });
+    expect(screen.getByRole('dialog', { name: 'Konfirmasi Revisi Renstra' })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/).value).toBe('Alasan yang tetap tersedia');
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama Rencana Strategis/).value).toBe('Nama draft dipertahankan');
+    expect(screen.getByText('Penyimpanan ditolak server')).toBeTruthy();
+});
+
+it('request pending mencegah klik ganda dan network failure tidak mengirim ulang otomatis', async () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    const submit = screen.getByRole('button', { name: 'Simpan Revisi' });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+    expect(post).toHaveBeenCalledTimes(1);
+    const options = post.mock.calls[0][2];
+    await act(async () => {
+        options?.onNetworkError?.(new Error('Fixture koneksi terputus'));
+    });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Hasil tindakan belum dapat dipastikan/)).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan Revisi' }).disabled).toBe(true);
+});
+
+it('konfirmasi status mengirim token saja dan warning tidak memblokir tombol', () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    render(<Show renstra={{ ...renstra, status: 'draft', is_aktif: false }} expected_state={'a'.repeat(64)}
+        lifecycle={{ warnings: ['Belum ada Sasaran, aktivasi tetap boleh.'], nonactivation_blocked: false }} can={{ activate: true }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Aktifkan Renstra' }));
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Alasan perubahan/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Konfirmasi' }));
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0][0]).toBe('/renstra/renstra-test/aktifkan');
+    expect(post.mock.calls[0][1]).toEqual({ expected_state: 'a'.repeat(64) });
+});
+
+it('blokir nonaktivasi dari server menjelaskan Jadwal aktif dan pembaca tidak melihat aksi', () => {
+    const { rerender } = render(<Show renstra={renstra} expected_state={'a'.repeat(64)}
+        lifecycle={{ warnings: [], nonactivation_blocked: true }} can={{ deactivate: true }} />);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Nonaktifkan Renstra' }).disabled).toBe(true);
+    expect(screen.getByText(/Tutup seluruh Jadwal aktif/)).toBeTruthy();
+    rerender(<Show renstra={renstra} expected_state={'a'.repeat(64)} lifecycle={{ warnings: [], nonactivation_blocked: false }} can={{}} />);
+    expect(screen.queryByRole('button', { name: 'Nonaktifkan Renstra' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Edit Dokumen' })).toBeNull();
+    expect(screen.queryByText(/Lampiran dapat ditambahkan melalui menu Edit Renstra/)).toBeNull();
+});
+
+it('berpindah master mengosongkan input alasan dan modal lama', () => {
+    const { rerender } = render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Alasan master sebelumnya' } });
+    rerender(<Edit renstra={{ ...renstra, id: 'renstra-kedua' }} expected_state={'b'.repeat(64)} regulasiPilihan={[]} />);
+    expect(screen.queryByRole('dialog', { name: 'Konfirmasi Revisi Renstra' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/).value).toBe('');
 });
