@@ -20,6 +20,8 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\RoleAssignmentReceipt;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -116,6 +118,64 @@ class MutationConcurrencyTest extends TestCase
         $this->assertContains(DB::table('user_roles')->where('user_id', $target->id)->value('role_id'), $roles);
         $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.tambah')->count());
         $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.ditolak')->count());
+    }
+
+    public function test_assign_role_reauthorizes_after_preset_release_without_crossed_role_locks(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        // Role aktor di atas role tujuan memeriksa risiko lock aktor-dahulu melawan urutan rilis.
+        $actorRole = Role::whereIn('kode', ['pegawai', 'pimpinan'])->orderByDesc('id')->firstOrFail();
+        $destination = Role::orderBy('id')->firstOrFail();
+        $this->assertTrue($destination->id < $actorRole->id);
+        $actor->roles()->attach($actorRole->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        foreach (['pengguna:read', 'akses:update'] as $code) {
+            DB::table('role_permissions')->insert(['id' => Str::uuid(), 'role_id' => $actorRole->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'created_at' => now()]);
+            $this->assertTrue(app(PermissionResolver::class)->allows($actor, $code));
+        }
+        $releaseWhileBlocked = function (array $pids) use ($actorRole): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringContainsString('for share', $query);
+            // Writer produksi mengunci semua role terurut dan mencabut kedua izin fixture sebelum commit.
+            $this->assertSame(1, app(SyncRolePermissionPresets::class)->handle('assign-role-race', 'Kembalikan preset resmi', 'test-parent'));
+            $audit = AuditLog::where('objek_id', $actorRole->id)->where('alasan', 'assign-role-race: Kembalikan preset resmi')->sole();
+            $this->assertContains('akses:update', $audit->nilai_lama['permissions']);
+            $this->assertNotContains('akses:update', $audit->nilai_baru['permissions']);
+        };
+
+        $results = $this->race('assign-role', $destination->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'role_id' => $destination->id,
+            'alasan' => 'Fixture pencabutan preset', 'expected_assignment' => null,
+        ]], barrierTable: 'roles', assertBlocked: $releaseWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertDatabaseMissing('user_roles', ['user_id' => $target->id]);
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['user_roles.tambah', 'user_roles.ubah'])->count());
+        $audit = AuditLog::where('tindakan', 'user_roles.ditolak')->sole();
+        $this->assertSame($target->id, $audit->objek_id);
+        foreach (['pengguna_read', 'akses_update'] as $key) {
+            $this->assertFalse($audit->dasar_izin[$key]['allowed']);
+            $this->assertSame('no_allow', $audit->dasar_izin[$key]['reason']);
+        }
+    }
+
+    public function test_two_receipt_consumers_have_one_winner_on_database_cache(): void
+    {
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $reference = app(RoleAssignmentReceipt::class)->issue($actor->id, 'concurrent-session', ['status' => 'assigned', 'has_active_pj' => true]);
+        $this->assertNotNull($reference);
+        $key = DB::table('cache')->sole()->key.':consume';
+        DB::table('cache_locks')->insert(['key' => $key, 'owner' => 'expired-fixture', 'expiration' => 0]);
+        $prepare = fn () => DB::table('cache_locks')->where('key', $key)->lockForUpdate()->sole();
+        $payload = ['actor_id' => $actor->id, 'session_id' => 'concurrent-session', 'reference' => $reference];
+
+        $results = $this->race('receipt-consume', $actor->id, '', [$payload, $payload], $prepare);
+
+        $this->assertEqualsCanonicalizing(['consumed', 'unknown'], $results);
+        $this->assertDatabaseCount('cache', 0);
+        $this->assertDatabaseCount('audit_log', 0);
     }
 
     #[DataProvider('denyScopes')]
