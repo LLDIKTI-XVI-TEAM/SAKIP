@@ -7,18 +7,19 @@ import { Button } from '@/Components/Button';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { primaryButton, secondaryButton } from '@/Pages/Auth/AuthShell';
 import type { SharedPageProps } from '@/types/auth';
+import { readRoleAssignmentOutcome, RoleAssignmentPjNotice, roleAssignmentMessages, roleAssignmentUnknown, roleAssignmentCheck } from './RoleAssignmentFeedback';
 
 type AssignmentState = { id: string; role_id: string; audit_id: string | null };
 type RoleOption = { id: string; kode: string; nama: string };
-type RoleUser = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif'; current_role: (RoleOption & { aktif: boolean }) | null; assignment: AssignmentState | null };
+type RoleUser = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif'; current_role: (RoleOption & { aktif: boolean }) | null; assignment: AssignmentState | null; has_active_pj: boolean };
 interface RoleAssignmentProps {
     users: { data: RoleUser[]; current_page: number; last_page: number; prev_page_url: string | null; next_page_url: string | null };
     roles: RoleOption[];
     filters: { q: string };
     can: { assignRole: boolean };
+    confirmationUnavailable: boolean;
 }
 const fieldClass = 'mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
-const explanation = 'Perubahan peran tidak otomatis mengubah grant izin atau penugasan.';
 
 function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser; roles: RoleOption[]; isSelf: boolean; onClose: () => void; onSaved: () => void }) {
     const dialog = useRef<HTMLDialogElement>(null);
@@ -32,6 +33,7 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
         alasan: '', expected_assignment: user.assignment,
     });
     const conflict = form.errors.expected_assignment;
+    const legacyRole = user.current_role && !['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'].includes(user.current_role.kode);
     const needsReload = Boolean(conflict || message);
     useEffect(() => {
         const element = dialog.current;
@@ -51,10 +53,11 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
         form.post(`/akses/peran/${user.id}`, {
             preserveScroll: true,
             onSuccess: (page) => {
-                if (page.component === 'Access/RoleAssignmentIndex' && ['assigned', 'changed', 'unchanged'].includes(String(page.flash.roleAssignmentStatus))) {
+                const outcome = readRoleAssignmentOutcome(page, page.component === 'Access/RoleAssignmentResult' ? 'Access/RoleAssignmentResult' : 'Access/RoleAssignmentIndex');
+                if (!outcome) {
+                    setMessage(roleAssignmentUnknown);
+                } else if (page.component === 'Access/RoleAssignmentIndex') {
                     onSaved();
-                } else if (page.component !== 'Access/RoleAssignmentResult' || !['assigned', 'changed', 'unchanged'].includes(String(page.props.status))) {
-                    setMessage('Hasil penetapan peran belum diketahui. Muat ulang data sebelum mencoba kembali.');
                 }
             },
             onCancel: () => { setMessage('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
@@ -73,7 +76,8 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
     }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
         <h2 id="role-title" className="text-lg font-semibold">{user.current_role ? 'Ubah peran' : 'Tetapkan peran'}</h2>
         <p id="role-description" className="mt-2 break-words text-sm text-muted">{user.nama} ({user.email}). Peran saat ini: {user.current_role?.nama ?? 'Belum ditetapkan'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}.</p>
-        <p className="mt-2 text-sm text-muted">{explanation}</p>
+        {legacyRole && <p className="mt-2 text-sm text-warning-dark">Peran lama ini perlu ditetapkan ulang ke peran resmi.</p>}
+        {user.has_active_pj && <p role="status" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-ink">Pengguna ini masih menjadi Penanggung Jawab. Perubahan peran tidak mengakhiri penugasan atau mengubah grant izin.</p>}
         {isSelf && <div id="self-role-warning" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
             <p className="font-semibold">Anda sedang mengubah peran akun sendiri.</p>
             <p className="mt-1">Menu dan akses pengelolaan dapat hilang setelah disimpan. Anda mungkin tidak dapat mengembalikannya sendiri. Pastikan peran tujuan sudah benar.</p>
@@ -90,12 +94,13 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
             <div>
                 <label htmlFor="role-reason" className="block text-sm font-medium">Alasan penetapan <span className="text-danger">*</span></label>
                 <textarea ref={reasonInput} id="role-reason" required maxLength={2000} rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} disabled={form.processing} aria-invalid={Boolean(form.errors.alasan)} aria-describedby={form.errors.alasan ? 'reason-error' : 'reason-help'} className={fieldClass} />
-                {form.errors.alasan ? <p id="reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="reason-help" className="mt-1 text-xs text-muted">Wajib diisi, maksimal 2.000 karakter. Dicatat dalam jejak audit.</p>}
+                {form.errors.alasan ? <p id="reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="reason-help" className="mt-1 text-xs text-muted">Maksimal 2.000 karakter.</p>}
             </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {needsReload && !recovery.recovery && <div className="space-y-2 rounded-lg bg-soft p-3">
                 <p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger">{conflict || message}</p>
-                <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/peran', {}, { replace: true, preserveState: false })}>Muat ulang data</Button>
+                {!conflict && message === roleAssignmentUnknown && <p className="text-sm text-ink">{roleAssignmentCheck}</p>}
+                <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/peran', {}, { replace: true, preserveState: false })}>{!conflict && message === roleAssignmentUnknown ? 'Kembali ke daftar pengguna' : 'Muat ulang data'}</Button>
             </div>}
             <div className="flex flex-wrap justify-end gap-3">
                 <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={onClose}>Batal</Button>
@@ -105,11 +110,12 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
     </dialog>;
 }
 
-export default function RoleAssignmentIndex({ users, roles, filters, can }: RoleAssignmentProps) {
-    const { props: { auth }, flash } = usePage<SharedPageProps>();
-    const [dismissedFlash, setDismissedFlash] = useState<typeof flash | null>(null);
-    const outcome = flash.roleAssignmentStatus;
-    const successMessage = outcome === 'assigned' ? 'Peran berhasil ditetapkan.' : outcome === 'changed' ? 'Peran berhasil diubah.' : outcome === 'unchanged' ? 'Peran tidak berubah.' : null;
+export default function RoleAssignmentIndex({ users, roles, filters, can, confirmationUnavailable }: RoleAssignmentProps) {
+    const page = usePage<SharedPageProps>();
+    const { props: { auth } } = page;
+    const [dismissedReceipt, setDismissedReceipt] = useState<string | null>(null);
+    const outcome = readRoleAssignmentOutcome(page, 'Access/RoleAssignmentIndex');
+    const successMessage = outcome ? roleAssignmentMessages[outcome.status] : null;
     const [selected, setSelected] = useState<RoleUser | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);
     const title = useRef<HTMLHeadingElement>(null);
@@ -123,14 +129,19 @@ export default function RoleAssignmentIndex({ users, roles, filters, can }: Role
     }, [selected]);
     return <AuthenticatedLayout title="Penetapan Peran">
         <Head title="Penetapan Peran" />
-        {successMessage && dismissedFlash !== flash && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
+        {confirmationUnavailable && !selected && <section role="status" aria-labelledby="role-confirmation-unavailable" className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-ink">
+            <h2 id="role-confirmation-unavailable" className="font-semibold">{roleAssignmentUnknown}</h2>
+            <p className="mt-2">{roleAssignmentCheck}</p>
+            <Link href="/akses/peran" className={`${secondaryButton} mt-3 inline-flex rounded-lg px-4 py-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}>Kembali ke daftar pengguna</Link>
+        </section>}
+        {successMessage && outcome && dismissedReceipt !== outcome.receipt_id && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
             <CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
             <p role="status" className="flex-1 text-sm font-medium">{successMessage}</p>
-            <button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissedFlash(flash)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button>
+            <button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissedReceipt(outcome.receipt_id)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button>
         </div>}
+        <RoleAssignmentPjNotice outcome={outcome} />
         <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
             <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">Peran utama pengguna</h2>
-            <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki satu peran utama. {explanation}</p>
             <form onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/peran', { preserveState: false }); }} className="my-6 flex flex-wrap items-end gap-3" role="search">
                 <div className="min-w-0 flex-1"><label htmlFor="user-search" className="block text-sm font-medium">Cari nama atau email</label><input id="user-search" type="search" maxLength={100} value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} className={fieldClass} /></div>
                 <Button type="submit" className={secondaryButton} isLoading={search.processing}>Cari</Button>

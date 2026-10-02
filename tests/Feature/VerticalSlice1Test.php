@@ -166,7 +166,7 @@ class VerticalSlice1Test extends TestCase
         $auditIds = AuditLog::pluck('id');
         $history = DB::table('audit_log')->whereIn('id', $auditIds)->orderBy('id')->get()->toJson();
         $token = (array) DB::table('user_roles')->where('user_id', $pic->id)->first(['id', 'role_id', 'audit_id']);
-        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor, $pic->id, $role->id, 'Penyesuaian peran tanpa mengubah histori', $token));
+        $this->assertSame(['status' => 'changed', 'has_active_pj' => true], app(AssignRole::class)->handle($this->actor, $pic->id, $role->id, 'Penyesuaian peran tanpa mengubah histori', $token));
         foreach ($tables as $table) {
             $this->assertSame($preserved[$table], DB::table($table)->orderBy('id')->get()->toJson(), $table);
         }

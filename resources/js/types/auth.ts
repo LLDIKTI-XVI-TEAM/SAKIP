@@ -1,5 +1,11 @@
 import type { PageProps } from "@inertiajs/core";
 
+export interface RoleAssignmentOutcome {
+    receipt_id: string;
+    status: 'assigned' | 'changed' | 'unchanged';
+    has_active_pj: boolean;
+}
+
 export interface AuthUser {
     id: string;
     nama: string;
@@ -48,5 +54,5 @@ export interface SharedPageProps extends PageProps {
 }
 
 declare module '@inertiajs/core' {
-    interface PageFlashData { success?: string | null; error?: string | null; warning?: string | null; message?: string | null; authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable' }
+    interface PageFlashData { authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable'; roleAssignmentOutcome?: RoleAssignmentOutcome }
 }
