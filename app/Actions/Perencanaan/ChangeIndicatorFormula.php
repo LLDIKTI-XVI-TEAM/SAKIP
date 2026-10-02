@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Kinerja\IndikatorPerhitunganService;
+use App\Services\Kinerja\KomponenMutationService;
 use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,7 @@ class ChangeIndicatorFormula
         private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
         private readonly IndikatorPerhitunganService $perhitunganService,
+        private readonly KomponenMutationService $mutasiKomponen,
     ) {}
 
     /**
@@ -128,16 +130,11 @@ class ChangeIndicatorFormula
             $payloadKomponen = $validated['komponen'] ?? [];
             $existing = $lockedIndikator->komponen()->get();
 
-            $payloadModels = collect($payloadKomponen)->map(fn (array $item) => new IndikatorKomponen([
-                'indikator_id' => $lockedIndikator->id,
-                'kode' => trim((string) ($item['kode'] ?? '')),
-                'label' => trim((string) ($item['label'] ?? '')),
-                'peran' => $item['peran'] ?? null,
-                'bobot' => $item['bobot'] ?? 0,
-                'urutan' => (int) ($item['urutan'] ?? 1),
-                'satuan' => isset($item['satuan']) && $item['satuan'] !== null ? trim((string) $item['satuan']) : null,
-                'aktif' => array_key_exists('aktif', $item) ? (bool) $item['aktif'] : true,
-            ]));
+            // Normalisasi create-komponen berbagi layanan dengan jalur normal agar
+            // tidak drift; penentu akhir tetap validateDefinisiKomponen di bawah.
+            $payloadModels = collect($payloadKomponen)->map(
+                fn (array $item) => $this->mutasiKomponen->modelKandidat($lockedIndikator->id, $item)
+            );
 
             $kandidat = clone $lockedIndikator;
             $kandidat->tipe_perhitungan = $kandidatTipe;
@@ -160,24 +157,12 @@ class ChangeIndicatorFormula
             $komponenBaru = [];
             try {
                 foreach ($payloadKomponen as $item) {
-                    $komponenBaru[] = IndikatorKomponen::create([
-                        'indikator_id' => $lockedIndikator->id,
-                        'kode' => trim((string) $item['kode']),
-                        'label' => trim((string) $item['label']),
-                        'peran' => $item['peran'],
-                        'bobot' => $item['bobot'],
-                        'urutan' => (int) $item['urutan'],
-                        'satuan' => isset($item['satuan']) && $item['satuan'] !== null && trim((string) $item['satuan']) !== ''
-                            ? trim((string) $item['satuan'])
-                            : null,
-                        'aktif' => array_key_exists('aktif', $item) ? (bool) $item['aktif'] : true,
-                        'created_by' => $lockedActor->id,
-                    ])->fresh();
+                    $komponenBaru[] = $this->mutasiKomponen->buat($lockedIndikator->id, $item, $lockedActor->id);
                 }
             } catch (QueryException $e) {
-                if ($this->isUniqueConstraintViolation($e)) {
+                if ($this->mutasiKomponen->isUniqueConstraintViolation($e)) {
                     throw ValidationException::withMessages([
-                        'kode' => 'Kode komponen sudah digunakan pada indikator ini.',
+                        'kode' => $this->mutasiKomponen->pesanKodeDuplikat(),
                     ]);
                 }
 
@@ -216,7 +201,7 @@ class ChangeIndicatorFormula
                     objekTipe: 'indikator_komponen',
                     objekId: $komponen->id,
                     nilaiLama: null,
-                    nilaiBaru: $this->formatAuditSnapshot($komponen),
+                    nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($komponen),
                     alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.') via transisi formula atomik',
                     dasarIzin: $komponenDecision->toAuditBasis(),
                 );
@@ -244,39 +229,5 @@ class ChangeIndicatorFormula
         }
 
         return ['indikator' => $result['indikator'], 'renstraId' => $result['renstraId']];
-    }
-
-    /**
-     * Membentuk snapshot audit dengan bobot eksak sebagai string (pola IndikatorKomponenController).
-     *
-     * @return array<string, mixed>
-     */
-    private function formatAuditSnapshot(IndikatorKomponen $komponen): array
-    {
-        $snapshot = $komponen->toArray();
-        $rawBobot = $komponen->getRawOriginal('bobot');
-        if ($rawBobot !== null && $rawBobot !== '') {
-            $snapshot['bobot'] = (string) $rawBobot;
-        } elseif (isset($snapshot['bobot'])) {
-            $snapshot['bobot'] = (string) $snapshot['bobot'];
-        }
-
-        return $snapshot;
-    }
-
-    /**
-     * Mengecek pelanggaran unique constraint pada kode komponen.
-     */
-    private function isUniqueConstraintViolation(QueryException $e): bool
-    {
-        $sqlState = (string) $e->getCode();
-        $errorCode = $e->errorInfo[1] ?? null;
-        $message = strtolower($e->getMessage());
-
-        return $sqlState === '23505'
-            || $errorCode === 1062
-            || $errorCode === 19
-            || str_contains($message, 'unique')
-            || str_contains($message, 'duplicate');
     }
 }

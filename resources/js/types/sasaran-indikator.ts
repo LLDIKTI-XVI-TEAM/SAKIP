@@ -24,6 +24,24 @@ export type IndikatorArah = 'naik_baik' | 'turun_baik';
 export type IndikatorTipePerhitungan = 'manual' | 'rasio_persen' | 'penjumlahan';
 export type IndikatorStatus = 'aktif' | 'arsip';
 
+export type KomponenPeran = 'pembilang' | 'penyebut' | 'penjumlah';
+
+export interface FormulaKomponenInput {
+    kode: string;
+    label: string;
+    peran: KomponenPeran;
+    bobot: number | string;
+    urutan: number | string;
+    satuan: string;
+    aktif: boolean;
+}
+
+export interface FormulaPayload {
+    tipe_perhitungan: IndikatorTipePerhitungan;
+    komponen: FormulaKomponenInput[];
+    expected_updated_at: string;
+}
+
 export interface IndikatorKinerjaItem {
     id: string;
     sasaran_strategis_id: string;

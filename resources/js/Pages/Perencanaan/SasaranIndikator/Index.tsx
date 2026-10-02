@@ -20,10 +20,12 @@ import {
     ChevronDown,
     ChevronUp,
     FileCheck2,
+    Sigma,
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
 import { PindahUnitModal } from './PindahUnitModal';
+import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
 import type {
@@ -66,6 +68,8 @@ export default function SasaranIndikatorIndex({
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
     const [pindahTarget, setPindahTarget] = useState<IndikatorKinerjaItem | null>(null);
+
+    const [formulaTarget, setFormulaTarget] = useState<IndikatorKinerjaItem | null>(null);
 
     const toggleCollapse = (id: string) => {
         setCollapsedMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -444,6 +448,18 @@ export default function SasaranIndikatorIndex({
                                                                     {can.indikator_update && (
                                                                         <button
                                                                             type="button"
+                                                                            onClick={() => setFormulaTarget(ind)}
+                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                            title="Atur Formula"
+                                                                            aria-label={`Atur formula indikator ${ind.kode}`}
+                                                                        >
+                                                                            <Sigma className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    )}
+
+                                                                    {can.indikator_update && (
+                                                                        <button
+                                                                            type="button"
                                                                             onClick={() => openEditIndikator(ind)}
                                                                             className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                                                             title="Ubah Indikator"
@@ -518,6 +534,13 @@ export default function SasaranIndikatorIndex({
                 onClose={() => setPindahTarget(null)}
                 indikator={pindahTarget}
                 units={units}
+            />
+
+            {/* Modal Transisi Formula Atomik */}
+            <FormulaModal
+                isOpen={formulaTarget !== null}
+                onClose={() => setFormulaTarget(null)}
+                indikator={formulaTarget}
             />
 
             {/* Modal Konfirmasi Hapus dengan Alasan Audit */}

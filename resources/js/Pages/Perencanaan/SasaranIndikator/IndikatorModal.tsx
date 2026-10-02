@@ -299,7 +299,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             error={errors.tipe_perhitungan}
                             helperText={
                                 isManualEdit
-                                    ? 'Indikator manual belum memiliki komponen. Perubahan ke Rasio/Penjumlahan via edit umum akan ditolak (422). Gunakan transisi formula atomik untuk mengubah tipe sekaligus melengkapi komponen.'
+                                    ? 'Indikator manual belum memiliki komponen. Perubahan ke Rasio/Penjumlahan via edit umum akan ditolak (422). Gunakan aksi "Atur Formula" pada tabel untuk mengubah tipe sekaligus melengkapi komponen.'
                                     : undefined
                             }
                             required

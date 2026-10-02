@@ -11,6 +11,7 @@ use App\Models\IndikatorKomponen;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kinerja\IndikatorPerhitunganService;
+use App\Services\Kinerja\KomponenMutationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class IndikatorKomponenController extends Controller
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly IndikatorPerhitunganService $perhitunganService,
+        private readonly KomponenMutationService $mutasiKomponen,
     ) {}
 
     public function index(Request $request, IndikatorKinerja $indikator, PermissionResolver $resolver): Response
@@ -74,8 +76,10 @@ class IndikatorKomponenController extends Controller
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
                 abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
 
-                $komponen = IndikatorKomponen::create(array_merge($data, ['indikator_id' => $lockedIndikator->id]));
-                $komponen = $komponen->fresh();
+                // Normalisasi create-komponen berbagi layanan dengan transisi formula
+                // atomik agar tidak drift; penentu akhir komposisi tetap
+                // validateDefinisiKomponen pada pembaca kontrak.
+                $komponen = $this->mutasiKomponen->buat($lockedIndikator->id, $data, $actor->id);
 
                 $this->auditLogger->catat(
                     actor: $actor,
@@ -83,15 +87,15 @@ class IndikatorKomponenController extends Controller
                     objekTipe: 'indikator_komponen',
                     objekId: $komponen->id,
                     nilaiLama: null,
-                    nilaiBaru: $this->formatAuditSnapshot($komponen),
+                    nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($komponen),
                     alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.')',
                     dasarIzin: $decision,
                 );
             });
         } catch (QueryException $e) {
-            if ($this->isUniqueConstraintViolation($e)) {
+            if ($this->mutasiKomponen->isUniqueConstraintViolation($e)) {
                 throw ValidationException::withMessages([
-                    'kode' => 'Kode komponen sudah digunakan pada indikator ini.',
+                    'kode' => $this->mutasiKomponen->pesanKodeDuplikat(),
                 ]);
             }
 
@@ -125,9 +129,10 @@ class IndikatorKomponenController extends Controller
                 $lockedKomponen = IndikatorKomponen::whereKey($komponen->getKey())->lockForUpdate()->firstOrFail();
                 abort_if($lockedKomponen->indikator_id !== $lockedIndikator->id, 404);
 
-                $nilaiLama = $this->formatAuditSnapshot($lockedKomponen);
+                $nilaiLama = $this->mutasiKomponen->formatAuditSnapshot($lockedKomponen);
                 $lockedKomponen->update($data);
-                $nilaiBaru = $this->formatAuditSnapshot($lockedKomponen->fresh());
+                $freshKomponen = $lockedKomponen->fresh();
+                $nilaiBaru = $this->mutasiKomponen->formatAuditSnapshot($freshKomponen ?? $lockedKomponen);
 
                 $this->auditLogger->catat(
                     actor: $actor,
@@ -141,9 +146,9 @@ class IndikatorKomponenController extends Controller
                 );
             });
         } catch (QueryException $e) {
-            if ($this->isUniqueConstraintViolation($e)) {
+            if ($this->mutasiKomponen->isUniqueConstraintViolation($e)) {
                 throw ValidationException::withMessages([
-                    'kode' => 'Kode komponen sudah digunakan pada indikator ini.',
+                    'kode' => $this->mutasiKomponen->pesanKodeDuplikat(),
                 ]);
             }
 
@@ -179,7 +184,7 @@ class IndikatorKomponenController extends Controller
                     return true;
                 }
 
-                $nilaiLama = $this->formatAuditSnapshot($lockedKomponen);
+                $nilaiLama = $this->mutasiKomponen->formatAuditSnapshot($lockedKomponen);
                 $lockedKomponen->delete();
 
                 $this->auditLogger->catat(
@@ -207,39 +212,5 @@ class IndikatorKomponenController extends Controller
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil dihapus.');
-    }
-
-    /**
-     * Membentuk snapshot audit dengan memastikan nilai desimal bobot tetap eksak sebagai string.
-     *
-     * @return array<string, mixed>
-     */
-    private function formatAuditSnapshot(IndikatorKomponen $komponen): array
-    {
-        $snapshot = $komponen->toArray();
-        $rawBobot = $komponen->getRawOriginal('bobot');
-        if ($rawBobot !== null && $rawBobot !== '') {
-            $snapshot['bobot'] = (string) $rawBobot;
-        } elseif (isset($snapshot['bobot'])) {
-            $snapshot['bobot'] = (string) $snapshot['bobot'];
-        }
-
-        return $snapshot;
-    }
-
-    /**
-     * Mengecek apakah QueryException merupakan pelanggaran unique constraint pada kode komponen.
-     */
-    private function isUniqueConstraintViolation(QueryException $e): bool
-    {
-        $sqlState = (string) $e->getCode();
-        $errorCode = $e->errorInfo[1] ?? null;
-        $message = strtolower($e->getMessage());
-
-        return $sqlState === '23505'
-            || $errorCode === 1062
-            || $errorCode === 19
-            || str_contains($message, 'unique')
-            || str_contains($message, 'duplicate');
     }
 }
