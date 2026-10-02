@@ -261,11 +261,10 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
             isOpen={isOpen}
             onClose={handleClose}
             title={`Atur Formula — ${indikator.kode}`}
-            description={`Ubah tipe perhitungan "${indikator.nama}" sekaligus melengkapi komponen dalam satu transaksi atomik.`}
             size="2xl"
             footer={
                 <div className="flex items-center justify-end gap-3">
-                    <Button type="button" variant="secondary" onClick={handleClose} disabled={processing}>
+                    <Button type="button" variant="outline" onClick={handleClose} disabled={processing}>
                         Batal
                     </Button>
                     <Button type="submit" variant="primary" onClick={handleSubmit} isLoading={processing} disabled={processing}>
@@ -331,7 +330,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                         <h4 className="text-sm font-semibold text-ink">Daftar Komponen ({data.komponen.length})</h4>
                         <Button
                             type="button"
-                            variant="secondary"
+                            variant="primary"
                             size="sm"
                             onClick={handleAddRow}
                             disabled={processing || data.komponen.length >= 50}
@@ -378,7 +377,6 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                     value={row.kode}
                                     onChange={(e) => updateRow(index, 'kode', e.target.value)}
                                     error={fieldError(`komponen.${index}.kode`)}
-                                    helperText="Huruf, angka, dan garis bawah (_); tanpa duplikat."
                                     required
                                 />
                                 <Input
@@ -416,7 +414,6 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                     value={row.bobot}
                                     onChange={(e) => updateRow(index, 'bobot', e.target.value)}
                                     error={fieldError(`komponen.${index}.bobot`)}
-                                    helperText="Penyebut wajib lebih besar dari 0."
                                     required
                                 />
                                 <Input

@@ -49,12 +49,6 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
         }
     }, [isOpen, indikator, clearErrors, reset, setData]);
 
-    const unitAsalNama =
-        units.find((u) => u.id === indikator?.unit_id)?.nama
-        ?? indikator?.unit_nama
-        ?? indikator?.unit_id
-        ?? '';
-
     // Daftar unit tujuan hanya berisi unit aktif selain unit asal.
     // Payload `units` halaman sudah difilter aktif oleh server.
     const unitTujuan = units.filter((u) => u.id !== indikator?.unit_id);
@@ -101,13 +95,12 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
             isOpen={isOpen}
             onClose={handleClose}
             title={`Pindah Unit — ${indikator.kode}`}
-            description={`Pindahkan indikator "${indikator.nama}" dari unit "${unitAsalNama}" ke unit lain. Perpindahan dicatat pada audit log beserta alasan.`}
             size="lg"
             footer={
                 <div className="flex items-center justify-end gap-3">
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         onClick={handleClose}
                         disabled={processing}
                     >

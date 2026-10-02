@@ -92,13 +92,12 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
             isOpen={isOpen}
             onClose={onClose}
             title={isEdit ? 'Ubah Sasaran Strategis' : 'Tambah Sasaran Strategis'}
-            description="Sasaran strategis merupakan target jangka menengah yang hendak dicapai organisasi."
             size="lg"
             footer={
                 <div className="flex items-center justify-end gap-3">
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         onClick={onClose}
                         disabled={processing}
                     >

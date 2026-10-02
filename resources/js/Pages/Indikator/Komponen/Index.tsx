@@ -858,11 +858,6 @@ export default function KomponenIndex({
                 isOpen={isFormModalOpen}
                 onClose={() => setIsFormModalOpen(false)}
                 title={isEditing ? 'Ubah Komponen Indikator' : 'Tambah Komponen Indikator'}
-                description={
-                    isEditing
-                        ? 'Perbarui definisi komponen indikator data-driven. Perubahan memerlukan pengisian alasan audit.'
-                        : 'Tambahkan variabel komponen baru sebagai input pembentuk nilai indikator.'
-                }
                 size="lg"
                 footer={
                     <div className="flex items-center justify-end gap-2.5">
@@ -896,7 +891,6 @@ export default function KomponenIndex({
                                 value={formData.kode}
                                 onChange={e => setFormData(prev => ({ ...prev, kode: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
                                 error={formErrors.kode}
-                                helperText="Hanya huruf kecil, angka, dan garis bawah (_)."
                             />
                         </div>
 
@@ -926,7 +920,6 @@ export default function KomponenIndex({
                             value={formData.label}
                             onChange={e => setFormData(prev => ({ ...prev, label: e.target.value }))}
                             error={formErrors.label}
-                            helperText="Deskripsi lengkap dan jelas mengenai angka yang diinput."
                         />
                     </div>
 
@@ -943,7 +936,6 @@ export default function KomponenIndex({
                                 value={formData.bobot}
                                 onChange={e => setFormData(prev => ({ ...prev, bobot: e.target.value }))}
                                 error={formErrors.bobot}
-                                helperText="Pengali bobot pada formula (maks. 12 digit pecahan desimal)."
                             />
                         </div>
 
@@ -958,7 +950,6 @@ export default function KomponenIndex({
                                 value={formData.urutan}
                                 onChange={e => setFormData(prev => ({ ...prev, urutan: e.target.value }))}
                                 error={formErrors.urutan}
-                                helperText="Urutan posisi tampilan komponen."
                             />
                         </div>
 
@@ -970,7 +961,6 @@ export default function KomponenIndex({
                                 value={formData.satuan}
                                 onChange={e => setFormData(prev => ({ ...prev, satuan: e.target.value }))}
                                 error={formErrors.satuan}
-                                helperText="Opsional."
                             />
                         </div>
                     </div>

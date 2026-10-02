@@ -164,13 +164,12 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
             isOpen={isOpen}
             onClose={onClose}
             title={isEdit ? 'Ubah Indikator Kinerja' : 'Tambah Indikator Kinerja'}
-            description="Indikator kinerja mengukur ketercapaian sasaran strategis dengan rumus, satuan, dan unit penanggung jawab."
             size="2xl"
             footer={
                 <div className="flex items-center justify-end gap-3">
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         onClick={onClose}
                         disabled={processing}
                     >

@@ -14,12 +14,8 @@ import {
     TrendingDown,
     Calculator,
     Target,
-    Building2,
-    BookOpen,
-    HelpCircle,
     ChevronDown,
     ChevronUp,
-    FileCheck2,
     Sigma,
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
@@ -107,18 +103,6 @@ export default function SasaranIndikatorIndex({
 
     const selectedRenstra = renstras.find((r) => r.id === selectedRenstraId);
 
-    const formatTipePerhitungan = (tipe: string) => {
-        switch (tipe) {
-            case 'rasio_persen':
-                return 'Rasio Persen (%)';
-            case 'penjumlahan':
-                return 'Penjumlahan';
-            case 'manual':
-            default:
-                return 'Manual';
-        }
-    };
-
     return (
         <AuthenticatedLayout
             title="Sasaran & Indikator Kinerja"
@@ -131,21 +115,42 @@ export default function SasaranIndikatorIndex({
 
             <div className="space-y-6">
                 {/* Header Context Card */}
-                <Card className="p-5 md:p-6 bg-surface shadow-xs border border-border">
+                <Card className="p-4 sm:p-5 bg-surface shadow-xs border border-border overflow-visible relative z-20">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="space-y-1">
-                            <h1 className="text-xl font-bold tracking-tight text-ink flex items-center gap-2">
-                                <Target className="h-6 w-6 text-primary" aria-hidden="true" />
-                                Sasaran Strategis & Indikator Kinerja
-                            </h1>
-                            <p className="text-sm text-muted">
-                                Pengelolaan sasaran strategis dan Indikator Kinerja Utama (IKU) berdasarkan Rencana Strategis (Renstra).
-                            </p>
-                        </div>
+                        {/* Metadata Renstra (Paling Kiri) */}
+                        {selectedRenstra ? (
+                            <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-ink">Periode Renstra:</span>
+                                    <span>{selectedRenstra.tahun_mulai} — {selectedRenstra.tahun_selesai}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-ink">Status Renstra:</span>
+                                    {selectedRenstra.is_aktif ? (
+                                        <Badge variant="success" size="sm" dot>Renstra Aktif</Badge>
+                                    ) : (
+                                        <Badge variant="muted" size="sm">Non-aktif</Badge>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-ink">Total Sasaran:</span>
+                                    <span>{sasarans.length} Sasaran</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-ink">Total Indikator:</span>
+                                    <span>
+                                        {sasarans.reduce((acc, s) => acc + s.indikator_kinerjas.length, 0)} Indikator
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div />
+                        )}
 
-                        {/* Renstra Selector and Top Actions */}
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="w-52">
+                        {/* Filter & Actions (Sisi Kanan) */}
+                        <div className="flex flex-wrap items-center gap-3 shrink-0">
+                            {/* Renstra Selector */}
+                            <div className="w-full sm:w-60">
                                 <Select
                                     id="renstra_filter"
                                     value={selectedRenstraId || ''}
@@ -160,6 +165,7 @@ export default function SasaranIndikatorIndex({
                                 </Select>
                             </div>
 
+                            {/* Top Actions */}
                             <TambahMenu
                                 showSasaran={can.sasaran_create && Boolean(selectedRenstraId)}
                                 showIndikator={can.indikator_create && sasarans.length > 0}
@@ -168,33 +174,6 @@ export default function SasaranIndikatorIndex({
                             />
                         </div>
                     </div>
-
-                    {selectedRenstra && (
-                        <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-4 text-xs text-muted">
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-ink">Periode Renstra:</span>
-                                <span>{selectedRenstra.tahun_mulai} — {selectedRenstra.tahun_selesai}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-ink">Status Renstra:</span>
-                                {selectedRenstra.is_aktif ? (
-                                    <Badge variant="success" size="sm" dot>Renstra Aktif</Badge>
-                                ) : (
-                                    <Badge variant="muted" size="sm">Non-aktif</Badge>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-ink">Total Sasaran:</span>
-                                <span>{sasarans.length} Sasaran</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-ink">Total Indikator:</span>
-                                <span>
-                                    {sasarans.reduce((acc, s) => acc + s.indikator_kinerjas.length, 0)} Indikator
-                                </span>
-                            </div>
-                        </div>
-                    )}
                 </Card>
 
                 {/* Empty State when no renstras */}
@@ -260,7 +239,7 @@ export default function SasaranIndikatorIndex({
                                             <span className="text-xs font-medium text-muted">
                                                 Urutan #{sasaran.urutan}
                                             </span>
-                                            <Badge variant="secondary" size="sm">
+                                            <Badge variant="primary" size="sm">
                                                 {sasaran.indikator_kinerjas.length} Indikator
                                             </Badge>
                                         </div>
@@ -274,7 +253,7 @@ export default function SasaranIndikatorIndex({
                                 <div className="flex items-center gap-2 self-end md:self-center shrink-0">
                                     {can.indikator_create && (
                                         <Button
-                                            variant="secondary"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => openCreateIndikator(sasaran.id)}
                                             className="gap-1.5"
@@ -322,7 +301,7 @@ export default function SasaranIndikatorIndex({
                                             {can.indikator_create && (
                                                 <div className="mt-3">
                                                     <Button
-                                                        variant="secondary"
+                                                        variant="primary"
                                                         size="sm"
                                                         onClick={() => openCreateIndikator(sasaran.id)}
                                                         className="gap-1.5"
@@ -336,112 +315,72 @@ export default function SasaranIndikatorIndex({
                                     ) : (
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-left text-sm">
-                                                <thead className="bg-soft/60 text-xs font-semibold text-muted uppercase tracking-wider border-b border-border">
+                                                <thead className="bg-soft/50 text-[11px] font-bold text-muted uppercase tracking-wider border-b border-border">
                                                     <tr>
-                                                        <th scope="col" className="px-4 py-3 w-28">Kode</th>
-                                                        <th scope="col" className="px-4 py-3">Indikator Kinerja</th>
-                                                        <th scope="col" className="px-4 py-3 w-24">Satuan</th>
-                                                        <th scope="col" className="px-4 py-3">Penanggung Jawab</th>
-                                                        <th scope="col" className="px-4 py-3">Karakteristik</th>
-                                                        <th scope="col" className="px-4 py-3">Regulasi Rujukan</th>
-                                                        <th scope="col" className="px-4 py-3 w-24 text-center">Status</th>
-                                                        <th scope="col" className="px-4 py-3 w-24 text-right">Aksi</th>
+                                                        <th scope="col" className="px-5 py-3 w-28">Kode</th>
+                                                        <th scope="col" className="px-5 py-3">Indikator Kinerja</th>
+                                                        <th scope="col" className="px-5 py-3 w-64">Penanggung Jawab</th>
+                                                        <th scope="col" className="px-5 py-3 w-36">Satuan</th>
+                                                        <th scope="col" className="px-5 py-3 w-56 text-right">Aksi</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-border">
                                                     {sasaran.indikator_kinerjas.map((ind) => (
                                                         <tr
                                                             key={ind.id}
-                                                            className={`hover:bg-soft/40 transition-colors ${
+                                                            className={`hover:bg-soft/30 transition-colors ${
                                                                 ind.status === 'arsip' ? 'opacity-60 bg-soft/20' : ''
                                                             }`}
                                                         >
-                                                            <td className="px-4 py-3 font-semibold text-ink align-top">
-                                                                <span className="font-mono text-xs px-2 py-0.5 rounded-sm bg-soft border border-border">
+                                                            {/* 1. Kode */}
+                                                            <td className="px-5 py-4 align-middle">
+                                                                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-soft text-ink border border-border">
                                                                     {ind.kode}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-4 py-3 align-top">
-                                                                <div className="space-y-1">
-                                                                    <div className="font-medium text-ink">
-                                                                        {ind.nama}
-                                                                    </div>
-                                                                    {ind.definisi_operasional && (
-                                                                        <p className="text-xs text-muted flex items-start gap-1">
-                                                                            <HelpCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted" aria-hidden="true" />
-                                                                            <span>{ind.definisi_operasional}</span>
-                                                                        </p>
+
+                                                            {/* 2. Indikator Kinerja */}
+                                                            <td className="px-5 py-4 align-middle">
+                                                                <p className="font-medium text-ink text-sm leading-snug">
+                                                                    {ind.nama}
+                                                                </p>
+                                                            </td>
+
+                                                            {/* 3. Penanggung Jawab */}
+                                                            <td className="px-5 py-4 align-middle text-xs text-ink font-medium">
+                                                                {ind.unit_nama || ind.unit_id}
+                                                            </td>
+
+                                                            {/* 4. Satuan & Arah Target */}
+                                                            <td className="px-5 py-4 align-middle text-xs">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="font-mono font-semibold text-ink bg-soft px-2 py-0.5 rounded border border-border">
+                                                                        {ind.satuan}
+                                                                    </span>
+                                                                    {ind.arah === 'naik_baik' ? (
+                                                                        <span className="text-success inline-flex items-center gap-0.5 text-xs font-medium" title="Target: Naik Lebih Baik">
+                                                                            <TrendingUp className="h-3 w-3" /> Naik
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-info inline-flex items-center gap-0.5 text-xs font-medium" title="Target: Turun Lebih Baik">
+                                                                            <TrendingDown className="h-3 w-3" /> Turun
+                                                                        </span>
                                                                     )}
-                                                                    {ind.wajib_catatan && (
-                                                                        <Badge variant="warning" size="sm">
-                                                                            <FileCheck2 className="h-3 w-3" aria-hidden="true" /> Wajib Catatan
-                                                                        </Badge>
-                                                                    )}
                                                                 </div>
                                                             </td>
-                                                            <td className="px-4 py-3 text-muted align-top">
-                                                                <span className="text-xs font-mono font-medium text-ink bg-surface px-2 py-0.5 rounded border border-border">
-                                                                    {ind.satuan}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-muted align-top">
-                                                                <div className="flex items-center gap-1.5 text-xs text-ink font-medium">
-                                                                    <Building2 className="h-3.5 w-3.5 text-muted shrink-0" aria-hidden="true" />
-                                                                    <span>{ind.unit_nama || ind.unit_id}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 align-top">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <div className="flex items-center gap-1 text-xs">
-                                                                        {ind.arah === 'naik_baik' ? (
-                                                                            <Badge variant="success" size="sm" className="rounded-full">
-                                                                                <TrendingUp className="h-3 w-3" aria-hidden="true" /> Naik Baik
-                                                                            </Badge>
-                                                                        ) : (
-                                                                            <Badge variant="info" size="sm" className="rounded-full">
-                                                                                <TrendingDown className="h-3 w-3" aria-hidden="true" /> Turun Baik
-                                                                            </Badge>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1 text-xs text-muted">
-                                                                        <Calculator className="h-3 w-3 text-muted" aria-hidden="true" />
-                                                                        <span>{formatTipePerhitungan(ind.tipe_perhitungan)}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 align-top text-xs text-muted">
-                                                                {ind.regulasi ? (
-                                                                    <div className="space-y-0.5">
-                                                                        <div className="font-medium text-ink flex items-center gap-1">
-                                                                            <BookOpen className="h-3 w-3 text-primary shrink-0" aria-hidden="true" />
-                                                                            <span>{ind.regulasi.jenis.toUpperCase()} No. {ind.regulasi.nomor}/{ind.regulasi.tahun}</span>
-                                                                        </div>
-                                                                        <p className="text-[11px] text-muted line-clamp-1">
-                                                                            {ind.regulasi.tentang}
-                                                                        </p>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-muted/60">—</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3 align-top text-center">
-                                                                {ind.status === 'arsip' ? (
-                                                                    <Badge variant="muted" size="sm">Arsip</Badge>
-                                                                ) : (
-                                                                    <Badge variant="success" size="sm" dot>Aktif</Badge>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3 align-top text-right">
-                                                                <div className="flex items-center justify-end gap-1">
+
+                                                            {/* 5. Aksi */}
+                                                            <td className="px-5 py-4 align-middle text-right">
+                                                                <div className="flex items-center justify-end gap-1.5">
                                                                     {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
                                                                         <Link
                                                                             href={`/indikator/${ind.id}/komponen`}
-                                                                            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-ink shadow-xs transition-all duration-150 hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:ring-offset-1"
+                                                                            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink shadow-2xs hover:bg-soft transition-colors"
                                                                             title="Konfigurasi Komponen Perhitungan"
                                                                             aria-label={`Kelola komponen ${ind.kode}`}
                                                                         >
-                                                                            <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
-                                                                            Kelola Komponen
+                                                                            <Calculator className="h-3.5 w-3.5" />
+                                                                            Komponen
                                                                         </Link>
                                                                     )}
 
@@ -449,11 +388,11 @@ export default function SasaranIndikatorIndex({
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setFormulaTarget(ind)}
-                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                                                             title="Atur Formula"
                                                                             aria-label={`Atur formula indikator ${ind.kode}`}
                                                                         >
-                                                                            <Sigma className="h-3.5 w-3.5" />
+                                                                            <Sigma className="h-4 w-4" />
                                                                         </button>
                                                                     )}
 
@@ -461,11 +400,11 @@ export default function SasaranIndikatorIndex({
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => openEditIndikator(ind)}
-                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                                                             title="Ubah Indikator"
                                                                             aria-label={`Ubah indikator ${ind.kode}`}
                                                                         >
-                                                                            <Edit3 className="h-3.5 w-3.5" />
+                                                                            <Edit3 className="h-4 w-4" />
                                                                         </button>
                                                                     )}
 
@@ -473,11 +412,11 @@ export default function SasaranIndikatorIndex({
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setPindahTarget(ind)}
-                                                                            className="p-1 rounded-md text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                                                             title="Pindah Unit"
                                                                             aria-label={`Pindah unit indikator ${ind.kode}`}
                                                                         >
-                                                                            <ArrowLeftRight className="h-3.5 w-3.5" />
+                                                                            <ArrowLeftRight className="h-4 w-4" />
                                                                         </button>
                                                                     )}
 
@@ -485,11 +424,11 @@ export default function SasaranIndikatorIndex({
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setDeleteTarget({ type: 'indikator', item: ind })}
-                                                                            className="p-1 rounded-md text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
-                                                                            title="Arsipkan Indikator"
-                                                                            aria-label={`Arsipkan indikator ${ind.kode}`}
+                                                                            className="p-1.5 rounded-md text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
+                                                                            title="Hapus / Arsipkan Indikator"
+                                                                            aria-label={`Hapus indikator ${ind.kode}`}
                                                                         >
-                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                            <Trash2 className="h-4 w-4" />
                                                                         </button>
                                                                     )}
                                                                 </div>
