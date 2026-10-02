@@ -68,7 +68,7 @@ function formatBytes(bytes: number | null): string {
 
 const transitions = {
     activate: { path: 'aktifkan', label: 'Aktifkan Renstra', description: 'Aktifkan dokumen ini sebagai Renstra yang berlaku. Naskah lampiran akan terkunci.' },
-    deactivate: { path: 'nonaktifkan', label: 'Nonaktifkan Renstra', description: 'Nonaktifkan dokumen ini. Master menjadi hanya baca dan dapat diarsipkan.' },
+    deactivate: { path: 'nonaktifkan', label: 'Nonaktifkan Renstra', description: '' },
     archive: { path: 'arsipkan', label: 'Arsipkan Renstra', description: 'Arsipkan dokumen nonaktif ini. Pengarsipan bersifat final; seluruh histori tetap terbaca.' },
 };
 type StatusIntent = keyof typeof transitions;
@@ -231,6 +231,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
 
                         {(['activate', 'deactivate', 'archive'] as const).map((action) => can[action] && <Button
                             key={action} type="button" variant={action === 'activate' ? 'primary' : 'outline'}
+                            className={action === 'deactivate' ? 'text-danger border-danger/30 hover:bg-danger/10 hover:text-danger' : undefined}
                             disabled={statusForm.processing || statusBlocked || (action === 'deactivate' && lifecycle.nonactivation_blocked)}
                             onClick={() => openStatus(action)}>
                             {transitions[action].label}
@@ -271,7 +272,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
                                     </div>
 
                                     <div>
-                                        <div className="text-xs font-medium text-muted">Penyusun / Pembuat</div>
+                                        <div className="text-xs font-medium text-muted">Pembuat</div>
                                         <div className="mt-1 flex items-center gap-1.5 text-sm text-ink">
                                             <User className="h-4 w-4 text-muted" aria-hidden="true" />
                                             <span>{pembuatNama}</span>
@@ -368,7 +369,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
 
                                                         {item.mode === 'teks' && (
                                                             <>
-                                                                <div className="text-xs font-medium text-muted">Kutipan Naskah</div>
+                                                                <div className="text-xs font-medium text-muted">Kutipan</div>
                                                                 <div className="mt-1 text-xs text-ink whitespace-pre-line bg-soft/50 p-2.5 rounded-md border border-border/60">
                                                                     {item.isi_teks}
                                                                 </div>
@@ -479,7 +480,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
                 showCloseButton={!statusForm.processing}
                 footer={<>
                     <Button type="button" variant="outline" disabled={statusForm.processing} onClick={() => setIntent(null)}>Batal</Button>
-                    <Button type="button" variant="primary" isLoading={statusForm.processing} disabled={statusBlocked} onClick={confirmStatus}>Konfirmasi</Button>
+                    <Button type="button" variant={intent === 'deactivate' ? 'danger' : 'primary'} isLoading={statusForm.processing} disabled={statusBlocked} onClick={confirmStatus}>Konfirmasi</Button>
                 </>}>
                 <div className="space-y-3 text-sm text-ink">
                     <p>{renstra.nama} ({renstra.tahun_mulai}–{renstra.tahun_selesai})</p>
@@ -512,6 +513,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
                 error={renstraReasonError ?? deleteRenstraForm.errors.alasan ?? (deleteRenstraForm.errors as Record<string, string | undefined>).renstra}
                 busy={deleteRenstraForm.processing}
                 confirmLabel="Hapus Renstra"
+                showAuditHint={false}
                 destructive
                 onReasonChange={(reason) => deleteRenstraForm.setData('alasan', reason)}
                 onClose={() => setDeleteRenstraOpen(false)}

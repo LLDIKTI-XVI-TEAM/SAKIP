@@ -338,6 +338,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                 error={reasonError ?? deleteForm.errors.alasan ?? (deleteForm.errors as Record<string, string | undefined>).renstra}
                 busy={deleteForm.processing}
                 confirmLabel="Hapus Renstra"
+                showAuditHint={false}
                 destructive
                 onReasonChange={(reason) => deleteForm.setData('alasan', reason)}
                 onClose={() => setDeleteOpen(false)}
@@ -350,7 +351,6 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                 onClose={closeCreateModal}
                 size="3xl"
                 title="Tambah Master Renstra Baru"
-                description="Isi identitas dokumen induk Renstra, penetapan rentang tahun, rujukan regulasi, dan naskah digital."
                 footer={
                     <>
                         <Button
