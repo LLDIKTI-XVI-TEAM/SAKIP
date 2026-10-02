@@ -6,6 +6,7 @@ use App\Actions\Audit\WriteAuditLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\RoleAssignmentWarnings;
 use App\Services\Authorization\RoleCatalog;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -14,13 +15,13 @@ use Illuminate\Validation\ValidationException;
 
 class AssignRole
 {
-    public function __construct(private PermissionResolver $permissions, private WriteAuditLog $audit) {}
+    public function __construct(private PermissionResolver $permissions, private WriteAuditLog $audit, private RoleAssignmentWarnings $warnings) {}
 
     /**
      * @param  array{id:string,role_id:string,audit_id:?string}|null  $expectedAssignment
-     * @return 'assigned'|'changed'|'unchanged'
+     * @return array{status:'assigned'|'changed'|'unchanged',has_active_pj:bool}
      */
-    public function handle(User $actor, string $targetId, string $roleId, string $reason, ?array $expectedAssignment): string
+    public function handle(User $actor, string $targetId, string $roleId, string $reason, ?array $expectedAssignment): array
     {
         $reason = trim($reason);
         if ($reason === '' || mb_strlen($reason) > 2000) {
@@ -29,17 +30,23 @@ class AssignRole
         $result = DB::transaction(function () use ($actor, $targetId, $roleId, $reason, $expectedAssignment) {
             // Kunci user juga saat pivot belum ada; urutan tetap mencegah deadlock silang aktor/target.
             $users = User::whereIn('id', [$actor->id, $targetId])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            $target = $users->get($targetId) ?? User::whereKey($targetId)->firstOrFail();
             $currentActor = $users->get($actor->id) ?? User::whereKey($actor->id)->firstOrFail();
+            // Kunci role aktor dan tujuan dalam satu urutan, selaras writer preset; jangan mengunci aktor dahulu secara terpisah.
+            $roleIds = DB::table('user_roles')->where('user_id', $currentActor->id)->pluck('role_id')->all();
+            if (Str::isUuid($roleId)) {
+                $roleIds[] = $roleId;
+            }
+            $roles = Role::whereIn('id', $roleIds)->orderBy('id')->sharedLock()->get()->keyBy('id');
             $decisions = [
                 'pengguna_read' => $this->permissions->decide($currentActor, 'pengguna:read'),
                 'akses_update' => $this->permissions->decide($currentActor, 'akses:update'),
             ];
-            $audit = ['actor_type' => 'user', 'actor_id' => $currentActor->id, 'sumber' => 'manual', 'objek_tipe' => 'users', 'objek_id' => $target->id, 'dasar_izin' => $decisions];
+            $audit = ['actor_type' => 'user', 'actor_id' => $currentActor->id, 'sumber' => 'manual', 'objek_tipe' => 'users', 'objek_id' => $targetId, 'dasar_izin' => $decisions];
             if (! $decisions['pengguna_read']['allowed'] || ! $decisions['akses_update']['allowed']) {
                 return ['denied' => true, 'audit' => $audit, 'message' => 'Anda tidak berwenang menetapkan peran.'];
             }
-            $role = Str::isUuid($roleId) ? Role::whereKey($roleId)->sharedLock()->first() : null;
+            $target = $users->get($targetId) ?? User::whereKey($targetId)->firstOrFail();
+            $role = $roles->get(strtolower($roleId));
             if (! $role || ! $role->aktif || ! RoleCatalog::contains($role->kode)) {
                 return ['field' => 'role_id', 'audit' => $audit, 'message' => 'Pilih peran resmi yang aktif.'];
             }
@@ -55,8 +62,10 @@ class AssignRole
             if (! $matches) {
                 return ['field' => 'expected_assignment', 'audit' => $audit, 'message' => 'Peran pengguna telah berubah. Muat ulang data sebelum menyimpan.'];
             }
+            // Snapshot dibaca setelah izin/token sah dan sebelum write; kegagalan query membatalkan transaksi.
+            $hasActivePj = $this->warnings->forUsers([$target->id])[$target->id];
             if ($assignment && $assignment->role_id === $role->id) {
-                return ['status' => 'unchanged'];
+                return ['status' => 'unchanged', 'has_active_pj' => $hasActivePj];
             }
             $before = $assignment ? ['role_id' => $assignment->role_id, 'role_kode' => Role::whereKey($assignment->role_id)->value('kode')] : null;
             $entry = $this->audit->handle($audit + [
@@ -70,7 +79,7 @@ class AssignRole
                 DB::table('user_roles')->insert($values + ['id' => (string) Str::uuid(), 'user_id' => $target->id, 'created_at' => now()]);
             }
 
-            return ['status' => $assignment ? 'changed' : 'assigned'];
+            return ['status' => $assignment ? 'changed' : 'assigned', 'has_active_pj' => $hasActivePj];
         });
         if (isset($result['audit'])) {
             // Hanya Action memiliki audit denial; penolakan tidak hilang karena rollback mutasi.
@@ -81,6 +90,6 @@ class AssignRole
             throw ValidationException::withMessages([$result['field'] => $result['message']]);
         }
 
-        return $result['status'];
+        return $result;
     }
 }

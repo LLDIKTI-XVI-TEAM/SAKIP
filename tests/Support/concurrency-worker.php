@@ -10,7 +10,9 @@ use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
 use App\Models\User;
+use App\Services\Authorization\RoleAssignmentReceipt;
 use App\Services\PermissionResolver;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,7 +63,8 @@ try {
             'unit-update' => app(UpdateUnitAction::class)->handle($actor, $assignment['unit_id'], $assignment['data']),
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
-            'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment']),
+            'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
+            'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
             'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
@@ -73,6 +76,11 @@ try {
             'revoke-deny' => 'revoked',
             default => $result,
         };
+    } catch (AuthorizationException $exception) {
+        if ($argv[1] !== 'assign-role') {
+            throw $exception;
+        }
+        $result = 'denied';
     } catch (HttpException $exception) {
         if (! in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete'], true) || $exception->getStatusCode() !== 403) {
             throw $exception;
