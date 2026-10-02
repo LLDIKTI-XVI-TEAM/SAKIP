@@ -17,8 +17,8 @@ class EditRenstra extends Controller
         Gate::authorize('view', $renstra);
         Gate::authorize('update', $renstra);
 
-        if ($renstra->status === Renstra::STATUS_DIARSIPKAN) {
-            abort(403, 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.');
+        if (! in_array($renstra->status, [Renstra::STATUS_DRAFT, Renstra::STATUS_AKTIF], true)) {
+            abort(403, 'Renstra nonaktif atau diarsipkan hanya dapat dibaca.');
         }
 
         $user = $request->user();
@@ -34,7 +34,6 @@ class EditRenstra extends Controller
                 ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
         } else {
             $renstra->unsetRelation('regulasi');
-            $renstra->setAttribute('regulasi_id', null);
             $regulasiPilihan = [];
         }
 
@@ -42,7 +41,23 @@ class EditRenstra extends Controller
             && $user !== null && $user->can('uploadAttachment', $renstra);
 
         return Inertia::render('Renstra/Edit', [
-            'renstra' => $renstra,
+            'renstra' => [
+                'id' => $renstra->id,
+                'kode' => $renstra->kode,
+                'nama' => $renstra->nama,
+                'tahun_mulai' => $renstra->tahun_mulai,
+                'tahun_selesai' => $renstra->tahun_selesai,
+                'status' => $renstra->status,
+                'is_aktif' => $renstra->is_aktif,
+                'deskripsi' => $renstra->deskripsi,
+                'dasar_hukum' => $renstra->dasar_hukum,
+                'regulasi_id' => $dapatBacaRegulasi ? $renstra->regulasi_id : null,
+                'regulasi' => $dapatBacaRegulasi && $renstra->regulasi ? $renstra->regulasi->only(['id', 'jenis', 'nomor', 'tahun', 'tentang']) : null,
+                'pembuat' => null,
+                'created_at' => $renstra->created_at?->toISOString(),
+                'updated_at' => $renstra->updated_at?->toISOString(),
+            ],
+            'expected_state' => $renstra->stateToken(),
             'regulasiPilihan' => $regulasiPilihan,
             'can' => [
                 'uploadAttachment' => $canUploadAttachment,

@@ -11,6 +11,7 @@ interface AuditReasonModalProps {
     busy?: boolean;
     submitDisabled?: boolean;
     notice?: ReactNode;
+    showAuditHint?: boolean;
     confirmLabel: string;
     destructive?: boolean;
     onReasonChange: (reason: string) => void;
@@ -27,6 +28,7 @@ export function AuditReasonModal({
     busy = false,
     submitDisabled = false,
     notice,
+    showAuditHint = true,
     confirmLabel,
     destructive = false,
     onReasonChange,
@@ -90,15 +92,21 @@ export function AuditReasonModal({
                         id={`${id}-reason`}
                         ref={reasonInput}
                         rows={4}
+                        disabled={busy}
+                        aria-required="true"
+                        aria-invalid={Boolean(error)}
+                        aria-describedby={error ? `${id}-error` : undefined}
                         value={reason}
                         onChange={(event) => onReasonChange(event.target.value)}
                         placeholder="Jelaskan alasan yang dapat dipahami saat audit…"
                         className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
-                    {error && <p className="mt-1 text-xs font-medium text-danger">{error}</p>}
-                    <p className="mt-2 text-xs leading-5 text-muted">
-                        Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
-                    </p>
+                    {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
+                    {showAuditHint && (
+                        <p className="mt-2 text-xs leading-5 text-muted">
+                            Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">

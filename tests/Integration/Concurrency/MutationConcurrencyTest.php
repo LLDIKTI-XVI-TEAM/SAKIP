@@ -572,7 +572,7 @@ class MutationConcurrencyTest extends TestCase
         $renstra = Renstra::create(['kode' => 'LOCK-RENSTRA', 'nama' => 'Renstra awal', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $actor->id]);
         $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran awal', 'uploaded_by' => $actor->id]);
         $before = $renstra->fresh()->getAttributes();
-        $data = ['kode' => $operation === 'renstra-create' ? 'LOCK-CREATE' : $renstra->kode, 'nama' => 'Perubahan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Pembaruan fixture konkurensi'];
+        $data = ['expected_state' => $renstra->stateToken(), 'kode' => $operation === 'renstra-create' ? 'LOCK-CREATE' : $renstra->kode, 'nama' => 'Perubahan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Pembaruan fixture konkurensi'];
         if ($variant === 'upload') {
             $data['lampiran'] = [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak']];
         }
@@ -698,7 +698,7 @@ class MutationConcurrencyTest extends TestCase
             'actor_id' => $actor->id, 'permission' => 'renstra:update', 'renstra_id' => $renstra->id,
             'expected_error_field' => 'regulasi_id',
             'expected_error_message' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
-            'data' => ['nama' => 'Perubahan stale tidak boleh tersimpan', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran stale tidak boleh tersimpan']], 'alasan' => 'Mempertahankan rujukan dari formulir lama'],
+            'data' => ['expected_state' => $renstra->stateToken(), 'nama' => 'Perubahan stale tidak boleh tersimpan', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran stale tidak boleh tersimpan']], 'alasan' => 'Mempertahankan rujukan dari formulir lama'],
         ];
         $prepare = fn () => Renstra::whereKey($renstra->id)->lockForUpdate()->firstOrFail();
         $changeWhileBlocked = function (array $pids) use ($actor, $renstra, $regulasiA, $regulasiB, &$expectedRenstra): void {
@@ -714,7 +714,7 @@ class MutationConcurrencyTest extends TestCase
             }
             $this->assertSame(1, DB::transactionLevel());
             $updated = app(UpdateRenstraAction::class)->handle($actor, $renstra, [
-                'nama' => 'Perubahan sah ke rujukan B', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
+                'expected_state' => $renstra->stateToken(), 'nama' => 'Perubahan sah ke rujukan B', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
                 'regulasi_id' => $regulasiB->id, 'alasan' => 'Mengganti rujukan dengan regulasi aktif',
             ]);
             $this->assertSame($regulasiB->id, $updated->regulasi_id);
@@ -747,7 +747,7 @@ class MutationConcurrencyTest extends TestCase
         $before = $record->fresh()->getAttributes();
         $data = $domain === 'regulasi'
             ? ['jenis' => 'kepmen', 'nomor' => 'PRESET', 'tahun' => 2026, 'tentang' => 'Perubahan ditolak', 'aktif' => true, 'versi' => $record->versi, 'alasan' => 'Perubahan fixture preset']
-            : ['nama' => 'Perubahan ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture preset'];
+            : ['expected_state' => $record->stateToken(), 'nama' => 'Perubahan ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture preset'];
         $payload = ['actor_id' => $actor->id, 'permission' => $permission->kode, $domain.'_id' => $record->id, 'data' => $data];
         $prepare = function (): void {
             // Rilis preset memakai urutan role lalu permission; worker harus menunggu role yang sama.

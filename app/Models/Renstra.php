@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * @property string $id
@@ -129,6 +130,38 @@ class Renstra extends Model
         } elseif ($currentStatus === self::STATUS_AKTIF) {
             $this->attributes['status'] = self::STATUS_NONAKTIF;
         }
+    }
+
+    /**
+     * Allowlist master untuk audit dan perbandingan state; relasi tidak ikut diserialisasi.
+     *
+     * @return array<string, mixed>
+     */
+    public function masterAttributes(): array
+    {
+        return [
+            'id' => $this->id,
+            'kode' => $this->kode,
+            'nama' => $this->nama,
+            'tahun_mulai' => $this->tahun_mulai,
+            'tahun_selesai' => $this->tahun_selesai,
+            'deskripsi' => $this->deskripsi,
+            'dasar_hukum' => $this->dasar_hukum,
+            'regulasi_id' => $this->regulasi_id,
+            'status' => $this->status,
+            'is_aktif' => $this->is_aktif,
+            'created_by' => $this->created_by,
+            'updated_at' => $this->updated_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Pembanding state persisted, bukan izin atau identitas request.
+     * HMAC menjaga FK sebelum masking tetap terlindungi dari stale update tanpa bisa ditebak dari props.
+     */
+    public function stateToken(): string
+    {
+        return hash_hmac('sha256', json_encode($this->masterAttributes(), JSON_THROW_ON_ERROR), Crypt::getKey());
     }
 
     /** @return BelongsTo<User, $this> */

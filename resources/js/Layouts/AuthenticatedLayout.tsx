@@ -32,6 +32,7 @@ interface AuthenticatedLayoutProps {
     children: ReactNode;
     title?: string;
     breadcrumbs?: { label: string; href?: string }[];
+    headerActions?: ReactNode;
     renderTitleHeading?: boolean;
     hasCustomHeading?: boolean;
 }
@@ -40,11 +41,14 @@ export function AuthenticatedLayout({
     children,
     title,
     breadcrumbs = [],
+    headerActions,
     renderTitleHeading = true,
     hasCustomHeading = false,
 }: AuthenticatedLayoutProps) {
     const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
-    const { props: { auth, flash, pengaturan }, url } = usePage<SharedPageProps>();
+    const { props: { auth, flash: legacyFlash, pengaturan }, flash: transientFlash, url } = usePage<SharedPageProps>();
+    // Flash native Inertia tidak diputar ulang ketika pengguna membuka history.
+    const flash = { ...legacyFlash, ...transientFlash };
     const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP';
     const instansiNama = (pengaturan?.['instansi.nama_pendek'] as string)
         || (pengaturan?.['instansi.nama'] as string)
@@ -362,13 +366,16 @@ export function AuthenticatedLayout({
 
                 {(title || normalizedBreadcrumbs.length > 0) && (
                     <header className="px-4 pt-4 pb-0 sm:px-6 sm:pt-5 lg:px-8 max-w-7xl w-full mx-auto">
-                        {title && (
-                            shouldRenderH1 ? (
-                                <h1 className="text-lg font-bold text-ink">{title}</h1>
-                            ) : (
-                                <p className="text-lg font-bold text-ink">{title}</p>
-                            )
-                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            {title && (
+                                shouldRenderH1 ? (
+                                    <h1 className="text-lg font-bold text-ink">{title}</h1>
+                                ) : (
+                                    <p className="text-lg font-bold text-ink">{title}</p>
+                                )
+                            )}
+                            {headerActions}
+                        </div>
                         {normalizedBreadcrumbs.length > 0 && (
                             <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
                                 {normalizedBreadcrumbs.map((item, index) => (

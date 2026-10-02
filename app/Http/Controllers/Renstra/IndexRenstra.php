@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Renstra;
 use App\Http\Controllers\Controller;
 use App\Models\Regulasi;
 use App\Models\Renstra;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -35,6 +35,7 @@ class IndexRenstra extends Controller
         $dapatBacaRegulasi = $user !== null && $user->can('viewAny', Regulasi::class);
         $dapatBacaLampiran = $user !== null
             && app(PermissionResolver::class)->resolve($user, PermissionCodes::BERKAS_READ)->allowed;
+        $dapatUbahRenstra = $user !== null && $user->can('update', Renstra::class);
         $dapatHapusRenstra = $user !== null && $user->can('delete', Renstra::class);
         $dapatHapusLampiran = $user !== null && $user->can('deleteAttachment', Renstra::class);
 
@@ -46,11 +47,11 @@ class IndexRenstra extends Controller
                 ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
             : [];
 
-        $withRelations = $dapatBacaRegulasi ? ['regulasi'] : [];
+        $withRelations = $dapatBacaRegulasi ? ['regulasi:id,nomor'] : [];
 
         $query = Renstra::query()
             ->with($withRelations)
-            ->withCount(['sasaranStrategis', 'berkas']);
+            ->withCount('berkas');
 
         if ($search !== '') {
             $query->where(function ($sq) use ($search) {
@@ -71,18 +72,23 @@ class IndexRenstra extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $renstra->getCollection()->each(function (Renstra $item) use ($dapatBacaRegulasi, $dapatBacaLampiran, $dapatHapusRenstra, $dapatHapusLampiran): void {
-            $item->setAttribute('can_delete', $dapatHapusRenstra
-                && $item->status === Renstra::STATUS_DRAFT
-                && ($dapatHapusLampiran || ($dapatBacaLampiran && (int) $item->berkas_count === 0)));
-
-            if (! $dapatBacaRegulasi) {
-                $item->setAttribute('regulasi_id', null);
-            }
-            if (! $dapatBacaLampiran) {
-                $item->setAttribute('berkas_count', null);
-            }
-        });
+        $renstra->through(fn (Renstra $item): array => [
+            'id' => $item->id,
+            'nama' => $item->nama,
+            'kode' => $item->kode,
+            'tahun_mulai' => $item->tahun_mulai,
+            'tahun_selesai' => $item->tahun_selesai,
+            'status' => $item->status,
+            'is_aktif' => $item->is_aktif,
+            'regulasi_id' => $dapatBacaRegulasi ? $item->regulasi_id : null,
+            'regulasi_nomor' => $dapatBacaRegulasi ? $item->regulasi?->nomor : null,
+            'berkas_count' => $dapatBacaLampiran ? (int) $item->berkas_count : null,
+            'can_update' => $dapatUbahRenstra && in_array($item->status, [Renstra::STATUS_DRAFT, Renstra::STATUS_AKTIF], true),
+            'can_delete' => $dapatHapusRenstra && $item->status === Renstra::STATUS_DRAFT
+                && ($dapatHapusLampiran || ($dapatBacaLampiran && (int) $item->berkas_count === 0)),
+            'created_at' => $item->created_at?->toISOString(),
+            'updated_at' => $item->updated_at?->toISOString(),
+        ]);
 
         return Inertia::render('Renstra/Index', [
             'renstra' => $renstra,
