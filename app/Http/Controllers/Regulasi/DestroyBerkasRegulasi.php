@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Regulasi;
 
+use App\Actions\Regulasi\DeleteRegulasiAttachmentAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regulasi\DeleteBerkasRegulasiRequest;
 use App\Models\Berkas;
 use App\Models\Regulasi;
 use App\Models\User;
-use App\Services\RegulasiService;
 use Illuminate\Http\RedirectResponse;
 
 class DestroyBerkasRegulasi extends Controller
@@ -16,21 +16,15 @@ class DestroyBerkasRegulasi extends Controller
         DeleteBerkasRegulasiRequest $request,
         Regulasi $regulasi,
         Berkas $berkas,
-        RegulasiService $regulasiService,
+        DeleteRegulasiAttachmentAction $action,
     ): RedirectResponse {
-        abort_unless(
-            $berkas->berkasable_type === $regulasi->getMorphClass()
-                && $berkas->berkasable_id === $regulasi->id,
-            404,
-        );
-
         /** @var User $actor */
         $actor = $request->user();
 
-        $regulasiService->deleteAttachment(
+        $action->handle(
             regulasi: $regulasi,
             berkas: $berkas,
-            alasan: $request->string('alasan')->toString(),
+            alasan: $request->validated()['alasan'],
             actor: $actor,
         );
 

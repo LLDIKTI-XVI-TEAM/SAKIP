@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Regulasi;
 
+use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regulasi\UpdateRegulasiRequest;
 use App\Models\Regulasi;
 use App\Models\User;
-use App\Services\RegulasiService;
 use Illuminate\Http\RedirectResponse;
 
 class UpdateRegulasi extends Controller
@@ -14,11 +14,11 @@ class UpdateRegulasi extends Controller
     public function __invoke(
         UpdateRegulasiRequest $request,
         Regulasi $regulasi,
-        RegulasiService $service,
+        UpdateRegulasiAction $action,
     ): RedirectResponse {
         /** @var User $actor */
         $actor = $request->user();
-        $service->update($regulasi, $request->validated(), $actor);
+        $action->handle($actor, $regulasi, $request->validated());
 
         return redirect()
             ->route('regulasi.index')
