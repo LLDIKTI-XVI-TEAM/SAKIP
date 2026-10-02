@@ -583,7 +583,18 @@ class AssignRoleTest extends TestCase
         $renstra = Renstra::create(['kode' => 'R-PJ', 'nama' => 'Renstra PJ Uji', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $this->actor->id]);
         $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-PJ', 'deskripsi' => 'Sasaran PJ Uji']);
 
-        return IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id, 'kode' => 'I-PJ', 'nama' => 'Indikator PJ Uji', 'satuan' => 'poin', 'tipe_perhitungan' => 'manual']);
+        return IndikatorKinerja::create([
+            'sasaran_strategis_id' => $sasaran->id,
+            'unit_id' => $unit->id,
+            'kode' => 'I-PJ',
+            'nama' => 'Indikator PJ Uji',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->actor->id,
+            'created_by_role' => $this->actor->roles->first()?->kode ?? 'superadmin',
+        ]);
     }
 
     private function assignment(IndikatorKinerja $indicator, User $user, string $date, string $created): void
