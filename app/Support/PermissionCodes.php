@@ -47,6 +47,14 @@ final class PermissionCodes
 
     public const PK_UPDATE = 'pk:update';
 
+    public const PERIODE_CREATE = 'periode:create';
+
+    public const PERIODE_UPDATE = 'periode:update';
+
+    public const JADWAL_CREATE = 'jadwal:create';
+
+    public const JADWAL_UPDATE = 'jadwal:update';
+
     // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 

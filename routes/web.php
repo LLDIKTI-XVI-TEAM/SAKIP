@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
+use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Periode\PeriodeController;
 use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
@@ -73,6 +75,16 @@ Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block()
 Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
+    Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
+    Route::get('/jadwal/opsi/{jenis}', [JadwalController::class, 'options'])->whereIn('jenis', ['renstra', 'periode'])->name('jadwal.options');
+    Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
+    Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
+    Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
+    Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
+    Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
+    Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
+    Route::put('/periode/{periode}', [PeriodeController::class, 'update'])->whereUuid('periode')->name('periode.update');
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
     Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
     Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
