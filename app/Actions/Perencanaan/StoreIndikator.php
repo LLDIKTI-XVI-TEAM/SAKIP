@@ -12,6 +12,7 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Authorization\RoleCatalog;
+use App\Services\Kinerja\IndikatorPerhitunganService;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -23,6 +24,7 @@ class StoreIndikator
         private readonly AuditLogger $auditLogger,
         private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
+        private readonly IndikatorPerhitunganService $perhitunganService,
     ) {}
 
     /**
@@ -157,6 +159,21 @@ class StoreIndikator
                     ]);
                 }
                 $effectiveRegulasiId = $rawRegulasiId;
+            }
+
+            // 5d. Tolak create nonmanual-invalid (Data Model §2.12, Opsi A
+            // R3-01 pilihan (a)): baris baru selalu tanpa komponen sehingga
+            // kandidat = tipe diminta + koleksi kosong dinilai via satu-satunya
+            // penentu validitas (`validateDefinisiKomponen`). Gagal → 422
+            // `tipe_perhitungan` + messages service + arahan buat manual dulu
+            // lalu transisi atomik. Tanpa mutasi/audit sukses.
+            $kandidatBaru = new IndikatorKinerja(['tipe_perhitungan' => $validated['tipe_perhitungan']]);
+            $kandidatBaru->setRelation('komponen', collect());
+            $validasiBaru = $this->perhitunganService->validateDefinisiKomponen($kandidatBaru);
+            if (! $validasiBaru['is_valid']) {
+                throw ValidationException::withMessages([
+                    'tipe_perhitungan' => [...$validasiBaru['messages'], 'Buat indikator sebagai manual terlebih dahulu, lalu gunakan endpoint transisi formula atomik untuk beralih ke tipe nonmanual beserta komponennya dalam satu transaksi.'],
+                ]);
             }
 
             $created = IndikatorKinerja::create([

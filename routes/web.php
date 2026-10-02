@@ -25,6 +25,7 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Perencanaan\ChangeIndicatorFormula;
 use App\Http\Controllers\Perencanaan\DestroyIndikator;
 use App\Http\Controllers\Perencanaan\DestroySasaran;
 use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
@@ -167,6 +168,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
+    Route::patch('/perencanaan/indikator/{indikator}/formula', ChangeIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.formula');
     Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
 
     // Konfigurasi Komponen Indikator Kinerja (Data-Driven)

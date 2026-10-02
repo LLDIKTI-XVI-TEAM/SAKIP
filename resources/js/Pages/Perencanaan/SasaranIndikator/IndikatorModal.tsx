@@ -143,6 +143,13 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         }
     };
 
+    // Opsi A atomik (R3-01): edit umum tidak boleh menyimpan nonmanual
+    // invalid. Indikator manual belum memiliki komponen sehingga opsi
+    // nonmanual dinonaktifkan pada mode edit; transisi tipe+komponen hanya
+    // via jalur atomik PATCH /perencanaan/indikator/{id}/formula.
+    // Pesan 422 tipe_perhitungan backend tampil apa adanya via error prop.
+    const isManualEdit = isEdit && indikator?.tipe_perhitungan === 'manual';
+
     // Nama unit tersimpan untuk tampilan read-only saat edit. Unit aktif
     // difilter server sehingga unit lama yang nonaktif fallback ke nama
     // yang tersimpan pada payload indikator.
@@ -290,11 +297,20 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             value={data.tipe_perhitungan}
                             onChange={(e) => setData('tipe_perhitungan', e.target.value as IndikatorTipePerhitungan)}
                             error={errors.tipe_perhitungan}
+                            helperText={
+                                isManualEdit
+                                    ? 'Indikator manual belum memiliki komponen. Perubahan ke Rasio/Penjumlahan via edit umum akan ditolak (422). Gunakan transisi formula atomik untuk mengubah tipe sekaligus melengkapi komponen.'
+                                    : undefined
+                            }
                             required
                         >
                             <option value="manual">Manual</option>
-                            <option value="rasio_persen">Rasio Persen (%)</option>
-                            <option value="penjumlahan">Penjumlahan</option>
+                            <option value="rasio_persen" disabled={isManualEdit}>
+                                Rasio Persen (%)
+                            </option>
+                            <option value="penjumlahan" disabled={isManualEdit}>
+                                Penjumlahan
+                            </option>
                         </Select>
                     </div>
                     <div>

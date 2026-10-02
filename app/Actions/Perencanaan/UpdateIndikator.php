@@ -219,26 +219,29 @@ class UpdateIndikator
             }
 
             // 4c. Validasi komponen saat tipe perhitungan berubah (Data Model
-            // §2.12): kandidat tipe + komponen aktif existing dinilai via
-            // service domain pada state kandidat tanpa mutasi, atomik dalam
+            // §2.12, Opsi A atomik R3-01): SETIAP perubahan tipe — termasuk
+            // manual→nonmanual — dinilai via service domain pada state
+            // kandidat (clone + relasi existing) tanpa mutasi, atomik dalam
             // transaksi setelah kunci dan sebelum update. Tipe tak berubah
-            // dilewati tanpa overhead. Gagal → 422 + messages dari service.
+            // dilewati tanpa overhead (perilaku R2-25). Gagal → 422
+            // `tipe_perhitungan` + messages service. Tanpa state transien
+            // invalid yang persisted: manual→nonmanual tanpa komponen lengkap
+            // DITOLAK di sini; gunakan endpoint atomik
+            // PATCH /perencanaan/indikator/{indikator}/formula
+            // (ChangeIndicatorFormula) untuk mengubah tipe sekaligus
+            // melengkapi komponen dalam satu transaksi.
             //
-            // Alur transisi tipe↔komponen (lifecycle, konsisten dengan guard
+            // Alur transisi tipe↔komponen (konsisten dengan guard
             // sisi-komponen di IndikatorKomponenController yang mengunci
             // parent yang sama):
-            // - manual→nonmanual DIIZINKAN tanpa komponen — keadaan transien
-            //   yang ditandai invalid oleh contract validation hingga
-            //   dikonfigurasi via Kelola Komponen (tanpa pengecualian ini
-            //   jalur buntu: komponen tak bisa dibuat saat manual, padahal
-            //   tipe baru mensyaratkan komponen sudah ada).
+            // - manual→nonmanual DITOLAK bila komponen tak lengkap —
+            //   gunakan jalur atomik (3) agar tipe + komponen commit bersama.
             // - nonmanual→manual DITOLAK bila masih ada komponen aktif —
             //   nonaktifkan dulu via Kelola Komponen (pesan 422 mengarahkan).
             // - nonmanual→nonmanual lain tetap dinilai penuh via service.
             $kandidatTipe = $validated['tipe_perhitungan'];
             $tipeLama = $lockedIndikator->tipe_perhitungan;
-            $manualKeNonmanual = $tipeLama === 'manual' && $kandidatTipe !== 'manual';
-            if ($kandidatTipe !== $tipeLama && ! $manualKeNonmanual) {
+            if ($kandidatTipe !== $tipeLama) {
                 $kandidat = clone $lockedIndikator;
                 $kandidat->tipe_perhitungan = $kandidatTipe;
                 $kandidat->setRelation('komponen', $lockedIndikator->komponen()->get());
@@ -247,7 +250,9 @@ class UpdateIndikator
                 if (! $validasiKomponen['is_valid']) {
                     $pesanTipe = $validasiKomponen['messages'];
                     if ($kandidatTipe === 'manual') {
-                        $pesanTipe[] = 'Nonaktifkan komponen aktif terlebih dahulu via Kelola Komponen sebelum beralih ke tipe manual. Alur transisi: manual→nonmanual diizinkan tanpa komponen (keadaan transien invalid hingga dikonfigurasi via Kelola Komponen).';
+                        $pesanTipe[] = 'Nonaktifkan komponen aktif terlebih dahulu via Kelola Komponen sebelum beralih ke tipe manual.';
+                    } else {
+                        $pesanTipe[] = 'Gunakan endpoint transisi formula atomik untuk mengubah tipe sekaligus melengkapi komponen dalam satu transaksi.';
                     }
                     throw ValidationException::withMessages([
                         'tipe_perhitungan' => $pesanTipe,

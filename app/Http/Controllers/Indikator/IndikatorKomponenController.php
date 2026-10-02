@@ -63,10 +63,14 @@ class IndikatorKomponenController extends Controller
         try {
             DB::transaction(function () use ($indikator, $data, $actor, $decision) {
                 // Urutan kunci parent→child, konsisten dengan UpdateIndikator
-                // yang mengunci Indikator sebelum mutasi: parent dikunci
-                // FOR UPDATE dulu agar perubahan tipe konkuren terserialisasi
-                // dengan penambahan komponen (tanpa inversi = tanpa deadlock).
-                // Guard manual dibaca dari baris terkunci (anti-TOCTOU).
+                // dan ChangeIndicatorFormula yang mengunci Indikator sebelum
+                // mutasi: parent dikunci FOR UPDATE dulu agar perubahan tipe
+                // konkuren terserialisasi dengan penambahan komponen (tanpa
+                // inversi = tanpa deadlock). Guard manual dibaca dari baris
+                // terkunci (anti-TOCTOU) dan DIPERTAHANKAN: tambah/ubah
+                // langsung saat manual tetap 422; transisi tipe↔komponen hanya
+                // via jalur atomik PATCH
+                // /perencanaan/indikator/{indikator}/formula.
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
                 abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
 
@@ -109,9 +113,12 @@ class IndikatorKomponenController extends Controller
 
         try {
             DB::transaction(function () use ($indikator, $komponen, $data, $actor, $alasan, $decision) {
-                // Urutan kunci parent→child seperti store: parent FOR UPDATE
+                // Urutan kunci parent→child seperti store (konsisten dengan
+                // UpdateIndikator + ChangeIndicatorFormula): parent FOR UPDATE
                 // dulu, baru child FOR UPDATE. Guard manual + kepemilikan
-                // dibaca dari baris terkunci (anti-TOCTOU).
+                // dibaca dari baris terkunci (anti-TOCTOU) dan DIPERTAHANKAN;
+                // transisi tipe↔komponen hanya via jalur atomik PATCH
+                // /perencanaan/indikator/{indikator}/formula.
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
                 abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
 
