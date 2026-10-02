@@ -356,7 +356,18 @@ test('revisi master dan lifecycle tidak menulis graph Jadwal snapshot atau Pengu
     $ids = array_map(fn () => (string) Str::uuid(), array_fill_keys(['unit', 'sasaran', 'indikator', 'komponen', 'periode', 'jadwal', 'snapshot', 'snapshot_komponen', 'pengukuran', 'pengukuran_versi'], null));
     DB::table('unit')->insert(['id' => $ids['unit'], 'nama' => 'Unit fixture histori', 'created_by' => $this->actor->id, 'created_at' => now()]);
     DB::table('sasaran_strategis')->insert(['id' => $ids['sasaran'], 'renstra_id' => $this->renstra->id, 'kode' => 'SS-TEST', 'deskripsi' => 'Sasaran historis']);
-    DB::table('indikator_kinerjas')->insert(['id' => $ids['indikator'], 'sasaran_strategis_id' => $ids['sasaran'], 'unit_id' => $ids['unit'], 'kode' => 'IK-TEST', 'nama' => 'Indikator master', 'satuan' => 'persen']);
+    DB::table('indikator_kinerjas')->insert([
+        'id' => $ids['indikator'],
+        'sasaran_strategis_id' => $ids['sasaran'],
+        'unit_id' => $ids['unit'],
+        'kode' => 'IK-TEST',
+        'nama' => 'Indikator master',
+        'satuan' => 'persen',
+        'status' => 'aktif',
+        'tahun_mulai_berlaku' => 2025,
+        'created_by' => $this->actor->id,
+        'created_by_role' => 'perencanaan',
+    ]);
     DB::table('indikator_komponen')->insert(['id' => $ids['komponen'], 'indikator_id' => $ids['indikator'], 'kode' => 'K1', 'label' => 'Komponen master', 'peran' => 'penjumlah', 'urutan' => 1, 'created_by' => $this->actor->id]);
     DB::table('periode')->insert(['id' => $ids['periode'], 'nama' => 'TW I', 'urutan' => 1]);
     DB::table('jadwal_tahunan')->insert(['id' => $ids['jadwal'], 'renstra_id' => $this->renstra->id, 'tahun' => 2026, 'penutupan' => '2026-12-31', 'status' => 'ditutup']);
