@@ -244,7 +244,8 @@ describe('Transisi Formula Atomik (R4-01)', () => {
             });
         });
 
-        const alert = screen.getByRole('alert');
+        const alerts = screen.getAllByRole('alert');
+        const alert = alerts.find((el) => el.textContent?.includes('Penyimpanan formula ditolak server')) ?? alerts[0];
         expect(alert.textContent).toContain('Data indikator telah berubah. Muat ulang halaman.');
         expect(alert.textContent).toContain('Kode komponen sudah digunakan pada indikator ini.');
     });
