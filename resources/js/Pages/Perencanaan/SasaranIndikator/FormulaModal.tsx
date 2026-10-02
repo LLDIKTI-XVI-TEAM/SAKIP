@@ -414,6 +414,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                     value={row.bobot}
                                     onChange={(e) => updateRow(index, 'bobot', e.target.value)}
                                     error={fieldError(`komponen.${index}.bobot`)}
+                                    helperText={row.peran === 'penyebut' ? 'Penyebut wajib lebih besar dari 0.' : undefined}
                                     required
                                 />
                                 <Input

@@ -17,6 +17,7 @@ import {
     ChevronDown,
     ChevronUp,
     Sigma,
+    BookOpen,
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
@@ -26,12 +27,38 @@ import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
 import type {
     IndikatorKinerjaItem,
+    IndikatorTipePerhitungan,
     RegulasiOption,
     RenstraOption,
     SasaranIndikatorCapabilities,
     SasaranStrategisItem,
     UnitOption,
 } from '@/types/sasaran-indikator';
+
+const tipePerhitunganLabel: Record<IndikatorTipePerhitungan, string> = {
+    manual: 'Manual',
+    rasio_persen: 'Rasio Persen',
+    penjumlahan: 'Penjumlahan',
+};
+
+function formatRegulasiRingkas(regulasi: RegulasiOption): string {
+    const jenisMap: Record<string, string> = {
+        kepmen: 'Kepmen',
+        permen: 'Permen',
+        perpres: 'Perpres',
+        uu: 'UU',
+        pp: 'PP',
+        keputusan_lainnya: 'Keputusan Lainnya',
+    };
+    const jenisText =
+        jenisMap[regulasi.jenis.toLowerCase()] ||
+        (regulasi.jenis.charAt(0).toUpperCase() + regulasi.jenis.slice(1));
+    const nomor = regulasi.nomor.trim();
+    if (regulasi.tahun && !nomor.includes(String(regulasi.tahun))) {
+        return `${jenisText} ${nomor}/${regulasi.tahun}`;
+    }
+    return `${jenisText} ${nomor}`;
+}
 
 interface SasaranIndikatorIndexProps {
     renstras: RenstraOption[];
@@ -341,9 +368,30 @@ export default function SasaranIndikatorIndex({
 
                                                             {/* 2. Indikator Kinerja */}
                                                             <td className="px-5 py-4 align-middle">
-                                                                <p className="font-medium text-ink text-sm leading-snug">
-                                                                    {ind.nama}
-                                                                </p>
+                                                                <div className="space-y-1">
+                                                                    <p className="font-medium text-ink text-sm leading-snug">
+                                                                        {ind.nama}
+                                                                    </p>
+                                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                                                        <span className="text-muted font-medium">
+                                                                            {tipePerhitunganLabel[ind.tipe_perhitungan] || ind.tipe_perhitungan}
+                                                                        </span>
+                                                                        {ind.status === 'arsip' && (
+                                                                            <Badge variant="muted" size="sm">
+                                                                                Arsip
+                                                                            </Badge>
+                                                                        )}
+                                                                        {can.regulasi_read !== false && ind.regulasi && (
+                                                                            <>
+                                                                                <span className="text-muted/40" aria-hidden="true">·</span>
+                                                                                <span className="text-muted flex items-center gap-1 font-medium">
+                                                                                    <BookOpen className="h-3 w-3 text-muted/70 shrink-0" aria-hidden="true" />
+                                                                                    <span>{formatRegulasiRingkas(ind.regulasi)}</span>
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </td>
 
                                                             {/* 3. Penanggung Jawab */}

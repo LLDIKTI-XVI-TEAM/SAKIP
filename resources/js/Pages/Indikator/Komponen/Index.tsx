@@ -891,6 +891,7 @@ export default function KomponenIndex({
                                 value={formData.kode}
                                 onChange={e => setFormData(prev => ({ ...prev, kode: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
                                 error={formErrors.kode}
+                                helperText="Huruf kecil, angka, dan underscore."
                             />
                         </div>
 
