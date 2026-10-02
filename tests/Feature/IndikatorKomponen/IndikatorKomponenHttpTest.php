@@ -135,6 +135,12 @@ class IndikatorKomponenHttpTest extends TestCase
      */
     public function test_update_dan_delete_mencatat_audit_log_dasar_izin_dan_alasan(): void
     {
+        $this->indikator->update(['tipe_perhitungan' => 'penjumlahan']);
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 'zi_wbk',
+            'label' => 'Skor ZI-WBK', 'peran' => 'penjumlah', 'bobot' => '0.5',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
         $komponen = IndikatorKomponen::create([
             'indikator_id' => $this->indikator->id,
             'kode' => 'sakip',
@@ -195,6 +201,11 @@ class IndikatorKomponenHttpTest extends TestCase
      */
     public function test_perubahan_master_tidak_memutasi_snapshot_historis(): void
     {
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 't',
+            'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
         $komponenMaster = IndikatorKomponen::create([
             'indikator_id' => $this->indikator->id,
             'kode' => 'p1',
@@ -417,6 +428,11 @@ class IndikatorKomponenHttpTest extends TestCase
     public function test_audit_log_menyimpan_bobot_desimal_eksak(): void
     {
         $exactBobot = '123456789.123456789012';
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 't',
+            'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
 
         $this->actingAs($this->perencanaan)
             ->post("/indikator/{$this->indikator->id}/komponen", [

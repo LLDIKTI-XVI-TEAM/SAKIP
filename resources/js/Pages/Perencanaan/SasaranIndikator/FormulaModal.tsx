@@ -8,6 +8,7 @@ import { Select } from '@/Components/Select';
 import { Switch } from '@/Components/Switch';
 import type {
     FormulaKomponenInput,
+    FormulaKomponenItem,
     IndikatorKinerjaItem,
     IndikatorTipePerhitungan,
     KomponenPeran,
@@ -53,12 +54,29 @@ function isValidTipe(value: string): value is IndikatorTipePerhitungan {
     return value === 'manual' || value === 'rasio_persen' || value === 'penjumlahan';
 }
 
+function componentFormRow(row: FormulaKomponenItem): FormulaKomponenInput {
+    return {
+        id: row.id,
+        kode: row.kode,
+        label: row.label,
+        peran: row.peran,
+        bobot: row.bobot,
+        urutan: row.urutan,
+        satuan: row.satuan ?? '',
+        aktif: row.aktif,
+    };
+}
+
 export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, indikator }) => {
+    const formulaUnavailable = Boolean(indikator && !Array.isArray(indikator.komponen));
     const prevOpenRef = useRef(false);
     const prevIndikatorIdRef = useRef<string | null>(null);
+    const submittingRef = useRef(false);
+    const formRef = useRef<HTMLFormElement>(null);
+    const errorSummaryRef = useRef<HTMLDivElement>(null);
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
-    const { data, setData, patch, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, patch, processing, errors, reset, clearErrors, setError } = useForm({
         tipe_perhitungan: 'manual' as IndikatorTipePerhitungan,
         komponen: [] as FormulaKomponenInput[],
         expected_updated_at: '',
@@ -77,7 +95,9 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
             setClientErrors({});
             setData({
                 tipe_perhitungan: indikator.tipe_perhitungan,
-                komponen: [emptyRow(1, indikator.tipe_perhitungan)],
+                komponen: indikator.tipe_perhitungan === 'manual'
+                    ? []
+                    : (indikator.komponen ?? []).filter((row) => row.aktif).map(componentFormRow),
                 expected_updated_at: indikator.updated_at ?? '',
             });
         } else if (!isOpen && wasOpen) {
@@ -87,7 +107,16 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
         }
     }, [isOpen, indikator, clearErrors, reset, setData]);
 
+    useEffect(() => {
+        if (isOpen && Object.keys(errors).length > 0) {
+            errorSummaryRef.current?.focus();
+        }
+    }, [errors, isOpen]);
+
     const handleClose = () => {
+        if (processing || submittingRef.current) {
+            return;
+        }
         reset();
         clearErrors();
         setClientErrors({});
@@ -230,18 +259,30 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!indikator) {
+        if (!indikator || formulaUnavailable || processing || submittingRef.current) {
             return;
         }
         const found = validate();
         setClientErrors(found);
         if (Object.keys(found).length > 0) {
+            requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
             return;
         }
+        submittingRef.current = true;
         patch(`/perencanaan/indikator/${indikator.id}/formula`, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                const flash = page.props.flash as { error?: string } | undefined;
+                const error = page.flash?.error ?? flash?.error;
+                if (typeof error === 'string' && error.length > 0) {
+                    setError('expected_updated_at', error);
+                    return;
+                }
+                submittingRef.current = false;
                 handleClose();
+            },
+            onFinish: () => {
+                submittingRef.current = false;
             },
         });
     };
@@ -267,15 +308,15 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                     <Button type="button" variant="outline" onClick={handleClose} disabled={processing}>
                         Batal
                     </Button>
-                    <Button type="submit" variant="primary" onClick={handleSubmit} isLoading={processing} disabled={processing}>
+                    <Button type="submit" variant="primary" onClick={handleSubmit} isLoading={processing} disabled={processing || formulaUnavailable}>
                         {processing ? 'Menyimpan...' : 'Simpan Formula'}
                     </Button>
                 </div>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
                 {serverEntries.length > 0 && (
-                    <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+                    <div ref={errorSummaryRef} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 focus:outline-none focus:ring-2 focus:ring-danger/30">
                         <p className="text-sm font-semibold text-danger">Penyimpanan formula ditolak server:</p>
                         <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-danger">
                             {serverEntries.map(([key, message]) => (
@@ -285,179 +326,203 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                     </div>
                 )}
 
-                <div>
-                    <Select
-                        id="formula_tipe"
-                        label="Tipe Perhitungan Target"
-                        value={data.tipe_perhitungan}
-                        onChange={(e) => {
-                            const next = e.target.value;
-                            if (isValidTipe(next)) {
-                                setData('tipe_perhitungan', next);
-                            }
-                            setClientErrors((prev) => {
-                                if (prev['tipe_perhitungan'] === undefined) {
-                                    return prev;
-                                }
-                                const copy = { ...prev };
-                                delete copy['tipe_perhitungan'];
-                                return copy;
-                            });
-                        }}
-                        error={fieldError('tipe_perhitungan')}
-                        helperText="Pilih manual untuk menonaktifkan komponen, atau rasio/penjumlahan beserta daftar komponennya."
-                        required
-                    >
-                        {TIPE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </Select>
-                </div>
-
-                {data.tipe_perhitungan === 'manual' && (
-                    <div className="rounded-lg border border-info/30 bg-info/5 p-3 text-sm text-ink">
-                        <p className="text-xs text-muted">
-                            Target manual tidak memerlukan komponen. Kosongkan daftar di bawah untuk menyimpan indikator sebagai
-                            manual.
-                        </p>
+                {formulaUnavailable ? (
+                    <div role="alert" className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-ink">
+                        Data komponen formula belum tersedia atau tidak dapat diakses. Muat ulang halaman atau hubungi pengelola akses sebelum mengatur formula.
                     </div>
-                )}
-
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-ink">Daftar Komponen ({data.komponen.length})</h4>
-                        <Button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            onClick={handleAddRow}
-                            disabled={processing || data.komponen.length >= 50}
-                            className="gap-1.5"
-                        >
-                            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                            Tambah Komponen
-                        </Button>
-                    </div>
-
-                    {fieldError('komponen') && (
-                        <p className="text-xs font-medium text-danger">{fieldError('komponen')}</p>
-                    )}
-
-                    {data.komponen.length === 0 && (
-                        <div className="rounded-lg border border-border bg-soft/50 p-4 text-center">
-                            <p className="text-sm text-muted">Belum ada baris komponen. Tambahkan minimal satu baris untuk tipe nonmanual.</p>
+                ) : (
+                    <fieldset disabled={processing} className="space-y-4">
+                        <div>
+                            <Select
+                                id="formula_tipe"
+                                label="Tipe Perhitungan Target"
+                                value={data.tipe_perhitungan}
+                                onChange={(e) => {
+                                    const next = e.target.value;
+                                    if (isValidTipe(next)) {
+                                        let komponen = data.komponen;
+                                        if (next === 'manual') {
+                                            komponen = [];
+                                        } else if (data.tipe_perhitungan === 'manual' && komponen.length === 0) {
+                                            const existing = indikator.komponen ?? [];
+                                            const active = existing.filter((row) => row.aktif);
+                                            komponen = (active.length > 0 ? active : existing).map((row) => ({
+                                                ...componentFormRow(row),
+                                                aktif: true,
+                                            }));
+                                        }
+                                        setData({ ...data, tipe_perhitungan: next, komponen });
+                                    }
+                                    setClientErrors((prev) => {
+                                        if (prev['tipe_perhitungan'] === undefined) {
+                                            return prev;
+                                        }
+                                        const copy = { ...prev };
+                                        delete copy['tipe_perhitungan'];
+                                        return copy;
+                                    });
+                                }}
+                                error={fieldError('tipe_perhitungan')}
+                                disabled={processing}
+                                helperText="Pilih manual untuk menonaktifkan komponen, atau rasio/penjumlahan beserta daftar komponennya."
+                                required
+                            >
+                                {TIPE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </Select>
                         </div>
-                    )}
 
-                    {data.komponen.map((row, index) => (
-                        <div key={index} className="space-y-3 rounded-lg border border-border bg-soft/40 p-3">
+                        {data.tipe_perhitungan === 'manual' && (
+                            <div className="rounded-lg border border-info/30 bg-info/5 p-3 text-sm text-ink">
+                                <p className="text-xs text-muted">
+                                    Target manual tidak memerlukan komponen. Komponen perhitungan existing akan dinonaktifkan
+                                    saat formula disimpan; data historis tetap dipertahankan.
+                                </p>
+                            </div>
+                        )}
+
+                        {data.tipe_perhitungan !== 'manual' && <div className="space-y-3">
+                            <p className="text-xs text-muted">
+                                Daftar ini menjadi formula akhir. Komponen existing yang dihapus dari daftar akan dinonaktifkan saat disimpan.
+                            </p>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                                    Komponen #{index + 1}
-                                </span>
-                                <button
+                                <h4 className="text-sm font-semibold text-ink">Daftar Komponen ({data.komponen.length})</h4>
+                                <Button
                                     type="button"
-                                    onClick={() => handleRemoveRow(index)}
-                                    className="inline-flex items-center gap-1 rounded-md p-1 text-xs font-medium text-muted hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger"
-                                    title={`Hapus komponen ${index + 1}`}
-                                    aria-label={`Hapus komponen ${index + 1}`}
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleAddRow}
+                                    disabled={processing || data.komponen.length >= 50}
+                                    className="gap-1.5"
                                 >
-                                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                    Hapus
-                                </button>
+                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Tambah Komponen
+                                </Button>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <Input
-                                    id={`formula_komponen_${index}_kode`}
-                                    label={`Kode komponen ${index + 1}`}
-                                    placeholder="mis. N, T"
-                                    value={row.kode}
-                                    onChange={(e) => updateRow(index, 'kode', e.target.value)}
-                                    error={fieldError(`komponen.${index}.kode`)}
-                                    required
-                                />
-                                <Input
-                                    id={`formula_komponen_${index}_label`}
-                                    label={`Label komponen ${index + 1}`}
-                                    placeholder="Nama komponen selengkapnya..."
-                                    value={row.label}
-                                    onChange={(e) => updateRow(index, 'label', e.target.value)}
-                                    error={fieldError(`komponen.${index}.label`)}
-                                    required
-                                />
-                            </div>
+                            {fieldError('komponen') && (
+                                <p className="text-xs font-medium text-danger">{fieldError('komponen')}</p>
+                            )}
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                <Select
-                                    id={`formula_komponen_${index}_peran`}
-                                    label={`Peran komponen ${index + 1}`}
-                                    value={row.peran}
-                                    onChange={(e) => updateRow(index, 'peran', e.target.value)}
-                                    error={fieldError(`komponen.${index}.peran`)}
-                                    required
-                                >
-                                    {PERAN_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </Select>
-                                <Input
-                                    id={`formula_komponen_${index}_bobot`}
-                                    label={`Bobot komponen ${index + 1}`}
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    value={row.bobot}
-                                    onChange={(e) => updateRow(index, 'bobot', e.target.value)}
-                                    error={fieldError(`komponen.${index}.bobot`)}
-                                    helperText={row.peran === 'penyebut' ? 'Penyebut wajib lebih besar dari 0.' : undefined}
-                                    required
-                                />
-                                <Input
-                                    id={`formula_komponen_${index}_urutan`}
-                                    label={`Urutan komponen ${index + 1}`}
-                                    type="number"
-                                    min="1"
-                                    value={row.urutan}
-                                    onChange={(e) => updateRow(index, 'urutan', e.target.value)}
-                                    error={fieldError(`komponen.${index}.urutan`)}
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <Input
-                                    id={`formula_komponen_${index}_satuan`}
-                                    label={`Satuan komponen ${index + 1}`}
-                                    placeholder="Opsional, mis. %, Skor"
-                                    value={row.satuan}
-                                    onChange={(e) => updateRow(index, 'satuan', e.target.value)}
-                                    error={fieldError(`komponen.${index}.satuan`)}
-                                />
-                                <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
-                                    <Switch
-                                        id={`formula_komponen_${index}_aktif`}
-                                        checked={row.aktif}
-                                        onChange={(checked) => updateRow(index, 'aktif', checked)}
-                                        aria-label={`Aktif komponen ${index + 1}`}
-                                    />
-                                    <label htmlFor={`formula_komponen_${index}_aktif`} className="cursor-pointer text-sm font-medium text-ink">
-                                        Komponen aktif dalam perhitungan
-                                    </label>
+                            {data.komponen.length === 0 && (
+                                <div className="rounded-lg border border-border bg-soft/50 p-4 text-center">
+                                    <p className="text-sm text-muted">Belum ada baris komponen. Tambahkan minimal satu baris untuk tipe nonmanual.</p>
                                 </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                            )}
 
-                <p className="text-xs text-muted">
-                    Transisi dikunci bersama data terkini indikator. Bila data berubah sejak modal dibuka, server menolak dengan
-                    pesan konflik dan halaman perlu dimuat ulang.
-                </p>
+                            {data.komponen.map((row, index) => (
+                                <div key={row.id ?? index} className="space-y-3 rounded-lg border border-border bg-soft/40 p-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                                            Komponen #{index + 1}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveRow(index)}
+                                            disabled={processing}
+                                            className="inline-flex items-center gap-1 rounded-md p-1 text-xs font-medium text-muted hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger"
+                                            title={`Hapus komponen ${index + 1}`}
+                                            aria-label={`Hapus komponen ${index + 1}`}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                            Hapus
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <Input
+                                            id={`formula_komponen_${index}_kode`}
+                                            label={`Kode komponen ${index + 1}`}
+                                            placeholder="mis. N, T"
+                                            value={row.kode}
+                                            onChange={(e) => updateRow(index, 'kode', e.target.value)}
+                                            error={fieldError(`komponen.${index}.kode`)}
+                                            required
+                                        />
+                                        <Input
+                                            id={`formula_komponen_${index}_label`}
+                                            label={`Label komponen ${index + 1}`}
+                                            placeholder="Nama komponen selengkapnya..."
+                                            value={row.label}
+                                            onChange={(e) => updateRow(index, 'label', e.target.value)}
+                                            error={fieldError(`komponen.${index}.label`)}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                        <Select
+                                            id={`formula_komponen_${index}_peran`}
+                                            label={`Peran komponen ${index + 1}`}
+                                            value={row.peran}
+                                            onChange={(e) => updateRow(index, 'peran', e.target.value)}
+                                            error={fieldError(`komponen.${index}.peran`)}
+                                            required
+                                        >
+                                            {PERAN_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </Select>
+                                        <Input
+                                            id={`formula_komponen_${index}_bobot`}
+                                            label={`Bobot komponen ${index + 1}`}
+                                            type="number"
+                                            step="any"
+                                            min="0"
+                                            value={row.bobot}
+                                            onChange={(e) => updateRow(index, 'bobot', e.target.value)}
+                                            error={fieldError(`komponen.${index}.bobot`)}
+                                            helperText={row.peran === 'penyebut' ? 'Penyebut wajib lebih besar dari 0.' : undefined}
+                                            required
+                                        />
+                                        <Input
+                                            id={`formula_komponen_${index}_urutan`}
+                                            label={`Urutan komponen ${index + 1}`}
+                                            type="number"
+                                            min="1"
+                                            value={row.urutan}
+                                            onChange={(e) => updateRow(index, 'urutan', e.target.value)}
+                                            error={fieldError(`komponen.${index}.urutan`)}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <Input
+                                            id={`formula_komponen_${index}_satuan`}
+                                            label={`Satuan komponen ${index + 1}`}
+                                            placeholder="Opsional, mis. %, Skor"
+                                            value={row.satuan}
+                                            onChange={(e) => updateRow(index, 'satuan', e.target.value)}
+                                            error={fieldError(`komponen.${index}.satuan`)}
+                                        />
+                                        <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+                                            <Switch
+                                                id={`formula_komponen_${index}_aktif`}
+                                                checked={row.aktif}
+                                                onChange={(checked) => updateRow(index, 'aktif', checked)}
+                                                aria-label={`Aktif komponen ${index + 1}`}
+                                            />
+                                            <label htmlFor={`formula_komponen_${index}_aktif`} className="cursor-pointer text-sm font-medium text-ink">
+                                                Komponen aktif dalam perhitungan
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>}
+
+                        <p className="text-xs text-muted">
+                            Transisi dikunci bersama data terkini indikator. Bila data berubah sejak modal dibuka, server menolak dengan
+                            pesan konflik dan halaman perlu dimuat ulang.
+                        </p>
+                    </fieldset>
+                )}
             </form>
         </Modal>
     );

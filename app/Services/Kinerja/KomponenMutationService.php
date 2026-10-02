@@ -2,22 +2,56 @@
 
 namespace App\Services\Kinerja;
 
+use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Layanan mutasi create-komponen yang dipakai bersama jalur normal dan transisi formula atomik.
+ * Layanan mutation komponen yang dipakai bersama CRUD dan transisi formula atomik.
  *
  * Menyatukan normalisasi (trim kode/label/satuan, bawaan aktif true), pemeriksaan
  * sintaks bobot penyebut, snapshot audit bobot-eksak-string, dan pemetaan pelanggaran
  * unique menjadi pesan kode agar kedua jalur tidak drift.
  *
  * Penentu akhir validitas domain tetap `IndikatorPerhitunganService::validateDefinisiKomponen`
- * di batas mutasi masing-masing; layanan ini tidak menilai kecukupan komposisi akhir.
+ * yang dipanggil helper kandidat di batas mutation; tidak ada validator domain kedua.
  */
 class KomponenMutationService
 {
+    public function __construct(private readonly IndikatorPerhitunganService $perhitunganService) {}
+
+    /**
+     * Menilai seluruh komposisi kandidat sebelum mutation apa pun.
+     * Induk dan koleksi yang disediakan pemanggil berasal dari transaksi terkunci.
+     *
+     * @param  Collection<int, IndikatorKomponen>  $komponen
+     */
+    public function pastikanDefinisiValid(IndikatorKinerja $indikator, Collection $komponen, string $key = 'komponen'): void
+    {
+        $kandidat = clone $indikator;
+        $kandidat->setRelation('komponen', $komponen);
+        $validasi = $this->perhitunganService->validateDefinisiKomponen($kandidat);
+        if (! $validasi['is_valid']) {
+            throw ValidationException::withMessages([$key => $validasi['messages']]);
+        }
+    }
+
+    /**
+     * Mutation child juga mengubah versi formula induk, termasuk saat jam dibekukan.
+     * Gunakan presisi dan aturan monotonik model existing tanpa kolom versi tambahan.
+     */
+    public function bumpVersiFormula(IndikatorKinerja $indikator): void
+    {
+        $next = now();
+        if ($indikator->updated_at && $next->lte($indikator->updated_at)) {
+            $next = $indikator->updated_at->copy()->addMicrosecond();
+        }
+        $indikator->updated_at = $next;
+        $indikator->save();
+    }
+
     /**
      * Normalisasi satu baris input komponen sebelum disimpan atau dinilai sebagai kandidat.
      *

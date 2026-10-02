@@ -364,7 +364,7 @@ export default function KomponenIndex({
                     setTargetKomponen(null);
                 },
                 onError: (errs) => {
-                    setAuditError(errs.alasan || 'Gagal menghapus komponen indikator.');
+                    setAuditError(errs.komponen || errs.konflik || errs.alasan || 'Gagal menghapus komponen indikator.');
                 },
                 onFinish: () => {
                     setIsSubmitting(false);
@@ -881,6 +881,11 @@ export default function KomponenIndex({
                 }
             >
                 <form onSubmit={handleFormSubmit} className="space-y-4">
+                    {(formErrors.komponen || formErrors.konflik) && (
+                        <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+                            {formErrors.komponen || formErrors.konflik}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Kode Komponen */}
                         <div>

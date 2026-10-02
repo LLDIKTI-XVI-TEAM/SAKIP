@@ -27,12 +27,24 @@ export type IndikatorStatus = 'aktif' | 'arsip';
 export type KomponenPeran = 'pembilang' | 'penyebut' | 'penjumlah';
 
 export interface FormulaKomponenInput {
+    id?: string;
     kode: string;
     label: string;
     peran: KomponenPeran;
     bobot: number | string;
     urutan: number | string;
     satuan: string;
+    aktif: boolean;
+}
+
+export interface FormulaKomponenItem {
+    id: string;
+    kode: string;
+    label: string;
+    peran: KomponenPeran;
+    bobot: string;
+    urutan: number;
+    satuan: string | null;
     aktif: boolean;
 }
 
@@ -62,6 +74,7 @@ export interface IndikatorKinerjaItem {
     updated_at?: string | null;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
+    komponen?: FormulaKomponenItem[] | null;
 }
 
 export interface SasaranStrategisItem {

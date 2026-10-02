@@ -3087,7 +3087,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame('rasio_persen', $indikator->fresh()->tipe_perhitungan);
         $this->assertTrue(app(IndikatorPerhitunganService::class)->validateDefinisiKomponen($indikator->fresh()->load('komponen'))['is_valid']);
 
-        // Nonaktifkan kedua komponen via Kelola Komponen, lalu ubah-tipe lolos.
+        // Deaktivasi satu per satu merusak rasio dan wajib ditolak.
         foreach ([$pembilang, $penyebut] as $urutan => $komponen) {
             $this->actingAs($this->perencanaan)->put("/indikator/{$indikator->id}/komponen/{$komponen->id}", [
                 'kode' => $komponen->kode,
@@ -3097,8 +3097,17 @@ class SasaranIndikatorTest extends TestCase
                 'urutan' => $urutan + 1,
                 'aktif' => false,
                 'alasan' => 'Menonaktifkan komponen sebelum beralih ke tipe manual.',
-            ])->assertRedirect()->assertSessionHasNoErrors();
+            ])->assertRedirect()->assertSessionHasErrors(['komponen']);
+            $this->assertTrue($komponen->fresh()->aktif);
         }
+
+        // Transisi atomik menonaktifkan kedua child dan mengubah tipe sekaligus.
+        $this->actingAs($this->perencanaan)
+            ->patch("/perencanaan/indikator/{$indikator->id}/formula", [
+                'tipe_perhitungan' => 'manual',
+                'komponen' => [],
+                'expected_updated_at' => $indikator->fresh()->updated_at->toISOString(),
+            ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->actingAs($this->perencanaan)
             ->put("/perencanaan/indikator/{$indikator->id}", $payloadUbahKeManual())

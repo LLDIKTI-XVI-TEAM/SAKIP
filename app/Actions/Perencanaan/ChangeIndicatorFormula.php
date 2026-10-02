@@ -7,14 +7,13 @@ use App\Models\IndikatorKomponen;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
-use App\Services\Kinerja\IndikatorPerhitunganService;
 use App\Services\Kinerja\KomponenMutationService;
 use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -22,32 +21,17 @@ class ChangeIndicatorFormula
 {
     public function __construct(
         private readonly AuditLogger $auditLogger,
-        private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
-        private readonly IndikatorPerhitunganService $perhitunganService,
         private readonly KomponenMutationService $mutasiKomponen,
     ) {}
 
     /**
-     * Mengubah tipe perhitungan sekaligus melengkapi komponen dalam satu transaksi atomik.
-     *
-     * Satu-satunya jalur transisi manual↔nonmanual yang sah (Opsi A R3-01):
-     * kandidat = tipe baru + konfigurasi komponen final (existing + payload)
-     * dinilai penuh via `validateDefinisiKomponen` sebelum mutasi apa pun.
-     * Gagal → 422 tanpa mutasi/audit sukses. Sukses → update tipe + create
-     * komponen + audit (`indikator.ubah` + `komponen.buat` per baris) dalam
-     * SATU commit.
-     *
-     * Urutan kunci global tetap: Regulasi(S) → Indikator(X) → Sasaran(S).
-     * Jalur ini tidak membaca/menulis regulasi_id sehingga tidak mengunci
-     * baris Regulasi sama sekali (kasus null = lewati, permanen) — tidak ada
-     * jalur Indikator→Regulasi di sini, seperti PindahUnitIndikator. Parent
-     * dikunci FOR UPDATE sebelum insert child (konsisten parent→child dengan
-     * IndikatorKomponenController, tanpa inversi = tanpa deadlock).
-     *
-     * Izin: `indikator:update` (re-auth via ResolveLockedActor) +
-     * `komponen:create` (state terkunci, fail-closed). Stale-token wajib +
-     * fail-closed seperti UpdateIndikator.
+     * Payload adalah konfigurasi akhir, bukan tambahan pada formula existing.
+     * Identitas child dipertahankan; child yang tidak disertakan dinonaktifkan,
+     * sehingga referensi historis tidak dihapus. Seluruh kandidat dinilai sebelum
+     * persist. Izin granular sesuai delta, versi induk, mutation dan audit atomic.
+     * Urutan kunci: aktor/ACL → indikator → child → sasaran untuk redirect.
+     * Jalur ini tidak membaca atau mengubah regulasi.
      *
      * @param  array{tipe_perhitungan: string, komponen?: list<array<string, mixed>>, expected_updated_at: string}  $validated
      * @return array{indikator: IndikatorKinerja, renstraId: ?string}
@@ -55,7 +39,7 @@ class ChangeIndicatorFormula
     public function handle(User $actor, IndikatorKinerja $indikator, array $validated): array
     {
         $result = DB::transaction(function () use ($indikator, $validated, $actor) {
-            // 1. Re-auth indikator:update memakai state terkunci.
+            // Izin dan ACL diperiksa sebelum mengunci induk/child.
             $kunci = $this->lockedActor->handle($actor, PermissionCodes::INDIKATOR_UPDATE);
             /** @var User|null $lockedActor */
             $lockedActor = $kunci['aktor'];
@@ -78,17 +62,10 @@ class ChangeIndicatorFormula
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
-            // 1b. Jalur atomik membuat baris komponen baru sehingga wajib
-            // lolos komponen:create memakai state terkunci (fail-closed agar
-            // tak menjadi bypass guard komponen).
-            $komponenDecision = $this->resolver->resolve($lockedActor, 'komponen:create');
-            if (! $komponenDecision->allowed) {
-                return [
-                    'status' => 'denied',
-                    'alasan' => 'Perubahan formula indikator ditolak karena Anda tidak berwenang menambah komponen perhitungan.',
-                    'dasarIzin' => $komponenDecision->toAuditBasis(),
-                ];
-            }
+            // Kunci kedua permission sebelum parent; kewajiban izin ditentukan
+            // dari delta aktual setelah kandidat disusun.
+            $createDecision = $this->lockedActor->handle($lockedActor, 'komponen:create')['keputusan'];
+            $updateDecision = $this->lockedActor->handle($lockedActor, 'komponen:update')['keputusan'];
 
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::query()
@@ -96,7 +73,7 @@ class ChangeIndicatorFormula
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // 2. Stale-token wajib + fail-closed (pola UpdateIndikator).
+            // Token dibandingkan dengan induk terkunci, termasuk perubahan child.
             $expectedRaw = $validated['expected_updated_at'] ?? null;
             if ($expectedRaw === null || trim((string) $expectedRaw) === '') {
                 throw ValidationException::withMessages([
@@ -123,41 +100,74 @@ class ChangeIndicatorFormula
 
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
 
-            // 3. Kandidat = tipe baru + final komponen (existing + payload
-            // sebagai model in-memory) dinilai penuh via satu-satunya penentu
-            // validitas sebelum mutasi apa pun.
             $kandidatTipe = $validated['tipe_perhitungan'];
             $payloadKomponen = $validated['komponen'] ?? [];
-            $existing = $lockedIndikator->komponen()->get();
+            $existing = $lockedIndikator->komponen()->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $payloadModels = collect($payloadKomponen)->map(function (array $item, int $index) use ($lockedIndikator, $existing) {
+                $id = $item['id'] ?? null;
+                if ($id !== null) {
+                    if (! $existing->has($id)) {
+                        throw ValidationException::withMessages(["komponen.{$index}.id" => 'Komponen tidak termasuk indikator ini.']);
+                    }
+                    $candidate = clone $existing->get($id);
+                    $candidate->fill($this->mutasiKomponen->normalisasiInput($item));
 
-            // Normalisasi create-komponen berbagi layanan dengan jalur normal agar
-            // tidak drift; penentu akhir tetap validateDefinisiKomponen di bawah.
-            $payloadModels = collect($payloadKomponen)->map(
-                fn (array $item) => $this->mutasiKomponen->modelKandidat($lockedIndikator->id, $item)
-            );
+                    return $candidate;
+                }
+
+                return $this->mutasiKomponen->modelKandidat($lockedIndikator->id, $item);
+            });
+            $retainedIds = $payloadModels->filter(fn ($item) => $item->exists)->pluck('id');
+            $omitted = $existing->reject(fn ($item) => $retainedIds->contains($item->id))->map(function ($item) {
+                $copy = clone $item;
+                $copy->aktif = false;
+
+                return $copy;
+            });
+            $finalKomponen = $omitted->concat($payloadModels)->values();
+            if ($finalKomponen->pluck('kode')->duplicates()->isNotEmpty()) {
+                throw ValidationException::withMessages(['kode' => $this->mutasiKomponen->pesanKodeDuplikat()]);
+            }
 
             $kandidat = clone $lockedIndikator;
             $kandidat->tipe_perhitungan = $kandidatTipe;
-            $kandidat->setRelation('komponen', $existing->concat($payloadModels)->values());
+            $this->mutasiKomponen->pastikanDefinisiValid($kandidat, $finalKomponen, 'tipe_perhitungan');
 
-            $validasi = $this->perhitunganService->validateDefinisiKomponen($kandidat);
-            if (! $validasi['is_valid']) {
-                throw ValidationException::withMessages([
-                    'tipe_perhitungan' => $validasi['messages'],
-                ]);
-            }
-
-            // 4. Sukses: update tipe (bila berubah) + create komponen payload
-            // dalam SATU commit yang sama.
-            $tipeBerubah = $lockedIndikator->tipe_perhitungan !== $kandidatTipe;
-            if ($tipeBerubah) {
-                $lockedIndikator->update(['tipe_perhitungan' => $kandidatTipe]);
+            $newComponents = $finalKomponen->filter(fn ($item) => ! $item->exists);
+            $changedComponents = $finalKomponen->filter(fn ($item) => $item->exists && $item->isDirty());
+            foreach ([
+                [$newComponents->isNotEmpty(), $createDecision],
+                [$changedComponents->isNotEmpty(), $updateDecision],
+            ] as [$required, $decision]) {
+                if ($required && ! $decision->allowed) {
+                    return [
+                        'status' => 'denied',
+                        'alasan' => 'Perubahan formula indikator ditolak karena wewenang mutation komponen tidak lagi berlaku.',
+                        'dasarIzin' => $decision->toAuditBasis(),
+                    ];
+                }
             }
 
             $komponenBaru = [];
+            $komponenDiubah = [];
             try {
-                foreach ($payloadKomponen as $item) {
-                    $komponenBaru[] = $this->mutasiKomponen->buat($lockedIndikator->id, $item, $lockedActor->id);
+                // Lepaskan kode lama hanya setelah final set lolos validasi/izin.
+                // Kode sementara tidak pernah commit atau masuk audit; ini menjaga
+                // constraint unik saat dua identitas existing saling menukar kode.
+                foreach ($changedComponents as $item) {
+                    if ($item->isDirty('kode')) {
+                        DB::table('indikator_komponen')->where('id', $item->id)
+                            ->where('indikator_id', $lockedIndikator->id)
+                            ->update(['kode' => '__'.str_replace('-', '', (string) Str::uuid())]);
+                    }
+                }
+                foreach ($changedComponents as $item) {
+                    $old = $this->mutasiKomponen->formatAuditSnapshot($existing->get($item->id));
+                    $item->save();
+                    $komponenDiubah[] = [$old, $item->fresh()];
+                }
+                foreach ($newComponents as $item) {
+                    $komponenBaru[] = $this->mutasiKomponen->buat($lockedIndikator->id, $item->getAttributes(), $lockedActor->id);
                 }
             } catch (QueryException $e) {
                 if ($this->mutasiKomponen->isUniqueConstraintViolation($e)) {
@@ -169,8 +179,10 @@ class ChangeIndicatorFormula
                 throw $e;
             }
 
-            // 5. Sasaran dikunci bersama setelah Indikator (urutan global
-            // Indikator(X) → Sasaran(S)) hanya untuk renstraId redirect.
+            $lockedIndikator->tipe_perhitungan = $kandidatTipe;
+            $this->mutasiKomponen->bumpVersiFormula($lockedIndikator);
+
+            // Sasaran hanya dibaca untuk redirect setelah mutation formula.
             $renstraId = SasaranStrategis::whereKey($lockedIndikator->sasaran_strategis_id)
                 ->sharedLock()
                 ->value('renstra_id');
@@ -178,20 +190,16 @@ class ChangeIndicatorFormula
 
             $nilaiBaru = $lockedIndikator->fresh()->withoutRelations()->toArray();
 
-            // 6. Audit dalam transaksi yang sama: indikator.ubah bila tipe
-            // berubah + komponen.buat per baris baru (pola existing).
-            if ($tipeBerubah) {
-                $this->auditLogger->catat(
-                    actor: $actor,
-                    tindakan: 'indikator.ubah',
-                    objekTipe: 'indikator',
-                    objekId: (string) $lockedIndikator->id,
-                    nilaiLama: $nilaiLama,
-                    nilaiBaru: $nilaiBaru,
-                    alasan: "Mengubah formula perhitungan indikator '{$lockedIndikator->kode}' dari {$nilaiLama['tipe_perhitungan']} ke {$kandidatTipe} beserta ".count($komponenBaru).' komponen dalam satu transaksi atomik.',
-                    dasarIzin: $dasarIzin,
-                );
-            }
+            $this->auditLogger->catat(
+                actor: $actor,
+                tindakan: 'indikator.ubah',
+                objekTipe: 'indikator',
+                objekId: (string) $lockedIndikator->id,
+                nilaiLama: $nilaiLama,
+                nilaiBaru: $nilaiBaru,
+                alasan: "Menyimpan formula indikator '{$lockedIndikator->kode}' dari {$nilaiLama['tipe_perhitungan']} ke {$kandidatTipe} dengan ".count($komponenBaru).' komponen baru dan '.count($komponenDiubah).' komponen diubah secara atomik.',
+                dasarIzin: $dasarIzin,
+            );
 
             foreach ($komponenBaru as $komponen) {
                 /** @var IndikatorKomponen $komponen */
@@ -203,7 +211,19 @@ class ChangeIndicatorFormula
                     nilaiLama: null,
                     nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($komponen),
                     alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.') via transisi formula atomik',
-                    dasarIzin: $komponenDecision->toAuditBasis(),
+                    dasarIzin: $createDecision->toAuditBasis(),
+                );
+            }
+            foreach ($komponenDiubah as [$old, $item]) {
+                $this->auditLogger->catat(
+                    actor: $lockedActor,
+                    tindakan: 'komponen.ubah',
+                    objekTipe: 'indikator_komponen',
+                    objekId: $item->id,
+                    nilaiLama: $old,
+                    nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($item),
+                    alasan: 'Penyesuaian komponen '.$item->kode.' dalam konfigurasi formula akhir.',
+                    dasarIzin: $updateDecision->toAuditBasis(),
                 );
             }
 

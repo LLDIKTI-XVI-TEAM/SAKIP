@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
 import type {
     IndikatorKinerjaItem,
+    FormulaKomponenItem,
     SasaranIndikatorCapabilities,
     SasaranStrategisItem,
 } from '@/types/sasaran-indikator';
@@ -26,6 +27,16 @@ afterEach(() => {
 
 const UPDATED_AT = '2026-10-02T10:00:00.000Z';
 
+const RASIO_KOMPONEN: FormulaKomponenItem[] = [
+    { id: '00000000-0000-4000-8000-000000000001', kode: 'N', label: 'Capaian aktual', peran: 'pembilang', bobot: '1.000000000001', urutan: 1, satuan: 'Dokumen', aktif: true },
+    { id: '00000000-0000-4000-8000-000000000002', kode: 'T', label: 'Total target', peran: 'penyebut', bobot: '1.000000000000', urutan: 2, satuan: 'Dokumen', aktif: true },
+];
+
+const JUMLAH_KOMPONEN: FormulaKomponenItem[] = [
+    { id: '00000000-0000-4000-8000-000000000003', kode: 'A', label: 'Skor pertama', peran: 'penjumlah', bobot: '0.500000000000', urutan: 1, satuan: 'Skor', aktif: true },
+    { id: '00000000-0000-4000-8000-000000000004', kode: 'B', label: 'Skor kedua', peran: 'penjumlah', bobot: '0.500000000000', urutan: 2, satuan: 'Skor', aktif: true },
+];
+
 function makeIndikator(overrides: Partial<IndikatorKinerjaItem> = {}): IndikatorKinerjaItem {
     return {
         id: 'ind-1',
@@ -44,6 +55,7 @@ function makeIndikator(overrides: Partial<IndikatorKinerjaItem> = {}): Indikator
         wajib_catatan: false,
         status: 'aktif',
         updated_at: UPDATED_AT,
+        komponen: [],
         ...overrides,
     };
 }
@@ -98,7 +110,155 @@ function renderIndex(
     );
 }
 
-describe('Transisi Formula Atomik (R4-01)', () => {
+describe('Editor formula atomik', () => {
+    it.each([
+        ['rasio_persen', RASIO_KOMPONEN],
+        ['penjumlahan', JUMLAH_KOMPONEN],
+    ] as const)('memulihkan ID komponen inactive saat manual kembali ke %s', async (tipe, komponen) => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ komponen: komponen.map((row) => ({ ...row, aktif: false })) }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
+        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), tipe);
+        expect((screen.getByLabelText(/kode komponen 1/i) as HTMLInputElement).value).toBe(komponen[0].kode);
+        expect((screen.getByLabelText(/kode komponen 2/i) as HTMLInputElement).value).toBe(komponen[1].kode);
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: tipe, komponen, expected_updated_at: UPDATED_AT });
+    });
+
+    it('menampilkan hanya komponen active saat formula existing nonmanual pertama dibuka', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({
+            tipe_perhitungan: 'rasio_persen',
+            komponen: [...RASIO_KOMPONEN, { ...JUMLAH_KOMPONEN[0], aktif: false }],
+        }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        expect(screen.queryByLabelText(/kode komponen 3/i)).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN, expected_updated_at: UPDATED_AT });
+    });
+
+    it('tidak membuka transition dari manual ketika data komponen tidak dapat diakses', async () => {
+        const user = userEvent.setup();
+        renderIndex(makeIndikator({ komponen: null }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        expect(screen.queryByLabelText(/tipe perhitungan target/i)).toBeNull();
+        expect(screen.getByText(/Data komponen formula belum tersedia/i)).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Simpan Formula' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it.each([undefined, null])('tidak menawarkan editor kosong bila props komponen formula existing %s', async (komponen) => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'rasio_persen', komponen }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        expect(screen.getByText(/Data komponen formula belum tersedia/i)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
+        expect((screen.getByRole('button', { name: 'Simpan Formula' }) as HTMLButtonElement).disabled).toBe(true);
+        expect(patchSpy).not.toHaveBeenCalled();
+    });
+
+    it('mengirim satu mutation dan mempertahankan modal selama request belum selesai', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.dblClick(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Batal' }));
+        expect(patchSpy).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('heading', { name: 'Atur Formula — IKU-01' })).toBeTruthy();
+    });
+
+    it('mempertahankan modal dan input ketika callback sukses transport membawa error domain', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        const options = patchSpy.mock.calls[0]?.[2] as unknown as {
+            onSuccess?: (page: { props: Record<string, unknown>; flash: { error: string } }) => void;
+            onFinish?: () => void;
+        };
+        await act(async () => {
+            options.onSuccess?.({ props: {}, flash: { error: 'Formula tidak tersimpan. Muat ulang halaman.' } });
+            options.onFinish?.();
+        });
+        expect(screen.getByText('Formula tidak tersimpan. Muat ulang halaman.')).toBeTruthy();
+        expect((screen.getByLabelText(/kode komponen 1/i) as HTMLInputElement).value).toBe('A');
+        expect(screen.getByRole('heading', { name: 'Atur Formula — IKU-01' })).toBeTruthy();
+    });
+
+    it.each([
+        ['rasio_persen', RASIO_KOMPONEN],
+        ['penjumlahan', JUMLAH_KOMPONEN],
+    ] as const)('menampilkan komponen existing %s dan mempertahankan identitas pada edit tipe sama', async (tipe, komponen) => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: tipe, komponen }));
+
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        expect((screen.getByLabelText(/kode komponen 1/i) as HTMLInputElement).value).toBe(komponen[0].kode);
+        expect((screen.getByLabelText(/label komponen 2/i) as HTMLInputElement).value).toBe(komponen[1].label);
+        expect((screen.getByLabelText(/bobot komponen 1/i) as HTMLInputElement).value).toBe(komponen[0].bobot);
+
+        await user.clear(screen.getByLabelText(/label komponen 1/i));
+        await user.type(screen.getByLabelText(/label komponen 1/i), 'Label dikoreksi');
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+
+        expect(patchSpy).toHaveBeenCalledTimes(1);
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({
+            tipe_perhitungan: tipe,
+            expected_updated_at: UPDATED_AT,
+            komponen: [{ ...komponen[0], label: 'Label dikoreksi' }, komponen[1]],
+        });
+    });
+
+    it('mengirim daftar final untuk transisi rasio ke penjumlahan tanpa menggandakan komponen existing', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN }));
+
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'penjumlahan');
+        await user.selectOptions(screen.getByLabelText(/peran komponen 1/i), 'penjumlah');
+        await user.click(screen.getByRole('button', { name: 'Hapus komponen 2' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({
+            tipe_perhitungan: 'penjumlahan', expected_updated_at: UPDATED_AT,
+            komponen: [{ ...RASIO_KOMPONEN[0], peran: 'penjumlah' }],
+        });
+    });
+
+    it('mengosongkan dan menyembunyikan komponen saat target manual serta mengirim daftar kosong', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN }));
+
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'manual');
+        expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
+        expect(screen.getByText(/komponen perhitungan existing akan dinonaktifkan/i)).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'manual', komponen: [], expected_updated_at: UPDATED_AT });
+    });
+
+    it('mempertahankan input existing setelah error validasi dan stale dari server', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.type(screen.getByLabelText(/label komponen 1/i), ' terkoreksi');
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        const options = patchSpy.mock.calls[0]?.[2] as unknown as { onError?: (errors: Record<string, string>) => void };
+        await act(async () => options.onError?.({ konflik: 'Versi formula berubah. Muat ulang halaman.', 'komponen.0.peran': 'Definisi formula tidak valid.' }));
+        expect(screen.getByText('Versi formula berubah. Muat ulang halaman.')).toBeTruthy();
+        expect((screen.getByLabelText(/label komponen 1/i) as HTMLInputElement).value).toBe('Skor pertama terkoreksi');
+        expect((screen.getByLabelText(/label komponen 2/i) as HTMLInputElement).value).toBe('Skor kedua');
+    });
     it('menampilkan tombol Atur Formula untuk indikator manual bila can.indikator_update', () => {
         renderIndex();
         expect(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeTruthy();
@@ -114,7 +274,7 @@ describe('Transisi Formula Atomik (R4-01)', () => {
         expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
     });
 
-    it('membuka modal formula dengan tipe target dan satu baris komponen awal', async () => {
+    it('membuka indikator manual dengan daftar komponen kosong tanpa baris palsu', async () => {
         const user = userEvent.setup();
         renderIndex();
 
@@ -122,8 +282,8 @@ describe('Transisi Formula Atomik (R4-01)', () => {
 
         expect(screen.getByRole('heading', { name: 'Atur Formula — IKU-01' })).toBeTruthy();
         expect(screen.getByLabelText(/tipe perhitungan target/i)).toBeTruthy();
-        expect(screen.getByLabelText(/kode komponen 1/i)).toBeTruthy();
-        expect(screen.getByLabelText(/label komponen 1/i)).toBeTruthy();
+        expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
         expect(screen.getByRole('button', { name: 'Simpan Formula' })).toBeTruthy();
     });
 
@@ -145,6 +305,7 @@ describe('Transisi Formula Atomik (R4-01)', () => {
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
 
         expect(screen.getByText('Kode komponen wajib diisi.')).toBeTruthy();
@@ -161,6 +322,7 @@ describe('Transisi Formula Atomik (R4-01)', () => {
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
 
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai pembilang');
@@ -190,6 +352,7 @@ describe('Transisi Formula Atomik (R4-01)', () => {
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
 
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai pembilang');
@@ -221,15 +384,13 @@ describe('Transisi Formula Atomik (R4-01)', () => {
     it('menampilkan error server apa adanya dalam role=alert', async () => {
         const user = userEvent.setup();
         vi.spyOn(router, 'patch').mockImplementation(
-            ((...args: unknown[]) => {
-                const options = args[2] as { onError?: (errs: Record<string, string>) => void };
-                return undefined;
-            }) as unknown as typeof router.patch
+            (() => undefined) as unknown as typeof router.patch
         );
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'penjumlahan');
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai jumlah');
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));

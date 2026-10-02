@@ -23,28 +23,26 @@ class ChangeIndicatorFormulaRequest extends FormRequest
      * ditentukan `IndikatorPerhitunganService::validateDefinisiKomponen`
      * di Action, bukan di sini).
      *
-     * `komponen` memakai `present` (boleh kosong untuk target manual
-     * setelah penonaktifan via Kelola Komponen); kekosongan yang invalid
-     * untuk nonmanual ditolak sebagai 422 `tipe_perhitungan` oleh Action.
+     * `komponen` adalah daftar akhir; ID existing harus milik indikator.
+     * Child yang tidak disertakan dinonaktifkan oleh Action. Kekosongan
+     * nonmanual ditolak penentu domain di dalam transaksi.
      *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
-        /** @var IndikatorKinerja|null $indikator */
-        $indikator = $this->route('indikator');
-        $indikatorId = $indikator?->id;
-
         return [
             'tipe_perhitungan' => ['required', 'in:manual,rasio_persen,penjumlahan'],
             'komponen' => ['present', 'array', 'max:50'],
+            // Kepemilikan ID diperiksa Action setelah token pada induk terkunci,
+            // agar child terhapus tetap menghasilkan konflik untuk formula usang.
+            'komponen.*.id' => ['nullable', 'uuid', 'distinct'],
             'komponen.*.kode' => [
                 'required',
                 'string',
                 'max:50',
                 'regex:/^[a-zA-Z0-9_]+$/',
                 'distinct',
-                Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId)),
             ],
             'komponen.*.label' => ['required', 'string', 'max:255'],
             'komponen.*.satuan' => ['nullable', 'string', 'max:50'],

@@ -19,7 +19,7 @@ class IndexSasaranIndikator
     /**
      * Menyusun payload halaman Sasaran & Indikator untuk satu Renstra.
      * Otorisasi halaman (`viewAny`) tetap di controller; di sini hanya
-     * angewand: `regulasi_id`/`regulasi` disembunyikan (null) dan katalog
+     * `regulasi_id`/`regulasi` disembunyikan (null) dan katalog
      * regulasi dikosongkan bila pembaca tidak berwenang `regulasi:read`,
      * serta `renstra_id` non-UUID ditolak 404 sebelum menyentuh query UUID.
      *
@@ -28,6 +28,7 @@ class IndexSasaranIndikator
     public function handle(User $user, mixed $requestedRenstraId, bool $renstraParamPresent): array
     {
         $canReadRegulasi = $this->resolver->resolve($user, PermissionCodes::REGULASI_READ)->allowed;
+        $canReadKomponen = $this->resolver->resolve($user, PermissionCodes::KOMPONEN_READ)->allowed;
 
         $renstras = Renstra::orderByDesc('is_aktif')
             ->orderByDesc('tahun_mulai')
@@ -56,8 +57,12 @@ class IndexSasaranIndikator
                 ->orderBy('urutan')
                 ->orderBy('kode')
                 ->with([
-                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi) {
+                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi, $canReadKomponen) {
                         $relations = ['unit:id,nama'];
+                        if ($canReadKomponen) {
+                            $relations['komponen'] = fn ($components) => $components->orderBy('urutan')->orderBy('id')
+                                ->select(['id', 'indikator_id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'satuan', 'aktif']);
+                        }
                         if ($canReadRegulasi) {
                             $relations[] = 'regulasi:id,jenis,nomor,tahun,tentang';
                         }
@@ -65,7 +70,7 @@ class IndexSasaranIndikator
                     },
                 ])
                 ->get()
-                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi) {
+                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi, $canReadKomponen) {
                     return [
                         'id' => $sasaran->id,
                         'renstra_id' => $sasaran->renstra_id,
@@ -73,7 +78,7 @@ class IndexSasaranIndikator
                         'deskripsi' => $sasaran->deskripsi,
                         'urutan' => $sasaran->urutan,
                         'updated_at' => $sasaran->updated_at?->toISOString(),
-                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi) {
+                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi, $canReadKomponen) {
                             return [
                                 'id' => $indikator->id,
                                 'sasaran_strategis_id' => $indikator->sasaran_strategis_id,
@@ -93,6 +98,11 @@ class IndexSasaranIndikator
                                 'status' => $indikator->status,
                                 'updated_at' => $indikator->updated_at?->toISOString(),
                                 'created_by_role' => $indikator->created_by_role,
+                                'komponen' => $canReadKomponen ? $indikator->komponen->map(fn ($item) => [
+                                    'id' => $item->id, 'kode' => $item->kode, 'label' => $item->label,
+                                    'peran' => $item->peran, 'bobot' => (string) $item->bobot,
+                                    'satuan' => $item->satuan, 'urutan' => $item->urutan, 'aktif' => $item->aktif,
+                                ])->values() : null,
                                 'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
                                     'id' => $indikator->regulasi->id,
                                     'jenis' => $indikator->regulasi->jenis,
@@ -131,7 +141,7 @@ class IndexSasaranIndikator
                 'indikator_update' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_UPDATE)->allowed,
                 'indikator_delete' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_DELETE)->allowed,
                 'regulasi_read' => $canReadRegulasi,
-                'komponen_read' => $this->resolver->resolve($user, PermissionCodes::KOMPONEN_READ)->allowed,
+                'komponen_read' => $canReadKomponen,
             ],
         ];
     }

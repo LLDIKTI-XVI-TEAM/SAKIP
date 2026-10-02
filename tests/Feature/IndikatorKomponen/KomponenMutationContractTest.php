@@ -10,7 +10,6 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Kinerja\IndikatorPerhitunganService;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -265,14 +264,17 @@ class KomponenMutationContractTest extends TestCase
             ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'urutan' => 1],
             ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'urutan' => 2],
         ] as $awal) {
-            $this->actingAs($this->perencanaan)
-                ->post("/indikator/{$indikatorPost->id}/komponen", array_merge($awal, [
-                    'bobot' => 1.0,
-                    'aktif' => true,
-                ]))
-                ->assertSessionHasNoErrors();
+            IndikatorKomponen::create(array_merge($awal, [
+                'indikator_id' => $indikatorPost->id,
+                'created_by' => $this->perencanaan->id,
+                'bobot' => 1.0,
+                'aktif' => true,
+            ]));
         }
 
+        $beforeChildren = $indikatorPost->komponen()->get()->map->getAttributes()->all();
+        $beforeParent = $indikatorPost->fresh()->getAttributes();
+        $beforeAudits = AuditLog::count();
         // Jalur normal menambah satu penjumlah; komposisi akhir menjadi invalid
         // menurut penentu yang sama.
         $this->actingAs($this->perencanaan)
@@ -284,11 +286,12 @@ class KomponenMutationContractTest extends TestCase
                 'urutan' => 3,
                 'aktif' => true,
             ])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('komponen');
 
-        $pesanPost = app(IndikatorPerhitunganService::class)->validateDefinisiKomponen(
-            $indikatorPost->fresh()->load('komponen')
-        )['messages'];
+        $pesanPost = session('errors')->get('komponen');
+        $this->assertSame($beforeChildren, $indikatorPost->komponen()->get()->map->getAttributes()->all());
+        $this->assertSame($beforeParent, $indikatorPost->fresh()->getAttributes());
+        $this->assertSame($beforeAudits, AuditLog::count());
 
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
@@ -330,11 +333,11 @@ class KomponenMutationContractTest extends TestCase
                 'urutan' => 1,
                 'aktif' => true,
             ])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('komponen');
 
-        $pesanPost = app(IndikatorPerhitunganService::class)->validateDefinisiKomponen(
-            $indikatorPost->fresh()->load('komponen')
-        )['messages'];
+        $pesanPost = session('errors')->get('komponen');
+        $this->assertSame(0, $indikatorPost->komponen()->count());
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.buat']);
 
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
