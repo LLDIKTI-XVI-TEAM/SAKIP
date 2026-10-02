@@ -76,15 +76,6 @@ export function RenstraFormFields({
     return (
         <div className="space-y-8">
             <section aria-label="Identitas Rencana Strategis">
-                {!isEdit && (
-                    <div className="mb-4">
-                        <h2 id="identitas-renstra-heading" className="text-base font-semibold text-ink leading-tight">Identitas Rencana Strategis</h2>
-                        <p className="mt-0.5 max-w-3xl text-sm leading-snug text-muted">
-                            Isikan nama resmi, kode unik dokumen, dan rentang tahun pelaksanaan Renstra.
-                        </p>
-                    </div>
-                )}
-
                 <div className="grid gap-5 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                         <Input
@@ -131,15 +122,6 @@ export function RenstraFormFields({
             </section>
 
             <section aria-label="Periode Pelaksanaan">
-                {!isEdit && (
-                    <div className="mb-4">
-                        <h2 id="periode-renstra-heading" className="text-base font-semibold text-ink leading-tight">Periode Pelaksanaan</h2>
-                        <p className="mt-0.5 max-w-3xl text-sm leading-snug text-muted">
-                            Tahun mulai dan tahun selesai harus valid, dengan tahun selesai sama atau lebih besar dari tahun mulai.
-                        </p>
-                    </div>
-                )}
-
                 <div className="grid gap-5 sm:grid-cols-2">
                     <Input
                         name="tahun_mulai"
@@ -172,15 +154,6 @@ export function RenstraFormFields({
             </section>
 
             <section aria-label="Substansi dan Dasar Hukum">
-                {!isEdit && (
-                    <div className="mb-4">
-                        <h2 id="substansi-renstra-heading" className="text-base font-semibold text-ink leading-tight">Substansi dan Dasar Hukum</h2>
-                        <p className="mt-0.5 max-w-3xl text-sm leading-snug text-muted">
-                            Uraian ringkas visi, misi, atau ringkasan arah kebijakan dan dasar hukum penetapan.
-                        </p>
-                    </div>
-                )}
-
                 <div className="space-y-5">
                     <Textarea
                         name="deskripsi"
