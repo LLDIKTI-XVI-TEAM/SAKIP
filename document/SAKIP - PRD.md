@@ -439,6 +439,8 @@ Halaman Renstra menampilkan panel lampiran dokumen (`berkas` dengan `berkasable_
 
 `periode` adalah master global yang mendefinisikan satuan waktu pelaporan dalam satu tahun (mis. Triwulan I, Triwulan II, Triwulan III, Triwulan IV, atau Semester I/II, atau Tahunan), masing-masing memiliki `urutan` tampil dan flag `aktif`. Tepat satu periode per konfigurasi ditandai `is_nilai_akhir = true` — periode yang dianggap sebagai representasi capaian akhir tahun (mis. Triwulan IV/Tahunan) untuk keperluan rekap tahunan pada dashboard/laporan. Nilai pada periode dengan `is_nilai_akhir = true` **diisi manual** oleh penanggung jawab/Perencanaan — sistem tidak menghitung agregasi otomatis dari periode-periode sebelumnya.
 
+Setup awal pada tabel master kosong menyediakan Triwulan I–IV aktif dengan urutan 1–4 dan Triwulan IV sebagai nilai akhir, sesuai [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Seed tidak mengubah konfigurasi yang sudah ada; pengelolaan berikutnya tetap melalui UI dengan aturan master periode yang berlaku.
+
 ### 12.2 Jadwal Tahunan (Level Tahun)
 
 Setiap kombinasi Renstra + Tahun memiliki satu `jadwal_tahunan` yang membingkai tahun tersebut:

@@ -712,3 +712,11 @@ Tidak ada aplikasi, workbook, data produksi, panduan agent lokal, atau pengatura
 - Sebelum penerapan constraint lintas status, periksa pasangan yang mempunyai lebih dari satu jadwal. Kombinasi tersebut dapat sah menurut skema lama. Bila ditemukan, hentikan rollout dan minta keputusan penyelesaian data yang eksplisit; jangan otomatis menghapus, menggabungkan, memilih pemenang, atau memindahkan referensi historis. Persetujuan Q2 bukan izin koreksi data existing.
 
 Penyelarasan ini terbatas pada keunikan jadwal. Ketentuan master periode dan seed Plan 3.1 tidak diubah oleh addendum ini.
+
+## Addendum ISS-03.01 — Seed Awal Master Periode
+
+**Keputusan pengguna: 3 Oktober 2026 (WITA), dalam tindak lanjut review M1 PR #60.** Pengguna menyetujui seed awal **Triwulan I, Triwulan II, Triwulan III, dan Triwulan IV**, semuanya aktif dengan urutan 1–4; hanya Triwulan IV ditandai `is_nilai_akhir=true`. Keputusan ini memperjelas isi seed Plan 3.1 dan tetap menyediakan pengelolaan melalui UI existing. Pencatatan ini bukan klaim ratifikasi PM, UAT, atau penerapan seed pada database persistent.
+
+Seed berjalan melalui `PeriodeSeeder`, juga dipanggil `DatabaseSeeder`, hanya jika tabel `periode` kosong. Keempat baris dibuat atomik dengan lock konfigurasi yang sama dengan mutasi master. Jika sudah ada baris, termasuk konfigurasi kustom pengelola, seed selesai tanpa perubahan dan menampilkan pesan bahwa konfigurasi dipertahankan. Pengulangan tidak menggandakan, melengkapi, menimpa, atau menormalkan konfigurasi existing.
+
+Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/2026. Nama, urutan, status, dan nilai akhir selanjutnya dikelola melalui aturan master periode yang berlaku; seed bukan mekanisme reset konfigurasi.

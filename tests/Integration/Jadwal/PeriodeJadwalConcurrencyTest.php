@@ -54,6 +54,41 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'periode.tambah')->count());
     }
 
+    public function test_concurrent_seeders_create_one_complete_configuration(): void
+    {
+        $actor = $this->calendarActor();
+        $this->assertSame(['changed', 'changed'], $this->race([
+            ['actor_id' => $actor->id, 'operation' => 'seed'],
+            ['actor_id' => $actor->id, 'operation' => 'seed'],
+        ], serialized: true));
+        $this->assertSame(4, Periode::count());
+        $this->assertSame(['Triwulan I', 'Triwulan II', 'Triwulan III', 'Triwulan IV'], Periode::orderBy('urutan')->pluck('nama')->all());
+        $this->assertSame('Triwulan IV', Periode::where('aktif', true)->where('is_nilai_akhir', true)->sole()->nama);
+    }
+
+    public function test_waiting_seeder_preserves_configuration_committed_by_manager(): void
+    {
+        $actor = $this->calendarActor();
+        $this->assertSame(['changed', 'changed'], $this->race([
+            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true]],
+            ['actor_id' => $actor->id, 'operation' => 'seed'],
+        ], serialized: true));
+        $this->assertSame('Semester', Periode::sole()->nama);
+        $this->assertSame(1, AuditLog::where('tindakan', 'periode.tambah')->count());
+    }
+
+    public function test_waiting_manager_rechecks_final_after_seed_commits(): void
+    {
+        $actor = $this->calendarActor();
+        $this->assertSame(['changed', 'is_nilai_akhir'], $this->race([
+            ['actor_id' => $actor->id, 'operation' => 'seed'],
+            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true]],
+        ], serialized: true));
+        $this->assertSame(4, Periode::count());
+        $this->assertSame('Triwulan IV', Periode::where('aktif', true)->where('is_nilai_akhir', true)->sole()->nama);
+        $this->assertSame(1, AuditLog::where('tindakan', 'periode.tambah_ditolak')->count());
+    }
+
     public function test_concurrent_final_replacement_has_one_winner_and_read_sees_current_singleton(): void
     {
         $actors = [$this->calendarActor(), $this->calendarActor()];

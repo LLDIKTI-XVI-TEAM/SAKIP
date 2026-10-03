@@ -272,8 +272,10 @@ Setiap task memiliki tiga bagian wajib:
 
 ### 3.1 Migrasi & seed master `periode`
 - **Scope:** Migrasi tabel `periode` (nama, urutan, aktif, is_nilai_akhir) + form CRUD terbatas (Superadmin/Perencanaan); validasi tepat satu baris `is_nilai_akhir=true`.
+- **Seed awal:** `PeriodeSeeder` dipanggil oleh `DatabaseSeeder`; hanya pada tabel kosong, isi Triwulan I–IV aktif dengan urutan 1–4 dan Triwulan IV sebagai nilai akhir, sesuai [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Konfigurasi existing dipertahankan dengan pesan CLI, termasuk konfigurasi kustom yang berbeda dari default; tidak ada sinkronisasi ulang atau koreksi otomatis.
 - **Dependency:** 1.11.
 - **DoD:** Percobaan menyimpan periode kedua dengan `is_nilai_akhir=true` ditolak selama masih ada periode lain yang juga `true` (harus non-aktifkan yang lama dulu, ditegaskan via validasi aplikasi); test Pest mengonfirmasi hal ini.
+- **DoD seed:** Test membuktikan integrasi setup melalui `DatabaseSeeder`, empat baris awal dengan tepat satu final aktif, pengulangan tanpa perubahan ID/konfigurasi, preservasi konfigurasi kustom, rollback seluruh bootstrap bila gagal, serta serialisasi dengan seeder lain dan mutasi master melalui lock konfigurasi existing.
 
 ### 3.2 Migrasi `jadwal_tahunan` (tanpa kolom jendela periode, dengan jendela rencana aksi)
 - **Scope:** Migrasi tabel `jadwal_tahunan` **tanpa** kolom `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, `reviu_selesai` (dipindahkan ke `jadwal_periode`, lihat 3.3). Kolom yang tetap ada: `renstra_id`, `tahun`, `penutupan`, `pakai_persetujuan_pimpinan`, `persetujuan_mulai`, `persetujuan_selesai` (disiapkan, tidak dipakai logic Fase Awal), `status`, `renstra_pk_id`, `activated_at`, `closed_at`; ditambah kolom baru **`rencana_aksi_mulai`**, **`rencana_aksi_selesai`** (date, nullable); constraint unique (`renstra_id`, `tahun`) lintas seluruh status sesuai [addendum ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Pasangan yang sudah memiliki jadwal memakai objek existing sesuai status dan permission, tanpa membuat jadwal kedua.

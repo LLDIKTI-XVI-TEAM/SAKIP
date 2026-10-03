@@ -823,6 +823,8 @@ Target per indikator per tahun.
 
 Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu).
 
+**Seed awal:** pada tabel kosong, buat Triwulan I–IV aktif, urutan 1–4, hanya Triwulan IV bernilai akhir. Keempat baris dibuat dalam satu transaksi dengan lock konfigurasi master; tabel nonkosong dipertahankan tanpa penambahan/perubahan dan dilaporkan ke operator. Rujukan: [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md).
+
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |

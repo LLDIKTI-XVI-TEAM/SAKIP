@@ -10,6 +10,7 @@ use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\Renstra;
 use App\Models\User;
+use Database\Seeders\PeriodeSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\QueryException;
@@ -59,6 +60,7 @@ try {
     }
     try {
         $result = match ($payload['operation']) {
+            'seed' => app(PeriodeSeeder::class)->run(),
             'save' => app(SaveJadwalDraft::class)->handle($actor, $payload['data'], isset($payload['id']) ? (new JadwalTahunan)->forceFill(['id' => $payload['id']]) : null),
             'master' => app(SavePeriode::class)->handle($actor, $payload['data'], isset($payload['id']) ? (new Periode)->forceFill(['id' => $payload['id']]) : null),
             'swap' => app(ReplaceFinalPeriode::class)->handle($actor, $payload['data']),
