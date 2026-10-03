@@ -40,6 +40,8 @@ export interface SharedPageProps extends PageProps {
             storagePolicyUpdate?: boolean;
             sasaranIndikator?: boolean;
             pk?: boolean;
+            periode?: boolean;
+            jadwal?: boolean;
             'pk:create'?: boolean;
             'pk:update'?: boolean;
         };

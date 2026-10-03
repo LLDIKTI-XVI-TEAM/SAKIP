@@ -43,6 +43,8 @@ class HandleInertiaRequests extends Middleware
                         'storagePolicyUpdate' => $can['storagePolicyUpdate'],
                         'sasaranIndikator' => $can['sasaranIndikator'],
                         'pk' => $can['pk'],
+                        'periode' => $can['periode'],
+                        'jadwal' => $can['jadwal'],
                         'pk:create' => $can['pk:create'],
                         'pk:update' => $can['pk:update'],
                     ],
@@ -90,6 +92,8 @@ class HandleInertiaRequests extends Middleware
             'storagePolicyUpdate' => false,
             'sasaranIndikator' => false,
             'pk' => false,
+            'periode' => false,
+            'jadwal' => false,
             'pk:create' => false,
             'pk:update' => false,
         ];
@@ -141,6 +145,8 @@ class HandleInertiaRequests extends Middleware
             'storagePolicyUpdate' => $pengaturanUpdate,
             'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
             'pk' => $user->can('viewAny', RenstraPk::class),
+            'periode' => $resolver->allows($user, 'periode:create') || $resolver->allows($user, 'periode:update'),
+            'jadwal' => $resolver->allows($user, 'jadwal:create') || $resolver->allows($user, 'jadwal:update'),
             'pk:create' => $resolver->allows($user, 'pk:create'),
             'pk:update' => $resolver->allows($user, 'pk:update'),
         ];

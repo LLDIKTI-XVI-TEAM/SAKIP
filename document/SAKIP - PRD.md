@@ -439,6 +439,8 @@ Halaman Renstra menampilkan panel lampiran dokumen (`berkas` dengan `berkasable_
 
 `periode` adalah master global yang mendefinisikan satuan waktu pelaporan dalam satu tahun (mis. Triwulan I, Triwulan II, Triwulan III, Triwulan IV, atau Semester I/II, atau Tahunan), masing-masing memiliki `urutan` tampil dan flag `aktif`. Tepat satu periode per konfigurasi ditandai `is_nilai_akhir = true` — periode yang dianggap sebagai representasi capaian akhir tahun (mis. Triwulan IV/Tahunan) untuk keperluan rekap tahunan pada dashboard/laporan. Nilai pada periode dengan `is_nilai_akhir = true` **diisi manual** oleh penanggung jawab/Perencanaan — sistem tidak menghitung agregasi otomatis dari periode-periode sebelumnya.
 
+Setup awal pada tabel master kosong menyediakan Triwulan I–IV aktif dengan urutan 1–4 dan Triwulan IV sebagai nilai akhir, sesuai [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Seed tidak mengubah konfigurasi yang sudah ada; pengelolaan berikutnya tetap melalui UI dengan aturan master periode yang berlaku.
+
 ### 12.2 Jadwal Tahunan (Level Tahun)
 
 Setiap kombinasi Renstra + Tahun memiliki satu `jadwal_tahunan` yang membingkai tahun tersebut:
@@ -449,7 +451,7 @@ Setiap kombinasi Renstra + Tahun memiliki satu `jadwal_tahunan` yang membingkai 
 - `pakai_persetujuan_pimpinan` (boolean, default `false`) dan `persetujuan_mulai`/`persetujuan_selesai` — kolom disiapkan untuk Fase Lanjutan; pada Fase Awal selalu `false` dan tidak dipakai dalam alur (lihat §19.2).
 - `renstra_pk_id` — wajib diisi saat aktivasi; lihat gerbang validasi §12.4.
 - `activated_at` / `closed_at` — stempel waktu otomatis saat transisi status terjadi; nilai ini selalu mencatat waktu aktivasi/penutupan yang sebenarnya, termasuk untuk jadwal retroaktif (§12.6).
-- Constraint: unique per tahun di antara jadwal berstatus aktif untuk Renstra yang sama (tidak boleh dua jadwal aktif tumpang tindih tahun yang sama pada satu Renstra).
+- Constraint: unique (`renstra_id`, `tahun`) lintas seluruh status (`draft`, `aktif`, `ditutup`), sesuai [addendum ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Jika pasangan sudah memiliki jadwal, gunakan jadwal tersebut dengan hak edit sesuai status dan permission; tidak membuat jadwal kedua. Keunikan berlaku per pasangan Renstra–tahun, bukan per tahun lintas semua Renstra.
 
 Jendela waktu pengisian dan reviu pengukuran **tidak berada** di `jadwal_tahunan` — jendela itu dipecah per periode pada tabel `jadwal_periode` (§12.3), karena periode berbeda (mis. Triwulan I vs Triwulan IV) lazimnya punya tenggat yang berbeda pula. Jendela Rencana Aksi sebaliknya memang berada di level tahun karena disusun sekali per tahun.
 
@@ -1174,7 +1176,7 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks, preferensi pres
   - `target_tahunan`: unique(`indikator_id`, `tahun`).
   - `renstra_pk`: unique(`renstra_id`, `tahun`).
   - `regulasi`: unique(`jenis`, `nomor`, `tahun`).
-  - `jadwal_tahunan`: unique(`tahun`) di antara jadwal **aktif** untuk Renstra yang sama.
+  - `jadwal_tahunan`: unique(`renstra_id`, `tahun`) lintas seluruh status (`draft`, `aktif`, `ditutup`), sesuai §12.2 dan addendum ISS-03.01.
   - `jadwal_periode`: unique(`jadwal_id`, `periode_id`).
   - `jadwal_snapshot`: unique(`jadwal_id`, `indikator_id`) — menegakkan idempotensi pembentukan snapshot (§12.5); `jadwal_snapshot_komponen` mengikuti idempotensi induknya.
   - `permissions.kode`: unique.

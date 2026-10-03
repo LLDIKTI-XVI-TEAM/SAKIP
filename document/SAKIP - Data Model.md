@@ -9,7 +9,7 @@
 
 > **Q32 aktif:** role final berjumlah lima; `pic` bukan baris pada `roles`. Assignment PJ dan Grant Unit tetap entitas terpisah. Detail final berada pada §8.
 
-**Basis data target:** PostgreSQL — dipilih secara sadar karena beberapa kapabilitas yang dipakai langsung oleh skema ini: tipe kolom `jsonb` untuk `audit_log` (menampung struktur nilai lama/baru yang berbeda-beda per entitas tanpa memerlukan tabel audit terpisah per entitas), **exclusion constraint** (`EXCLUDE USING gist` dengan ekstensi `btree_gist`) sebagai lapisan pertahanan kedua untuk menegakkan rentang tahun Renstra yang tidak boleh beririsan, **partial unique index** untuk menjamin tepat satu `jadwal_tahunan` berstatus aktif per kombinasi Renstra-tahun, dan penanganan **NULL pada index unik** lewat `COALESCE` untuk constraint yang melibatkan kolom nullable — dipakai pada `klaim_kegiatan.komponen_id` maupun pada `user_permission_granted.unit_id`/`user_permission_denials.unit_id`, karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris pada unique index standar.
+**Basis data target:** PostgreSQL — dipilih secara sadar karena beberapa kapabilitas yang dipakai langsung oleh skema ini: tipe kolom `jsonb` untuk `audit_log` (menampung struktur nilai lama/baru yang berbeda-beda per entitas tanpa memerlukan tabel audit terpisah per entitas), **exclusion constraint** (`EXCLUDE USING gist` dengan ekstensi `btree_gist`) sebagai lapisan pertahanan kedua untuk menegakkan rentang tahun Renstra yang tidak boleh beririsan, **unique constraint** untuk menjamin satu `jadwal_tahunan` per kombinasi Renstra-tahun lintas seluruh status (§2.15), dan penanganan **NULL pada index unik** lewat `COALESCE` untuk constraint yang melibatkan kolom nullable — dipakai pada `klaim_kegiatan.komponen_id` maupun pada `user_permission_granted.unit_id`/`user_permission_denials.unit_id`, karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris pada unique index standar.
 
 **Catatan cakupan:** Seluruh tabel dan kolom pada dokumen ini dibuat pada migrasi Laravel sejak Fase Awal, termasuk keenam tabel model hak akses (`permissions`, `roles`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`). Yang ditunda ke Fase Lanjutan hanya jalur pemakaian/UI atas kolom-kolom tertentu; kolom itu sendiri tetap ada di skema agar tidak perlu migrasi besar/berisiko di kemudian hari, dan diberi anotasi eksplisit `-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)`.
 
@@ -823,6 +823,8 @@ Target per indikator per tahun.
 
 Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu).
 
+**Seed awal:** pada tabel kosong, buat Triwulan I–IV aktif, urutan 1–4, hanya Triwulan IV bernilai akhir. Keempat baris dibuat dalam satu transaksi dengan lock konfigurasi master; tabel nonkosong dipertahankan tanpa penambahan/perubahan dan dilaporkan ke operator. Rujukan: [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md).
+
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
@@ -867,13 +869,12 @@ Jika salah satu dari keempat syarat gagal — kecuali gerbang 4 yang sudah ditan
 
 **Koreksi setelah penutupan:** satu-satunya jalur koreksi pengukuran, rencana aksi, maupun kegiatan setelah `penutupan` tercapai adalah `jadwal:buka_kembali` (`ditutup → aktif`), lalu melakukan koreksi, lalu `jadwal:tutup` kembali — seluruh rangkaian ini tercatat di `audit_log` (lihat §2.20, §2.23, §2.25).
 
-**Constraint:** tepat satu baris berstatus **aktif** per kombinasi (`renstra_id`, `tahun`), ditegakkan lewat **partial unique index**:
+**Constraint:** satu baris per kombinasi (`renstra_id`, `tahun`) lintas seluruh status (`draft`, `aktif`, `ditutup`), sesuai [addendum ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md), ditegakkan lewat **unique constraint**:
 ```sql
-CREATE UNIQUE INDEX jadwal_tahunan_aktif_unik
-    ON jadwal_tahunan (renstra_id, tahun)
-    WHERE status = 'aktif';
+ALTER TABLE jadwal_tahunan
+    ADD CONSTRAINT jadwal_tahunan_renstra_tahun_unik UNIQUE (renstra_id, tahun);
 ```
-Ini bukan unique global lintas seluruh Renstra — dua Renstra berbeda secara teori bisa memiliki jadwal aktif pada tahun yang sama jika rentang tahunnya tidak beririsan (dan constraint `renstra` di §2.9 sudah mencegah dua Renstra aktif dengan rentang beririsan). Partial unique index di sini adalah pertahanan tambahan pada level jadwal itu sendiri.
+Keunikan berlaku per pasangan Renstra–tahun; aturan rentang/status Renstra pada §2.9 tetap berlaku secara terpisah. Jadwal existing digunakan kembali sesuai status dan permission, termasuk jalur `jadwal:buka_kembali` untuk koreksi setelah penutupan, tanpa membuat jadwal kedua. Constraint ini menggantikan indeks parsial `jadwal_tahunan_aktif_unik`. Rollout harus berhenti bila ada beberapa jadwal pada pasangan yang sama, termasuk kombinasi yang sah menurut skema lama, sampai tersedia keputusan penyelesaian data yang eksplisit; tidak boleh menghapus, menggabungkan, atau memindahkan referensi historis otomatis.
 
 ---
 
@@ -1567,7 +1568,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`) |
-| `jadwal_tahunan` | partial unique index (`renstra_id`, `tahun`) `WHERE status = 'aktif'` |
+| `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |
 | `jadwal_snapshot` | unique(`jadwal_id`, `indikator_id`) — menjamin idempotensi pembuatan snapshot |

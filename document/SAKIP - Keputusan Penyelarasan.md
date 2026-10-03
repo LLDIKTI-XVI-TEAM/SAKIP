@@ -699,3 +699,24 @@ Pilihan engineering seperti constraint, provenance pengajuan, tabel versi, dan v
 Pembaruan Q31 mengubah baseline role, tetapi **tidak otomatis membuktikan bahwa kode, seeder, migration, UI, automated test, maupun issue GitHub sudah diperbarui**. Sebelum implementasi dianggap konsisten, seluruh dokumen terdampak pada §31.10 harus diselaraskan dan perubahan kode harus mengikuti baseline baru.
 
 Tidak ada aplikasi, workbook, data produksi, panduan agent lokal, atau pengaturan Git yang diubah hanya dengan penyelarasan isi dokumen ini.
+
+---
+
+## Addendum ISS-03.01 — Keunikan Jadwal Tahunan
+
+**Keputusan pengguna: 2 Oktober 2026; pencatatan ke dokumen tim: 3 Oktober 2026 (WITA).** Pada pembahasan Issue #30, pengguna menyetujui Q2: satu jadwal tahunan per kombinasi Renstra dan tahun, berlaku lintas seluruh status. Nomor Q2 ini khusus pembahasan ISS-03.01, bukan Q2 pada tabel keputusan awal di atas. Provenance persetujuan berasal dari percakapan pengguna yang direkam dalam catatan lokal `docs/issue-30-periode-jadwal/keputusan-q1-q10.md`, bagian Q2; substansi keputusan dicatat utuh di sini agar tidak bergantung pada akses ke artefak lokal. Pencatatan ini tidak menyatakan ratifikasi PM, UAT, atau penerapan ke database telah selesai.
+
+- Pasangan (`renstra_id`, `tahun`) hanya boleh mempunyai satu `jadwal_tahunan`, baik berstatus `draft`, `aktif`, maupun `ditutup`. Jika sudah tersedia, gunakan jadwal tersebut; hak mengubah tetap mengikuti status, permission efektif, dan aturan bisnis. Keunikan ini berlaku per pasangan, bukan keunikan `tahun` lintas semua Renstra.
+- Ketentuan ini menggantikan constraint lama yang hanya unik untuk status `aktif` pada PRD §12.2, Data Model §2.15, dan Plan 3.2. Indeks parsial lama memungkinkan beberapa jadwal pada satu pasangan; pola itu tidak lagi menjadi kontrak pembuatan jadwal setelah Q2.
+- Jadwal ditutup tetap dipertahankan. Koreksi pascapenutupan memakai objek jadwal yang sama melalui `jadwal:buka_kembali` sesuai workflow existing, dengan histori, snapshot, dan audit tetap mengikuti aturan masing-masing. ISS-03.01 hanya menyediakan penyusunan draft; aktivasi, penutupan, dan buka kembali tetap task terpisah.
+- Sebelum penerapan constraint lintas status, periksa pasangan yang mempunyai lebih dari satu jadwal. Kombinasi tersebut dapat sah menurut skema lama. Bila ditemukan, hentikan rollout dan minta keputusan penyelesaian data yang eksplisit; jangan otomatis menghapus, menggabungkan, memilih pemenang, atau memindahkan referensi historis. Persetujuan Q2 bukan izin koreksi data existing.
+
+Penyelarasan ini terbatas pada keunikan jadwal. Ketentuan master periode dan seed Plan 3.1 tidak diubah oleh addendum ini.
+
+## Addendum ISS-03.01 — Seed Awal Master Periode
+
+**Keputusan pengguna: 3 Oktober 2026 (WITA), dalam tindak lanjut review M1 PR #60.** Pengguna menyetujui seed awal **Triwulan I, Triwulan II, Triwulan III, dan Triwulan IV**, semuanya aktif dengan urutan 1–4; hanya Triwulan IV ditandai `is_nilai_akhir=true`. Keputusan ini memperjelas isi seed Plan 3.1 dan tetap menyediakan pengelolaan melalui UI existing. Pencatatan ini bukan klaim ratifikasi PM, UAT, atau penerapan seed pada database persistent.
+
+Seed berjalan melalui `PeriodeSeeder`, juga dipanggil `DatabaseSeeder`, hanya jika tabel `periode` kosong. Keempat baris dibuat atomik dengan lock konfigurasi yang sama dengan mutasi master. Jika sudah ada baris, termasuk konfigurasi kustom pengelola, seed selesai tanpa perubahan dan menampilkan pesan bahwa konfigurasi dipertahankan. Pengulangan tidak menggandakan, melengkapi, menimpa, atau menormalkan konfigurasi existing.
+
+Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/2026. Nama, urutan, status, dan nilai akhir selanjutnya dikelola melalui aturan master periode yang berlaku; seed bukan mekanisme reset konfigurasi.

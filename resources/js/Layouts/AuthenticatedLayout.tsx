@@ -25,6 +25,7 @@ import {
     HardDrive,
     Target,
     Layers,
+    CalendarDays,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -154,6 +155,8 @@ export function AuthenticatedLayout({
         { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
+        { href: '/jadwal', label: 'Jadwal Tahunan', icon: CalendarDays, visible: auth.can.jadwal ?? false },
+        { href: '/periode', label: 'Master Periode', icon: CalendarDays, visible: auth.can.periode ?? false },
         { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
         { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
         { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },

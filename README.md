@@ -57,6 +57,18 @@ Bootstrap hanya berlaku sekali. Pengulangan untuk akun yang sama tidak memulihka
 
 ---
 
+## Setup awal Master Periode
+
+Setelah migration terpasang pada environment tujuan yang telah diperiksa, setup melalui `DatabaseSeeder` menyertakan `PeriodeSeeder`. Untuk menjalankan seed periode saja:
+
+```sh
+php artisan db:seed --class=PeriodeSeeder
+```
+
+Seeder hanya mengisi tabel `periode` yang kosong: Triwulan I–IV aktif, urutan 1–4, dengan Triwulan IV sebagai nilai akhir. Empat baris dibuat atomik dan memakai lock konfigurasi yang sama dengan pengelolaan master. Bila tabel sudah berisi data, command menampilkan pesan bahwa konfigurasi dipertahankan dan selesai tanpa mengubah atau menambah baris, termasuk saat konfigurasi pengelola berbeda dari default. Pengulangan bukan reset atau perbaikan konfigurasi; gunakan halaman **Master Periode** untuk perubahan berikutnya. Seed tidak membuat jadwal tahunan atau data pengukuran.
+
+---
+
 ## 🧪 CI dan quality gate
 
 Workflow `.github/workflows/ci.yml` berjalan pada PR menuju `development`/`main`, push ke kedua branch tersebut, dan pemicu manual. Enam job berjalan independen sehingga setiap pemeriksaan memiliki hasil sendiri di GitHub:
