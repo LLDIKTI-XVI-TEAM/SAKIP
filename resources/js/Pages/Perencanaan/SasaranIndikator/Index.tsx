@@ -130,6 +130,13 @@ export default function SasaranIndikatorIndex({
 
     const selectedRenstra = renstras.find((r) => r.id === selectedRenstraId);
 
+    // R8-01 parity gate-vs-API final-set (ChangeIndicatorFormula):
+    // API mensyaratkan indikator:update selalu + komponen:read selalu +
+    // komponen:create/update sesuai delta aktual. Tombol tampil bila
+    // API berpotensi bisa dipakai; deny-at-submit tetap di backend.
+    const canAturFormula =
+        can.indikator_update && can.komponen_read && (can.komponen_create || can.komponen_update);
+
     return (
         <AuthenticatedLayout
             title="Sasaran & Indikator Kinerja"
@@ -432,7 +439,7 @@ export default function SasaranIndikatorIndex({
                                                                         </Link>
                                                                     )}
 
-                                                                    {can.indikator_update && can.komponen_create && (
+                                                                    {canAturFormula && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setFormulaTarget(ind)}

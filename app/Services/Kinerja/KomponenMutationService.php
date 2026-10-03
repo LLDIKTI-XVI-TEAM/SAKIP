@@ -56,19 +56,16 @@ class KomponenMutationService
     }
 
     /**
-     * Aturan sintaks tunggal untuk satu baris komponen (sumber bersama
-     * StoreIndikatorKomponenRequest dan ChangeIndicatorFormulaRequest).
+     * Aturan sintaks murni satu baris komponen tanpa akses basis data.
      *
-     * Bentuk error key flat (`kode`, `bobot`, ...) dipertahankan untuk jalur
-     * normal; varian bersarang memakai prefix `komponen.*.` tanpa mengubah
-     * teks pesan. `distinct` hanya untuk payload daftar (transisi formula).
-     * `$abaikanId` mengabaikan baris itu sendiri pada cek unique agar
-     * penggantian atomik yang mempertahankan kode tidak ditolak palsu;
-     * tanpa itu perilaku sama seperti sebelumnya.
+     * Sumber bersama jalur kandidat (transisi formula) dan aturan store
+     * normal; bentuk error key flat (`kode`, `bobot`, ...) dipertahankan.
+     * `distinct` hanya untuk payload daftar agar duplikat DALAM payload
+     * tetap ditolak tanpa menilai state DB lama.
      *
      * @return array<string, mixed>
      */
-    public function aturanItem(?string $indikatorId, bool $denganDistinct = false, ?string $abaikanId = null): array
+    public function aturanSintaksItem(bool $denganDistinct = false): array
     {
         $kode = [
             'required',
@@ -79,11 +76,6 @@ class KomponenMutationService
         if ($denganDistinct) {
             $kode[] = 'distinct';
         }
-        $unik = Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId));
-        if ($abaikanId !== null && $abaikanId !== '') {
-            $unik->ignore($abaikanId);
-        }
-        $kode[] = $unik;
 
         return [
             'kode' => $kode,
@@ -97,16 +89,43 @@ class KomponenMutationService
     }
 
     /**
-     * Aturan sintaks per item untuk payload transisi formula.
+     * Aturan sintaks + unique-vs-DB untuk satu baris komponen store normal.
      *
-     * Kunci memakai bentuk `komponen.*.field` agar error key kontrak
-     * frontend (`komponen.N.field`) tidak berubah.
+     * Dipakai StoreIndikatorKomponenRequest (single-row, tanpa swap) sehingga
+     * unique-vs-DB dipertahankan; bukan jalur swap formula. Bentuk error key
+     * flat dipertahankan. `$abaikanId` mengabaikan baris itu sendiri pada
+     * cek unique agar penggantian yang mempertahankan kode tidak ditolak
+     * palsu; tanpa itu perilaku sama seperti sebelumnya.
      *
      * @return array<string, mixed>
      */
-    public function aturanBersarang(?string $indikatorId): array
+    public function aturanItem(?string $indikatorId, bool $denganDistinct = false, ?string $abaikanId = null): array
     {
-        $dasar = $this->aturanItem($indikatorId, true);
+        $aturan = $this->aturanSintaksItem($denganDistinct);
+        $unik = Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId));
+        if ($abaikanId !== null && $abaikanId !== '') {
+            $unik->ignore($abaikanId);
+        }
+        $aturan['kode'][] = $unik;
+
+        return $aturan;
+    }
+
+    /**
+     * Aturan sintaks kandidat per item untuk payload transisi formula.
+     *
+     * SENGAJA tanpa cek unique-vs-DB-lama agar swap atomik yang valid
+     * (existing n→x + baru n) tidak ditolak palsu; unique final-set
+     * ditegakkan Action ditambah constraint DB saat persist. Kunci memakai
+     * bentuk `komponen.*.field` agar error key kontrak frontend
+     * (`komponen.N.field`) tidak berubah. Parameter indikator dipertahankan
+     * untuk kompatibilitas pemanggil tanpa dipakai menilai DB lama.
+     *
+     * @return array<string, mixed>
+     */
+    public function aturanBersarang(?string $indikatorId = null): array
+    {
+        $dasar = $this->aturanSintaksItem(true);
         $hasil = [];
         foreach ($dasar as $field => $rules) {
             $hasil["komponen.*.{$field}"] = $rules;
@@ -195,8 +214,10 @@ class KomponenMutationService
     /**
      * Menjalankan validator sintaks lengkap untuk satu baris komponen.
      *
-     * Dipakai jalur internal (buat/modelKandidat) agar tidak ada penyimpanan
-     * yang lolos sintaks bila FormRequest dilewati. Gagal melempar
+     * Dipakai jalur internal `buat()` agar tidak ada penyimpanan yang lolos
+     * sintaks bila FormRequest dilewati; mencakup unique-vs-DB sebagai
+     * penjaga saat persist (dipanggil Action setelah kode-sementara
+     * sehingga swap valid lolos, duplikat nyata tetap 422). Gagal melempar
      * ValidationException sehingga pemanggil HTTP tetap merespons 422.
      *
      * @param  array<string, mixed>  $item
@@ -204,6 +225,26 @@ class KomponenMutationService
     public function validasiSintaks(string $indikatorId, array $item, ?string $abaikanId = null): void
     {
         $validator = Validator::make($item, $this->aturanItem($indikatorId, false, $abaikanId), $this->pesanItem());
+        $validator->after(function (ValidatorContract $v) use ($item): void {
+            $this->tambahErrorPenyebutBilaNol($v, $item, 'bobot');
+        });
+        $validator->validate();
+    }
+
+    /**
+     * Menjalankan validator sintaks kandidat tanpa cek unique-vs-DB-lama.
+     *
+     * Dipakai `modelKandidat`/jalur kandidat transisi formula agar baris
+     * baru yang memakai ulang kode yang dibebaskan baris existing pada
+     * payload yang sama tidak ditolak palsu. Duplikat DALAM payload tetap
+     * ditolak via `distinct`; duplikat final-set dan constraint DB
+     * ditegakkan pemanggil. Gagal melempar ValidationException (422).
+     *
+     * @param  array<string, mixed>  $item
+     */
+    public function validasiSintaksKandidat(array $item, bool $denganDistinct = false): void
+    {
+        $validator = Validator::make($item, $this->aturanSintaksItem($denganDistinct), $this->pesanItem());
         $validator->after(function (ValidatorContract $v) use ($item): void {
             $this->tambahErrorPenyebutBilaNol($v, $item, 'bobot');
         });
@@ -255,20 +296,27 @@ class KomponenMutationService
     /**
      * Model kandidat in-memory untuk penilaian komposisi akhir sebelum mutasi apa pun.
      *
+     * SENGAJA hanya validasi sintaks kandidat (tanpa unique-vs-DB-lama) agar
+     * tidak menolak karena row existing masih berkode lama; unique final-set
+     * dan constraint DB ditegakkan pemanggil. Parameter abaikan dipertahankan
+     * untuk kompatibilitas pemanggil tanpa dipakai menilai DB lama.
+     *
      * @param  array<string, mixed>  $item
      */
     public function modelKandidat(string $indikatorId, array $item, ?string $abaikanId = null): IndikatorKomponen
     {
-        $this->validasiSintaks($indikatorId, $item, $abaikanId);
+        $this->validasiSintaksKandidat($item);
 
         return new IndikatorKomponen($this->atributCreate($indikatorId, $item, ''));
     }
 
     /**
-     * Membuat satu baris komponen tervalidasi sintaks di dalam transaksi pemanggil.
+     * Membuat satu baris komponen tervalidasi sintaks penuh di dalam transaksi pemanggil.
      *
-     * Pemanggil tetap memegang kunci baris induk dan urutan kunci global; metode ini
-     * tidak membuka transaksi sendiri agar tidak memecah atomicity.
+     * Validasi mencakup unique-vs-DB sebagai penjaga saat persist sehingga
+     * tidak ada jalur `buat()` yang lolos sintaks. Pemanggil tetap memegang
+     * kunci baris induk dan urutan kunci global; metode ini tidak membuka
+     * transaksi sendiri agar tidak memecah atomicity.
      *
      * @param  array<string, mixed>  $item
      */

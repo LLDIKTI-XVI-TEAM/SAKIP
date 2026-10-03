@@ -88,6 +88,7 @@ const fullCan: SasaranIndikatorCapabilities = {
     indikator_delete: true,
     komponen_read: true,
     komponen_create: true,
+    komponen_update: true,
 };
 
 function renderIndex(
@@ -291,13 +292,23 @@ describe('Editor formula atomik', () => {
         expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
     });
 
-    it('menyembunyikan tombol Atur Formula bila komponen_create false walau indikator_update true', () => {
-        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_create: false });
+    it('R8-01 parity: update-only menampilkan tombol Atur Formula', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_read: true, komponen_create: false, komponen_update: true });
+        expect(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeTruthy();
+    });
+
+    it('R8-01 parity: create-tanpa-read menyembunyikan tombol Atur Formula', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_read: false, komponen_create: true, komponen_update: false });
         expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
     });
 
-    it('menampilkan tombol Atur Formula bila indikator_update dan komponen_create true', () => {
-        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_create: true });
+    it('R8-01 parity: read-only menyembunyikan tombol Atur Formula', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_read: true, komponen_create: false, komponen_update: false });
+        expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
+    });
+
+    it('R8-01 parity: full menampilkan tombol Atur Formula', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_read: true, komponen_create: true, komponen_update: true });
         expect(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeTruthy();
     });
 

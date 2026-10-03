@@ -99,4 +99,5 @@ export interface SasaranIndikatorCapabilities {
     regulasi_read?: boolean;
     komponen_read?: boolean;
     komponen_create?: boolean;
+    komponen_update?: boolean;
 }

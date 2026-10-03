@@ -34,7 +34,8 @@ class ChangeIndicatorFormula
      * dimuat (setelah kunci parent + cek token + guard alasan).
      * Urutan kunci: aktor/ACL → indikator → child → sasaran untuk redirect.
      * Jalur ini tidak membaca atau mengubah regulasi. Rationale operator
-     * (`alasan`) tervalidasi dicatat pada audit induk dan child.
+     * (`alasan`) tervalidasi dicatat pada audit induk bersama ringkasan
+     * transisi, dan utuh sebagai alasan utama audit child.
      *
      * @param  array{tipe_perhitungan: string, komponen?: list<array<string, mixed>>, expected_updated_at: string, alasan: string}  $validated
      * @return array{indikator: IndikatorKinerja, renstraId: ?string}
@@ -237,6 +238,11 @@ class ChangeIndicatorFormula
 
             foreach ($komponenBaru as $komponen) {
                 /** @var IndikatorKomponen $komponen */
+                // Rationale dicatat utuh sebagai alasan utama: prefiks konteks
+                // (kode/label) akan memicu pemangkasan `AlasanAudit::BATAS_MAKS`
+                // di `AuditLogger` dan menghilangkan ekor rationale, sedangkan
+                // konteks child tetap telusur via `tindakan` + `objek_id` +
+                // snapshot `nilai_baru`.
                 $this->auditLogger->catat(
                     actor: $actor,
                     tindakan: 'komponen.buat',
@@ -244,7 +250,7 @@ class ChangeIndicatorFormula
                     objekId: $komponen->id,
                     nilaiLama: null,
                     nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($komponen),
-                    alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.') via transisi formula atomik. Alasan: '.$alasan,
+                    alasan: $alasan,
                     dasarIzin: $createDecision->toAuditBasis(),
                 );
             }
@@ -256,7 +262,7 @@ class ChangeIndicatorFormula
                     objekId: $item->id,
                     nilaiLama: $old,
                     nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($item),
-                    alasan: 'Penyesuaian komponen '.$item->kode.' dalam konfigurasi formula akhir. Alasan: '.$alasan,
+                    alasan: $alasan,
                     dasarIzin: $updateDecision->toAuditBasis(),
                 );
             }

@@ -143,6 +143,7 @@ class IndexSasaranIndikator
                 'regulasi_read' => $canReadRegulasi,
                 'komponen_read' => $canReadKomponen,
                 'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
+                'komponen_update' => $this->resolver->resolve($user, 'komponen:update')->allowed,
             ],
         ];
     }
