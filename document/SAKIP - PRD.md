@@ -449,7 +449,7 @@ Setiap kombinasi Renstra + Tahun memiliki satu `jadwal_tahunan` yang membingkai 
 - `pakai_persetujuan_pimpinan` (boolean, default `false`) dan `persetujuan_mulai`/`persetujuan_selesai` — kolom disiapkan untuk Fase Lanjutan; pada Fase Awal selalu `false` dan tidak dipakai dalam alur (lihat §19.2).
 - `renstra_pk_id` — wajib diisi saat aktivasi; lihat gerbang validasi §12.4.
 - `activated_at` / `closed_at` — stempel waktu otomatis saat transisi status terjadi; nilai ini selalu mencatat waktu aktivasi/penutupan yang sebenarnya, termasuk untuk jadwal retroaktif (§12.6).
-- Constraint: unique per tahun di antara jadwal berstatus aktif untuk Renstra yang sama (tidak boleh dua jadwal aktif tumpang tindih tahun yang sama pada satu Renstra).
+- Constraint: unique (`renstra_id`, `tahun`) lintas seluruh status (`draft`, `aktif`, `ditutup`), sesuai [addendum ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Jika pasangan sudah memiliki jadwal, gunakan jadwal tersebut dengan hak edit sesuai status dan permission; tidak membuat jadwal kedua. Keunikan berlaku per pasangan Renstra–tahun, bukan per tahun lintas semua Renstra.
 
 Jendela waktu pengisian dan reviu pengukuran **tidak berada** di `jadwal_tahunan` — jendela itu dipecah per periode pada tabel `jadwal_periode` (§12.3), karena periode berbeda (mis. Triwulan I vs Triwulan IV) lazimnya punya tenggat yang berbeda pula. Jendela Rencana Aksi sebaliknya memang berada di level tahun karena disusun sekali per tahun.
 
@@ -1174,7 +1174,7 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks, preferensi pres
   - `target_tahunan`: unique(`indikator_id`, `tahun`).
   - `renstra_pk`: unique(`renstra_id`, `tahun`).
   - `regulasi`: unique(`jenis`, `nomor`, `tahun`).
-  - `jadwal_tahunan`: unique(`tahun`) di antara jadwal **aktif** untuk Renstra yang sama.
+  - `jadwal_tahunan`: unique(`renstra_id`, `tahun`) lintas seluruh status (`draft`, `aktif`, `ditutup`), sesuai §12.2 dan addendum ISS-03.01.
   - `jadwal_periode`: unique(`jadwal_id`, `periode_id`).
   - `jadwal_snapshot`: unique(`jadwal_id`, `indikator_id`) — menegakkan idempotensi pembentukan snapshot (§12.5); `jadwal_snapshot_komponen` mengikuti idempotensi induknya.
   - `permissions.kode`: unique.
