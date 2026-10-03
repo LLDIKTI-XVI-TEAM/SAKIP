@@ -1,5 +1,6 @@
 import { LogoutActions } from '@/Components/Auth/LogoutActions';
 import { NotificationDropdown } from '@/Components/NotificationDropdown';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
@@ -64,6 +65,7 @@ export function AuthenticatedLayout({
     const drawerRef = useRef<HTMLElement>(null);
 
     const [logoFailed, setLogoFailed] = useState(false);
+    const [isBrandHovered, setIsBrandHovered] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -355,7 +357,11 @@ export function AuthenticatedLayout({
             >
                 {/* Brand Header */}
                 <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
-                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+                    <div
+                        className="flex items-center gap-3 min-w-0 flex-1 mr-2"
+                        onMouseEnter={() => setIsBrandHovered(true)}
+                        onMouseLeave={() => setIsBrandHovered(false)}
+                    >
                         {!logoFailed && logoUrl && (
                             <img
                                 src={logoUrl}
@@ -368,9 +374,14 @@ export function AuthenticatedLayout({
                         )}
                         <div className="min-w-0 flex-1">
                             <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
-                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight truncate">
-                                {instansiNama}
-                            </p>
+                            <HoverScrollText
+                                text={instansiNama}
+                                isParentHovered={isBrandHovered}
+                                fadeFromColor="from-primary"
+                                className="w-full text-[10px] font-semibold text-white/75 tracking-wider leading-tight"
+                                textClassName="text-[10px] font-semibold text-white/75 tracking-wider leading-tight"
+                                scrollSpeed={35}
+                            />
                         </div>
                     </div>
                     <button

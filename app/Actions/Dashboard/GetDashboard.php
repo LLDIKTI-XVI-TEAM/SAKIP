@@ -6,6 +6,7 @@ use App\Actions\Pengukuran\PresentPengukuran;
 use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
@@ -49,6 +50,8 @@ class GetDashboard
             return [
                 'id' => $data['id'], 'status' => $data['status'], 'nilai' => $data['nilai'], 'status_perhitungan' => $data['status_perhitungan'], 'self_approval' => $data['self_approval'],
                 'reviu_terlambat' => $data['reviu_terlambat'],
+                'target' => $data['target'] ?? $item->jadwalSnapshot?->target,
+                'arah' => $indicator['arah'] ?? $item->jadwalSnapshot?->arah ?? 'naik_baik',
                 'satuan' => $indicator['satuan'], 'desimal_tampilan' => $indicator['desimal_tampilan'],
                 'indikator' => ['kode' => $indicator['kode'], 'nama' => $indicator['nama']],
                 'unit' => ['nama' => $data['penugasan_indikator']['unit_kerja']['nama']],
@@ -61,6 +64,14 @@ class GetDashboard
             $stats[$status] = (int) ($counts[$status] ?? 0);
         }
 
+        $raQuery = RencanaAksi::query()->when($jadwal, fn ($q) => $q->where('jadwal_tahunan_id', $jadwal->id))
+            ->whereNotIn('unit_id', $deniedUnits);
+        $raCounts = (clone $raQuery)->selectRaw('status_alur, count(*) as total')->groupBy('status_alur')->pluck('total', 'status_alur');
+        $raStats = [
+            'total' => (int) $raCounts->sum(),
+            'disahkan' => (int) ($raCounts['disahkan'] ?? 0),
+        ];
+
         return [
             'activeRenstra' => $renstra?->only(['id', 'nama', 'tahun_mulai', 'tahun_selesai']),
             'activePeriode' => $window ? [
@@ -68,7 +79,9 @@ class GetDashboard
                 'nama_periode' => $window->periode->nama.' '.$jadwal->tahun,
                 'status' => $activeWindow ? 'aktif' : 'terakhir',
             ] : null,
-            'stats' => $stats, 'pengukurans' => $rows,
+            'stats' => $stats,
+            'rencanaAksiStats' => $raStats,
+            'pengukurans' => $rows,
         ];
     }
 }

@@ -19,6 +19,8 @@ export interface HoverScrollTextProps {
     startDelay?: number;
     /** Class warna background untuk efek fade gradien di ujung kanan (default: 'from-surface') */
     fadeFromColor?: string;
+    /** Jika true, ratakan teks ke tengah ketika tidak terjadi overflow (default: false) */
+    centerWhenNoOverflow?: boolean;
 }
 
 export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
@@ -30,6 +32,7 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
     scrollSpeed = 35,
     startDelay = 0.35,
     fadeFromColor = 'from-surface',
+    centerWhenNoOverflow = false,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLSpanElement>(null);
@@ -78,7 +81,13 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
                     {icon}
                 </span>
             )}
-            <div ref={containerRef} className="overflow-hidden relative w-full flex items-center">
+            <div
+                ref={containerRef}
+                className={clsx(
+                    'overflow-hidden relative w-full flex items-center',
+                    centerWhenNoOverflow && overflow === 0 && 'justify-center'
+                )}
+            >
                 <span
                     ref={textRef}
                     className={twMerge(
