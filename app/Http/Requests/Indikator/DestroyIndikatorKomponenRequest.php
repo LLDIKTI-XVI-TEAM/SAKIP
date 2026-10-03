@@ -49,6 +49,7 @@ class DestroyIndikatorKomponenRequest extends FormRequest
     {
         return [
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'expected_updated_at' => ['required', 'date'],
         ];
     }
 
@@ -61,6 +62,8 @@ class DestroyIndikatorKomponenRequest extends FormRequest
             'alasan.required' => 'Alasan penghapusan komponen wajib diisi.',
             'alasan.min' => 'Alasan penghapusan komponen minimal 5 karakter.',
             'alasan.max' => 'Alasan penghapusan komponen maksimal 1000 karakter.',
+            'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 }

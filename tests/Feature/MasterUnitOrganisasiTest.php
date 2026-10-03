@@ -315,6 +315,10 @@ class MasterUnitOrganisasiTest extends TestCase
             'satuan' => '%',
             'unit_id' => $unit->id,
             'arah' => 'naik_baik',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->superadmin->id,
         ]);
 
         // Superadmin mencoba menghapus unit yang ada indikatornya
@@ -412,6 +416,10 @@ class MasterUnitOrganisasiTest extends TestCase
             'unit_id' => $unitAwal->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->superadmin->id,
         ]);
 
         $periode = Periode::create([
@@ -508,6 +516,10 @@ class MasterUnitOrganisasiTest extends TestCase
             'unit_id' => $unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'created_by_role' => 'perencanaan',
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->superadmin->id,
         ]);
 
         $periode = Periode::create([

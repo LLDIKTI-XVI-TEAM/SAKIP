@@ -422,7 +422,10 @@ test('delete ditolak saat regulasi dirujuk data aktif', function (bool $renstraA
         'kode' => 'IKU-REGULASI',
         'nama' => 'Indikator uji regulasi',
         'satuan' => '%',
-        'is_aktif' => ! $renstraAktif,
+        'status' => ! $renstraAktif ? 'aktif' : 'arsip',
+        'tahun_mulai_berlaku' => $renstra->tahun_mulai,
+        'created_by' => $this->perencanaan->id,
+        'created_by_role' => $this->perencanaan->roles->first()?->kode ?? 'perencanaan',
     ]);
 
     DB::enableQueryLog();
@@ -660,7 +663,10 @@ test('hapus lampiran ditolak saat regulasi dirujuk data aktif', function (bool $
         IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id, 'regulasi_id' => $regulasi->id,
             'unit_id' => Unit::create(['nama' => 'Unit fixture lampiran', 'created_by' => $this->perencanaan->id])->id,
-            'kode' => 'IK-LAMPIRAN', 'nama' => 'Indikator fixture lampiran', 'satuan' => '%', 'is_aktif' => true,
+            'kode' => 'IK-LAMPIRAN', 'nama' => 'Indikator fixture lampiran', 'satuan' => '%', 'status' => 'aktif',
+            'tahun_mulai_berlaku' => $renstra->tahun_mulai,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => $this->perencanaan->roles->first()?->kode ?? 'perencanaan',
         ]);
     }
     $berkas = $regulasi->berkas()->create([

@@ -8,14 +8,14 @@ final class PermissionCodes
 {
     // --- 15 Kode Permission Utama dalam Scope 10 Issue Aktif (§5 Dokumen Konfirmasi Permission) ---
 
-    // Pengguna & Hak Akses (ISS-01.03, ISS-01.04, ISS-01.05)
+    // Pengguna & Hak Akses
     public const PENGGUNA_READ = 'pengguna:read';
 
     public const AKSES_UPDATE = 'akses:update';
 
     public const DELEGASI_UPDATE = 'delegasi:update';
 
-    // Master Unit Organisasi (ISS-01.02)
+    // Master Unit Organisasi
     public const UNIT_CREATE = 'unit:create';
 
     public const UNIT_READ = 'unit:read';
@@ -24,7 +24,7 @@ final class PermissionCodes
 
     public const UNIT_DELETE = 'unit:delete';
 
-    // Dasar Aturan / Regulasi (ISS-02.01)
+    // Dasar Aturan / Regulasi
     public const REGULASI_CREATE = 'regulasi:create';
 
     public const REGULASI_READ = 'regulasi:read';
@@ -33,7 +33,7 @@ final class PermissionCodes
 
     public const REGULASI_DELETE = 'regulasi:delete';
 
-    // Master Renstra (ISS-02.02)
+    // Master Renstra
     public const RENSTRA_CREATE = 'renstra:create';
 
     public const RENSTRA_READ = 'renstra:read';
@@ -55,10 +55,10 @@ final class PermissionCodes
 
     public const JADWAL_UPDATE = 'jadwal:update';
 
-    // Pengaturan Presentasional & Storage (ISS-13.01, ISS-13.02)
+    // Pengaturan Presentasional & Storage
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 
-    // Persyaratan Jenis Berkas (ISS-11.01)
+    // Persyaratan Jenis Berkas
     public const JENIS_BERKAS_CREATE = 'jenis_berkas:create';
 
     public const JENIS_BERKAS_READ = 'jenis_berkas:read';
@@ -67,7 +67,22 @@ final class PermissionCodes
 
     public const JENIS_BERKAS_DELETE = 'jenis_berkas:delete';
 
-    // --- Kode Permission Scope Unit (ISS-01.04, Q32) ---
+    // Sasaran Strategis & Indikator Kinerja
+    public const SASARAN_CREATE = 'sasaran:create';
+
+    public const SASARAN_UPDATE = 'sasaran:update';
+
+    public const SASARAN_DELETE = 'sasaran:delete';
+
+    public const INDIKATOR_CREATE = 'indikator:create';
+
+    public const INDIKATOR_READ = 'indikator:read';
+
+    public const INDIKATOR_UPDATE = 'indikator:update';
+
+    public const INDIKATOR_DELETE = 'indikator:delete';
+
+    // --- Kode Permission Scope Unit ---
 
     public const RENCANA_AKSI_READ = 'rencana_aksi:read';
 
@@ -134,7 +149,7 @@ final class PermissionCodes
     }
 
     /**
-     * 7 Kode Permission Scope Unit untuk Form Grant (§6, ISS-01.04, Q32)
+     * 7 Kode Permission Scope Unit untuk Form Grant (§6).
      *
      * @return list<string>
      */
@@ -231,5 +246,26 @@ final class PermissionCodes
     public static function pengukuranUnitScoped(): array
     {
         return array_values(array_filter(self::unitScoped(), fn (string $code) => str_starts_with($code, 'pengukuran:')));
+    }
+
+    /** @return list<string> */
+    public static function sasaran(): array
+    {
+        return [
+            self::SASARAN_CREATE,
+            self::SASARAN_UPDATE,
+            self::SASARAN_DELETE,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function indikator(): array
+    {
+        return [
+            self::INDIKATOR_CREATE,
+            self::INDIKATOR_READ,
+            self::INDIKATOR_UPDATE,
+            self::INDIKATOR_DELETE,
+        ];
     }
 }

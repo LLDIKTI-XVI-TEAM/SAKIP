@@ -43,7 +43,8 @@ export interface IndikatorKinerjaData {
     arah: string;
     presisi: number;
     desimal_tampilan: number;
-    is_aktif: boolean;
+    status: 'aktif' | 'arsip';
+    updated_at?: string | null;
     sasaran_strategis?: {
         id: string;
         kode: string;
@@ -296,7 +297,10 @@ export default function KomponenIndex({
             setIsAuditModalOpen(true);
         } else {
             setIsSubmitting(true);
-            router.post(`/indikator/${indikator.id}/komponen`, formData as any, {
+            router.post(`/indikator/${indikator.id}/komponen`, {
+                ...formData,
+                expected_updated_at: indikator.updated_at ?? null,
+            } as any, {
                 onSuccess: () => {
                     setIsFormModalOpen(false);
                 },
@@ -335,13 +339,16 @@ export default function KomponenIndex({
             router.put(`/indikator/${indikator.id}/komponen/${formData.id}`, {
                 ...formData,
                 alasan: trimmed,
+                expected_updated_at: indikator.updated_at ?? null,
             } as any, {
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetKomponen(null);
                 },
                 onError: (errs) => {
-                    if (errs.alasan) {
+                    if (errs.komponen || errs.konflik || errs.expected_updated_at) {
+                        setAuditError(errs.komponen || errs.konflik || errs.expected_updated_at);
+                    } else if (errs.alasan) {
                         setAuditError(errs.alasan);
                     } else {
                         setFormErrors(errs);
@@ -358,13 +365,14 @@ export default function KomponenIndex({
             router.delete(`/indikator/${indikator.id}/komponen/${targetKomponen.id}`, {
                 data: {
                     alasan: trimmed,
+                    expected_updated_at: indikator.updated_at ?? null,
                 },
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetKomponen(null);
                 },
                 onError: (errs) => {
-                    setAuditError(errs.alasan || 'Gagal menghapus komponen indikator.');
+                    setAuditError(errs.komponen || errs.konflik || errs.expected_updated_at || errs.alasan || 'Gagal menghapus komponen indikator.');
                 },
                 onFinish: () => {
                     setIsSubmitting(false);
@@ -419,10 +427,10 @@ export default function KomponenIndex({
                             <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                                 {indikator.kode}
                             </span>
-                            {indikator.is_aktif ? (
-                                <Badge variant="success" size="sm">Aktif</Badge>
+                            {indikator.status === 'arsip' ? (
+                                <Badge variant="muted" size="sm">Arsip</Badge>
                             ) : (
-                                <Badge variant="muted" size="sm">Nonaktif</Badge>
+                                <Badge variant="success" size="sm">Aktif</Badge>
                             )}
                         </div>
                         <h2 className="text-sm font-semibold text-ink">
@@ -858,11 +866,6 @@ export default function KomponenIndex({
                 isOpen={isFormModalOpen}
                 onClose={() => setIsFormModalOpen(false)}
                 title={isEditing ? 'Ubah Komponen Indikator' : 'Tambah Komponen Indikator'}
-                description={
-                    isEditing
-                        ? 'Perbarui definisi komponen indikator data-driven. Perubahan memerlukan pengisian alasan audit.'
-                        : 'Tambahkan variabel komponen baru sebagai input pembentuk nilai indikator.'
-                }
                 size="lg"
                 footer={
                     <div className="flex items-center justify-end gap-2.5">
@@ -886,6 +889,11 @@ export default function KomponenIndex({
                 }
             >
                 <form onSubmit={handleFormSubmit} className="space-y-4">
+                    {(formErrors.komponen || formErrors.konflik || formErrors.expected_updated_at) && (
+                        <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+                            {formErrors.komponen || formErrors.konflik || formErrors.expected_updated_at}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Kode Komponen */}
                         <div>
@@ -896,7 +904,7 @@ export default function KomponenIndex({
                                 value={formData.kode}
                                 onChange={e => setFormData(prev => ({ ...prev, kode: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
                                 error={formErrors.kode}
-                                helperText="Hanya huruf kecil, angka, dan garis bawah (_)."
+                                helperText="Huruf kecil, angka, dan underscore."
                             />
                         </div>
 
@@ -926,7 +934,6 @@ export default function KomponenIndex({
                             value={formData.label}
                             onChange={e => setFormData(prev => ({ ...prev, label: e.target.value }))}
                             error={formErrors.label}
-                            helperText="Deskripsi lengkap dan jelas mengenai angka yang diinput."
                         />
                     </div>
 
@@ -943,7 +950,6 @@ export default function KomponenIndex({
                                 value={formData.bobot}
                                 onChange={e => setFormData(prev => ({ ...prev, bobot: e.target.value }))}
                                 error={formErrors.bobot}
-                                helperText="Pengali bobot pada formula (maks. 12 digit pecahan desimal)."
                             />
                         </div>
 
@@ -958,7 +964,6 @@ export default function KomponenIndex({
                                 value={formData.urutan}
                                 onChange={e => setFormData(prev => ({ ...prev, urutan: e.target.value }))}
                                 error={formErrors.urutan}
-                                helperText="Urutan posisi tampilan komponen."
                             />
                         </div>
 
@@ -970,7 +975,6 @@ export default function KomponenIndex({
                                 value={formData.satuan}
                                 onChange={e => setFormData(prev => ({ ...prev, satuan: e.target.value }))}
                                 error={formErrors.satuan}
-                                helperText="Opsional."
                             />
                         </div>
                     </div>
