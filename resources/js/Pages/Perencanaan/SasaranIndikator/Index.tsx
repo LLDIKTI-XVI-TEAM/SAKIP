@@ -432,7 +432,7 @@ export default function SasaranIndikatorIndex({
                                                                         </Link>
                                                                     )}
 
-                                                                    {can.indikator_update && (
+                                                                    {can.indikator_update && can.komponen_create && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setFormulaTarget(ind)}

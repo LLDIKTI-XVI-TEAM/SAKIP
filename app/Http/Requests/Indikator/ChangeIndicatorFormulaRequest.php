@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Indikator;
 
 use App\Models\IndikatorKinerja;
+use App\Services\Kinerja\KomponenMutationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,10 @@ class ChangeIndicatorFormulaRequest extends FormRequest
      * `komponen` adalah daftar akhir; ID existing harus milik indikator.
      * Child yang tidak disertakan dinonaktifkan oleh Action. Kekosongan
      * nonmanual ditolak penentu domain di dalam transaksi.
+     *
+     * `alasan` adalah rationale operator (pola `UpdateIndikatorKomponenRequest`:
+     * wajib min 5); sanitasi + batas tulis didelegasikan ke boundary audit
+     * (`AuditLogger`/`WriteAuditLog`), bukan duplikat helper di sini.
      *
      * @return array<string, mixed>
      */
@@ -51,57 +56,52 @@ class ChangeIndicatorFormulaRequest extends FormRequest
             'komponen.*.urutan' => ['required', 'integer', 'min:1', 'max:32767'],
             'komponen.*.aktif' => ['sometimes', 'boolean'],
             'expected_updated_at' => ['required', 'date'],
+            'alasan' => ['required', 'string', 'min:5', 'max:1000'],
         ];
     }
 
     /**
-     * Bobot penyebut wajib > 0 diperiksa per item (padanan closure sintaks
-     * StoreIndikatorKomponenRequest untuk payload bersarang).
+     * Bobot penyebut wajib > 0 diperiksa per item via layanan bersama agar
+     * pesan identik dengan jalur normal (bentuk error key bersarang dipertahankan).
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function ($validator): void {
             /** @var list<array<string, mixed>> $items */
             $items = is_array($this->input('komponen')) ? $this->input('komponen') : [];
+            $layanan = app(KomponenMutationService::class);
             foreach ($items as $index => $item) {
                 if (! is_array($item)) {
                     continue;
                 }
-                if (($item['peran'] ?? null) === 'penyebut') {
-                    $bobot = isset($item['bobot']) ? (float) $item['bobot'] : 0.0;
-                    if ($bobot <= 0 || round($bobot, 12) <= 0) {
-                        $validator->errors()->add(
-                            "komponen.{$index}.bobot",
-                            'Bobot untuk komponen dengan peran penyebut wajib lebih besar dari 0.'
-                        );
-                    }
-                }
+                $layanan->tambahErrorPenyebutBilaNol($validator, $item, "komponen.{$index}.bobot");
             }
         });
     }
 
     /**
+     * Pesan wrapper dipertahankan di sini; pesan per item delegasi ke peta
+     * tunggal layanan agar teks identik dengan jalur normal.
+     *
      * @return array<string, string>
      */
     public function messages(): array
     {
-        return [
-            'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
-            'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
-            'komponen.present' => 'Konfigurasi komponen wajib disertakan (boleh kosong untuk target manual).',
-            'komponen.array' => 'Konfigurasi komponen harus berupa daftar.',
-            'komponen.*.kode.required' => 'Kode komponen wajib diisi.',
-            'komponen.*.kode.regex' => 'Kode komponen hanya boleh berisi huruf, angka, dan garis bawah (_).',
-            'komponen.*.kode.distinct' => 'Kode komponen tidak boleh duplikat dalam satu transisi.',
-            'komponen.*.kode.unique' => 'Kode komponen sudah digunakan pada indikator ini.',
-            'komponen.*.label.required' => 'Label komponen wajib diisi.',
-            'komponen.*.peran.required' => 'Peran komponen wajib dipilih.',
-            'komponen.*.peran.in' => 'Peran komponen harus salah satu dari: pembilang, penyebut, penjumlah.',
-            'komponen.*.bobot.required' => 'Bobot komponen wajib diisi.',
-            'komponen.*.bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
-            'komponen.*.urutan.required' => 'Urutan komponen wajib diisi.',
-            'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
-            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
-        ];
+        return array_merge(
+            [
+                'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
+                'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
+                'komponen.present' => 'Konfigurasi komponen wajib disertakan (boleh kosong untuk target manual).',
+                'komponen.array' => 'Konfigurasi komponen harus berupa daftar.',
+                'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
+                'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
+                'alasan.required' => 'Alasan perubahan formula wajib diisi.',
+                'alasan.min' => 'Alasan perubahan formula minimal 5 karakter.',
+                'alasan.max' => 'Alasan perubahan formula maksimal 1000 karakter.',
+                'komponen.*.id.uuid' => 'Identitas komponen tidak valid.',
+                'komponen.*.id.distinct' => 'Identitas komponen tidak boleh duplikat dalam satu transisi.',
+            ],
+            app(KomponenMutationService::class)->pesanBersarang()
+        );
     }
 }

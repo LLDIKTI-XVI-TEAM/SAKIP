@@ -2857,6 +2857,7 @@ class SasaranIndikatorTest extends TestCase
                 ['kode' => 't', 'label' => 'Penyebut R3-01', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+            'alasan' => 'Transisi atomik manual ke rasio dengan pembilang dan penyebut.',
         ]);
 
         $response->assertRedirect();
@@ -2906,6 +2907,7 @@ class SasaranIndikatorTest extends TestCase
                 ['kode' => 'jml', 'label' => 'Penjumlah R3-01', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+            'alasan' => 'Transisi atomik manual ke penjumlahan dengan satu penjumlah.',
         ]);
 
         $response->assertRedirect();
@@ -2950,6 +2952,7 @@ class SasaranIndikatorTest extends TestCase
                 ['kode' => 'n', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+            'alasan' => 'Kontrol transisi tak lengkap: rasio hanya pembilang tanpa penyebut.',
         ]);
 
         $response->assertSessionHasErrors(['tipe_perhitungan']);
@@ -2993,6 +2996,7 @@ class SasaranIndikatorTest extends TestCase
                 ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
             ],
             'expected_updated_at' => $tokenLama,
+            'alasan' => 'Tab pertama transisi atomik manual ke rasio.',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         // Tab kedua memakai token lama → 409 tanpa mutasi tambahan.
@@ -3002,6 +3006,7 @@ class SasaranIndikatorTest extends TestCase
                 ['kode' => 'j2', 'label' => 'Penjumlah Susulan', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
             ],
             'expected_updated_at' => $tokenLama,
+            'alasan' => 'Tab kedua memakai token lama pasca transisi tab pertama.',
         ]);
 
         $this->assertContains($responseUsang->getStatusCode(), [409, 302]);
@@ -3097,6 +3102,7 @@ class SasaranIndikatorTest extends TestCase
                 'urutan' => $urutan + 1,
                 'aktif' => false,
                 'alasan' => 'Menonaktifkan komponen sebelum beralih ke tipe manual.',
+                'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString(),
             ])->assertRedirect()->assertSessionHasErrors(['komponen']);
             $this->assertTrue($komponen->fresh()->aktif);
         }
@@ -3107,6 +3113,7 @@ class SasaranIndikatorTest extends TestCase
                 'tipe_perhitungan' => 'manual',
                 'komponen' => [],
                 'expected_updated_at' => $indikator->fresh()->updated_at->toISOString(),
+                'alasan' => 'Menonaktifkan kedua child dan mengubah tipe sekaligus.',
             ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->actingAs($this->perencanaan)
@@ -3123,6 +3130,7 @@ class SasaranIndikatorTest extends TestCase
             'bobot' => 1.0,
             'urutan' => 3,
             'aktif' => true,
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString(),
         ])->assertSessionHasErrors(['indikator']);
         $this->assertDatabaseMissing('indikator_komponen', [
             'indikator_id' => $indikator->id,

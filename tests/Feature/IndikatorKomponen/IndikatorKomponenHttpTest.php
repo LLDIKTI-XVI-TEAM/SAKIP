@@ -112,6 +112,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 2,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $response->assertSessionHasErrors(['kode']);
@@ -163,6 +164,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'satuan' => 'Skor',
                 'aktif' => true,
                 'alasan' => 'Penyesuaian bobot final IKU 3 menjadi 0.5 sesuai klarifikasi kementerian.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $updateResponse->assertSessionHasNoErrors();
@@ -181,6 +183,7 @@ class IndikatorKomponenHttpTest extends TestCase
         $deleteResponse = $this->actingAs($this->perencanaan)
             ->delete("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
                 'alasan' => 'Penghapusan komponen usang.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $deleteResponse->assertSessionHasNoErrors();
@@ -275,6 +278,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'urutan' => 1,
                 'aktif' => true,
                 'alasan' => 'Perubahan master data tidak boleh menyentuh snapshot historis.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasNoErrors();
 
@@ -378,6 +382,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $indikatorManual->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('indikator');
 
@@ -401,6 +406,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => '0.0000000000001', // 13 digit desimal
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('bobot');
     }
@@ -418,6 +424,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => '0',
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('bobot');
     }
@@ -442,6 +449,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => $exactBobot,
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasNoErrors();
 
@@ -484,6 +492,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 2,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('kode');
     }

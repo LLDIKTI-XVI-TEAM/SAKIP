@@ -44,6 +44,7 @@ export interface IndikatorKinerjaData {
     presisi: number;
     desimal_tampilan: number;
     status: 'aktif' | 'arsip';
+    updated_at?: string | null;
     sasaran_strategis?: {
         id: string;
         kode: string;
@@ -296,7 +297,10 @@ export default function KomponenIndex({
             setIsAuditModalOpen(true);
         } else {
             setIsSubmitting(true);
-            router.post(`/indikator/${indikator.id}/komponen`, formData as any, {
+            router.post(`/indikator/${indikator.id}/komponen`, {
+                ...formData,
+                expected_updated_at: indikator.updated_at ?? null,
+            } as any, {
                 onSuccess: () => {
                     setIsFormModalOpen(false);
                 },
@@ -335,13 +339,16 @@ export default function KomponenIndex({
             router.put(`/indikator/${indikator.id}/komponen/${formData.id}`, {
                 ...formData,
                 alasan: trimmed,
+                expected_updated_at: indikator.updated_at ?? null,
             } as any, {
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetKomponen(null);
                 },
                 onError: (errs) => {
-                    if (errs.alasan) {
+                    if (errs.komponen || errs.konflik || errs.expected_updated_at) {
+                        setAuditError(errs.komponen || errs.konflik || errs.expected_updated_at);
+                    } else if (errs.alasan) {
                         setAuditError(errs.alasan);
                     } else {
                         setFormErrors(errs);
@@ -358,13 +365,14 @@ export default function KomponenIndex({
             router.delete(`/indikator/${indikator.id}/komponen/${targetKomponen.id}`, {
                 data: {
                     alasan: trimmed,
+                    expected_updated_at: indikator.updated_at ?? null,
                 },
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
                     setTargetKomponen(null);
                 },
                 onError: (errs) => {
-                    setAuditError(errs.komponen || errs.konflik || errs.alasan || 'Gagal menghapus komponen indikator.');
+                    setAuditError(errs.komponen || errs.konflik || errs.expected_updated_at || errs.alasan || 'Gagal menghapus komponen indikator.');
                 },
                 onFinish: () => {
                     setIsSubmitting(false);
@@ -881,9 +889,9 @@ export default function KomponenIndex({
                 }
             >
                 <form onSubmit={handleFormSubmit} className="space-y-4">
-                    {(formErrors.komponen || formErrors.konflik) && (
+                    {(formErrors.komponen || formErrors.konflik || formErrors.expected_updated_at) && (
                         <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
-                            {formErrors.komponen || formErrors.konflik}
+                            {formErrors.komponen || formErrors.konflik || formErrors.expected_updated_at}
                         </div>
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

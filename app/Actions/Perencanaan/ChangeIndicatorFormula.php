@@ -30,10 +30,13 @@ class ChangeIndicatorFormula
      * Identitas child dipertahankan; child yang tidak disertakan dinonaktifkan,
      * sehingga referensi historis tidak dihapus. Seluruh kandidat dinilai sebelum
      * persist. Izin granular sesuai delta, versi induk, mutation dan audit atomic.
+     * Gate baca komponen diwajibkan untuk setiap final-set sebelum child
+     * dimuat (setelah kunci parent + cek token + guard alasan).
      * Urutan kunci: aktor/ACL → indikator → child → sasaran untuk redirect.
-     * Jalur ini tidak membaca atau mengubah regulasi.
+     * Jalur ini tidak membaca atau mengubah regulasi. Rationale operator
+     * (`alasan`) tervalidasi dicatat pada audit induk dan child.
      *
-     * @param  array{tipe_perhitungan: string, komponen?: list<array<string, mixed>>, expected_updated_at: string}  $validated
+     * @param  array{tipe_perhitungan: string, komponen?: list<array<string, mixed>>, expected_updated_at: string, alasan: string}  $validated
      * @return array{indikator: IndikatorKinerja, renstraId: ?string}
      */
     public function handle(User $actor, IndikatorKinerja $indikator, array $validated): array
@@ -62,10 +65,12 @@ class ChangeIndicatorFormula
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
-            // Kunci kedua permission sebelum parent; kewajiban izin ditentukan
-            // dari delta aktual setelah kandidat disusun.
+            // Kunci ketiga permission sebelum parent; kewajiban create/update
+            // ditentukan dari delta aktual setelah kandidat disusun, sedangkan
+            // baca diwajibkan untuk setiap final-set sebelum child dimuat.
             $createDecision = $this->lockedActor->handle($lockedActor, 'komponen:create')['keputusan'];
             $updateDecision = $this->lockedActor->handle($lockedActor, 'komponen:update')['keputusan'];
+            $readDecision = $this->lockedActor->handle($lockedActor, 'komponen:read')['keputusan'];
 
             /** @var IndikatorKinerja $lockedIndikator */
             $lockedIndikator = IndikatorKinerja::query()
@@ -96,6 +101,33 @@ class ChangeIndicatorFormula
                 throw ValidationException::withMessages([
                     'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
                 ])->status(409);
+            }
+
+            // Rationale operator wajib hadir sebelum mutasi/audit apa pun.
+            // HTTP sudah ditolak 422 oleh FormRequest; guard ini menutup
+            // pemanggil Action-langsung dengan respons yang sama.
+            $alasan = isset($validated['alasan']) && is_string($validated['alasan']) ? trim($validated['alasan']) : '';
+            if ($alasan === '') {
+                throw ValidationException::withMessages([
+                    'alasan' => 'Alasan perubahan formula wajib diisi.',
+                ]);
+            }
+            if (mb_strlen($alasan, 'UTF-8') < 5) {
+                throw ValidationException::withMessages([
+                    'alasan' => 'Alasan perubahan formula minimal 5 karakter.',
+                ]);
+            }
+
+            // Gate baca final-set: tanpa wewenang baca efektif, child
+            // tersembunyi tidak boleh dimuat/dimutasi via tebakan ID.
+            // Diposisikan setelah kunci parent + cek token + guard alasan
+            // (perilaku allow R7-03 utuh) dan sebelum kunci/muat child.
+            if (! $readDecision->allowed) {
+                return [
+                    'status' => 'denied',
+                    'alasan' => 'Perubahan formula indikator ditolak karena wewenang baca komponen tidak lagi berlaku.',
+                    'dasarIzin' => $readDecision->toAuditBasis(),
+                ];
             }
 
             $nilaiLama = $lockedIndikator->withoutRelations()->toArray();
@@ -129,10 +161,8 @@ class ChangeIndicatorFormula
                 throw ValidationException::withMessages(['kode' => $this->mutasiKomponen->pesanKodeDuplikat()]);
             }
 
-            $kandidat = clone $lockedIndikator;
-            $kandidat->tipe_perhitungan = $kandidatTipe;
-            $this->mutasiKomponen->pastikanDefinisiValid($kandidat, $finalKomponen, 'tipe_perhitungan');
-
+            // Izin granular dinilai sebelum validitas formula agar pemanggil
+            // tanpa wewenang mutation tidak menerima informasi validitas.
             $newComponents = $finalKomponen->filter(fn ($item) => ! $item->exists);
             $changedComponents = $finalKomponen->filter(fn ($item) => $item->exists && $item->isDirty());
             foreach ([
@@ -147,6 +177,10 @@ class ChangeIndicatorFormula
                     ];
                 }
             }
+
+            $kandidat = clone $lockedIndikator;
+            $kandidat->tipe_perhitungan = $kandidatTipe;
+            $this->mutasiKomponen->pastikanDefinisiValid($kandidat, $finalKomponen, 'tipe_perhitungan');
 
             $komponenBaru = [];
             $komponenDiubah = [];
@@ -197,7 +231,7 @@ class ChangeIndicatorFormula
                 objekId: (string) $lockedIndikator->id,
                 nilaiLama: $nilaiLama,
                 nilaiBaru: $nilaiBaru,
-                alasan: "Menyimpan formula indikator '{$lockedIndikator->kode}' dari {$nilaiLama['tipe_perhitungan']} ke {$kandidatTipe} dengan ".count($komponenBaru).' komponen baru dan '.count($komponenDiubah).' komponen diubah secara atomik.',
+                alasan: "Menyimpan formula indikator '{$lockedIndikator->kode}' dari {$nilaiLama['tipe_perhitungan']} ke {$kandidatTipe} dengan ".count($komponenBaru).' komponen baru dan '.count($komponenDiubah).' komponen diubah secara atomik. Alasan: '.$alasan,
                 dasarIzin: $dasarIzin,
             );
 
@@ -210,7 +244,7 @@ class ChangeIndicatorFormula
                     objekId: $komponen->id,
                     nilaiLama: null,
                     nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($komponen),
-                    alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.') via transisi formula atomik',
+                    alasan: 'Penambahan komponen indikator '.$komponen->kode.' ('.$komponen->label.') via transisi formula atomik. Alasan: '.$alasan,
                     dasarIzin: $createDecision->toAuditBasis(),
                 );
             }
@@ -222,7 +256,7 @@ class ChangeIndicatorFormula
                     objekId: $item->id,
                     nilaiLama: $old,
                     nilaiBaru: $this->mutasiKomponen->formatAuditSnapshot($item),
-                    alasan: 'Penyesuaian komponen '.$item->kode.' dalam konfigurasi formula akhir.',
+                    alasan: 'Penyesuaian komponen '.$item->kode.' dalam konfigurasi formula akhir. Alasan: '.$alasan,
                     dasarIzin: $updateDecision->toAuditBasis(),
                 );
             }

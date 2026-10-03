@@ -142,6 +142,7 @@ class IndexSasaranIndikator
                 'indikator_delete' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_DELETE)->allowed,
                 'regulasi_read' => $canReadRegulasi,
                 'komponen_read' => $canReadKomponen,
+                'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
             ],
         ];
     }

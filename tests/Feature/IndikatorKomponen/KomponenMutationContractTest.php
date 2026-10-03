@@ -115,6 +115,7 @@ class KomponenMutationContractTest extends TestCase
                 'urutan' => 1,
                 'satuan' => 'poin',
                 'aktif' => true,
+                'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect("/indikator/{$indikatorPost->id}/komponen");
@@ -134,6 +135,7 @@ class KomponenMutationContractTest extends TestCase
                     ],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
+                'alasan' => 'Penambahan penjumlah valid via transisi formula atomik.',
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect();
@@ -194,6 +196,7 @@ class KomponenMutationContractTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 2,
                 'aktif' => true,
+                'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
             ->assertSessionHasErrors(['kode']);
 
@@ -208,6 +211,7 @@ class KomponenMutationContractTest extends TestCase
                     ['kode' => 'dup_kode', 'label' => 'Duplikat Atomik', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
+                'alasan' => 'Kontrol pesan kode duplikat pada jalur formula.',
             ])
             ->assertSessionHasErrors();
 
@@ -231,6 +235,7 @@ class KomponenMutationContractTest extends TestCase
                 'bobot' => '0',
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
             ->assertSessionHasErrors(['bobot']);
 
@@ -244,6 +249,7 @@ class KomponenMutationContractTest extends TestCase
                     ['kode' => 't_nol', 'label' => 'Penyebut Nol', 'peran' => 'penyebut', 'bobot' => '0', 'urutan' => 2, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
+                'alasan' => 'Kontrol pesan penyebut nol pada jalur formula.',
             ])
             ->assertSessionHasErrors();
 
@@ -285,6 +291,7 @@ class KomponenMutationContractTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 3,
                 'aktif' => true,
+                'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
             ->assertSessionHasErrors('komponen');
 
@@ -302,6 +309,7 @@ class KomponenMutationContractTest extends TestCase
                     ['kode' => 'jml_campur', 'label' => 'Penjumlah Campur', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
+                'alasan' => 'Kontrol penentu peran campur pada jalur formula.',
             ])
             ->assertSessionHasErrors(['tipe_perhitungan']);
 
@@ -332,6 +340,7 @@ class KomponenMutationContractTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
             ->assertSessionHasErrors('komponen');
 
@@ -346,6 +355,7 @@ class KomponenMutationContractTest extends TestCase
                     ['kode' => 'n_saja', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
+                'alasan' => 'Kontrol rasio tanpa penyebut pada jalur formula.',
             ])
             ->assertSessionHasErrors(['tipe_perhitungan']);
 

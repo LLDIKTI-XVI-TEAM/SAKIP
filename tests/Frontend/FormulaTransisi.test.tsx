@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { UserEvent } from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
@@ -26,6 +27,12 @@ afterEach(() => {
 });
 
 const UPDATED_AT = '2026-10-02T10:00:00.000Z';
+
+const ALASAN = 'Penyesuaian formula sesuai arahan pimpinan.';
+
+async function isiAlasan(user: UserEvent) {
+    await user.type(screen.getByLabelText(/alasan perubahan formula/i), ALASAN);
+}
 
 const RASIO_KOMPONEN: FormulaKomponenItem[] = [
     { id: '00000000-0000-4000-8000-000000000001', kode: 'N', label: 'Capaian aktual', peran: 'pembilang', bobot: '1.000000000001', urutan: 1, satuan: 'Dokumen', aktif: true },
@@ -80,6 +87,7 @@ const fullCan: SasaranIndikatorCapabilities = {
     indikator_update: true,
     indikator_delete: true,
     komponen_read: true,
+    komponen_create: true,
 };
 
 function renderIndex(
@@ -123,8 +131,9 @@ describe('Editor formula atomik', () => {
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), tipe);
         expect((screen.getByLabelText(/kode komponen 1/i) as HTMLInputElement).value).toBe(komponen[0].kode);
         expect((screen.getByLabelText(/kode komponen 2/i) as HTMLInputElement).value).toBe(komponen[1].kode);
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
-        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: tipe, komponen, expected_updated_at: UPDATED_AT });
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: tipe, komponen, expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
     it('menampilkan hanya komponen active saat formula existing nonmanual pertama dibuka', async () => {
@@ -136,8 +145,9 @@ describe('Editor formula atomik', () => {
         }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         expect(screen.queryByLabelText(/kode komponen 3/i)).toBeNull();
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
-        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN, expected_updated_at: UPDATED_AT });
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN, expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
     it('tidak membuka transition dari manual ketika data komponen tidak dapat diakses', async () => {
@@ -165,6 +175,7 @@ describe('Editor formula atomik', () => {
         const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await isiAlasan(user);
         await user.dblClick(screen.getByRole('button', { name: 'Simpan Formula' }));
         await user.click(screen.getByRole('button', { name: 'Batal' }));
         expect(patchSpy).toHaveBeenCalledTimes(1);
@@ -176,6 +187,7 @@ describe('Editor formula atomik', () => {
         const patchSpy = vi.spyOn(router, 'patch').mockImplementation((() => undefined) as unknown as typeof router.patch);
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
         const options = patchSpy.mock.calls[0]?.[2] as unknown as {
             onSuccess?: (page: { props: Record<string, unknown>; flash: { error: string } }) => void;
@@ -205,12 +217,14 @@ describe('Editor formula atomik', () => {
 
         await user.clear(screen.getByLabelText(/label komponen 1/i));
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Label dikoreksi');
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
 
         expect(patchSpy).toHaveBeenCalledTimes(1);
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({
             tipe_perhitungan: tipe,
             expected_updated_at: UPDATED_AT,
+            alasan: ALASAN,
             komponen: [{ ...komponen[0], label: 'Label dikoreksi' }, komponen[1]],
         });
     });
@@ -224,10 +238,11 @@ describe('Editor formula atomik', () => {
         await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'penjumlahan');
         await user.selectOptions(screen.getByLabelText(/peran komponen 1/i), 'penjumlah');
         await user.click(screen.getByRole('button', { name: 'Hapus komponen 2' }));
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
 
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({
-            tipe_perhitungan: 'penjumlahan', expected_updated_at: UPDATED_AT,
+            tipe_perhitungan: 'penjumlahan', expected_updated_at: UPDATED_AT, alasan: ALASAN,
             komponen: [{ ...RASIO_KOMPONEN[0], peran: 'penjumlah' }],
         });
     });
@@ -242,8 +257,9 @@ describe('Editor formula atomik', () => {
         expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
         expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
         expect(screen.getByText(/komponen perhitungan existing akan dinonaktifkan/i)).toBeTruthy();
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
-        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'manual', komponen: [], expected_updated_at: UPDATED_AT });
+        expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'manual', komponen: [], expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
     it('mempertahankan input existing setelah error validasi dan stale dari server', async () => {
@@ -252,6 +268,7 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.type(screen.getByLabelText(/label komponen 1/i), ' terkoreksi');
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
         const options = patchSpy.mock.calls[0]?.[2] as unknown as { onError?: (errors: Record<string, string>) => void };
         await act(async () => options.onError?.({ konflik: 'Versi formula berubah. Muat ulang halaman.', 'komponen.0.peran': 'Definisi formula tidak valid.' }));
@@ -272,6 +289,16 @@ describe('Editor formula atomik', () => {
     it('menyembunyikan tombol Atur Formula bila can.indikator_update false', () => {
         renderIndex(makeIndikator(), { ...fullCan, indikator_update: false });
         expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
+    });
+
+    it('menyembunyikan tombol Atur Formula bila komponen_create false walau indikator_update true', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_create: false });
+        expect(screen.queryByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeNull();
+    });
+
+    it('menampilkan tombol Atur Formula bila indikator_update dan komponen_create true', () => {
+        renderIndex(makeIndikator(), { ...fullCan, indikator_update: true, komponen_create: true });
+        expect(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' })).toBeTruthy();
     });
 
     it('membuka indikator manual dengan daftar komponen kosong tanpa baris palsu', async () => {
@@ -310,6 +337,47 @@ describe('Editor formula atomik', () => {
 
         expect(screen.getByText('Kode komponen wajib diisi.')).toBeTruthy();
         expect(screen.getByText('Label komponen wajib diisi.')).toBeTruthy();
+        expect(screen.getByText('Alasan perubahan formula wajib diisi.')).toBeTruthy();
+        expect(patchSpy).not.toHaveBeenCalled();
+    });
+
+    it('menolak submit tanpa alasan tanpa memanggil PATCH', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi
+            .spyOn(router, 'patch')
+            .mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex();
+
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
+
+        await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
+        await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai pembilang');
+
+        await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
+        await user.type(screen.getByLabelText(/kode komponen 2/i), 'T');
+        await user.type(screen.getByLabelText(/label komponen 2/i), 'Nilai penyebut');
+        await user.selectOptions(screen.getByLabelText(/peran komponen 2/i), 'penyebut');
+
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+
+        expect(screen.getByText('Alasan perubahan formula wajib diisi.')).toBeTruthy();
+        expect(patchSpy).not.toHaveBeenCalled();
+    });
+
+    it('menolak alasan terlalu pendek tanpa memanggil PATCH', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi
+            .spyOn(router, 'patch')
+            .mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
+
+        await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+        await user.type(screen.getByLabelText(/alasan perubahan formula/i), 'abc');
+        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+
+        expect(screen.getByText('Alasan perubahan formula minimal 5 karakter.')).toBeTruthy();
         expect(patchSpy).not.toHaveBeenCalled();
     });
 
@@ -343,7 +411,7 @@ describe('Editor formula atomik', () => {
         expect(patchSpy).not.toHaveBeenCalled();
     });
 
-    it('mengirim PATCH formula dengan tipe, komponen, dan expected_updated_at saat valid', async () => {
+    it('mengirim PATCH formula dengan tipe, komponen, expected_updated_at, dan alasan saat valid', async () => {
         const user = userEvent.setup();
         const patchSpy = vi
             .spyOn(router, 'patch')
@@ -362,6 +430,7 @@ describe('Editor formula atomik', () => {
         await user.type(screen.getByLabelText(/label komponen 2/i), 'Nilai penyebut');
         await user.selectOptions(screen.getByLabelText(/peran komponen 2/i), 'penyebut');
 
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
 
         expect(patchSpy).toHaveBeenCalledTimes(1);
@@ -371,9 +440,11 @@ describe('Editor formula atomik', () => {
             tipe_perhitungan: string;
             komponen: Array<Record<string, unknown>>;
             expected_updated_at: string;
+            alasan: string;
         };
         expect(sentData.tipe_perhitungan).toBe('rasio_persen');
         expect(sentData.expected_updated_at).toBe(UPDATED_AT);
+        expect(sentData.alasan).toBe(ALASAN);
         expect(sentData.komponen).toHaveLength(2);
         expect(sentData.komponen[0]?.['kode']).toBe('N');
         expect(sentData.komponen[0]?.['peran']).toBe('pembilang');
@@ -393,6 +464,7 @@ describe('Editor formula atomik', () => {
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai jumlah');
+        await isiAlasan(user);
         await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
 
         const options = vi.mocked(router.patch).mock.calls[0]?.[2] as unknown as {

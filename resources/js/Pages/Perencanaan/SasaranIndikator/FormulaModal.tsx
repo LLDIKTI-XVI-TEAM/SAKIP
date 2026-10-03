@@ -6,6 +6,7 @@ import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Switch } from '@/Components/Switch';
+import { Textarea } from '@/Components/Textarea';
 import type {
     FormulaKomponenInput,
     FormulaKomponenItem,
@@ -80,6 +81,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
         tipe_perhitungan: 'manual' as IndikatorTipePerhitungan,
         komponen: [] as FormulaKomponenInput[],
         expected_updated_at: '',
+        alasan: '',
     });
 
     useEffect(() => {
@@ -99,6 +101,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                     ? []
                     : (indikator.komponen ?? []).filter((row) => row.aktif).map(componentFormRow),
                 expected_updated_at: indikator.updated_at ?? '',
+                alasan: '',
             });
         } else if (!isOpen && wasOpen) {
             reset();
@@ -253,6 +256,15 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                 found[`komponen.${index}.satuan`] = 'Satuan komponen maksimal 50 karakter.';
             }
         });
+
+        const alasan = data.alasan.trim();
+        if (alasan.length === 0) {
+            found['alasan'] = 'Alasan perubahan formula wajib diisi.';
+        } else if (alasan.length < 5) {
+            found['alasan'] = 'Alasan perubahan formula minimal 5 karakter.';
+        } else if (alasan.length > 1000) {
+            found['alasan'] = 'Alasan perubahan formula maksimal 1000 karakter.';
+        }
 
         return found;
     };
@@ -516,6 +528,30 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                 </div>
                             ))}
                         </div>}
+
+                        <div>
+                            <Textarea
+                                id="formula_alasan"
+                                label="Alasan Perubahan Formula"
+                                placeholder="Jelaskan alasan penyesuaian formula ini (minimal 5 karakter)..."
+                                rows={3}
+                                value={data.alasan}
+                                onChange={(e) => {
+                                    setData('alasan', e.target.value);
+                                    setClientErrors((prev) => {
+                                        if (prev['alasan'] === undefined) {
+                                            return prev;
+                                        }
+                                        const copy = { ...prev };
+                                        delete copy['alasan'];
+                                        return copy;
+                                    });
+                                }}
+                                error={fieldError('alasan')}
+                                helperText="Alasan wajib diisi dan dicatat pada audit perubahan komponen via formula."
+                                required
+                            />
+                        </div>
 
                         <p className="text-xs text-muted">
                             Transisi dikunci bersama data terkini indikator. Bila data berubah sejak modal dibuka, server menolak dengan

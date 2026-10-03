@@ -83,6 +83,7 @@ class UpdateIndikatorKomponenRequest extends FormRequest
             'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
             'aktif' => ['required', 'boolean'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'expected_updated_at' => ['required', 'date'],
         ];
     }
 
@@ -125,6 +126,8 @@ class UpdateIndikatorKomponenRequest extends FormRequest
             'alasan.required' => 'Alasan perubahan komponen wajib diisi.',
             'alasan.min' => 'Alasan perubahan komponen minimal 5 karakter.',
             'alasan.max' => 'Alasan perubahan komponen maksimal 1000 karakter.',
+            'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 }

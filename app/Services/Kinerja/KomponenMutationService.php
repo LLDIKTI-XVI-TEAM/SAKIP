@@ -6,7 +6,10 @@ use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator as ValidatorContract;
 
 /**
  * Layanan mutation komponen yang dipakai bersama CRUD dan transisi formula atomik.
@@ -50,6 +53,161 @@ class KomponenMutationService
         }
         $indikator->updated_at = $next;
         $indikator->save();
+    }
+
+    /**
+     * Aturan sintaks tunggal untuk satu baris komponen (sumber bersama
+     * StoreIndikatorKomponenRequest dan ChangeIndicatorFormulaRequest).
+     *
+     * Bentuk error key flat (`kode`, `bobot`, ...) dipertahankan untuk jalur
+     * normal; varian bersarang memakai prefix `komponen.*.` tanpa mengubah
+     * teks pesan. `distinct` hanya untuk payload daftar (transisi formula).
+     * `$abaikanId` mengabaikan baris itu sendiri pada cek unique agar
+     * penggantian atomik yang mempertahankan kode tidak ditolak palsu;
+     * tanpa itu perilaku sama seperti sebelumnya.
+     *
+     * @return array<string, mixed>
+     */
+    public function aturanItem(?string $indikatorId, bool $denganDistinct = false, ?string $abaikanId = null): array
+    {
+        $kode = [
+            'required',
+            'string',
+            'max:50',
+            'regex:/^[a-zA-Z0-9_]+$/',
+        ];
+        if ($denganDistinct) {
+            $kode[] = 'distinct';
+        }
+        $unik = Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId));
+        if ($abaikanId !== null && $abaikanId !== '') {
+            $unik->ignore($abaikanId);
+        }
+        $kode[] = $unik;
+
+        return [
+            'kode' => $kode,
+            'label' => ['required', 'string', 'max:255'],
+            'satuan' => ['nullable', 'string', 'max:50'],
+            'peran' => ['required', 'string', Rule::in(['pembilang', 'penyebut', 'penjumlah'])],
+            'bobot' => ['required', 'numeric', 'decimal:0,12', 'min:0', 'max:999999999'],
+            'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
+            'aktif' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * Aturan sintaks per item untuk payload transisi formula.
+     *
+     * Kunci memakai bentuk `komponen.*.field` agar error key kontrak
+     * frontend (`komponen.N.field`) tidak berubah.
+     *
+     * @return array<string, mixed>
+     */
+    public function aturanBersarang(?string $indikatorId): array
+    {
+        $dasar = $this->aturanItem($indikatorId, true);
+        $hasil = [];
+        foreach ($dasar as $field => $rules) {
+            $hasil["komponen.*.{$field}"] = $rules;
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Peta pesan tunggal untuk satu baris komponen (kunci flat).
+     *
+     * Teks di sini menjadi acuan kedua endpoint; varian bersarang memakai
+     * teks yang sama dengan prefix kunci berbeda.
+     *
+     * @return array<string, string>
+     */
+    public function pesanItem(): array
+    {
+        return [
+            'kode.required' => 'Kode komponen wajib diisi.',
+            'kode.string' => 'Kode komponen harus berupa teks.',
+            'kode.max' => 'Kode komponen maksimal 50 karakter.',
+            'kode.regex' => 'Kode komponen hanya boleh berisi huruf, angka, dan garis bawah (_).',
+            'kode.distinct' => 'Kode komponen tidak boleh duplikat dalam satu transisi.',
+            'kode.unique' => 'Kode komponen sudah digunakan pada indikator ini.',
+            'label.required' => 'Label komponen wajib diisi.',
+            'label.string' => 'Label komponen harus berupa teks.',
+            'label.max' => 'Label komponen maksimal 255 karakter.',
+            'satuan.string' => 'Satuan komponen harus berupa teks.',
+            'satuan.max' => 'Satuan komponen maksimal 50 karakter.',
+            'peran.required' => 'Peran komponen wajib dipilih.',
+            'peran.string' => 'Peran komponen harus berupa teks.',
+            'peran.in' => 'Peran komponen harus salah satu dari: pembilang, penyebut, penjumlah.',
+            'bobot.required' => 'Bobot komponen wajib diisi.',
+            'bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
+            'bobot.decimal' => 'Bobot komponen maksimal memiliki 12 digit pecahan desimal.',
+            'bobot.min' => 'Bobot komponen minimal bernilai 0.',
+            'bobot.max' => 'Bobot komponen tidak boleh melebihi 999.999.999.',
+            'urutan.required' => 'Urutan komponen wajib diisi.',
+            'urutan.integer' => 'Urutan komponen harus berupa bilangan bulat.',
+            'urutan.min' => 'Urutan komponen minimal 1.',
+            'urutan.max' => 'Urutan komponen tidak boleh melebihi 32.767.',
+            'aktif.boolean' => 'Status aktif komponen harus bernilai benar atau salah.',
+        ];
+    }
+
+    /**
+     * Peta pesan per item untuk payload transisi formula.
+     *
+     * Teks identik dengan pesanItem(); hanya kunci memakai prefix
+     * `komponen.*.` agar kontrak error frontend tidak berubah.
+     *
+     * @return array<string, string>
+     */
+    public function pesanBersarang(): array
+    {
+        $dasar = $this->pesanItem();
+        $hasil = [];
+        foreach ($dasar as $key => $pesan) {
+            $hasil["komponen.*.{$key}"] = $pesan;
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Menambah error bobot penyebut bila peran penyebut berbobot tidak positif.
+     *
+     * Cermin tunggal aturan penyebut>0 untuk FormRequest (after hook) dan
+     * validator internal; pesan selalu dari pesanBobotPenyebut().
+     *
+     * @param  array<string, mixed>  $item
+     */
+    public function tambahErrorPenyebutBilaNol(ValidatorContract $validator, array $item, string $key = 'bobot'): void
+    {
+        if (($item['peran'] ?? null) !== 'penyebut') {
+            return;
+        }
+
+        $bobot = isset($item['bobot']) ? (float) $item['bobot'] : 0.0;
+        if ($bobot <= 0 || round($bobot, 12) <= 0) {
+            $validator->errors()->add($key, $this->pesanBobotPenyebut());
+        }
+    }
+
+    /**
+     * Menjalankan validator sintaks lengkap untuk satu baris komponen.
+     *
+     * Dipakai jalur internal (buat/modelKandidat) agar tidak ada penyimpanan
+     * yang lolos sintaks bila FormRequest dilewati. Gagal melempar
+     * ValidationException sehingga pemanggil HTTP tetap merespons 422.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    public function validasiSintaks(string $indikatorId, array $item, ?string $abaikanId = null): void
+    {
+        $validator = Validator::make($item, $this->aturanItem($indikatorId, false, $abaikanId), $this->pesanItem());
+        $validator->after(function (ValidatorContract $v) use ($item): void {
+            $this->tambahErrorPenyebutBilaNol($v, $item, 'bobot');
+        });
+        $validator->validate();
     }
 
     /**
@@ -99,8 +257,10 @@ class KomponenMutationService
      *
      * @param  array<string, mixed>  $item
      */
-    public function modelKandidat(string $indikatorId, array $item): IndikatorKomponen
+    public function modelKandidat(string $indikatorId, array $item, ?string $abaikanId = null): IndikatorKomponen
     {
+        $this->validasiSintaks($indikatorId, $item, $abaikanId);
+
         return new IndikatorKomponen($this->atributCreate($indikatorId, $item, ''));
     }
 
@@ -114,8 +274,8 @@ class KomponenMutationService
      */
     public function buat(string $indikatorId, array $item, string $createdBy): IndikatorKomponen
     {
+        $this->validasiSintaks($indikatorId, $item);
         $normal = $this->normalisasiInput($item);
-        $this->pastikanBobotPenyebutValid($normal);
 
         $komponen = IndikatorKomponen::create(array_merge($normal, [
             'indikator_id' => $indikatorId,

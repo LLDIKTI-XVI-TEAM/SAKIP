@@ -170,6 +170,7 @@ class FormulaMutationRegressionTest extends TestCase
         $auditCount = AuditLog::count();
         $this->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'manual', 'komponen' => [], 'expected_updated_at' => $oldToken,
+            'alasan' => 'Uji konflik token tab lama pasca mutasi komponen.',
         ])->assertConflict()->assertJsonValidationErrors('konflik');
         $this->assertSame($after, $this->state());
         $this->assertSame($auditCount, AuditLog::count());
@@ -225,6 +226,7 @@ class FormulaMutationRegressionTest extends TestCase
         $payload[0]['label'] = 'Pembilang hasil edit atomik';
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $oldToken,
+            'alasan' => 'Edit atomik tipe sama dengan identitas dipertahankan.',
         ])->assertRedirect();
         $this->assertSame($items->pluck('id')->sort()->values()->all(), $this->indikator->komponen()->pluck('id')->sort()->values()->all());
         $this->assertTrue($this->indikator->fresh()->updated_at->gt($oldToken));
@@ -232,6 +234,7 @@ class FormulaMutationRegressionTest extends TestCase
         $this->assertDatabaseHas('audit_log', ['tindakan' => 'komponen.ubah', 'objek_id' => $items[0]->id]);
         $this->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $oldToken,
+            'alasan' => 'Kontrol token usang pasca edit atomik tipe sama.',
         ])->assertConflict();
     }
 
@@ -240,6 +243,7 @@ class FormulaMutationRegressionTest extends TestCase
         $ids = $this->indikator->komponen()->pluck('id')->sort()->values()->all();
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'manual', 'komponen' => [], 'expected_updated_at' => $this->token(),
+            'alasan' => 'Menonaktifkan komponen saat beralih ke target manual.',
         ])->assertRedirect();
         $this->assertSame('manual', $this->indikator->fresh()->tipe_perhitungan);
         $this->assertSame(0, $this->indikator->komponen()->where('aktif', true)->count());
@@ -251,6 +255,7 @@ class FormulaMutationRegressionTest extends TestCase
         $payload = $items->map(fn ($item) => array_merge($item, ['aktif' => true]))->all();
         $this->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $this->token(),
+            'alasan' => 'Mengaktifkan kembali komponen pasca target manual.',
         ])->assertRedirect();
         $this->assertSame($ids, $this->indikator->komponen()->where('aktif', true)->pluck('id')->sort()->values()->all());
     }
@@ -265,6 +270,7 @@ class FormulaMutationRegressionTest extends TestCase
         ];
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $this->token(),
+            'alasan' => 'Menukar kode antar komponen existing tanpa mengubah identitas.',
         ])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('indikator_komponen', ['id' => $n->id, 'kode' => 't', 'peran' => 'pembilang']);
         $this->assertDatabaseHas('indikator_komponen', ['id' => $t->id, 'kode' => 'n', 'peran' => 'penyebut']);
@@ -278,11 +284,13 @@ class FormulaMutationRegressionTest extends TestCase
         $payload = $this->indikator->komponen()->get()->map(fn ($item) => array_merge($this->payload($item), ['id' => $item->id]))->all();
         $this->actingAs($this->actor)->deleteJson("/indikator/{$this->indikator->id}/komponen/{$target->id}", [
             'alasan' => 'Pembilang tambahan dihapus dengan formula tetap lengkap.',
+            'expected_updated_at' => $oldToken,
         ])->assertRedirect();
         $after = $this->state();
         $auditCount = AuditLog::count();
         $this->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $oldToken,
+            'alasan' => 'Kontrol konflik token usang dengan child terhapus.',
         ])->assertConflict()->assertJsonValidationErrors('konflik');
         $this->assertSame($after, $this->state());
         $this->assertSame($auditCount, AuditLog::count());
@@ -296,6 +304,7 @@ class FormulaMutationRegressionTest extends TestCase
         $auditCount = AuditLog::count();
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $this->token(),
+            'alasan' => 'Kontrol penolakan identitas komponen di luar indikator.',
         ])->assertUnprocessable()->assertJsonValidationErrors('komponen.0.id');
         $this->assertSame($before, $this->state());
         $this->assertSame($auditCount, AuditLog::count());
@@ -410,6 +419,7 @@ class FormulaMutationRegressionTest extends TestCase
         $auditCount = AuditLog::count();
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'manual', 'komponen' => [], 'expected_updated_at' => $this->token(),
+            'alasan' => 'Kontrol bypass update existing via final-set manual.',
         ])->assertForbidden();
         $this->assertSame($before, $this->state());
         $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->firstOrFail();

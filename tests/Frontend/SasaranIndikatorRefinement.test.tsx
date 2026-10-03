@@ -182,6 +182,7 @@ describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
             indikator_update: true,
             indikator_delete: true,
             komponen_read: true,
+            komponen_create: true,
         });
 
         expect(screen.getByLabelText('Atur formula indikator IKU-PERM')).toBeTruthy();

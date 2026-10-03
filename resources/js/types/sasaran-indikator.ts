@@ -52,6 +52,7 @@ export interface FormulaPayload {
     tipe_perhitungan: IndikatorTipePerhitungan;
     komponen: FormulaKomponenInput[];
     expected_updated_at: string;
+    alasan: string;
 }
 
 export interface IndikatorKinerjaItem {
@@ -97,4 +98,5 @@ export interface SasaranIndikatorCapabilities {
     indikator_delete: boolean;
     regulasi_read?: boolean;
     komponen_read?: boolean;
+    komponen_create?: boolean;
 }

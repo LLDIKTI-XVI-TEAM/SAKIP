@@ -17,11 +17,13 @@ use App\Services\Kinerja\KomponenMutationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class IndikatorKomponenController extends Controller
 {
@@ -45,7 +47,9 @@ class IndikatorKomponenController extends Controller
         $validation = $this->perhitunganService->validateDefinisiKomponen($indikator);
 
         return Inertia::render('Indikator/Komponen/Index', [
-            'indikator' => $indikator,
+            'indikator' => array_merge($indikator->toArray(), [
+                'updated_at' => $indikator->updated_at?->toISOString() ?? $indikator->created_at?->toISOString(),
+            ]),
             'komponen' => $komponenList,
             'formulaContract' => $contract,
             'validation' => $validation,
@@ -74,6 +78,8 @@ class IndikatorKomponenController extends Controller
 
                 // Aktor/ACL → induk → child; nilai tipe dan komposisi dibaca setelah lock.
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                $this->pastikanTokenMutakhir($lockedIndikator, $data['expected_updated_at'] ?? null);
+                unset($data['expected_updated_at']);
                 abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
 
                 $candidate = $lockedIndikator->komponen()->orderBy('id')->lockForUpdate()->get();
@@ -128,6 +134,8 @@ class IndikatorKomponenController extends Controller
 
                 // Semua mutation mengunci induk sebelum child untuk menjaga formula utuh.
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                $this->pastikanTokenMutakhir($lockedIndikator, $data['expected_updated_at'] ?? null);
+                unset($data['expected_updated_at']);
                 abort_if($lockedIndikator->tipe_perhitungan === 'manual', 422, 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
 
                 $children = $lockedIndikator->komponen()->orderBy('id')->lockForUpdate()->get();
@@ -183,9 +191,10 @@ class IndikatorKomponenController extends Controller
     {
         $actor = $request->user()->fresh();
         $alasan = $request->validated('alasan');
+        $tokenVersi = $request->validated('expected_updated_at');
 
         try {
-            $result = DB::transaction(function () use ($indikator, $komponen, $actor, $alasan) {
+            $result = DB::transaction(function () use ($indikator, $komponen, $actor, $alasan, $tokenVersi) {
                 $auth = $this->lockedActor->handle($actor, 'komponen:delete');
                 if (! $auth['aktor'] || $auth['aktor']->status !== 'aktif' || ! $auth['keputusan']->allowed) {
                     return ['denied' => $auth['keputusan']->toAuditBasis(), 'referenced' => false];
@@ -193,6 +202,7 @@ class IndikatorKomponenController extends Controller
                 $decision = $auth['keputusan']->toAuditBasis();
                 // Pemeriksaan dependensi tetap mendahului kandidat penghapusan.
                 $lockedIndikator = IndikatorKinerja::whereKey($indikator->getKey())->lockForUpdate()->firstOrFail();
+                $this->pastikanTokenMutakhir($lockedIndikator, $tokenVersi);
                 $children = $lockedIndikator->komponen()->orderBy('id')->lockForUpdate()->get();
                 $lockedKomponen = $children->firstWhere('id', $komponen->getKey());
                 abort_unless($lockedKomponen, 404);
@@ -242,6 +252,38 @@ class IndikatorKomponenController extends Controller
 
         return redirect()->to("/indikator/{$indikator->id}/komponen")
             ->with('success', 'Komponen indikator berhasil dihapus.');
+    }
+
+    /**
+     * Membandingkan token versi pemanggil dengan induk terkunci sebelum
+     * validasi domain/mutasi/audit (pola ChangeIndicatorFormula).
+     * Token kosong → 409 konflik, format tak-valid → 422,
+     * token usang → 409 konflik; tanpa mutasi maupun audit sukses.
+     */
+    private function pastikanTokenMutakhir(IndikatorKinerja $lockedIndikator, mixed $expectedRaw): void
+    {
+        if ($expectedRaw === null || trim((string) $expectedRaw) === '') {
+            throw ValidationException::withMessages([
+                'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+            ])->status(409);
+        }
+
+        try {
+            $expectedIso = Carbon::parse((string) $expectedRaw)->toISOString();
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'expected_updated_at' => 'Format timestamp versi tidak valid.',
+            ]);
+        }
+
+        $currentTimestamp = $lockedIndikator->updated_at ?? $lockedIndikator->created_at;
+        $currentIso = $currentTimestamp !== null ? Carbon::parse($currentTimestamp)->toISOString() : null;
+
+        if ($currentIso === null || $currentIso !== $expectedIso) {
+            throw ValidationException::withMessages([
+                'konflik' => 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman untuk melihat perubahan terkini.',
+            ])->status(409);
+        }
     }
 
     /**
