@@ -66,7 +66,10 @@ class IndikatorKomponenHttpTest extends TestCase
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
-            'is_aktif' => true,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
         ]);
     }
 
@@ -109,6 +112,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 2,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $response->assertSessionHasErrors(['kode']);
@@ -132,6 +136,12 @@ class IndikatorKomponenHttpTest extends TestCase
      */
     public function test_update_dan_delete_mencatat_audit_log_dasar_izin_dan_alasan(): void
     {
+        $this->indikator->update(['tipe_perhitungan' => 'penjumlahan']);
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 'zi_wbk',
+            'label' => 'Skor ZI-WBK', 'peran' => 'penjumlah', 'bobot' => '0.5',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
         $komponen = IndikatorKomponen::create([
             'indikator_id' => $this->indikator->id,
             'kode' => 'sakip',
@@ -154,6 +164,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'satuan' => 'Skor',
                 'aktif' => true,
                 'alasan' => 'Penyesuaian bobot final IKU 3 menjadi 0.5 sesuai klarifikasi kementerian.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $updateResponse->assertSessionHasNoErrors();
@@ -172,6 +183,7 @@ class IndikatorKomponenHttpTest extends TestCase
         $deleteResponse = $this->actingAs($this->perencanaan)
             ->delete("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
                 'alasan' => 'Penghapusan komponen usang.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
 
         $deleteResponse->assertSessionHasNoErrors();
@@ -192,6 +204,11 @@ class IndikatorKomponenHttpTest extends TestCase
      */
     public function test_perubahan_master_tidak_memutasi_snapshot_historis(): void
     {
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 't',
+            'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
         $komponenMaster = IndikatorKomponen::create([
             'indikator_id' => $this->indikator->id,
             'kode' => 'p1',
@@ -261,6 +278,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'urutan' => 1,
                 'aktif' => true,
                 'alasan' => 'Perubahan master data tidak boleh menyentuh snapshot historis.',
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasNoErrors();
 
@@ -340,7 +358,10 @@ class IndikatorKomponenHttpTest extends TestCase
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
-            'is_aktif' => true,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $this->perencanaan->id,
+            'created_by_role' => 'perencanaan',
         ]);
 
         // GET index harus memberikan can.create = false dan can.update = false
@@ -361,6 +382,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $indikatorManual->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('indikator');
 
@@ -384,6 +406,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => '0.0000000000001', // 13 digit desimal
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('bobot');
     }
@@ -401,6 +424,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => '0',
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('bobot');
     }
@@ -411,6 +435,11 @@ class IndikatorKomponenHttpTest extends TestCase
     public function test_audit_log_menyimpan_bobot_desimal_eksak(): void
     {
         $exactBobot = '123456789.123456789012';
+        IndikatorKomponen::create([
+            'indikator_id' => $this->indikator->id, 'kode' => 't',
+            'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1',
+            'urutan' => 2, 'aktif' => true, 'created_by' => $this->perencanaan->id,
+        ]);
 
         $this->actingAs($this->perencanaan)
             ->post("/indikator/{$this->indikator->id}/komponen", [
@@ -420,6 +449,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => $exactBobot,
                 'urutan' => 1,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasNoErrors();
 
@@ -462,6 +492,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'bobot' => 1.0,
                 'urutan' => 2,
                 'aktif' => true,
+                'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
             ->assertSessionHasErrors('kode');
     }

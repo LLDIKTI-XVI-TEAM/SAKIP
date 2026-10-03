@@ -5,9 +5,9 @@ namespace App\Http\Requests\Indikator;
 use App\Models\IndikatorKinerja;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Kinerja\KomponenMutationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreIndikatorKomponenRequest extends FormRequest
@@ -44,39 +44,20 @@ class StoreIndikatorKomponenRequest extends FormRequest
     }
 
     /**
+     * Aturan sintaks delegasi ke validator bersama agar tidak drift dengan
+     * jalur transisi formula (bentuk error key flat dipertahankan).
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         $indikator = $this->route('indikator');
-        $indikatorId = $indikator instanceof IndikatorKinerja ? $indikator->id : $indikator;
+        $indikatorId = $indikator instanceof IndikatorKinerja ? $indikator->id : (is_string($indikator) ? $indikator : null);
 
-        return [
-            'kode' => [
-                'required',
-                'string',
-                'max:50',
-                'regex:/^[a-zA-Z0-9_]+$/',
-                Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId)),
-            ],
-            'label' => ['required', 'string', 'max:255'],
-            'satuan' => ['nullable', 'string', 'max:50'],
-            'peran' => ['required', 'string', Rule::in(['pembilang', 'penyebut', 'penjumlah'])],
-            'bobot' => [
-                'required',
-                'numeric',
-                'decimal:0,12',
-                'min:0',
-                'max:999999999',
-                function (string $attribute, mixed $value, \Closure $fail) {
-                    if ($this->input('peran') === 'penyebut' && ((float) $value <= 0 || round((float) $value, 12) <= 0)) {
-                        $fail('Bobot untuk komponen dengan peran penyebut wajib lebih besar dari 0.');
-                    }
-                },
-            ],
-            'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
-            'aktif' => ['sometimes', 'boolean'],
-        ];
+        return array_merge(
+            app(KomponenMutationService::class)->aturanItem($indikatorId),
+            ['expected_updated_at' => ['required', 'date']]
+        );
     }
 
     public function withValidator(Validator $validator): void
@@ -88,6 +69,12 @@ class StoreIndikatorKomponenRequest extends FormRequest
             if ($indikatorModel?->tipe_perhitungan === 'manual') {
                 $validator->errors()->add('indikator', 'Indikator bertipe manual tidak menggunakan komponen perhitungan.');
             }
+
+            app(KomponenMutationService::class)->tambahErrorPenyebutBilaNol(
+                $validator,
+                ['peran' => $this->input('peran'), 'bobot' => $this->input('bobot')],
+                'bobot'
+            );
         });
     }
 
@@ -96,24 +83,12 @@ class StoreIndikatorKomponenRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'kode.required' => 'Kode komponen wajib diisi.',
-            'kode.max' => 'Kode komponen maksimal 50 karakter.',
-            'kode.regex' => 'Kode komponen hanya boleh berisi huruf, angka, dan garis bawah (_).',
-            'kode.unique' => 'Kode komponen sudah digunakan pada indikator ini.',
-            'label.required' => 'Label komponen wajib diisi.',
-            'label.max' => 'Label komponen maksimal 255 karakter.',
-            'peran.required' => 'Peran komponen wajib dipilih.',
-            'peran.in' => 'Peran komponen harus salah satu dari: pembilang, penyebut, penjumlah.',
-            'bobot.required' => 'Bobot komponen wajib diisi.',
-            'bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
-            'bobot.decimal' => 'Bobot komponen maksimal memiliki 12 digit pecahan desimal.',
-            'bobot.min' => 'Bobot komponen minimal bernilai 0.',
-            'bobot.max' => 'Bobot komponen tidak boleh melebihi 999.999.999.',
-            'urutan.required' => 'Urutan komponen wajib diisi.',
-            'urutan.integer' => 'Urutan komponen harus berupa bilangan bulat.',
-            'urutan.min' => 'Urutan komponen minimal 1.',
-            'urutan.max' => 'Urutan komponen tidak boleh melebihi 32.767.',
-        ];
+        return array_merge(
+            app(KomponenMutationService::class)->pesanItem(),
+            [
+                'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
+                'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
+            ]
+        );
     }
 }

@@ -25,6 +25,15 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Perencanaan\ChangeIndicatorFormula;
+use App\Http\Controllers\Perencanaan\DestroyIndikator;
+use App\Http\Controllers\Perencanaan\DestroySasaran;
+use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
+use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
+use App\Http\Controllers\Perencanaan\StoreIndikator;
+use App\Http\Controllers\Perencanaan\StoreSasaran;
+use App\Http\Controllers\Perencanaan\UpdateIndikator;
+use App\Http\Controllers\Perencanaan\UpdateSasaran;
 use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
@@ -153,6 +162,18 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Kebijakan Storage & Saklar Unggah Berkas
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
+
+    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
+    Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
+    Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
+    Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
+
+    Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
+    Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
+    Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
+    Route::patch('/perencanaan/indikator/{indikator}/formula', ChangeIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.formula');
+    Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
 
     // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
     Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');

@@ -54,7 +54,7 @@ export interface JenisBerkasItem {
         id: string;
         kode: string;
         nama: string;
-        is_aktif?: boolean;
+        status?: 'aktif' | 'arsip';
     } | null;
 }
 

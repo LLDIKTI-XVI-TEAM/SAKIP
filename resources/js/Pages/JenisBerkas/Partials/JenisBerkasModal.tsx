@@ -9,7 +9,7 @@ export interface IndikatorOption {
     id: string;
     kode: string;
     nama: string;
-    is_aktif?: boolean;
+    status?: 'aktif' | 'arsip';
 }
 
 export interface JenisBerkasFormData {
@@ -64,7 +64,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     const atLeastOneMode = data.izinkan_file || data.izinkan_tautan || data.izinkan_teks;
 
     const availableIndikators = indikators.filter((ind) => {
-        if (ind.is_aktif !== false) {
+        if (ind.status !== 'arsip') {
             return true;
         }
         return isEditing && ind.id === data.indikator_id;
@@ -158,7 +158,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         <option value="">Global (Berlaku Semua Indikator)</option>
                         {availableIndikators.map((ind) => (
                             <option key={ind.id} value={ind.id}>
-                                {ind.kode} : {ind.nama}{ind.is_aktif === false ? ' (Nonaktif)' : ''}
+                                {ind.kode} : {ind.nama}{ind.status === 'arsip' ? ' (Arsip)' : ''}
                             </option>
                         ))}
                     </Select>

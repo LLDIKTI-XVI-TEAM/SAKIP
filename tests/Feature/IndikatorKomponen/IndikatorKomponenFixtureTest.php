@@ -3,6 +3,7 @@
 namespace Tests\Feature\IndikatorKomponen;
 
 use App\Models\IndikatorKinerja;
+use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\IndikatorKomponenFixtureSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,15 @@ use Tests\TestCase;
 class IndikatorKomponenFixtureTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Fixture seeder menurunkan created_by_role dari peran aktual creator,
+        // sehingga katalog akses (termasuk peran perencanaan) harus ada dulu.
+        $this->seed(AccessCatalogSeeder::class);
+    }
 
     /**
      * TEST-5: IKU 3 fixture hanya memiliki tepat dua komponen efektif sakip dan zi_wbk dengan bobot 0.5.
@@ -93,5 +103,28 @@ class IndikatorKomponenFixtureTest extends TestCase
         // Angka 84 tidak boleh menjadi konstanta atau bobot atau default penyebut
         $this->assertNotEquals(84, (float) $penyebut->bobot);
         $this->assertEquals(1.0, (float) $penyebut->bobot);
+    }
+
+    /**
+     * R2-18: rerun seeder tidak mereaktivasi IKU arsip; komponen tetap sinkron.
+     */
+    public function test_rerun_seeder_tidak_mereaktivasi_iku_arsip(): void
+    {
+        $this->seed(IndikatorKomponenFixtureSeeder::class);
+
+        $iku3 = IndikatorKinerja::where('kode', 'IKU-3')->first();
+        $this->assertNotNull($iku3);
+
+        // Arsipkan langsung via model (lifecycle arsip final, tanpa endpoint/audit).
+        $iku3->update(['status' => 'arsip']);
+        $this->assertSame('arsip', $iku3->refresh()->status);
+
+        $this->seed(IndikatorKomponenFixtureSeeder::class);
+
+        $this->assertSame('arsip', $iku3->refresh()->status);
+
+        $komponen = $iku3->komponen()->where('aktif', true)->get();
+        $this->assertCount(2, $komponen);
+        $this->assertEqualsCanonicalizing(['sakip', 'zi_wbk'], $komponen->pluck('kode')->all());
     }
 }

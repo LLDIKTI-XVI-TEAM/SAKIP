@@ -27,7 +27,7 @@ class IndikatorPerhitunganServiceTest extends TestCase
             'tipe_perhitungan' => $tipe,
             'presisi' => $presisi,
             'desimal_tampilan' => $presisi,
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         return $indikator;

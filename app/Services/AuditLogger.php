@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Actions\Audit\WriteAuditLog;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\AlasanAudit;
+use App\Support\AuditReason;
 use InvalidArgumentException;
 
 class AuditLogger
@@ -39,9 +41,17 @@ class AuditLogger
             }
         }
 
-        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '')
-            ? $alasan
-            : "Pencatatan audit untuk tindakan {$tindakan}.";
+        $fallback = "Pencatatan audit untuk tindakan {$tindakan}.";
+        // Kontrak alasan komponen berlaku untuk success maupun denial, tanpa
+        // memangkas rujukan resmi pada audit domain lain. Semua jalur tetap
+        // melalui sanitasi text PostgreSQL pada WriteAuditLog.
+        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '') ? $alasan : $fallback;
+        if (str_starts_with($tindakan, 'komponen.')) {
+            $effectiveAlasan = AuditReason::sanitize(AlasanAudit::sanitasi($alasan, $fallback));
+            if (trim($effectiveAlasan) === '') {
+                $effectiveAlasan = $fallback;
+            }
+        }
 
         return $this->writeAuditLog->handle([
             'actor_id' => $actor->id,
