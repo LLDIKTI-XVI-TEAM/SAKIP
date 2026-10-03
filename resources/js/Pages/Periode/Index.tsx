@@ -8,17 +8,15 @@ import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { FinalPeriodeReplacement } from '@/Components/Periode/FinalPeriodeReplacement';
+import { PeriodeFields, type PeriodeFormValues } from '@/Components/Periode/PeriodeFields';
 import { Select } from '@/Components/Select';
 import { Table } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { SharedPageProps } from '@/types/auth';
 import type { PeriodeIndexProps, PeriodeSummary } from '@/types/periode-jadwal';
 
-interface PeriodeForm {
-    nama: string;
-    urutan: string;
-    aktif: boolean;
-    is_nilai_akhir: boolean;
+interface PeriodeForm extends PeriodeFormValues {
     revisi?: number;
 }
 
@@ -380,146 +378,31 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                 <form id="periode-form" onSubmit={submit} noValidate className="space-y-4">
                     {feedback}
                     {swap ? (
-                        <>
-                            <div>
-                                <p className="mb-1.5 text-sm font-medium">Periode final saat ini</p>
-                                <div className="rounded-lg border border-border p-3">
-                                    <strong className="text-sm">{swap.current.nama}</strong>
-                                    <p className="mt-1 text-xs text-muted">
-                                        Dinonaktifkan dalam pergantian; penanda nilai akhir lama tetap untuk riwayat.
-                                    </p>
-                                </div>
-                            </div>
-                            <Select
-                                id="periode-pengganti"
-                                label="Periode pengganti"
-                                value={swapForm.data.periode_pengganti_id}
-                                required
-                                aria-invalid={Boolean(errors.periode_pengganti_id || errors.revisi_pengganti)}
-                                aria-describedby={
-                                    errors.periode_pengganti_id || errors.revisi_pengganti
-                                        ? 'periode-pengganti-error'
-                                        : undefined
-                                }
-                                disabled={busy || blocked}
-                                onChange={(event) => {
-                                    const item = swap.candidates.find(
-                                        (candidate) => candidate.id === event.target.value,
-                                    );
-                                    if (item)
-                                        swapForm.setData((data) => ({
-                                            ...data,
-                                            periode_pengganti_id: item.id,
-                                            revisi_pengganti: item.revisi,
-                                        }));
-                                }}
-                                options={swap.candidates.map((item) => ({
-                                    value: item.id,
-                                    label: `${item.nama} · ${item.aktif ? 'Aktif' : 'Nonaktif'}`,
-                                }))}
-                            />
-                            {(errors.periode_pengganti_id || errors.revisi_pengganti) && (
-                                <p id="periode-pengganti-error" className="text-xs text-danger">
-                                    {errors.periode_pengganti_id || errors.revisi_pengganti}
-                                </p>
-                            )}
-                            <p className="text-xs text-muted">
-                                Kandidat diambil dari halaman dan hasil pencarian master saat ini. Tutup dialog lalu
-                                ubah pencarian atau halaman untuk memilih periode lainnya.
-                            </p>
-                            {swap.candidates.length === 0 && (
-                                <p role="status" className="text-sm text-warning-dark">
-                                    Tidak ada kandidat yang dapat dipilih pada halaman ini.
-                                </p>
-                            )}
-                            <p className="rounded-lg bg-soft p-3 text-sm">
-                                Periode lama dan pengganti berubah sekaligus. Pengganti menjadi aktif dan nilai akhir.
-                                Riwayat tetap dipertahankan.
-                            </p>
-                        </>
+                        <FinalPeriodeReplacement
+                            current={swap.current}
+                            candidates={swap.candidates}
+                            value={swapForm.data.periode_pengganti_id}
+                            errors={errors}
+                            disabled={busy || blocked}
+                            onChange={(periodeId) => {
+                                const item = swap.candidates.find((candidate) => candidate.id === periodeId);
+                                if (item)
+                                    swapForm.setData((data) => ({
+                                        ...data,
+                                        periode_pengganti_id: item.id,
+                                        revisi_pengganti: item.revisi,
+                                    }));
+                            }}
+                        />
                     ) : (
-                        <>
-                            {editing?.metadata_locked && (
-                                <p className="rounded-lg bg-soft p-3 text-sm">
-                                    {editing.metadata_locked_reason} Urutan dan penanda nilai akhir tetap. Nama masih
-                                    dapat dikoreksi.
-                                </p>
-                            )}
-                            <Input
-                                name="nama"
-                                label="Nama periode"
-                                value={form.data.nama}
-                                onChange={(event) => form.setData('nama', event.target.value)}
-                                required
-                                maxLength={255}
-                                autoComplete="off"
-                                error={errors.nama}
-                                disabled={busy || blocked}
-                            />
-                            <Input
-                                name="urutan"
-                                label="Urutan"
-                                type="number"
-                                value={form.data.urutan}
-                                onChange={(event) => form.setData('urutan', event.target.value)}
-                                required
-                                error={errors.urutan}
-                                disabled={busy || blocked || editing?.metadata_locked}
-                            />
-                            <div>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        aria-invalid={Boolean(errors.aktif)}
-                                        aria-describedby={errors.aktif ? 'periode-aktif-error' : undefined}
-                                        checked={form.data.aktif}
-                                        onChange={(event) => form.setData('aktif', event.target.checked)}
-                                        disabled={
-                                            busy ||
-                                            blocked ||
-                                            Boolean(editing ? editing.is_nilai_akhir && editing.aktif : !current_final)
-                                        }
-                                        className="h-4 w-4 accent-primary"
-                                    />
-                                    Aktif
-                                </label>
-                                {errors.aktif && (
-                                    <p id="periode-aktif-error" className="mt-1 text-xs text-danger">
-                                        {errors.aktif}
-                                    </p>
-                                )}
-                                <p className="mt-2 text-xs text-muted">
-                                    Periode final aktif tidak dinonaktifkan sendiri. Gunakan pergantian nilai akhir.
-                                    Penonaktifan tidak menghapus referensi dan riwayat.
-                                </p>
-                            </div>
-                            <div>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        aria-invalid={Boolean(errors.is_nilai_akhir)}
-                                        aria-describedby={errors.is_nilai_akhir ? 'periode-final-error' : undefined}
-                                        checked={form.data.is_nilai_akhir}
-                                        onChange={(event) => form.setData('is_nilai_akhir', event.target.checked)}
-                                        disabled={
-                                            busy || blocked || !editing || editing.metadata_locked || form.data.aktif
-                                        }
-                                        className="h-4 w-4 accent-primary"
-                                    />
-                                    Nilai akhir · Diisi manual
-                                </label>
-                                {errors.is_nilai_akhir && (
-                                    <p id="periode-final-error" className="mt-1 text-xs text-danger">
-                                        {errors.is_nilai_akhir}
-                                    </p>
-                                )}
-                                <p className="mt-2 text-xs text-muted">
-                                    {current_final
-                                        ? 'Periode aktif menggunakan pergantian nilai akhir. Penanda periode nonaktif dapat dikoreksi selama metadata belum terkunci.'
-                                        : 'Periode pertama menjadi nilai akhir aktif untuk memulai konfigurasi.'}
-                                </p>
-                            </div>
-                        </>
+                        <PeriodeFields
+                            values={form.data}
+                            errors={errors}
+                            editing={editing}
+                            currentFinal={current_final}
+                            disabled={busy || blocked}
+                            onChange={(field, value) => form.setData((data) => ({ ...data, [field]: value }))}
+                        />
                     )}
                 </form>
             </Modal>

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Check, Info, Plus, Search, Trash2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
-import { Modal } from '@/Components/Modal';
-import { Table } from '@/Components/Table';
+import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
+import { OptionPicker } from '@/Components/Jadwal/OptionPicker';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { SharedPageProps } from '@/types/auth';
 import type {
@@ -29,140 +29,8 @@ interface JadwalForm {
     periode: JadwalPeriode[];
 }
 
-const windowFields = [
-    { key: 'pengisian_mulai', label: 'Mulai pengisian' },
-    { key: 'pengisian_selesai', label: 'Selesai pengisian' },
-    { key: 'reviu_mulai', label: 'Mulai Review' },
-    { key: 'reviu_selesai', label: 'Target Selesai Review' },
-] as const;
-
 const linkClass =
     'rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30';
-
-function OptionPicker<T extends { id: string; nama: string }>({
-    kind,
-    onSelect,
-    onClose,
-    describe,
-    selectedIds = [],
-}: {
-    kind: 'renstra' | 'periode';
-    onSelect: (option: T) => void;
-    onClose: () => void;
-    describe: (option: T) => string;
-    selectedIds?: string[];
-}) {
-    const [query, setQuery] = useState('');
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
-    const [result, setResult] = useState<{ data: T[]; has_more: boolean }>({ data: [], has_more: false });
-    const [loading, setLoading] = useState(true);
-    const [failure, setFailure] = useState('');
-    const [retry, setRetry] = useState(0);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        setLoading(true);
-        setFailure('');
-        const params = new URLSearchParams({ q: search, page: String(page) });
-        void fetch(`/jadwal/opsi/${kind}?${params}`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        })
-            .then(async (response) => {
-                if (!response.ok) {
-                    if (!controller.signal.aborted)
-                        setFailure(
-                            response.status === 401 || response.status === 419
-                                ? 'Sesi perlu dipulihkan. Tutup pilihan dan muat ulang halaman setelah menyalin input.'
-                                : 'Pilihan belum dapat dimuat. Coba lagi.',
-                        );
-                    return;
-                }
-                const next: { data: T[]; has_more: boolean } = await response.json();
-                if (!controller.signal.aborted) setResult(next);
-            })
-            .catch(() => {
-                if (!controller.signal.aborted) setFailure('Pilihan belum dapat dimuat. Coba lagi.');
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) setLoading(false);
-            });
-        return () => controller.abort();
-    }, [kind, search, page, retry]);
-
-    const title = kind === 'renstra' ? 'Pilih Renstra' : 'Tambah periode';
-    return (
-        <Modal isOpen onClose={onClose} title={title} size="lg">
-            <form
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    setSearch(query);
-                    setPage(1);
-                    setRetry((value) => value + 1);
-                }}
-                className="flex items-end gap-2"
-            >
-                <Input
-                    label={kind === 'renstra' ? 'Cari Renstra' : 'Cari periode'}
-                    value={query}
-                    maxLength={100}
-                    autoComplete="off"
-                    onChange={(event) => setQuery(event.target.value)}
-                />
-                <Button type="submit" variant="outline" aria-label="Cari pilihan">
-                    <Search className="h-4 w-4" aria-hidden="true" />
-                </Button>
-            </form>
-            <div className="mt-4 space-y-2" aria-live="polite" aria-busy={loading}>
-                {loading ? (
-                    <p className="py-4 text-sm text-muted">Memuat pilihan…</p>
-                ) : failure ? (
-                    <p role="alert" className="text-sm text-danger">
-                        {failure}
-                    </p>
-                ) : result.data.length === 0 ? (
-                    <p className="py-4 text-sm text-muted">Tidak ada pilihan yang sesuai.</p>
-                ) : (
-                    result.data.map((option) => (
-                        <button
-                            type="button"
-                            key={option.id}
-                            disabled={selectedIds.includes(option.id)}
-                            onClick={() => onSelect(option)}
-                            className="block w-full rounded-lg border border-border p-3 text-left text-sm transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <span className="block break-words font-semibold">
-                                {option.nama}
-                                {selectedIds.includes(option.id) ? ' · Sudah dipilih' : ''}
-                            </span>
-                            <span className="mt-1 block text-xs text-muted">{describe(option)}</span>
-                        </button>
-                    ))
-                )}
-            </div>
-            <div className="mt-4 flex items-center justify-between gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    disabled={loading || page === 1}
-                    onClick={() => setPage((value) => value - 1)}
-                >
-                    Sebelumnya
-                </Button>
-                <span className="text-xs text-muted">Halaman {page}</span>
-                <Button
-                    type="button"
-                    variant="outline"
-                    disabled={loading || Boolean(failure) || !result.has_more}
-                    onClick={() => setPage((value) => value + 1)}
-                >
-                    Berikutnya
-                </Button>
-            </div>
-        </Modal>
-    );
-}
 
 export default function Editor(props: JadwalEditorProps) {
     return <JadwalEditor key={props.jadwal?.id ?? 'create'} {...props} />;
@@ -474,140 +342,22 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <div>
-                            <h2 className="font-semibold">Jendela periode</h2>
-                            <p className="mt-1 text-xs text-muted">
-                                Periksa pengisian dan review seluruh periode dalam satu tampilan.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <Badge>{form.data.periode.length} periode</Badge>
-                            {editable && (
-                                <Button
-                                    id="tambah-periode"
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={disabled}
-                                    onClick={() => setPicker('periode')}
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Tambah periode
-                                </Button>
-                            )}
-                        </div>
-                    </CardHeader>
-                    <Table className="block w-full text-left text-sm lg:table lg:table-fixed">
-                        <caption className="sr-only">Jendela pengisian dan review setiap periode</caption>
-                        <thead className="hidden text-xs text-muted lg:table-header-group">
-                            <tr className="bg-soft">
-                                <th scope="col" rowSpan={2} className="w-[19%] px-5 py-3 font-medium">
-                                    Periode
-                                </th>
-                                <th scope="colgroup" colSpan={2} className="px-3 py-3 font-medium">
-                                    Pengisian
-                                </th>
-                                <th scope="colgroup" colSpan={2} className="px-3 py-3 font-medium">
-                                    Jendela Review
-                                </th>
-                            </tr>
-                            <tr className="border-b border-border">
-                                <th scope="col" className="px-3 py-2 font-medium">
-                                    Mulai
-                                </th>
-                                <th scope="col" className="px-3 py-2 font-medium">
-                                    Selesai
-                                </th>
-                                <th scope="col" className="px-3 py-2 font-medium">
-                                    Mulai Review
-                                </th>
-                                <th scope="col" className="px-3 py-2 font-medium">
-                                    Target Selesai Review
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="block divide-y divide-border lg:table-row-group">
-                            {form.data.periode.length === 0 && (
-                                <tr className="block lg:table-row">
-                                    <td colSpan={5} className="block p-6 text-center text-muted lg:table-cell">
-                                        Belum ada periode dipilih.
-                                        {editable && ' Tambahkan periode untuk menyusun jendelanya.'}
-                                    </td>
-                                </tr>
-                            )}
-                            {form.data.periode.map((item, index) => (
-                                <tr
-                                    key={item.periode_id}
-                                    className={`grid grid-cols-2 gap-3 p-4 lg:table-row ${item.is_nilai_akhir ? 'bg-secondary/5' : ''}`}
-                                >
-                                    <td className="col-span-2 min-w-0 lg:px-5 lg:py-4">
-                                        <span className="block break-words font-semibold">{item.nama}</span>
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {item.is_nilai_akhir && (
-                                                <Badge variant="secondary" size="sm">
-                                                    Nilai akhir
-                                                </Badge>
-                                            )}
-                                            {!item.aktif && (
-                                                <Badge variant="warning" size="sm">
-                                                    Nonaktif
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        {editable && (
-                                            <button
-                                                type="button"
-                                                aria-label={`Hapus ${item.nama} dari draft`}
-                                                disabled={disabled}
-                                                onClick={() => removePeriode(item.periode_id)}
-                                                className="mt-2 inline-flex items-center gap-1 rounded py-1 text-xs text-danger hover:underline focus:outline-none focus:ring-2 focus:ring-danger/30 disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-3 w-3" aria-hidden="true" />
-                                                Hapus dari draft
-                                            </button>
-                                        )}
-                                    </td>
-                                    {windowFields.map(({ key, label }) => (
-                                        <td key={key} className="min-w-0 lg:px-2 lg:py-4">
-                                            <Input
-                                                id={`periode-${item.periode_id}-${key}`}
-                                                name={`periode.${index}.${key}`}
-                                                type="date"
-                                                label={label}
-                                                labelClassName="text-xs lg:sr-only"
-                                                aria-label={`${item.nama}: ${label}`}
-                                                required
-                                                className="min-w-0 px-2 text-xs xl:text-sm"
-                                                value={item[key]}
-                                                disabled={disabled}
-                                                error={errors[`periode.${index}.${key}`]}
-                                                onChange={(event) =>
-                                                    form.setData((data) => ({
-                                                        ...data,
-                                                        periode: data.periode.map((period) =>
-                                                            period.periode_id === item.periode_id
-                                                                ? { ...period, [key]: event.target.value }
-                                                                : period,
-                                                        ),
-                                                    }))
-                                                }
-                                            />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                    <div className="flex items-start gap-2 border-t border-border px-4 py-4 text-xs leading-relaxed text-muted sm:px-6">
-                        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                        <p>
-                            Hanya periode terakhir boleh masuk tahun berikutnya. Akhir review adalah target; Perencanaan
-                            dapat menyelesaikan review sampai penutupan.
-                        </p>
-                    </div>
-                </Card>
+                <JendelaPeriode
+                    periode={form.data.periode}
+                    errors={errors}
+                    editable={editable}
+                    disabled={disabled}
+                    onAdd={() => setPicker('periode')}
+                    onRemove={removePeriode}
+                    onChange={(periodeId, field, value) =>
+                        form.setData((data) => ({
+                            ...data,
+                            periode: data.periode.map((period) =>
+                                period.periode_id === periodeId ? { ...period, [field]: value } : period,
+                            ),
+                        }))
+                    }
+                />
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs text-muted">Seluruh periode yang dipilih harus lengkap.</p>
                     <div className="flex items-center justify-end gap-3">
