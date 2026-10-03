@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { AlertTriangle, Pencil, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Pencil, Save } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { PerjanjianKinerjaFormFields } from '@/Components/PerjanjianKinerjaFormFields';
@@ -14,9 +14,6 @@ interface PerjanjianKinerjaEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     pk: RenstraPkSummary | null;
-    isJadwalAktif?: boolean;
-    isJadwalTerkunci?: boolean;
-    jadwalStatus?: string | null;
     storageSettings?: StorageSettings;
     canUploadBerkas?: boolean;
 }
@@ -25,13 +22,9 @@ export function PerjanjianKinerjaEditModal({
     isOpen,
     onClose,
     pk,
-    isJadwalAktif = false,
-    isJadwalTerkunci,
-    jadwalStatus,
     storageSettings,
     canUploadBerkas = true,
 }: PerjanjianKinerjaEditModalProps) {
-    const isTerkunci = isJadwalTerkunci ?? isJadwalAktif;
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<PerjanjianKinerjaFormData>({
         renstra_id: pk?.renstra_id ?? '',
@@ -111,7 +104,7 @@ export function PerjanjianKinerjaEditModal({
             autoFocus={false}
             size="3xl"
             hideScrollbar={true}
-            bodyClassName="p-4 sm:p-6"
+            bodyClassName="p-4 sm:p-6 overflow-x-hidden min-w-0 max-w-full"
             title={
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
@@ -120,7 +113,6 @@ export function PerjanjianKinerjaEditModal({
                     <span>Edit Data Perjanjian Kinerja</span>
                 </div>
             }
-            description="Perbarui nomor surat, tanggal penandatanganan, atau tambahkan naskah lampiran baru. Seluruh perubahan dicatat dalam jejak audit beralasan."
             footer={
                 <div className="flex items-center justify-end gap-3 w-full">
                     <Button
@@ -143,7 +135,7 @@ export function PerjanjianKinerjaEditModal({
                 </div>
             }
         >
-            <form id="edit-pk-modal-form" onSubmit={handleSubmit}>
+            <form id="edit-pk-modal-form" onSubmit={handleSubmit} className="w-full min-w-0 max-w-full">
                 {errors.konflik && (
                     <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 p-4 text-ink flex items-start gap-3" role="alert">
                         <AlertTriangle className="h-5 w-5 shrink-0 text-danger mt-0.5" aria-hidden="true" />
@@ -154,23 +146,6 @@ export function PerjanjianKinerjaEditModal({
                     </div>
                 )}
 
-                {isTerkunci && (
-                    <div className="mb-6 rounded-xl border border-success/20 bg-success/10 p-4 text-ink">
-                        <div className="flex items-start gap-3">
-                            <ShieldCheck className="h-5 w-5 shrink-0 text-success mt-0.5" aria-hidden="true" />
-                            <div>
-                                <h3 className="text-sm font-bold text-ink">
-                                    {jadwalStatus === 'ditutup'
-                                        ? 'Jadwal Tahunan Ditutup (Terkunci)'
-                                        : 'Jadwal Tahunan Aktif / Terkunci'}
-                                </h3>
-                                <p className="mt-1 text-xs leading-relaxed text-muted">
-                                    Pembaruan metadata atau penambahan lampiran baru tetap diizinkan. Namun, lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <PerjanjianKinerjaFormFields
                     data={data}

@@ -37,6 +37,7 @@ interface AuthenticatedLayoutProps {
     breadcrumbs?: { label: string; href?: string }[];
     renderTitleHeading?: boolean;
     hasCustomHeading?: boolean;
+    headerAction?: ReactNode;
 }
 
 export function AuthenticatedLayout({
@@ -45,6 +46,7 @@ export function AuthenticatedLayout({
     breadcrumbs = [],
     renderTitleHeading = true,
     hasCustomHeading = false,
+    headerAction,
 }: AuthenticatedLayoutProps) {
     const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
     const { props: { auth, flash, pengaturan }, url } = usePage<SharedPageProps>();
@@ -547,33 +549,42 @@ export function AuthenticatedLayout({
                     </div>
                 </header>
 
-                {(title || normalizedBreadcrumbs.length > 0) && (
+                {(title || normalizedBreadcrumbs.length > 0 || headerAction) && (
                     <header className="px-4 pt-4 pb-0 sm:px-6 sm:pt-5 lg:px-8 max-w-7xl w-full mx-auto">
-                        {title && (
-                            shouldRenderH1 ? (
-                                <h1 className="text-lg font-bold text-ink">{title}</h1>
-                            ) : (
-                                <p className="text-lg font-bold text-ink">{title}</p>
-                            )
-                        )}
-                        {normalizedBreadcrumbs.length > 0 && (
-                            <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
-                                {normalizedBreadcrumbs.map((item, index) => (
-                                    <Fragment key={`${index}-${item.label}`}>
-                                        {index > 0 && <ChevronRight aria-hidden="true" className="h-3 w-3" />}
-                                        {item.href ? (
-                                            <Link href={item.href} className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                                                {item.label}
-                                            </Link>
-                                        ) : (
-                                            <span aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined} className="font-medium text-ink">
-                                                {item.label}
-                                            </span>
-                                        )}
-                                    </Fragment>
-                                ))}
-                            </nav>
-                        )}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                {title && (
+                                    shouldRenderH1 ? (
+                                        <h1 className="text-lg font-bold text-ink">{title}</h1>
+                                    ) : (
+                                        <p className="text-lg font-bold text-ink">{title}</p>
+                                    )
+                                )}
+                                {normalizedBreadcrumbs.length > 0 && (
+                                    <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
+                                        {normalizedBreadcrumbs.map((item, index) => (
+                                            <Fragment key={`${index}-${item.label}`}>
+                                                {index > 0 && <ChevronRight aria-hidden="true" className="h-3 w-3" />}
+                                                {item.href ? (
+                                                    <Link href={item.href} className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                                                        {item.label}
+                                                    </Link>
+                                                ) : (
+                                                    <span aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined} className="font-medium text-ink">
+                                                        {item.label}
+                                                    </span>
+                                                )}
+                                            </Fragment>
+                                        ))}
+                                    </nav>
+                                )}
+                            </div>
+                            {headerAction && (
+                                <div className="shrink-0">
+                                    {headerAction}
+                                </div>
+                            )}
+                        </div>
                     </header>
                 )}
 

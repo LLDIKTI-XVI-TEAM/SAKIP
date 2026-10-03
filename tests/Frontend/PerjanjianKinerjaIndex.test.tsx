@@ -14,7 +14,12 @@ vi.mock('@inertiajs/react', async (original) => ({
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
+        <main>
+            {headerAction}
+            {children}
+        </main>
+    ),
 }));
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;

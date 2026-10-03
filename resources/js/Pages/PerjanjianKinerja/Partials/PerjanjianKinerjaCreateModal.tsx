@@ -73,7 +73,7 @@ export function PerjanjianKinerjaCreateModal({
             showCloseButton={!processing}
             size="3xl"
             hideScrollbar={true}
-            bodyClassName="p-4 sm:p-6"
+            bodyClassName="p-4 sm:p-6 overflow-x-hidden min-w-0 max-w-full"
             title={
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
@@ -82,7 +82,6 @@ export function PerjanjianKinerjaCreateModal({
                     <span>Formulir Pencatatan Perjanjian Kinerja</span>
                 </div>
             }
-            description="Masukkan rincian dokumen legal formal komitmen kinerja dan lampirkan naskah pendukung."
             footer={
                 <div className="flex items-center justify-end gap-3 w-full">
                     <Button
@@ -105,7 +104,7 @@ export function PerjanjianKinerjaCreateModal({
                 </div>
             }
         >
-            <form id="create-pk-modal-form" onSubmit={handleSubmit}>
+            <form id="create-pk-modal-form" onSubmit={handleSubmit} className="w-full min-w-0 max-w-full">
                 <PerjanjianKinerjaFormFields
                     data={data}
                     errors={errors as Record<string, string | undefined>}

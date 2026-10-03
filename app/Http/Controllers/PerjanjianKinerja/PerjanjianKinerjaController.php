@@ -38,13 +38,14 @@ class PerjanjianKinerjaController extends Controller
             'renstra_id' => ['nullable', 'uuid', 'exists:renstras,id'],
             'tahun' => ['nullable', 'integer', 'between:1900,2100'],
             'q' => ['nullable', 'string', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
         ]);
 
         return Inertia::render('PerjanjianKinerja/Index', [
             'perjanjianKinerja' => $this->queryService->paginateIndex($filters),
             'renstras' => $this->queryService->getRenstraOptions(),
             'storageSettings' => $this->queryService->getStorageSettings(),
-            'filters' => $request->only(['renstra_id', 'tahun', 'q']),
+            'filters' => $request->only(['renstra_id', 'tahun', 'q', 'per_page']),
             'can' => $this->queryService->resolveIndexCapabilities($request->user()),
         ]);
     }

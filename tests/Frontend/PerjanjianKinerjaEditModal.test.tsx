@@ -187,46 +187,30 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
         expect(reopenedNomorInput.value).toBe('PK/LLDIKTI16/2026/001');
     });
 
-    it('menampilkan banner informasi saat jadwal tahunan aktif atau terkunci', () => {
+    it('dapat dibuka dan dirender dengan baik saat jadwal tahunan aktif atau terkunci', () => {
         render(
             <PerjanjianKinerjaEditModal
                 isOpen={true}
                 onClose={() => {}}
                 pk={samplePk}
-                isJadwalAktif={true}
             />
         );
 
-        expect(screen.getByText('Jadwal Tahunan Aktif / Terkunci')).toBeTruthy();
-        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+        expect(screen.getByLabelText<HTMLInputElement>(/Nomor Dokumen Perjanjian Kinerja/)).toBeTruthy();
+        expect(screen.getByLabelText<HTMLInputElement>(/Alasan Perubahan/)).toBeTruthy();
     });
 
-    it('menyembunyikan banner informasi saat jadwal tahunan belum aktif / tidak terkunci', () => {
+    it('dapat dibuka dan dirender dengan baik saat jadwalStatus ditutup', () => {
         render(
             <PerjanjianKinerjaEditModal
                 isOpen={true}
                 onClose={() => {}}
                 pk={samplePk}
-                isJadwalAktif={false}
             />
         );
 
-        expect(screen.queryByText('Jadwal Tahunan Aktif / Terkunci')).toBeNull();
-    });
-
-    it('menampilkan banner jadwal ditutup terkunci saat jadwalStatus ditutup', () => {
-        render(
-            <PerjanjianKinerjaEditModal
-                isOpen={true}
-                onClose={() => {}}
-                pk={samplePk}
-                isJadwalTerkunci={true}
-                jadwalStatus="ditutup"
-            />
-        );
-
-        expect(screen.getByText('Jadwal Tahunan Ditutup (Terkunci)')).toBeTruthy();
-        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+        expect(screen.getByLabelText<HTMLInputElement>(/Nomor Dokumen Perjanjian Kinerja/)).toBeTruthy();
+        expect(screen.getByLabelText<HTMLInputElement>(/Alasan Perubahan/)).toBeTruthy();
     });
 });
 

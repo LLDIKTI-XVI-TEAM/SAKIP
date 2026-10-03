@@ -33,8 +33,12 @@ class PerjanjianKinerjaQueryService
             ->orderByDesc('tahun')
             ->orderByDesc('created_at');
 
+        $perPage = isset($filters['per_page']) && in_array((int) $filters['per_page'], [10, 25, 50, 100], true)
+            ? (int) $filters['per_page']
+            : 10;
+
         /** @var LengthAwarePaginator<int, RenstraPk> $paginator */
-        $paginator = $query->paginate(15)->withQueryString();
+        $paginator = $query->paginate($perPage)->withQueryString();
 
         // Resolusi fallback jadwal tahunan legacy untuk baris yang tidak memiliki relasi langsung renstra_pk_id.
         // Dilakukan dalam satu batch query terikat untuk mencegah N+1 problem dengan tetap menjaga ranking deterministik yang identik.

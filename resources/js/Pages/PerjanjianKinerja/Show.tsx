@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle,
     ArrowLeft,
-    Calendar,
     Download,
     ExternalLink,
     FileText,
     Lock,
     Pencil,
-    ShieldAlert,
     ShieldCheck,
     Trash2,
     User,
@@ -19,15 +16,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { EmptyState } from '@/Components/EmptyState';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { BerkasPk, RenstraPkSummary, StorageSettings } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
 
 interface ShowProps {
     pk: RenstraPkSummary;
-    jadwal_status?: string | null;
     is_jadwal_aktif: boolean;
-    is_jadwal_terkunci?: boolean;
     storageSettings?: StorageSettings;
     can: {
         update: boolean;
@@ -44,12 +41,11 @@ function formatBytes(value: number | null): string {
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
+export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const isTerkunci = is_jadwal_terkunci ?? is_jadwal_aktif;
 
     const deleteForm = useForm<{
         alasan: string;
@@ -69,6 +65,15 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
         setSelectedBerkas(null);
         setIsDeleteModalOpen(false);
     };
+
+    const renstraTitle = pk.renstra?.nama?.trim() ?? '';
+    const hasRenstraPrefix = /^(rencana strategis|renstra)/i.test(renstraTitle);
+    const hasYearRange = Boolean(
+        pk.renstra?.tahun_mulai &&
+        pk.renstra?.tahun_selesai &&
+        renstraTitle.includes(String(pk.renstra.tahun_mulai)) &&
+        renstraTitle.includes(String(pk.renstra.tahun_selesai))
+    );
 
     return (
         <AuthenticatedLayout
@@ -104,39 +109,17 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                     )}
                 </div>
 
-                {/* Banner Guard Imutabilitas */}
-                {isTerkunci && (
-                    <div className="rounded-xl border border-success/20 bg-success/10 p-4 text-ink">
-                        <div className="flex items-start gap-3">
-                            <ShieldCheck className="h-5 w-5 shrink-0 text-success mt-0.5" aria-hidden="true" />
-                            <div>
-                                <h3 className="text-sm font-bold text-ink">
-                                    {jadwal_status === 'ditutup'
-                                        ? 'Jadwal Tahunan Berstatus Ditutup (Terkunci)'
-                                        : 'Jadwal Tahunan Berstatus Aktif (Terkunci)'}
-                                </h3>
-                                <p className="mt-1 text-xs leading-relaxed text-muted">
-                                    Tahun pelaksanaan ini telah diaktifkan dalam Jadwal Tahunan SAKIP. Sesuai prinsip imutabilitas dokumen hukum formal, lampiran berkas yang sudah ada tidak dapat dihapus. Pembaruan rincian tetap dimungkinkan dengan mencantumkan alasan perubahan beralasan.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Metadata Card */}
-                <Card className="-mt-1.5 sm:-mt-2">
+                <Card>
                     <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
-                        <div>
-                            <div className="flex items-center gap-2.5">
-                                <span className="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1 font-bold text-primary">
-                                    Tahun {pk.tahun}
-                                </span>
-                                <h1 className="text-lg font-bold tracking-tight text-ink sm:text-xl">
-                                    {pk.nomor_pk}
-                                </h1>
-                            </div>
-                            <p className="mt-1.5 text-sm text-muted">
-                                Rencana Strategis: <span className="font-semibold text-ink">{pk.renstra?.nama}</span> ({pk.renstra?.tahun_mulai} - {pk.renstra?.tahun_selesai})
+                        <div className="flex items-center gap-2 text-sm">
+                            <FileText className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                            <p className="text-muted">
+                                {!hasRenstraPrefix && <span>Rencana Strategis: </span>}
+                                <span className="font-semibold text-ink">{renstraTitle}</span>
+                                {!hasYearRange && pk.renstra?.tahun_mulai && pk.renstra?.tahun_selesai && (
+                                    <span> ({pk.renstra.tahun_mulai} – {pk.renstra.tahun_selesai})</span>
+                                )}
                             </p>
                         </div>
 
@@ -190,12 +173,7 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                 <Card>
                     <CardHeader className="border-b border-border pb-4">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle>Lampiran Dokumen Legal PK</CardTitle>
-                                <p className="mt-1 text-sm text-muted">
-                                    Berkas dan naskah hukum komitmen Perjanjian Kinerja.
-                                </p>
-                            </div>
+                            <CardTitle>Lampiran Dokumen Legal</CardTitle>
                             <span className="text-xs font-semibold text-muted bg-soft px-2.5 py-1 rounded-full">
                                 {pk.berkas?.length ?? 0} Lampiran
                             </span>
@@ -204,13 +182,12 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
 
                     <CardContent className="pt-6">
                         {(!pk.berkas || pk.berkas.length === 0) ? (
-                            <div className="rounded-xl border border-dashed border-border bg-page p-8 text-center text-muted">
-                                <FileText className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                <p className="mt-2 text-sm font-semibold text-ink">Belum Ada Lampiran Dokumen Legal</p>
-                                <p className="mt-1 text-xs text-muted">
-                                    Dokumen naskah PK dapat ditambahkan melalui menu Edit Perjanjian Kinerja.
-                                </p>
-                            </div>
+                            <EmptyState
+                                variant="dashed"
+                                icon={FileText}
+                                title="Belum Ada Lampiran Dokumen Legal"
+                                description="Dokumen naskah PK dapat ditambahkan melalui menu Edit Perjanjian Kinerja."
+                            />
                         ) : (
                             <ul className="space-y-4">
                                 {pk.berkas.map((berkas, idx) => (
@@ -220,13 +197,17 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                                     >
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary uppercase">
+                                                <div className="flex items-center gap-2 min-w-0 max-w-full">
+                                                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary uppercase shrink-0">
                                                         {berkas.mode}
                                                     </span>
-                                                    <h3 className="text-base font-semibold text-ink truncate">
-                                                        {berkas.nama_asli || `Lampiran Dokumen #${idx + 1}`}
-                                                    </h3>
+                                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                                        <HoverScrollText
+                                                            text={berkas.nama_asli || `Lampiran Dokumen #${idx + 1}`}
+                                                            className="text-base font-semibold text-ink w-full max-w-full"
+                                                            textClassName="font-semibold text-base text-ink"
+                                                        />
+                                                    </div>
                                                 </div>
 
                                                 {berkas.mode === 'file' && (
@@ -355,9 +336,6 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                     isOpen={isEditModalOpen}
                     onClose={() => setIsEditModalOpen(false)}
                     pk={pk}
-                    isJadwalAktif={is_jadwal_aktif}
-                    isJadwalTerkunci={isTerkunci}
-                    jadwalStatus={jadwal_status}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

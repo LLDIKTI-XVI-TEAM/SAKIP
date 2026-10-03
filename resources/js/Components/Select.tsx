@@ -32,19 +32,19 @@ export function Select({
     const selectId = id ?? props.name ?? fallbackId;
 
     return (
-        <div className="w-full">
+        <div className="w-full min-w-0 max-w-full">
             {label && (
                 <label htmlFor={selectId} className={twMerge(clsx('mb-1.5 block text-sm font-medium text-ink', labelClassName))}>
                     {label}
                     {props.required && <span className="ml-1 text-danger font-normal" aria-hidden="true">*</span>}
                 </label>
             )}
-            <div className="relative">
+            <div className="relative w-full min-w-0 max-w-full">
                 <select
                     id={selectId}
                     className={twMerge(
                         clsx(
-                            'w-full h-[42px] appearance-none rounded-lg border bg-surface pl-3.5 pr-10 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted cursor-pointer',
+                            'w-full max-w-full min-w-0 h-[42px] appearance-none rounded-lg border bg-surface pl-3.5 pr-10 py-2 text-sm text-ink transition-colors truncate focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted cursor-pointer',
                             error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                             className,
                         ),

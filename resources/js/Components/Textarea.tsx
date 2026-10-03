@@ -12,7 +12,7 @@ export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, cl
     const textareaId = id || props.name;
 
     return (
-        <div className="w-full">
+        <div className="w-full min-w-0 max-w-full">
             {label && (
                 <label htmlFor={textareaId} className="mb-1.5 block text-sm font-semibold text-ink">
                     {label}
@@ -24,7 +24,7 @@ export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, cl
                 rows={props.rows || 3}
                 className={twMerge(
                     clsx(
-                        'w-full rounded-lg border bg-surface px-3.5 py-2.5 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
+                        'w-full max-w-full min-w-0 rounded-lg border bg-surface px-3.5 py-2.5 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
                         error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                         className
                     )

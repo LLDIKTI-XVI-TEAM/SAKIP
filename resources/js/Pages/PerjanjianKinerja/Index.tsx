@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Calendar,
-    ChevronDown,
     Eye,
-    FileSpreadsheet,
     FileText,
     Lock,
     Pencil,
@@ -17,8 +14,11 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
 import { Badge } from '@/Components/Badge';
+import { CustomSelect } from '@/Components/CustomSelect';
+import { EmptyState } from '@/Components/EmptyState';
+import { Pagination } from '@/Components/Pagination';
+import { Tooltip } from '@/Components/Tooltip';
 import { HoverScrollText } from '@/Components/HoverScrollText';
 import {
     Table,
@@ -41,6 +41,7 @@ interface IndexProps {
         renstra_id?: string;
         tahun?: string | number;
         q?: string;
+        per_page?: string | number;
     };
     can: {
         create: boolean;
@@ -56,17 +57,28 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
     const [renstraId, setRenstraId] = useState(filters.renstra_id ?? '');
     const [tahun, setTahun] = useState(filters.tahun ? String(filters.tahun) : '');
     const [search, setSearch] = useState(filters.q ?? '');
-    const [isFilterRenstraHovered, setIsFilterRenstraHovered] = useState(false);
 
-    const selectedFilterRenstra = renstras.find((r) => r.id === renstraId);
+    const renstraOptions = useMemo(() => {
+        return renstras.map((r) => ({
+            value: r.id,
+            label: `${r.nama} (${r.tahun_mulai} - ${r.tahun_selesai})`,
+        }));
+    }, [renstras]);
 
-    const applyFilters = (newFilters: { renstra_id?: string; tahun?: string; q?: string }) => {
+    const applyFilters = (newFilters: {
+        renstra_id?: string;
+        tahun?: string;
+        q?: string;
+        per_page?: string | number;
+    }) => {
+        const perPageValue = newFilters.per_page !== undefined ? newFilters.per_page : filters.per_page;
         router.get(
             '/perjanjian-kinerja',
             {
                 renstra_id: newFilters.renstra_id || undefined,
                 tahun: newFilters.tahun || undefined,
                 q: newFilters.q || undefined,
+                per_page: perPageValue ? String(perPageValue) : undefined,
             },
             {
                 preserveState: true,
@@ -84,7 +96,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
         setRenstraId('');
         setTahun('');
         setSearch('');
-        applyFilters({});
+        applyFilters({ renstra_id: '', tahun: '', q: '', per_page: filters.per_page });
     };
 
     const hasActiveFilters = Boolean(renstraId || tahun || search);
@@ -93,88 +105,45 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
         <AuthenticatedLayout
             title="Perjanjian Kinerja (PK)"
             breadcrumbs={[{ label: 'Perjanjian Kinerja (PK)' }]}
+            headerAction={
+                can.create ? (
+                    <Button
+                        size="sm"
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="w-full sm:w-auto gap-1.5"
+                    >
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Catat PK Baru
+                    </Button>
+                ) : null
+            }
         >
             <Head title="Perjanjian Kinerja (PK)" />
 
-            <div className="mx-auto max-w-7xl space-y-6">
-                {/* Header Action Bar */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted">
-                        Pencatatan dokumen komitmen kinerja tahunan LLDIKTI Wilayah XVI beserta lampiran legalnya.
-                    </p>
-
-                    {can.create && (
-                        <div className="shrink-0">
-                            <Button
-                                size="sm"
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="w-full sm:w-auto gap-1.5"
-                            >
-                                <Plus className="h-4 w-4" aria-hidden="true" />
-                                Catat PK Baru
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
+            <div className="mx-auto max-w-7xl space-y-4 mt-1.5 sm:mt-2">
                 {/* Filter Toolbar */}
                 <Card>
                     <CardContent className="p-4 sm:p-5">
                         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                            <div className="flex-1">
-                                <label
-                                    htmlFor="filter_renstra_id"
-                                    className="mb-1.5 block text-sm font-medium text-ink whitespace-nowrap"
-                                >
-                                    Filter Periode Renstra
-                                </label>
-                                <div
-                                    className="relative w-full h-[42px] rounded-lg border border-border bg-surface px-3.5 py-2 text-sm transition-colors flex items-center justify-between cursor-pointer hover:border-border-dark focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-                                    onMouseEnter={() => setIsFilterRenstraHovered(true)}
-                                    onMouseLeave={() => setIsFilterRenstraHovered(false)}
-                                >
-                                    <div className="min-w-0 flex-1 pr-6 overflow-hidden">
-                                        {selectedFilterRenstra ? (
-                                            <HoverScrollText
-                                                text={`${selectedFilterRenstra.nama} (${selectedFilterRenstra.tahun_mulai} - ${selectedFilterRenstra.tahun_selesai})`}
-                                                isParentHovered={isFilterRenstraHovered}
-                                                className="text-sm font-normal text-ink"
-                                                textClassName="font-normal"
-                                            />
-                                        ) : (
-                                            <span className="text-ink text-sm select-none">
-                                                Semua Renstra
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
-                                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                                    </div>
-
-                                    <select
-                                        id="filter_renstra_id"
-                                        name="filter_renstra_id"
-                                        aria-label="Filter Periode Renstra"
-                                        value={renstraId}
-                                        onChange={(e) => setRenstraId(e.target.value)}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                    >
-                                        <option value="">Semua Renstra</option>
-                                        {renstras.map((r) => (
-                                            <option key={r.id} value={r.id}>
-                                                {r.nama} ({r.tahun_mulai} - {r.tahun_selesai})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <div className="flex-1 min-w-0">
+                                <CustomSelect
+                                    id="filter_renstra_id"
+                                    name="filter_renstra_id"
+                                    label="Periode Renstra"
+                                    labelClassName="whitespace-nowrap"
+                                    placeholder="Semua Renstra"
+                                    emptyOptionLabel="Semua Renstra"
+                                    options={renstraOptions}
+                                    value={renstraId}
+                                    onChange={(val) => setRenstraId(String(val ?? ''))}
+                                />
                             </div>
 
                             <div className="w-full lg:w-36">
                                 <Input
                                     type="number"
-                                    label="Filter Tahun"
-                                    placeholder="Contoh: 2026"
+                                    label="Tahun"
+                                    placeholder="2026"
                                     value={tahun}
                                     onChange={(e) => setTahun(e.target.value)}
                                 />
@@ -183,7 +152,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                             <div className="flex-1">
                                 <Input
                                     label="Cari Nomor PK"
-                                    placeholder="Ketik nomor surat..."
+                                    placeholder="Cari nomor surat..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
@@ -201,6 +170,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                         size="md"
                                         onClick={resetFilters}
                                         title="Reset filter"
+                                        aria-label="Reset filter pencarian"
                                     >
                                         <X className="h-4 w-4" aria-hidden="true" />
                                     </Button>
@@ -226,16 +196,16 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                         <TableBody>
                             {perjanjianKinerja.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="px-5 py-12 text-center text-muted">
-                                        <FileText className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                        <p className="mt-2 text-sm font-semibold text-ink">
-                                            Tidak ada data Perjanjian Kinerja
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted">
-                                            {hasActiveFilters
-                                                ? 'Coba sesuaikan atau bersihkan kata kunci filter pencarian Anda.'
-                                                : 'Belum ada Perjanjian Kinerja yang dicatat dalam sistem.'}
-                                        </p>
+                                    <TableCell colSpan={6} className="p-0">
+                                        <EmptyState
+                                            icon={FileText}
+                                            title="Tidak ada data Perjanjian Kinerja"
+                                            description={
+                                                hasActiveFilters
+                                                    ? 'Coba sesuaikan atau bersihkan kata kunci filter pencarian Anda.'
+                                                    : 'Belum ada Perjanjian Kinerja yang dicatat dalam sistem.'
+                                            }
+                                        />
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -300,23 +270,27 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                                 )}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-right text-sm">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Link
-                                                        href={`/perjanjian-kinerja/${item.id}`}
-                                                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors"
-                                                        title="Lihat Detail PK"
-                                                    >
-                                                        <Eye className="h-4 w-4" aria-hidden="true" />
-                                                    </Link>
-                                                    {can.update && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setEditingPk(item)}
-                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors cursor-pointer"
-                                                            title="Edit Dokumen PK"
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Tooltip content="Lihat Detail" align="right">
+                                                        <Link
+                                                            href={`/perjanjian-kinerja/${item.id}`}
+                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors"
+                                                            aria-label={`Lihat Detail PK ${item.nomor_pk}`}
                                                         >
-                                                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </button>
+                                                            <Eye className="h-4 w-4" aria-hidden="true" />
+                                                        </Link>
+                                                    </Tooltip>
+                                                    {can.update && (
+                                                        <Tooltip content="Edit Dokumen" align="right">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setEditingPk(item)}
+                                                                className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors cursor-pointer"
+                                                                aria-label={`Edit Dokumen PK ${item.nomor_pk}`}
+                                                            >
+                                                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                            </button>
+                                                        </Tooltip>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -328,39 +302,18 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     </Table>
 
                     {/* Pagination */}
-                    {perjanjianKinerja.links && perjanjianKinerja.links.length > 3 && (
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border px-5 py-3.5 text-sm text-muted">
-                            <div>
-                                Menampilkan {perjanjianKinerja.from ?? 0} s/d {perjanjianKinerja.to ?? 0} dari {perjanjianKinerja.total} data
-                            </div>
-                            <nav aria-label="Navigasi halaman" className="flex items-center gap-1">
-                                {perjanjianKinerja.links.map((link, idx) => {
-                                    if (!link.url) {
-                                        return (
-                                            <span
-                                                key={idx}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted/50"
-                                            />
-                                        );
-                                    }
-                                    return (
-                                        <Link
-                                            key={idx}
-                                            href={link.url}
-                                            preserveScroll
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                                                link.active
-                                                    ? 'bg-primary text-white'
-                                                    : 'border border-border bg-surface text-ink hover:bg-soft'
-                                            }`}
-                                        />
-                                    );
-                                })}
-                            </nav>
-                        </div>
-                    )}
+                    <Pagination
+                        pagination={perjanjianKinerja}
+                        perPage={Number(filters.per_page ?? perjanjianKinerja.per_page ?? 10)}
+                        onPerPageChange={(newPerPage) => {
+                            applyFilters({
+                                renstra_id: renstraId,
+                                tahun,
+                                q: search,
+                                per_page: newPerPage,
+                            });
+                        }}
+                    />
                 </Card>
             </div>
 
@@ -379,9 +332,6 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     isOpen={Boolean(editingPk)}
                     onClose={() => setEditingPk(null)}
                     pk={editingPk}
-                    isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
-                    isJadwalTerkunci={Boolean(editingPk?.jadwal_tahunan?.is_terkunci ?? (editingPk?.jadwal_tahunan?.status === 'aktif' || editingPk?.jadwal_tahunan?.status === 'ditutup' || Boolean(editingPk?.jadwal_tahunan?.activated_at)))}
-                    jadwalStatus={editingPk?.jadwal_tahunan?.status ?? null}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

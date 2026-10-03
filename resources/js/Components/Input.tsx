@@ -13,7 +13,7 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
     const inputId = id || props.name;
 
     return (
-        <div className="w-full">
+        <div className="w-full min-w-0 max-w-full">
             {label && (
                 <label htmlFor={inputId} className={twMerge(clsx('mb-1.5 block text-sm font-medium text-ink', labelClassName))}>
                     {label}
@@ -24,7 +24,7 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
                 id={inputId}
                 className={twMerge(
                     clsx(
-                        'w-full h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
+                        'w-full max-w-full min-w-0 h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
                         error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                         className
                     )

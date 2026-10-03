@@ -13,13 +13,13 @@ import {
     Check,
     FileSearch,
     ArrowRight,
-    ChevronDown,
     Info,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/Card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/Components/Table';
 import { Badge } from '@/Components/Badge';
+import { EmptyState } from '@/Components/EmptyState';
 import { InfoTooltip } from '@/Components/InfoTooltip';
 import { HoverScrollText } from '@/Components/HoverScrollText';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
@@ -64,9 +64,8 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
     const { auth } = usePage<SharedPageProps>().props;
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
-    const [currentDate, setCurrentDate] = useState<string>('');
+    const [currentDate, setCurrentDate] = useState<string>(() => formatTanggal(new Date(), { withDay: true }));
     const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
-    const [isProgressHovered, setIsProgressHovered] = useState<boolean>(false);
     const [kpiFilter, setKpiFilter] = useState<string | null>(null);
     const hasPeriode = activePeriode !== null;
     const isActivePeriode = activePeriode?.status === 'aktif';
@@ -79,12 +78,9 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
         || (activeRenstra ? `${activeRenstra.tahun_mulai}` : `${new Date().getFullYear()}`);
 
     useEffect(() => {
-        const updateBusinessDate = () => {
+        const interval = window.setInterval(() => {
             setCurrentDate(formatTanggal(new Date(), { withDay: true }));
-        };
-
-        updateBusinessDate();
-        const interval = window.setInterval(updateBusinessDate, 60_000);
+        }, 60_000);
 
         return () => window.clearInterval(interval);
     }, [formatTanggal]);
@@ -130,8 +126,6 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
     const perluPerhatianPct = totalEvaluated > 0 ? Math.round((perluPerhatianCount / totalEvaluated) * 100) : 0;
     const tidakTercapaiPct = totalEvaluated > 0 ? Math.round((tidakTercapaiCount / totalEvaluated) * 100) : 0;
     const belumAdaDataPct = totalEvaluated > 0 ? Math.max(0, 100 - (tercapaiPct + dalamProgresPct + perluPerhatianPct + tidakTercapaiPct)) : 0;
-
-    const capaianTersahkanRate = totalEvaluated > 0 ? Math.round((tercapaiCount / totalEvaluated) * 100) : 0;
 
     const capaianCategories = [
         {
@@ -254,6 +248,50 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
         ? pengukurans.filter((p) => p.status === kpiFilter)
         : pengukurans;
 
+    const renderEmptyState = () => {
+        const isFilteredEmpty = pengukurans.length > 0 && filteredPengukurans.length === 0;
+        return (
+            <EmptyState
+                icon={FileSearch}
+                iconClassName="h-5 w-5"
+                title={
+                    isFilteredEmpty
+                        ? `Tidak ada pengukuran dengan status ${kpiCards.find((c) => c.key === kpiFilter)?.label}`
+                        : 'Belum ada data indikator pada periode aktif'
+                }
+                titleClassName="text-xs"
+                action={
+                    isFilteredEmpty ? (
+                        <button
+                            type="button"
+                            onClick={() => setKpiFilter(null)}
+                            className="mt-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                        >
+                            Tampilkan semua pengukuran
+                        </button>
+                    ) : undefined
+                }
+                className="py-2 max-w-sm"
+            />
+        );
+    };
+
+    const renderStatusBadges = (item: DashboardProps['pengukurans'][number], direction: 'row' | 'col' = 'col') => (
+        <div className={`flex ${direction === 'row' ? 'flex-wrap items-center shrink-0' : 'flex-col items-center'} gap-1`}>
+            <Badge status={item.status} size="sm" />
+            {item.self_approval && (
+                <Badge variant="info" size="sm">
+                    Persetujuan sendiri
+                </Badge>
+            )}
+            {item.reviu_terlambat && (
+                <Badge variant="warning" size="sm">
+                    Reviu terlambat
+                </Badge>
+            )}
+        </div>
+    );
+
     return (
         <AuthenticatedLayout hasCustomHeading={true}>
             <Head title="Dashboard Kinerja" />
@@ -373,9 +411,8 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                 label="Informasi capaian indikator"
                             />
                         </div>
-                        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-soft px-2.5 py-1 text-xs font-medium text-ink shadow-2xs">
+                        <div className="inline-flex items-center rounded-lg border border-border bg-soft px-2.5 py-1 text-xs font-medium text-ink shadow-2xs">
                             <span>Tahun {currentYear}</span>
-                            <ChevronDown className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
                         </div>
                     </CardHeader>
 
@@ -454,7 +491,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                     ) : (
                                         <>
                                             <span className="text-2xl sm:text-3xl font-extrabold text-ink font-mono tabular-nums leading-none">
-                                                {capaianTersahkanRate}%
+                                                {tercapaiPct}%
                                             </span>
                                             <div className="mt-1 flex flex-col items-center leading-tight">
                                                 <span className="text-[10px] sm:text-xs font-medium text-muted">
@@ -575,11 +612,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                             </div>
 
                             {/* Progress bar with clear target count */}
-                            <div
-                                className="space-y-1.5 group/progress w-full mt-4"
-                                onMouseEnter={() => setIsProgressHovered(true)}
-                                onMouseLeave={() => setIsProgressHovered(false)}
-                            >
+                            <div className="space-y-1.5 group/progress w-full mt-4">
                                 <div className="flex items-center justify-between text-[11px] text-muted transition-opacity duration-150">
                                     <span className="font-medium">Progres Target Periode</span>
                                     <span className="font-mono font-semibold text-ink">
@@ -685,34 +718,9 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
 
                 {/* Mobile View: Clean, Touch-Friendly Responsive Card List */}
                 <div className="block md:hidden divide-y divide-border/60">
-                    {pengukurans.length === 0 ? (
+                    {filteredPengukurans.length === 0 ? (
                         <div className="py-8 px-4 text-center">
-                            <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-soft text-muted mb-2 border border-border">
-                                    <FileSearch className="h-5 w-5 text-muted" aria-hidden="true" />
-                                </div>
-                                <p className="text-xs font-medium text-muted">
-                                    Belum ada data indikator pada periode aktif
-                                </p>
-                            </div>
-                        </div>
-                    ) : filteredPengukurans.length === 0 ? (
-                        <div className="py-8 px-4 text-center">
-                            <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-soft text-muted mb-2 border border-border">
-                                    <FileSearch className="h-5 w-5 text-muted" aria-hidden="true" />
-                                </div>
-                                <p className="text-xs font-semibold text-ink">
-                                    Tidak ada pengukuran dengan status {kpiCards.find((c) => c.key === kpiFilter)?.label}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setKpiFilter(null)}
-                                    className="mt-2 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                                >
-                                    Tampilkan semua pengukuran
-                                </button>
-                            </div>
+                            {renderEmptyState()}
                         </div>
                     ) : (
                         filteredPengukurans.map((item, index) => (
@@ -735,19 +743,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-1 shrink-0">
-                                        <Badge status={item.status} size="sm" />
-                                        {item.self_approval && (
-                                            <Badge variant="info" size="sm">
-                                                Persetujuan sendiri
-                                            </Badge>
-                                        )}
-                                        {item.reviu_terlambat && (
-                                            <Badge variant="warning" size="sm">
-                                                Reviu terlambat
-                                            </Badge>
-                                        )}
-                                    </div>
+                                    {renderStatusBadges(item, 'row')}
                                 </div>
 
                                 {/* Body: Indicator Name, Unit & PIC */}
@@ -827,37 +823,10 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {pengukurans.length === 0 ? (
+                            {filteredPengukurans.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={8} className="py-8 px-6 text-center">
-                                        <div className="flex flex-col items-center justify-center py-2 max-w-sm mx-auto">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-soft text-muted mb-2 border border-border">
-                                                <FileSearch className="h-5 w-5 text-muted" aria-hidden="true" />
-                                            </div>
-                                            <p className="text-xs font-medium text-muted">
-                                                Belum ada data indikator pada periode aktif
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : filteredPengukurans.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="py-8 px-6 text-center">
-                                        <div className="flex flex-col items-center justify-center py-2 max-w-sm mx-auto">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-soft text-muted mb-2 border border-border">
-                                                <FileSearch className="h-5 w-5 text-muted" aria-hidden="true" />
-                                            </div>
-                                            <p className="text-xs font-semibold text-ink">
-                                                Tidak ada pengukuran dengan status {kpiCards.find((c) => c.key === kpiFilter)?.label}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => setKpiFilter(null)}
-                                                className="mt-2 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                                            >
-                                                Tampilkan semua pengukuran
-                                            </button>
-                                        </div>
+                                        {renderEmptyState()}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -895,19 +864,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                             {statusPerhitungan[item.status_perhitungan]}
                                         </TableCell>
                                         <TableCell className="px-5 py-3 text-center">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Badge status={item.status} size="sm" />
-                                                {item.self_approval && (
-                                                    <Badge variant="info" size="sm">
-                                                        Persetujuan sendiri
-                                                    </Badge>
-                                                )}
-                                                {item.reviu_terlambat && (
-                                                    <Badge variant="warning" size="sm">
-                                                        Reviu terlambat
-                                                    </Badge>
-                                                )}
-                                            </div>
+                                            {renderStatusBadges(item, 'col')}
                                         </TableCell>
                                         <TableCell className="px-5 py-3 text-center">
                                             {item.action ? (

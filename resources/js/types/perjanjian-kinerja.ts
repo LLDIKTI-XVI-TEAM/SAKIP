@@ -89,4 +89,5 @@ export interface Paginated<T> {
     to: number | null;
     total: number;
     links: PaginationLink[];
+    per_page?: number;
 }

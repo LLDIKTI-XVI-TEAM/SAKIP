@@ -207,7 +207,7 @@ export const Modal: React.FC<ModalProps> = ({
                 <div
                     className={twMerge(
                         clsx(
-                            'p-6 flex-1 overflow-y-auto',
+                            'p-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 max-w-full',
                             (hideScrollbar || !scrollable) && 'no-scrollbar',
                             bodyClassName
                         )
