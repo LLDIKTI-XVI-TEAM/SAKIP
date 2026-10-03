@@ -18,68 +18,95 @@ class PermissionResolver
      */
     public function decide(User $user, string $kode, ?string $unitId = null): array
     {
-        $result = ['allowed' => false, 'permission' => $kode, 'reason' => 'no_allow', 'roles' => [], 'grants' => [], 'denies' => []];
-        if ($user->status !== 'aktif') {
-            return [...$result, 'reason' => 'inactive_user'];
+        return $this->decideMany($user, [$kode], $unitId)[$kode];
+    }
+
+    /**
+     * Jalur tunggal dan Explorer memakai keputusan yang sama. Data selalu dibaca
+     * ulang; evaluasi setelah lock transaksi tidak boleh memakai keputusan lama.
+     *
+     * @param  list<string>  $codes
+     * @return array<string, array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>
+     */
+    public function decideMany(User $user, array $codes, ?string $unitId = null): array
+    {
+        $results = [];
+        foreach ($codes as $code) {
+            $results[$code] = ['allowed' => false, 'permission' => $code, 'reason' => 'no_allow', 'roles' => [], 'grants' => [], 'denies' => []];
         }
-        // Grant tidak membuka akses akun tanpa role resmi aktif, termasuk row role legacy.
-        if (! DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+        if ($results === []) {
+            return [];
+        }
+        $earlyReason = $user->status !== 'aktif' ? 'inactive_user' : null;
+        if ($earlyReason === null && ! DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)
             ->whereIn('roles.kode', RoleCatalog::codes())->exists()) {
-            return [...$result, 'reason' => 'no_role'];
+            $earlyReason = 'no_role';
         }
-        if (! in_array($kode, PermissionCatalog::codes(), true)) {
-            return [...$result, 'reason' => 'unknown_permission'];
-        }
-        $permission = Permission::where('kode', $kode)->where('aktif', true)->first();
-        if (! $permission) {
-            return [...$result, 'reason' => 'unknown_permission'];
-        }
-        if ($permission->butuh_scope === 'unit') {
-            if ($unitId === null || ! Str::isUuid($unitId)) {
-                return [...$result, 'reason' => 'invalid_scope'];
+        if ($earlyReason !== null) {
+            foreach ($results as &$result) {
+                $result['reason'] = $earlyReason;
             }
-        } elseif ($unitId !== null && ! Str::isUuid($unitId)) {
-            return [...$result, 'reason' => 'invalid_scope'];
+
+            return $results;
         }
+        $permissions = Permission::whereIn('kode', array_intersect($codes, PermissionCatalog::codes()))
+            ->where('aktif', true)->get(['id', 'kode', 'butuh_scope'])->keyBy('kode');
+        $valid = [];
+        foreach ($results as $code => &$result) {
+            $permission = $permissions->get($code);
+            if ($permission === null) {
+                $result['reason'] = 'unknown_permission';
+            } elseif (($permission->butuh_scope === 'unit' && $unitId === null) || ($unitId !== null && ! Str::isUuid($unitId))) {
+                $result['reason'] = 'invalid_scope';
+            } else {
+                $valid[$code] = $permission;
+            }
+        }
+        unset($result);
+        if ($valid === []) {
+            return $results;
+        }
+        $ids = array_map(fn (Permission $permission) => $permission->id, $valid);
         $roles = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
             ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)
-            ->where('role_permissions.permission_id', $permission->id)->pluck('roles.id')->all();
-        $grants = DB::table('user_permission_granted')
-            ->where('user_permission_granted.user_id', $user->id)
-            ->where('user_permission_granted.permission_id', $permission->id)
-            ->when($permission->butuh_scope === 'unit', function ($query) use ($unitId) {
-                $query->join('unit', 'unit.id', '=', 'user_permission_granted.unit_id')
-                    ->where('unit.status', 'aktif')
-                    ->where('user_permission_granted.unit_id', $unitId);
-            }, fn ($query) => $query->whereNull('user_permission_granted.unit_id'))
-            ->pluck('user_permission_granted.id')->all();
-        $denies = DB::table('user_permission_denied')->where('user_id', $user->id)->where('permission_id', $permission->id)
+            ->whereIn('role_permissions.permission_id', $ids)->get(['roles.id', 'role_permissions.permission_id'])->groupBy('permission_id');
+        // Filter UUID dilakukan PostgreSQL, termasuk input UUID huruf besar.
+        $grants = DB::table('user_permission_granted as grants')->leftJoin('unit', 'unit.id', '=', 'grants.unit_id')
+            ->where('grants.user_id', $user->id)->whereIn('grants.permission_id', $ids)
+            ->where(function ($query) use ($unitId) {
+                $query->whereNull('grants.unit_id');
+                if ($unitId !== null) {
+                    $query->orWhere('grants.unit_id', $unitId);
+                }
+            })->get(['grants.id', 'grants.permission_id', 'grants.unit_id', 'unit.status'])->groupBy('permission_id');
+        $denies = DB::table('user_permission_denied')->where('user_id', $user->id)->whereIn('permission_id', $ids)
             ->where(function ($query) use ($unitId) {
                 $query->whereNull('unit_id');
                 if ($unitId !== null) {
                     $query->orWhere('unit_id', $unitId);
                 }
-            })->pluck('id')->all();
-        $allowed = $denies === [] && ($roles !== [] || $grants !== []);
+            })->get(['id', 'permission_id'])->groupBy('permission_id');
 
-        $reason = 'no_allow';
-        if ($denies !== []) {
-            $reason = 'explicit_deny';
-        } elseif ($allowed) {
-            $reason = 'allow';
-        } elseif ($permission->butuh_scope === 'unit' && $unitId !== null && DB::table('user_permission_granted')
-            ->join('unit', 'unit.id', '=', 'user_permission_granted.unit_id')
-            ->where('user_permission_granted.user_id', $user->id)
-            ->where('user_permission_granted.permission_id', $permission->id)
-            ->where('user_permission_granted.unit_id', $unitId)
-            ->where('unit.status', '!=', 'aktif')
-            ->exists()) {
-            $reason = 'inactive_unit';
+        foreach ($valid as $code => $permission) {
+            $roleIds = $roles->get($permission->id, collect())->pluck('id')->all();
+            $stored = $grants->get($permission->id, collect());
+            $matching = $stored->filter(fn ($grant) => $permission->butuh_scope === 'unit'
+                ? $grant->unit_id !== null && $grant->status === 'aktif'
+                : $grant->unit_id === null);
+            $grantIds = $matching->pluck('id')->values()->all();
+            $denyIds = $denies->get($permission->id, collect())->pluck('id')->all();
+            $allowed = $denyIds === [] && ($roleIds !== [] || $grantIds !== []);
+            $reason = $denyIds !== [] ? 'explicit_deny' : ($allowed ? 'allow' : 'no_allow');
+            if ($reason === 'no_allow' && $permission->butuh_scope === 'unit'
+                && $stored->contains(fn ($grant) => $grant->unit_id !== null && $grant->status !== null && $grant->status !== 'aktif')) {
+                $reason = 'inactive_unit';
+            }
+            $results[$code] = ['allowed' => $allowed, 'permission' => $code, 'reason' => $reason, 'roles' => $roleIds, 'grants' => $grantIds, 'denies' => $denyIds];
         }
 
-        return ['allowed' => $allowed, 'permission' => $kode, 'reason' => $reason, 'roles' => $roles, 'grants' => $grants, 'denies' => $denies];
+        return $results;
     }
 
     public function allows(User $user, string $kode, ?string $unitId = null): bool
@@ -93,10 +120,7 @@ class PermissionResolver
 
         return new PermissionDecision($decision['allowed'], $permissionCode, [
             'alasan' => $decision['reason'],
-            'sumber_allow' => [
-                'roles' => $decision['roles'],
-                'grants' => $decision['grants'],
-            ],
+            'sumber_allow' => ['roles' => $decision['roles'], 'grants' => $decision['grants']],
             'deny' => $decision['denies'],
         ]);
     }
