@@ -19,6 +19,7 @@ export interface UserOptionPage {
 export interface GrantUserAutocompleteProps {
     id?: string;
     label?: string;
+    labelClassName?: string;
     value: string;
     onChange: (id: string, user?: UserOption | null) => void;
     disabled?: boolean;
@@ -26,11 +27,14 @@ export interface GrantUserAutocompleteProps {
     initialUser?: UserOption | null;
     debounceMs?: number;
     placeholder?: string;
+    endpoint?: string;
+    required?: boolean;
 }
 
 export function GrantUserAutocomplete({
     id = 'grant-user-target',
     label = 'Pengguna Target',
+    labelClassName,
     value,
     onChange,
     disabled = false,
@@ -38,8 +42,12 @@ export function GrantUserAutocomplete({
     initialUser = null,
     debounceMs = 350,
     placeholder = 'Cari nama atau email pengguna...',
+    endpoint = '/akses/grant/opsi/pengguna',
+    required = true,
 }: GrantUserAutocompleteProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
     const [items, setItems] = useState<UserOption[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserOption | null>(initialUser);
     const [isLoading, setIsLoading] = useState(false);
@@ -55,12 +63,12 @@ export function GrantUserAutocomplete({
     useEffect(() => {
         if (!value) {
             setSelectedUser(null);
-            setSearchTerm('');
+            setPage(1); setHasMore(false); setSearchTerm('');
             setItems([]);
             setIsOpen(false);
             setHighlightedIndex(-1);
         } else if (initialUser && initialUser.id === value) {
-            setSelectedUser((current) => current ?? initialUser);
+            setSelectedUser(initialUser);
         }
     }, [value, initialUser]);
 
@@ -99,6 +107,7 @@ export function GrantUserAutocomplete({
         setFailure('');
         setHighlightedIndex(-1);
 
+        let active = true;
         const timer = setTimeout(() => {
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
@@ -108,10 +117,10 @@ export function GrantUserAutocomplete({
 
             const params = new URLSearchParams({
                 q: trimmed,
-                page: '1',
+                page: String(page),
             });
 
-            void fetch(`/akses/grant/opsi/pengguna?${params.toString()}`, {
+            void fetch(`${endpoint}?${params.toString()}`, {
                 headers: { Accept: 'application/json' },
                 signal: controller.signal,
             })
@@ -120,32 +129,36 @@ export function GrantUserAutocomplete({
                         throw new Error('Daftar pengguna belum dapat dimuat. Coba cari kembali.');
                     }
                     const data: UserOptionPage = await response.json();
+                    if (!active) return;
                     setItems(Array.isArray(data?.items) ? data.items : []);
+                    setHasMore(Boolean(data.hasMore));
+
                     setIsOpen(true);
                 })
                 .catch((err: unknown) => {
-                    if (!(err instanceof DOMException && err.name === 'AbortError')) {
+                    if (active && !(err instanceof DOMException && err.name === 'AbortError')) {
                         setFailure(err instanceof Error ? err.message : 'Gagal memuat pengguna.');
                         setItems([]);
                     }
                 })
                 .finally(() => {
-                    setIsLoading(false);
+                    if (active) setIsLoading(false);
                 });
         }, debounceMs);
 
         return () => {
+            active = false;
             clearTimeout(timer);
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
         };
-    }, [searchTerm, debounceMs]);
+    }, [searchTerm, debounceMs, endpoint, page]);
 
     const handleSelectUser = useCallback((user: UserOption) => {
         setSelectedUser(user);
-        setSearchTerm('');
+        setPage(1); setHasMore(false); setSearchTerm('');
         setItems([]);
         setIsOpen(false);
         setHighlightedIndex(-1);
@@ -154,7 +167,7 @@ export function GrantUserAutocomplete({
 
     const handleClear = useCallback(() => {
         setSelectedUser(null);
-        setSearchTerm('');
+        setPage(1); setHasMore(false); setSearchTerm('');
         setItems([]);
         setIsOpen(false);
         setHighlightedIndex(-1);
@@ -165,6 +178,11 @@ export function GrantUserAutocomplete({
     }, [onChange]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (disabled || isLoading) {
+            if (e.key === 'Escape') setIsOpen(false);
+            if (e.key === 'Enter') e.preventDefault();
+            return;
+        }
         if (!isOpen) {
             if (e.key === 'ArrowDown' && (items.length > 0 || searchTerm.trim().length >= 2)) {
                 setIsOpen(true);
@@ -198,9 +216,9 @@ export function GrantUserAutocomplete({
     const shouldShowDropdown = isOpen && (isLoading || Boolean(failure) || trimmed.length >= 2);
 
     return (
-        <div className="space-y-1" ref={wrapperRef}>
-            <label htmlFor={selectedUser ? undefined : id} className="block text-xs font-semibold text-slate-700">
-                {label} <span className="text-red-500">*</span>
+        <div className="space-y-1.5" ref={wrapperRef}>
+            <label htmlFor={selectedUser ? undefined : id} className={`block text-sm font-medium text-ink ${labelClassName ?? ''}`}>
+                {label} {required && <span className="text-danger" aria-hidden="true">*</span>}
             </label>
 
             {/* Input tersembunyi untuk form data */}
@@ -208,27 +226,28 @@ export function GrantUserAutocomplete({
 
             {selectedUser ? (
                 /* State: Pengguna Terpilih */
-                <div className="relative flex items-center justify-between p-2.5 bg-slate-50 border border-slate-300 rounded-md focus-within:ring-2 focus-within:ring-[#122E92] focus-within:border-[#122E92]">
+                <div className="relative flex items-center justify-between p-2.5 bg-soft border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
                     <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#122E92]/10 text-[#122E92] flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                             {selectedUser.nama ? selectedUser.nama.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-slate-900 truncate">
+                                <span className="text-xs font-semibold text-ink truncate">
                                     {selectedUser.nama || selectedUser.name}
+                                    {selectedUser.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                 </span>
                                 {selectedUser.roles && selectedUser.roles.length > 0 ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-[#122E92] border border-blue-200 shrink-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                         {selectedUser.roles.join(', ')}
                                     </span>
                                 ) : (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 shrink-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
                                         Tanpa Role
                                     </span>
                                 )}
                             </div>
-                            <p className="text-[11px] text-slate-500 truncate">{selectedUser.email}</p>
+                            <p className="text-[11px] text-muted truncate">{selectedUser.email}</p>
                         </div>
                     </div>
                     <button
@@ -237,7 +256,7 @@ export function GrantUserAutocomplete({
                         disabled={disabled}
                         title="Ganti pengguna target"
                         aria-label="Ganti pengguna target"
-                        className="text-slate-400 hover:text-red-600 p-1.5 rounded-md hover:bg-slate-200 transition-colors shrink-0 disabled:opacity-40"
+                        className="text-muted hover:text-danger p-1.5 rounded-md hover:bg-soft transition-colors shrink-0 disabled:opacity-40"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -246,7 +265,7 @@ export function GrantUserAutocomplete({
                 /* State: Pencarian Autocomplete */
                 <div className="relative">
                     <div className="relative">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                             ref={inputRef}
                             id={id}
@@ -255,10 +274,13 @@ export function GrantUserAutocomplete({
                             aria-expanded={isOpen}
                             aria-autocomplete="list"
                             aria-controls={`${id}-suggestions`}
+                            aria-activedescendant={shouldShowDropdown && !isLoading && !failure && highlightedIndex >= 0 ? `${id}-option-${highlightedIndex}` : undefined}
+                            maxLength={100}
                             disabled={disabled}
                             placeholder={placeholder}
                             value={searchTerm}
                             onChange={(e) => {
+                                setPage(1);
                                 setSearchTerm(e.target.value);
                                 setIsOpen(true);
                             }}
@@ -270,20 +292,20 @@ export function GrantUserAutocomplete({
                             onKeyDown={handleKeyDown}
                             aria-invalid={Boolean(error)}
                             aria-describedby={error ? `${id}-error` : undefined}
-                            className="w-full text-xs rounded-md border-slate-300 pl-9 pr-9 py-2 focus:border-[#122E92] focus:ring-[#122E92]"
+                            className={`w-full h-[42px] rounded-lg border bg-surface pl-9 pr-9 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted ${error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
                         />
                         {isLoading ? (
-                            <Loader2 className="w-4 h-4 text-[#122E92] animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <Loader2 className="w-4 h-4 text-primary animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         ) : searchTerm ? (
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSearchTerm('');
+                                    setPage(1); setHasMore(false); setSearchTerm('');
                                     setItems([]);
                                     setIsOpen(false);
                                     inputRef.current?.focus();
                                 }}
-                                className="text-slate-400 hover:text-slate-600 absolute right-3 top-1/2 -translate-y-1/2"
+                                className="text-muted hover:text-ink absolute right-3 top-1/2 -translate-y-1/2"
                                 aria-label="Hapus teks pencarian"
                             >
                                 <X className="w-3.5 h-3.5" />
@@ -293,23 +315,24 @@ export function GrantUserAutocomplete({
 
                     {/* Dropdown Suggestions */}
                     {shouldShowDropdown && (
+                        <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-surface shadow-lg">
                         <div
                             id={`${id}-suggestions`}
                             role="listbox"
                             aria-label="Daftar saran pengguna target"
-                            className="absolute z-30 mt-1 w-full bg-white rounded-md border border-slate-200 shadow-lg max-h-60 overflow-y-auto divide-y divide-slate-100"
+                            className="max-h-60 overflow-y-auto divide-y divide-border"
                         >
                             {isLoading ? (
-                                <div className="px-4 py-3 text-xs text-slate-500 flex items-center justify-center gap-2" role="status">
-                                    <Loader2 className="w-4 h-4 animate-spin text-[#122E92]" />
+                                <div className="px-4 py-3 text-xs text-muted flex items-center justify-center gap-2" role="status">
+                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
                                     <span>Mencari pengguna...</span>
                                 </div>
                             ) : failure ? (
-                                <div className="px-4 py-3 text-xs text-red-600 text-center" role="alert">
+                                <div className="px-4 py-3 text-xs text-danger text-center" role="alert">
                                     {failure}
                                 </div>
                             ) : items.length === 0 ? (
-                                <div className="px-4 py-3 text-xs text-slate-500 text-center" role="status">
+                                <div className="px-4 py-3 text-xs text-muted text-center" role="status">
                                     Pengguna tidak ditemukan
                                 </div>
                             ) : (
@@ -318,38 +341,48 @@ export function GrantUserAutocomplete({
                                         key={user.id}
                                         type="button"
                                         role="option"
+                                        id={`${id}-option-${index}`}
                                         aria-selected={highlightedIndex === index}
                                         onClick={() => handleSelectUser(user)}
                                         onMouseEnter={() => setHighlightedIndex(index)}
                                         className={`w-full text-left px-3 py-2 transition-colors cursor-pointer ${
-                                            highlightedIndex === index ? 'bg-indigo-50/70' : 'hover:bg-slate-50'
+                                            highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-soft'
                                         }`}
                                     >
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-xs font-semibold text-slate-800">
+                                            <span className="text-xs font-semibold text-ink">
                                                 {user.nama || user.name}
+                                                {user.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                             </span>
                                             {user.roles && user.roles.length > 0 ? (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-[#122E92] border border-blue-200 shrink-0">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                                     {user.roles.join(', ')}
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 shrink-0">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
                                                     Tanpa Role
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-[11px] text-slate-500 mt-0.5">{user.email}</p>
+                                        <p className="text-[11px] text-muted mt-0.5">{user.email}</p>
                                     </button>
                                 ))
                             )}
+                        </div>
+                        {(hasMore || page > 1) && !failure && <nav aria-label="Halaman pilihan pengguna" className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
+                            <span className="text-muted" aria-live="polite">Halaman {page}</span>
+                            <div className="flex gap-2">
+                                {page > 1 && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page - 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna sebelumnya</button>}
+                                {hasMore && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page + 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna berikutnya</button>}
+                            </div>
+                        </nav>}
                         </div>
                     )}
                 </div>
             )}
 
             {error && (
-                <p id={`${id}-error`} role="alert" className="text-xs text-red-600 mt-1">
+                <p id={`${id}-error`} role="alert" className="text-xs text-danger mt-1">
                     {error}
                 </p>
             )}
