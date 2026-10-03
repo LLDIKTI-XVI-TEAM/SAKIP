@@ -417,7 +417,6 @@ export function AuthenticatedLayout({
                                                 <Link
                                                     key={href}
                                                     href={href}
-                                                    title={label}
                                                     aria-current={active ? 'page' : undefined}
                                                     onClick={() => setNavigationOpen(false)}
                                                     className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 md:py-2 text-xs font-medium transition-colors min-h-[44px] md:min-h-0 touch-manipulation ${
