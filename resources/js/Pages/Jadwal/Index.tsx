@@ -12,7 +12,7 @@ import type { SharedPageProps } from '@/types/auth';
 import type { JadwalIndexProps } from '@/types/periode-jadwal';
 
 export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) {
-    const { auth, errors = {} } = usePage<SharedPageProps>().props;
+    const { errors = {} } = usePage<SharedPageProps>().props;
     const [query, setQuery] = useState(filters.q);
     const [tahun, setTahun] = useState(filters.tahun ? String(filters.tahun) : '');
     const [status, setStatus] = useState(filters.status ?? '');
@@ -34,20 +34,6 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
     return (
         <AuthenticatedLayout title="Jadwal tahunan" breadcrumbs={[{ label: 'Jadwal Tahunan' }]}>
             <Head title="Jadwal tahunan" />
-            <nav aria-label="Pengelolaan kalender" className="mb-6 flex gap-6 border-b border-border text-sm">
-                <Link
-                    href="/jadwal"
-                    aria-current="page"
-                    className="border-b-2 border-primary pb-3 font-semibold text-primary"
-                >
-                    Jadwal tahunan
-                </Link>
-                {auth.can.periode && (
-                    <Link href="/periode" className="pb-3 text-muted hover:text-primary">
-                        Master periode
-                    </Link>
-                )}
-            </nav>
             <div className="space-y-5">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                     <p className="text-sm text-muted">

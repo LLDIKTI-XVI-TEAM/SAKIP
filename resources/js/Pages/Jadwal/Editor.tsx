@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Check } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -10,7 +10,6 @@ import { Input } from '@/Components/Input';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { OptionPicker } from '@/Components/Jadwal/OptionPicker';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { SharedPageProps } from '@/types/auth';
 import type {
     JadwalEditorProps,
     JadwalPeriode,
@@ -37,7 +36,6 @@ export default function Editor(props: JadwalEditorProps) {
 }
 
 function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
-    const { auth } = usePage<SharedPageProps>().props;
     const form = useForm<JadwalForm>({
         renstra_id: jadwal?.renstra_id ?? '',
         tahun: jadwal ? String(jadwal.tahun) : '',
@@ -174,16 +172,6 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
         >
             <Head title={title} />
             <p className="mb-5 text-sm text-muted">Tetapkan kalender pengisian dan review untuk tahun pelaporan.</p>
-            <nav aria-label="Pengelolaan kalender" className="mb-6 flex gap-6 border-b border-border text-sm">
-                <Link href="/jadwal" className="border-b-2 border-primary pb-3 font-semibold text-primary">
-                    Jadwal tahunan
-                </Link>
-                {auth.can.periode && (
-                    <Link href="/periode" className="pb-3 text-muted hover:text-primary">
-                        Master periode
-                    </Link>
-                )}
-            </nav>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {failure && !recovery.recovery && (
                 <div

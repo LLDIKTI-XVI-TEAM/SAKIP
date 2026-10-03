@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { LockKeyhole, Plus } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -13,7 +13,6 @@ import { PeriodeFields, type PeriodeFormValues } from '@/Components/Periode/Peri
 import { Select } from '@/Components/Select';
 import { Table } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { SharedPageProps } from '@/types/auth';
 import type { PeriodeIndexProps, PeriodeSummary } from '@/types/periode-jadwal';
 
 interface PeriodeForm extends PeriodeFormValues {
@@ -21,7 +20,6 @@ interface PeriodeForm extends PeriodeFormValues {
 }
 
 export default function PeriodeIndex({ periode, current_final, filters, can }: PeriodeIndexProps) {
-    const { auth } = usePage<SharedPageProps>().props;
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
     const [editing, setEditing] = useState<PeriodeSummary | null>(null);
@@ -157,20 +155,6 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
     return (
         <AuthenticatedLayout title="Master periode" breadcrumbs={[{ label: 'Master periode' }]}>
             <Head title="Master periode" />
-            <nav aria-label="Pengelolaan kalender" className="mb-6 flex gap-6 border-b border-border text-sm">
-                {auth.can.jadwal && (
-                    <Link href="/jadwal" className="pb-3 text-muted hover:text-primary">
-                        Jadwal tahunan
-                    </Link>
-                )}
-                <Link
-                    href="/periode"
-                    aria-current="page"
-                    className="border-b-2 border-primary pb-3 font-semibold text-primary"
-                >
-                    Master periode
-                </Link>
-            </nav>
             <div className="space-y-5">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                     <div>
