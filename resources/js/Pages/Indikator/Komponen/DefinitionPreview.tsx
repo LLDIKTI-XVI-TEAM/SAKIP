@@ -3,6 +3,7 @@ import { http, HttpResponseError } from '@inertiajs/core';
 import { Input } from '@/Components/Input';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { statusPerhitungan } from '@/Pages/Pengukuran/types';
 import type { DefinitionEditor } from './definition';
 
@@ -15,6 +16,7 @@ interface Result {
 }
 
 export function DefinitionPreview({ editor, paused }: { editor: DefinitionEditor; paused: boolean }) {
+    const formatNilai = useFormatNilai();
     const [stale, setStale] = useState(false);
     const [values, setValues] = useState<Record<string, string>>({});
     const [preview, setPreview] = useState<{ payload: string; result?: Result; error?: string } | null>(null);
@@ -67,7 +69,7 @@ export function DefinitionPreview({ editor, paused }: { editor: DefinitionEditor
         : blocked ? 'Simpan atau tutup editor sebelum menjalankan simulasi definisi tersimpan.'
             : latest?.error ?? (!result ? 'Menghitung simulasi…'
                 : result.nilai === null ? `Belum ada nilai — ${statusPerhitungan[result.status_perhitungan]}`
-                    : `${result.nilai} ${editor.indikator.satuan} · ${statusPerhitungan[result.status_perhitungan]}`);
+                    : `${formatNilai(result.nilai, editor.indikator.desimal_tampilan)} ${editor.indikator.satuan} · ${statusPerhitungan[result.status_perhitungan]}`);
 
     return (
         <section className="space-y-4 rounded-xl border border-border bg-surface p-5" aria-label="Simulasi perhitungan">

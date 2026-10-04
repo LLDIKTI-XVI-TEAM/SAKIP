@@ -50,7 +50,7 @@ export interface IndikatorKinerjaItem {
     arah: IndikatorArah;
     tipe_perhitungan: IndikatorTipePerhitungan;
     presisi: number;
-    desimal_tampilan?: number;
+    desimal_tampilan: number;
     wajib_catatan: boolean;
     jenis_agregasi?: string;
     status: IndikatorStatus;

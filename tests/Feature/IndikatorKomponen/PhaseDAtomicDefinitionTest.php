@@ -238,6 +238,13 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $this->getJson("/perencanaan/indikator/{$this->indikator->id}/editor?page=2&expected_updated_at=".urlencode($revision))->assertStatus(409);
     }
 
+    public function test_editor_komponen_memuat_desimal_tampilan_terpisah_dari_presisi(): void
+    {
+        $this->getJson("/indikator/{$this->indikator->id}/komponen")
+            ->assertOk()->assertJsonPath('indikator.presisi', 12)
+            ->assertJsonPath('indikator.desimal_tampilan', 2);
+    }
+
     public function test_preview_memakai_engine_eksak_tanpa_mutasi_dan_menolak_token_lama(): void
     {
         $component = $this->indikator->komponen()->firstOrFail();

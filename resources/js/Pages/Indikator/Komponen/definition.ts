@@ -3,7 +3,7 @@ import type { FormulaKomponenItem, IndikatorKinerjaItem, IndikatorTipePerhitunga
 
 export interface DefinitionMetadata {
     id: string; kode: string; nama: string; satuan: string; tipe_perhitungan: IndikatorTipePerhitungan;
-    presisi: number; desimal_tampilan?: number; unit_nama?: string | null; status?: 'aktif' | 'arsip';
+    presisi: number; desimal_tampilan: number; unit_nama?: string | null; status?: 'aktif' | 'arsip';
 }
 export interface DefinitionEditor {
     indikator: DefinitionMetadata;
