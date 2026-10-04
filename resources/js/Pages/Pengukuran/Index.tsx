@@ -15,9 +15,18 @@ interface PengukuranIndexProps {
     periode: PeriodePengukuran | null;
     pengukurans: Pengukuran[];
     pagination: PengukuranPagination;
+    filters?: {
+        per_page?: string | number;
+        page?: string | number;
+    };
 }
 
-export default function PengukuranIndex({ periode, pengukurans = [], pagination }: PengukuranIndexProps) {
+export default function PengukuranIndex({
+    periode,
+    pengukurans = [],
+    pagination,
+    filters = {},
+}: PengukuranIndexProps) {
     const formatNilai = useFormatNilai();
 
     return (
@@ -111,7 +120,7 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
                                             {p.can.view && (
                                                 <Link
                                                     href={`/pengukuran/${p.id}/edit`}
-                                                    className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:bg-soft hover:border-primary/30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-2xs"
+                                                    className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1 transition-all duration-150 whitespace-nowrap cursor-pointer"
                                                 >
                                                     Buka pengukuran
                                                 </Link>
@@ -123,7 +132,11 @@ export default function PengukuranIndex({ periode, pengukurans = [], pagination 
                         )}
                     </TableBody>
                 </Table>
-                <Pagination pagination={pagination} showPerPage={false} resourceName="penugasan" />
+                <Pagination
+                    pagination={pagination}
+                    perPage={Number(filters?.per_page ?? pagination.per_page ?? 10)}
+                    resourceName="penugasan"
+                />
             </Card>
         </AuthenticatedLayout>
     );

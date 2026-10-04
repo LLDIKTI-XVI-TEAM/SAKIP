@@ -2,11 +2,12 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import type { HttpExceptionResponse } from '@inertiajs/core';
 import { useCallback, useRef, useState, type FormEvent } from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
-import { ArrowLeft, Save, Send } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
+import { Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
@@ -95,7 +96,9 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         <Head title={`Pengisian ${indikator.kode}`} />
         <div className="mx-auto max-w-4xl space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <Link href="/pengukuran" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary"><ArrowLeft className="h-4 w-4" />Kembali ke daftar pengukuran</Link>
+                <BackButton href="/pengukuran">
+                    Kembali ke daftar pengukuran
+                </BackButton>
                 <Badge status={pengukuran.status} />
             </div>
             {lastRejection && pengukuran.status === 'dikembalikan' && (

@@ -108,4 +108,9 @@ export interface PengukuranPagination {
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;
+    per_page?: number;
+    from?: number | null;
+    to?: number | null;
+    links?: { url: string | null; label: string; active: boolean }[];
 }
+

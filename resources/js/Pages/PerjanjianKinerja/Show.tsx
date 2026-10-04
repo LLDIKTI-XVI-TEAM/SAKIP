@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
-    ArrowLeft,
     Download,
     ExternalLink,
     FileText,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
@@ -88,13 +88,9 @@ export default function Show({ pk, is_jadwal_aktif, storageSettings, can }: Show
             <div className="mx-auto max-w-5xl space-y-4">
                 {/* Back and Action Toolbar */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link
-                        href="/perjanjian-kinerja"
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    <BackButton href="/perjanjian-kinerja">
                         Kembali ke Daftar PK
-                    </Link>
+                    </BackButton>
 
                     {can.update && (
                         <div className="shrink-0">

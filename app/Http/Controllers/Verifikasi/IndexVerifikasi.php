@@ -16,7 +16,14 @@ class IndexVerifikasi extends Controller
 {
     public function __invoke(Request $request, PresentPengukuran $present, PermissionResolver $resolver): Response
     {
-        $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
+        $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'in:10,20,25,50,100'],
+        ]);
+        $perPage = (int) $request->input('per_page', 10);
+        if (! in_array($perPage, [10, 20, 25, 50, 100], true)) {
+            $perPage = 10;
+        }
         $actor = $request->user();
         $permissions = array_values(array_filter(['pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan'], fn ($code) => $resolver->allows($actor, $code)));
         abort_if($permissions === [] || ! $resolver->allows($actor, 'pengukuran:read'), 403);
@@ -29,13 +36,24 @@ class IndexVerifikasi extends Controller
                         $allowed->orWhereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->deniedUnits($actor->id, $permission));
                     }
                 });
-            })->orderByDesc('updated_at')->withCount('buktiDukungs')->orderBy('id')->paginate(20)->withQueryString();
+            })->orderByDesc('updated_at')->withCount('buktiDukungs')->orderBy('id')->paginate($perPage)->withQueryString();
 
         $present->prepareSummary($page->getCollection());
 
         return Inertia::render('Verifikasi/Index', [
             'pengukurans' => $page->getCollection()->map(fn ($item) => $present->handle($item, $actor))->all(),
-            'pagination' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'prev_page_url' => $page->previousPageUrl(), 'next_page_url' => $page->nextPageUrl()],
+            'pagination' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'from' => $page->firstItem(),
+                'to' => $page->lastItem(),
+                'total' => $page->total(),
+                'prev_page_url' => $page->previousPageUrl(),
+                'next_page_url' => $page->nextPageUrl(),
+                'links' => $page->linkCollection()->toArray(),
+            ],
+            'filters' => $request->only(['per_page', 'page']),
         ]);
     }
 

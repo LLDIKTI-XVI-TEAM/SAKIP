@@ -13,6 +13,10 @@ interface AuditReasonModalProps {
     notice?: ReactNode;
     confirmLabel: string;
     destructive?: boolean;
+    reasonLabel?: string;
+    reasonPlaceholder?: string;
+    reasonDescription?: ReactNode;
+    reasonRef?: React.RefObject<HTMLTextAreaElement | null>;
     onReasonChange: (reason: string) => void;
     onClose: () => void;
     onConfirm: () => void;
@@ -29,6 +33,10 @@ export function AuditReasonModal({
     notice,
     confirmLabel,
     destructive = false,
+    reasonLabel = 'Alasan perubahan',
+    reasonPlaceholder = 'Jelaskan alasan yang dapat dipahami saat audit…',
+    reasonDescription,
+    reasonRef,
     onReasonChange,
     onClose,
     onConfirm,
@@ -36,6 +44,12 @@ export function AuditReasonModal({
     const dialog = useRef<HTMLDialogElement>(null);
     const id = useId();
     const reasonInput = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (open && error) {
+            reasonInput.current?.focus();
+        }
+    }, [open, error]);
     useEffect(() => {
         const element = dialog.current;
         if (open) {
@@ -84,28 +98,37 @@ export function AuditReasonModal({
                 <div className="px-5 py-4">
                     {open && notice}
                     <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
-                        Alasan perubahan <span className="text-danger" aria-hidden="true">*</span>
+                        {reasonLabel} <span className="text-danger" aria-hidden="true">*</span>
                     </label>
                     <textarea
                         id={`${id}-reason`}
-                        ref={reasonInput}
+                        ref={(el) => {
+                            reasonInput.current = el;
+                            if (reasonRef) {
+                                (reasonRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                            }
+                        }}
                         rows={4}
                         value={reason}
                         onChange={(event) => onReasonChange(event.target.value)}
-                        placeholder="Jelaskan alasan yang dapat dipahami saat audit…"
+                        placeholder={reasonPlaceholder}
+                        aria-invalid={Boolean(error)}
+                        aria-describedby={error ? `${id}-error` : undefined}
                         className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
-                    {error && <p className="mt-1 text-xs font-medium text-danger">{error}</p>}
-                    <p className="mt-2 text-xs leading-5 text-muted">
-                        Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
-                    </p>
+                    {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
+                    {reasonDescription !== undefined ? reasonDescription : (
+                        <p className="mt-2 text-xs leading-5 text-muted">
+                            Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
                     <Button
                         type="button"
-                        variant={destructive ? 'danger' : 'primary'}
+                        variant={destructive ? 'danger-solid' : 'primary'}
                         onClick={() => { if (!busy && !submitDisabled) onConfirm(); }}
                         disabled={submitDisabled}
                         isLoading={busy}

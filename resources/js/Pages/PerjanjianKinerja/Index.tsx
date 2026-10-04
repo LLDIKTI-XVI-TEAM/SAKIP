@@ -1,10 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Eye,
     FileText,
     Lock,
-    Pencil,
     Plus,
     Search,
     ShieldCheck,
@@ -19,6 +17,7 @@ import { CustomSelect } from '@/Components/CustomSelect';
 import { EmptyState } from '@/Components/EmptyState';
 import { Pagination } from '@/Components/Pagination';
 import { Tooltip } from '@/Components/Tooltip';
+import { EditIconButton, ViewIconButton } from '@/Components/IconButton';
 import { HoverScrollText } from '@/Components/HoverScrollText';
 import {
     Table,
@@ -271,26 +270,19 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-right text-sm">
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    <Tooltip content="Lihat Detail" align="right">
-                                                        <Link
-                                                            href={`/perjanjian-kinerja/${item.id}`}
-                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors"
-                                                            aria-label={`Lihat Detail PK ${item.nomor_pk}`}
-                                                        >
-                                                            <Eye className="h-4 w-4" aria-hidden="true" />
-                                                        </Link>
-                                                    </Tooltip>
+                                                    <ViewIconButton
+                                                        href={`/perjanjian-kinerja/${item.id}`}
+                                                        label={`Lihat Detail PK ${item.nomor_pk}`}
+                                                        tooltip="Lihat Detail"
+                                                        tooltipAlign="right"
+                                                    />
                                                     {can.update && (
-                                                        <Tooltip content="Edit Dokumen" align="right">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setEditingPk(item)}
-                                                                className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors cursor-pointer"
-                                                                aria-label={`Edit Dokumen PK ${item.nomor_pk}`}
-                                                            >
-                                                                <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                            </button>
-                                                        </Tooltip>
+                                                        <EditIconButton
+                                                            onClick={() => setEditingPk(item)}
+                                                            label={`Edit Dokumen PK ${item.nomor_pk}`}
+                                                            tooltip="Edit Dokumen"
+                                                            tooltipAlign="right"
+                                                        />
                                                     )}
                                                 </div>
                                             </TableCell>
