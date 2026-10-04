@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { CalendarRange, Plus, RotateCcw, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Card, CardContent } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Table } from '@/Components/Table';
@@ -22,6 +22,16 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
         if (hasErrors) summaryRef.current?.focus();
     }, [hasErrors, errors]);
     const existingPair = Boolean(filters.renstra_id && filters.tahun && jadwal.total > 0);
+    const hasActiveFilters = Boolean(
+        query.trim() ||
+            tahun.trim() ||
+            status ||
+            filters.q ||
+            filters.tahun ||
+            filters.status ||
+            filters.renstra_id,
+    );
+
     const applyFilters = (event: FormEvent) => {
         event.preventDefault();
         router.get(
@@ -31,24 +41,21 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
         );
     };
 
+    const resetFilters = () => {
+        setQuery('');
+        setTahun('');
+        setStatus('');
+        router.get(
+            '/jadwal',
+            { q: '', tahun: '', status: '', sort: filters.sort },
+            { replace: true, preserveState: 'errors' },
+        );
+    };
+
     return (
         <AuthenticatedLayout title="Jadwal tahunan" breadcrumbs={[{ label: 'Jadwal Tahunan' }]}>
             <Head title="Jadwal tahunan" />
             <div className="space-y-5">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                    <p className="text-sm text-muted">
-                        Kalender pengisian dan review untuk setiap Renstra dan tahun pelaporan.
-                    </p>
-                    {can.create && !existingPair && (
-                        <Link
-                            href="/jadwal/create"
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            Susun jadwal
-                        </Link>
-                    )}
-                </div>
                 {existingPair && (
                     <div role="status" className="rounded-lg border border-info/30 bg-info/5 p-4 text-sm">
                         <h2 className="font-semibold">Jadwal tahun ini sudah tersedia</h2>
@@ -57,8 +64,62 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
                         </p>
                     </div>
                 )}
-                <Card>
-                    <CardContent className="p-4">
+
+                <Card className="overflow-hidden border border-border bg-surface shadow-xs">
+                    {/* Unified Header & Summary Bar */}
+                    <div className="flex flex-col gap-3.5 border-b border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+                        <div className="min-w-0 space-y-1.5">
+                            <p className="text-sm text-muted">
+                                Kalender pengisian dan review untuk setiap Renstra dan tahun pelaporan.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+                                <div className="flex items-center gap-1.5">
+                                    <CalendarRange className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                    <span className="font-semibold text-ink">Total Jadwal:</span>
+                                    <span>{jadwal.total} Jadwal</span>
+                                </div>
+                                {filters.tahun && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-semibold text-ink">Tahun Aktif:</span>
+                                        <Badge variant="primary" size="sm">
+                                            {filters.tahun}
+                                        </Badge>
+                                    </div>
+                                )}
+                                {filters.status && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-semibold text-ink">Status Filter:</span>
+                                        <Badge
+                                            variant={filters.status === 'aktif' ? 'success' : 'muted'}
+                                            size="sm"
+                                            dot={filters.status === 'aktif'}
+                                        >
+                                            {filters.status === 'aktif'
+                                                ? 'Aktif'
+                                                : filters.status === 'ditutup'
+                                                  ? 'Ditutup'
+                                                  : 'Draft'}
+                                        </Badge>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {can.create && !existingPair && (
+                            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                                <Link
+                                    href="/jadwal/create"
+                                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-white shadow-xs transition-all duration-150 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1"
+                                >
+                                    <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <span>Susun jadwal</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Unified Filter Toolbar */}
+                    <div className="bg-soft/30 p-4 sm:px-5 sm:py-4">
                         {hasErrors && (
                             <div
                                 ref={summaryRef}
@@ -76,37 +137,65 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
                         )}
                         <form
                             onSubmit={applyFilters}
-                            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end"
+                            className="flex flex-col gap-3 lg:flex-row lg:items-start"
                         >
-                            <Input
-                                label="Cari Renstra"
-                                value={query}
-                                maxLength={100}
-                                error={errors.q}
-                                onChange={(event) => setQuery(event.target.value)}
-                                autoComplete="off"
-                            />
-                            <Input
-                                label="Tahun pelaporan"
-                                type="number"
-                                value={tahun}
-                                error={errors.tahun}
-                                onChange={(event) => setTahun(event.target.value)}
-                            />
-                            <Select
-                                label="Status jadwal"
-                                value={status}
-                                onChange={(event) => setStatus(event.target.value)}
-                                options={[
-                                    { value: '', label: 'Semua status' },
-                                    { value: 'draft', label: 'Draft' },
-                                    { value: 'aktif', label: 'Aktif' },
-                                    { value: 'ditutup', label: 'Ditutup' },
-                                ]}
-                            />
-                            <Button type="submit" variant="outline">
-                                Terapkan filter
-                            </Button>
+                            <div className="min-w-0 flex-1">
+                                <Input
+                                    label="Cari Renstra"
+                                    placeholder="Cari nama atau kode Renstra..."
+                                    value={query}
+                                    maxLength={100}
+                                    error={errors.q}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    autoComplete="off"
+                                />
+                            </div>
+                            <div className="w-full sm:w-44 lg:w-44 shrink-0">
+                                <Input
+                                    label="Tahun pelaporan"
+                                    type="number"
+                                    placeholder="Contoh: 2026"
+                                    value={tahun}
+                                    error={errors.tahun}
+                                    onChange={(event) => setTahun(event.target.value)}
+                                />
+                            </div>
+                            <div className="w-full sm:w-48 lg:w-48 shrink-0">
+                                <Select
+                                    label="Status jadwal"
+                                    value={status}
+                                    onChange={(event) => setStatus(event.target.value)}
+                                    options={[
+                                        { value: '', label: 'Semua status' },
+                                        { value: 'draft', label: 'Draft' },
+                                        { value: 'aktif', label: 'Aktif' },
+                                        { value: 'ditutup', label: 'Ditutup' },
+                                    ]}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 shrink-0 lg:pt-[26px]">
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="md"
+                                    className="h-[42px] gap-1.5 px-4 shrink-0"
+                                >
+                                    <Search className="h-4 w-4" aria-hidden="true" />
+                                    Terapkan filter
+                                </Button>
+                                {hasActiveFilters && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="md"
+                                        onClick={resetFilters}
+                                        className="h-[42px] gap-1.5 px-3.5 text-muted hover:text-ink shrink-0"
+                                    >
+                                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                                        Reset filter
+                                    </Button>
+                                )}
+                            </div>
                         </form>
                         {filters.renstra_id && (
                             <Link
@@ -116,7 +205,7 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
                                 Tampilkan semua Renstra
                             </Link>
                         )}
-                    </CardContent>
+                    </div>
                 </Card>
                 <Card>
                     <Table className="block w-full text-left text-sm md:table">

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { LockKeyhole, Plus } from 'lucide-react';
+import { ArrowLeftRight, Layers, LockKeyhole, Plus, RotateCcw, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Card, CardContent } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { FinalPeriodeReplacement } from '@/Components/Periode/FinalPeriodeReplacement';
@@ -38,10 +38,30 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
     const blocked = Boolean(failure || recovery.recovery);
     const errors: Record<string, string | undefined> = formOpen ? form.errors : swapForm.errors;
     const hasErrors = formOpen ? form.hasErrors : swapForm.hasErrors;
+    const hasActiveFilters = Boolean(query.trim() || status || filters.q || filters.status);
 
     useEffect(() => {
         if (hasErrors) summaryRef.current?.focus();
     }, [hasErrors, errors]);
+
+    const applyFilters = (event: FormEvent) => {
+        event.preventDefault();
+        router.get(
+            '/periode',
+            { q: query, status, sort: filters.sort },
+            { preserveState: false, replace: true },
+        );
+    };
+
+    const resetFilters = () => {
+        setQuery('');
+        setStatus('');
+        router.get(
+            '/periode',
+            { q: '', status: '', sort: filters.sort },
+            { preserveState: false, replace: true },
+        );
+    };
 
     const openForm = (item: PeriodeSummary | null) => {
         if (busy || blocked) return;
@@ -156,63 +176,120 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
         <AuthenticatedLayout title="Master periode" breadcrumbs={[{ label: 'Master periode' }]}>
             <Head title="Master periode" />
             <div className="space-y-5">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                    <div>
-                        <h2 className="font-semibold">Periode pelaporan global</h2>
-                        <p className="mt-1 text-sm text-muted">
-                            Digunakan lintas Renstra dan tahun. Satu periode aktif ditetapkan sebagai nilai akhir.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {can.replaceFinal && current_final && (
-                            <Button type="button" variant="outline" disabled={busy || blocked} onClick={openSwap}>
-                                Ganti periode nilai akhir
-                            </Button>
-                        )}
-                        {can.create && (
-                            <Button type="button" disabled={busy || blocked} onClick={() => openForm(null)}>
-                                <Plus className="h-4 w-4" aria-hidden="true" />
-                                Tambah periode
-                            </Button>
-                        )}
-                    </div>
-                </div>
                 {!formOpen && !swap && feedback}
-                <Card>
-                    <CardContent className="p-4">
+
+                <Card className="overflow-hidden border border-border bg-surface shadow-xs">
+                    {/* Unified Header & Action Bar */}
+                    <div className="flex flex-col gap-3.5 border-b border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+                        <div className="min-w-0 space-y-1.5">
+                            <p className="text-sm text-muted">
+                                Periode pelaporan global lintas Renstra dan tahun. Satu periode aktif ditetapkan sebagai
+                                nilai akhir.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+                                <div className="flex items-center gap-1.5">
+                                    <Layers className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                    <span className="font-semibold text-ink">Periode Nilai Akhir:</span>
+                                    {current_final ? (
+                                        <Badge variant="success" size="sm" dot>
+                                            {`Aktif (${current_final.nama})`}
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="muted" size="sm">
+                                            Belum ditetapkan
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-ink">Total Periode:</span>
+                                    <span>{periode.total} Periode</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                            {can.replaceFinal && current_final && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={busy || blocked}
+                                    onClick={openSwap}
+                                    className="h-9 gap-1.5 px-3.5 text-xs font-semibold shadow-xs"
+                                >
+                                    <ArrowLeftRight className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                                    Ganti periode nilai akhir
+                                </Button>
+                            )}
+                            {can.create && (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    size="sm"
+                                    disabled={busy || blocked}
+                                    onClick={() => openForm(null)}
+                                    className="h-9 gap-1.5 px-3.5 text-xs font-semibold shadow-xs"
+                                >
+                                    <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    Tambah periode
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Unified Filter Toolbar */}
+                    <div className="bg-soft/30 p-4 sm:px-5 sm:py-4">
                         <form
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                router.get(
-                                    '/periode',
-                                    { q: query, status, sort: filters.sort },
-                                    { preserveState: false, replace: true },
-                                );
-                            }}
-                            className="flex flex-col items-end gap-3 sm:flex-row"
+                            onSubmit={applyFilters}
+                            className="flex flex-col gap-3 sm:flex-row sm:items-end"
                         >
-                            <Input
-                                label="Cari periode"
-                                maxLength={100}
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                autoComplete="off"
-                            />
-                            <Select
-                                label="Status"
-                                value={status}
-                                onChange={(event) => setStatus(event.target.value)}
-                                options={[
-                                    { value: '', label: 'Semua status' },
-                                    { value: 'aktif', label: 'Aktif' },
-                                    { value: 'nonaktif', label: 'Nonaktif' },
-                                ]}
-                            />
-                            <Button type="submit" variant="outline" className="shrink-0">
-                                Terapkan filter
-                            </Button>
+                            <div className="min-w-0 flex-1">
+                                <Input
+                                    label="Cari periode"
+                                    placeholder="Cari nama periode pelaporan..."
+                                    maxLength={100}
+                                    value={query}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    autoComplete="off"
+                                />
+                            </div>
+                            <div className="w-full sm:w-52 shrink-0">
+                                <Select
+                                    label="Status"
+                                    value={status}
+                                    onChange={(event) => setStatus(event.target.value)}
+                                    options={[
+                                        { value: '', label: 'Semua status' },
+                                        { value: 'aktif', label: 'Aktif' },
+                                        { value: 'nonaktif', label: 'Nonaktif' },
+                                    ]}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="md"
+                                    className="h-[42px] gap-1.5 px-4 shrink-0"
+                                >
+                                    <Search className="h-4 w-4" aria-hidden="true" />
+                                    Terapkan filter
+                                </Button>
+                                {hasActiveFilters && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="md"
+                                        onClick={resetFilters}
+                                        className="h-[42px] gap-1.5 px-3.5 text-muted hover:text-ink shrink-0"
+                                    >
+                                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                                        Reset filter
+                                    </Button>
+                                )}
+                            </div>
                         </form>
-                    </CardContent>
+                    </div>
                 </Card>
                 <Card>
                     <Table className="block w-full text-left text-sm md:table">

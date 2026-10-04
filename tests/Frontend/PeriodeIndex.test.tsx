@@ -243,3 +243,19 @@ it('izin create-only tidak menampilkan edit atau pergantian final', () => {
     expect(screen.queryByRole('button', { name: 'Edit Triwulan I' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Ganti periode nilai akhir' })).toBeNull();
 });
+
+it('menampilkan placeholder pencarian dan dapat mereset filter ketika filter aktif', () => {
+    render(<Index {...props} filters={{ ...props.filters, q: 'Triwulan', status: 'aktif' }} />);
+    expect(screen.getByPlaceholderText('Cari nama periode pelaporan...')).toBeTruthy();
+    const resetButton = screen.getByRole('button', { name: 'Reset filter' });
+    fireEvent.click(resetButton);
+
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('');
+    expect(router.get).toHaveBeenCalledWith(
+        '/periode',
+        { q: '', status: '', sort: 'urutan' },
+        { preserveState: false, replace: true },
+    );
+});
+
