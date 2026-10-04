@@ -58,8 +58,6 @@ export function Pagination({
     className,
 }: PaginationProps) {
     const links = pagination?.links ?? propLinks ?? [];
-    const from = pagination?.from ?? propFrom ?? 0;
-    const to = pagination?.to ?? propTo ?? 0;
     const total = pagination?.total ?? propTotal ?? 0;
 
     // Resolve current page
@@ -73,6 +71,16 @@ export function Pagination({
     }
     const current = activePage ?? 1;
 
+    // Resolve perPage
+    const currentPerPage = pagination?.per_page ?? propPerPage ?? 10;
+
+    // Fallback calculation for from and to when not explicitly provided
+    const calculatedFrom = total > 0 ? (current - 1) * currentPerPage + 1 : 0;
+    const calculatedTo = total > 0 ? Math.min(current * currentPerPage, total) : 0;
+
+    const from = pagination?.from ?? propFrom ?? calculatedFrom;
+    const to = pagination?.to ?? propTo ?? calculatedTo;
+
     // Resolve last page
     let resolvedLastPage = pagination?.last_page ?? propLastPage;
     if (!resolvedLastPage) {
@@ -83,9 +91,6 @@ export function Pagination({
         resolvedLastPage = numericLabels.length > 0 ? Math.max(...numericLabels) : 1;
     }
     const totalPages = resolvedLastPage;
-
-    // Resolve perPage
-    const currentPerPage = pagination?.per_page ?? propPerPage ?? 10;
 
     const handlePerPageSelect = (newPerPage: number) => {
         if (onPerPageChange) {

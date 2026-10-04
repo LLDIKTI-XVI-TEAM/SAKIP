@@ -66,6 +66,22 @@ describe('Pagination Component (SIMPEG Style)', () => {
         expect(meta.textContent).toContain('11 - 20 dari 35 data');
     });
 
+    it('menghitung otomatis from dan to saat tidak diberikan di objek pagination', () => {
+        render(
+            <Pagination
+                pagination={{
+                    total: 3,
+                    current_page: 1,
+                    last_page: 1,
+                }}
+                resourceName="penugasan"
+            />
+        );
+
+        const meta = screen.getByTestId('pagination-meta');
+        expect(meta.textContent).toContain('1 - 3 dari 3 penugasan');
+    });
+
     it('memanggil onPerPageChange saat opsi jumlah data diubah', () => {
         const handlePerPageChange = vi.fn();
         render(

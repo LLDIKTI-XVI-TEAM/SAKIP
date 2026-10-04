@@ -4,9 +4,9 @@ import { CheckCircle2, Eye, AlertCircle, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import { Pagination } from '@/Components/Pagination';
 import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
 import { statusPerhitungan } from '@/Pages/Pengukuran/types';
-import Pagination from '@/Pages/Pengukuran/Pagination';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 
@@ -138,7 +138,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                         </tbody>
                     </table>
                 </div>
-                <Pagination pagination={pagination} />
+                <Pagination pagination={pagination} showPerPage={false} resourceName="pengukuran" />
             </Card>
         </AuthenticatedLayout>
     );
