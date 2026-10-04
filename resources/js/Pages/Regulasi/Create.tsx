@@ -3,8 +3,9 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
@@ -49,13 +50,8 @@ export default function CreateRegulasi() {
         >
             <Head title="Tambah Dasar Aturan" />
 
-            <div className="mx-auto max-w-5xl">
-                <div className="mb-5">
-                    <Link href="/regulasi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Kembali ke daftar
-                    </Link>
-                </div>
+            <div className="mx-auto max-w-5xl space-y-5">
+                <BackButton href="/regulasi">Kembali ke daftar</BackButton>
 
                 <form onSubmit={submit} noValidate>
                     <><AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />{!recovery.recovery && <RegulasiFailureNotice message={recoveryMessage} />}</>

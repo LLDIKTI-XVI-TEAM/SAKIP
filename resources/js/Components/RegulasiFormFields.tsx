@@ -2,7 +2,7 @@ import React from 'react';
 import { FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
+import { CustomSelect, type CustomSelectOption } from '@/Components/CustomSelect';
 import { Textarea } from '@/Components/Textarea';
 import type { LampiranDraft, LampiranMode, RegulasiFormData, RegulasiJenis } from '@/types/regulasi';
 
@@ -13,8 +13,22 @@ interface RegulasiFormFieldsProps {
     data: RegulasiFormData;
     errors: Record<string, string | undefined>;
     disabled?: boolean;
+    isEdit?: boolean;
     setField: SetRegulasiField;
 }
+
+const jenisOptions: CustomSelectOption[] = [
+    { value: 'kepmen', label: 'Keputusan Menteri' },
+    { value: 'permen', label: 'Peraturan Menteri' },
+    { value: 'perpres', label: 'Peraturan Presiden' },
+    { value: 'keputusan_lainnya', label: 'Keputusan lainnya' },
+];
+
+const lampiranModeOptions: CustomSelectOption[] = [
+    { value: 'file', label: 'File' },
+    { value: 'tautan', label: 'Tautan' },
+    { value: 'teks', label: 'Teks' },
+];
 
 const modeMeta: Record<LampiranMode, { label: string; icon: typeof FileText; description: string }> = {
     file: { label: 'File', icon: FileText, description: 'PDF, dokumen Office, atau gambar; maksimal 10 MB.' },
@@ -32,7 +46,7 @@ function newLampiran(): LampiranDraft {
     };
 }
 
-export function RegulasiFormFields({ data, errors, disabled = false, setField }: RegulasiFormFieldsProps) {
+export function RegulasiFormFields({ data, errors, disabled = false, isEdit = false, setField }: RegulasiFormFieldsProps) {
     const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
         const next = data.lampiran.map((item, itemIndex) => (
             itemIndex === index ? { ...item, [field]: value } : item
@@ -58,26 +72,21 @@ export function RegulasiFormFields({ data, errors, disabled = false, setField }:
             <section aria-labelledby="metadata-heading">
                 <div className="mb-4">
                     <h2 id="metadata-heading" className="text-base font-semibold text-ink">Metadata dasar aturan</h2>
-                    <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
-                        Kombinasi jenis, nomor, dan tahun harus unik. Gunakan metadata yang sama dengan dokumen resmi.
-                    </p>
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    <Select
+                    <CustomSelect
+                        id="jenis"
                         name="jenis"
                         label="Jenis regulasi"
+                        options={jenisOptions}
                         value={data.jenis}
-                        onChange={(event) => setField('jenis', event.target.value as RegulasiJenis)}
+                        onChange={(val) => setField('jenis', String(val) as RegulasiJenis)}
                         error={errors.jenis}
                         disabled={disabled}
                         required
-                    >
-                        <option value="kepmen">Keputusan Menteri</option>
-                        <option value="permen">Peraturan Menteri</option>
-                        <option value="perpres">Peraturan Presiden</option>
-                        <option value="keputusan_lainnya">Keputusan lainnya</option>
-                    </Select>
+                        showEmptyOption={false}
+                    />
                     <Input
                         name="nomor"
                         label="Nomor"
@@ -148,33 +157,46 @@ export function RegulasiFormFields({ data, errors, disabled = false, setField }:
                     </div>
                 </div>
 
-                <label className="mt-5 flex max-w-xl items-start gap-3 rounded-lg bg-soft px-4 py-3 text-sm text-ink">
+                <label className="mt-5 flex items-center gap-3 rounded-lg bg-soft px-4 py-3 text-sm text-ink cursor-pointer">
                     <input
                         type="checkbox"
                         checked={data.aktif}
                         onChange={(event) => setField('aktif', event.target.checked)}
                         disabled={disabled}
-                        className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/25"
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary/25"
                     />
-                    <span>
-                        <span className="block font-semibold text-ink">Regulasi aktif</span>
-                        <span className="mt-0.5 block leading-5 text-muted">Regulasi aktif dapat dipilih sebagai dasar hukum Renstra atau Indikator.</span>
+                    <span className="text-sm font-medium text-ink">
+                        Regulasi aktif dapat dipilih sebagai dasar hukum Renstra atau Indikator.
                     </span>
                 </label>
+
+                {isEdit && (
+                    <div className="mt-5 border-t border-border pt-5">
+                        <Textarea
+                            name="alasan"
+                            label="Alasan Perubahan Dasar Aturan"
+                            value={data.alasan ?? ''}
+                            onChange={(event) => setField('alasan', event.target.value)}
+                            error={errors.alasan}
+                            placeholder="Jelaskan alasan perubahan data dasar aturan (minimal 10 karakter)..."
+                            rows={3}
+                            disabled={disabled}
+                            required
+                        />
+                    </div>
+                )}
             </section>
 
             <section aria-labelledby="lampiran-heading" className="border-t border-border pt-7">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 id="lampiran-heading" className="text-base font-semibold text-ink">Lampiran dokumen sumber</h2>
-                        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
-                            Lampiran bebas disimpan sebagai metadata berkas. File berada di private storage dan hanya tersedia melalui endpoint aplikasi.
-                        </p>
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="primary"
                         size="sm"
+                        className="gap-1.5"
                         onClick={() => setField('lampiran', [...data.lampiran, newLampiran()])}
                         disabled={disabled}
                     >
@@ -213,17 +235,16 @@ export function RegulasiFormFields({ data, errors, disabled = false, setField }:
                                     </div>
 
                                     <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
-                                        <Select
+                                        <CustomSelect
+                                            id={`lampiran-${index}-mode`}
                                             label="Mode lampiran"
+                                            options={lampiranModeOptions}
                                             value={item.mode}
-                                            onChange={(event) => updateModeLampiran(index, event.target.value as LampiranMode)}
+                                            onChange={(val) => updateModeLampiran(index, String(val) as LampiranMode)}
                                             disabled={disabled}
                                             error={errors[`lampiran.${index}.mode`]}
-                                        >
-                                            <option value="file">File</option>
-                                            <option value="tautan">Tautan</option>
-                                            <option value="teks">Teks</option>
-                                        </Select>
+                                            showEmptyOption={false}
+                                        />
 
                                         <div>
                                             {item.mode === 'file' && (

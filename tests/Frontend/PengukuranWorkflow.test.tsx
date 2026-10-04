@@ -113,16 +113,18 @@ describe('Alur pengukuran', () => {
             tautan: null, isi_teks: 'Bukti semula', download_url: null, menggantikan_id: null, alasan_koreksi: null,
         }] }} />);
         await user.click(screen.getByRole('checkbox', { name: 'Tambahkan bukti dukung' }));
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Bukti yang diganti (opsional)' }), 'old-evidence');
+        await user.click(screen.getByRole('button', { name: 'Bukti yang diganti (opsional)' }));
+        await user.click(screen.getByRole('option', { name: /Bukti semula/i }));
         await user.type(screen.getByRole('textbox', { name: /Alasan koreksi bukti/ }), 'Lampiran salah periode.');
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Mode bukti' }), 'teks');
+        await user.click(screen.getByRole('button', { name: 'Mode bukti' }));
+        await user.click(screen.getByRole('option', { name: 'Teks' }));
         await user.type(screen.getByRole('textbox', { name: 'Isi bukti teks' }), 'Bukti periode yang benar');
         await user.click(screen.getByRole('button', { name: 'Simpan Sebagai Draft' }));
         expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ bukti: {
             menggantikan_id: 'old-evidence', alasan_koreksi: 'Lampiran salah periode.', mode: 'teks', isi_teks: 'Bukti periode yang benar',
         } });
         await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ 'bukti.menggantikan_id': 'Bukti telah dikoreksi.' }); });
-        expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Bukti yang diganti (opsional)' }).value).toBe('old-evidence');
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bukti yang diganti (opsional)' }).value).toBe('old-evidence');
         expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan koreksi bukti/ }).value).toBe('Lampiran salah periode.');
     });
 
@@ -156,7 +158,9 @@ describe('Alur pengukuran', () => {
         expect(screen.queryByRole('button', { name: 'Ajukan ke Tim Perencanaan' })).toBeNull();
         await user.type(screen.getByRole('spinbutton', { name: /Pembilang/ }), '0');
         await user.click(screen.getByRole('checkbox', { name: 'Tambahkan bukti dukung' }));
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Persyaratan yang dipenuhi' }), 'requirement');
+        await user.click(screen.getByRole('button', { name: 'Persyaratan yang dipenuhi' }));
+        await user.click(screen.getByRole('option', { name: 'Penjelasan' }));
+        await user.click(screen.getByRole('button', { name: 'Mode bukti' }));
         expect(screen.queryByRole('option', { name: 'Unggahan file' })).toBeNull();
         const evidence = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Isi bukti teks' });
         await user.type(evidence, 'Penjelasan hasil pengukuran');

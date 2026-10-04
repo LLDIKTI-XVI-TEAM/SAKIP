@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { AlertCircle, FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
 import { Button } from '@/Components/Button';
-import { CustomSelect } from '@/Components/CustomSelect';
+import { CustomSelect, type CustomSelectOption } from '@/Components/CustomSelect';
 import { InfoTooltip } from '@/Components/InfoTooltip';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import type {
     LampiranDraft,
@@ -33,6 +32,12 @@ const modeIcons: Record<LampiranMode, typeof FileText> = {
     tautan: Link2,
     teks: Type,
 };
+
+const lampiranModeOptions: CustomSelectOption[] = [
+    { value: 'file', label: 'File (Unggahan)' },
+    { value: 'tautan', label: 'Tautan (URL Cloud)' },
+    { value: 'teks', label: 'Teks (Catatan/Ringkasan)' },
+];
 
 function newLampiran(): LampiranDraft {
     return {
@@ -76,13 +81,13 @@ export function PerjanjianKinerjaFormFields({
         }));
     }, [renstras]);
 
-    const allowedYears = useMemo(() => {
+    const tahunOptions: CustomSelectOption[] = useMemo(() => {
         if (!selectedRenstra) return [];
-        const years: number[] = [];
+        const options: CustomSelectOption[] = [];
         for (let y = selectedRenstra.tahun_mulai; y <= selectedRenstra.tahun_selesai; y++) {
-            years.push(y);
+            options.push({ value: y, label: `Tahun ${y}` });
         }
-        return years;
+        return options;
     }, [selectedRenstra]);
 
     const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
@@ -150,24 +155,21 @@ export function PerjanjianKinerjaFormFields({
                     </div>
 
                     <div className="w-full min-w-0 sm:col-span-1 lg:col-span-3">
-                        {allowedYears.length > 0 ? (
-                            <Select
+                        {tahunOptions.length > 0 ? (
+                            <CustomSelect
+                                id="tahun"
                                 name="tahun"
                                 label="Tahun Pelaksanaan"
                                 labelClassName="sm:whitespace-nowrap"
+                                options={tahunOptions}
                                 value={data.tahun}
-                                onChange={(event) => setField('tahun', Number(event.target.value))}
+                                onChange={(val) => setField('tahun', val ? Number(val) : '')}
                                 error={errors.tahun}
                                 disabled={disabled || isEdit}
                                 required
-                            >
-                                <option value="">-- Pilih Tahun --</option>
-                                {allowedYears.map((yr) => (
-                                    <option key={yr} value={yr}>
-                                        Tahun {yr}
-                                    </option>
-                                ))}
-                            </Select>
+                                showEmptyOption={true}
+                                emptyOptionLabel="-- Pilih Tahun --"
+                            />
                         ) : (
                             <Input
                                 name="tahun"
@@ -305,17 +307,17 @@ export function PerjanjianKinerjaFormFields({
                                     </div>
 
                                     <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
-                                        <Select
+                                        <CustomSelect
+                                            id={`lampiran-${index}-mode`}
+                                            name={`lampiran.${index}.mode`}
                                             label="Mode Lampiran"
+                                            options={lampiranModeOptions}
                                             value={item.mode}
-                                            onChange={(event) => updateModeLampiran(index, event.target.value as LampiranMode)}
+                                            onChange={(val) => updateModeLampiran(index, String(val) as LampiranMode)}
                                             disabled={disabled}
                                             error={errors[`lampiran.${index}.mode`]}
-                                        >
-                                            <option value="file">File (Unggahan)</option>
-                                            <option value="tautan">Tautan (URL Cloud)</option>
-                                            <option value="teks">Teks (Catatan/Ringkasan)</option>
-                                        </Select>
+                                            showEmptyOption={false}
+                                        />
 
                                         <div>
                                             {item.mode === 'file' && (

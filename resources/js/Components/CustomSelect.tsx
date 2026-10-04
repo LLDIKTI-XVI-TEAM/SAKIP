@@ -117,6 +117,7 @@ export function CustomSelect({
                     ref={triggerRef}
                     type="button"
                     id={selectId}
+                    value={String(value ?? '')}
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
                     aria-label={label || placeholder}
@@ -159,7 +160,7 @@ export function CustomSelect({
                             )
                         ) : (
                             <span className="text-muted text-sm select-none truncate block">
-                                {placeholder}
+                                {emptyOptionLabel || placeholder}
                             </span>
                         )}
                     </div>

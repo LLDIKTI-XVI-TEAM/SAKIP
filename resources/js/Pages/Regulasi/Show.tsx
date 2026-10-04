@@ -1,8 +1,10 @@
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Download, ExternalLink, FileText } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { Download, ExternalLink, FileText } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { BackButton } from '@/Components/BackButton';
+import { Badge } from '@/Components/Badge';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { BerkasRegulasi, RegulasiDetail, RegulasiJenis } from '@/types/regulasi';
 
@@ -78,10 +80,7 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
             <Head title={`${regulasi.nomor}/${regulasi.tahun}`} />
 
             <div className="mx-auto max-w-5xl space-y-5">
-                <Link href="/regulasi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke daftar
-                </Link>
+                <BackButton href="/regulasi">Kembali ke daftar</BackButton>
 
                 <Card>
                     <CardHeader className="items-start gap-4">
@@ -89,9 +88,9 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                             <CardTitle>{regulasi.nomor}/{regulasi.tahun}</CardTitle>
                             <p className="mt-1 text-sm leading-6 text-muted">{jenisLabel[regulasi.jenis]}</p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${regulasi.aktif ? 'bg-success/10 text-success' : 'bg-soft text-muted'}`}>
+                        <Badge variant={regulasi.aktif ? 'success' : 'muted'}>
                             {regulasi.aktif ? 'Aktif' : 'Nonaktif'}
-                        </span>
+                        </Badge>
                     </CardHeader>
                     <CardContent>
                         <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">

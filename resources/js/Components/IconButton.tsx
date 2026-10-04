@@ -147,6 +147,7 @@ export const DeleteIconButton: React.FC<DeleteIconButtonProps> = ({
     icon = Trash2,
     label = 'Hapus',
     tooltip = 'Hapus',
+    tooltipAlign = 'right',
     variant = 'danger',
     ...props
 }) => (
@@ -154,6 +155,7 @@ export const DeleteIconButton: React.FC<DeleteIconButtonProps> = ({
         icon={icon}
         label={label}
         tooltip={tooltip}
+        tooltipAlign={tooltipAlign}
         variant={variant}
         {...props}
     />

@@ -29,6 +29,8 @@ export interface RegulasiSummary {
     tanggal: string | null;
     tautan_sumber: string | null;
     aktif: boolean;
+    catatan?: string | null;
+    versi?: number;
     berkas_count: number;
     pembuat: string | null;
     updated_at: string | null;
@@ -76,5 +78,6 @@ export interface Paginated<T> {
     from: number | null;
     to: number | null;
     total: number;
+    per_page?: number;
     links: PaginationLink[];
 }

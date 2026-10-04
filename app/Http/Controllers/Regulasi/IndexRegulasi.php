@@ -18,9 +18,11 @@ class IndexRegulasi extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:aktif,nonaktif'],
+            'per_page' => ['nullable', 'integer', 'in:10,20,25,50,100'],
         ]);
         $search = trim((string) ($filters['q'] ?? ''));
         $status = $filters['status'] ?? null;
+        $perPage = (int) ($filters['per_page'] ?? 10);
 
         $regulasi = Regulasi::query()
             ->with('pembuat:id,nama')
@@ -36,7 +38,7 @@ class IndexRegulasi extends Controller
             ->orderByDesc('tahun')
             ->orderBy('jenis')
             ->orderBy('nomor')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Regulasi $item) => [
                 'id' => $item->id,
@@ -47,6 +49,8 @@ class IndexRegulasi extends Controller
                 'tanggal' => $item->tanggal?->format('Y-m-d'),
                 'tautan_sumber' => $item->tautan_sumber,
                 'aktif' => $item->aktif,
+                'catatan' => $item->catatan,
+                'versi' => $item->versi,
                 'berkas_count' => $item->berkas_count,
                 'pembuat' => $item->pembuat?->nama,
                 'updated_at' => $item->updated_at?->toIso8601String(),
@@ -57,6 +61,7 @@ class IndexRegulasi extends Controller
             'filters' => [
                 'q' => $search,
                 'status' => $status,
+                'per_page' => $perPage,
             ],
         ]);
     }

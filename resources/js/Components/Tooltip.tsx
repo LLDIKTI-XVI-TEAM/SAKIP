@@ -23,8 +23,8 @@ export function Tooltip({
 
     const arrowAlignmentClasses = {
         center: 'left-1/2 -translate-x-1/2',
-        left: 'left-3',
-        right: 'right-3',
+        left: 'left-3.5',
+        right: 'right-3.5',
     };
 
     return (

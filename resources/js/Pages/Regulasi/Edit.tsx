@@ -3,9 +3,10 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Download, ExternalLink, FileText, Save, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, FileText, Save, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
@@ -183,10 +184,7 @@ export default function EditRegulasi({ regulasi, can }: EditRegulasiProps) {
             <Head title={`Edit ${regulasi.nomor}`} />
 
             <div className="mx-auto max-w-5xl space-y-5">
-                <Link href="/regulasi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke daftar
-                </Link>
+                <BackButton href="/regulasi">Kembali ke daftar</BackButton>
 
                 {regulasi.berkas.length > 0 && (
                     <Card>

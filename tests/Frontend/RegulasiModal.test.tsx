@@ -12,7 +12,12 @@ vi.mock('@inertiajs/react', async (original) => ({
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
+        <main>
+            {headerAction}
+            {children}
+        </main>
+    ),
 }));
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;
@@ -67,16 +72,15 @@ describe('Regulasi Modal UI/UX', () => {
         // Sebelum klik, modal belum ada di DOM / belum terbuka
         expect(screen.queryByRole('heading', { name: 'Tambah Dasar Aturan' })).toBeNull();
 
-        // Keterangan privasi file dan jejak audit tetap tampil pada deskripsi halaman
-        expect(screen.getByText(/File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log/)).toBeTruthy();
-
         // Klik tombol Tambah dasar aturan
         const tambahBtn = screen.getByRole('button', { name: /Tambah dasar aturan/i });
         await user.click(tambahBtn);
 
-        // Modal terbuka dengan judul dan deskripsi
+        // Modal terbuka dengan judul tanpa deskripsi berlebihan
         expect(screen.getByRole('heading', { name: 'Tambah Dasar Aturan' })).toBeTruthy();
-        expect(screen.getByText('Tambahkan dasar hukum atau regulasi yang menjadi rujukan dalam penyusunan SAKIP.')).toBeTruthy();
+        expect(screen.queryByText('Tambahkan dasar hukum atau regulasi yang menjadi rujukan dalam penyusunan SAKIP.')).toBeNull();
+        expect(screen.queryByText('Kombinasi jenis, nomor, dan tahun harus unik. Gunakan metadata yang sama dengan dokumen resmi.')).toBeNull();
+        expect(screen.queryByText('Lampiran bebas disimpan sebagai metadata berkas. File berada di private storage dan hanya tersedia melalui endpoint aplikasi.')).toBeNull();
 
         // Field form tersedia di dalam modal
         expect(screen.getByLabelText(/Jenis regulasi/i)).toBeTruthy();
@@ -264,4 +268,36 @@ describe('Regulasi Modal UI/UX', () => {
         expect(searchInput.value).toBe('');
         expect(statusSelect.value).toBe('');
     });
+
+    it('membuka modal Edit Dasar Aturan saat tombol edit baris ditekan', async () => {
+        const user = userEvent.setup();
+        render(
+            <Index
+                regulasi={{ data: dummyItems, current_page: 1, last_page: 1, total: 1, from: 1, to: 1, links: [] }}
+                filters={{ q: '', status: null }}
+                can={{ 'regulasi:update': true, 'regulasi:read': true }}
+            />
+        );
+
+        // Sebelum klik, modal edit belum terbuka
+        expect(screen.queryByRole('heading', { name: 'Edit Dasar Aturan' })).toBeNull();
+
+        // Klik tombol edit pada baris regulasi
+        const editBtn = screen.getByRole('button', { name: /Edit regulasi 358\/M\/KEP\/2025/i });
+        await user.click(editBtn);
+
+        // Modal Edit Dasar Aturan terbuka
+        expect(screen.getByRole('heading', { name: 'Edit Dasar Aturan' })).toBeTruthy();
+        expect((screen.getByLabelText(/^Nomor/i) as HTMLInputElement).value).toBe('358/M/KEP/2025');
+        expect(screen.getByLabelText(/Alasan Perubahan Dasar Aturan/i)).toBeTruthy();
+
+        // Pastikan tidak ada deskripsi berlebihan di modal edit
+        expect(screen.queryByText('Kombinasi jenis, nomor, dan tahun harus unik. Gunakan metadata yang sama dengan dokumen resmi.')).toBeNull();
+        expect(screen.queryByText('Lampiran bebas disimpan sebagai metadata berkas. File berada di private storage dan hanya tersedia melalui endpoint aplikasi.')).toBeNull();
+
+        // Klik Batal menutup modal
+        await user.click(screen.getByRole('button', { name: 'Batal' }));
+        expect(screen.queryByRole('heading', { name: 'Edit Dasar Aturan' })).toBeNull();
+    });
 });
+

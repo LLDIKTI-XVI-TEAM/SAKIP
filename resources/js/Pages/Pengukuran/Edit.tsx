@@ -1,7 +1,7 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import type { HttpExceptionResponse } from '@inertiajs/core';
-import { useCallback, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -10,7 +10,7 @@ import { Badge } from '@/Components/Badge';
 import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
+import { CustomSelect, type CustomSelectOption } from '@/Components/CustomSelect';
 import { Textarea } from '@/Components/Textarea';
 import { Alert } from '@/Components/Alert';
 import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
@@ -65,6 +65,29 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
     const activeMode = modes.includes(data.mode) ? data.mode : (modes[0] ?? null);
     const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
+
+    const jenisBerkasOptions: CustomSelectOption[] = useMemo(() => {
+        return pengukuran.persyaratan_bukti.map((item) => ({
+            value: item.id,
+            label: item.nama,
+        }));
+    }, [pengukuran.persyaratan_bukti]);
+
+    const buktiPendahuluOptions: CustomSelectOption[] = useMemo(() => {
+        return pengukuran.bukti_dukungs
+            .filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id)
+            .map((item, index) => ({
+                value: item.id,
+                label: `${index + 1}. ${item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} (${item.mode})`,
+            }));
+    }, [pengukuran.bukti_dukungs, data.jenis_berkas_id]);
+
+    const modeOptions: CustomSelectOption[] = useMemo(() => {
+        return modes.map((m) => ({
+            value: m,
+            label: m === 'file' ? 'Unggahan file' : m === 'tautan' ? 'Tautan' : 'Teks',
+        }));
+    }, [modes]);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -186,37 +209,33 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                             <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={data.tambah_bukti} disabled={disabled} onChange={(event) => setData('tambah_bukti', event.target.checked)} />Tambahkan bukti dukung</label>
                             {data.tambah_bukti && <>
                                 <div>
-                                    <Select
+                                    <CustomSelect
                                         id="jenis-bukti"
                                         label="Persyaratan yang dipenuhi"
+                                        placeholder="Lampiran tambahan"
+                                        options={jenisBerkasOptions}
                                         value={data.jenis_berkas_id}
                                         disabled={disabled}
-                                        onChange={(event) => {
-                                            const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
+                                        onChange={(val) => {
+                                            const valStr = String(val);
+                                            const selected = pengukuran.persyaratan_bukti.find((item) => item.id === valStr);
                                             const available = (['file', 'tautan', 'teks'] as const).filter((mode) => (!selected || selected[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
-                                            setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '', mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
+                                            setData((values) => ({ ...values, jenis_berkas_id: valStr, menggantikan_id: '', alasan_koreksi: '', mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
                                         }}
-                                    >
-                                        <option value="">Lampiran tambahan</option>
-                                        {pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}
-                                    </Select>
+                                    />
                                 </div>
                                 {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && (
-                                    <Select
+                                    <CustomSelect
                                         id="bukti-pendahulu"
                                         label="Bukti yang diganti (opsional)"
+                                        placeholder="Tambahkan tanpa mengganti bukti"
+                                        options={buktiPendahuluOptions}
                                         value={data.menggantikan_id}
                                         disabled={disabled}
-                                        onChange={(event) => setData('menggantikan_id', event.target.value)}
-                                        aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])}
-                                        aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-koreksi-help'}
+                                        onChange={(val) => setData('menggantikan_id', String(val))}
+                                        error={fieldErrors['bukti.menggantikan_id']}
                                         helperText="Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti."
-                                    >
-                                        <option value="">Tambahkan tanpa mengganti bukti</option>
-                                        {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => (
-                                            <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({item.mode})</option>
-                                        ))}
-                                    </Select>
+                                    />
                                 )}
                                 {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
                                 {modes.length === 0 ? (
@@ -225,15 +244,15 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                                     </Alert>
                                 ) : (
                                     <>
-                                        <Select
+                                        <CustomSelect
                                             id="mode-bukti"
                                             label="Mode bukti"
+                                            options={modeOptions}
                                             value={activeMode ?? ''}
                                             disabled={disabled}
-                                            onChange={(event) => setData('mode', event.target.value as BuktiPengukuran['mode'])}
-                                        >
-                                            {modes.map((mode) => <option key={mode} value={mode}>{mode === 'file' ? 'Unggahan file' : mode === 'tautan' ? 'Tautan' : 'Teks'}</option>)}
-                                        </Select>
+                                            onChange={(val) => setData('mode', String(val) as BuktiPengukuran['mode'])}
+                                            showEmptyOption={false}
+                                        />
                                         {activeMode === 'file' && <Input name="bukti-file" label="File bukti" type="file" disabled={disabled} onChange={(event) => setData('file', event.target.files?.[0] ?? null)} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')} helperText={requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : undefined} error={fieldErrors['bukti.file']} aria-describedby={fieldErrors['bukti.file'] ? 'measurement-errors' : undefined} />}
                                         {activeMode === 'tautan' && <Input name="bukti-tautan" label="Tautan bukti" type="url" value={data.tautan} disabled={disabled} onChange={(event) => setData('tautan', event.target.value)} error={fieldErrors['bukti.tautan']} helperText="Gunakan alamat http atau https." aria-describedby={fieldErrors['bukti.tautan'] ? 'measurement-errors' : undefined} />}
                                         {activeMode === 'teks' && <Textarea name="bukti-teks" label="Isi bukti teks" value={data.isi_teks} disabled={disabled} onChange={(event) => setData('isi_teks', event.target.value)} error={fieldErrors['bukti.isi_teks']} aria-describedby={fieldErrors['bukti.isi_teks'] ? 'measurement-errors' : undefined} />}

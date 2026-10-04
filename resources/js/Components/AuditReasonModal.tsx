@@ -13,6 +13,7 @@ interface AuditReasonModalProps {
     notice?: ReactNode;
     confirmLabel: string;
     destructive?: boolean;
+    confirmVariant?: 'primary' | 'secondary' | 'danger' | 'danger-solid';
     reasonLabel?: string;
     reasonPlaceholder?: string;
     reasonDescription?: ReactNode;
@@ -33,6 +34,7 @@ export function AuditReasonModal({
     notice,
     confirmLabel,
     destructive = false,
+    confirmVariant,
     reasonLabel = 'Alasan perubahan',
     reasonPlaceholder = 'Jelaskan alasan yang dapat dipahami saat audit…',
     reasonDescription,
@@ -69,7 +71,7 @@ export function AuditReasonModal({
                 event.preventDefault();
                 if (!busy) onClose();
             }}
-            className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/60 backdrop:backdrop-blur-md"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/60 backdrop:backdrop-blur-xs"
         >
             {open && <div
                 className="w-full max-w-lg rounded-xl bg-surface"
@@ -117,18 +119,14 @@ export function AuditReasonModal({
                         className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
-                    {reasonDescription !== undefined ? reasonDescription : (
-                        <p className="mt-2 text-xs leading-5 text-muted">
-                            Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
-                        </p>
-                    )}
+                    {reasonDescription}
                 </div>
 
                 <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
                     <Button
                         type="button"
-                        variant={destructive ? 'danger-solid' : 'primary'}
+                        variant={confirmVariant ?? (destructive ? 'danger' : 'primary')}
                         onClick={() => { if (!busy && !submitDisabled) onConfirm(); }}
                         disabled={submitDisabled}
                         isLoading={busy}

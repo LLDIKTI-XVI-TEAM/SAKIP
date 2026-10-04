@@ -1,43 +1,81 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from '@inertiajs/react';
-import { FileText } from 'lucide-react';
+import { AlertTriangle, Pencil, Save } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
-import type { RegulasiFormData } from '@/types/regulasi';
+import type { RegulasiFormData, RegulasiSummary } from '@/types/regulasi';
 
-interface RegulasiCreateModalProps {
+interface RegulasiEditModalProps {
     isOpen: boolean;
     onClose: () => void;
+    regulasi: RegulasiSummary | null;
 }
 
-const defaultFormData: RegulasiFormData = {
-    jenis: 'kepmen',
-    nomor: '',
-    tahun: String(new Date().getFullYear()),
-    tentang: '',
-    tanggal: '',
-    tautan_sumber: '',
-    catatan: '',
-    aktif: true,
-    alasan: '',
-    lampiran: [],
-};
-
-export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
+export function RegulasiEditModal({
     isOpen,
     onClose,
-}) => {
+    regulasi,
+}: RegulasiEditModalProps) {
     const recovery = useAuthRecovery();
     const [recoveryUnknown, setRecoveryUnknown] = useState(false);
     const [recoveryMessage, setRecoveryMessage] = useState('');
 
-    const form = useForm<RegulasiFormData>({ ...defaultFormData });
+    const form = useForm<RegulasiFormData>({
+        jenis: regulasi?.jenis ?? 'kepmen',
+        nomor: regulasi?.nomor ?? '',
+        tahun: regulasi?.tahun ? String(regulasi.tahun) : String(new Date().getFullYear()),
+        tentang: regulasi?.tentang ?? '',
+        tanggal: regulasi?.tanggal ?? '',
+        tautan_sumber: regulasi?.tautan_sumber ?? '',
+        catatan: regulasi?.catatan ?? '',
+        aktif: regulasi?.aktif ?? true,
+        versi: regulasi?.versi ?? 1,
+        alasan: '',
+        lampiran: [],
+        _method: 'put',
+    });
 
-    if (!isOpen) return null;
+    const prevIsOpenRef = useRef(false);
+    const lastLoadedRegulasiIdRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (!isOpen) {
+            prevIsOpenRef.current = false;
+            return;
+        }
+
+        const justOpened = !prevIsOpenRef.current && isOpen;
+        const switchedRegulasi = regulasi !== null && regulasi.id !== lastLoadedRegulasiIdRef.current;
+
+        if (regulasi && (justOpened || switchedRegulasi)) {
+            form.setData({
+                jenis: regulasi.jenis,
+                nomor: regulasi.nomor,
+                tahun: String(regulasi.tahun),
+                tentang: regulasi.tentang,
+                tanggal: regulasi.tanggal ?? '',
+                tautan_sumber: regulasi.tautan_sumber ?? '',
+                catatan: regulasi.catatan ?? '',
+                aktif: regulasi.aktif,
+                versi: regulasi.versi ?? 1,
+                alasan: '',
+                lampiran: [],
+                _method: 'put',
+            });
+            form.clearErrors();
+            setRecoveryMessage('');
+            setRecoveryUnknown(false);
+            lastLoadedRegulasiIdRef.current = regulasi.id;
+        }
+
+        prevIsOpenRef.current = isOpen;
+    }, [regulasi, isOpen]);
+
+    if (!isOpen || !regulasi) return null;
 
     const isRecoveryActive = Boolean(recovery.recovery) || recoveryUnknown;
 
@@ -55,12 +93,11 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
         event.preventDefault();
         if (form.processing || recovery.recovery || recoveryUnknown) return;
 
-        form.post('/regulasi', {
-            preserveState: 'errors',
+        form.post(`/regulasi/${regulasi.id}`, {
             forceFormData: true,
             preserveScroll: true,
             onHttpException: (response) => {
-                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/regulasi', mutation: true })) return false;
+                if (recovery.handleHttpException(response, { effectiveMethod: 'put', path: `/regulasi/${regulasi.id}`, mutation: true })) return false;
                 setRecoveryMessage(
                     response.status === 403
                         ? 'Akses ditolak. Hasil tindakan sebelumnya belum dapat dipastikan. Periksa akses dan data terbaru.'
@@ -88,6 +125,8 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
         });
     };
 
+    const isAlasanValid = (form.data.alasan ?? '').trim().length >= 10;
+
     return (
         <Modal
             isOpen={isOpen}
@@ -97,10 +136,10 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
             bodyClassName="p-4 sm:p-6"
             title={
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary">
-                        <FileText className="h-4 w-4" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                        <Pencil className="h-4 w-4" />
                     </div>
-                    <span>Tambah Dasar Aturan</span>
+                    <span>Edit Dasar Aturan</span>
                 </div>
             }
         >
@@ -108,10 +147,21 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
                 <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
                 {!recovery.recovery && <RegulasiFailureNotice message={recoveryMessage} />}
 
+                {(form.errors as Record<string, string | undefined>).konflik && (
+                    <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-ink flex items-start gap-3" role="alert">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-danger mt-0.5" aria-hidden="true" />
+                        <div>
+                            <h3 className="text-sm font-bold text-danger">Konflik Pembaruan Data</h3>
+                            <p className="mt-1 text-xs leading-relaxed text-ink">{(form.errors as Record<string, string | undefined>).konflik}</p>
+                        </div>
+                    </div>
+                )}
+
                 <RegulasiFormFields
                     data={form.data}
                     errors={form.errors as Record<string, string | undefined>}
                     disabled={form.processing}
+                    isEdit={true}
                     setField={(field, value) => form.setData((prev) => ({ ...prev, [field]: value }))}
                 />
 
@@ -128,12 +178,13 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
                         type="submit"
                         variant="primary"
                         isLoading={form.processing}
-                        disabled={form.processing || Boolean(recovery.recovery) || recoveryUnknown}
+                        disabled={form.processing || !isAlasanValid || Boolean(recovery.recovery) || recoveryUnknown}
                     >
-                        Simpan Dasar Aturan
+                        <Save className="h-4 w-4" aria-hidden="true" />
+                        Simpan Perubahan
                     </Button>
                 </div>
             </form>
         </Modal>
     );
-};
+}
