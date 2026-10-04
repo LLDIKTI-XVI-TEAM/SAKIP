@@ -16,11 +16,13 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class IndikatorKomponenHttpTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
 
@@ -97,7 +99,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'n',
             'label' => 'Pembilang Awal',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -105,11 +107,11 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // Submit komponen baru dengan kode yang sama 'n'
         $response = $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'n',
                 'label' => 'Pembilang Duplikat',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 2,
                 'aktif' => true,
                 'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
@@ -124,7 +126,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'n',
             'label' => 'Bypass Direct DB',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 3,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -147,7 +149,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'sakip',
             'label' => 'Skor SAKIP Awal',
             'peran' => 'penjumlah',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -155,11 +157,11 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // 1. UPDATE SENSITIF
         $updateResponse = $this->actingAs($this->perencanaan)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->updateKomponen($this->indikator->id, $komponen->id, [
                 'kode' => 'sakip',
                 'label' => 'Skor SAKIP Disesuaikan',
                 'peran' => 'penjumlah',
-                'bobot' => 0.5,
+                'bobot' => '0.5',
                 'urutan' => 1,
                 'satuan' => 'Skor',
                 'aktif' => true,
@@ -181,7 +183,7 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // 2. DELETE SENSITIF
         $deleteResponse = $this->actingAs($this->perencanaan)
-            ->delete("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->deleteKomponen($this->indikator->id, $komponen->id, [
                 'alasan' => 'Penghapusan komponen usang.',
                 'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ]);
@@ -214,7 +216,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'p1',
             'label' => 'Pembilang Master 1',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -264,17 +266,17 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'p1',
             'label' => 'Label Asli Snapshot Beku',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
         ]);
 
         // Ubah definisi komponen master via HTTP
         $this->actingAs($this->perencanaan)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponenMaster->id}", [
+            ->updateKomponen($this->indikator->id, $komponenMaster->id, [
                 'kode' => 'p1',
                 'label' => 'Label Baru Master Berubah',
                 'peran' => 'pembilang',
-                'bobot' => 2.5,
+                'bobot' => '2.5',
                 'urutan' => 1,
                 'aktif' => true,
                 'alasan' => 'Perubahan master data tidak boleh menyentuh snapshot historis.',
@@ -287,6 +289,20 @@ class IndikatorKomponenHttpTest extends TestCase
         $this->assertNotNull($snapshotRow);
         $this->assertSame('Label Asli Snapshot Beku', $snapshotRow->label);
         $this->assertEquals(1.0, (float) $snapshotRow->bobot);
+
+        // Satu pembilang lain membuat delete sah secara komposisi, tetapi FK
+        // historis tetap melarang penghapusan identitas master yang dirujuk.
+        IndikatorKomponen::create(['indikator_id' => $this->indikator->id, 'kode' => 'p2',
+            'label' => 'Pembilang Cadangan', 'peran' => 'pembilang', 'bobot' => '1', 'urutan' => 3,
+            'aktif' => true, 'created_by' => $this->perencanaan->id]);
+        $revision = $this->indikator->fresh()->updated_at->toISOString();
+        $this->deleteKomponen($this->indikator->id, $komponenMaster->id, [
+            'expected_updated_at' => $revision, 'alasan' => 'Kontrol penolakan penghapusan identitas historis.',
+        ])->assertSessionHasErrors('hapus_komponen_ids');
+        $this->assertModelExists($komponenMaster);
+        $this->assertSame($revision, $this->indikator->fresh()->updated_at->toISOString());
+        $this->assertEquals($snapshotRow, DB::table('jadwal_snapshot_komponen')->where('id', $snapshotKomponenId)->first());
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.hapus', 'objek_id' => $komponenMaster->id]);
     }
 
     /**
@@ -299,7 +315,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'n',
             'label' => 'Pembilang',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -312,11 +328,12 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // Pegawai mencoba CREATE -> 403
         $this->actingAs($this->pegawai)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
+                'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
                 'kode' => 't',
                 'label' => 'Penyebut',
                 'peran' => 'penyebut',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 2,
                 'aktif' => true,
             ])
@@ -324,11 +341,12 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // Pegawai mencoba UPDATE -> 403
         $this->actingAs($this->pegawai)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->updateKomponen($this->indikator->id, $komponen->id, [
+                'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
                 'kode' => 'n',
                 'label' => 'Ubah Ilegal',
                 'peran' => 'pembilang',
-                'bobot' => 2.0,
+                'bobot' => '2.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'alasan' => 'Mencoba ubah tanpa hak.',
@@ -337,7 +355,8 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // Pegawai mencoba DELETE -> 403
         $this->actingAs($this->pegawai)
-            ->delete("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->deleteKomponen($this->indikator->id, $komponen->id, [
+                'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
                 'alasan' => 'Mencoba hapus tanpa hak.',
             ])
             ->assertForbidden();
@@ -364,27 +383,27 @@ class IndikatorKomponenHttpTest extends TestCase
             'created_by_role' => 'perencanaan',
         ]);
 
-        // GET index harus memberikan can.create = false dan can.update = false
+        // Capability mengikuti izin; editor dapat memperbaiki tipe dan definisi sekaligus.
         $response = $this->actingAs($this->perencanaan)
             ->get("/indikator/{$indikatorManual->id}/komponen");
 
         $response->assertOk();
         $pageProps = $response->original->getData()['page']['props'];
-        $this->assertFalse($pageProps['can']['create']);
-        $this->assertFalse($pageProps['can']['update']);
+        $this->assertTrue($pageProps['editor']['can']['create']);
+        $this->assertTrue($pageProps['editor']['can']['update']);
 
         // POST create komponen pada indikator manual harus ditolak dengan validasi/422
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorManual->id}/komponen", [
+            ->createKomponen($indikatorManual->id, [
                 'kode' => 'm1',
                 'label' => 'Komponen Manual Ilegal',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'expected_updated_at' => $indikatorManual->fresh()->updated_at?->toISOString(),
             ])
-            ->assertSessionHasErrors('indikator');
+            ->assertSessionHasErrors('tipe_perhitungan');
 
         // Pastikan tidak ada komponen yang tersimpan
         $this->assertDatabaseMissing('indikator_komponen', [
@@ -399,7 +418,7 @@ class IndikatorKomponenHttpTest extends TestCase
     public function test_bobot_lebih_dari_12_digit_pecahan_ditolak_validasi(): void
     {
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'p_tiny',
                 'label' => 'Pembilang Presisi Terlalu Kecil',
                 'peran' => 'pembilang',
@@ -408,7 +427,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'aktif' => true,
                 'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
-            ->assertSessionHasErrors('bobot');
+            ->assertSessionHasErrors('komponen.0.bobot');
     }
 
     /**
@@ -417,7 +436,7 @@ class IndikatorKomponenHttpTest extends TestCase
     public function test_bobot_penyebut_nol_ditolak_validasi(): void
     {
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 't_zero',
                 'label' => 'Penyebut Nol',
                 'peran' => 'penyebut',
@@ -426,7 +445,7 @@ class IndikatorKomponenHttpTest extends TestCase
                 'aktif' => true,
                 'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),
             ])
-            ->assertSessionHasErrors('bobot');
+            ->assertSessionHasErrors('komponen.0.bobot');
     }
 
     /**
@@ -442,7 +461,7 @@ class IndikatorKomponenHttpTest extends TestCase
         ]);
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'exact_weight',
                 'label' => 'Bobot Presisi Tinggi',
                 'peran' => 'pembilang',
@@ -477,7 +496,7 @@ class IndikatorKomponenHttpTest extends TestCase
             'kode' => 'race_code',
             'label' => 'Komponen Awal',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'created_by' => $this->perencanaan->id,
@@ -485,11 +504,11 @@ class IndikatorKomponenHttpTest extends TestCase
 
         // Kirim request create dengan kode yang sama
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'race_code',
                 'label' => 'Komponen Duplikat',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 2,
                 'aktif' => true,
                 'expected_updated_at' => $this->indikator->fresh()->updated_at?->toISOString(),

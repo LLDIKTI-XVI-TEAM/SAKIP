@@ -6,9 +6,12 @@ use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Perencanaan\ChangeIndicatorFormula;
+use App\Actions\Perencanaan\ReadIndicatorEditor;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
+use App\Models\IndikatorKinerja;
 use App\Models\User;
 use App\Services\Authorization\RoleAssignmentReceipt;
 use App\Services\PermissionResolver;
@@ -54,6 +57,8 @@ try {
             }
         }
         $result = match ($argv[1]) {
+            'formula-update' => app(ChangeIndicatorFormula::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data'])['status'],
+            'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
             'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment' => performRenstraMutation($argv[1], $assignment),
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),
@@ -77,7 +82,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if ($argv[1] !== 'assign-role') {
+        if (! in_array($argv[1], ['assign-role', 'formula-update'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -95,6 +100,7 @@ try {
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
             'assign-role' => 'expected_assignment',
+            'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
             default => null,

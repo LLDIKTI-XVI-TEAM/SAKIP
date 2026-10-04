@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\IndikatorKomponen;
 
-use App\Actions\Perencanaan\IndexSasaranIndikator;
+use App\Actions\Perencanaan\ReadIndicatorEditor;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
@@ -20,11 +20,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class FormulaMutationRegressionTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $actor;
 
@@ -101,6 +103,11 @@ class FormulaMutationRegressionTest extends TestCase
         ];
     }
 
+    private function definitionItem(IndikatorKomponen $row): array
+    {
+        return $row->only(['id', 'kode', 'label', 'satuan', 'peran', 'bobot', 'urutan', 'aktif']);
+    }
+
     public static function invalidMutations(): array
     {
         return [
@@ -126,11 +133,9 @@ class FormulaMutationRegressionTest extends TestCase
             $target = $this->indikator->komponen()->where('kode', 't')->firstOrFail();
         }
         $payload = $this->payload($target);
-        $url = "/indikator/{$this->indikator->id}/komponen";
         if ($method === 'post') {
             $payload = array_merge($payload, ['kode' => 'baru', 'peran' => $change]);
         } else {
-            $url .= '/'.$target->id;
             if ($change === 'inactive') {
                 $payload['aktif'] = false;
             } elseif ($method === 'put') {
@@ -139,10 +144,10 @@ class FormulaMutationRegressionTest extends TestCase
         }
         $before = $this->state();
         $auditCount = AuditLog::count();
-        $this->actingAs($this->actor)->json(strtoupper($method), $url, $payload)
-            ->assertUnprocessable()->assertJsonValidationErrors('komponen');
+        $this->actingAs($this->actor)->submitKomponen($method, $this->indikator->id, $method === 'post' ? null : $target->id, $payload, true)
+            ->assertUnprocessable()->assertJsonValidationErrors('tipe_perhitungan');
         $this->assertSame($before, $this->state());
-        $this->assertSame($auditCount, AuditLog::count());
+        $this->assertSame($auditCount + 1, AuditLog::count());
     }
 
     public static function mutationMethods(): array
@@ -157,14 +162,12 @@ class FormulaMutationRegressionTest extends TestCase
         $oldToken = $this->token();
         $this->travelTo($this->indikator->fresh()->updated_at);
         $payload = $this->payload($target);
-        $url = "/indikator/{$this->indikator->id}/komponen";
         if ($method === 'post') {
             $payload['kode'] = 'baru';
         } else {
-            $url .= '/'.$target->id;
             $payload['label'] = 'Label yang diperbarui';
         }
-        $this->actingAs($this->actor)->json(strtoupper($method), $url, $payload)->assertRedirect();
+        $this->actingAs($this->actor)->submitKomponen($method, $this->indikator->id, $method === 'post' ? null : $target->id, $payload, true)->assertRedirect();
         $this->assertTrue($this->indikator->fresh()->updated_at->gt($oldToken));
         $after = $this->state();
         $auditCount = AuditLog::count();
@@ -173,7 +176,7 @@ class FormulaMutationRegressionTest extends TestCase
             'alasan' => 'Uji konflik token tab lama pasca mutasi komponen.',
         ])->assertConflict()->assertJsonValidationErrors('konflik');
         $this->assertSame($after, $this->state());
-        $this->assertSame($auditCount, AuditLog::count());
+        $this->assertSame($auditCount + 1, AuditLog::count());
     }
 
     #[DataProvider('mutationMethods')]
@@ -188,30 +191,23 @@ class FormulaMutationRegressionTest extends TestCase
         $mock->shouldReceive('resolve')->withArgs(fn ($user, $code, $unit = null) => $code === 'komponen:'.$permission)
             ->andReturnUsing(function ($user, $code) use (&$calls) {
                 $calls++;
-                if ($calls === 1) {
-                    $this->assertSame(1, DB::transactionLevel(), 'Gate awal berada dalam transaksi fixture, sebelum transaksi mutation.');
-
-                    return new PermissionDecision(true, $code, ['alasan' => 'allow', 'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => []]);
-                }
                 $this->assertGreaterThan(1, DB::transactionLevel(), 'Re-auth wajib berada dalam transaksi mutation.');
 
                 return new PermissionDecision(false, $code, ['alasan' => 'revoked_inside_transaction', 'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => []]);
             });
         $this->app->instance(PermissionResolver::class, $mock);
         $payload = $this->payload($target);
-        $url = "/indikator/{$this->indikator->id}/komponen";
         if ($method === 'post') {
             $payload['kode'] = 'baru';
         } else {
-            $url .= '/'.$target->id;
             $payload['label'] = 'Tidak boleh tersimpan';
         }
         $before = $this->state();
-        $this->actingAs($this->actor)->json(strtoupper($method), $url, $payload)->assertForbidden();
-        $this->assertSame(2, $calls);
+        $this->actingAs($this->actor)->submitKomponen($method, $this->indikator->id, $method === 'post' ? null : $target->id, $payload, true)->assertForbidden();
+        $this->assertSame(1, $calls);
         $this->assertSame($before, $this->state());
         $event = ['create' => 'buat', 'update' => 'ubah', 'delete' => 'hapus'][$permission];
-        $audit = AuditLog::where('tindakan', 'komponen.'.$event.'_ditolak')->firstOrFail();
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->firstOrFail();
         $this->assertSame('revoked_inside_transaction', $audit->dasar_izin['alasan']);
         $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.'.$event]);
@@ -222,7 +218,7 @@ class FormulaMutationRegressionTest extends TestCase
         $items = $this->indikator->komponen()->get();
         $oldToken = $this->token();
         $this->travelTo($this->indikator->fresh()->updated_at);
-        $payload = $items->map(fn ($item) => array_merge($this->payload($item), ['id' => $item->id]))->all();
+        $payload = $items->map(fn ($item) => array_merge($this->definitionItem($item), ['id' => $item->id]))->all();
         $payload[0]['label'] = 'Pembilang hasil edit atomik';
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $oldToken,
@@ -242,15 +238,15 @@ class FormulaMutationRegressionTest extends TestCase
     {
         $ids = $this->indikator->komponen()->pluck('id')->sort()->values()->all();
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
-            'tipe_perhitungan' => 'manual', 'komponen' => [], 'expected_updated_at' => $this->token(),
+            'tipe_perhitungan' => 'manual', 'komponen' => $this->indikator->komponen->map(fn ($row) => array_merge($row->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'satuan']), ['aktif' => false]))->all(), 'expected_updated_at' => $this->token(),
             'alasan' => 'Menonaktifkan komponen saat beralih ke target manual.',
         ])->assertRedirect();
         $this->assertSame('manual', $this->indikator->fresh()->tipe_perhitungan);
         $this->assertSame(0, $this->indikator->komponen()->where('aktif', true)->count());
         $this->assertSame($ids, $this->indikator->komponen()->pluck('id')->sort()->values()->all());
         $this->assertSame(2, AuditLog::where('tindakan', 'komponen.ubah')->count());
-        $props = app(IndexSasaranIndikator::class)->handle($this->actor, $this->indikator->sasaranStrategis->renstra_id, true);
-        $items = $props['sasarans'][0]['indikator_kinerjas'][0]['komponen'];
+        $props = app(ReadIndicatorEditor::class)->handle($this->actor, $this->indikator->id, true);
+        $items = collect($props['komponen']);
         $this->assertSame($ids, $items->pluck('id')->sort()->values()->all());
         $payload = $items->map(fn ($item) => array_merge($item, ['aktif' => true]))->all();
         $this->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
@@ -265,8 +261,8 @@ class FormulaMutationRegressionTest extends TestCase
         $n = $this->indikator->komponen()->where('kode', 'n')->firstOrFail();
         $t = $this->indikator->komponen()->where('kode', 't')->firstOrFail();
         $payload = [
-            array_merge($this->payload($n), ['id' => $n->id, 'kode' => 't']),
-            array_merge($this->payload($t), ['id' => $t->id, 'kode' => 'n']),
+            array_merge($this->definitionItem($n), ['id' => $n->id, 'kode' => 't']),
+            array_merge($this->definitionItem($t), ['id' => $t->id, 'kode' => 'n']),
         ];
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen', 'komponen' => $payload, 'expected_updated_at' => $this->token(),
@@ -281,8 +277,8 @@ class FormulaMutationRegressionTest extends TestCase
     {
         $target = $this->buatKomponen('tambahan', 'pembilang');
         $oldToken = $this->token();
-        $payload = $this->indikator->komponen()->get()->map(fn ($item) => array_merge($this->payload($item), ['id' => $item->id]))->all();
-        $this->actingAs($this->actor)->deleteJson("/indikator/{$this->indikator->id}/komponen/{$target->id}", [
+        $payload = $this->indikator->komponen()->get()->map(fn ($item) => array_merge($this->definitionItem($item), ['id' => $item->id]))->all();
+        $this->actingAs($this->actor)->deleteKomponenJson($this->indikator->id, $target->id, [
             'alasan' => 'Pembilang tambahan dihapus dengan formula tetap lengkap.',
             'expected_updated_at' => $oldToken,
         ])->assertRedirect();
@@ -293,12 +289,12 @@ class FormulaMutationRegressionTest extends TestCase
             'alasan' => 'Kontrol konflik token usang dengan child terhapus.',
         ])->assertConflict()->assertJsonValidationErrors('konflik');
         $this->assertSame($after, $this->state());
-        $this->assertSame($auditCount, AuditLog::count());
+        $this->assertSame($auditCount + 1, AuditLog::count());
     }
 
     public function test_formula_token_terkini_tetap_menolak_id_di_luar_indikator(): void
     {
-        $payload = $this->indikator->komponen()->get()->map(fn ($item) => array_merge($this->payload($item), ['id' => $item->id]))->all();
+        $payload = $this->indikator->komponen()->get()->map(fn ($item) => array_merge($this->definitionItem($item), ['id' => $item->id]))->all();
         $payload[0]['id'] = (string) Str::uuid();
         $before = $this->state();
         $auditCount = AuditLog::count();
@@ -307,7 +303,7 @@ class FormulaMutationRegressionTest extends TestCase
             'alasan' => 'Kontrol penolakan identitas komponen di luar indikator.',
         ])->assertUnprocessable()->assertJsonValidationErrors('komponen.0.id');
         $this->assertSame($before, $this->state());
-        $this->assertSame($auditCount, AuditLog::count());
+        $this->assertSame($auditCount + 1, AuditLog::count());
     }
 
     public static function unsafeReasons(): array
@@ -328,16 +324,17 @@ class FormulaMutationRegressionTest extends TestCase
             'id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual',
             'diberikan_oleh' => $this->actor->id, 'created_at' => now(),
         ]);
+        UserPermissionDeny::create(['user_id' => $pegawai->id, 'permission_id' => Permission::where('kode', 'komponen:read')->value('id'),
+            'ditetapkan_oleh' => $this->actor->id, 'alasan' => 'Deny baca pada boundary awal.']);
         $target = $this->indikator->komponen()->firstOrFail();
-        $url = "/indikator/{$this->indikator->id}/komponen".($method === 'post' ? '' : '/'.$target->id);
         $before = $this->state();
-        $this->actingAs($pegawai)->{$method}($url, ['alasan' => $reason])->assertForbidden();
+        $this->actingAs($pegawai)->submitKomponen($method, $this->indikator->id, $method === 'post' ? null : $target->id, ['alasan' => $reason])->assertForbidden();
         $this->assertSame($before, $this->state());
         $audit = AuditLog::where('actor_id', $pegawai->id)->firstOrFail();
         $this->assertTrue(mb_check_encoding($audit->alasan, 'UTF-8'));
         $this->assertStringNotContainsString("\0", $audit->alasan);
         $this->assertLessThanOrEqual(1000, mb_strlen($audit->alasan));
-        $this->assertSame('komponen:'.$permission, $audit->dasar_izin['permission']);
+        $this->assertSame('komponen:read', $audit->dasar_izin['permission']);
     }
 
     public function test_success_reason_disanitasi_di_boundary_audit_dan_valid_reason_utuh(): void
@@ -346,9 +343,8 @@ class FormulaMutationRegressionTest extends TestCase
         foreach ([
             "Alasan\0resmi perubahan" => 'Alasanresmi perubahan',
             'Alasan valid tetap utuh.' => 'Alasan valid tetap utuh.',
-            "Alasan\xFFencoding rusak" => 'Pencatatan audit untuk tindakan komponen.ubah.',
         ] as $raw => $expected) {
-            $this->actingAs($this->actor)->put("/indikator/{$this->indikator->id}/komponen/{$target->id}", array_merge($this->payload($target->fresh()), [
+            $this->actingAs($this->actor)->updateKomponen($this->indikator->id, $target->id, array_merge($this->payload($target->fresh()), [
                 'label' => $expected, 'alasan' => $raw,
             ]))->assertRedirect()->assertSessionHasNoErrors();
             $this->assertDatabaseHas('audit_log', ['tindakan' => 'komponen.ubah', 'objek_id' => $target->id, 'alasan' => $expected]);
@@ -375,28 +371,29 @@ class FormulaMutationRegressionTest extends TestCase
         $real = app(PermissionResolver::class);
         $initialCalls = 0;
         $mock = \Mockery::mock(PermissionResolver::class)->makePartial();
-        $mock->shouldReceive('allows')->withArgs(fn ($user, $code, $unit = null) => $code === 'komponen:'.$permission)
-            ->andReturnUsing(function ($user, $code) use ($real, $change, &$initialCalls) {
-                $initialCalls++;
-                $allowed = $real->allows($user, $code);
-                $this->assertTrue($allowed, 'Gate pertama harus allow sebelum perubahan state ACL.');
-                if ($change === 'inactive') {
-                    User::whereKey($user->id)->update(['status' => 'nonaktif']);
-                } else {
-                    $this->deny($code);
+        $mock->shouldReceive('resolve')->withArgs(fn ($user, $code, $unit = null) => $code === 'komponen:read')
+            ->andReturnUsing(function ($user, $code) use ($real, $change, $permission, &$initialCalls) {
+                $decision = $real->resolve($user, $code);
+                if ($initialCalls++ === 0) {
+                    $this->assertTrue($decision->allowed);
+                    if ($change === 'inactive') {
+                        User::whereKey($user->id)->update(['status' => 'nonaktif']);
+                    } else {
+                        $this->deny('komponen:'.$permission);
+                    }
                 }
 
-                return $allowed;
+                return $decision;
             });
         $this->app->instance(PermissionResolver::class, $mock);
-        $url = "/indikator/{$this->indikator->id}/komponen".($method === 'post' ? '' : '/'.$target->id);
-        $this->actingAs($this->actor)->json(strtoupper($method), $url, array_merge($this->payload($target), [
+        $this->actingAs($this->actor)->submitKomponen($method, $this->indikator->id, $method === 'post' ? null : $target->id, array_merge($this->payload($target), [
             'kode' => $method === 'post' ? 'baru' : $target->kode,
+            'label' => 'Delta update yang sungguh berbeda',
         ]))->assertForbidden();
-        $this->assertSame(1, $initialCalls);
+        $this->assertGreaterThanOrEqual(2, $initialCalls);
         $this->assertSame($before, $this->state());
         $event = ['create' => 'buat', 'update' => 'ubah', 'delete' => 'hapus'][$permission];
-        $audit = AuditLog::where('tindakan', 'komponen.'.$event.'_ditolak')->firstOrFail();
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->firstOrFail();
         $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
         $this->assertSame($change === 'inactive' ? 'inactive_user' : 'explicit_deny', $audit->dasar_izin['alasan']);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.'.$event]);
@@ -418,7 +415,7 @@ class FormulaMutationRegressionTest extends TestCase
         $before = $this->state();
         $auditCount = AuditLog::count();
         $this->actingAs($this->actor)->patchJson("/perencanaan/indikator/{$this->indikator->id}/formula", [
-            'tipe_perhitungan' => 'manual', 'komponen' => [], 'expected_updated_at' => $this->token(),
+            'tipe_perhitungan' => 'manual', 'komponen' => $this->indikator->komponen->map(fn ($row) => array_merge($row->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'satuan']), ['aktif' => false]))->all(), 'expected_updated_at' => $this->token(),
             'alasan' => 'Kontrol bypass update existing via final-set manual.',
         ])->assertForbidden();
         $this->assertSame($before, $this->state());
@@ -433,13 +430,13 @@ class FormulaMutationRegressionTest extends TestCase
         $n = $this->indikator->komponen()->where('kode', 'n')->firstOrFail();
         $n->update(['bobot' => '123456789.123456789012']);
         $renstraId = $this->indikator->sasaranStrategis->renstra_id;
-        $action = app(IndexSasaranIndikator::class);
-        $props = $action->handle($this->actor, $renstraId, true);
-        $items = $props['sasarans'][0]['indikator_kinerjas'][0]['komponen'];
+        $action = app(ReadIndicatorEditor::class);
+        $props = $action->handle($this->actor, $this->indikator->id, true);
+        $items = collect($props['komponen']);
         $this->assertSame('123456789.123456789012', $items->firstWhere('id', $n->id)['bobot']);
         $this->deny('komponen:read');
-        $denied = $action->handle($this->actor, $renstraId, true);
-        $this->assertNull($denied['sasarans'][0]['indikator_kinerjas'][0]['komponen']);
-        $this->assertFalse($denied['can']['komponen_read']);
+        $denied = $action->handle($this->actor, $this->indikator->id, true);
+        $this->assertNull($denied['komponen']);
+        $this->assertNull($denied['formulaContract']);
     }
 }

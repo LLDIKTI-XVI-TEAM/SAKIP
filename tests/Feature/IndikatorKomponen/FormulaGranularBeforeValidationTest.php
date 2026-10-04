@@ -154,7 +154,7 @@ class FormulaGranularBeforeValidationTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('tipe_perhitungan');
 
         $this->assertSame($before, $this->state());
-        $this->assertSame($auditCount, AuditLog::count());
+        $this->assertSame($auditCount + 1, AuditLog::count());
         $this->assertSame('rasio_persen', $this->indikator->fresh()->tipe_perhitungan);
     }
 }

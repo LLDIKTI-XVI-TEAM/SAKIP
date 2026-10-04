@@ -13,11 +13,13 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class KomponenStaleTokenTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
 
@@ -109,7 +111,7 @@ class KomponenStaleTokenTest extends TestCase
             ->assertOk();
 
         $props = $response->original->getData()['page']['props'];
-        $this->assertSame($this->tokenVersi(), $props['indikator']['updated_at']);
+        $this->assertSame($this->tokenVersi(), $props['editor']['revision']);
     }
 
     public function test_store_token_usang_ditolak_konflik_tanpa_mutasi(): void
@@ -119,11 +121,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Tab-B menyimpan dengan token segar → versi induk bump.
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'p1',
                 'label' => 'Pembilang Tab B',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'expected_updated_at' => $tokenTabA,
@@ -134,11 +136,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Tab-A menyimpan dengan token lama → 409 konflik tanpa mutasi/audit.
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'p2',
                 'label' => 'Pembilang Tab A Usang',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 3,
                 'aktif' => true,
                 'expected_updated_at' => $tokenTabA,
@@ -164,7 +166,7 @@ class KomponenStaleTokenTest extends TestCase
             'kode' => 'n',
             'label' => $label,
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
             'alasan' => 'Penyesuaian label komponen antar tab.',
@@ -173,21 +175,21 @@ class KomponenStaleTokenTest extends TestCase
 
         // Tab-B memperbarui dengan token segar.
         $this->actingAs($this->perencanaan)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", $payload('Label Tab B', $tokenTabA))
+            ->updateKomponen($this->indikator->id, $komponen->id, $payload('Label Tab B', $tokenTabA))
             ->assertRedirect("/indikator/{$this->indikator->id}/komponen")
             ->assertSessionHasNoErrors();
         $this->assertSame('Label Tab B', $komponen->fresh()->label);
 
         // Tab-A web dengan token lama → 302 + konflik, data Tab-B utuh.
         $this->actingAs($this->perencanaan)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", $payload('Label Tab A Usang', $tokenTabA))
+            ->updateKomponen($this->indikator->id, $komponen->id, $payload('Label Tab A Usang', $tokenTabA))
             ->assertRedirect()
             ->assertSessionHasErrors(['konflik']);
         $this->assertSame('Label Tab B', $komponen->fresh()->label);
 
         // Tab-A JSON dengan token lama → 409 + konflik, tanpa mutasi.
         $staleJson = $this->actingAs($this->perencanaan)
-            ->putJson("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", $payload('Label Tab A JSON', $tokenTabA));
+            ->updateKomponenJson($this->indikator->id, $komponen->id, $payload('Label Tab A JSON', $tokenTabA));
         $staleJson->assertConflict()->assertJsonValidationErrors(['konflik']);
         $this->assertSame($pesanKonflik, $staleJson->json('errors.konflik.0'));
         $this->assertSame('Label Tab B', $komponen->fresh()->label);
@@ -203,7 +205,7 @@ class KomponenStaleTokenTest extends TestCase
 
         // Tab-B menghapus dengan token segar.
         $this->actingAs($this->perencanaan)
-            ->delete("/indikator/{$this->indikator->id}/komponen/{$target->id}", [
+            ->deleteKomponen($this->indikator->id, $target->id, [
                 'alasan' => 'Penghapusan komponen tab B yang sah.',
                 'expected_updated_at' => $tokenTabA,
             ])
@@ -214,7 +216,7 @@ class KomponenStaleTokenTest extends TestCase
         // Tab-A menghapus dengan token lama → konflik, baris tetap ada.
         $korban = IndikatorKomponen::where('indikator_id', $this->indikator->id)->where('kode', 'p1')->firstOrFail();
         $this->actingAs($this->perencanaan)
-            ->delete("/indikator/{$this->indikator->id}/komponen/{$korban->id}", [
+            ->deleteKomponen($this->indikator->id, $korban->id, [
                 'alasan' => 'Penghapusan komponen tab A dengan token usang.',
                 'expected_updated_at' => $tokenTabA,
             ])
@@ -232,11 +234,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Store tanpa token → 422 expected_updated_at.
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'p_baru',
                 'label' => 'Tanpa Token',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 3,
                 'aktif' => true,
             ])
@@ -245,11 +247,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Store JSON tanpa token → 422 expected_updated_at.
         $this->actingAs($this->perencanaan)
-            ->postJson("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponenJson($this->indikator->id, [
                 'kode' => 'p_json',
                 'label' => 'Tanpa Token JSON',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 3,
                 'aktif' => true,
             ])
@@ -258,11 +260,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Store format tak-valid → 422 expected_updated_at.
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'p_salah',
                 'label' => 'Format Salah',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 3,
                 'aktif' => true,
                 'expected_updated_at' => 'bukan-tanggal',
@@ -272,11 +274,11 @@ class KomponenStaleTokenTest extends TestCase
 
         // Update tanpa token → 422 expected_updated_at.
         $this->actingAs($this->perencanaan)
-            ->put("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->updateKomponen($this->indikator->id, $komponen->id, [
                 'kode' => 'n',
                 'label' => 'Ubah Tanpa Token',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'alasan' => 'Percobaan ubah tanpa token versi.',
@@ -286,7 +288,7 @@ class KomponenStaleTokenTest extends TestCase
 
         // Delete tanpa token → 422 expected_updated_at.
         $this->actingAs($this->perencanaan)
-            ->delete("/indikator/{$this->indikator->id}/komponen/{$komponen->id}", [
+            ->deleteKomponen($this->indikator->id, $komponen->id, [
                 'alasan' => 'Percobaan hapus tanpa token versi.',
             ])
             ->assertRedirect()

@@ -11,11 +11,13 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class KomponenSyntaxUnifiedTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
 
@@ -109,7 +111,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
     }
 
     /**
-     * Membandingkan pesan sintaks via POST normal dan PATCH formula.
+     * Membandingkan pesan sintaks via POST indikator atomik dan PATCH formula.
      *
      * @param  array<string, mixed>  $itemPost
      * @param  array<string, mixed>  $itemPatch
@@ -121,12 +123,13 @@ class KomponenSyntaxUnifiedTest extends TestCase
         string $keyPatch,
         string $tipePatch = 'penjumlahan'
     ): void {
+        $keyPost = 'komponen.0.'.$keyPost;
         $indikatorPost = $this->buatIndikator('IKU-SIN-'.Str::upper(Str::random(6)).'-A', 'penjumlahan');
         $indikatorPatch = $this->buatIndikator('IKU-SIN-'.Str::upper(Str::random(6)).'-B', $tipePatch);
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", array_merge($itemPost, [
-                'expected_updated_at' => $this->tokenVersi($indikatorPost),
+            ->post('/perencanaan/indikator', array_merge($indikatorPost->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']), [
+                'kode' => $indikatorPost->kode.'-BARU', 'komponen' => [$itemPost],
             ]))
             ->assertSessionHasErrors([$keyPost]);
         $pesanPost = $this->pesanError($keyPost);
@@ -150,7 +153,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
             'kode' => 'kode-salah!',
             'label' => 'Label Valid',
             'peran' => 'penjumlah',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
         ];
@@ -165,7 +168,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
             'kode' => 'label_panjang',
             'label' => $panjang,
             'peran' => 'penjumlah',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
         ];
@@ -179,7 +182,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
             'kode' => 'peran_asing',
             'label' => 'Label Valid',
             'peran' => 'asing',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
         ];
@@ -207,7 +210,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
             'kode' => 'urutan_nol',
             'label' => 'Label Valid',
             'peran' => 'penjumlah',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 0,
             'aktif' => true,
         ];
@@ -237,7 +240,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
             'kode' => 'n_unified',
             'label' => 'Pembilang',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'aktif' => true,
         ];
@@ -246,11 +249,11 @@ class KomponenSyntaxUnifiedTest extends TestCase
         $indikatorPatch = $this->buatIndikator('IKU-SIN-PENY-B', 'rasio_persen');
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", array_merge($itemPost, [
-                'expected_updated_at' => $this->tokenVersi($indikatorPost),
+            ->post('/perencanaan/indikator', array_merge($indikatorPost->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']), [
+                'kode' => $indikatorPost->kode.'-BARU', 'komponen' => [$itemPost],
             ]))
-            ->assertSessionHasErrors(['bobot']);
-        $pesanPost = $this->pesanError('bobot');
+            ->assertSessionHasErrors(['komponen.0.bobot']);
+        $pesanPost = $this->pesanError('komponen.0.bobot');
 
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [

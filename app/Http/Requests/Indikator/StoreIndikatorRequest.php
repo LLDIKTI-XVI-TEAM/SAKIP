@@ -3,12 +3,22 @@
 namespace App\Http\Requests\Indikator;
 
 use App\Models\IndikatorKinerja;
+use App\Services\Kinerja\KomponenMutationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class StoreIndikatorRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        foreach (['sasaran_strategis_id', 'unit_id', 'regulasi_id'] as $field) {
+            if (is_string($this->input($field))) {
+                $this->merge([$field => strtolower($this->input($field))]);
+            }
+        }
+    }
+
     public function authorize(): bool
     {
         return Gate::allows('create', IndikatorKinerja::class);
@@ -19,7 +29,9 @@ class StoreIndikatorRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge(app(KomponenMutationService::class)->aturanDefinisi(), [
+            'komponen.*.id' => ['prohibited'],
+            'hapus_komponen_ids' => ['prohibited'],
             'sasaran_strategis_id' => ['required', 'uuid', 'exists:sasaran_strategis,id'],
             'kode' => ['required', 'string', 'max:50'],
             'nama' => ['required', 'string', 'max:1000'],
@@ -36,7 +48,7 @@ class StoreIndikatorRequest extends FormRequest
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
-        ];
+        ]);
     }
 
     /**
@@ -45,6 +57,7 @@ class StoreIndikatorRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...app(KomponenMutationService::class)->pesanBersarang(),
             'sasaran_strategis_id.required' => 'Sasaran strategis wajib dipilih.',
             'sasaran_strategis_id.exists' => 'Sasaran strategis yang dipilih tidak valid.',
             'kode.required' => 'Kode indikator kinerja wajib diisi.',

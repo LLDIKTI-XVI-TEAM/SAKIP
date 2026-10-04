@@ -4,6 +4,7 @@ namespace App\Services\Kinerja;
 
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -12,14 +13,11 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator as ValidatorContract;
 
 /**
- * Layanan mutation komponen yang dipakai bersama CRUD dan transisi formula atomik.
- *
- * Menyatukan normalisasi (trim kode/label/satuan, bawaan aktif true), pemeriksaan
- * sintaks bobot penyebut, snapshot audit bobot-eksak-string, dan pemetaan pelanggaran
- * unique menjadi pesan kode agar kedua jalur tidak drift.
- *
- * Penentu akhir validitas domain tetap `IndikatorPerhitunganService::validateDefinisiKomponen`
- * yang dipanggil helper kandidat di batas mutation; tidak ada validator domain kedua.
+ * Helper komponen bersama create indikator, simpan definisi dan FormRequest:
+ * sintaks, normalisasi eksak, kandidat, persistence row serta snapshot audit.
+ * Action memiliki workflow, otorisasi, locking, transaksi dan audit. Helper
+ * persistence berjalan di transaksi terkunci pemanggil; tidak membuka transaksi.
+ * Validitas komposisi tetap dimiliki IndikatorPerhitunganService.
  */
 class KomponenMutationService
 {
@@ -37,7 +35,7 @@ class KomponenMutationService
         $kandidat->setRelation('komponen', $komponen);
         $validasi = $this->perhitunganService->validateDefinisiKomponen($kandidat);
         if (! $validasi['is_valid']) {
-            throw ValidationException::withMessages([$key => $validasi['messages']]);
+            throw ValidationException::withMessages([$key => [...$validasi['messages'], 'Perbaiki tipe dan komponen secara atomik melalui Kelola Komponen atau editor definisi.']]);
         }
     }
 
@@ -82,56 +80,43 @@ class KomponenMutationService
             'label' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
             'peran' => ['required', 'string', Rule::in(['pembilang', 'penyebut', 'penjumlah'])],
-            'bobot' => ['required', 'numeric', 'decimal:0,12', 'min:0', 'max:999999999'],
+            'bobot' => ['bail', 'required', 'string', 'regex:/^\d{1,9}(?:\.\d{1,12})?$/', 'numeric', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (is_numeric($value) && BigDecimal::of((string) $value)->isGreaterThan('999999999')) {
+                    $fail('Bobot komponen tidak boleh melebihi 999.999.999.');
+                }
+            }],
             'urutan' => ['required', 'integer', 'min:1', 'max:32767'],
             'aktif' => ['sometimes', 'boolean'],
         ];
     }
 
-    /**
-     * Aturan sintaks + unique-vs-DB untuk satu baris komponen store normal.
-     *
-     * Dipakai StoreIndikatorKomponenRequest (single-row, tanpa swap) sehingga
-     * unique-vs-DB dipertahankan; bukan jalur swap formula. Bentuk error key
-     * flat dipertahankan. `$abaikanId` mengabaikan baris itu sendiri pada
-     * cek unique agar penggantian yang mempertahankan kode tidak ditolak
-     * palsu; tanpa itu perilaku sama seperti sebelumnya.
-     *
-     * @return array<string, mixed>
-     */
-    public function aturanItem(?string $indikatorId, bool $denganDistinct = false, ?string $abaikanId = null): array
+    /** Aturan penyimpanan row baru, setelah Action membebaskan kode yang ditukar. */
+    private function aturanItem(string $indikatorId): array
     {
-        $aturan = $this->aturanSintaksItem($denganDistinct);
-        $unik = Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId));
-        if ($abaikanId !== null && $abaikanId !== '') {
-            $unik->ignore($abaikanId);
-        }
-        $aturan['kode'][] = $unik;
+        $aturan = $this->aturanSintaksItem();
+        $aturan['kode'][] = Rule::unique('indikator_komponen', 'kode')->where(fn ($query) => $query->where('indikator_id', $indikatorId));
 
         return $aturan;
     }
 
-    /**
-     * Aturan sintaks kandidat per item untuk payload transisi formula.
-     *
-     * SENGAJA tanpa cek unique-vs-DB-lama agar swap atomik yang valid
-     * (existing n→x + baru n) tidak ditolak palsu; unique final-set
-     * ditegakkan Action ditambah constraint DB saat persist. Kunci memakai
-     * bentuk `komponen.*.field` agar error key kontrak frontend
-     * (`komponen.N.field`) tidak berubah. Parameter indikator dipertahankan
-     * untuk kompatibilitas pemanggil tanpa dipakai menilai DB lama.
-     *
-     * @return array<string, mixed>
-     */
-    public function aturanBersarang(?string $indikatorId = null): array
+    /** Batas 50 adalah batas operasional intent per request, bukan maksimum bisnis. */
+    public function aturanDefinisi(): array
     {
-        $dasar = $this->aturanSintaksItem(true);
-        $hasil = [];
-        foreach ($dasar as $field => $rules) {
-            $hasil["komponen.*.{$field}"] = $rules;
+        $rules = [
+            'komponen' => ['sometimes', 'array', 'max:50'],
+            'komponen.*' => ['array:id,kode,label,satuan,peran,bobot,urutan,aktif'],
+            'komponen.*.id' => ['nullable', 'uuid', 'distinct'],
+            'hapus_komponen_ids' => ['sometimes', 'array', 'max:50'],
+            'hapus_komponen_ids.*' => ['required', 'uuid', 'distinct'],
+            'request_id' => ['sometimes', 'uuid'],
+            'return_to' => ['sometimes', 'in:komponen,sasaran-indikator'],
+            'alasan' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ];
+        foreach ($this->aturanSintaksItem(true) as $field => $validation) {
+            $rules["komponen.*.{$field}"] = $validation;
         }
 
-        return $hasil;
+        return $rules;
     }
 
     /**
@@ -159,6 +144,8 @@ class KomponenMutationService
             'peran.required' => 'Peran komponen wajib dipilih.',
             'peran.string' => 'Peran komponen harus berupa teks.',
             'peran.in' => 'Peran komponen harus salah satu dari: pembilang, penyebut, penjumlah.',
+            'bobot.string' => 'Bobot komponen harus dikirim sebagai string desimal.',
+            'bobot.regex' => 'Bobot komponen harus berupa desimal nonnegatif dengan maksimal 12 digit pecahan.',
             'bobot.required' => 'Bobot komponen wajib diisi.',
             'bobot.numeric' => 'Bobot komponen harus berupa angka numerik.',
             'bobot.decimal' => 'Bobot komponen maksimal memiliki 12 digit pecahan desimal.',
@@ -201,12 +188,15 @@ class KomponenMutationService
      */
     public function tambahErrorPenyebutBilaNol(ValidatorContract $validator, array $item, string $key = 'bobot'): void
     {
-        if (($item['peran'] ?? null) !== 'penyebut') {
+        if (($item['peran'] ?? null) !== 'penyebut' || $validator->errors()->has($key)) {
             return;
         }
 
-        $bobot = isset($item['bobot']) ? (float) $item['bobot'] : 0.0;
-        if ($bobot <= 0 || round($bobot, 12) <= 0) {
+        $raw = $item['bobot'] ?? '0';
+        if (! is_numeric($raw)) {
+            return;
+        }
+        if (BigDecimal::of((string) $raw)->isLessThanOrEqualTo('0')) {
             $validator->errors()->add($key, $this->pesanBobotPenyebut());
         }
     }
@@ -222,9 +212,9 @@ class KomponenMutationService
      *
      * @param  array<string, mixed>  $item
      */
-    public function validasiSintaks(string $indikatorId, array $item, ?string $abaikanId = null): void
+    private function validasiSintaks(string $indikatorId, array $item): void
     {
-        $validator = Validator::make($item, $this->aturanItem($indikatorId, false, $abaikanId), $this->pesanItem());
+        $validator = Validator::make($item, $this->aturanItem($indikatorId), $this->pesanItem());
         $validator->after(function (ValidatorContract $v) use ($item): void {
             $this->tambahErrorPenyebutBilaNol($v, $item, 'bobot');
         });
@@ -242,12 +232,19 @@ class KomponenMutationService
      *
      * @param  array<string, mixed>  $item
      */
-    public function validasiSintaksKandidat(array $item, bool $denganDistinct = false): void
+    public function validasiSintaksKandidat(array $item, ?string $prefix = null): void
     {
-        $validator = Validator::make($item, $this->aturanSintaksItem($denganDistinct), $this->pesanItem());
+        $validator = Validator::make($item, $this->aturanSintaksItem(), $this->pesanItem());
         $validator->after(function (ValidatorContract $v) use ($item): void {
             $this->tambahErrorPenyebutBilaNol($v, $item, 'bobot');
         });
+        if ($validator->fails() && $prefix !== null) {
+            $errors = [];
+            foreach ($validator->errors()->messages() as $field => $messages) {
+                $errors[$prefix.'.'.$field] = $messages;
+            }
+            throw ValidationException::withMessages($errors);
+        }
         $validator->validate();
     }
 
@@ -285,7 +282,7 @@ class KomponenMutationService
      * @param  array<string, mixed>  $item
      * @return array<string, mixed>
      */
-    public function atributCreate(string $indikatorId, array $item, string $createdBy): array
+    private function atributCreate(string $indikatorId, array $item, string $createdBy): array
     {
         return array_merge($this->normalisasiInput($item), [
             'indikator_id' => $indikatorId,
@@ -298,14 +295,13 @@ class KomponenMutationService
      *
      * SENGAJA hanya validasi sintaks kandidat (tanpa unique-vs-DB-lama) agar
      * tidak menolak karena row existing masih berkode lama; unique final-set
-     * dan constraint DB ditegakkan pemanggil. Parameter abaikan dipertahankan
-     * untuk kompatibilitas pemanggil tanpa dipakai menilai DB lama.
+     * dan constraint DB ditegakkan pemanggil.
      *
      * @param  array<string, mixed>  $item
      */
-    public function modelKandidat(string $indikatorId, array $item, ?string $abaikanId = null): IndikatorKomponen
+    public function modelKandidat(string $indikatorId, array $item, ?string $prefix = null): IndikatorKomponen
     {
-        $this->validasiSintaksKandidat($item);
+        $this->validasiSintaksKandidat($item, $prefix);
 
         return new IndikatorKomponen($this->atributCreate($indikatorId, $item, ''));
     }
@@ -323,37 +319,11 @@ class KomponenMutationService
     public function buat(string $indikatorId, array $item, string $createdBy): IndikatorKomponen
     {
         $this->validasiSintaks($indikatorId, $item);
-        $normal = $this->normalisasiInput($item);
-
-        $komponen = IndikatorKomponen::create(array_merge($normal, [
-            'indikator_id' => $indikatorId,
-            'created_by' => $createdBy,
-        ]));
+        $komponen = IndikatorKomponen::create($this->atributCreate($indikatorId, $item, $createdBy));
 
         $segar = $komponen->fresh();
 
         return $segar ?? $komponen;
-    }
-
-    /**
-     * Memastikan komponen penyebut memiliki bobot lebih besar dari nol.
-     *
-     * Cermin aturan sintaks pada kedua FormRequest agar pesan identik di semua jalur.
-     *
-     * @param  array<string, mixed>  $item
-     */
-    public function pastikanBobotPenyebutValid(array $item, string $key = 'bobot'): void
-    {
-        if (($item['peran'] ?? null) !== 'penyebut') {
-            return;
-        }
-
-        $bobot = isset($item['bobot']) ? (float) $item['bobot'] : 0.0;
-        if ($bobot <= 0 || round($bobot, 12) <= 0) {
-            throw ValidationException::withMessages([
-                $key => $this->pesanBobotPenyebut(),
-            ]);
-        }
     }
 
     /**
@@ -390,19 +360,27 @@ class KomponenMutationService
         return $snapshot;
     }
 
+    /** Hanya FK domain komponen; kegagalan audit/koneksi lain tidak disamarkan. */
+    public function isReferenceConstraintViolation(QueryException $exception): bool
+    {
+        if ((string) $exception->getCode() !== '23503') {
+            return false;
+        }
+        foreach (['jadwal_snapshot_komponen', 'rencana_aksi_target', 'pengukuran_komponen', 'klaim_kegiatan'] as $table) {
+            if (str_contains($exception->getMessage(), $table.'_komponen_id_foreign')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
-     * Mengecek pelanggaran unique constraint pada kode komponen lintas driver basis data.
+     * Mengecek pelanggaran unique constraint pada kode komponen PostgreSQL.
      */
     public function isUniqueConstraintViolation(QueryException $e): bool
     {
-        $sqlState = (string) $e->getCode();
-        $errorCode = $e->errorInfo[1] ?? null;
-        $message = strtolower($e->getMessage());
-
-        return $sqlState === '23505'
-            || $errorCode === 1062
-            || $errorCode === 19
-            || str_contains($message, 'unique')
-            || str_contains($message, 'duplicate');
+        return (string) $e->getCode() === '23505'
+            && str_contains($e->getMessage(), 'indikator_komponen_indikator_id_kode_unique');
     }
 }
