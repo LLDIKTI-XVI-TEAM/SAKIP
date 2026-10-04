@@ -138,7 +138,10 @@ describe('Alur pengukuran', () => {
         expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ versi: 4, action: 'ajukan', nilai: '90' });
         await act(async () => { vi.mocked(router.post).mock.calls[1][2]?.onError?.({ catatan: 'Lengkapi catatan.' }); });
         expect(value.value).toBe('90');
-        await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('alert')));
+        const errorSummary = document.getElementById('measurement-errors');
+        expect(errorSummary?.getAttribute('role')).toBe('alert');
+        expect(screen.getByRole('textbox', { name: 'Catatan pengukuran' }).getAttribute('aria-describedby')?.split(' ')).toContain(errorSummary?.id);
+        await waitFor(() => expect(document.activeElement).toBe(errorSummary));
         await user.click(value);
         await user.keyboard('{Enter}');
         expect(vi.mocked(router.post).mock.calls[2][1]).toMatchObject({ versi: 4, action: 'draft', nilai: '90' });
