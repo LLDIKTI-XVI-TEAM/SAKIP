@@ -1,13 +1,10 @@
 import React, { useMemo } from 'react';
-import { AlertCircle, FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
-import { Button } from '@/Components/Button';
 import { CustomSelect, type CustomSelectOption } from '@/Components/CustomSelect';
 import { InfoTooltip } from '@/Components/InfoTooltip';
 import { Input } from '@/Components/Input';
+import { LampiranDraft, LampiranFormSection } from '@/Components/LampiranFormSection';
 import { Textarea } from '@/Components/Textarea';
 import type {
-    LampiranDraft,
-    LampiranMode,
     PerjanjianKinerjaFormData,
     RenstraSummary,
     StorageSettings,
@@ -25,29 +22,6 @@ interface PerjanjianKinerjaFormFieldsProps {
     disabled?: boolean;
     canUploadBerkas?: boolean;
     setField: SetPkField;
-}
-
-const modeIcons: Record<LampiranMode, typeof FileText> = {
-    file: FileText,
-    tautan: Link2,
-    teks: Type,
-};
-
-const lampiranModeOptions: CustomSelectOption[] = [
-    { value: 'file', label: 'File (Unggahan)' },
-    { value: 'tautan', label: 'Tautan (URL Cloud)' },
-    { value: 'teks', label: 'Teks (Catatan/Ringkasan)' },
-];
-
-function newLampiran(): LampiranDraft {
-    return {
-        clientId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        mode: 'file',
-        file: null,
-        tautan: '',
-        isi_teks: '',
-        nama_asli: '',
-    };
 }
 
 export function PerjanjianKinerjaFormFields({
@@ -90,25 +64,24 @@ export function PerjanjianKinerjaFormFields({
         return options;
     }, [selectedRenstra]);
 
-    const updateLampiran = <K extends keyof LampiranDraft>(index: number, field: K, value: LampiranDraft[K]) => {
-        const next = data.lampiran.map((item, itemIndex) =>
-            itemIndex === index ? { ...item, [field]: value } : item
-        );
-        setField('lampiran', next);
-    };
+    const fileAccept = useMemo(() => {
+        if (storageSettings?.format_diizinkan) {
+            return storageSettings.format_diizinkan
+                .split(',')
+                .map((f) => `.${f.trim()}`)
+                .join(',');
+        }
+        return '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+    }, [storageSettings?.format_diizinkan]);
 
-    const updateModeLampiran = (index: number, mode: LampiranMode) => {
-        const next = data.lampiran.map((item, itemIndex) =>
-            itemIndex === index
-                ? { ...item, mode, file: null, tautan: '', isi_teks: '', nama_asli: '' }
-                : item
-        );
-        setField('lampiran', next);
-    };
-
-    const removeLampiran = (index: number) => {
-        setField('lampiran', data.lampiran.filter((_, itemIndex) => itemIndex !== index));
-    };
+    const fileHelperText = useMemo(() => {
+        if (storageSettings?.unggahan_aktif === false) {
+            return 'Unggahan berkas dinonaktifkan di pengaturan sistem.';
+        }
+        const maxMb = storageSettings?.ukuran_maks_kb ? Math.round(storageSettings.ukuran_maks_kb / 1024) : 10;
+        const formats = storageSettings?.format_diizinkan ? storageSettings.format_diizinkan.toUpperCase() : 'PDF, DOC, DOCX, JPG, PNG';
+        return `Maks. ${maxMb} MB. Format: ${formats}.`;
+    }, [storageSettings]);
 
     return (
         <div className="space-y-8 w-full max-w-full min-w-0">
@@ -118,282 +91,126 @@ export function PerjanjianKinerjaFormFields({
                         Metadata Perjanjian Kinerja
                     </h2>
                     <InfoTooltip
-                        content="Kombinasi Renstra dan tahun pelaksanaan bersifat unik (satu PK per tahun per Renstra)."
-                        label="Informasi metadata PK"
+                        content="Pilih dokumen induk Renstra dan tahun pelaksanaan sebelum mengisi nomor dan tanggal naskah resmi."
+                        label="Bantuan metadata Perjanjian Kinerja"
                     />
                 </div>
 
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-12 w-full max-w-full min-w-0">
-                    <div className="w-full min-w-0 sm:col-span-2 lg:col-span-5">
+                <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="min-w-0">
                         <CustomSelect
                             id="renstra_id"
                             name="renstra_id"
-                            label="Periode Renstra Induk"
-                            labelClassName="sm:whitespace-nowrap"
-                            placeholder="-- Pilih Rencana Strategis --"
+                            label="Induk Renstra"
                             options={renstraOptions}
                             value={data.renstra_id}
                             onChange={(val) => {
-                                const nextRenstraId = String(val ?? '');
-                                setField('renstra_id', nextRenstraId);
-                                const foundRenstra = renstras.find((r) => String(r.id) === nextRenstraId);
-                                if (foundRenstra) {
-                                    if (
-                                        !data.tahun ||
-                                        Number(data.tahun) < foundRenstra.tahun_mulai ||
-                                        Number(data.tahun) > foundRenstra.tahun_selesai
-                                    ) {
-                                        setField('tahun', foundRenstra.tahun_mulai);
-                                    }
-                                }
+                                setField('renstra_id', String(val ?? ''));
+                                setField('tahun', '');
                             }}
-                            error={errors.renstra_id}
+                            placeholder="Pilih Dokumen Renstra"
                             disabled={disabled || isEdit}
+                            error={errors.renstra_id}
                             required
-                            useHoverScroll={true}
+                            searchable
                         />
                     </div>
 
-                    <div className="w-full min-w-0 sm:col-span-1 lg:col-span-3">
-                        {tahunOptions.length > 0 ? (
-                            <CustomSelect
-                                id="tahun"
-                                name="tahun"
-                                label="Tahun Pelaksanaan"
-                                labelClassName="sm:whitespace-nowrap"
-                                options={tahunOptions}
-                                value={data.tahun}
-                                onChange={(val) => setField('tahun', val ? Number(val) : '')}
-                                error={errors.tahun}
-                                disabled={disabled || isEdit}
-                                required
-                                showEmptyOption={true}
-                                emptyOptionLabel="-- Pilih Tahun --"
-                            />
-                        ) : (
-                            <Input
-                                name="tahun"
-                                type="number"
-                                label="Tahun Pelaksanaan"
-                                labelClassName="sm:whitespace-nowrap"
-                                value={data.tahun}
-                                onChange={(event) => setField('tahun', event.target.value)}
-                                error={errors.tahun}
-                                placeholder="Contoh: 2026"
-                                disabled={disabled || isEdit}
-                                required
-                            />
-                        )}
+                    <div className="min-w-0">
+                        <CustomSelect
+                            id="tahun"
+                            name="tahun"
+                            label="Tahun PK"
+                            options={tahunOptions}
+                            value={data.tahun ? Number(data.tahun) : ''}
+                            onChange={(val) => setField('tahun', String(val ?? ''))}
+                            placeholder={data.renstra_id ? 'Pilih Tahun' : 'Pilih Renstra Terlebih Dahulu'}
+                            disabled={disabled || !data.renstra_id || isEdit}
+                            error={errors.tahun}
+                            required
+                        />
                     </div>
 
-                    <div className="w-full min-w-0 sm:col-span-1 lg:col-span-4">
+                    <div className="min-w-0">
                         <Input
-                            name="tanggal_pk"
+                            name="nomor"
+                            label="Nomor Dokumen PK"
+                            value={data.nomor}
+                            onChange={(e) => setField('nomor', e.target.value)}
+                            placeholder="Contoh: 012/LL16/PK/2026"
+                            disabled={disabled}
+                            error={errors.nomor}
+                            required
+                        />
+                    </div>
+
+                    <div className="min-w-0">
+                        <Input
                             type="date"
+                            name="tanggal"
                             label="Tanggal Penandatanganan"
-                            labelClassName="sm:whitespace-nowrap"
-                            value={data.tanggal_pk}
-                            onChange={(event) => setField('tanggal_pk', event.target.value)}
-                            error={errors.tanggal_pk}
+                            value={data.tanggal}
+                            onChange={(e) => setField('tanggal', e.target.value)}
                             disabled={disabled}
+                            error={errors.tanggal}
                             required
                         />
                     </div>
 
-                    <div className="w-full min-w-0 sm:col-span-2 lg:col-span-12">
-                        <Input
-                            name="nomor_pk"
-                            label="Nomor Dokumen Perjanjian Kinerja"
-                            value={data.nomor_pk}
-                            onChange={(event) => setField('nomor_pk', event.target.value)}
-                            error={errors.nomor_pk}
-                            placeholder="Contoh: PK/LLDIKTI16/2026/001"
-                            disabled={disabled}
-                            required
-                        />
-                    </div>
-                </div>
-
-                {isEdit && (
-                    <div className="mt-5 border-t border-border pt-5">
+                    <div className="sm:col-span-2 min-w-0">
                         <Textarea
-                            name="alasan"
-                            label="Alasan Perubahan Data Perjanjian Kinerja"
-                            value={data.alasan ?? ''}
-                            onChange={(event) => setField('alasan', event.target.value)}
-                            error={errors.alasan}
-                            placeholder="Jelaskan alasan pembaruan metadata atau lampiran dokumen PK (wajib diisi)..."
+                            name="catatan"
+                            label="Catatan / Keterangan Tambahan (Opsional)"
+                            value={data.catatan ?? ''}
+                            onChange={(e) => setField('catatan', e.target.value)}
+                            placeholder="Keterangan mengenai penetapan atau perubahan naskah PK..."
                             rows={3}
                             disabled={disabled}
-                            required
+                            error={errors.catatan}
                         />
                     </div>
-                )}
+                </div>
             </section>
 
-            <section aria-labelledby="lampiran-pk-heading" className="border-t border-border pt-7">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                        <h2 id="lampiran-pk-heading" className="text-base font-semibold text-ink">
-                            Lampiran Dokumen Legal
+            {isEdit && (
+                <section aria-labelledby="alasan-koreksi-heading" className="w-full max-w-full min-w-0 border-t border-border pt-6">
+                    <div className="mb-3">
+                        <h2 id="alasan-koreksi-heading" className="text-base font-semibold text-ink leading-tight">
+                            Alasan Koreksi Perjanjian Kinerja <span className="text-danger">*</span>
                         </h2>
-                        <InfoTooltip
-                            content="Mendukung unggahan berkas privat, tautan repositori cloud, atau salinan teks komitmen."
-                            label="Informasi mode lampiran"
-                        />
-                    </div>
-                    {canUploadBerkas ? (
-                        <Button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setField('lampiran', [...data.lampiran, newLampiran()])}
-                            disabled={disabled}
-                            className="whitespace-nowrap shrink-0 shadow-2xs"
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            <span className="whitespace-nowrap">Tambah Lampiran</span>
-                        </Button>
-                    ) : (
-                        <div className="text-xs text-muted italic">
-                            Penambahan lampiran dinonaktifkan (tanpa izin berkas:upload)
-                        </div>
-                    )}
-                </div>
-
-                {! canUploadBerkas && (
-                    <div className="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>Anda tidak memiliki izin (berkas:upload) untuk menambahkan atau mengunggah lampiran dokumen.</span>
-                    </div>
-                )}
-
-                {errors.lampiran && (
-                    <div className="mt-4 rounded-lg border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{errors.lampiran}</span>
-                    </div>
-                )}
-
-                {data.lampiran.length === 0 ? (
-                    <div className="mt-4 rounded-lg border border-dashed border-border bg-page px-5 py-7 text-center">
-                        <FileText className="mx-auto h-7 w-7 text-muted" aria-hidden="true" />
-                        <p className="mt-2 text-sm font-semibold text-ink">Belum ada lampiran baru</p>
-                        <p className="mt-1 text-xs text-muted">
-                            Lampiran bersifat opsional dan dapat ditambahkan kapan saja sebelum Jadwal Tahunan aktif.
+                        <p className="mt-0.5 text-xs text-muted">
+                            Setiap penyesuaian metadata atau lampiran PK teraudit dan membutuhkan catatan alasan minimal 5 karakter.
                         </p>
                     </div>
-                ) : (
-                    <div className="mt-4 space-y-4">
-                        {data.lampiran.map((item, index) => {
-                            const ModeIcon = modeIcons[item.mode];
+                    <Textarea
+                        name="alasan"
+                        label="Catatan Alasan Koreksi"
+                        value={data.alasan ?? ''}
+                        onChange={(e) => setField('alasan', e.target.value)}
+                        placeholder="Contoh: Perbaikan nomor registrasi dokumen berdasarkan naskah fisik..."
+                        rows={3}
+                        disabled={disabled}
+                        error={errors.alasan}
+                        required
+                    />
+                </section>
+            )}
 
-                            return (
-                                <div key={item.clientId} className="rounded-xl border border-border bg-page p-4">
-                                    <div className="mb-4 flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                                            <ModeIcon className="h-4 w-4 text-primary" aria-hidden="true" />
-                                            Lampiran Dokumen #{index + 1}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeLampiran(index)}
-                                            disabled={disabled}
-                                            className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20 disabled:opacity-50"
-                                            aria-label={`Hapus lampiran ${index + 1}`}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
-
-                                    <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
-                                        <CustomSelect
-                                            id={`lampiran-${index}-mode`}
-                                            name={`lampiran.${index}.mode`}
-                                            label="Mode Lampiran"
-                                            options={lampiranModeOptions}
-                                            value={item.mode}
-                                            onChange={(val) => updateModeLampiran(index, String(val) as LampiranMode)}
-                                            disabled={disabled}
-                                            error={errors[`lampiran.${index}.mode`]}
-                                            showEmptyOption={false}
-                                        />
-
-                                        <div>
-                                            {item.mode === 'file' && (
-                                                <div className="space-y-3">
-                                                    <Input
-                                                        type="file"
-                                                        label="Pilih Berkas Naskah PK"
-                                                        accept={
-                                                            storageSettings?.format_diizinkan
-                                                                ? storageSettings.format_diizinkan.split(',').map((f) => `.${f.trim()}`).join(',')
-                                                                : '.pdf,.doc,.docx,.jpg,.jpeg,.png'
-                                                        }
-                                                        onChange={(event) => updateLampiran(index, 'file', event.target.files?.[0] ?? null)}
-                                                        error={errors[`lampiran.${index}.file`]}
-                                                        helperText={
-                                                            storageSettings?.unggahan_aktif === false
-                                                                ? 'Unggahan berkas dinonaktifkan di pengaturan sistem.'
-                                                                : `Maks. ${storageSettings?.ukuran_maks_kb ? Math.round(storageSettings.ukuran_maks_kb / 1024) : 10} MB. Format: ${
-                                                                      storageSettings?.format_diizinkan
-                                                                          ? storageSettings.format_diizinkan.toUpperCase()
-                                                                          : 'PDF, DOC, DOCX, JPG, PNG'
-                                                                  }.`
-                                                        }
-                                                        disabled={disabled || storageSettings?.unggahan_aktif === false}
-                                                    />
-                                                </div>
-                                            )}
-
-                                            {item.mode === 'tautan' && (
-                                                <div className="space-y-3">
-                                                    <Input
-                                                        label="Nama / Judul Dokumen (Opsional)"
-                                                        value={item.nama_asli ?? ''}
-                                                        onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
-                                                        placeholder="Contoh: Dokumen PK 2026 di Google Drive"
-                                                        disabled={disabled}
-                                                    />
-                                                    <Input
-                                                        type="url"
-                                                        label="URL / Alamat Tautan"
-                                                        value={item.tautan}
-                                                        onChange={(event) => updateLampiran(index, 'tautan', event.target.value)}
-                                                        error={errors[`lampiran.${index}.tautan`]}
-                                                        placeholder="https://drive.google.com/..."
-                                                        disabled={disabled}
-                                                    />
-                                                </div>
-                                            )}
-
-                                            {item.mode === 'teks' && (
-                                                <div className="space-y-3">
-                                                    <Input
-                                                        label="Nama / Judul Catatan (Opsional)"
-                                                        value={item.nama_asli ?? ''}
-                                                        onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
-                                                        placeholder="Contoh: Catatan Ringkasan Komitmen"
-                                                        disabled={disabled}
-                                                    />
-                                                    <Textarea
-                                                        label="Isi Catatan Ringkasan"
-                                                        value={item.isi_teks}
-                                                        onChange={(event) => updateLampiran(index, 'isi_teks', event.target.value)}
-                                                        error={errors[`lampiran.${index}.isi_teks`]}
-                                                        rows={3}
-                                                        disabled={disabled}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </section>
+            <LampiranFormSection
+                lampiran={data.lampiran as LampiranDraft[]}
+                errors={errors}
+                disabled={disabled}
+                canUpload={canUploadBerkas && storageSettings?.unggahan_aktif !== false}
+                title="Lampiran Dokumen Sumber & Perjanjian Kinerja"
+                emptyTitle="Belum ada lampiran baru"
+                emptyMessage="Lampiran bersifat opsional dan dapat ditambahkan kapan saja sebelum Jadwal Tahunan aktif."
+                fileAccept={fileAccept}
+                fileHelperText={fileHelperText}
+                showNamaAsli={true}
+                onChange={(updater) => setField('lampiran', updater(data.lampiran as LampiranDraft[]))}
+            />
         </div>
     );
 }
+
+export default PerjanjianKinerjaFormFields;

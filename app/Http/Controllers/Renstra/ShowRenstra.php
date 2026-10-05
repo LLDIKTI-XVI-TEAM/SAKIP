@@ -75,6 +75,7 @@ class ShowRenstra extends Controller
                 : [],
         ];
 
+        $regulasiPilihan = [];
         if ($dapatBacaRegulasi) {
             $detail['regulasi'] = $renstra->regulasi ? [
                 'id' => $renstra->regulasi->id,
@@ -83,15 +84,28 @@ class ShowRenstra extends Controller
                 'tahun' => $renstra->regulasi->tahun,
                 'tentang' => $renstra->regulasi->tentang,
             ] : null;
+
+            $regulasiPilihan = Regulasi::query()
+                ->where('aktif', true)
+                ->orWhere('id', $renstra->regulasi_id)
+                ->orderBy('tahun', 'desc')
+                ->orderBy('nomor')
+                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang']);
         }
+
+        $canUploadAttachment = $renstra->status === Renstra::STATUS_DRAFT
+            && $user->can('uploadAttachment', $renstra);
 
         return Inertia::render('Renstra/Show', [
             'renstra' => $detail,
+            'regulasiPilihan' => $regulasiPilihan,
             'can' => [
                 'update' => $user->can('update', $renstra) && $renstra->status !== Renstra::STATUS_DIARSIPKAN,
                 'delete' => $user->can('delete', $renstra)
                     && ($canDeleteAttachment || ($canViewAttachments && ! $hasBerkas)),
                 'deleteAttachment' => $canDeleteAttachment,
+                'uploadAttachment' => $canUploadAttachment,
+                'readRegulasi' => $dapatBacaRegulasi,
             ],
         ]);
     }

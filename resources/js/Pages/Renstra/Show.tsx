@@ -1,33 +1,36 @@
 import React, { useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
-    AlertCircle,
-    ArrowLeft,
     Download,
     Edit3,
     ExternalLink,
     FileText,
     Link2,
     Lock,
-    Target,
     Trash2,
     Type,
     User,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { BackButton } from '@/Components/BackButton';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Card, CardContent } from '@/Components/Card';
-import type { BerkasRenstra, RenstraDetail, RenstraStatus } from '@/types/renstra';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { EmptyState } from '@/Components/EmptyState';
+import { RenstraEditModal } from './Partials/RenstraEditModal';
+import type { BerkasRenstra, RegulasiOption, RenstraDetail, RenstraStatus } from '@/types/renstra';
 import type { RegulasiJenis } from '@/types/regulasi';
 
 interface ShowRenstraProps {
     renstra: RenstraDetail;
+    regulasiPilihan?: RegulasiOption[];
     can?: {
         update?: boolean;
         delete?: boolean;
         deleteAttachment?: boolean;
+        uploadAttachment?: boolean;
+        readRegulasi?: boolean;
     };
 }
 
@@ -61,9 +64,11 @@ function formatBytes(bytes: number | null): string {
 
 export default function ShowRenstra({
     renstra,
-    can = { update: false, delete: false, deleteAttachment: false },
+    regulasiPilihan = [],
+    can = { update: false, delete: false, deleteAttachment: false, uploadAttachment: false, readRegulasi: false },
 }: ShowRenstraProps) {
     const isAktif = renstra.status === 'aktif' || Boolean(renstra.is_aktif);
+    const [editOpen, setEditOpen] = useState(false);
     const berkasList = Array.isArray(renstra.berkas) ? renstra.berkas : [];
     const pembuatNama = typeof renstra.pembuat === 'object' && renstra.pembuat !== null
         ? (renstra.pembuat.nama || renstra.pembuat.name || 'Sistem')
@@ -129,47 +134,36 @@ export default function ShowRenstra({
         >
             <Head title={`Detail Renstra: ${renstra.kode}`} />
 
-            <div className="mx-auto max-w-5xl space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <h1 className="text-xl font-bold tracking-tight text-ink">{renstra.nama}</h1>
-                            <Badge variant={statusBadgeVariant[renstra.status]} dot>
-                                {statusLabel[renstra.status]}
-                            </Badge>
-                        </div>
-                        <p className="mt-1 text-sm font-mono text-muted">{renstra.kode}</p>
-                    </div>
+            <div className="mx-auto max-w-5xl space-y-4">
+                {/* Back and Action Toolbar */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <BackButton href="/renstra" label="Kembali ke Master" />
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                            href="/renstra"
-                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        >
-                            <ArrowLeft className="h-4 w-4 text-muted" aria-hidden="true" />
-                            Kembali ke Master
-                        </Link>
-
+                    <div className="flex flex-wrap items-center gap-2.5">
                         {can.update && renstra.status !== 'diarsipkan' && (
-                            <Link
-                                href={`/renstra/${renstra.id}/edit`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                onClick={() => setEditOpen(true)}
+                                className="gap-2"
                             >
                                 <Edit3 className="h-4 w-4" aria-hidden="true" />
                                 Edit Dokumen
-                            </Link>
+                            </Button>
                         )}
 
                         {can.delete && renstra.status === 'draft' && (berkasList.length === 0 || can.deleteAttachment) && (
                             <Button
                                 type="button"
                                 variant="outline"
+                                size="sm"
                                 onClick={() => {
                                     deleteRenstraForm.reset();
                                     setRenstraReasonError(undefined);
                                     setDeleteRenstraOpen(true);
                                 }}
-                                className="text-danger border-danger/30 hover:bg-danger/10 hover:text-danger"
+                                className="text-danger border-danger/30 hover:bg-danger/10 hover:text-danger gap-2"
                             >
                                 <Trash2 className="h-4 w-4" aria-hidden="true" />
                                 Hapus Renstra
@@ -181,25 +175,20 @@ export default function ShowRenstra({
                 <div className="grid gap-6 md:grid-cols-3">
                     <div className="md:col-span-2 space-y-6">
                         <Card>
+                            <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div>
+                                    <CardTitle>{renstra.nama}</CardTitle>
+                                </div>
+                                <Badge variant={statusBadgeVariant[renstra.status]} dot>
+                                    {statusLabel[renstra.status]}
+                                </Badge>
+                            </CardHeader>
                             <CardContent className="p-5 sm:p-6 space-y-5">
-                                <h2 className="text-base font-semibold text-ink border-b border-border pb-3">
-                                    Informasi Utama
-                                </h2>
-
-                                <div className="grid gap-4 sm:grid-cols-3">
+                                <div className="grid gap-4 sm:grid-cols-2">
                                     <div>
                                         <div className="text-xs font-medium text-muted">Periode Pelaksanaan</div>
                                         <div className="mt-1 font-mono text-sm font-semibold text-ink">
                                             {renstra.tahun_mulai} - {renstra.tahun_selesai}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div className="text-xs font-medium text-muted">Status Dokumen</div>
-                                        <div className="mt-1">
-                                            <Badge variant={statusBadgeVariant[renstra.status]} dot>
-                                                {statusLabel[renstra.status]}
-                                            </Badge>
                                         </div>
                                     </div>
 
@@ -251,13 +240,12 @@ export default function ShowRenstra({
                                 )}
 
                                 {berkasList.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-border bg-soft/40 p-8 text-center">
-                                        <FileText className="mx-auto h-8 w-8 text-muted opacity-40 mb-2" aria-hidden="true" />
-                                        <p className="text-sm font-medium text-ink">Belum ada lampiran naskah</p>
-                                        <p className="text-xs text-muted mt-1">
-                                            Lampiran dapat ditambahkan melalui menu Edit Renstra sebelum dokumen disahkan menjadi aktif.
-                                        </p>
-                                    </div>
+                                    <EmptyState
+                                        icon={FileText}
+                                        title="Belum ada lampiran naskah"
+                                        description="Lampiran dapat ditambahkan melalui menu Edit Renstra sebelum dokumen berstatus aktif."
+                                        variant="dashed"
+                                    />
                                 ) : (
                                     <div className="space-y-3">
                                         {berkasList.map((item) => (
@@ -325,7 +313,7 @@ export default function ShowRenstra({
                                                         <button
                                                             type="button"
                                                             onClick={() => openDeleteBerkas(item)}
-                                                            className="rounded-md p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                                                            className="rounded-md p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20 cursor-pointer"
                                                             title="Hapus Lampiran"
                                                         >
                                                             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -388,20 +376,6 @@ export default function ShowRenstra({
                                 )}
                             </CardContent>
                         </Card>
-
-                        <Card>
-                            <CardContent className="p-5 space-y-3 text-xs text-muted leading-relaxed">
-                                <h3 className="text-sm font-semibold text-ink border-b border-border pb-2">
-                                    Catatan Tata Kelola
-                                </h3>
-                                <p>
-                                    Renstra merupakan dokumen induk yang menjadi fondasi penetapan Sasaran Strategis, Perjanjian Kinerja (PK), dan Pengukuran Capaian IKU Triwulanan.
-                                </p>
-                                <p>
-                                    Perubahan status dari Draft menjadi Aktif mengunci naskah lampiran dan mewajibkan pencatatan alasan audit untuk setiap modifikasi data.
-                                </p>
-                            </CardContent>
-                        </Card>
                     </div>
                 </div>
             </div>
@@ -433,6 +407,17 @@ export default function ShowRenstra({
                 onClose={() => setDeleteRenstraOpen(false)}
                 onConfirm={confirmDeleteRenstra}
             />
+
+            {can.update && (
+                <RenstraEditModal
+                    isOpen={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    renstra={renstra}
+                    regulasiOptions={regulasiPilihan}
+                    canReadRegulasi={can.readRegulasi === true}
+                    canUploadAttachment={can.uploadAttachment}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

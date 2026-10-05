@@ -1,7 +1,7 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import { RenstraFormFields } from '@/Components/RenstraFormFields';
@@ -55,13 +55,7 @@ export default function CreateRenstra({ regulasiPilihan, can }: CreateRenstraPro
             <div className="mx-auto max-w-5xl space-y-5">
                 <div className="flex items-center justify-between">
                     <div>
-                        <Link
-                            href="/renstra"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                        >
-                            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                            Kembali ke Master Renstra
-                        </Link>
+                        <BackButton href="/renstra" label="Kembali ke Master Renstra" />
                         <h1 className="mt-2 text-xl font-bold tracking-tight text-ink">Tambah Master Renstra Baru</h1>
                     </div>
                 </div>
@@ -82,12 +76,12 @@ export default function CreateRenstra({ regulasiPilihan, can }: CreateRenstraPro
                         </CardContent>
 
                         <div className="flex flex-col-reverse gap-3 border-t border-border bg-page px-6 py-4 sm:flex-row sm:justify-end">
-                            <Link
+                            <Button
                                 href="/renstra"
-                                className="inline-flex items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                variant="outline"
                             >
                                 Batal
-                            </Link>
+                            </Button>
                             <Button type="submit" variant="primary" isLoading={form.processing}>
                                 Simpan Renstra
                             </Button>

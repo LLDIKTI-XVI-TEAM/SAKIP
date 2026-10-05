@@ -1,7 +1,7 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import { RenstraFormFields } from '@/Components/RenstraFormFields';
@@ -17,7 +17,7 @@ interface EditRenstraProps {
 }
 
 export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenstraProps) {
-    const isAktif = renstra.status === 'aktif' || renstra.is_aktif;
+    const isAktif = renstra.status === 'aktif' || Boolean(renstra.is_aktif);
     const form = useForm<RenstraFormData>({
         nama: renstra.nama,
         kode: renstra.kode,
@@ -64,23 +64,8 @@ export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenst
                         Edit Rencana Strategis ({renstra.kode})
                     </h1>
 
-                    <Link
-                        href={`/renstra/${renstra.id}`}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-xs transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                        <ArrowLeft className="h-4 w-4 text-muted" aria-hidden="true" />
-                        Kembali
-                    </Link>
+                    <BackButton href={`/renstra/${renstra.id}`} label="Kembali" />
                 </div>
-
-                {isAktif && (
-                    <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-xs text-ink leading-relaxed">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning-dark" aria-hidden="true" />
-                        <div>
-                            <span className="font-semibold text-warning-dark">Perhatian Dokumen Aktif:</span> Renstra ini berstatus aktif. Setiap pembaruan data wajib menyertakan alasan perubahan yang jelas dan akan dicatat secara permanen pada audit log.
-                        </div>
-                    </div>
-                )}
 
                 <form onSubmit={submit} noValidate>
                     <Card>
@@ -101,12 +86,12 @@ export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenst
                         </CardContent>
 
                         <div className="flex flex-col-reverse gap-3 border-t border-border bg-page px-6 py-4 sm:flex-row sm:justify-end">
-                            <Link
+                            <Button
                                 href={`/renstra/${renstra.id}`}
-                                className="inline-flex items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                variant="outline"
                             >
                                 Batal
-                            </Link>
+                            </Button>
                             <Button type="submit" variant="primary" isLoading={form.processing}>
                                 Simpan Perubahan
                             </Button>

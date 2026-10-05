@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ChevronDown, Edit3, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { FileText, Plus, Save, Search, X } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
+import { CustomSelect, CustomSelectOption } from '@/Components/CustomSelect';
+import { DeleteIconButton } from '@/Components/DeleteIconButton';
+import { EditIconButton } from '@/Components/EditIconButton';
+import { EmptyState } from '@/Components/EmptyState';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { Pagination } from '@/Components/Pagination';
 import { RenstraFormFields } from '@/Components/RenstraFormFields';
-import { Select } from '@/Components/Select';
-import { Tooltip } from '@/Components/Tooltip';
+import { ViewIconButton } from '@/Components/ViewIconButton';
+import { RenstraEditModal } from './Partials/RenstraEditModal';
 import type { Paginated, RegulasiOption, RenstraFormData, RenstraStatus, RenstraSummary } from '@/types/renstra';
 
 interface RenstraIndexProps {
@@ -37,13 +42,12 @@ const statusLabel: Record<RenstraStatus, string> = {
     diarsipkan: 'Diarsipkan',
 };
 
-function cleanPaginationLabel(label: string): string {
-    return label
-        .replace('&laquo;', '‹')
-        .replace('&raquo;', '›')
-        .replace('Previous', 'Sebelumnya')
-        .replace('Next', 'Berikutnya');
-}
+const statusFilterOptions: CustomSelectOption[] = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'aktif', label: 'Aktif' },
+    { value: 'nonaktif', label: 'Nonaktif' },
+    { value: 'diarsipkan', label: 'Diarsipkan' },
+];
 
 export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, can }: RenstraIndexProps) {
     const [query, setQuery] = useState(filters.q || '');
@@ -68,38 +72,18 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
         lampiran: [],
     });
 
-    const openCreateModal = () => {
-        createForm.reset();
-        createForm.clearErrors();
-        setCreateOpen(true);
+    // State & Form Modal Edit Renstra
+    const [editOpen, setEditOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<RenstraSummary | null>(null);
+
+    const openEditModal = (item: RenstraSummary) => {
+        setEditingItem(item);
+        setEditOpen(true);
     };
 
-    const closeCreateModal = () => {
-        if (createForm.processing) return;
-        setCreateOpen(false);
-        createForm.reset();
-        createForm.clearErrors();
-    };
-
-    const handleCreateSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (createForm.processing) return;
-        createForm.transform((data) => {
-            if (can.readRegulasi === true) return data;
-
-            const payload: Partial<RenstraFormData> = { ...data };
-            delete payload.regulasi_id;
-
-            return payload;
-        });
-        createForm.post('/renstra', {
-            forceFormData: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                setCreateOpen(false);
-                createForm.reset();
-            },
-        });
+    const closeEditModal = () => {
+        setEditOpen(false);
+        setEditingItem(null);
     };
 
     const applyFilters = (event: React.FormEvent<HTMLFormElement>) => {
@@ -109,6 +93,17 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
             replace: true,
         });
     };
+
+    const resetFilters = () => {
+        setQuery('');
+        setStatus('');
+        router.get('/renstra', {}, {
+            preserveState: true,
+            replace: true,
+        });
+    };
+
+    const hasActiveFilters = Boolean(query || status);
 
     const openDelete = (item: RenstraSummary) => {
         setSelected(item);
@@ -135,80 +130,70 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
     };
 
     return (
-        <AuthenticatedLayout title="Master Renstra" breadcrumbs={[{ label: 'Master Renstra' }]}>
+        <AuthenticatedLayout
+            title="Master Renstra"
+            breadcrumbs={[{ label: 'Master Renstra' }]}
+            headerAction={
+                can['renstra:create'] ? (
+                    <Button
+                        size="sm"
+                        onClick={openCreateModal}
+                        className="w-full sm:w-auto gap-1.5"
+                    >
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Tambah Renstra
+                    </Button>
+                ) : null
+            }
+        >
             <Head title="Master Renstra" />
 
-            <div className="space-y-6">
-                <Card>
-                    <CardContent className="p-5 sm:p-6">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl leading-tight">
-                                    Master Rencana Strategis
-                                </h1>
-                                <p className="mt-0.5 text-sm text-muted leading-snug">
-                                    Penyusunan dokumen induk Renstra, penetapan periode, dasar rujukan regulasi, dan naskah digital.
-                                </p>
-                            </div>
-
-                            {can['renstra:create'] && (
-                                <button
-                                    type="button"
-                                    onClick={openCreateModal}
-                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    <span>Tambah Renstra</span>
-                                </button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
+            <div className="mx-auto max-w-7xl space-y-4 mt-1.5 sm:mt-2">
+                {/* Filter Toolbar */}
+                <Card className="overflow-visible relative z-20">
                     <CardContent className="p-4 sm:p-5">
                         <form onSubmit={applyFilters} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                            <div className="flex-1">
-                                <label htmlFor="search-input" className="mb-1 block text-xs font-medium text-ink">
-                                    Pencarian Dokumen
-                                </label>
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-                                    <input
-                                        id="search-input"
-                                        type="text"
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                        placeholder="Cari berdasarkan nama atau kode Renstra..."
-                                        className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                </div>
+                            <div className="flex-1 min-w-0">
+                                <Input
+                                    name="q"
+                                    label="Pencarian Dokumen"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    placeholder="Cari berdasarkan nama atau kode Renstra..."
+                                />
                             </div>
 
-                            <div className="w-full sm:w-48">
-                                <label htmlFor="status-select" className="mb-1 block text-xs font-medium text-ink">
-                                    Status Dokumen
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        id="status-select"
-                                        value={status}
-                                        onChange={(e) => setStatus(e.target.value)}
-                                        className="w-full appearance-none rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                            <div className="w-full sm:w-56 min-w-0">
+                                <CustomSelect
+                                    id="status-filter"
+                                    name="status"
+                                    label="Status Dokumen"
+                                    placeholder="Semua Status"
+                                    emptyOptionLabel="Semua Status"
+                                    options={statusFilterOptions}
+                                    value={status}
+                                    onChange={(val) => setStatus(String(val ?? ''))}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button type="submit" variant="primary" size="md" className="gap-1.5 px-4 shrink-0">
+                                    <Search className="h-4 w-4" aria-hidden="true" />
+                                    Filter
+                                </Button>
+                                {hasActiveFilters && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="md"
+                                        onClick={resetFilters}
+                                        title="Reset filter"
+                                        aria-label="Reset filter pencarian"
                                     >
-                                        <option value="">Semua Status</option>
-                                        <option value="draft">Draft</option>
-                                        <option value="aktif">Aktif</option>
-                                        <option value="nonaktif">Nonaktif</option>
-                                        <option value="diarsipkan">Diarsipkan</option>
-                                    </select>
-                                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-                                </div>
+                                        <X className="h-4 w-4" aria-hidden="true" />
+                                    </Button>
+                                )}
                             </div>
-
-                            <Button type="submit" variant="primary">
-                                Terapkan Filter
-                            </Button>
                         </form>
                     </CardContent>
                 </Card>
@@ -223,14 +208,18 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                     <th scope="col" className="px-5 py-3.5">Status</th>
                                     <th scope="col" className="px-5 py-3.5">Rujukan Regulasi</th>
                                     <th scope="col" className="px-5 py-3.5">Naskah Lampiran</th>
-                                    <th scope="col" className="px-5 py-3.5 text-left">Aksi</th>
+                                    <th scope="col" className="px-5 py-3.5 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {renstra.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-5 py-12 text-center text-sm font-medium text-muted">
-                                            Tidak ada data Renstra ditemukan
+                                        <td colSpan={6} className="p-6">
+                                            <EmptyState
+                                                title="Tidak ada data Renstra ditemukan"
+                                                description={hasActiveFilters ? "Coba sesuaikan kata kunci pencarian atau filter status dokumen." : "Belum ada dokumen Master Renstra yang tersimpan di sistem."}
+                                                variant="inline"
+                                            />
                                         </td>
                                     </tr>
                                 ) : (
@@ -265,44 +254,31 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-left">
-                                                <div className="flex items-center justify-start gap-1.5">
-                                                    <Tooltip content="Lihat Detail">
-                                                        <Link
-                                                            href={`/renstra/${item.id}`}
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                            aria-label={`Lihat detail ${item.kode}`}
-                                                        >
-                                                            <Eye className="h-4 w-4" aria-hidden="true" />
-                                                            <span className="sr-only">Detail {item.kode}</span>
-                                                        </Link>
-                                                    </Tooltip>
+                                            <td className="px-5 py-4 whitespace-nowrap text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <ViewIconButton
+                                                        href={`/renstra/${item.id}`}
+                                                        label={`Lihat detail ${item.kode}`}
+                                                        tooltip="Lihat Detail"
+                                                        tooltipAlign="right"
+                                                    />
 
                                                     {can['renstra:update'] && item.status !== 'diarsipkan' && (
-                                                        <Tooltip content="Edit Dokumen">
-                                                            <Link
-                                                                href={`/renstra/${item.id}/edit`}
-                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                                aria-label={`Edit ${item.kode}`}
-                                                            >
-                                                                <Edit3 className="h-4 w-4" aria-hidden="true" />
-                                                                <span className="sr-only">Edit {item.kode}</span>
-                                                            </Link>
-                                                        </Tooltip>
+                                                        <EditIconButton
+                                                            onClick={() => openEditModal(item)}
+                                                            label={`Edit ${item.kode}`}
+                                                            tooltip="Edit Dokumen"
+                                                            tooltipAlign="right"
+                                                        />
                                                     )}
 
                                                     {item.can_delete && (
-                                                        <Tooltip content="Hapus Renstra">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openDelete(item)}
-                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-danger/30 bg-danger/5 text-danger shadow-2xs transition-colors hover:bg-danger/10 hover:border-danger/40 focus:outline-none focus:ring-2 focus:ring-danger/20 cursor-pointer"
-                                                                aria-label={`Hapus ${item.kode}`}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                                                <span className="sr-only">Hapus {item.kode}</span>
-                                                            </button>
-                                                        </Tooltip>
+                                                        <DeleteIconButton
+                                                            onClick={() => openDelete(item)}
+                                                            label={`Hapus ${item.kode}`}
+                                                            tooltip="Hapus Renstra"
+                                                            tooltipAlign="right"
+                                                        />
                                                     )}
                                                 </div>
                                             </td>
@@ -313,33 +289,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                         </table>
                     </div>
 
-                    {renstra.links.length > 3 && (
-                        <div className="flex items-center justify-between border-t border-border px-5 py-3 bg-page text-xs text-muted">
-                            <div>
-                                Menampilkan <span className="font-semibold text-ink">{renstra.from ?? 0}</span> sampai{' '}
-                                <span className="font-semibold text-ink">{renstra.to ?? 0}</span> dari{' '}
-                                <span className="font-semibold text-ink">{renstra.total}</span> data
-                            </div>
-                            <div className="flex gap-1">
-                                {renstra.links.map((link, idx) => (
-                                    <Link
-                                        key={idx}
-                                        href={link.url ?? '#'}
-                                        preserveState
-                                        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-                                            link.active
-                                                ? 'bg-primary text-white'
-                                                : link.url
-                                                ? 'text-muted hover:bg-soft hover:text-ink'
-                                                : 'cursor-not-allowed opacity-40'
-                                        }`}
-                                    >
-                                        {cleanPaginationLabel(link.label)}
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <Pagination pagination={renstra} resourceName="Renstra" />
                 </div>
             </div>
 
@@ -362,10 +312,16 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                 isOpen={createOpen}
                 onClose={closeCreateModal}
                 size="3xl"
-                title="Tambah Master Renstra Baru"
-                description="Isi identitas dokumen induk Renstra, penetapan rentang tahun, rujukan regulasi, dan naskah digital."
+                title={
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                            <FileText className="h-4 w-4" />
+                        </div>
+                        <span>Tambah Master Renstra</span>
+                    </div>
+                }
                 footer={
-                    <>
+                    <div className="flex items-center justify-end gap-3 w-full">
                         <Button
                             type="button"
                             variant="outline"
@@ -379,10 +335,12 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                             form="form-tambah-renstra"
                             variant="primary"
                             isLoading={createForm.processing}
+                            disabled={createForm.processing}
                         >
+                            <Save className="h-4 w-4" aria-hidden="true" />
                             Simpan Renstra
                         </Button>
-                    </>
+                    </div>
                 }
             >
                 <form id="form-tambah-renstra" onSubmit={handleCreateSubmit} noValidate>
@@ -398,6 +356,16 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                     />
                 </form>
             </Modal>
+
+            {/* Modal Pop-up Edit Renstra */}
+            <RenstraEditModal
+                isOpen={editOpen}
+                onClose={closeEditModal}
+                renstra={editingItem}
+                regulasiOptions={regulasiPilihan}
+                canReadRegulasi={can.readRegulasi === true}
+                canUploadAttachment={can.uploadAttachment}
+            />
         </AuthenticatedLayout>
     );
 }
