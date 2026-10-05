@@ -59,7 +59,7 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Klik tombol hapus
-        const deleteBtn = screen.getByTitle('Hapus Unit Kosong (Superadmin)');
+        const deleteBtn = screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' });
         await user.click(deleteBtn);
 
         // Modal hapus terbuka
@@ -107,7 +107,7 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Buka modal hapus
-        await user.click(screen.getByTitle('Hapus Unit Kosong (Superadmin)'));
+        await user.click(screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' }));
         const textarea = screen.getByLabelText(/Alasan Penghapusan/);
         await user.type(textarea, 'Alasan awal');
 
@@ -131,7 +131,7 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Buka modal hapus
-        await user.click(screen.getByTitle('Hapus Unit Kosong (Superadmin)'));
+        await user.click(screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' }));
         const textarea = screen.getByLabelText(/Alasan Penghapusan/);
         await user.type(textarea, 'Unit sudah tidak digunakan');
 

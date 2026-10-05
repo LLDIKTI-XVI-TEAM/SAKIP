@@ -4,13 +4,11 @@ import {
     Building2, 
     Plus, 
     Pencil, 
-    Trash2, 
     Search, 
     CheckCircle2, 
     XCircle, 
     AlertTriangle,
-    X,
-    Lock
+    X
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/Card';
@@ -18,7 +16,6 @@ import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { ConfirmModal } from '@/Components/ConfirmModal';
-import { Tooltip } from '@/Components/Tooltip';
 import { EditIconButton } from '@/Components/EditIconButton';
 import { DeleteIconButton } from '@/Components/DeleteIconButton';
 import { ToggleIconButton } from '@/Components/ToggleIconButton';
@@ -488,7 +485,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                         </>
                                                     )}
 
-                                                    {unit.can.delete ? (
+                                                    {unit.can.delete && (
                                                         <DeleteIconButton
                                                             onClick={() => {
                                                                 setDeletingUnit(unit);
@@ -496,28 +493,9 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                                 setDeleteError('');
                                                             }}
                                                             label={`Hapus ${unit.nama}`}
-                                                            title="Hapus Unit Kosong (Superadmin)"
-                                                            tooltip="Hapus Unit Kosong (Superadmin)"
+                                                            tooltip="Hapus Unit"
                                                             tooltipAlign="right"
                                                         />
-                                                    ) : (
-                                                        !unit.is_deletable && (
-                                                            <Tooltip
-                                                                content="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin."
-                                                                align="right"
-                                                            >
-                                                                <span 
-                                                                    className="relative inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 bg-slate-50 text-slate-400 cursor-not-allowed select-none shadow-2xs"
-                                                                    aria-hidden="true"
-                                                                    title="Unit Terkunci (Memiliki Keterkaitan Data)"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4 text-slate-400" />
-                                                                    <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 border border-white text-slate-600 shadow-2xs">
-                                                                        <Lock className="h-2 w-2" />
-                                                                    </span>
-                                                                </span>
-                                                            </Tooltip>
-                                                        )
                                                     )}
                                                 </div>
                                             </td>

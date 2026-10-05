@@ -133,4 +133,14 @@ describe('UnitIndex Component UI & Reusable Components', () => {
         const input = within(dialog).getByLabelText(/Nama Unit Kerja/i) as HTMLInputElement;
         expect(input.value).toBe('Bagian Kelembagaan dan Sistem Informasi');
     });
+
+    it('hanya menampilkan tombol hapus jika unit dapat dihapus (unit.can.delete)', () => {
+        render(<UnitIndex units={mockUnits} can={{ create: true }} />);
+
+        // unit-1 tidak dapat dihapus, tombol hapus tidak boleh dirender
+        expect(screen.queryByRole('button', { name: 'Hapus Bagian Kelembagaan dan Sistem Informasi' })).toBeNull();
+
+        // unit-2 dapat dihapus, tombol hapus harus dirender
+        expect(screen.getByRole('button', { name: 'Hapus Bagian Perencanaan dan Kerjasama' })).toBeTruthy();
+    });
 });
