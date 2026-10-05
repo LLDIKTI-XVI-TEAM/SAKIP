@@ -72,7 +72,41 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
         lampiran: [],
     });
 
-    // State & Form Modal Edit Renstra
+    const openCreateModal = () => {
+        createForm.reset();
+        createForm.clearErrors();
+        setCreateOpen(true);
+    };
+
+    const closeCreateModal = () => {
+        if (createForm.processing) return;
+        setCreateOpen(false);
+        createForm.reset();
+        createForm.clearErrors();
+    };
+
+    const handleCreateSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (createForm.processing) return;
+        createForm.transform((data) => {
+            if (can.readRegulasi === true) return data;
+
+            const payload: Partial<RenstraFormData> = { ...data };
+            delete payload.regulasi_id;
+
+            return payload;
+        });
+        createForm.post('/renstra', {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setCreateOpen(false);
+                createForm.reset();
+            },
+        });
+    };
+
+    // State Modal Edit Renstra
     const [editOpen, setEditOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<RenstraSummary | null>(null);
 
