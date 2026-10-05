@@ -3,19 +3,13 @@ import { Head, router } from '@inertiajs/react';
 import { 
     Plus, 
     FileText, 
-    Layers, 
     Globe, 
     Target, 
-    Edit2, 
-    Trash2, 
-    Check, 
-    AlertCircle, 
     SlidersHorizontal,
-    Search,
-    ShieldAlert
+    Search
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import {
     Table,
@@ -27,6 +21,10 @@ import {
 } from '@/Components/Table';
 import { Badge } from '@/Components/Badge';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { HoverScrollText } from '@/Components/HoverScrollText';
+import { EditIconButton } from '@/Components/EditIconButton';
+import { DeleteIconButton } from '@/Components/DeleteIconButton';
+import { IconButton } from '@/Components/IconButton';
 import { 
     JenisBerkasModal, 
     JenisBerkasFormData, 
@@ -359,38 +357,41 @@ export default function JenisBerkasIndex({
                 { label: 'Konfigurasi' },
                 { label: 'Persyaratan Jenis Berkas' }
             ]}
-        >
-            <Head title="Konfigurasi Persyaratan Jenis Berkas" />
-
-            {/* Header & Deskripsi */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-sm font-semibold text-ink">
-                        Standar Bukti Dukung Kinerja & Kegiatan
-                    </h2>
-                    <p className="text-xs text-muted mt-0.5">
-                        Kelola persyaratan bukti dukung per tahap kepatuhan, batasan mode, dan verifikasi kelengkapan SAKIP.
-                    </p>
-                </div>
-
-                {can.create && (
+            headerAction={
+                can.create ? (
                     <Button
                         variant="primary"
                         size="sm"
                         data-testid="btn-tambah-persyaratan"
                         onClick={handleOpenCreate}
-                        className="gap-1.5"
+                        className="gap-1.5 shadow-xs"
                     >
                         <Plus className="w-4 h-4" />
                         Tambah Persyaratan
                     </Button>
-                )}
-            </div>
+                ) : undefined
+            }
+        >
+            <Head title="Konfigurasi Persyaratan Jenis Berkas" />
 
-            {/* Filter Tabs & Search */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-surface p-2.5 rounded-xl border border-border">
+            {/* Filter Card */}
+            <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-2.5 rounded-xl border border-border">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[200px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted" />
+                    <input
+                        id="pencarian-jenis-berkas"
+                        aria-label="Cari persyaratan berdasarkan nama atau indikator"
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Cari nama atau indikator..."
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border text-ink placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none bg-surface transition-colors"
+                    />
+                </div>
+
                 {/* Tabs Tahap */}
-                <div className="flex items-center gap-1.5 overflow-x-auto">
+                <div className="flex items-center gap-1.5 overflow-x-auto self-end sm:self-auto">
                     {[
                         { id: 'semua', label: 'Semua Tahap' },
                         { id: 'rencana_aksi', label: 'Rencana Aksi' },
@@ -401,7 +402,7 @@ export default function JenisBerkasIndex({
                             key={tab.id}
                             type="button"
                             onClick={() => setSelectedTahap(tab.id)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0 ${
                                 selectedTahap === tab.id
                                     ? 'bg-primary text-white shadow-xs'
                                     : 'text-muted hover:bg-soft hover:text-ink'
@@ -410,20 +411,6 @@ export default function JenisBerkasIndex({
                             {tab.label}
                         </button>
                     ))}
-                </div>
-
-                {/* Search */}
-                <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted" />
-                    <input
-                        id="pencarian-jenis-berkas"
-                        aria-label="Cari persyaratan berdasarkan nama atau indikator"
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Cari nama atau indikator..."
-                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border text-ink placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none bg-surface"
-                    />
                 </div>
             </div>
 
@@ -482,13 +469,36 @@ export default function JenisBerkasIndex({
                                     </TableCell>
 
                                     {/* Nama & Keterangan */}
-                                    <TableCell>
-                                        <div className="font-semibold text-ink text-xs">
-                                            {item.nama}
-                                        </div>
-                                        {item.keterangan && (
-                                            <div className="text-[11px] text-muted mt-0.5 line-clamp-2">
-                                                {item.keterangan}
+                                    <TableCell className="max-w-xs md:max-w-md">
+                                        {can.update || can.pengaturan_update ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenEdit(item, !can.update && Boolean(can.pengaturan_update))}
+                                                className="group block text-left w-full hover:text-primary transition-colors cursor-pointer focus:outline-none"
+                                            >
+                                                <HoverScrollText
+                                                    text={item.nama}
+                                                    className="font-semibold text-ink group-hover:text-primary transition-colors text-xs"
+                                                    textClassName="font-semibold text-ink group-hover:text-primary transition-colors text-xs"
+                                                />
+                                                {item.keterangan && (
+                                                    <div className="text-[11px] text-muted group-hover:text-primary/70 transition-colors mt-0.5 line-clamp-2">
+                                                        {item.keterangan}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <div>
+                                                <HoverScrollText
+                                                    text={item.nama}
+                                                    className="font-semibold text-ink text-xs"
+                                                    textClassName="font-semibold text-ink text-xs"
+                                                />
+                                                {item.keterangan && (
+                                                    <div className="text-[11px] text-muted mt-0.5 line-clamp-2">
+                                                        {item.keterangan}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </TableCell>
@@ -596,40 +606,34 @@ export default function JenisBerkasIndex({
 
                                     {/* Aksi */}
                                     {(can.update || can.delete || can.pengaturan_update) && (
-                                        <TableCell className="text-center">
+                                        <TableCell className="text-center whitespace-nowrap">
                                             <div className="inline-flex items-center gap-1 justify-center">
                                                 {can.update && (
-                                                    <button
-                                                        type="button"
+                                                    <EditIconButton
                                                         onClick={() => handleOpenEdit(item, false)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 transition-colors cursor-pointer"
-                                                        title="Ubah Persyaratan"
-                                                        aria-label={`Ubah persyaratan ${item.nama}`}
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
+                                                        label={`Edit persyaratan ${item.nama}`}
+                                                        tooltip="Edit Persyaratan"
+                                                        tooltipAlign="right"
+                                                    />
                                                 )}
                                                 {!can.update && can.pengaturan_update && (
-                                                    <button
-                                                        type="button"
+                                                    <IconButton
+                                                        icon={SlidersHorizontal}
+                                                        variant="ghost"
                                                         onClick={() => handleOpenEdit(item, true)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-info-dark hover:bg-info/10 focus:outline-none focus:ring-2 focus:ring-info/25 transition-colors cursor-pointer"
-                                                        title="Ubah Batas Teknis"
-                                                        aria-label={`Ubah batas teknis untuk ${item.nama}`}
-                                                    >
-                                                        <SlidersHorizontal className="w-4 h-4" />
-                                                    </button>
+                                                        label={`Ubah batas teknis ${item.nama}`}
+                                                        tooltip="Batas Teknis"
+                                                        tooltipAlign="right"
+                                                        className="text-info-dark hover:bg-info/10 hover:text-info-dark focus:ring-info/20"
+                                                    />
                                                 )}
                                                 {can.delete && (
-                                                    <button
-                                                        type="button"
+                                                    <DeleteIconButton
                                                         onClick={() => handleOpenDelete(item)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-danger hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/25 transition-colors cursor-pointer"
-                                                        title="Hapus Persyaratan"
-                                                        aria-label={`Hapus persyaratan ${item.nama}`}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                        label={`Hapus persyaratan ${item.nama}`}
+                                                        tooltip="Hapus Persyaratan"
+                                                        tooltipAlign="right"
+                                                    />
                                                 )}
                                             </div>
                                         </TableCell>
@@ -671,7 +675,7 @@ export default function JenisBerkasIndex({
                 }
                 description={
                     auditAction === 'delete'
-                        ? 'Penghapusan katalog jenis berkas bersifat sensitif. Persyaratan yang dihapus tidak lagi berlaku untuk pengajuan berikutnya. Masukkan alasan penghapusan untuk rekaman audit.'
+                        ? `Apakah Anda yakin ingin menghapus persyaratan "${targetItem?.nama}"?`
                         : auditAction === 'update-batas-teknis'
                         ? 'Perubahan batas teknis format dan batas ukuran file akan dicatat pada audit trail dengan rekaman izin pengaturan. Masukkan alasan perubahan batas teknis.'
                         : 'Perubahan katalog persyaratan bukti dukung bersifat sensitif dan akan dicatat pada audit trail dengan rekaman kondisi sebelum dan sesudah perubahan. Masukkan alasan perubahan.'

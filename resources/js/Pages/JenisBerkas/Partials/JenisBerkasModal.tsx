@@ -1,9 +1,9 @@
-import React from 'react';
-import { FileText, CheckSquare, Settings2, AlertCircle } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Plus, Pencil, CheckSquare, Settings2, AlertCircle } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
+import { CustomSelect, CustomSelectOption } from '@/Components/CustomSelect';
 
 export interface IndikatorOption {
     id: string;
@@ -59,21 +59,36 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     onClose,
     onSubmit,
 }) => {
-    if (!isOpen) return null;
-
     const atLeastOneMode = data.izinkan_file || data.izinkan_tautan || data.izinkan_teks;
 
-    const availableIndikators = indikators.filter((ind) => {
-        if (ind.is_aktif !== false) {
-            return true;
-        }
-        return isEditing && ind.id === data.indikator_id;
-    });
+    const availableIndikators = useMemo(() => {
+        return indikators.filter((ind) => {
+            if (ind.is_aktif !== false) {
+                return true;
+            }
+            return isEditing && ind.id === data.indikator_id;
+        });
+    }, [indikators, isEditing, data.indikator_id]);
+
+    const indikatorOptions: CustomSelectOption[] = useMemo(() => {
+        const items: CustomSelectOption[] = [
+            { value: '', label: 'Global (Berlaku Semua Indikator)' },
+        ];
+        availableIndikators.forEach((ind) => {
+            items.push({
+                value: ind.id,
+                label: `${ind.kode} : ${ind.nama}${ind.is_aktif === false ? ' (Nonaktif)' : ''}`,
+            });
+        });
+        return items;
+    }, [availableIndikators]);
 
     const handleSafeClose = () => {
         if (isLoading) return;
         onClose();
     };
+
+    if (!isOpen) return null;
 
     return (
         <Modal
@@ -85,8 +100,14 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
             bodyClassName="p-3 sm:p-4"
             title={
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-                        {isBatasTeknisOnly ? <Settings2 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                        {isBatasTeknisOnly ? (
+                            <Settings2 className="h-4 w-4" />
+                        ) : isEditing ? (
+                            <Pencil className="h-4 w-4" />
+                        ) : (
+                            <Plus className="h-4 w-4" />
+                        )}
                     </div>
                     <span>
                         {isBatasTeknisOnly
@@ -96,11 +117,6 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             : 'Tambah Persyaratan Jenis Berkas'}
                     </span>
                 </div>
-            }
-            description={
-                isBatasTeknisOnly
-                    ? 'Penyesuaian konfigurasi format berkas dan batas ukuran dokumen oleh Administrator'
-                    : 'Konfigurasi standar bukti dukung sesuai alur dan kepatuhan SAKIP'
             }
         >
             <form onSubmit={onSubmit} className="space-y-2 sm:space-y-2.5">
@@ -131,37 +147,30 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
 
                 {/* Tahap & Lingkup Indikator */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                    <Select
+                    <CustomSelect
                         id="jb-tahap"
                         label="Tahap Kepatuhan"
                         required
                         value={data.tahap}
-                        onChange={(e) => onChange('tahap', e.target.value)}
+                        onChange={(val) => onChange('tahap', val as any)}
                         disabled={isLoading || isBatasTeknisOnly}
                         error={errors.tahap}
-                        helperText="Tahap saat ini mendukung Pengukuran Kinerja sesuai alur gerbang bukti SAKIP."
-                        className="py-1.5 sm:py-2 text-xs sm:text-sm"
                         options={[
                             { value: 'pengukuran', label: 'Pengukuran Kinerja' },
                         ]}
+                        showEmptyOption={false}
                     />
 
-                    <Select
+                    <CustomSelect
                         id="jb-indikator"
                         label="Lingkup Indikator"
                         value={data.indikator_id || ''}
-                        onChange={(e) => onChange('indikator_id', e.target.value || null)}
+                        onChange={(val) => onChange('indikator_id', val ? String(val) : null)}
                         disabled={isLoading || isBatasTeknisOnly}
                         error={errors.indikator_id}
-                        className="py-1.5 sm:py-2 text-xs sm:text-sm"
-                    >
-                        <option value="">Global (Berlaku Semua Indikator)</option>
-                        {availableIndikators.map((ind) => (
-                            <option key={ind.id} value={ind.id}>
-                                {ind.kode} : {ind.nama}{ind.is_aktif === false ? ' (Nonaktif)' : ''}
-                            </option>
-                        ))}
-                    </Select>
+                        options={indikatorOptions}
+                        showEmptyOption={false}
+                    />
                 </div>
 
                 {/* Mode Bukti yang Diizinkan */}
@@ -239,7 +248,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         <div className="select-none">
                             <span className="font-semibold text-xs text-ink">Bukti Wajib</span>
                             <p className="text-[11px] leading-relaxed text-muted mt-0.5">
-                                Harus dipenuhi sebelum pengajuan rencana aksi, pengukuran, atau penyelesaian kegiatan.
+                                Wajib dipenuhi sebelum pengajuan bukti dukung.
                             </p>
                         </div>
                     </label>
@@ -256,7 +265,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         <div className="select-none">
                             <span className="font-semibold text-xs text-ink">Semua Mode Wajib</span>
                             <p className="text-[11px] leading-relaxed text-muted mt-0.5">
-                                Jika aktif, setiap mode yang diizinkan harus dipenuhi oleh pengunggah.
+                                Seluruh mode yang dipilih wajib dipenuhi pengunggah.
                             </p>
                         </div>
                     </label>
@@ -275,12 +284,12 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         />
                         <div className="select-none">
                             <span className={`font-semibold text-xs ${data.aktif !== false ? 'text-success-dark' : 'text-danger'}`}>
-                                {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Dinonaktifkan (Usang)'}
+                                {data.aktif !== false ? 'Persyaratan Aktif' : 'Persyaratan Nonaktif'}
                             </span>
                             <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                                 {data.aktif !== false 
-                                    ? 'Persyaratan ini aktif berlaku pada tahap kepatuhan dan akan dievaluasi saat pemeriksaan kelengkapan bukti.'
-                                    : 'Persyaratan yang dinonaktifkan tidak akan lagi dituntut atau dievaluasi pada pengajuan bukti mendatang, namun riwayat berkas lama yang merujuknya tetap aman.'}
+                                    ? 'Persyaratan ini aktif berlaku pada pengajuan bukti.'
+                                    : 'Persyaratan nonaktif tidak dituntut pada pengajuan berikutnya.'}
                             </p>
                         </div>
                     </label>
@@ -314,10 +323,10 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             label="Format File Diizinkan"
                             value={data.format_diizinkan}
                             onChange={(e) => onChange('format_diizinkan', e.target.value)}
-                            placeholder="Contoh: pdf,docx,xlsx,jpg,png"
+                            placeholder="Contoh: pdf, docx, xlsx, jpg, png"
                             disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.format_diizinkan}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah format.' : 'Kosong = default aplikasi'}
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah format.' : undefined}
                             className="py-1.5 sm:py-2 text-xs sm:text-sm"
                         />
 
@@ -332,7 +341,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             placeholder="Contoh: 10240 (10 MB)"
                             disabled={isLoading || !data.izinkan_file || !canManageSettings}
                             error={errors.ukuran_maks_kb}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah batas ukuran.' : 'Kosong = default aplikasi (minimal 100 KB)'}
+                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah batas ukuran.' : undefined}
                             className="py-1.5 sm:py-2 text-xs sm:text-sm"
                         />
                     </div>
