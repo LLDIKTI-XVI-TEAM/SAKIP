@@ -352,3 +352,44 @@ it('metadata pengguna terpilih mengikuti initialUser terbaru pada id yang sama',
     expect(screen.queryByText('Nama Awal')).toBeNull();
     expect(screen.getByText('(nonaktif)')).toBeTruthy();
 });
+
+it.each(['/akses/grant/opsi/pengguna', '/akses/jelaskan-izin/opsi/pengguna'])(
+    'pagination pengguna dapat pulih setelah halaman kedua gagal pada %s',
+    async (endpoint) => {
+        let secondPageAttempts = 0;
+        const requestedPages: string[] = [];
+        vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+            const params = new URL(url, 'http://localhost').searchParams;
+            const page = params.get('page')!;
+            requestedPages.push(page);
+            expect(params.get('q')).toBe('sintetis');
+            if (page === '2' && ++secondPageAttempts === 1) return new Response('', { status: 503 });
+            return new Response(JSON.stringify({
+                items: [{ id: 'target-' + page, nama: 'Pengguna Sintetis ' + page, email: 'sintetis@example.test' }],
+                hasMore: page === '1',
+            }), { status: 200 });
+        }));
+        const onChange = vi.fn();
+        const user = userEvent.setup();
+        render(<GrantUserAutocomplete value="" onChange={onChange} endpoint={endpoint} debounceMs={1} />);
+        const input = screen.getByRole('combobox');
+        await user.click(input);
+        await user.paste('sintetis');
+        expect(await screen.findByText('Pengguna Sintetis 1')).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'Pengguna berikutnya' }));
+        expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Daftar pengguna belum dapat dimuat. Coba cari kembali.');
+        expect(screen.queryByRole('option')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Pengguna berikutnya' })).toBeNull();
+        const previous = screen.getByRole('button', { name: 'Pengguna sebelumnya' });
+        expect(previous.hasAttribute('disabled')).toBe(false);
+        expect(input).toHaveProperty('value', 'sintetis');
+        await user.click(previous);
+        expect(await screen.findByText('Pengguna Sintetis 1')).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'Pengguna berikutnya' }));
+        expect(await screen.findByText('Pengguna Sintetis 2')).toBeTruthy();
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(requestedPages).toEqual(['1', '2', '1', '2']);
+        await user.click(screen.getByRole('option', { name: /Pengguna Sintetis 2/ }));
+        expect(onChange).toHaveBeenCalledWith('target-2', expect.objectContaining({ id: 'target-2' }));
+    }
+);

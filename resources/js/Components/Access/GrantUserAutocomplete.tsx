@@ -369,11 +369,11 @@ export function GrantUserAutocomplete({
                                 ))
                             )}
                         </div>
-                        {(hasMore || page > 1) && !failure && <nav aria-label="Halaman pilihan pengguna" className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
+                        {(page > 1 || (hasMore && !failure)) && <nav aria-label="Halaman pilihan pengguna" className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
                             <span className="text-muted" aria-live="polite">Halaman {page}</span>
                             <div className="flex gap-2">
                                 {page > 1 && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page - 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna sebelumnya</button>}
-                                {hasMore && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page + 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna berikutnya</button>}
+                                {hasMore && !failure && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page + 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna berikutnya</button>}
                             </div>
                         </nav>}
                         </div>
