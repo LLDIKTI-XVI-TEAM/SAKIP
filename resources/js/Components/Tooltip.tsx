@@ -28,11 +28,11 @@ export function Tooltip({
     };
 
     return (
-        <div className={`relative inline-flex group ${className}`}>
+        <div className={`relative inline-flex group/tooltip ${className}`}>
             {children}
             <div
                 role="tooltip"
-                className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink shadow-md opacity-0 invisible transition-[opacity,visibility] duration-150 group-hover:opacity-100 group-hover:visible ${alignmentClasses[align]} ${
+                className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink shadow-md opacity-0 invisible transition-[opacity,visibility] duration-150 group-hover/tooltip:opacity-100 group-hover/tooltip:visible ${alignmentClasses[align]} ${
                     position === 'top'
                         ? 'bottom-full mb-1.5'
                         : 'top-full mt-1.5'

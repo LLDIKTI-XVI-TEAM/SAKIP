@@ -9,7 +9,8 @@ import {
     CheckCircle2, 
     XCircle, 
     AlertTriangle,
-    X
+    X,
+    Lock
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/Card';
@@ -409,7 +410,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                     filteredUnits.map((unit, index) => (
                                         <tr 
                                             key={unit.id}
-                                            className="hover:bg-slate-50/70 transition-colors group"
+                                            className="hover:bg-slate-50/70 transition-colors"
                                         >
                                             <td className="py-3.5 px-4 text-center font-medium text-slate-400">
                                                 {index + 1}
@@ -506,10 +507,14 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                                 align="right"
                                                             >
                                                                 <span 
-                                                                    className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed select-none"
+                                                                    className="relative inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 bg-slate-50 text-slate-400 cursor-not-allowed select-none shadow-2xs"
                                                                     aria-hidden="true"
+                                                                    title="Unit Terkunci (Memiliki Keterkaitan Data)"
                                                                 >
-                                                                    <Trash2 className="w-4 h-4 opacity-30" />
+                                                                    <Trash2 className="w-4 h-4 text-slate-400" />
+                                                                    <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 border border-white text-slate-600 shadow-2xs">
+                                                                        <Lock className="h-2 w-2" />
+                                                                    </span>
                                                                 </span>
                                                             </Tooltip>
                                                         )
