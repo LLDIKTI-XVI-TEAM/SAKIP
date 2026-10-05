@@ -154,12 +154,18 @@ class SimpanTargetPeriode
                 $this->pastikanJendela($pengunci, $keputusan, $indikator, $jadwal, $targets);
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
-                // F2 (Review6 T2): rekonsiliasi transisi — baris yang tak
-                // efektif pada satu pun versi antara jepit→terbaru (mis.
-                // v1 → v2 tanpa simpan → v3) ditandai basi. Dihapus setelah
-                // upsert (berdasarkan kunci dimensi, bukan ID) agar nilai
-                // basi tak bangkit lewat request yang dibangun dari baca
-                // basi maupun kiriman klien yang sengaja basi.
+                // F2 (Review6 T2) + F1 (Review7 U1): rekonsiliasi transisi —
+                // baris yang tak efektif pada satu pun versi antara
+                // jepit→terbaru (mis. v1 → v2 tanpa simpan → v3) ditandai
+                // basi. Dihapus setelah upsert berdasarkan kunci dimensi,
+                // KECUALI dimensi yang eksplisit dikirim bernilai dalam
+                // konteks terbaru (keputusan U1: kecualikan-kiriman, bukan
+                // purge-sebelum-upsert — agar nilai baru 200 untuk dimensi
+                // yang pulih di v3 tidak ikut terhapus, sementara kiriman
+                // kosong (null+null) tetap dibersihkan bagai tak ada dan
+                // koreksi parsial yang tak terkirim tak ikut terpurge karena
+                // tak ada di himpunan basi). Kiriman basi yang sengaja tak
+                // efektif-kini tetap milik `bersihkanDimensiTakEfektif`.
                 $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
 
                 $sebelum = $this->auditState($header);
@@ -182,7 +188,13 @@ class SimpanTargetPeriode
                 // yang dibuang di sini (kandidat bangkit F2); sel yang tak
                 // efektif di bawah konteks terbaru tetap milik
                 // `bersihkanDimensiTakEfektif` (kontrak Review5 S2 utuh).
-                $barisBasi = $this->buangKunciBasi($header->id, $this->kunciBasiEfektifKini($jejak['kunci'], $tipe, $definisi, $periodeEfektif));
+                // F1 (Review7 U1): kecualikan dimensi terkirim bernilai —
+                // jangan hapus input baru untuk dimensi yang pulih di v3.
+                $kunciPurge = array_values(array_diff(
+                    $this->kunciBasiEfektifKini($jejak['kunci'], $tipe, $definisi, $periodeEfektif),
+                    $this->kunciKirimBernilaiEfektif($targets, $tipe, $definisi, $periodeEfektif)
+                ));
+                $barisBasi = $this->buangKunciBasi($header->id, $kunciPurge);
 
                 // F3 (Review5 S2, opsi a): singkirkan baris draf yang tak
                 // lagi efektif di bawah konteks snapshot terbaru (komponen
@@ -571,9 +583,13 @@ class SimpanTargetPeriode
      * Membuang baris basi transisi berdasarkan kunci dimensi
      * (`periode_id::komponen_id`, `manual` untuk baris manual).
      *
-     * Dijalankan SETELAH upsert agar kiriman untuk sel basi (dari baca
-     * basi maupun klien nakal) ikut terbuang, bukan malah menghidupkan
-     * kembali nilai lama. Selisihnya terekam di audit nilai_lama/nilai_baru.
+     * Dijalankan SETELAH upsert agar kiriman basi yang dikosongkan
+     * (null+null dari baca basi maupun klien nakal) ikut terbuang, bukan
+     * malah menghidupkan kembali nilai lama. F1 (Review7 U1): dimensi yang
+     * eksplisit dikirim bernilai (nilai/keterangan non-null) dalam konteks
+     * terbaru sudah dikeluarkan dari `$kunci` oleh pemanggil sehingga input
+     * baru untuk dimensi yang pulih di v3 tidak ikut terhapus. Selisihnya
+     * terekam di audit nilai_lama/nilai_baru.
      *
      * @param  list<string>  $kunci
      */
@@ -634,6 +650,61 @@ class SimpanTargetPeriode
         }
 
         return $keluar;
+    }
+
+    /**
+     * Kunci dimensi terkirim bernilai yang efektif di bawah konteks terbaru
+     * (F1 Review7 U1).
+     *
+     * Bernilai = `nilai` non-null ATAU `keterangan` non-null (baris kosong
+     * ganda-null tetap boleh dibersihkan bagai tak ada, cermin T2). Efektif
+     * = periode anggota himpunan efektif + komponen cocok tipe/definisi
+     * terbaru, sehingga kiriman basi yang sengaja tak efektif-kini tidak
+     * dikecualikan (tetap milik `bersihkanDimensiTakEfektif`) dan koreksi
+     * parsial yang tak terkirim tidak ikut terkecuali (tak ada di sini,
+     * dipertahankan karena tak ada di himpunan basi).
+     *
+     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
+     * @param  Collection<int, string>  $periodeEfektif
+     * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
+     * @return list<string>
+     */
+    private function kunciKirimBernilaiEfektif(array $targets, string $tipe, Collection $definisi, Collection $periodeEfektif): array
+    {
+        if ($targets === []) {
+            return [];
+        }
+
+        $efektifPeriode = array_flip($periodeEfektif->map(fn ($id): string => (string) $id)->all());
+        $efektifKomponen = $tipe === 'manual'
+            ? []
+            : array_flip($definisi->pluck('komponen_id')->map(fn ($id): string => (string) $id)->all());
+
+        $keluar = [];
+        foreach ($targets as $baris) {
+            $periodeId = (string) ($baris['periode_id'] ?? '');
+            if (! isset($efektifPeriode[$periodeId])) {
+                continue;
+            }
+
+            $komponenId = $baris['komponen_id'] ?? null;
+            $komponenId = $komponenId === null ? null : (string) $komponenId;
+            if ($tipe === 'manual') {
+                if ($komponenId !== null) {
+                    continue;
+                }
+            } elseif ($komponenId === null || ! isset($efektifKomponen[$komponenId])) {
+                continue;
+            }
+
+            if (($baris['nilai'] ?? null) === null && ($baris['keterangan'] ?? null) === null) {
+                continue;
+            }
+
+            $keluar[] = $this->rekonsiliasi->kunciDimensi($periodeId, $komponenId);
+        }
+
+        return array_values(array_unique($keluar));
     }
 
     /**

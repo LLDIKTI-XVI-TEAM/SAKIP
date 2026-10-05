@@ -426,7 +426,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function buatFixtureManualRasio(string $suffix): array
+    private function buatFixtureManualRasio(string $suffix, bool $mulaiKedua = false): array
     {
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
@@ -478,7 +478,9 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
             'jadwal_id' => $jadwal->id,
             'indikator_id' => $indikator->id,
             'nomor_versi' => 1,
-            'periode_mulai_id' => $periode1->id,
+            // U1 immutable: buat langsung dengan periode-mulai benar (tanpa
+            // UPDATE in-place yang kini ditolak trigger).
+            'periode_mulai_id' => $mulaiKedua ? $periode2->id : $periode1->id,
             'unit_id' => $unit->id,
             'nama' => $indikator->nama,
             'definisi' => 'Definisi beku.',
@@ -536,8 +538,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
      */
     private function buatFixtureRasioMulaiKedua(): array
     {
-        $fixture = $this->buatFixtureManualRasio('mulai_kedua');
-        $fixture['snapshot']->update(['periode_mulai_id' => $fixture['periode2']->id]);
+        // U1 immutable: buat langsung mulai-kedua (tanpa UPDATE in-place).
+        $fixture = $this->buatFixtureManualRasio('mulai_kedua', true);
 
         return $fixture;
     }

@@ -169,7 +169,7 @@ class RencanaAksiPreviewTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function buatFixtureManual(): array
+    private function buatFixtureManual(string $tipe = 'manual'): array
     {
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
@@ -187,7 +187,7 @@ class RencanaAksiPreviewTest extends TestCase
             'kode' => 'I-UJI-'.Str::random(4),
             'nama' => 'Indikator Preview Uji',
             'satuan' => 'poin',
-            'tipe_perhitungan' => 'manual',
+            'tipe_perhitungan' => $tipe,
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
@@ -229,7 +229,7 @@ class RencanaAksiPreviewTest extends TestCase
             'presisi' => 2,
             'desimal_tampilan' => 2,
             'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
+            'tipe_perhitungan' => $tipe,
             'target' => 100,
         ]);
         PenugasanIndikator::create([
@@ -248,9 +248,9 @@ class RencanaAksiPreviewTest extends TestCase
      */
     private function buatFixtureRasio(): array
     {
-        $dasar = $this->buatFixtureManual();
-        $dasar['indikator']->update(['tipe_perhitungan' => 'rasio_persen']);
-        $dasar['snapshot']->update(['tipe_perhitungan' => 'rasio_persen']);
+        // U1 immutable: snapshot beku sejak terbit — buat langsung rasio
+        // (tanpa UPDATE in-place pasca-INSERT yang kini ditolak trigger).
+        $dasar = $this->buatFixtureManual('rasio_persen');
 
         $pembilang = IndikatorKomponen::create([
             'indikator_id' => $dasar['indikator']->id,
