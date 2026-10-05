@@ -1,7 +1,6 @@
 import React from 'react';
 import { FileText, Link2, Plus, Trash2, Type } from 'lucide-react';
 import { Button } from '@/Components/Button';
-import { CustomSelect, CustomSelectOption } from '@/Components/CustomSelect';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 
@@ -26,12 +25,6 @@ export function newLampiran(): LampiranDraft {
         nama_asli: '',
     };
 }
-
-export const lampiranModeOptions: CustomSelectOption[] = [
-    { value: 'file', label: 'File (Unggahan)' },
-    { value: 'tautan', label: 'Tautan (URL Cloud)' },
-    { value: 'teks', label: 'Teks (Catatan/Ringkasan)' },
-];
 
 export const modeMeta: Record<LampiranMode, { label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = {
     file: { label: 'File', icon: FileText, description: 'Format PDF, DOC, DOCX, XLS, XLSX, JPG, PNG.' },
@@ -145,105 +138,113 @@ export function LampiranFormSection({
 
                         return (
                             <div key={item.clientId} className="rounded-xl border border-border bg-page p-4 sm:p-5 shadow-2xs">
-                                <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
+                                    <div className="flex flex-wrap items-center gap-2.5">
                                         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
                                             {index + 1}
                                         </span>
-                                        <div className="flex items-center gap-1.5">
-                                            <ModeIcon className="h-4 w-4 text-primary" aria-hidden="true" />
-                                            <span>Lampiran {index + 1}</span>
+                                        <span className="text-sm font-semibold text-ink">Lampiran {index + 1}</span>
+
+                                        <div className="inline-flex items-center rounded-lg border border-border bg-soft/50 p-0.5">
+                                            {(['file', 'tautan', 'teks'] as LampiranMode[]).map((mode) => {
+                                                const isActive = item.mode === mode;
+                                                const Icon = modeMeta[mode].icon;
+                                                return (
+                                                    <button
+                                                        key={mode}
+                                                        type="button"
+                                                        onClick={() => updateModeLampiran(index, mode)}
+                                                        disabled={disabled}
+                                                        className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                                                            isActive
+                                                                ? 'bg-surface text-primary shadow-xs font-semibold'
+                                                                : 'text-muted hover:text-ink'
+                                                        }`}
+                                                    >
+                                                        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                                                        {modeMeta[mode].label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
+
                                     <button
                                         type="button"
                                         onClick={() => removeLampiran(index)}
                                         disabled={disabled}
-                                        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/20 disabled:opacity-50 cursor-pointer"
-                                        aria-label={`Hapus lampiran ${index + 1}`}
+                                        className="inline-flex items-center gap-1.5 self-end sm:self-center rounded-lg px-2 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/20 disabled:opacity-50 cursor-pointer"
+                                        aria-label="Hapus Lampiran"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                        Hapus
+                                        Hapus Lampiran
                                     </button>
                                 </div>
 
-                                <div className="grid gap-4 sm:grid-cols-[13rem_minmax(0,1fr)]">
-                                    <CustomSelect
-                                        id={`lampiran-${index}-mode`}
-                                        label="Mode Lampiran"
-                                        options={lampiranModeOptions}
-                                        value={item.mode}
-                                        onChange={(val) => updateModeLampiran(index, String(val) as LampiranMode)}
-                                        disabled={disabled}
-                                        error={errors[`lampiran.${index}.mode`]}
-                                        showEmptyOption={false}
-                                    />
+                                <div>
+                                    {item.mode === 'file' && (
+                                        <div>
+                                            <Input
+                                                type="file"
+                                                label="Pilih Berkas"
+                                                accept={fileAccept}
+                                                onChange={(event) =>
+                                                    updateLampiran(index, 'file', event.target.files?.[0] ?? null)
+                                                }
+                                                error={fileError}
+                                                helperText={fileHelperText ?? meta.description}
+                                                disabled={disabled}
+                                            />
+                                        </div>
+                                    )}
 
-                                    <div>
-                                        {item.mode === 'file' && (
-                                            <div>
+                                    {item.mode === 'tautan' && (
+                                        <div className="space-y-3">
+                                            {showNamaAsli && (
                                                 <Input
-                                                    type="file"
-                                                    label="Pilih Berkas"
-                                                    accept={fileAccept}
-                                                    onChange={(event) =>
-                                                        updateLampiran(index, 'file', event.target.files?.[0] ?? null)
-                                                    }
-                                                    error={fileError}
-                                                    helperText={fileHelperText ?? meta.description}
+                                                    label="Nama / Judul Dokumen (Opsional)"
+                                                    value={item.nama_asli ?? ''}
+                                                    onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
+                                                    placeholder="Contoh: Salinan Naskah di Google Drive"
                                                     disabled={disabled}
                                                 />
-                                            </div>
-                                        )}
+                                            )}
+                                            <Input
+                                                type="url"
+                                                label="URL / Tautan Dokumen"
+                                                value={item.tautan}
+                                                onChange={(event) => updateLampiran(index, 'tautan', event.target.value)}
+                                                error={tautanError}
+                                                placeholder="https://..."
+                                                helperText={meta.description}
+                                                disabled={disabled}
+                                            />
+                                        </div>
+                                    )}
 
-                                        {item.mode === 'tautan' && (
-                                            <div className="space-y-3">
-                                                {showNamaAsli && (
-                                                    <Input
-                                                        label="Nama / Judul Dokumen (Opsional)"
-                                                        value={item.nama_asli ?? ''}
-                                                        onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
-                                                        placeholder="Contoh: Salinan Naskah di Google Drive"
-                                                        disabled={disabled}
-                                                    />
-                                                )}
+                                    {item.mode === 'teks' && (
+                                        <div className="space-y-3">
+                                            {showNamaAsli && (
                                                 <Input
-                                                    type="url"
-                                                    label="URL / Tautan Dokumen"
-                                                    value={item.tautan}
-                                                    onChange={(event) => updateLampiran(index, 'tautan', event.target.value)}
-                                                    error={tautanError}
-                                                    placeholder="https://..."
-                                                    helperText={meta.description}
+                                                    label="Nama / Judul Catatan (Opsional)"
+                                                    value={item.nama_asli ?? ''}
+                                                    onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
+                                                    placeholder="Contoh: Ringkasan Kebijakan Renstra"
                                                     disabled={disabled}
                                                 />
-                                            </div>
-                                        )}
-
-                                        {item.mode === 'teks' && (
-                                            <div className="space-y-3">
-                                                {showNamaAsli && (
-                                                    <Input
-                                                        label="Nama / Judul Catatan (Opsional)"
-                                                        value={item.nama_asli ?? ''}
-                                                        onChange={(event) => updateLampiran(index, 'nama_asli', event.target.value)}
-                                                        placeholder="Contoh: Ringkasan Kebijakan Renstra"
-                                                        disabled={disabled}
-                                                    />
-                                                )}
-                                                <Textarea
-                                                    label="Isi Catatan / Kutipan Teks"
-                                                    value={item.isi_teks}
-                                                    onChange={(event) => updateLampiran(index, 'isi_teks', event.target.value)}
-                                                    error={teksError}
-                                                    helperText={meta.description}
-                                                    rows={3}
-                                                    placeholder="Tuliskan naskah atau catatan ringkas lampiran..."
-                                                    disabled={disabled}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
+                                            )}
+                                            <Textarea
+                                                label="Isi Catatan / Kutipan Teks"
+                                                value={item.isi_teks}
+                                                onChange={(event) => updateLampiran(index, 'isi_teks', event.target.value)}
+                                                error={teksError}
+                                                helperText={meta.description}
+                                                rows={3}
+                                                placeholder="Tuliskan naskah atau catatan ringkas lampiran..."
+                                                disabled={disabled}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );

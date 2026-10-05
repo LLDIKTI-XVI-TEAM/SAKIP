@@ -112,7 +112,6 @@ export function PerjanjianKinerjaFormFields({
                             disabled={disabled || isEdit}
                             error={errors.renstra_id}
                             required
-                            searchable
                         />
                     </div>
 
@@ -133,13 +132,13 @@ export function PerjanjianKinerjaFormFields({
 
                     <div className="min-w-0">
                         <Input
-                            name="nomor"
-                            label="Nomor Dokumen PK"
-                            value={data.nomor}
-                            onChange={(e) => setField('nomor', e.target.value)}
+                            name="nomor_pk"
+                            label="Nomor Dokumen Perjanjian Kinerja"
+                            value={data.nomor_pk}
+                            onChange={(e) => setField('nomor_pk', e.target.value)}
                             placeholder="Contoh: 012/LL16/PK/2026"
                             disabled={disabled}
-                            error={errors.nomor}
+                            error={errors.nomor_pk}
                             required
                         />
                     </div>
@@ -147,26 +146,13 @@ export function PerjanjianKinerjaFormFields({
                     <div className="min-w-0">
                         <Input
                             type="date"
-                            name="tanggal"
+                            name="tanggal_pk"
                             label="Tanggal Penandatanganan"
-                            value={data.tanggal}
-                            onChange={(e) => setField('tanggal', e.target.value)}
+                            value={data.tanggal_pk}
+                            onChange={(e) => setField('tanggal_pk', e.target.value)}
                             disabled={disabled}
-                            error={errors.tanggal}
+                            error={errors.tanggal_pk}
                             required
-                        />
-                    </div>
-
-                    <div className="sm:col-span-2 min-w-0">
-                        <Textarea
-                            name="catatan"
-                            label="Catatan / Keterangan Tambahan (Opsional)"
-                            value={data.catatan ?? ''}
-                            onChange={(e) => setField('catatan', e.target.value)}
-                            placeholder="Keterangan mengenai penetapan atau perubahan naskah PK..."
-                            rows={3}
-                            disabled={disabled}
-                            error={errors.catatan}
                         />
                     </div>
                 </div>
@@ -184,7 +170,7 @@ export function PerjanjianKinerjaFormFields({
                     </div>
                     <Textarea
                         name="alasan"
-                        label="Catatan Alasan Koreksi"
+                        label="Alasan Perubahan"
                         value={data.alasan ?? ''}
                         onChange={(e) => setField('alasan', e.target.value)}
                         placeholder="Contoh: Perbaikan nomor registrasi dokumen berdasarkan naskah fisik..."

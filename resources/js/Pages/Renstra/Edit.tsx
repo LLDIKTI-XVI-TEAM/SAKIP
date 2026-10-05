@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { BackButton } from '@/Components/BackButton';
 import { Button } from '@/Components/Button';
@@ -86,12 +86,14 @@ export default function EditRenstra({ renstra, regulasiPilihan, can }: EditRenst
                         </CardContent>
 
                         <div className="flex flex-col-reverse gap-3 border-t border-border bg-page px-6 py-4 sm:flex-row sm:justify-end">
-                            <Button
-                                href={`/renstra/${renstra.id}`}
-                                variant="outline"
-                            >
-                                Batal
-                            </Button>
+                            <Link href={`/renstra/${renstra.id}`}>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                >
+                                    Batal
+                                </Button>
+                            </Link>
                             <Button type="submit" variant="primary" isLoading={form.processing}>
                                 Simpan Perubahan
                             </Button>

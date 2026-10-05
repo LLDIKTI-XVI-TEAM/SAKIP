@@ -43,10 +43,12 @@ export function RenstraEditModal({
         _method: 'put',
     });
 
+    const { setData, clearErrors } = editForm;
+
     useEffect(() => {
         if (!isOpen || !renstra) return;
 
-        editForm.setData({
+        setData({
             nama: renstra.nama,
             kode: renstra.kode,
             tahun_mulai: String(renstra.tahun_mulai),
@@ -55,13 +57,13 @@ export function RenstraEditModal({
             dasar_hukum: renstra.dasar_hukum ?? '',
             regulasi_id: renstra.regulasi_id
                 ? String(renstra.regulasi_id)
-                : (renstra.regulasi?.id ? String(renstra.regulasi.id) : ''),
+                : ('regulasi' in renstra && renstra.regulasi?.id ? String(renstra.regulasi.id) : ''),
             alasan: '',
             lampiran: [],
             _method: 'put',
         });
-        editForm.clearErrors();
-    }, [isOpen, renstra?.id]);
+        clearErrors();
+    }, [isOpen, renstra, setData, clearErrors]);
 
     const handleClose = () => {
         if (editForm.processing) return;

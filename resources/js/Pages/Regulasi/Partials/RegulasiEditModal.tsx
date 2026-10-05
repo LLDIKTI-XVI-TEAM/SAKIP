@@ -39,6 +39,8 @@ export function RegulasiEditModal({
         _method: 'put',
     });
 
+    const { setData, clearErrors } = form;
+
     const prevIsOpenRef = useRef(false);
     const lastLoadedRegulasiIdRef = useRef<number | null>(null);
 
@@ -52,7 +54,7 @@ export function RegulasiEditModal({
         const switchedRegulasi = regulasi !== null && regulasi.id !== lastLoadedRegulasiIdRef.current;
 
         if (regulasi && (justOpened || switchedRegulasi)) {
-            form.setData({
+            setData({
                 jenis: regulasi.jenis,
                 nomor: regulasi.nomor,
                 tahun: String(regulasi.tahun),
@@ -66,14 +68,14 @@ export function RegulasiEditModal({
                 lampiran: [],
                 _method: 'put',
             });
-            form.clearErrors();
+            clearErrors();
             setRecoveryMessage('');
             setRecoveryUnknown(false);
             lastLoadedRegulasiIdRef.current = regulasi.id;
         }
 
         prevIsOpenRef.current = isOpen;
-    }, [regulasi, isOpen]);
+    }, [regulasi, isOpen, setData, clearErrors]);
 
     if (!isOpen || !regulasi) return null;
 

@@ -88,7 +88,6 @@ export function RenstraFormFields({
                             emptyOptionLabel="Pilih rujukan regulasi (opsional)"
                             error={errors.regulasi_id}
                             disabled={disabled}
-                            searchable
                         />
                     ) : isEdit ? (
                         <p className="text-sm text-muted">Rujukan regulasi yang sudah tersimpan tetap dipertahankan.</p>
