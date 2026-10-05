@@ -209,8 +209,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     // React). Dibangun dari nilai formulir saat ini untuk periode yang
     // dikirim (di luar lingkup koreksi tak ikut), dipanggil debounce oleh
     // `TargetPreview` mengikuti pola `CalculationPreview` pengukuran.
-    // F2: token snapshot halaman ikut dikirim ke preview agar konteks usang
-    // ditolak 409 — yang ditampilkan = yang dipakai simpan.
+    // F1+F2: versi header + token snapshot halaman ikut dikirim ke preview
+    // agar konteks usang ditolak 409 — yang ditampilkan = yang dipakai
+    // simpan.
     const targetsPreview = useMemo(
         () =>
             urutanKirim.map((item) => ({
@@ -400,6 +401,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                             desimalTampilan={desimal}
                                             komponen={komponenTerurut}
                                             namaPeriode={namaPeriode}
+                                            expectedVersi={rencanaAksi.expected_versi}
                                             expectedSnapshotId={rencanaAksi.expected_snapshot_id}
                                             expectedSnapshotVersi={rencanaAksi.expected_snapshot_versi}
                                             disabled={formDisabled || kosong || terkunciSemua}

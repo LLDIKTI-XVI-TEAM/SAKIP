@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\RencanaAksi;
 
-use App\Actions\RencanaAksi\IndexRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
@@ -22,26 +21,25 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * Regresi Review4 Q1 (F1 token wajib + F4 guard unit baca/pratinjau).
+ * Regresi Review5 S1 (F1 ikat versi header + F2 izin baca).
  *
- * F1: `expected_snapshot_id`/`expected_snapshot_versi` wajib dikirim pada
- * setiap penyimpanan (`present`); null hanya sah bila konteks memang tanpa
- * snapshot. Jalur bypass klien-lama-tanpa-token dihapus — Action selalu
- * membandingkan token dengan snapshot terbaru terkunci.
+ * F1: `POST /rencana-aksi/{id}/preview` menerima + memvalidasi
+ * `expected_versi` terhadap header terkunci sebelum hitung; usang → 409
+ * (tanpa persistensi/audit). Mencegah skor/deviasi campuran (input form +
+ * target v2 tak terlihat).
  *
- * F4: `IndexRencanaAksi` + `PreviewTargetPeriode` menolak fail-closed bila
- * snapshot terbaru milik unit B untuk header milik unit A, sebelum payload
- * dibangun dan tanpa mengekspos konteks lintas-unit.
+ * F2: `PreviewTargetPeriodeRequest::authorize()` mensyaratkan izin view DAN
+ * update bersama (sebelum validasi `exists`), agar tanpa `read` (atau kena
+ * deny) selalu 403 — bukan 422 yang membocorkan keberadaan UUID lintas unit.
  */
-class RencanaAksiReview4Q1Test extends TestCase
+class RencanaAksiReview5S1Test extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_simpan_tanpa_token_ditolak_422(): void
+    public function test_preview_menolak_versi_usang_setelah_header_naik_tanpa_tulis(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -52,90 +50,58 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertSessionHasErrors(['expected_snapshot_id', 'expected_snapshot_versi']);
-
-        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertUnprocessable()->assertJsonValidationErrors(['expected_snapshot_id', 'expected_snapshot_versi']);
-
-        $this->assertSame(1, $header->fresh()->versi);
-        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
-    }
-
-    public function test_simpan_token_null_eksplisit_dengan_snapshot_ditolak_409(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-
-        $payload = [
-            'expected_versi' => 1,
-            'expected_snapshot_id' => null,
-            'expected_snapshot_versi' => null,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
+        $targets = [
+            ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 30, 'keterangan' => null],
+            ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
         ];
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", $payload)
-            ->assertRedirect()
-            ->assertSessionHasErrors('expected_snapshot_id');
+        // Halaman v1: pratinjau dengan token halaman sah.
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ])->assertOk();
 
-        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/target", $payload)
-            ->assertConflict()
-            ->assertJsonValidationErrors('expected_snapshot_id');
-
-        $this->assertSame(1, $header->fresh()->versi);
-        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
-    }
-
-    public function test_simpan_token_null_diterima_bila_konteks_tanpa_snapshot(): void
-    {
-        $fixture = $this->buatFixtureDraftTanpaSnapshot();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $header = RencanaAksi::create([
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-            'unit_id' => $fixture['unit']->id,
-            'jadwal_tahunan_id' => $fixture['jadwal']->id,
-            'penanggung_jawab_id' => $fixture['pic']->id,
-            'status_alur' => 'draft',
-            'versi' => 1,
-            'created_by' => $fixture['perencanaan']->id,
-        ]);
-
+        // Header naik v2 via jalur simpan sah.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
-            'expected_snapshot_id' => null,
-            'expected_snapshot_versi' => null,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
-            ],
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
         ])->assertSessionHasNoErrors();
+        $this->assertSame(2, $header->fresh()->versi);
+        $auditSetelahSimpan = AuditLog::where('objek_id', $header->id)->count();
 
+        // Preview token lama (v1) ditolak 409 — tanpa kunci periode/deviasi.
+        $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ])->assertConflict();
+
+        $respons->assertJsonValidationErrors('expected_versi');
+        $this->assertArrayNotHasKey('periode', $respons->json());
+        $this->assertArrayNotHasKey('deviasi_pk', $respons->json());
+
+        // Tanpa persistensi/audit: versi tetap, baris tak berubah, audit tak bertambah.
         $this->assertSame(2, $header->fresh()->versi);
         $this->assertSame(2, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertSame($auditSetelahSimpan, AuditLog::where('objek_id', $header->id)->count());
+
+        // Token baru (v2) diterima kembali.
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 2,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ])->assertOk();
     }
 
-    public function test_baca_ditolak_saat_unit_snapshot_tidak_selaras_tanpa_ekspos_lintas_unit(): void
+    public function test_preview_tanpa_izin_baca_selalu_403_walau_payload_tak_valid(): void
     {
-        $fixture = $this->buatFixtureManual();
+        $fixture = $this->buatFixtureUpdateTanpaRead();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
@@ -144,48 +110,26 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        $unitB = Unit::create(['nama' => 'Unit Rahasia B Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitB->id]);
-
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertSessionHasErrors('snapshot');
-
-        try {
-            app(IndexRencanaAksi::class)->handle($fixture['pic'], $header->fresh());
-            $this->fail('IndexRencanaAksi harus menolak header A + snapshot B.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('snapshot', $exception->errors());
-            $this->assertStringNotContainsString('Unit Rahasia B Q1', $exception->getMessage());
-            $this->assertStringNotContainsString((string) $unitB->id, $exception->getMessage());
-        }
-    }
-
-    public function test_preview_ditolak_saat_unit_snapshot_tidak_selaras_tanpa_ekspos_lintas_unit(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-
-        $unitB = Unit::create(['nama' => 'Unit Rahasia B Preview Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitB->id]);
-
-        $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+        // Payload valid: punya update tetapi tanpa read → 403 (bukan 200).
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
-        ])->assertUnprocessable();
+        ])->assertForbidden();
 
-        $respons->assertJsonValidationErrors('snapshot');
-        $this->assertArrayNotHasKey('periode', $respons->json());
-        $this->assertArrayNotHasKey('deviasi_pk', $respons->json());
-        $this->assertStringNotContainsString('Unit Rahasia B Preview Q1', (string) $respons->getContent());
+        // Payload tak valid (UUID asing): tetap 403 sebelum validasi `exists`
+        // — bukan 422 yang membocorkan keberadaan UUID lintas unit.
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => (string) Str::uuid(),
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => (string) Str::uuid(), 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+            ],
+        ])->assertForbidden();
 
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
@@ -199,18 +143,18 @@ class RencanaAksiReview4Q1Test extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji Q1 F1F4', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji R5S1 F1', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-Q1', 'nama' => 'Renstra Uji Q1', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-Q1', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R5S1', 'nama' => 'Renstra Uji R5S1', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R5S1', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Uji Q1',
+            'nama' => 'Indikator Uji R5S1',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'arah' => 'naik_baik',
@@ -270,26 +214,30 @@ class RencanaAksiReview4Q1Test extends TestCase
     }
 
     /**
-     * Jadwal draf yang belum pernah aktif → tanpa snapshot adalah konteks sah.
+     * PIC memegang update tanpa read — meniru pemohon lintas-unit yang hanya
+     * diberi hak tulis tetapi tak boleh baca. Memakai peran `admin` yang
+     * presetnya TANPA `rencana_aksi:read` (peran `pegawai`/`pimpinan`/
+     * `perencanaan` selalu membawa read via preset sehingga tak dapat
+     * mewakili kondisi tanpa-baca); hak tulis diberi via grant unit.
      *
      * @return array<string, mixed>
      */
-    private function buatFixtureDraftTanpaSnapshot(): array
+    private function buatFixtureUpdateTanpaRead(): array
     {
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
-        $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji Q1 Tanpa Snapshot', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $pic = $this->penggunaDenganPeran('admin');
+        $unit = Unit::create(['nama' => 'Unit Uji R5S1 F2', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
-        $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-Q1D', 'nama' => 'Renstra Uji Q1 Draft', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-Q1D', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R5S1F2', 'nama' => 'Renstra Uji R5S1 F2', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R5S1F2', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Uji Q1 Draft',
+            'nama' => 'Indikator Uji R5S1 F2',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'arah' => 'naik_baik',
@@ -309,7 +257,8 @@ class RencanaAksiReview4Q1Test extends TestCase
             'rencana_aksi_mulai' => '2026-03-01',
             'rencana_aksi_selesai' => '2026-03-31',
             'penutupan' => '2026-12-31',
-            'status' => 'draft',
+            'status' => 'aktif',
+            'activated_at' => now(),
         ]);
         foreach ([$periode1, $periode2] as $periode) {
             PeriodeJadwal::create([
@@ -321,6 +270,21 @@ class RencanaAksiReview4Q1Test extends TestCase
                 'reviu_selesai' => '2026-04-30',
             ]);
         }
+        $snapshot = JadwalSnapshot::create([
+            'jadwal_id' => $jadwal->id,
+            'indikator_id' => $indikator->id,
+            'nomor_versi' => 1,
+            'periode_mulai_id' => $periode1->id,
+            'unit_id' => $unit->id,
+            'nama' => $indikator->nama,
+            'definisi' => 'Definisi beku.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
         PenugasanIndikator::create([
             'indikator_id' => $indikator->id,
             'user_id' => $pic->id,
@@ -329,7 +293,7 @@ class RencanaAksiReview4Q1Test extends TestCase
             'created_at' => now(),
         ]);
 
-        return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal');
+        return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal', 'snapshot');
     }
 
     private function penggunaDenganPeran(string $kode): User

@@ -69,6 +69,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         ]);
 
         $payloadUsang = [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
@@ -88,6 +89,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $v2->id,
             'expected_snapshot_versi' => 2,
             'targets' => $payloadUsang['targets'],
@@ -112,9 +114,10 @@ class RencanaAksiReview4Q2Test extends TestCase
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
-        ])->assertUnprocessable()->assertJsonValidationErrors(['expected_snapshot_id', 'expected_snapshot_versi']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['expected_versi', 'expected_snapshot_id', 'expected_snapshot_versi']);
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => null,
             'expected_snapshot_versi' => null,
             'targets' => [
@@ -143,6 +146,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         ]);
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => null,
             'expected_snapshot_versi' => null,
             'targets' => [
@@ -192,6 +196,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         ];
 
         $pratinjau = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $v2->id,
             'expected_snapshot_versi' => 2,
             'targets' => $targets,
@@ -232,6 +237,7 @@ class RencanaAksiReview4Q2Test extends TestCase
             ->map(fn (Periode $periode): array => ['periode_id' => $periode->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null])
             ->all();
         $payload = [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => $targets,
@@ -256,6 +262,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         $buruk = $targets;
         $buruk[0]['periode_id'] = (string) Str::uuid();
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => $buruk,

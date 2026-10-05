@@ -24,11 +24,13 @@ class PreviewTargetPeriodeRequest extends FormRequest
             return true;
         }
 
-        // Otorisasi rinci (view + update) ditegakkan di Action via Gate
-        // agar respons JSON 403 konsisten dengan pratinjau pengukuran;
-        // di sini cukup pastikan pemohon memiliki hak simpan agar
-        // pratinjau tak dapat dipakai lintas-unit oleh pembaca saja.
-        return Gate::allows('update', $header);
+        // F2 (Review5 S1): pratinjau menuntut izin baca DAN tulis bersama
+        // (cermin gerbang ganda di `PreviewTargetPeriode::handle`). Tanpa
+        // `read` (atau kena deny) selalu 403 di sini — sebelum validasi
+        // `exists` — agar tak membocorkan keberadaan UUID lintas unit via
+        // 422. Otorisasi rinci tetap ditegakkan di Action via Gate agar
+        // respons JSON 403 konsisten dengan pratinjau pengukuran.
+        return Gate::allows('view', $header) && Gate::allows('update', $header);
     }
 
     /**
@@ -37,15 +39,20 @@ class PreviewTargetPeriodeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // F1 (Review5 S1): versi header wajib dikirim (`required`),
+            // cermin `SimpanTargetPeriodeRequest`; pratinjau menolak konteks
+            // usang 409 agar skor/deviasi tak tercampur (input form + target
+            // v2 tak terlihat). Tanpa persistensi/audit — murni tolak hitung.
+            'expected_versi' => ['required', 'integer', 'min:1'],
             // F2 (Review4 Q2): token konkurensi snapshot WAJIB dikirim
             // (`present`), cermin `SimpanTargetPeriodeRequest`; null hanya sah
             // bila konteks memang tanpa snapshot. Pratinjau menolak konteks
             // usang 409 agar yang ditampilkan = yang dipakai simpan.
             'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
-            // F5: subset bentuk simpan tanpa versi header — pratinjau murni
-            // kalkulasi, bukan persistensi. Kelengkapan per-periode sengaja
-            // tidak dituntut (sel hilang = belum_diisi, bukan 422).
+            // F5: subset bentuk simpan — pratinjau murni kalkulasi, bukan
+            // persistensi. Kelengkapan per-periode sengaja tidak dituntut
+            // (sel hilang = belum_diisi, bukan 422).
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
@@ -66,6 +73,7 @@ class PreviewTargetPeriodeRequest extends FormRequest
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
             'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
+            'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
             'uuid' => 'Identitas :attribute tidak sah.',
             'exists' => 'Data :attribute tidak ditemukan.',
             'array' => 'Struktur :attribute tidak sah.',

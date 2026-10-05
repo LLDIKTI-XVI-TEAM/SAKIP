@@ -165,7 +165,21 @@ class SimpanTargetPeriode
                     $this->simpanBaris($header->id, $pengunci->id, $baris);
                 }
 
+                // F3 (Review5 S2, opsi a): singkirkan baris draf yang tak
+                // lagi efektif di bawah konteks snapshot terbaru (komponen
+                // dihapus, tipe manual↔nonmanual, periode pra-berlaku).
+                // Upsert hanya menyentuh sel terkirim sehingga baris lama
+                // melekat tanpa identitas — tersembunyi dari baca namun bisa
+                // muncul kembali bila konteks berbalik. Dihapus eksplisit di
+                // transaksi yang sama; selisihnya terekam di audit
+                // nilai_lama/nilai_baru + jumlah pada alasan.
+                $barisDisingkirkan = $this->bersihkanDimensiTakEfektif($header->id, $tipe, $definisi, $periodeEfektif);
+
                 $sesudah = $this->auditState($header->fresh());
+                $alasanSimpan = 'Menyimpan target rencana aksi per periode.';
+                if ($barisDisingkirkan > 0) {
+                    $alasanSimpan .= " Membersihkan {$barisDisingkirkan} baris dimensi tak efektif (konteks snapshot terbaru).";
+                }
                 $this->audit->catat(
                     actor: $pengunci,
                     tindakan: 'rencana_aksi.ubah',
@@ -173,7 +187,7 @@ class SimpanTargetPeriode
                     objekId: (string) $header->id,
                     nilaiLama: $sebelum,
                     nilaiBaru: $sesudah,
-                    alasan: 'Menyimpan target rencana aksi per periode.',
+                    alasan: $alasanSimpan,
                     dasarIzin: $dasarIzin,
                 );
 
@@ -519,6 +533,40 @@ class SimpanTargetPeriode
             'updated_by' => $actorId,
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Menyingkirkan baris draf tak efektif di bawah konteks terbaru.
+     *
+     * Predikat penghapusan = (periode di luar himpunan efektif) ATAU
+     * (tipe manual: masih berkomponen) ATAU (tipe nonmanual: baris manual
+     * atau komponen di luar himpunan efektif). Periode efektif yang tak
+     * terkirim (koreksi parsial 1-dari-N) bukan tak-efektif sehingga
+     * dipertahankan — hanya dimensi tak berlaku yang dihapus.
+     *
+     * @param  Collection<int, string>  $periodeEfektif
+     * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
+     */
+    private function bersihkanDimensiTakEfektif(string $rencanaAksiId, string $tipe, Collection $definisi, Collection $periodeEfektif): int
+    {
+        $efektifPeriode = $periodeEfektif->map(fn ($id): string => (string) $id)->values()->all();
+        $efektifKomponen = $definisi->pluck('komponen_id')->map(fn ($id): string => (string) $id)->values()->all();
+
+        return RencanaAksiTarget::where('rencana_aksi_id', $rencanaAksiId)
+            ->where(function ($sub) use ($tipe, $efektifPeriode, $efektifKomponen): void {
+                $sub->whereNotIn('periode_id', $efektifPeriode);
+                if ($tipe === 'manual') {
+                    $sub->orWhereNotNull('komponen_id');
+                } else {
+                    $sub->orWhereNull('komponen_id');
+                    if ($efektifKomponen === []) {
+                        $sub->orWhereNotNull('komponen_id');
+                    } else {
+                        $sub->orWhereNotIn('komponen_id', $efektifKomponen);
+                    }
+                }
+            })
+            ->delete();
     }
 
     private function normalisasiTeks(mixed $value): ?string

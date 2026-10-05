@@ -127,6 +127,7 @@ describe('F5 pratinjau reaktif rencana aksi', () => {
             desimalTampilan: 2,
             komponen: [],
             namaPeriode: () => 'Triwulan I',
+            expectedVersi: 1,
             expectedSnapshotId: '55555555-5555-4555-8555-555555555555',
             expectedSnapshotVersi: 1,
         };
@@ -141,7 +142,7 @@ describe('F5 pratinjau reaktif rencana aksi', () => {
         request.mockRejectedValueOnce(new HttpResponseError('Usang', { status: 409, data: '', headers: {} }));
         cleanup();
         render(<TargetPreview {...props} />);
-        await screen.findByText(/Konteks indikator berubah/);
+        await screen.findByText(/Data telah berubah/);
     });
 
     it('edit nilai memicu preview debounce tanpa POST simpan dan tanpa draf', async () => {
@@ -175,11 +176,11 @@ describe('F5 pratinjau reaktif rencana aksi', () => {
         const terakhir = request.mock.calls[request.mock.calls.length - 1][0];
         expect(terakhir.url).toBe('/rencana-aksi/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/preview');
         expect(JSON.parse(String(terakhir.data))).toEqual({
+            expected_versi: 1,
             expected_snapshot_id: '55555555-5555-4555-8555-555555555555',
             expected_snapshot_versi: 1,
             targets: [{ periode_id: PERIODE_1, komponen_id: null, nilai: '30', keterangan: null }],
             alasan_deviasi_pk: null,
         });
-        expect(JSON.parse(String(terakhir.data))).not.toHaveProperty('expected_versi');
     });
 });

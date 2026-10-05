@@ -59,6 +59,17 @@ class PreviewTargetPeriode
         $hasil = DB::transaction(function () use ($pra, $data): array {
             $segel = RencanaAksi::whereKey($pra->getKey())->sharedLock()->firstOrFail();
             $segel->loadMissing(['indikator', 'jadwalTahunan']);
+
+            // F1 (Review5 S1): pratinjau terikat versi header — cermin guard
+            // tulis `SimpanTargetPeriode`. Token halaman dibandingkan dengan
+            // header terkunci SEBELUM hitung; usang ditolak 409 agar skor/
+            // deviasi campuran (input form + target v2 tak terlihat) tak
+            // pernah ditampilkan. Tanpa persistensi/audit — murni tolak.
+            $expectedVersi = (int) ($data['expected_versi'] ?? 0);
+            if ((int) $segel->versi !== $expectedVersi) {
+                throw ValidationException::withMessages(['expected_versi' => 'Data telah berubah. Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
+            }
+
             /** @var IndikatorKinerja $indikator */
             $indikator = $segel->indikator;
             /** @var JadwalTahunan $jadwal */

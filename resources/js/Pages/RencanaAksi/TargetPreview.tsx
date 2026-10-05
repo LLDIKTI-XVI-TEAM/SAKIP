@@ -11,6 +11,8 @@ interface TargetPreviewProps {
     desimalTampilan: number;
     komponen: RencanaAksiKomponen[];
     namaPeriode: (periodeId: string) => string;
+    /** F1: versi header halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
+    expectedVersi: number;
     /** F2: token snapshot halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
     expectedSnapshotId: string | null;
     expectedSnapshotVersi: number | null;
@@ -27,8 +29,8 @@ type PreviewState = { payload: string; result?: RencanaAksiPreview; error?: stri
  * sama di server, respons lama dibatalkan/diabaikan, tanpa formula di
  * React. Skor/peringatan/deviasi reaktif terhadap input yang diedit;
  * hasil tersimpan tetap ditampilkan terpisah di halaman.
- * F2: token snapshot halaman ikut dikirim; konteks usang ditolak 409
- * agar yang ditampilkan = yang dipakai simpan.
+ * F1+F2: versi header + token snapshot halaman ikut dikirim; konteks usang
+ * ditolak 409 agar yang ditampilkan = yang dipakai simpan.
  */
 export default function TargetPreview({
     id,
@@ -38,12 +40,14 @@ export default function TargetPreview({
     desimalTampilan,
     komponen,
     namaPeriode,
+    expectedVersi,
     expectedSnapshotId,
     expectedSnapshotVersi,
     disabled = false,
 }: TargetPreviewProps) {
     const formatNilai = useFormatNilai();
     const payload = JSON.stringify({
+        expected_versi: expectedVersi,
         expected_snapshot_id: expectedSnapshotId,
         expected_snapshot_versi: expectedSnapshotVersi,
         targets: targets.map((item) => ({ ...item, keterangan: null })),
@@ -80,7 +84,7 @@ export default function TargetPreview({
                     status === 403
                         ? 'Akses pratinjau ditolak. Periksa kembali izin dan status rencana aksi.'
                         : status === 409
-                          ? 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang halaman agar pratinjau memakai konteks terbaru.'
+                          ? 'Data telah berubah. Muat ulang halaman agar pratinjau memakai data terbaru.'
                           : status === 422
                             ? 'Input pratinjau tidak valid. Periksa nilai target atau simpan untuk melihat rincian validasi.'
                             : status === 401 || status === 419

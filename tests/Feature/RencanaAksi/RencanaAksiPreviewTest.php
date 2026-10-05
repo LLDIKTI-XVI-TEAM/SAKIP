@@ -62,6 +62,7 @@ class RencanaAksiPreviewTest extends TestCase
 
         // Edit TW I 20 → 30: pratinjau ikut berubah tanpa menyimpan.
         $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 2,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
@@ -111,6 +112,7 @@ class RencanaAksiPreviewTest extends TestCase
 
         // Pratinjau menyamakan periode terakhir dengan target PK 100 → deviasi hilang.
         $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => $versi,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
@@ -143,6 +145,7 @@ class RencanaAksiPreviewTest extends TestCase
 
         $tanpaIzin = $this->penggunaDenganPeran('admin');
         $this->actingAs($tanpaIzin)->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
@@ -151,6 +154,7 @@ class RencanaAksiPreviewTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
@@ -173,6 +177,7 @@ class RencanaAksiPreviewTest extends TestCase
         $unit = Unit::create(['nama' => 'Unit Uji Preview RA', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
+        $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
         $renstra = Renstra::create(['kode' => 'R-UJI-PRV', 'nama' => 'Renstra Uji Preview', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
         $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-PRV', 'deskripsi' => 'Sasaran uji']);
