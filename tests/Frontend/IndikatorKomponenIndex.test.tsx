@@ -169,7 +169,7 @@ describe('IndikatorKomponenIndex UI & Reusable Component Standardization', () =>
         // Modal ubah terbuka dengan header yang distandardisasi
         const dialog = screen.getByRole('dialog');
         expect(dialog).toBeTruthy();
-        expect(within(dialog).getByText('Ubah Komponen Indikator')).toBeTruthy();
+        expect(within(dialog).getByText('Edit Komponen Indikator')).toBeTruthy();
         // Memastikan prop description tidak ada di modal
         expect(screen.queryByText('Perbarui definisi komponen indikator data-driven. Perubahan memerlukan pengisian alasan audit.')).toBeNull();
     });

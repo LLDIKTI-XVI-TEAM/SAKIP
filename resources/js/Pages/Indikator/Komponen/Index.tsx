@@ -889,11 +889,13 @@ export default function KomponenIndex({
                 isOpen={isFormModalOpen}
                 onClose={() => setIsFormModalOpen(false)}
                 title={
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
-                            {isEditing ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                        </div>
-                        <span>{isEditing ? 'Ubah Komponen Indikator' : 'Tambah Komponen Indikator'}</span>
+                    <div className="flex items-center gap-2 text-base font-semibold text-ink">
+                        {isEditing ? (
+                            <Pencil className="h-4 w-4 text-primary shrink-0" />
+                        ) : (
+                            <Plus className="h-4 w-4 text-primary shrink-0" />
+                        )}
+                        <span>{isEditing ? 'Edit Komponen Indikator' : 'Tambah Komponen Indikator'}</span>
                     </div>
                 }
                 size="lg"
