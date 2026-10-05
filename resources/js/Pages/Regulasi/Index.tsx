@@ -2,7 +2,7 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RegulasiFailureNotice } from '@/Components/RegulasiFailureNotice';
 import React, { useEffect, useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ExternalLink, FileText, Plus, Search, X } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
@@ -220,8 +220,20 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                 {regulasi.data.map((item) => (
                                     <TableRow key={item.id} className="align-top">
                                         <TableCell>
-                                            <p className="font-semibold text-ink">{item.nomor}</p>
-                                            <p className="mt-1 text-xs text-muted">{jenisLabel[item.jenis]} · {item.tahun}</p>
+                                            {can['regulasi:read'] ? (
+                                                <Link
+                                                    href={`/regulasi/${item.id}`}
+                                                    className="group block hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    <p className="font-semibold text-ink group-hover:text-primary transition-colors">{item.nomor}</p>
+                                                    <p className="mt-1 text-xs text-muted group-hover:text-primary/80 transition-colors">{jenisLabel[item.jenis]} · {item.tahun}</p>
+                                                </Link>
+                                            ) : (
+                                                <div>
+                                                    <p className="font-semibold text-ink">{item.nomor}</p>
+                                                    <p className="mt-1 text-xs text-muted">{jenisLabel[item.jenis]} · {item.tahun}</p>
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell className="max-w-xl">
                                             <p className="line-clamp-2 leading-relaxed text-ink">{item.tentang}</p>

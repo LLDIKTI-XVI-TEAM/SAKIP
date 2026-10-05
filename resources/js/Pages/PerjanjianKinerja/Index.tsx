@@ -184,7 +184,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>TAHUN & RENSTRA</TableHead>
+                                <TableHead>RENSTRA & TAHUN</TableHead>
                                 <TableHead>NOMOR DOKUMEN PK</TableHead>
                                 <TableHead>TANGGAL PK</TableHead>
                                 <TableHead>STATUS JADWAL</TableHead>
@@ -213,22 +213,20 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
 
                                     return (
                                         <TableRow key={item.id}>
-                                            <TableCell className="whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="inline-flex items-center justify-center rounded-lg bg-primary/10 px-2.5 py-1 font-bold text-primary shrink-0">
-                                                        {item.tahun}
-                                                    </span>
-                                                    <Link
-                                                        href={`/perjanjian-kinerja/${item.id}`}
-                                                        className="min-w-0 max-w-[200px] overflow-hidden block hover:text-primary transition-colors cursor-pointer group"
-                                                    >
-                                                        <HoverScrollText
-                                                            text={item.renstra.nama}
-                                                            className="text-xs font-normal text-muted group-hover:text-primary transition-colors"
-                                                            textClassName="font-normal text-muted group-hover:text-primary transition-colors"
-                                                        />
-                                                    </Link>
-                                                </div>
+                                            <TableCell className="max-w-[280px]">
+                                                <Link
+                                                    href={`/perjanjian-kinerja/${item.id}`}
+                                                    className="group block hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    <HoverScrollText
+                                                        text={item.renstra.nama}
+                                                        className="font-semibold text-ink group-hover:text-primary transition-colors text-sm"
+                                                        textClassName="font-semibold text-ink group-hover:text-primary transition-colors text-sm"
+                                                    />
+                                                    <div className="text-xs text-muted group-hover:text-primary/80 transition-colors mt-0.5 font-mono">
+                                                        Tahun {item.tahun}
+                                                    </div>
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="font-semibold text-ink">
                                                 <Link

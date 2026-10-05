@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { CheckCircle2, Eye, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle } from '@/Components/Card';
@@ -86,12 +86,17 @@ export default function VerifikasiIndex({
                                     return (
                                         <TableRow key={p.id}>
                                             <TableCell className="px-5 py-4 max-w-xs">
-                                                <div className="font-mono font-bold text-ink text-xs">
-                                                    {iku?.kode}
-                                                </div>
-                                                <div className="text-muted mt-0.5 line-clamp-2 leading-relaxed">
-                                                    {iku?.nama}
-                                                </div>
+                                                <Link
+                                                    href={`/verifikasi/${p.id}`}
+                                                    className="group block hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    <div className="font-mono font-bold text-ink text-xs group-hover:text-primary transition-colors">
+                                                        {iku?.kode}
+                                                    </div>
+                                                    <div className="text-muted mt-0.5 line-clamp-2 leading-relaxed group-hover:text-primary/80 transition-colors">
+                                                        {iku?.nama}
+                                                    </div>
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="px-5 py-4">
                                                 <div className="font-medium text-ink">{unit?.nama}</div>

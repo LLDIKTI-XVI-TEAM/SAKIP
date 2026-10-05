@@ -80,12 +80,28 @@ export default function PengukuranIndex({
                                 return (
                                     <TableRow key={p.id}>
                                         <TableCell className="max-w-sm">
-                                            <div className="font-bold text-ink text-xs">
-                                                {iku?.kode}
-                                            </div>
-                                            <div className="text-muted mt-0.5 leading-relaxed">
-                                                {iku?.nama}
-                                            </div>
+                                            {p.can.view ? (
+                                                <Link
+                                                    href={`/pengukuran/${p.id}/edit`}
+                                                    className="group block hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    <div className="font-bold text-ink text-xs group-hover:text-primary transition-colors">
+                                                        {iku?.kode}
+                                                    </div>
+                                                    <div className="text-muted mt-0.5 leading-relaxed group-hover:text-primary/80 transition-colors">
+                                                        {iku?.nama}
+                                                    </div>
+                                                </Link>
+                                            ) : (
+                                                <>
+                                                    <div className="font-bold text-ink text-xs">
+                                                        {iku?.kode}
+                                                    </div>
+                                                    <div className="text-muted mt-0.5 leading-relaxed">
+                                                        {iku?.nama}
+                                                    </div>
+                                                </>
+                                            )}
                                             <div className="text-xs text-muted mt-0.5">
                                                 Formula: <span className="font-semibold text-primary">{iku?.tipe_perhitungan}</span> ({iku?.satuan})
                                             </div>

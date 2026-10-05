@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FileText, Plus, Save, Search, X } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
@@ -10,6 +10,7 @@ import { CustomSelect, CustomSelectOption } from '@/Components/CustomSelect';
 import { DeleteIconButton } from '@/Components/DeleteIconButton';
 import { EditIconButton } from '@/Components/EditIconButton';
 import { EmptyState } from '@/Components/EmptyState';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Pagination } from '@/Components/Pagination';
@@ -259,9 +260,20 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                 ) : (
                                     renstra.data.map((item) => (
                                         <tr key={item.id} className="transition-colors hover:bg-soft/40">
-                                            <td className="px-5 py-4">
-                                                <div className="font-semibold text-ink">{item.nama}</div>
-                                                <div className="text-xs font-mono text-muted">{item.kode}</div>
+                                            <td className="px-5 py-4 max-w-md">
+                                                <Link
+                                                    href={`/renstra/${item.id}`}
+                                                    className="group block hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    <HoverScrollText
+                                                        text={item.nama}
+                                                        className="font-semibold text-ink group-hover:text-primary transition-colors text-sm"
+                                                        textClassName="font-semibold text-ink group-hover:text-primary transition-colors text-sm"
+                                                    />
+                                                    <div className="text-xs font-mono text-muted group-hover:text-primary/80 transition-colors mt-0.5">
+                                                        {item.kode}
+                                                    </div>
+                                                </Link>
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap font-mono text-sm">
                                                 {item.tahun_mulai} - {item.tahun_selesai}
