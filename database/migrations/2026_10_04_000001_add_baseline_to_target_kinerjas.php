@@ -23,6 +23,8 @@ return new class extends Migration
                 $table->decimal('baseline', 30, 12)->nullable();
                 $table->foreignUuid('updated_by')->nullable()->constrained('users')->restrictOnDelete();
             });
+            // NaN dianggap lebih besar daripada angka biasa oleh PostgreSQL, sehingga perlu ditolak eksplisit.
+            DB::statement("ALTER TABLE target_kinerjas ADD CONSTRAINT target_kinerjas_target_tahunan_valid_check CHECK (target_tahunan IS NULL OR (target_tahunan >= 0 AND target_tahunan <> 'NaN'::numeric)), ADD CONSTRAINT target_kinerjas_baseline_valid_check CHECK (baseline IS NULL OR (baseline >= 0 AND baseline <> 'NaN'::numeric))");
         });
     }
 
@@ -38,6 +40,7 @@ return new class extends Migration
                 'annual_NaN' => "t.target_tahunan = 'NaN'::numeric",
                 'annual_tidak_exact_14_2' => 'abs(t.target_tahunan) > 999999999999.99 OR t.target_tahunan <> trunc(t.target_tahunan, 2)',
             ]);
+            DB::statement('ALTER TABLE target_kinerjas DROP CONSTRAINT target_kinerjas_target_tahunan_valid_check, DROP CONSTRAINT target_kinerjas_baseline_valid_check');
             DB::statement('ALTER TABLE target_kinerjas ALTER COLUMN target_tahunan TYPE numeric(14,2), ALTER COLUMN target_tahunan SET NOT NULL, ALTER COLUMN target_tahunan SET DEFAULT 0');
             Schema::table('target_kinerjas', function (Blueprint $table): void {
                 $table->dropConstrainedForeignId('updated_by');
