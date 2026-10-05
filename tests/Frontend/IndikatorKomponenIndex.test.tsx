@@ -148,6 +148,11 @@ describe('IndikatorKomponenIndex UI & Reusable Component Standardization', () =>
         expect(screen.queryByText(/sumber kebenaran tunggal/i)).toBeNull();
         expect(screen.queryByText(/evaluasi server-side/i)).toBeNull();
         expect(screen.queryByText(/simulasi klien/i)).toBeNull();
+        expect(screen.queryByText('Formula baku evaluasi capaian kinerja indikator.')).toBeNull();
+        expect(screen.queryByText('Penjumlahan Tertimbang')).toBeNull();
+
+        // Tombol BackButton dirender
+        expect(screen.getByText('Kembali ke Indikator Kinerja')).toBeTruthy();
     });
 
     it('membuat label komponen di tabel dapat diklik untuk membuka modal ubah', async () => {

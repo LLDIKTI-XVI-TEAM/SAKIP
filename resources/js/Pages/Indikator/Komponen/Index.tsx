@@ -35,6 +35,7 @@ import { HoverScrollText } from '@/Components/HoverScrollText';
 import { EditIconButton } from '@/Components/EditIconButton';
 import { DeleteIconButton } from '@/Components/DeleteIconButton';
 import { Pagination } from '@/Components/Pagination';
+import { BackButton } from '@/Components/BackButton';
 
 export interface IndikatorKinerjaData {
     id: string;
@@ -401,18 +402,6 @@ export default function KomponenIndex({
         }
     };
 
-    const getTipeBadge = (tipe: string) => {
-        switch (tipe) {
-            case 'rasio_persen':
-                return <Badge variant="primary" size="sm">Rasio Persen (%)</Badge>;
-            case 'penjumlahan':
-                return <Badge variant="success" size="sm">Penjumlahan Tertimbang</Badge>;
-            case 'manual':
-                return <Badge variant="secondary" size="sm">Manual</Badge>;
-            default:
-                return <Badge variant="muted" size="sm">{tipe}</Badge>;
-        }
-    };
 
     return (
         <AuthenticatedLayout
@@ -441,18 +430,33 @@ export default function KomponenIndex({
 
             <div className="space-y-6">
                 {/* Indikator Context Header */}
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                        {indikator.kode}
-                    </span>
-                    <span className="text-sm font-semibold text-ink">
-                        {indikator.nama}
-                    </span>
-                    {indikator.is_aktif ? (
-                        <Badge variant="success" size="sm">Aktif</Badge>
-                    ) : (
-                        <Badge variant="muted" size="sm">Nonaktif</Badge>
-                    )}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <h2 className="text-base sm:text-lg font-bold text-ink">
+                            {indikator.nama}
+                        </h2>
+                        {indikator.is_aktif ? (
+                            <Badge variant="success" size="sm">Aktif</Badge>
+                        ) : (
+                            <Badge variant="muted" size="sm">Nonaktif</Badge>
+                        )}
+                    </div>
+
+                    <div className="shrink-0">
+                        <BackButton
+                            onClick={() => {
+                                if (window.history.length > 1) {
+                                    window.history.back();
+                                } else if (indikator.sasaran_strategis?.renstra?.id) {
+                                    router.visit(`/renstra/${indikator.sasaran_strategis.renstra.id}`);
+                                } else {
+                                    router.visit('/renstra');
+                                }
+                            }}
+                        >
+                            Kembali ke Indikator Kinerja
+                        </BackButton>
+                    </div>
                 </div>
 
                 {indikator.tipe_perhitungan === 'manual' && (
@@ -522,23 +526,13 @@ export default function KomponenIndex({
                 {/* Formula Contract & Server Evaluation Card */}
                 <Card className="border border-border/80 bg-surface shadow-xs transition-shadow">
                     <CardHeader className="border-b border-border/60 pb-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2.5">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                    <Calculator className="h-5 w-5" aria-hidden="true" />
-                                </span>
-                                <div>
-                                    <CardTitle className="text-base font-semibold text-ink">
-                                        Kontrak & Evaluasi Formula
-                                    </CardTitle>
-                                    <p className="text-xs text-muted">
-                                        Formula baku evaluasi capaian kinerja indikator.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {getTipeBadge(indikator.tipe_perhitungan)}
-                            </div>
+                        <div className="flex items-center gap-2.5">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <Calculator className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                            <CardTitle className="text-base font-semibold text-ink">
+                                Kontrak & Evaluasi Formula
+                            </CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4">
