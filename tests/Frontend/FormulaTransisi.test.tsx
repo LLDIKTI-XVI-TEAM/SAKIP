@@ -31,7 +31,7 @@ const UPDATED_AT = '2026-10-02T10:00:00.000Z';
 const ALASAN = 'Penyesuaian formula sesuai arahan pimpinan.';
 
 async function isiAlasan(user: UserEvent) {
-    await user.type(screen.getByLabelText(/alasan perubahan formula/i), ALASAN);
+    await user.type(screen.getByLabelText(/alasan perubahan/i), ALASAN);
 }
 
 const RASIO_KOMPONEN: FormulaKomponenItem[] = [
@@ -61,6 +61,7 @@ function makeIndikator(overrides: Partial<IndikatorKinerjaItem> = {}): Indikator
         desimal_tampilan: 2,
         wajib_catatan: false,
         status: 'aktif',
+        tahun_mulai_berlaku: 2025,
         updated_at: UPDATED_AT,
         komponen: [],
         ...overrides,
@@ -129,11 +130,12 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ komponen: komponen.map((row) => ({ ...row, aktif: false })) }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), tipe);
+        expect(screen.queryByText(/komponen perhitungan akan dinonaktifkan/i)).toBeNull();
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), tipe);
         expect((screen.getByLabelText(/kode komponen 1/i) as HTMLInputElement).value).toBe(komponen[0].kode);
         expect((screen.getByLabelText(/kode komponen 2/i) as HTMLInputElement).value).toBe(komponen[1].kode);
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: tipe, komponen, expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
@@ -147,7 +149,7 @@ describe('Editor formula atomik', () => {
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         expect(screen.queryByLabelText(/kode komponen 3/i)).toBeNull();
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN, expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
@@ -155,9 +157,9 @@ describe('Editor formula atomik', () => {
         const user = userEvent.setup();
         renderIndex(makeIndikator({ komponen: null }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        expect(screen.queryByLabelText(/tipe perhitungan target/i)).toBeNull();
+        expect(screen.queryByLabelText(/cara menghitung target/i)).toBeNull();
         expect(screen.getByText(/Data komponen formula belum tersedia/i)).toBeTruthy();
-        expect((screen.getByRole('button', { name: 'Simpan Formula' }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it.each([undefined, null])('tidak menawarkan editor kosong bila props komponen formula existing %s', async (komponen) => {
@@ -167,7 +169,7 @@ describe('Editor formula atomik', () => {
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         expect(screen.getByText(/Data komponen formula belum tersedia/i)).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
-        expect((screen.getByRole('button', { name: 'Simpan Formula' }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
         expect(patchSpy).not.toHaveBeenCalled();
     });
 
@@ -177,7 +179,7 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await isiAlasan(user);
-        await user.dblClick(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.dblClick(screen.getByRole('button', { name: 'Simpan' }));
         await user.click(screen.getByRole('button', { name: 'Batal' }));
         expect(patchSpy).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('heading', { name: 'Atur Formula — IKU-01' })).toBeTruthy();
@@ -189,7 +191,7 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         const options = patchSpy.mock.calls[0]?.[2] as unknown as {
             onSuccess?: (page: { props: Record<string, unknown>; flash: { error: string } }) => void;
             onFinish?: () => void;
@@ -219,7 +221,7 @@ describe('Editor formula atomik', () => {
         await user.clear(screen.getByLabelText(/label komponen 1/i));
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Label dikoreksi');
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(patchSpy).toHaveBeenCalledTimes(1);
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({
@@ -236,11 +238,11 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN }));
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'penjumlahan');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'penjumlahan');
         await user.selectOptions(screen.getByLabelText(/peran komponen 1/i), 'penjumlah');
         await user.click(screen.getByRole('button', { name: 'Hapus komponen 2' }));
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({
             tipe_perhitungan: 'penjumlahan', expected_updated_at: UPDATED_AT, alasan: ALASAN,
@@ -254,12 +256,12 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'rasio_persen', komponen: RASIO_KOMPONEN }));
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'manual');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'manual');
         expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
         expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
-        expect(screen.getByText(/komponen perhitungan existing akan dinonaktifkan/i)).toBeTruthy();
+        expect(screen.getByText(/komponen perhitungan akan dinonaktifkan/i)).toBeTruthy();
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         expect(patchSpy.mock.calls[0]?.[1]).toEqual({ tipe_perhitungan: 'manual', komponen: [], expected_updated_at: UPDATED_AT, alasan: ALASAN });
     });
 
@@ -270,7 +272,7 @@ describe('Editor formula atomik', () => {
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
         await user.type(screen.getByLabelText(/label komponen 1/i), ' terkoreksi');
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         const options = patchSpy.mock.calls[0]?.[2] as unknown as { onError?: (errors: Record<string, string>) => void };
         await act(async () => options.onError?.({ konflik: 'Versi formula berubah. Muat ulang halaman.', 'komponen.0.peran': 'Definisi formula tidak valid.' }));
         expect(screen.getByText('Versi formula berubah. Muat ulang halaman.')).toBeTruthy();
@@ -319,10 +321,11 @@ describe('Editor formula atomik', () => {
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
 
         expect(screen.getByRole('heading', { name: 'Atur Formula — IKU-01' })).toBeTruthy();
-        expect(screen.getByLabelText(/tipe perhitungan target/i)).toBeTruthy();
+        expect(screen.getByLabelText(/cara menghitung target/i)).toBeTruthy();
         expect(screen.queryByLabelText(/kode komponen 1/i)).toBeNull();
+        expect(screen.queryByText(/komponen perhitungan akan dinonaktifkan/i)).toBeNull();
         expect(screen.queryByRole('button', { name: 'Tambah Komponen' })).toBeNull();
-        expect(screen.getByRole('button', { name: 'Simpan Formula' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Simpan' })).toBeTruthy();
     });
 
     it('mengarahkan helper text edit-manual ke aksi Atur Formula', async () => {
@@ -331,7 +334,7 @@ describe('Editor formula atomik', () => {
 
         await user.click(screen.getByRole('button', { name: 'Ubah indikator IKU-01' }));
 
-        expect(screen.getByText(/Gunakan aksi "Atur Formula" pada tabel/i)).toBeTruthy();
+        expect(screen.getByText(/gunakan aksi “Atur Formula” pada tabel/i)).toBeTruthy();
     });
 
     it('menolak submit kosong (kode/label belum diisi) tanpa memanggil PATCH', async () => {
@@ -342,9 +345,9 @@ describe('Editor formula atomik', () => {
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'rasio_persen');
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(screen.getByText('Kode komponen wajib diisi.')).toBeTruthy();
         expect(screen.getByText('Label komponen wajib diisi.')).toBeTruthy();
@@ -360,7 +363,7 @@ describe('Editor formula atomik', () => {
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'rasio_persen');
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
 
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
@@ -371,7 +374,7 @@ describe('Editor formula atomik', () => {
         await user.type(screen.getByLabelText(/label komponen 2/i), 'Nilai penyebut');
         await user.selectOptions(screen.getByLabelText(/peran komponen 2/i), 'penyebut');
 
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(screen.getByText('Alasan perubahan formula wajib diisi.')).toBeTruthy();
         expect(patchSpy).not.toHaveBeenCalled();
@@ -385,8 +388,8 @@ describe('Editor formula atomik', () => {
         renderIndex(makeIndikator({ tipe_perhitungan: 'penjumlahan', komponen: JUMLAH_KOMPONEN }));
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.type(screen.getByLabelText(/alasan perubahan formula/i), 'abc');
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.type(screen.getByLabelText(/alasan perubahan/i), 'abc');
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(screen.getByText('Alasan perubahan formula minimal 5 karakter.')).toBeTruthy();
         expect(patchSpy).not.toHaveBeenCalled();
@@ -400,7 +403,7 @@ describe('Editor formula atomik', () => {
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'rasio_persen');
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
 
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
@@ -413,7 +416,7 @@ describe('Editor formula atomik', () => {
         await user.clear(screen.getByLabelText(/bobot komponen 2/i));
         await user.type(screen.getByLabelText(/bobot komponen 2/i), '0');
 
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(screen.getByText('Kode komponen tidak boleh duplikat dalam satu transisi.')).toBeTruthy();
         expect(
@@ -430,7 +433,7 @@ describe('Editor formula atomik', () => {
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'rasio_persen');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'rasio_persen');
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
 
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
@@ -442,7 +445,7 @@ describe('Editor formula atomik', () => {
         await user.selectOptions(screen.getByLabelText(/peran komponen 2/i), 'penyebut');
 
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(patchSpy).toHaveBeenCalledTimes(1);
         expect(patchSpy.mock.calls[0]?.[0]).toBe('/perencanaan/indikator/ind-1/formula');
@@ -471,12 +474,12 @@ describe('Editor formula atomik', () => {
         renderIndex();
 
         await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
-        await user.selectOptions(screen.getByLabelText(/tipe perhitungan target/i), 'penjumlahan');
+        await user.selectOptions(screen.getByLabelText(/cara menghitung target/i), 'penjumlahan');
         await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
         await user.type(screen.getByLabelText(/kode komponen 1/i), 'N');
         await user.type(screen.getByLabelText(/label komponen 1/i), 'Nilai jumlah');
         await isiAlasan(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         const options = vi.mocked(router.patch).mock.calls[0]?.[2] as unknown as {
             onError?: (errs: Record<string, string>) => void;
@@ -489,7 +492,7 @@ describe('Editor formula atomik', () => {
         });
 
         const alerts = screen.getAllByRole('alert');
-        const alert = alerts.find((el) => el.textContent?.includes('Penyimpanan formula ditolak server')) ?? alerts[0];
+        const alert = alerts.find((el) => el.textContent?.includes('Formula belum tersimpan')) ?? alerts[0];
         expect(alert.textContent).toContain('Data indikator telah berubah. Muat ulang halaman.');
         expect(alert.textContent).toContain('Kode komponen sudah digunakan pada indikator ini.');
     });

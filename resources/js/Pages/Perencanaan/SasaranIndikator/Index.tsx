@@ -25,6 +25,7 @@ import { PindahUnitModal } from './PindahUnitModal';
 import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
+import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
 import type {
     IndikatorKinerjaItem,
     IndikatorTipePerhitungan,
@@ -93,6 +94,8 @@ export default function SasaranIndikatorIndex({
     const [pindahTarget, setPindahTarget] = useState<IndikatorKinerjaItem | null>(null);
 
     const [formulaTarget, setFormulaTarget] = useState<IndikatorKinerjaItem | null>(null);
+    const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
+    const [annualMessage, setAnnualMessage] = useState('');
 
     const toggleCollapse = (id: string) => {
         setCollapsedMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -146,6 +149,8 @@ export default function SasaranIndikatorIndex({
             ]}
         >
             <Head title="Sasaran Strategis & Indikator Kinerja" />
+
+            {annualMessage && <p role="status" className="mb-4 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">{annualMessage}</p>}
 
             <div className="space-y-6">
                 {/* Header Context Card */}
@@ -427,6 +432,17 @@ export default function SasaranIndikatorIndex({
                                                             {/* 5. Aksi */}
                                                             <td className="px-5 py-4 align-middle text-right">
                                                                 <div className="flex items-center justify-end gap-1.5">
+                                                                    {can.indikator_read && selectedRenstra && (
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`Baseline & target ${ind.kode}`}
+                                                                            onClick={() => {
+                                                                                setAnnualMessage('');
+                                                                                setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
+                                                                            }}
+                                                                            className="inline-flex min-h-9 items-center whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                        >Baseline & target</button>
+                                                                    )}
                                                                     {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
                                                                         <Link
                                                                             href={`/indikator/${ind.id}/komponen`}
@@ -502,6 +518,7 @@ export default function SasaranIndikatorIndex({
             </div>
 
             {/* Modal Tambah/Edit Sasaran */}
+            {annualTarget && <TargetModal indikatorId={annualTarget.id} initialYear={annualTarget.year} onClose={() => setAnnualTarget(null)} onSaved={setAnnualMessage} />}
             {selectedRenstraId && (
                 <SasaranModal
                     isOpen={sasaranModalOpen}

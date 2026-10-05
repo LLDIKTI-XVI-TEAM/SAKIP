@@ -9,6 +9,13 @@ use App\Support\AlasanAudit;
 use App\Support\AuditReason;
 use InvalidArgumentException;
 
+/**
+ * Mencatat audit manual yang dipakai ulang oleh Action lintas domain, termasuk Renstra dan target tahunan.
+ * Service memeriksa alasan sensitif, menyediakan fallback dan sanitasi khusus komponen, lalu
+ * meneruskan penyimpanan serta sanitasi teks PostgreSQL kepada WriteAuditLog.
+ * Action pemanggil tetap memiliki workflow, otorisasi, locking dan transaksi domain, serta
+ * memilih snapshot perubahan dan dasar izin; Service ini tidak mengambil alih tanggung jawab tersebut.
+ */
 class AuditLogger
 {
     protected const SENSITIVE_ACTIONS = [
@@ -35,17 +42,16 @@ class AuditLogger
         ?string $alasan = null,
         ?array $dasarIzin = null,
     ): AuditLog {
-        if (in_array($tindakan, self::SENSITIVE_ACTIONS, true)) {
-            if (empty($alasan) || trim($alasan) === '') {
-                throw new InvalidArgumentException("Tindakan sensitif {$tindakan} wajib menyertakan alasan.");
-            }
+        $reasonMissing = $alasan === null || trim($alasan) === '';
+        if (in_array($tindakan, self::SENSITIVE_ACTIONS, true) && $reasonMissing) {
+            throw new InvalidArgumentException("Tindakan sensitif {$tindakan} wajib menyertakan alasan.");
         }
 
         $fallback = "Pencatatan audit untuk tindakan {$tindakan}.";
         // Kontrak alasan komponen berlaku untuk success maupun denial, tanpa
         // memangkas rujukan resmi pada audit domain lain. Semua jalur tetap
         // melalui sanitasi text PostgreSQL pada WriteAuditLog.
-        $effectiveAlasan = (! empty($alasan) && trim($alasan) !== '') ? $alasan : $fallback;
+        $effectiveAlasan = $reasonMissing ? $fallback : $alasan;
         if (str_starts_with($tindakan, 'komponen.')) {
             $effectiveAlasan = AuditReason::sanitize(AlasanAudit::sanitasi($alasan, $fallback));
             if (trim($effectiveAlasan) === '') {

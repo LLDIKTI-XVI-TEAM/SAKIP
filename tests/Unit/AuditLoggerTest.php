@@ -87,7 +87,37 @@ class AuditLoggerTest extends TestCase
         ]);
     }
 
-    public function test_audit_logger_throws_exception_if_sensitive_action_lacks_reason(): void
+    #[DataProvider('loggerReasons')]
+    public function test_audit_logger_preserves_nonblank_reason_or_uses_fallback(string $action, ?string $reason, string $expected): void
+    {
+        $user = User::factory()->create();
+        $log = app(AuditLogger::class)->catat(
+            actor: $user,
+            tindakan: $action,
+            objekTipe: 'fixture_audit',
+            objekId: (string) Str::uuid(),
+            alasan: $reason,
+        );
+
+        $this->assertSame($expected, $log->fresh()->alasan);
+    }
+
+    public static function loggerReasons(): array
+    {
+        $fallback = 'Pencatatan audit untuk tindakan target_tahunan.simpan.';
+
+        return [
+            'nol adalah teks sah' => ['target_tahunan.simpan', '0', '0'],
+            'nol sah pada tindakan sensitif' => ['jenis_berkas.ubah', '0', '0'],
+            'teks tetap melalui sanitasi writer' => ['target_tahunan.simpan', "  Koreksi\0 lanjutan  ", '  Koreksi lanjutan  '],
+            'null memakai fallback' => ['target_tahunan.simpan', null, $fallback],
+            'string kosong memakai fallback' => ['target_tahunan.simpan', '', $fallback],
+            'whitespace memakai fallback' => ['target_tahunan.simpan', " \t\r\n ", $fallback],
+        ];
+    }
+
+    #[DataProvider('blankReasons')]
+    public function test_audit_logger_throws_exception_if_sensitive_action_lacks_reason(?string $reason): void
     {
         $this->expectException(InvalidArgumentException::class);
 
@@ -100,7 +130,12 @@ class AuditLoggerTest extends TestCase
             objekId: (string) Str::uuid(),
             nilaiLama: ['nama' => 'Lama'],
             nilaiBaru: ['nama' => 'Baru'],
-            alasan: null
+            alasan: $reason
         );
+    }
+
+    public static function blankReasons(): array
+    {
+        return ['null' => [null], 'kosong' => [''], 'whitespace' => [" \t\r\n "]];
     }
 }

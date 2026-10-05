@@ -189,6 +189,15 @@ class UpdateRenstraAction
                         && $renstraTerkini->renstraPk()->where(fn ($query) => $query->where('tahun', '<', $tahunMulai)->orWhere('tahun', '>', $tahunSelesai))->exists()) {
                         // PK dapat mendahului Jadwal; shared lock writer PK diserialkan dengan lock master ini.
                         $penolakan = ['field' => 'tahun_mulai', 'pesan' => 'Rentang tahun harus tetap mencakup seluruh tahun Perjanjian Kinerja yang sudah ada.', 'alasan_penolakan' => 'tahun_pk_di_luar_rentang'];
+                    } elseif (($tahunMulai !== $renstraTerkini->tahun_mulai || $tahunSelesai !== $renstraTerkini->tahun_selesai)
+                        && DB::table('target_kinerjas as target')
+                            ->join('indikator_kinerjas as indikator', 'indikator.id', '=', 'target.indikator_kinerja_id')
+                            ->join('sasaran_strategis as sasaran', 'sasaran.id', '=', 'indikator.sasaran_strategis_id')
+                            ->where('sasaran.renstra_id', $renstraTerkini->id)
+                            ->where(fn ($query) => $query->where('target.tahun', '<', $tahunMulai)->orWhere('target.tahun', '>', $tahunSelesai))->exists()) {
+                        // EXISTS tanpa lock anak menjaga urutan writer target indikator → sasaran → shared Renstra.
+                        // Baris yang dikosongkan tetap histori; nilainya bukan syarat guard rentang.
+                        $penolakan = ['field' => 'tahun_mulai', 'pesan' => 'Rentang tahun harus tetap mencakup seluruh tahun target yang sudah ada.', 'alasan_penolakan' => 'tahun_target_di_luar_rentang'];
                     }
                 }
 

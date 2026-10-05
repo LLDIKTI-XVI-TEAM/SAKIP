@@ -321,7 +321,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                         Batal
                     </Button>
                     <Button type="submit" variant="primary" onClick={handleSubmit} isLoading={processing} disabled={processing || formulaUnavailable}>
-                        {processing ? 'Menyimpan...' : 'Simpan Formula'}
+                        {processing ? 'Menyimpan...' : 'Simpan'}
                     </Button>
                 </div>
             }
@@ -329,7 +329,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
             <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
                 {serverEntries.length > 0 && (
                     <div ref={errorSummaryRef} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 focus:outline-none focus:ring-2 focus:ring-danger/30">
-                        <p className="text-sm font-semibold text-danger">Penyimpanan formula ditolak server:</p>
+                        <p className="text-sm font-semibold text-danger">Formula belum tersimpan:</p>
                         <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-danger">
                             {serverEntries.map(([key, message]) => (
                                 <li key={key}>{message}</li>
@@ -347,7 +347,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                         <div>
                             <Select
                                 id="formula_tipe"
-                                label="Tipe Perhitungan Target"
+                                label="Cara menghitung target"
                                 value={data.tipe_perhitungan}
                                 onChange={(e) => {
                                     const next = e.target.value;
@@ -376,7 +376,6 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                 }}
                                 error={fieldError('tipe_perhitungan')}
                                 disabled={processing}
-                                helperText="Pilih manual untuk menonaktifkan komponen, atau rasio/penjumlahan beserta daftar komponennya."
                                 required
                             >
                                 {TIPE_OPTIONS.map((opt) => (
@@ -387,18 +386,17 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                             </Select>
                         </div>
 
-                        {data.tipe_perhitungan === 'manual' && (
+                        {data.tipe_perhitungan === 'manual' && indikator.komponen?.some((row) => row.aktif) && (
                             <div className="rounded-lg border border-info/30 bg-info/5 p-3 text-sm text-ink">
                                 <p className="text-xs text-muted">
-                                    Target manual tidak memerlukan komponen. Komponen perhitungan existing akan dinonaktifkan
-                                    saat formula disimpan; data historis tetap dipertahankan.
+                                    Komponen perhitungan akan dinonaktifkan. Data sebelumnya tetap tersimpan.
                                 </p>
                             </div>
                         )}
 
                         {data.tipe_perhitungan !== 'manual' && <div className="space-y-3">
                             <p className="text-xs text-muted">
-                                Daftar ini menjadi formula akhir. Komponen existing yang dihapus dari daftar akan dinonaktifkan saat disimpan.
+                                Komponen yang dihapus dari daftar akan dinonaktifkan saat disimpan.
                             </p>
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold text-ink">Daftar Komponen ({data.komponen.length})</h4>
@@ -421,7 +419,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
 
                             {data.komponen.length === 0 && (
                                 <div className="rounded-lg border border-border bg-soft/50 p-4 text-center">
-                                    <p className="text-sm text-muted">Belum ada baris komponen. Tambahkan minimal satu baris untuk tipe nonmanual.</p>
+                                    <p className="text-sm text-muted">Tambahkan minimal satu komponen perhitungan.</p>
                                 </div>
                             )}
 
@@ -532,8 +530,8 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                         <div>
                             <Textarea
                                 id="formula_alasan"
-                                label="Alasan Perubahan Formula"
-                                placeholder="Jelaskan alasan penyesuaian formula ini (minimal 5 karakter)..."
+                                label="Alasan perubahan"
+                                placeholder="Contoh: Menyesuaikan formula dengan pedoman terbaru."
                                 rows={3}
                                 value={data.alasan}
                                 onChange={(e) => {
@@ -548,15 +546,9 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ isOpen, onClose, ind
                                     });
                                 }}
                                 error={fieldError('alasan')}
-                                helperText="Alasan wajib diisi dan dicatat pada audit perubahan komponen via formula."
                                 required
                             />
                         </div>
-
-                        <p className="text-xs text-muted">
-                            Transisi dikunci bersama data terkini indikator. Bila data berubah sejak modal dibuka, server menolak dengan
-                            pesan konflik dan halaman perlu dimuat ulang.
-                        </p>
                     </fieldset>
                 )}
             </form>

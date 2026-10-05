@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
 import type {
@@ -21,6 +21,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 });
 
 const defaultRegulasi: RegulasiOption = {
@@ -48,6 +49,7 @@ function makeIndikator(overrides: Partial<IndikatorKinerjaItem> = {}): Indikator
         desimal_tampilan: 2,
         wajib_catatan: false,
         status: 'aktif',
+        tahun_mulai_berlaku: 2025,
         ...overrides,
     };
 }
@@ -101,6 +103,21 @@ function renderIndex(
         />
     );
 }
+
+it('aksi baseline tetap tersedia untuk pembaca dan membuka tahun mulai indikator yang valid', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
+    renderIndex([makeIndikator({ tahun_mulai_berlaku: 2027 })], { ...defaultCan, indikator_update: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Baseline & target IKU-01' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock.mock.calls[0][0]).toBe('/perencanaan/indikator/ind-1/target-tahunan/2027/editor');
+});
+
+it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {
+    renderIndex([makeIndikator()], { ...defaultCan, indikator_read: false });
+    expect(screen.queryByRole('button', { name: 'Baseline & target IKU-01' })).toBeNull();
+});
 
 describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
     it('TEST-UI-01: Indikator dengan regulasi menampilkan identitas regulasi ringkas pada daftar', () => {

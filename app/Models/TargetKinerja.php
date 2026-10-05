@@ -17,6 +17,8 @@ class TargetKinerja extends Model
         'indikator_kinerja_id',
         'tahun',
         'target_tahunan',
+        'baseline',
+        'updated_by',
         'target_tw1',
         'target_tw2',
         'target_tw3',
@@ -25,7 +27,8 @@ class TargetKinerja extends Model
 
     protected $casts = [
         'tahun' => 'integer',
-        'target_tahunan' => 'float',
+        'target_tahunan' => 'decimal:12',
+        'baseline' => 'decimal:12',
         'target_tw1' => 'float',
         'target_tw2' => 'float',
         'target_tw3' => 'float',

@@ -254,7 +254,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                                 value={unitNamaSaatIni}
                                 disabled
                                 readOnly
-                                helperText='Unit tidak dapat diubah melalui edit umum. Gunakan aksi "Pindah Unit" pada tabel untuk memindahkan kepemilikan beserta alasan audit.'
+                                helperText='Untuk mengganti unit, gunakan aksi “Pindah Unit” pada tabel.'
                             />
                         ) : (
                             <Select
@@ -285,8 +285,8 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             error={errors.arah}
                             required
                         >
-                            <option value="naik_baik">Makin Tinggi Makin Baik (naik_baik)</option>
-                            <option value="turun_baik">Makin Rendah Makin Baik (turun_baik)</option>
+                            <option value="naik_baik">Makin Tinggi Makin Baik</option>
+                            <option value="turun_baik">Makin Rendah Makin Baik</option>
                         </Select>
                     </div>
                     <div>
@@ -298,7 +298,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             error={errors.tipe_perhitungan}
                             helperText={
                                 isManualEdit
-                                    ? 'Indikator manual belum memiliki komponen. Perubahan ke Rasio/Penjumlahan via edit umum akan ditolak (422). Gunakan aksi "Atur Formula" pada tabel untuk mengubah tipe sekaligus melengkapi komponen.'
+                                    ? 'Untuk mengganti jenis perhitungan, gunakan aksi “Atur Formula” pada tabel.'
                                     : undefined
                             }
                             required
