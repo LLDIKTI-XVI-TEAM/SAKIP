@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Power, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipProps } from './Tooltip';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -157,6 +157,41 @@ export const DeleteIconButton: React.FC<DeleteIconButtonProps> = ({
         tooltip={tooltip}
         tooltipAlign={tooltipAlign}
         variant={variant}
+        {...props}
+    />
+);
+
+export interface ToggleIconButtonProps
+    extends Omit<IconButtonProps, 'icon' | 'label'> {
+    icon?: IconButtonProps['icon'];
+    label?: string;
+    isActive?: boolean;
+}
+
+export const ToggleIconButton: React.FC<ToggleIconButtonProps> = ({
+    icon = Power,
+    isActive = true,
+    label = isActive ? 'Nonaktifkan' : 'Aktifkan',
+    tooltip = isActive ? 'Nonaktifkan' : 'Aktifkan',
+    tooltipAlign = 'right',
+    variant = 'ghost',
+    className,
+    ...props
+}) => (
+    <IconButton
+        icon={icon}
+        label={label}
+        tooltip={tooltip}
+        tooltipAlign={tooltipAlign}
+        variant={variant}
+        className={twMerge(
+            clsx(
+                isActive
+                    ? 'text-amber-600 hover:bg-amber-50 hover:text-amber-700 focus:ring-amber-500/20'
+                    : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 focus:ring-emerald-500/20',
+                className
+            )
+        )}
         {...props}
     />
 );

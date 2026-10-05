@@ -3,20 +3,24 @@ import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { 
     Building2, 
     Plus, 
-    Edit2, 
+    Pencil, 
     Trash2, 
     Search, 
-    Power, 
     CheckCircle2, 
     XCircle, 
     AlertTriangle,
     X
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Card, CardContent } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { ConfirmModal } from '@/Components/ConfirmModal';
+import { Tooltip } from '@/Components/Tooltip';
+import { EditIconButton } from '@/Components/EditIconButton';
+import { DeleteIconButton } from '@/Components/DeleteIconButton';
+import { ToggleIconButton } from '@/Components/ToggleIconButton';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -66,6 +70,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState<UnitItem | null>(null);
+    const [togglingUnit, setTogglingUnit] = useState<UnitItem | null>(null);
+    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     const [deletingUnit, setDeletingUnit] = useState<UnitItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
@@ -188,45 +194,57 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         });
     };
 
-    const handleToggleStatus = (unit: UnitItem) => {
+    const handleOpenToggleStatus = (unit: UnitItem) => {
         if (Boolean(recovery.recovery)) return;
-        const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
-        if (confirm(`Ubah status unit '${unit.nama}' menjadi ${nextStatus === 'aktif' ? 'Aktif' : 'Nonaktif'}?`)) {
-            setStatusError(null);
-            router.post(`/unit/${unit.id}`, {
-                nama: unit.nama,
-                status: nextStatus,
-                version_token: unit.version_token ?? '',
-                expected_nama: unit.nama,
-                expected_status: unit.status,
-                snapshot: {
-                    nama: unit.nama,
-                    status: unit.status,
-                },
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setStatusError(null);
-                },
-                onError: (errors: Record<string, string>) => {
-                    const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
-                    setStatusError(message);
-                },
-                onHttpException: (response) => {
-                    if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${unit.id}`, mutation: true })) {
-                        return false;
-                    }
-                    const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
-                        ? response.data.message
-                        : null;
-                    const message = serverMsg || (response.status === 403
-                        ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah status unit organisasi.'
-                        : 'Gagal mengubah status unit organisasi.');
-                    setStatusError(message);
+        setTogglingUnit(unit);
+        setStatusError(null);
+    };
+
+    const handleConfirmToggleStatus = () => {
+        if (!togglingUnit || isTogglingStatus || Boolean(recovery.recovery)) return;
+        const nextStatus = togglingUnit.status === 'aktif' ? 'nonaktif' : 'aktif';
+        setIsTogglingStatus(true);
+        setStatusError(null);
+
+        router.post(`/unit/${togglingUnit.id}`, {
+            nama: togglingUnit.nama,
+            status: nextStatus,
+            version_token: togglingUnit.version_token ?? '',
+            expected_nama: togglingUnit.nama,
+            expected_status: togglingUnit.status,
+            snapshot: {
+                nama: togglingUnit.nama,
+                status: togglingUnit.status,
+            },
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setTogglingUnit(null);
+                setStatusError(null);
+            },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
+                setStatusError(message);
+                setTogglingUnit(null);
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${togglingUnit.id}`, mutation: true })) {
                     return false;
-                },
-            });
-        }
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah status unit organisasi.'
+                    : 'Gagal mengubah status unit organisasi.');
+                setStatusError(message);
+                setTogglingUnit(null);
+                return false;
+            },
+            onFinish: () => {
+                setIsTogglingStatus(false);
+            },
+        });
     };
 
     const handleDeleteSubmit = (e: React.FormEvent) => {
@@ -279,34 +297,23 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 { label: 'Pengaturan Master' },
                 { label: labelUnit },
             ]}
+            headerAction={
+                can.create ? (
+                    <Button 
+                        variant="primary"
+                        size="sm"
+                        onClick={handleOpenCreate}
+                        className="w-full sm:w-auto gap-1.5"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Tambah {labelUnit} Baru
+                    </Button>
+                ) : null
+            }
         >
             <Head title={`Master ${labelUnit}`} />
 
             <div className="space-y-6 max-w-7xl mx-auto">
-                {/* Header Title & Actions */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold text-ink">
-                            Pengelolaan Master {labelUnit}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted">
-                            Kelola {labelUnit.toLowerCase()} pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
-                        </p>
-                    </div>
-
-                    {can.create && (
-                        <Button 
-                            variant="primary"
-                            size="sm"
-                            onClick={handleOpenCreate}
-                            className="gap-1.5 self-start sm:self-auto"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Tambah {labelUnit} Baru
-                        </Button>
-                    )}
-                </div>
-
                 {/* Status / Global Error Notification */}
                 {(statusError || pageErrors?.status) && (
                     <div
@@ -338,7 +345,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={`Cari nama ${labelUnit.toLowerCase()}...`}
-                                className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] transition-colors"
+                                className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                             />
                         </div>
 
@@ -348,7 +355,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                 <button
                                     onClick={() => setFilterStatus('all')}
                                     className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                                        filterStatus === 'all' ? 'bg-white shadow-xs text-[#122E92] font-semibold' : 'text-slate-600 hover:text-slate-900'
+                                        filterStatus === 'all' ? 'bg-white shadow-xs text-primary font-semibold' : 'text-slate-600 hover:text-slate-900'
                                     }`}
                                 >
                                     Semua ({units.length})
@@ -460,57 +467,51 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                                 )}
                                             </td>
                                             <td className="py-3.5 px-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {unit.can.update && (
                                                         <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleToggleStatus(unit)}
-                                                                title={unit.is_active ? 'Nonaktifkan Unit' : 'Aktifkan Unit'}
-                                                                className={`h-8 w-8 p-0 ${
-                                                                    unit.is_active 
-                                                                        ? 'text-amber-600 hover:bg-amber-50 hover:border-amber-200' 
-                                                                        : 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
-                                                                }`}
-                                                            >
-                                                                <Power className="w-3.5 h-3.5" />
-                                                            </Button>
+                                                            <ToggleIconButton
+                                                                isActive={unit.is_active}
+                                                                onClick={() => handleOpenToggleStatus(unit)}
+                                                                label={unit.is_active ? `Nonaktifkan ${unit.nama}` : `Aktifkan ${unit.nama}`}
+                                                                tooltip={unit.is_active ? `Nonaktifkan ${labelUnit}` : `Aktifkan ${labelUnit}`}
+                                                                tooltipAlign="right"
+                                                            />
 
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
+                                                            <EditIconButton
                                                                 onClick={() => handleOpenEdit(unit)}
-                                                                title="Edit Data Unit"
-                                                                className="h-8 w-8 p-0 text-[#122E92] hover:bg-blue-50 hover:border-blue-200"
-                                                            >
-                                                                <Edit2 className="w-3.5 h-3.5" />
-                                                            </Button>
+                                                                label={`Edit ${unit.nama}`}
+                                                                tooltip={`Edit ${labelUnit}`}
+                                                                tooltipAlign="right"
+                                                            />
                                                         </>
                                                     )}
 
                                                     {unit.can.delete ? (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
+                                                        <DeleteIconButton
                                                             onClick={() => {
                                                                 setDeletingUnit(unit);
                                                                 setDeleteReason('');
                                                                 setDeleteError('');
                                                             }}
+                                                            label={`Hapus ${unit.nama}`}
                                                             title="Hapus Unit Kosong (Superadmin)"
-                                                            className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:border-rose-200"
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </Button>
+                                                            tooltip="Hapus Unit Kosong (Superadmin)"
+                                                            tooltipAlign="right"
+                                                        />
                                                     ) : (
                                                         !unit.is_deletable && (
-                                                            <span 
-                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin."
-                                                                className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed"
+                                                            <Tooltip
+                                                                content="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin."
+                                                                align="right"
                                                             >
-                                                                <Trash2 className="w-3.5 h-3.5 opacity-30" />
-                                                            </span>
+                                                                <span 
+                                                                    className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed select-none"
+                                                                    aria-hidden="true"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 opacity-30" />
+                                                                </span>
+                                                            </Tooltip>
                                                         )
                                                     )}
                                                 </div>
@@ -530,8 +531,10 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 onClose={() => setIsCreateOpen(false)}
                 size="lg"
                 title={
-                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
-                        <Plus className="w-4 h-4 text-[#D6AC48]" />
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                            <Plus className="h-4 w-4" />
+                        </div>
                         <span>Tambah {labelUnit} Baru</span>
                     </div>
                 }
@@ -567,7 +570,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                         createForm.clearErrors('status');
                                     }
                                 }}
-                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                                className="w-4 h-4 rounded text-primary border-slate-300 focus:ring-primary"
                             />
                             <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
                                 Status Langsung Aktif
@@ -591,8 +594,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         </Button>
                         <Button
                             type="submit"
+                            variant="primary"
                             disabled={createForm.processing || Boolean(recovery.recovery)}
-                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                         >
                             {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
                         </Button>
@@ -606,9 +609,11 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                 onClose={() => setEditingUnit(null)}
                 size="lg"
                 title={
-                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
-                        <Edit2 className="w-4 h-4 text-[#122E92]" />
-                        <span>Edit {labelUnit}: {editingUnit?.nama}</span>
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                            <Pencil className="h-4 w-4" />
+                        </div>
+                        <span>Edit {labelUnit}</span>
                     </div>
                 }
                 description={`Perbarui informasi nama atau status keaktifan ${labelUnit.toLowerCase()}.`}
@@ -654,7 +659,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                         editForm.clearErrors('status');
                                     }
                                 }}
-                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
+                                className="w-4 h-4 rounded text-primary border-slate-300 focus:ring-primary"
                             />
                             <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
                                 Unit Aktif
@@ -678,14 +683,30 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                         </Button>
                         <Button
                             type="submit"
+                            variant="primary"
                             disabled={editForm.processing || Boolean(recovery.recovery)}
-                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
                         >
                             {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                         </Button>
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Ubah Status Unit */}
+            <ConfirmModal
+                isOpen={!!togglingUnit}
+                onClose={() => !isTogglingStatus && setTogglingUnit(null)}
+                onConfirm={handleConfirmToggleStatus}
+                title={togglingUnit?.is_active ? `Nonaktifkan ${labelUnit}` : `Aktifkan ${labelUnit}`}
+                description={
+                    togglingUnit?.is_active
+                        ? `Apakah Anda yakin ingin menonaktifkan "${togglingUnit.nama}"? Unit kerja yang nonaktif tidak dapat dipilih untuk pengisian indikator baru.`
+                        : `Apakah Anda yakin ingin mengaktifkan kembali "${togglingUnit?.nama}"?`
+                }
+                confirmLabel={togglingUnit?.is_active ? `Nonaktifkan ${labelUnit}` : `Aktifkan ${labelUnit}`}
+                variant={togglingUnit?.is_active ? 'warning' : 'primary'}
+                isLoading={isTogglingStatus}
+            />
 
             {/* Modal Konfirmasi Hapus Unit Kosong (Superadmin) */}
             <Modal
