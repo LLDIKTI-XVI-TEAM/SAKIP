@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\IndikatorKomponen;
 
+use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\Renstra;
@@ -127,7 +128,9 @@ class FormulaSwapKodeBaruTest extends TestCase
     public function test_duplikat_final_set_tetap_ditolak_tanpa_mutasi(): void
     {
         $t = $this->indikator->komponen()->where('kode', 't')->firstOrFail();
-        $sebelum = $this->indikator->komponen()->orderBy('id')->pluck('kode')->all();
+        $beforeParent = $this->indikator->fresh()->getAttributes();
+        $beforeChildren = $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all();
+        $beforeAudits = AuditLog::count();
 
         // Payload hanya memuat t + baru n; existing n yang dihilangkan tetap
         // dihitung pada final-set sehingga kode n ganda dan wajib 422.
@@ -144,8 +147,9 @@ class FormulaSwapKodeBaruTest extends TestCase
             'alasan' => 'Kontrol duplikat final-set pada transisi formula.',
         ])->assertUnprocessable()->assertJsonValidationErrors('kode');
 
-        $this->assertSame($sebelum, $this->indikator->komponen()->orderBy('id')->pluck('kode')->all());
-        $this->assertSame(2, $this->indikator->komponen()->count());
+        $this->assertSame($beforeParent, $this->indikator->fresh()->getAttributes());
+        $this->assertSame($beforeChildren, $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($beforeAudits, AuditLog::count());
     }
 
     public function test_store_normal_duplikat_vs_db_tetap_ditolak(): void

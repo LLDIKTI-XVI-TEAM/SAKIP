@@ -101,6 +101,29 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $this->assertSame('Indikator D', $this->indikator->fresh()->nama);
     }
 
+    public function test_metadata_mempertahankan_kode_numerik_berbeda_pada_komponen_omitted(): void
+    {
+        $this->indikator->komponen()->firstOrFail()->update(['kode' => '1']);
+        $this->row('01');
+        $beforeParent = $this->indikator->fresh()->getAttributes();
+        $beforeChildren = $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all();
+        $beforeAudits = AuditLog::count();
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'satuan', 'arah', 'tipe_perhitungan']);
+        $this->put("/perencanaan/indikator/{$this->indikator->id}", [...$data, 'nama' => 'Metadata kode numerik',
+            'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
+        ])->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
+
+        $afterParent = $this->indikator->fresh()->getAttributes();
+        $this->assertNotSame($beforeParent['updated_at'], $afterParent['updated_at']);
+        $this->assertSame(array_replace($beforeParent, ['nama' => 'Metadata kode numerik', 'updated_at' => $afterParent['updated_at']]), $afterParent);
+        $this->assertSame($beforeChildren, $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($beforeAudits + 1, AuditLog::count());
+        $audit = AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $this->indikator->id)->sole();
+        $this->assertSame('Indikator D', $audit->nilai_lama['nama']);
+        $this->assertSame('Metadata kode numerik', $audit->nilai_baru['nama']);
+        $this->assertSame('indikator:update', $audit->dasar_izin['permission']);
+    }
+
     public function test_parent_put_child_only_dan_noop_memakai_izin_delta(): void
     {
         UserPermissionDeny::create(['user_id' => $this->actor->id,
@@ -216,11 +239,34 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi']);
         $data['presisi'] = 2;
         $row = $this->indikator->komponen()->firstOrFail()->only(['kode', 'label', 'satuan', 'peran', 'bobot', 'urutan', 'aktif']);
-        $this->post('/perencanaan/indikator', array_merge($data, ['kode' => 'BARU', 'komponen' => [$row], 'request_id' => (string) Str::uuid()]))
+        $beforeAudits = AuditLog::count();
+        $this->post('/perencanaan/indikator', array_merge($data, ['kode' => 'BARU', 'komponen' => [
+            array_replace($row, ['kode' => '1']),
+            array_replace($row, ['kode' => '01', 'urutan' => 2]),
+        ], 'request_id' => (string) Str::uuid()]))
             ->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
         $created = IndikatorKinerja::where('kode', 'BARU')->firstOrFail();
         $this->assertSame('perencanaan', $created->created_by_role);
         $this->assertSame('0.500000000001', $created->komponen()->firstOrFail()->bobot);
+        $this->assertSame(['1', '01'], $created->komponen()->orderBy('urutan')->pluck('kode')->all());
+        $this->assertSame($beforeAudits + 3, AuditLog::count());
+        $this->assertDatabaseHas('audit_log', ['tindakan' => 'indikator.buat', 'objek_id' => $created->id]);
+        $this->assertSame(2, AuditLog::where('tindakan', 'komponen.buat')->whereIn('objek_id', $created->komponen()->pluck('id'))->count());
+    }
+
+    public function test_create_nonmanual_kode_identik_ditolak_tanpa_mutasi(): void
+    {
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']);
+        $row = $this->indikator->komponen()->firstOrFail()->only(['kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']);
+        $row['kode'] = '1';
+        $beforeParents = IndikatorKinerja::orderBy('id')->get()->map->getAttributes()->all();
+        $beforeChildren = IndikatorKomponen::orderBy('id')->get()->map->getAttributes()->all();
+        $beforeAudits = AuditLog::count();
+        $this->postJson('/perencanaan/indikator', [...$data, 'kode' => 'DUPLIKAT', 'komponen' => [$row, $row]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['komponen.0.kode', 'komponen.1.kode']);
+        $this->assertSame($beforeParents, IndikatorKinerja::orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($beforeChildren, IndikatorKomponen::orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($beforeAudits, AuditLog::count());
     }
 
     public function test_editor_halamaan_terikat_revisi_dan_presisi_eksak(): void
@@ -296,13 +342,37 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $this->assertSame('0.500000000001', $this->indikator->komponen()->firstOrFail()->bobot);
     }
 
-    public function test_update_delete_overlap_ditolak_dan_route_writer_lama_tidak_aktif(): void
+    public function test_update_delete_overlap_ditolak(): void
     {
         $row = $this->indikator->komponen()->firstOrFail()->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']);
         $this->patch("/perencanaan/indikator/{$this->indikator->id}/formula", $this->payload(['komponen' => [$row], 'hapus_komponen_ids' => [$row['id']]]))
             ->assertSessionHasErrors('komponen.0.id');
-        $this->post("/indikator/{$this->indikator->id}/komponen", $row)->assertStatus(405);
         $this->assertDatabaseHas('indikator_komponen', ['id' => $row['id']]);
+    }
+
+    public function test_tiga_route_crud_komponen_lama_tidak_aktif_dan_tidak_memutasi(): void
+    {
+        $this->row('b');
+        $component = $this->indikator->komponen()->where('kode', 'a')->firstOrFail();
+        $fields = $component->only(['kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']);
+        $beforeParent = $this->indikator->fresh()->getAttributes();
+        $beforeChildren = $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all();
+        $beforeAudits = AuditLog::count();
+        $metadata = ['expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
+            'alasan' => 'Uji route komponen yang sudah dipensiunkan.'];
+        $url = "/indikator/{$this->indikator->id}/komponen";
+
+        // GET daftar masih aktif (POST 405); URL child sudah tidak terdaftar (PUT/DELETE 404).
+        foreach ([
+            ['POST', $url, [...$fields, ...$metadata, 'kode' => 'baru'], 405],
+            ['PUT', "{$url}/{$component->id}", [...$fields, ...$metadata, 'label' => 'Label baru'], 404],
+            ['DELETE', "{$url}/{$component->id}", $metadata, 404],
+        ] as [$method, $requestUrl, $payload, $status]) {
+            $this->call($method, $requestUrl, $payload)->assertStatus($status);
+            $this->assertSame($beforeParent, $this->indikator->fresh()->getAttributes());
+            $this->assertSame($beforeChildren, $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all());
+            $this->assertSame($beforeAudits, AuditLog::count());
+        }
     }
 
     public function test_kegagalan_audit_membatalkan_parent_dan_seluruh_delta_child(): void

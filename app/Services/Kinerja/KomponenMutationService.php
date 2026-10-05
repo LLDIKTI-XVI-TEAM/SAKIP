@@ -58,8 +58,8 @@ class KomponenMutationService
      *
      * Sumber bersama jalur kandidat (transisi formula) dan aturan store
      * normal; bentuk error key flat (`kode`, `bobot`, ...) dipertahankan.
-     * `distinct` hanya untuk payload daftar agar duplikat DALAM payload
-     * tetap ditolak tanpa menilai state DB lama.
+     * `distinct:strict` membandingkan kode sebagai identitas teks dalam payload
+     * daftar; duplikat tetap ditolak tanpa menilai state DB lama.
      *
      * @return array<string, mixed>
      */
@@ -72,7 +72,7 @@ class KomponenMutationService
             'regex:/^[a-zA-Z0-9_]+$/',
         ];
         if ($denganDistinct) {
-            $kode[] = 'distinct';
+            $kode[] = 'distinct:strict';
         }
 
         return [

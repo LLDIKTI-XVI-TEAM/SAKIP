@@ -179,7 +179,7 @@ class StoreIndikator
 
                 // Nilai kandidat lengkap sebelum parent maupun child ditulis.
                 $candidateRows = collect($validated['komponen'] ?? [])->map(fn ($item, $index) => $this->komponen->modelKandidat('', $item, "komponen.{$index}"));
-                if ($candidateRows->pluck('kode')->duplicates()->isNotEmpty()) {
+                if ($candidateRows->pluck('kode')->duplicatesStrict()->isNotEmpty()) {
                     throw ValidationException::withMessages(['kode' => $this->komponen->pesanKodeDuplikat()]);
                 }
                 $candidate = new IndikatorKinerja(['tipe_perhitungan' => $validated['tipe_perhitungan']]);

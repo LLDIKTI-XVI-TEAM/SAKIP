@@ -158,7 +158,7 @@ class ChangeIndicatorFormula
                 if ($deleted) {
                     $require('komponen:delete');
                 }
-                if ($candidate->pluck('kode')->duplicates()->isNotEmpty()) {
+                if ($candidate->pluck('kode')->duplicatesStrict()->isNotEmpty()) {
                     throw ValidationException::withMessages(['kode' => $this->komponen->pesanKodeDuplikat()]);
                 }
                 $this->komponen->pastikanDefinisiValid($parent, $candidate->values(), 'tipe_perhitungan');
