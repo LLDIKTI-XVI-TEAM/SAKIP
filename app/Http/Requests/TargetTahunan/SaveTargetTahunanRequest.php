@@ -3,20 +3,32 @@
 namespace App\Http\Requests\TargetTahunan;
 
 use App\Models\User;
-use App\Policies\TargetKinerjaPolicy;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 /** Validasi sintaks saja; kewajiban metadata koreksi ditentukan Action dari perubahan aktual terkunci. */
 class SaveTargetTahunanRequest extends FormRequest
 {
+    /** @var array<string, PermissionDecision> */
+    private array $initialDecisions = [];
+
     public function authorize(): bool
     {
-        return $this->user() instanceof User && app(TargetKinerjaPolicy::class)->update($this->user())->allowed();
+        $actor = $this->user();
+        if (! $actor instanceof User) {
+            return false;
+        }
+        foreach ([PermissionCodes::INDIKATOR_READ, PermissionCodes::TARGET_UPDATE] as $code) {
+            $this->initialDecisions[$code] = app(PermissionResolver::class)->resolve($actor, $code);
+        }
+
+        return $this->initialDecisions[PermissionCodes::INDIKATOR_READ]->allowed
+            && $this->initialDecisions[PermissionCodes::TARGET_UPDATE]->allowed;
     }
 
     /** Aturan dipakai ulang di Action untuk caller selain HTTP. @return array<string, mixed> */
@@ -90,8 +102,8 @@ class SaveTargetTahunanRequest extends FormRequest
             return;
         }
         $basis = [];
-        foreach ([PermissionCodes::INDIKATOR_READ, PermissionCodes::TARGET_UPDATE] as $code) {
-            $basis[$code] = app(PermissionResolver::class)->resolve($actor, $code)->toAuditBasis();
+        foreach ($this->initialDecisions as $code => $decision) {
+            $basis[$code] = $decision->toAuditBasis();
         }
         app(AuditLogger::class)->catat(actor: $actor, tindakan: 'target_tahunan.simpan_ditolak', objekTipe: 'indikator', objekId: strtolower((string) $this->route('indikator')),
             nilaiBaru: ['tahun' => (int) $this->route('tahun'), 'alasan_penolakan' => $reason], dasarIzin: $basis);
