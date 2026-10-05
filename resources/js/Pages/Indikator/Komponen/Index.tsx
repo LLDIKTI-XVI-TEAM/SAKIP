@@ -2,14 +2,13 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { 
     Plus, 
+    Pencil,
     Layers, 
     Calculator, 
     CheckCircle2, 
     AlertTriangle, 
     Play, 
     RefreshCw, 
-    Edit2, 
-    Trash2, 
     TrendingUp, 
     TrendingDown, 
     Building2, 
@@ -28,11 +27,14 @@ import {
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
+import { CustomSelect } from '@/Components/CustomSelect';
 import { Switch } from '@/Components/Switch';
 import { Modal } from '@/Components/Modal';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { HoverScrollText } from '@/Components/HoverScrollText';
+import { EditIconButton } from '@/Components/EditIconButton';
+import { DeleteIconButton } from '@/Components/DeleteIconButton';
+import { Pagination } from '@/Components/Pagination';
 
 export interface IndikatorKinerjaData {
     id: string;
@@ -157,6 +159,14 @@ export default function KomponenIndex({
     const [auditReason, setAuditReason] = useState('');
     const [auditError, setAuditError] = useState<string | null>(null);
 
+    // Paginasi
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterPeran]);
+
     const aktifKomponen = useMemo(() => {
         return komponen.filter(k => k.aktif);
     }, [komponen]);
@@ -173,6 +183,11 @@ export default function KomponenIndex({
             return matchesSearch && matchesPeran;
         });
     }, [komponen, searchQuery, filterPeran]);
+
+    const paginatedKomponen = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        return filteredKomponen.slice(start, start + perPage);
+    }, [filteredKomponen, currentPage, perPage]);
 
     // Simulator Handlers
     const handleSimulasiChange = (kode: string, value: string) => {
@@ -408,44 +423,36 @@ export default function KomponenIndex({
                 { label: indikator.kode },
                 { label: 'Komponen Angka' },
             ]}
+            headerAction={
+                can.create && indikator.tipe_perhitungan !== 'manual' ? (
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleOpenCreate}
+                        className="gap-1.5 whitespace-nowrap"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Tambah Komponen</span>
+                    </Button>
+                ) : undefined
+            }
         >
             <Head title={`Komponen Indikator: ${indikator.kode}`} />
 
             <div className="space-y-6">
-                {/* Page Header */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                                {indikator.kode}
-                            </span>
-                            {indikator.is_aktif ? (
-                                <Badge variant="success" size="sm">Aktif</Badge>
-                            ) : (
-                                <Badge variant="muted" size="sm">Nonaktif</Badge>
-                            )}
-                        </div>
-                        <h2 className="text-sm font-semibold text-ink">
-                            Konfigurasi Komponen: {indikator.nama}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted">
-                            Kelola variabel komponen data-driven yang diinput unit untuk pembentukan nilai capaian kinerja.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                        {can.create && (
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={handleOpenCreate}
-                                className="gap-1.5 whitespace-nowrap shrink-0"
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span className="whitespace-nowrap">Tambah Komponen</span>
-                            </Button>
-                        )}
-                    </div>
+                {/* Indikator Context Header */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                        {indikator.kode}
+                    </span>
+                    <span className="text-sm font-semibold text-ink">
+                        {indikator.nama}
+                    </span>
+                    {indikator.is_aktif ? (
+                        <Badge variant="success" size="sm">Aktif</Badge>
+                    ) : (
+                        <Badge variant="muted" size="sm">Nonaktif</Badge>
+                    )}
                 </div>
 
                 {indikator.tipe_perhitungan === 'manual' && (
@@ -522,10 +529,10 @@ export default function KomponenIndex({
                                 </span>
                                 <div>
                                     <CardTitle className="text-base font-semibold text-ink">
-                                        Kontrak & Evaluasi Formula Server
+                                        Kontrak & Evaluasi Formula
                                     </CardTitle>
                                     <p className="text-xs text-muted">
-                                        Dihitung oleh domain engine server (sumber kebenaran tunggal).
+                                        Formula baku evaluasi capaian kinerja indikator.
                                     </p>
                                 </div>
                             </div>
@@ -540,9 +547,6 @@ export default function KomponenIndex({
                             <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs font-medium uppercase tracking-wider text-muted">
                                     Formula Representatif
-                                </span>
-                                <span className="text-[11px] text-muted italic">
-                                    Evaluasi server-side
                                 </span>
                             </div>
                             <div className="font-mono text-sm font-semibold text-ink bg-surface rounded-md px-3.5 py-2.5 border border-border/70 overflow-x-auto">
@@ -584,13 +588,13 @@ export default function KomponenIndex({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowSimulator(prev => !prev)}
-                                        className="h-8 text-xs text-primary hover:text-primary/90 p-0 border-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none active:ring-0"
+                                        className="h-8 text-xs text-primary hover:text-primary/90"
                                     >
                                         <Play 
                                             className={`h-3.5 w-3.5 mr-1.5 transition-transform duration-200 transform ${showSimulator ? 'rotate-90' : 'rotate-0'}`} 
                                             aria-hidden="true" 
                                         />
-                                        {showSimulator ? 'Sembunyikan Simulator Cepat' : 'Buka Simulator Perhitungan Nilai'}
+                                        {showSimulator ? 'Sembunyikan Simulator' : 'Buka Simulator Perhitungan Nilai'}
                                     </Button>
                                     {showSimulator && (
                                         <Button
@@ -598,7 +602,7 @@ export default function KomponenIndex({
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleResetSimulasi}
-                                            className="h-8 text-xs text-muted hover:text-ink p-0 border-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none active:ring-0"
+                                            className="h-8 text-xs text-muted hover:text-ink"
                                         >
                                             <RefreshCw className="h-3 w-3 mr-1" />
                                             Reset Nilai
@@ -676,7 +680,7 @@ export default function KomponenIndex({
                                             </div>
                                             <div className="text-right">
                                                 <Badge variant="muted" size="sm">
-                                                    Simulasi Klien
+                                                    Pratinjau Hasil
                                                 </Badge>
                                             </div>
                                         </div>
@@ -706,17 +710,18 @@ export default function KomponenIndex({
                                     />
                                 </div>
 
-                                {/* Filter Peran menggunakan komponen reusable @/Components/Select */}
+                                {/* Filter Peran menggunakan CustomSelect reusable */}
                                 <div className="w-full sm:w-44">
-                                    <Select
+                                    <CustomSelect
                                         value={filterPeran}
-                                        onChange={e => setFilterPeran(e.target.value)}
+                                        onChange={val => setFilterPeran(String(val))}
                                         options={[
                                             { value: 'semua', label: 'Semua Peran' },
                                             { value: 'pembilang', label: 'Pembilang' },
                                             { value: 'penyebut', label: 'Penyebut' },
                                             { value: 'penjumlah', label: 'Penjumlah' },
                                         ]}
+                                        showEmptyOption={false}
                                         className="h-9 text-xs"
                                     />
                                 </div>
@@ -775,13 +780,15 @@ export default function KomponenIndex({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredKomponen.map((item) => (
+                                        paginatedKomponen.map((item, index) => {
+                                            const rowNumber = (currentPage - 1) * perPage + index + 1;
+                                            return (
                                             <TableRow 
                                                 key={item.id}
                                                 className="hover:bg-soft/40 transition-colors"
                                             >
                                                 <TableCell className="text-center font-mono text-xs text-muted">
-                                                    {item.urutan}
+                                                    {rowNumber}
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-soft text-ink border border-border">
@@ -789,9 +796,25 @@ export default function KomponenIndex({
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="text-sm font-medium text-ink block">
-                                                        {item.label}
-                                                    </span>
+                                                    {can.update ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenEdit(item)}
+                                                            className="group block text-left w-full hover:text-primary transition-colors cursor-pointer focus:outline-none"
+                                                        >
+                                                            <HoverScrollText
+                                                                text={item.label}
+                                                                className="font-medium text-ink group-hover:text-primary transition-colors text-xs sm:text-sm"
+                                                                textClassName="font-medium text-ink group-hover:text-primary transition-colors text-xs sm:text-sm"
+                                                            />
+                                                        </button>
+                                                    ) : (
+                                                        <HoverScrollText
+                                                            text={item.label}
+                                                            className="font-medium text-ink text-xs sm:text-sm"
+                                                            textClassName="font-medium text-ink text-xs sm:text-sm"
+                                                        />
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="whitespace-nowrap">
                                                     {getPeranBadge(item.peran)}
@@ -816,52 +839,62 @@ export default function KomponenIndex({
                                                     )}
                                                 </TableCell>
                                                 {(can.update || can.delete) && (
-                                                    <TableCell className="text-right pr-4">
-                                                        <div className="flex items-center justify-end gap-1">
+                                                    <TableCell className="text-right pr-4 whitespace-nowrap">
+                                                        <div className="inline-flex items-center justify-end gap-1">
                                                             {can.update && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
+                                                                <EditIconButton
                                                                     onClick={() => handleOpenEdit(item)}
-                                                                    title="Ubah Komponen"
-                                                                    className="h-8 w-8 p-0"
-                                                                >
-                                                                    <Edit2 className="h-3.5 w-3.5 text-muted hover:text-ink" />
-                                                                </Button>
+                                                                    label={`Edit komponen ${item.kode}`}
+                                                                    tooltip="Edit Komponen"
+                                                                    tooltipAlign="right"
+                                                                />
                                                             )}
                                                             {can.delete && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
+                                                                <DeleteIconButton
                                                                     onClick={() => handleOpenDelete(item)}
-                                                                    title="Hapus Komponen"
-                                                                    className="h-8 w-8 p-0 hover:bg-danger/10 hover:text-danger"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5 text-muted hover:text-danger" />
-                                                                </Button>
+                                                                    label={`Hapus komponen ${item.kode}`}
+                                                                    tooltip="Hapus Komponen"
+                                                                    tooltipAlign="right"
+                                                                />
                                                             )}
                                                         </div>
                                                     </TableCell>
                                                 )}
                                             </TableRow>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
                         </div>
+
+                        <Pagination
+                            total={filteredKomponen.length}
+                            currentPage={currentPage}
+                            perPage={perPage}
+                            lastPage={Math.max(1, Math.ceil(filteredKomponen.length / perPage))}
+                            onPageChange={(page) => setCurrentPage(page)}
+                            onPerPageChange={(newPerPage) => {
+                                setPerPage(newPerPage);
+                                setCurrentPage(1);
+                            }}
+                            resourceName="komponen"
+                        />
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Modal Form Tambah/Ubah menggunakan komponen reusable @/Components/Modal */}
+            {/* Modal Form Tambah/Ubah */}
             <Modal
                 isOpen={isFormModalOpen}
                 onClose={() => setIsFormModalOpen(false)}
-                title={isEditing ? 'Ubah Komponen Indikator' : 'Tambah Komponen Indikator'}
-                description={
-                    isEditing
-                        ? 'Perbarui definisi komponen indikator data-driven. Perubahan memerlukan pengisian alasan audit.'
-                        : 'Tambahkan variabel komponen baru sebagai input pembentuk nilai indikator.'
+                title={
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary shrink-0">
+                            {isEditing ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </div>
+                        <span>{isEditing ? 'Ubah Komponen Indikator' : 'Tambah Komponen Indikator'}</span>
+                    </div>
                 }
                 size="lg"
                 footer={
@@ -902,17 +935,19 @@ export default function KomponenIndex({
 
                         {/* Peran Komponen */}
                         <div>
-                            <Select
+                            <CustomSelect
+                                id="komponen-peran"
                                 label="Peran Komponen"
                                 required
                                 value={formData.peran}
-                                onChange={e => setFormData(prev => ({ ...prev, peran: e.target.value as any }))}
+                                onChange={val => setFormData(prev => ({ ...prev, peran: val as any }))}
                                 error={formErrors.peran}
                                 options={[
                                     { value: 'pembilang', label: 'Pembilang (Numerator)' },
                                     { value: 'penyebut', label: 'Penyebut (Denominator)' },
                                     { value: 'penjumlah', label: 'Penjumlah (Additive)' },
                                 ]}
+                                showEmptyOption={false}
                             />
                         </div>
                     </div>
@@ -926,7 +961,6 @@ export default function KomponenIndex({
                             value={formData.label}
                             onChange={e => setFormData(prev => ({ ...prev, label: e.target.value }))}
                             error={formErrors.label}
-                            helperText="Deskripsi lengkap dan jelas mengenai angka yang diinput."
                         />
                     </div>
 
@@ -943,7 +977,7 @@ export default function KomponenIndex({
                                 value={formData.bobot}
                                 onChange={e => setFormData(prev => ({ ...prev, bobot: e.target.value }))}
                                 error={formErrors.bobot}
-                                helperText="Pengali bobot pada formula (maks. 12 digit pecahan desimal)."
+                                helperText="Pengali bobot variabel dalam formula."
                             />
                         </div>
 
@@ -958,7 +992,6 @@ export default function KomponenIndex({
                                 value={formData.urutan}
                                 onChange={e => setFormData(prev => ({ ...prev, urutan: e.target.value }))}
                                 error={formErrors.urutan}
-                                helperText="Urutan posisi tampilan komponen."
                             />
                         </div>
 
@@ -970,7 +1003,6 @@ export default function KomponenIndex({
                                 value={formData.satuan}
                                 onChange={e => setFormData(prev => ({ ...prev, satuan: e.target.value }))}
                                 error={formErrors.satuan}
-                                helperText="Opsional."
                             />
                         </div>
                     </div>
@@ -982,7 +1014,7 @@ export default function KomponenIndex({
                                 Status Komponen Aktif
                             </span>
                             <p className="text-xs text-muted">
-                                Hanya komponen berstatus aktif yang disertakan dalam perhitungan formula server.
+                                Komponen aktif disertakan dalam perhitungan formula server.
                             </p>
                         </div>
                         <Switch
@@ -994,14 +1026,14 @@ export default function KomponenIndex({
                 </form>
             </Modal>
 
-            {/* Modal Alasan Audit (Sensitif) menggunakan komponen reusable @/Components/AuditReasonModal */}
+            {/* Modal Alasan Audit */}
             <AuditReasonModal
                 open={isAuditModalOpen}
                 title={auditAction === 'delete' ? 'Konfirmasi Penghapusan Komponen' : 'Alasan Pembaruan Komponen'}
                 description={
                     auditAction === 'delete'
-                        ? `Anda akan menghapus komponen "${targetKomponen?.kode} (${targetKomponen?.label})". Tindakan ini dicatat ke log audit dan memerlukan alasan resmi.`
-                        : `Anda memperbarui komponen "${formData.kode}". Tindakan ini memengaruhi kalkulasi formula dan memerlukan alasan resmi.`
+                        ? `Apakah Anda yakin ingin menghapus komponen "${targetKomponen?.kode} (${targetKomponen?.label})"?`
+                        : `Masukkan alasan pembaruan komponen "${formData.kode}" untuk rekaman audit.`
                 }
                 reason={auditReason}
                 error={auditError || undefined}
