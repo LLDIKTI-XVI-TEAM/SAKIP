@@ -52,12 +52,23 @@ export interface RencanaAksiDeviasiPk {
     periode_id: string | null;
 }
 
+export interface RencanaAksiKoreksi {
+    /** True bila penutupan terlewati dan sesi koreksi sah (waktu + jenis_objek + indikator). Cermin gerbang tulis backend. */
+    aktif: boolean;
+    /** Batasan eksplisit `lingkup_koreksi.periode_ids`; null = tanpa batasan per-periode. */
+    periode_ids: string[] | null;
+}
+
 export interface RencanaAksiShow {
     id: string;
     tahun: number;
     status_alur: string;
     versi: number;
     expected_versi: number;
+    /** F4: token konkurensi snapshot beku terbaru (null bila tanpa snapshot). Dikembalikan apa adanya saat simpan. */
+    expected_snapshot_id: string | null;
+    /** F4: nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`, null bila tanpa snapshot). */
+    expected_snapshot_versi: number | null;
     uraian: string | null;
     alasan_deviasi_pk: string | null;
     indikator: {
@@ -88,6 +99,8 @@ export interface RencanaAksiShow {
     baseline: string | number | null;
     komponen: RencanaAksiKomponen[];
     periode: RencanaAksiPeriode[];
+    /** F2: lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
+    koreksi: RencanaAksiKoreksi;
     deviasi_pk: RencanaAksiDeviasiPk;
     can: {
         view: boolean;
@@ -104,4 +117,32 @@ export const rencanaAksiStatusPerhitungan: Record<string, string> = {
 /** Kunci sel matriks `periode_id::komponen_id` (`manual` untuk indikator manual). */
 export function kunciSel(periodeId: string, komponenId: string | null): string {
     return `${periodeId}::${komponenId ?? 'manual'}`;
+}
+
+/** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif + batasan eksplisit, hanya yang tercakup. */
+export function dapatDisuntingPeriode(koreksi: RencanaAksiKoreksi | undefined | null, periodeId: string): boolean {
+    if (!koreksi?.aktif) {
+        return true;
+    }
+    if (koreksi.periode_ids === null) {
+        return true;
+    }
+    return koreksi.periode_ids.includes(periodeId);
+}
+
+/** Baris pratinjau server (`PreviewTargetPeriode`): tanpa persistensi, tanpa formula di React. */
+export interface RencanaAksiPreviewPeriode {
+    id: string;
+    efektif: boolean;
+    skor: {
+        nilai: string | null;
+        status_perhitungan: RencanaAksiStatusPerhitungan;
+    };
+    peringatan_turun: boolean;
+    komponen_turun: (string | null)[];
+}
+
+export interface RencanaAksiPreview {
+    periode: RencanaAksiPreviewPeriode[];
+    deviasi_pk: RencanaAksiDeviasiPk;
 }

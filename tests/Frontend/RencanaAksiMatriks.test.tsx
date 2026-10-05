@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
+import { http } from '@inertiajs/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RencanaAksiShow from '@/Pages/RencanaAksi/Show';
 import type { RencanaAksiShow as RencanaAksiPayload } from '@/Pages/RencanaAksi/types';
@@ -30,6 +31,8 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
         status_alur: 'draft',
         versi: 1,
         expected_versi: 1,
+        expected_snapshot_id: '55555555-5555-4555-8555-555555555555',
+        expected_snapshot_versi: 1,
         uraian: null,
         alasan_deviasi_pk: null,
         indikator: {
@@ -101,6 +104,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             target_pk: '100.000000000000',
             periode_id: PERIODE_2,
         },
+        koreksi: { aktif: false, periode_ids: null },
         can: { view: true, update: true },
         ...overrides,
     };
@@ -109,6 +113,8 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
 beforeEach(() => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
     vi.spyOn(router, 'get').mockImplementation(() => undefined);
+    // F5: pratinjau debounced tak boleh menyentuh jaringan di uji matriks lama.
+    vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify({ periode: [], deviasi_pk: { dapat_dinilai: false, ada: false, alasan_diperlukan: false, alasan_terisi: false, skor_periode_terakhir: null, target_pk: null, periode_id: null } }), headers: {} });
 });
 afterEach(() => {
     cleanup();

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -41,6 +42,12 @@ class IndexRencanaAksi
      * transaksi, bukan dari model pra-transaksi milik controller, sehingga
      * tulis-di-tengah-baca menghasilkan payload konsisten tanpa konflik 409
      * palsu.
+     *
+     * F4: payload juga membawa token konkurensi snapshot
+     * (`expected_snapshot_id` + `expected_snapshot_versi` dari
+     * `jadwal_snapshot.id`/`nomor_versi` terbaru, null bila tanpa snapshot)
+     * agar React mengembalikannya saat simpan; jalur tulis menolak 409 bila
+     * snapshot terbaru berubah sejak payload dibaca.
      *
      * Himpunan komponen efektif (D2) dan periode efektif (D3) memakai aturan
      * yang sama dengan jalur tulis `SimpanTargetPeriode`, tetapi tanpa kunci
@@ -79,6 +86,7 @@ class IndexRencanaAksi
 
                 $baris = $this->petaTarget($segel);
                 $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+                $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
                 $unitId = (string) $segel->unit_id;
 
@@ -102,6 +110,11 @@ class IndexRencanaAksi
                     'status_alur' => $segel->status_alur,
                     'versi' => $versiAwal,
                     'expected_versi' => $versiAwal,
+                    // F4: token konkurensi snapshot (identitas + nomor versi
+                    // beku terbaru). React mengembalikan keduanya apa adanya;
+                    // tanpa logika formula di klien.
+                    'expected_snapshot_id' => $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null,
+                    'expected_snapshot_versi' => $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null,
                     'uraian' => $segel->uraian,
                     'alasan_deviasi_pk' => $segel->alasan_deviasi_pk,
                     'indikator' => $indikatorPayload,
@@ -119,6 +132,14 @@ class IndexRencanaAksi
                     'baseline' => $snapshot?->baseline,
                     'komponen' => $definisi->all(),
                     'periode' => $periode,
+                    // F2: ekspos lingkup koreksi agar UI menonaktifkan +
+                    // tidak mengirim periode di luar lingkup. `aktif` true
+                    // hanya bila penutupan terlewati dan sesi koreksi sah
+                    // (waktu + jenis_objek + indikator) — cermin gerbang
+                    // tulis `SimpanTargetPeriode`; validasi fail-closed N1
+                    // tetap di backend. `periode_ids` null = tanpa batasan
+                    // per-periode (kunci tak ada); array = batasan eksplisit.
+                    'koreksi' => $koreksi,
                     'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
                     'can' => [
                         'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
@@ -244,6 +265,48 @@ class IndexRencanaAksi
         }
 
         return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
+    }
+
+    /**
+     * Status sesi koreksi untuk UI (F2).
+     *
+     * `aktif` true hanya bila penutupan terlewati (zona bisnis) dan sesi
+     * koreksi sah: jendela waktu berjalan, `jenis_objek` memuat
+     * `rencana_aksi`, dan indikator tercakup. Cermin gerbang tulis
+     * `SimpanTargetPeriode::dalamKoreksiSah` tanpa memeriksa targets —
+     * UI memakai ini untuk menonaktifkan periode di luar lingkup, backend
+     * tetap menolak fail-closed bila klien nakal mengirimnya.
+     *
+     * @return array{aktif: bool, periode_ids: list<string>|null}
+     */
+    private function statusKoreksi(JadwalTahunan $jadwal, IndikatorKinerja $indikator): array
+    {
+        $lingkup = $jadwal->lingkup_koreksi ?? [];
+        $periodeIds = $lingkup['periode_ids'] ?? null;
+        $periodeIds = is_array($periodeIds)
+            ? array_values(array_map(fn ($id): string => (string) $id, $periodeIds))
+            : null;
+
+        $hariIni = today(config('app.business_timezone'))->toDateString();
+        $penutupan = $jadwal->penutupan?->toDateString();
+        if (! is_string($penutupan) || $hariIni <= $penutupan) {
+            return ['aktif' => false, 'periode_ids' => $periodeIds];
+        }
+
+        if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
+            return ['aktif' => false, 'periode_ids' => $periodeIds];
+        }
+        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
+            return ['aktif' => false, 'periode_ids' => $periodeIds];
+        }
+        if (! in_array('rencana_aksi', $lingkup['jenis_objek'] ?? [], true)) {
+            return ['aktif' => false, 'periode_ids' => $periodeIds];
+        }
+        if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
+            return ['aktif' => false, 'periode_ids' => $periodeIds];
+        }
+
+        return ['aktif' => true, 'periode_ids' => $periodeIds];
     }
 
     /**

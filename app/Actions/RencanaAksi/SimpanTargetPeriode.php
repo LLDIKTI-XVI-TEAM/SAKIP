@@ -52,7 +52,9 @@ class SimpanTargetPeriode
      * Izin dievaluasi
      * ulang memakai state terkunci, jendela PIC/Perencanaan diperiksa memakai
      * tanggal Asia/Makassar, nilai turunan dihitung server tanpa disimpan,
-     * dan versi bertambah satu dengan penolakan stale memakai status 409.
+     * dan versi bertambah satu dengan penolakan stale memakai status 409
+     * (F4: token `expected_snapshot_id`/`expected_snapshot_versi` ikut
+     * ditolak 409 bila snapshot terbaru berubah sejak payload dibaca).
      *
      * @param  array<string, mixed>  $data
      */
@@ -105,6 +107,38 @@ class SimpanTargetPeriode
                     ->first();
                 if ($snapshotWajib && ! $snapshot instanceof JadwalSnapshot) {
                     throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
+                }
+
+                // F1: guard keselarasan unit jalur update (lanjutan T9/N1 yang
+                // hanya di create). Auth dievaluasi terhadap header.unit_id,
+                // sementara konteks efektif berasal dari snapshot terbaru —
+                // bila keduanya berbeda, tolak fail-closed agar RA tidak lolos
+                // tulis di sini lalu ditolak SubmissionPrerequisites.
+                if ($snapshot instanceof JadwalSnapshot) {
+                    $unitBeku = (string) ($snapshot->unit_id ?? '');
+                    if ($unitBeku !== '' && $unitBeku !== (string) $header->unit_id) {
+                        throw ValidationException::withMessages(['snapshot' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; penyimpanan ditolak sampai snapshot koreksi tersedia.']);
+                    }
+                }
+
+                // F4: token konkurensi snapshot (eksplisit, tanpa bump semu
+                // versi header). Snapshot koreksi baru yang terbit antara
+                // baca-simpan mengubah konteks diam-diam (tipe/bobot/presisi/
+                // periode-mulai) sementara ID komponen sama — simpan dengan
+                // token lama ditolak 409 agar nilai tak diterima dengan
+                // konteks yang tak pernah dilihat pengguna. Kunci token
+                // opsional di request: klien lama tanpa token berperilaku
+                // seperti sebelum F4; FE baru selalu mengirim keduanya.
+                if (array_key_exists('expected_snapshot_id', $data) || array_key_exists('expected_snapshot_versi', $data)) {
+                    $tokenId = $data['expected_snapshot_id'] ?? null;
+                    $tokenVersi = $data['expected_snapshot_versi'] ?? null;
+                    $tokenId = $tokenId === null ? null : (string) $tokenId;
+                    $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
+                    $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
+                    $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
+                    if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
+                        throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
+                    }
                 }
 
                 $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;

@@ -11,6 +11,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\RencanaAksiTarget;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
@@ -22,11 +23,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-class RencanaAksiWriteGuardTest extends TestCase
+/**
+ * Regresi P2 F4: token konkurensi snapshot.
+ *
+ * `expected_versi` saja tidak cukup — snapshot koreksi baru yang terbit
+ * antara baca–simpan mengubah konteks diam-diam (tipe/bobot/presisi/
+ * periode-mulai) sementara ID komponen sama. Payload baca membawa
+ * `expected_snapshot_id`/`expected_snapshot_versi`; simpan dengan token
+ * lama ditolak 409 sebelum nilai apa pun diterima.
+ */
+class RencanaAksiSnapshotConcurrencyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_koreksi_menolak_periode_luar_lingkup_walau_tanpa_target_lama(): void
+    public function test_baca_v1_terbit_v2_simpan_token_lama_ditolak_409(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -36,143 +46,92 @@ class RencanaAksiWriteGuardTest extends TestCase
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-        $this->assertDatabaseCount('rencana_aksi_target', 0);
 
-        $fixture['jadwal']->update([
-            'status' => 'ditutup',
-            'penutupan' => '2026-03-05',
-            'koreksi_mulai' => '2026-03-01 00:00:00',
-            'koreksi_sampai' => '2026-03-31 23:59:59',
-            'lingkup_koreksi' => [
-                'jenis_objek' => ['rencana_aksi'],
-                'indikator_ids' => [$fixture['indikator']->id],
-                'periode_ids' => [$fixture['periode1']->id],
-            ],
-        ]);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.expected_snapshot_id', $fixture['snapshot']->id)
+                ->where('rencanaAksi.expected_snapshot_versi', 1));
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->terbitkanSnapshotV2($fixture);
+
+        $payloadLama = [
             'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertSessionHasErrors('jendela');
-        $this->assertSame(1, $header->fresh()->versi);
-        $this->assertDatabaseCount('rencana_aksi_target', 0);
-
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
+            ],
+        ];
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", $payloadLama)
+            ->assertRedirect()
+            ->assertSessionHasErrors('expected_snapshot_id');
+
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/target", $payloadLama)
+            ->assertConflict()
+            ->assertJsonValidationErrors('expected_snapshot_id');
+
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
+    }
+
+    public function test_simpan_token_snapshot_baru_diterima_setelah_koreksi(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $v2 = $this->terbitkanSnapshotV2($fixture);
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.expected_snapshot_id', $v2->id)
+                ->where('rencanaAksi.expected_snapshot_versi', 2));
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
+
         $this->assertSame(2, $header->fresh()->versi);
+        $this->assertSame(2, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_update_ditolak_saat_unit_header_nonaktif_termasuk_jalur_perencanaan(): void
+    private function terbitkanSnapshotV2(array $fixture): JadwalSnapshot
     {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+        return JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
             'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-
-        Unit::whereKey($fixture['unit']->id)->update(['status' => 'nonaktif']);
-
-        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertSessionHasErrors('unit_id');
-        $this->assertSame(1, $header->fresh()->versi);
-        $this->assertDatabaseCount('rencana_aksi_target', 0);
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
-
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertForbidden();
-        $this->assertSame(1, $header->fresh()->versi);
-    }
-
-    public function test_create_ditolak_saat_unit_snapshot_tidak_selaras_dengan_master(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $unitBaru = Unit::create(['nama' => 'Unit Tujuan Pindah RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['indikator']->update(['unit_id' => $unitBaru->id]);
-
-        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasErrors('snapshot');
-
-        $this->assertDatabaseCount('rencana_aksi', 0);
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->exists());
-    }
-
-    public function test_update_ditolak_saat_unit_snapshot_terbaru_tidak_selaras_dengan_header(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-
-        // Simulasi snapshot koreksi terbaru pindah unit B sementara header tetap unit A.
-        $unitBaru = Unit::create(['nama' => 'Unit Koreksi Pindah RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitBaru->id]);
-
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertSessionHasErrors('snapshot');
-
-        $this->assertSame(1, $header->fresh()->versi);
-        $this->assertDatabaseCount('rencana_aksi_target', 0);
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
-    }
-
-    public function test_header_mengisi_dan_memperbarui_cap_waktu(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-        $this->assertNotNull($header->created_at);
-        $this->assertNotNull($header->updated_at);
-        $dibuat = $header->created_at;
-        $sebelum = $header->updated_at;
-
-        $this->travelTo(now()->addMinutes(5));
-
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertSessionHasNoErrors();
-
-        $header->refresh();
-        $this->assertSame(2, $header->versi);
-        $this->assertTrue($header->created_at->equalTo($dibuat));
-        $this->assertTrue($header->updated_at->greaterThan($sebelum));
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi resmi target PK.',
+            'rujukan_koreksi' => 'SK-KOREKSI-F4-001',
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $fixture['unit']->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 150,
+        ]);
     }
 
     /**
@@ -183,17 +142,17 @@ class RencanaAksiWriteGuardTest extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji Guard RA', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji Konkurensi Snapshot', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-GUARD', 'nama' => 'Renstra Uji Guard', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-GUARD', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-F4', 'nama' => 'Renstra Uji F4', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-F4', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Guard Uji',
+            'nama' => 'Indikator Konkurensi Uji',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'arah' => 'naik_baik',
@@ -229,6 +188,7 @@ class RencanaAksiWriteGuardTest extends TestCase
         $snapshot = JadwalSnapshot::create([
             'jadwal_id' => $jadwal->id,
             'indikator_id' => $indikator->id,
+            'nomor_versi' => 1,
             'periode_mulai_id' => $periode1->id,
             'unit_id' => $unit->id,
             'nama' => $indikator->nama,

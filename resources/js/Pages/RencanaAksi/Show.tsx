@@ -9,8 +9,9 @@ import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import MatriksTarget from './MatriksTarget';
+import TargetPreview from './TargetPreview';
 import type { RencanaAksiShow } from './types';
-import { kunciSel } from './types';
+import { dapatDisuntingPeriode, kunciSel } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
@@ -20,8 +21,15 @@ export default function RencanaAksiShow(props: ShowProps) {
     // T6: sertakan versi dalam key agar useForm remount saat Inertia
     // mengembalikan props versi baru pasca-simpan; tanpa ini expected_versi
     // tetap usang dan simpan ke-2 tanpa reload kena 409 palsu. Versi sama
-    // (mis. validasi gagal) mempertahankan draf.
-    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}`} {...props} />;
+    // (mis. validasi gagal) mempertahankan draf. F4: token snapshot ikut
+    // dalam key agar token usang tak dipertahankan bila props disegarkan
+    // dengan snapshot koreksi baru pada versi header yang sama. F2: lingkup
+    // koreksi ikut dalam key agar perubahan scope tanpa bump versi tetap
+    // me-remount formulir (input luar lingkup tak dipertahankan).
+    const koreksiKey = props.rencanaAksi.koreksi?.aktif
+        ? `koreksi:${(props.rencanaAksi.koreksi.periode_ids ?? []).slice().sort().join(',')}`
+        : 'tanpa-koreksi';
+    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
 }
 
 function RencanaAksiForm({ rencanaAksi }: ShowProps) {
@@ -42,42 +50,71 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
         [rencanaAksi.komponen],
     );
 
+    // F2: lingkup koreksi dari server. Bila koreksi aktif + batasan
+    // eksplisit, hanya periode tercakup yang disunting/dikirim; baris lain
+    // dinonaktifkan. Tanpa koreksi aktif semua efektif dapat disunting.
+    // Validasi fail-closed N1 tetap di backend.
+    const koreksi = rencanaAksi.koreksi ?? { aktif: false, periode_ids: null };
+    const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
+    const periodeDapatDisunting = useMemo(
+        () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [periodeEfektif, koreksi.aktif, JSON.stringify(koreksi.periode_ids)],
+    );
+
     const { nilaiAwal, keteranganAwal, urutanKirim } = useMemo(() => {
         const nilai: Record<string, string> = {};
         const keterangan: Record<string, string | null> = {};
         const order: { periode_id: string; komponen_id: string | null; key: string }[] = [];
         for (const baris of periodeEfektif) {
+            const terkunci = !bolehSunting(baris.id);
             if (manual) {
                 const sel = baris.nilai.find((cell) => cell.komponen_id === null) ?? baris.nilai[0];
                 const key = kunciSel(baris.id, null);
                 nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
                 keterangan[key] = sel?.keterangan ?? null;
-                order.push({ periode_id: baris.id, komponen_id: null, key });
+                // F2: periode di luar lingkup koreksi tidak dikirim agar
+                // koreksi parsial (mis. 1 dari 4) tersimpan via UI.
+                if (!terkunci) {
+                    order.push({ periode_id: baris.id, komponen_id: null, key });
+                }
             } else {
                 for (const item of komponenTerurut) {
                     const sel = baris.nilai.find((cell) => cell.komponen_id === item.komponen_id);
                     const key = kunciSel(baris.id, item.komponen_id);
                     nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
                     keterangan[key] = sel?.keterangan ?? null;
-                    order.push({ periode_id: baris.id, komponen_id: item.komponen_id, key });
+                    if (!terkunci) {
+                        order.push({ periode_id: baris.id, komponen_id: item.komponen_id, key });
+                    }
                 }
             }
         }
         return { nilaiAwal: nilai, keteranganAwal: keterangan, urutanKirim: order };
-    }, [periodeEfektif, komponenTerurut, manual]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [periodeEfektif, komponenTerurut, manual, koreksi.aktif, JSON.stringify(koreksi.periode_ids)]);
 
     const { data, setData, transform, post, processing, errors } = useForm({
         expected_versi: rencanaAksi.expected_versi,
+        // F4: token konkurensi snapshot dikembalikan apa adanya (tanpa
+        // logika formula di React); server menolak 409 bila snapshot
+        // terbaru berubah sejak payload dibaca.
+        expected_snapshot_id: rencanaAksi.expected_snapshot_id,
+        expected_snapshot_versi: rencanaAksi.expected_snapshot_versi,
         uraian: rencanaAksi.uraian ?? '',
         alasan_deviasi_pk: rencanaAksi.alasan_deviasi_pk ?? '',
         nilai: nilaiAwal,
     });
 
     const fieldErrors = errors as Record<string, string | undefined>;
-    const konflik = fieldErrors.expected_versi;
+    const konflik = fieldErrors.expected_versi ?? fieldErrors.expected_snapshot_id;
     const canUpdate = rencanaAksi.can.update;
     const formDisabled = !canUpdate || processing;
     const kosong = periodeEfektif.length === 0 || (!manual && komponenTerurut.length === 0);
+    // F2: koreksi aktif dengan lingkup menyisakan sebagian periode — hanya
+    // yang tercakup yang dikirim; bila tak ada yang tercakup, simpan
+    // dinonaktifkan (backend menolak targets kosong).
+    const terkunciSemua = !kosong && periodeDapatDisunting.length === 0;
 
     const indeksKirim = useMemo(() => {
         const map = new Map<string, number>();
@@ -121,7 +158,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
 
     const submit = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
-        if (formDisabled || kosong || requestError !== '') {
+        if (formDisabled || kosong || terkunciSemua || requestError !== '') {
             return;
         }
         setRequestError('');
@@ -133,6 +170,8 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
         }));
         transform(() => ({
             expected_versi: data.expected_versi,
+            expected_snapshot_id: data.expected_snapshot_id,
+            expected_snapshot_versi: data.expected_snapshot_versi,
             uraian: data.uraian,
             alasan_deviasi_pk: data.alasan_deviasi_pk,
             targets,
@@ -165,6 +204,22 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     };
 
     const deviasi = rencanaAksi.deviasi_pk;
+
+    // F5: pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
+    // React). Dibangun dari nilai formulir saat ini untuk periode yang
+    // dikirim (di luar lingkup koreksi tak ikut), dipanggil debounce oleh
+    // `TargetPreview` mengikuti pola `CalculationPreview` pengukuran.
+    const targetsPreview = useMemo(
+        () =>
+            urutanKirim.map((item) => ({
+                periode_id: item.periode_id,
+                komponen_id: item.komponen_id,
+                nilai: (data.nilai[item.key] ?? '') === '' ? null : data.nilai[item.key],
+            })),
+        [urutanKirim, data.nilai],
+    );
+    const namaPeriode = (periodeId: string): string =>
+        rencanaAksi.periode.find((baris) => baris.id === periodeId)?.nama ?? 'Periode';
 
     return (
         <AuthenticatedLayout
@@ -234,6 +289,19 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         Formulir hanya dapat dibaca sesuai status dan izin akses Anda.
                     </p>
                 )}
+                {koreksi.aktif && (
+                    <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
+                        Sesi koreksi aktif: hanya
+                        {koreksi.periode_ids === null
+                            ? ' periode efektif yang dapat disunting.'
+                            : ` ${periodeDapatDisunting.length} dari ${periodeEfektif.length} periode dalam lingkup yang dapat disunting; baris lain dikunci dan tidak dikirim.`}
+                    </p>
+                )}
+                {terkunciSemua && (
+                    <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
+                        Tidak ada periode dalam lingkup koreksi yang dapat disunting.
+                    </p>
+                )}
 
                 <Card>
                     <CardHeader>
@@ -297,10 +365,15 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                         ? 'Tidak ada periode efektif untuk indikator ini pada tahun berjalan.'
                                         : 'Definisi komponen efektif belum tersedia untuk indikator nonmanual.'}
                                 </p>
+                            ) : terkunciSemua ? (
+                                <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
+                                    Seluruh periode efektif di luar lingkup koreksi; tidak ada yang dapat disimpan.
+                                </p>
                             ) : (
                                 <>
                                     <p className="text-sm text-muted">
                                         Isi setiap sel periode yang berlaku. Kolom skor menampilkan hasil tersimpan dari server dan tidak dihitung ulang di peramban.
+                                        {koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
                                         {kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
                                     </p>
                                     <MatriksTarget
@@ -309,12 +382,25 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                         periode={[...rencanaAksi.periode].sort((a, b) => a.urutan - b.urutan)}
                                         desimalTampilan={desimal}
                                         satuan={satuan}
-                                        disabled={formDisabled || kosong}
+                                        disabled={formDisabled || kosong || terkunciSemua}
+                                        dapatDisunting={bolehSunting}
                                         values={data.nilai}
                                         onValueChange={handleNilai}
                                         galatSel={galatSel}
                                         formatNilai={formatNilai}
                                     />
+                                    {canUpdate && !terkunciSemua && (
+                                        <TargetPreview
+                                            id={rencanaAksi.id}
+                                            targets={targetsPreview}
+                                            alasanDeviasi={data.alasan_deviasi_pk}
+                                            satuan={satuan}
+                                            desimalTampilan={desimal}
+                                            komponen={komponenTerurut}
+                                            namaPeriode={namaPeriode}
+                                            disabled={formDisabled || kosong || terkunciSemua}
+                                        />
+                                    )}
                                     <div className="rounded-lg border border-border bg-soft p-4">
                                         <p className="text-xs font-medium text-muted">Skor tersimpan per periode (server)</p>
                                         <ul className="mt-2 space-y-1 text-sm">
@@ -380,7 +466,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    {canUpdate && !kosong && (
+                    {canUpdate && !kosong && !terkunciSemua && (
                         <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
                             <Button type="submit" variant="primary" isLoading={processing} disabled={processing || requestError !== ''}>
                                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />

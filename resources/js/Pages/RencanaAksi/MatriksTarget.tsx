@@ -11,6 +11,8 @@ interface MatriksTargetProps {
     satuan: string;
     /** True bila seluruh matriks hanya-baca (can.update false atau sedang menyimpan). */
     disabled: boolean;
+    /** F2: penentu per-periode boleh disunting (koreksi parsial). Default semua efektif boleh. */
+    dapatDisunting?: (periodeId: string) => boolean;
     /** Nilai input mentah per sel (`""` = belum diisi/null, `"0"` = nol eksplisit). */
     values: Record<string, string>;
     onValueChange: (periodeId: string, komponenId: string | null, value: string) => void;
@@ -36,7 +38,9 @@ function labelSkor(nilai: string | null, status: string, formatNilai: (n: string
  * Skor turunan selalu berasal dari payload server (`periode.skor`)
  * dan tidak pernah dihitung ulang di React. Perubahan input hanya
  * mengubah `values` formulir; kolom skor tetap menampilkan hasil
- * tersimpan sampai server menyimpan ulang.
+ * tersimpan sampai server menyimpan ulang. F2: baris di luar lingkup
+ * koreksi dinonaktifkan dan tidak dikirim (validasi fail-closed tetap
+ * di backend); F5: skor reaktif ditampilkan komponen pratinjau terpisah.
  */
 export default function MatriksTarget({
     tipePerhitungan,
@@ -45,6 +49,7 @@ export default function MatriksTarget({
     desimalTampilan,
     satuan,
     disabled,
+    dapatDisunting,
     values,
     onValueChange,
     galatSel,
@@ -111,7 +116,10 @@ export default function MatriksTarget({
                         const selList = manual
                             ? [{ komponen_id: null as string | null, kode: null as string | null, label: null as string | null }]
                             : komponen.map((item) => ({ komponen_id: item.komponen_id as string | null, kode: item.kode, label: item.label }));
-                        const selDisabled = disabled;
+                        // F2: periode efektif di luar lingkup koreksi dikunci di UI
+                        // (tak dikirim saat simpan); backend tetap menolak fail-closed.
+                        const terkunciKoreksi = dapatDisunting ? !dapatDisunting(baris.id) : false;
+                        const selDisabled = disabled || terkunciKoreksi;
 
                         return (
                             <tr key={baris.id} className="align-top">
@@ -157,6 +165,11 @@ export default function MatriksTarget({
                                         <Badge variant="muted" size="sm">Belum diisi</Badge>
                                     ) : (
                                         <Badge variant="success" size="sm">Terhitung</Badge>
+                                    )}
+                                    {terkunciKoreksi && (
+                                        <p className="mt-2 text-xs font-medium text-muted" data-testid={`koreksi-terkunci-${baris.id}`}>
+                                            Di luar lingkup koreksi; tidak disunting dan tidak dikirim.
+                                        </p>
                                     )}
                                     {baris.peringatan_turun && (
                                         <p role="note" className="mt-2 text-xs font-medium text-warning-dark" data-testid={`peringatan-${baris.id}`}>

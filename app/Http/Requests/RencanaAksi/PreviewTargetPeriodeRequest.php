@@ -6,7 +6,7 @@ use App\Models\RencanaAksi;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class SimpanTargetPeriodeRequest extends FormRequest
+class PreviewTargetPeriodeRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -24,6 +24,10 @@ class SimpanTargetPeriodeRequest extends FormRequest
             return true;
         }
 
+        // Otorisasi rinci (view + update) ditegakkan di Action via Gate
+        // agar respons JSON 403 konsisten dengan pratinjau pengukuran;
+        // di sini cukup pastikan pemohon memiliki hak simpan agar
+        // pratinjau tak dapat dipakai lintas-unit oleh pembaca saja.
         return Gate::allows('update', $header);
     }
 
@@ -33,36 +37,15 @@ class SimpanTargetPeriodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'expected_versi' => ['required', 'integer', 'min:1'],
-            // F4: token konkurensi snapshot dari IndexRencanaAksi (identitas
-            // + nomor versi beku). Opsional agar klien lama tanpa token tetap
-            // berperilaku seperti sebelum F4; bila salah satu kunci dikirim,
-            // SimpanTargetPeriode memvalidasi keduanya ketat (tolak 409 bila
-            // snapshot terbaru berubah sejak payload dibaca).
-            'expected_snapshot_id' => ['nullable', 'uuid', 'exists:jadwal_snapshot,id'],
-            'expected_snapshot_versi' => ['nullable', 'integer', 'min:1'],
-            'uraian' => ['nullable', 'string', 'max:10000'],
+            // F5: subset bentuk simpan tanpa token konkurensi/versi — pratinjau
+            // murni kalkulasi, bukan persistensi. Kelengkapan per-periode
+            // sengaja tidak dituntut (sel hilang = belum_diisi, bukan 422).
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
-            // T12: batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
-            // × 12 periode bulanan = 600 sel. Angka 100 lama menolak matriks
-            // sah (mis. 10×11=110) yang dikirim utuh oleh halaman.
-            // F3-rework: 12 periode dikunci di StoreJadwalRequest (`periode`
-            // max:12) sehingga 600 selalu cukup dari konfigurasi yang sah.
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
             'targets.*.keterangan' => ['nullable', 'string', 'max:10000'],
-            'status_alur' => ['prohibited'],
-            'versi' => ['prohibited'],
-            'unit_id' => ['prohibited'],
-            'indikator_id' => ['prohibited'],
-            'tahun' => ['prohibited'],
-            'jadwal_tahunan_id' => ['prohibited'],
-            'penanggung_jawab_id' => ['prohibited'],
-            'created_by' => ['prohibited'],
-            'disahkan_at' => ['prohibited'],
-            'disahkan_by' => ['prohibited'],
         ];
     }
 
@@ -77,14 +60,12 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
             'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
-            'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
-            'min' => 'Kolom :attribute tidak memenuhi nilai minimum.',
-            'max' => 'Kolom :attribute melebihi batas yang diizinkan.',
             'uuid' => 'Identitas :attribute tidak sah.',
             'exists' => 'Data :attribute tidak ditemukan.',
             'array' => 'Struktur :attribute tidak sah.',
-            'prohibited' => 'Kolom :attribute ditentukan server.',
             'string' => 'Kolom :attribute harus berupa teks.',
+            'min' => 'Kolom :attribute tidak memenuhi nilai minimum.',
+            'max' => 'Kolom :attribute melebihi batas yang diizinkan.',
         ];
     }
 }
