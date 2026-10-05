@@ -29,13 +29,7 @@ function UnitContextPicker({ selected, disabled, error, onChange }: {
         setFailure("");
         setItems([]);
         setHasMore(false);
-        // Batas waktu tetap memulihkan UI meski transport belum menyelesaikan abort.
-        const deadline = window.setTimeout(() => {
-            active = false;
-            controller.abort();
-            setFailure("Pencarian unit terlalu lama. Coba cari kembali.");
-            setLoading(false);
-        }, 20_000);
+        // Cari tetap aktif untuk mengganti request; respons lambat diterima selama masih relevan.
         const params = new URLSearchParams({ q: search, page: String(page) });
         void fetch(`/akses/jelaskan-izin/opsi/unit?${params}`, { headers: { Accept: "application/json" }, signal: controller.signal })
             .then(async (response) => {
@@ -44,8 +38,8 @@ function UnitContextPicker({ selected, disabled, error, onChange }: {
                 if (active) { setItems(data.items); setHasMore(data.hasMore); }
             }).catch((reason: unknown) => {
                 if (active) { setFailure(reason instanceof Error ? reason.message : "Gagal memuat unit."); setItems([]); }
-            }).finally(() => { window.clearTimeout(deadline); if (active) setLoading(false); });
-        return () => { active = false; window.clearTimeout(deadline); controller.abort(); };
+            }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; controller.abort(); };
     }, [search, page, attempt]);
     const options = selected && !items.some((unit) => unit.id === selected.id) ? [selected, ...items] : items;
     return <div className="grid min-w-0 gap-4 sm:grid-cols-2">

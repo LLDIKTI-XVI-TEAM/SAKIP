@@ -123,8 +123,7 @@ it("pencarian baru menggantikan request unit pending dan mengabaikan respons lam
     expect(screen.getByRole("option", { name: "Unit Terbaru" })).toBeTruthy();
 });
 
-it("lookup unit yang melewati batas waktu dapat dicoba kembali dengan query yang sama", async () => {
-    vi.useFakeTimers();
+it("lookup unit pending dapat diganti dengan query yang sama tanpa menunggu timeout", async () => {
     const lookup = vi.fn<typeof fetch>().mockImplementation(() => new Promise<Response>(() => {}));
     vi.stubGlobal("fetch", lookup);
     render(<EffectivePermissionIndex {...props} />);
@@ -133,14 +132,32 @@ it("lookup unit yang melewati batas waktu dapat dicoba kembali dengan query yang
     fireEvent.change(search, { target: { value: "lama" } });
     fireEvent.submit(form);
     const previousSignal = lookup.mock.calls[0][1]?.signal;
-    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
-    expect(screen.getByRole("alert").textContent).toBe("Pencarian unit terlalu lama. Coba cari kembali.");
-    expect(previousSignal?.aborted).toBe(true);
-    expect(screen.queryByText("Memuat unit…")).toBeNull();
+    expect(screen.getByText("Memuat unit…")).toBeTruthy();
     expect(search.hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Cari" }).hasAttribute("disabled")).toBe(false);
     lookup.mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: "retry", nama: "Unit Pulih", status: "aktif" }], hasMore: false }), { status: 200 }));
     await act(async () => { fireEvent.submit(form); });
+    expect(previousSignal?.aborted).toBe(true);
     expect(String(lookup.mock.calls[1][0])).toContain("q=lama&page=1");
     expect(screen.getByRole("option", { name: "Unit Pulih" })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Memuat unit…")).toBeNull();
+});
+
+it("respons unit setelah 31 detik tetap diterima selama pencarian belum diganti", async () => {
+    vi.useFakeTimers();
+    let finish: (response: Response) => void = () => { throw new Error("Request belum dimulai."); };
+    const lookup = vi.fn<typeof fetch>().mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal("fetch", lookup);
+    render(<EffectivePermissionIndex {...props} />);
+    fireEvent.focus(screen.getByRole("combobox", { name: "Konteks pemeriksaan" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(31_000); });
+    expect(lookup.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    expect(screen.getByText("Memuat unit…")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Cari" }).hasAttribute("disabled")).toBe(false);
+    await act(async () => { finish(new Response(JSON.stringify({ items: [{ id: "slow", nama: "Unit Lambat", status: "aktif" }], hasMore: false }), { status: 200 })); });
+    expect(screen.getByRole("option", { name: "Unit Lambat" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Unit A" })).toBeTruthy();
+    expect(screen.queryByText("Memuat unit…")).toBeNull();
 });
