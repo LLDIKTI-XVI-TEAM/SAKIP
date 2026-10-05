@@ -8,8 +8,10 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     helperText?: string;
 }
 
-export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, className, id, ...props }) => {
-    const textareaId = id || props.name;
+export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, className, id, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid, ...props }) => {
+    const generatedId = React.useId();
+    const textareaId = id || props.name || generatedId;
+    const messageId = error ? `${textareaId}-error` : helperText ? `${textareaId}-help` : undefined;
 
     return (
         <div className="w-full">
@@ -21,6 +23,8 @@ export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, cl
             )}
             <textarea
                 id={textareaId}
+                aria-invalid={error ? true : ariaInvalid}
+                aria-describedby={[describedBy, messageId].filter(Boolean).join(' ') || undefined}
                 rows={props.rows || 3}
                 className={twMerge(
                     clsx(
@@ -31,8 +35,8 @@ export const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, cl
                 )}
                 {...props}
             />
-            {error && <p className="mt-1 text-xs font-medium text-danger">{error}</p>}
-            {helperText && !error && <p className="mt-1 text-xs text-muted">{helperText}</p>}
+            {error && <p id={`${textareaId}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
+            {helperText && !error && <p id={`${textareaId}-help`} className="mt-1 text-xs text-muted">{helperText}</p>}
         </div>
     );
 };

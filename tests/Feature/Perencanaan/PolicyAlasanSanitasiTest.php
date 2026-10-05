@@ -19,12 +19,12 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Sanitasi alasan audit penolakan di Policy Sasaran/Indikator.
+ * Keamanan alasan audit pada jalur penolakan Sasaran/Indikator.
  *
- * Policy membaca `request()->input('alasan')` mentah sebelum validasi
- * selesai; audit append-only wajib menerima nilai yang sudah dirapikan
- * (trim + batas 1000 karakter + fallback generik). Perilaku allow/deny
- * tidak berubah — setiap skenario tetap menegaskan respons 403.
+ * Policy menyanitasi alasan mentah sebelum validasi selesai. PUT indikator
+ * memakai alasan tepercaya dari FormRequest untuk penolakan baca dan Action
+ * untuk penolakan delta mutasi; input alasan tidak mengganti pesan tersebut.
+ * Seluruh skenario menegaskan 403, bukan no-op yang sah tanpa izin mutasi.
  */
 class PolicyAlasanSanitasiTest extends TestCase
 {
@@ -234,7 +234,7 @@ class PolicyAlasanSanitasiTest extends TestCase
         $this->assertSame($alasan, $audit->alasan);
     }
 
-    public function test_indikator_ubah_alasan_spasi_memakai_fallback(): void
+    public function test_indikator_delta_ubah_ditolak_memakai_alasan_action_meski_input_spasi(): void
     {
         $sasaran = SasaranStrategis::create([
             'renstra_id' => $this->renstra->id,
@@ -256,11 +256,13 @@ class PolicyAlasanSanitasiTest extends TestCase
             'created_by_role' => 'perencanaan',
         ]);
         $this->tolakIzin('indikator:update');
+        $sebelum = $indikator->fresh()->getAttributes();
+        $jumlahAudit = AuditLog::count();
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-SANITASI',
-            'nama' => 'Indikator uji sanitasi alasan',
+            'nama' => 'Perubahan nama yang tidak diizinkan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
@@ -271,9 +273,13 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response->assertForbidden();
 
-        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->latest('waktu')->firstOrFail();
+        $this->assertSame($sebelum, $indikator->fresh()->getAttributes());
+        $this->assertSame($jumlahAudit + 1, AuditLog::count());
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->sole();
+        $this->assertSame('indikator:update', $audit->dasar_izin['permission']);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
         $this->assertSame(
-            'Percobaan indikator.ubah_ditolak ditolak oleh sistem otorisasi.',
+            'Perubahan ditolak karena wewenang tidak lagi berlaku saat transaksi.',
             $audit->alasan
         );
     }
@@ -350,7 +356,7 @@ class PolicyAlasanSanitasiTest extends TestCase
         $this->assertStringNotContainsString("\0", $audit->alasan);
     }
 
-    public function test_indikator_ubah_alasan_nul_tetap_403_audit_tersimpan(): void
+    public function test_indikator_tanpa_izin_baca_alasan_nul_tetap_403_audit_tunggal(): void
     {
         $sasaran = SasaranStrategis::create([
             'renstra_id' => $this->renstra->id,
@@ -371,12 +377,14 @@ class PolicyAlasanSanitasiTest extends TestCase
             'created_by' => $this->perencanaan->id,
             'created_by_role' => 'perencanaan',
         ]);
-        $this->tolakIzin('indikator:update');
+        $this->tolakIzin('indikator:read');
+        $sebelum = $indikator->fresh()->getAttributes();
+        $jumlahAudit = AuditLog::count();
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
             'kode' => 'IKU-SANITASI',
-            'nama' => 'Indikator uji sanitasi alasan',
+            'nama' => 'Perubahan nama yang tidak diizinkan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
@@ -387,8 +395,12 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response->assertForbidden();
 
-        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->latest('waktu')->firstOrFail();
-        $this->assertSame('alasanindikator', $audit->alasan);
+        $this->assertSame($sebelum, $indikator->fresh()->getAttributes());
+        $this->assertSame($jumlahAudit + 1, AuditLog::count());
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->sole();
+        $this->assertSame('indikator:read', $audit->dasar_izin['permission']);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame('Penyimpanan indikator ditolak karena tidak memiliki izin membaca indikator.', $audit->alasan);
         $this->assertStringNotContainsString("\0", $audit->alasan);
     }
 

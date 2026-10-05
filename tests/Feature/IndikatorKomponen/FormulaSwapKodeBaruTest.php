@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\IndikatorKomponen;
 
+use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\Renstra;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 /**
@@ -19,11 +21,12 @@ use Tests\TestCase;
  *
  * Swap atomik (existing n→x + baru n) harus lolos karena final-set unik;
  * penegakan unique tetap pada duplikat final-set dan constraint DB.
- * Request store normal (single-row, tanpa swap) tetap memakai unique-vs-DB.
+ * Intent create tunggal tetap menolak kode yang berbenturan dengan state akhir.
  */
 class FormulaSwapKodeBaruTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $actor;
 
@@ -125,7 +128,9 @@ class FormulaSwapKodeBaruTest extends TestCase
     public function test_duplikat_final_set_tetap_ditolak_tanpa_mutasi(): void
     {
         $t = $this->indikator->komponen()->where('kode', 't')->firstOrFail();
-        $sebelum = $this->indikator->komponen()->orderBy('id')->pluck('kode')->all();
+        $beforeParent = $this->indikator->fresh()->getAttributes();
+        $beforeChildren = $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all();
+        $beforeAudits = AuditLog::count();
 
         // Payload hanya memuat t + baru n; existing n yang dihilangkan tetap
         // dihitung pada final-set sehingga kode n ganda dan wajib 422.
@@ -142,14 +147,15 @@ class FormulaSwapKodeBaruTest extends TestCase
             'alasan' => 'Kontrol duplikat final-set pada transisi formula.',
         ])->assertUnprocessable()->assertJsonValidationErrors('kode');
 
-        $this->assertSame($sebelum, $this->indikator->komponen()->orderBy('id')->pluck('kode')->all());
-        $this->assertSame(2, $this->indikator->komponen()->count());
+        $this->assertSame($beforeParent, $this->indikator->fresh()->getAttributes());
+        $this->assertSame($beforeChildren, $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($beforeAudits, AuditLog::count());
     }
 
     public function test_store_normal_duplikat_vs_db_tetap_ditolak(): void
     {
         $this->actingAs($this->actor)
-            ->post("/indikator/{$this->indikator->id}/komponen", [
+            ->createKomponen($this->indikator->id, [
                 'kode' => 'n', 'label' => 'Duplikat Normal',
                 'peran' => 'pembilang', 'bobot' => '1', 'urutan' => 3, 'aktif' => true,
                 'expected_updated_at' => $this->token(),

@@ -3,19 +3,48 @@
 namespace App\Http\Requests\Indikator;
 
 use App\Models\IndikatorKinerja;
+use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
+use App\Services\Kinerja\KomponenMutationService;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class UpdateIndikatorRequest extends FormRequest
 {
+    private ?PermissionDecision $decision = null;
+
+    protected function prepareForValidation(): void
+    {
+        foreach (['sasaran_strategis_id', 'unit_id', 'regulasi_id'] as $field) {
+            if (is_string($this->input($field))) {
+                $this->merge([$field => strtolower($this->input($field))]);
+            }
+        }
+    }
+
     public function authorize(): bool
     {
-        /** @var IndikatorKinerja|null $indikator */
-        $indikator = $this->route('indikator');
+        if ($this->user() === null) {
+            return false;
+        }
+        // PUT adalah surface editor parent; izin mutasi ditentukan dari delta terkunci.
+        $this->decision = app(PermissionResolver::class)->resolve($this->user(), 'indikator:read');
 
-        return $indikator !== null && Gate::allows('update', $indikator);
+        return $this->decision->allowed;
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $indikator = $this->route('indikator');
+        if ($this->user() !== null && $this->decision !== null && $indikator instanceof IndikatorKinerja) {
+            app(AuditLogger::class)->catat(actor: $this->user(), tindakan: 'indikator.ubah_ditolak',
+                objekTipe: 'indikator', objekId: $indikator->id,
+                alasan: 'Penyimpanan indikator ditolak karena tidak memiliki izin membaca indikator.',
+                dasarIzin: $this->decision->toAuditBasis());
+        }
+        parent::failedAuthorization();
     }
 
     /**
@@ -45,7 +74,7 @@ class UpdateIndikatorRequest extends FormRequest
             }
         });
 
-        return [
+        return array_merge(app(KomponenMutationService::class)->aturanDefinisi(), [
             'sasaran_strategis_id' => [
                 'required',
                 'uuid',
@@ -76,7 +105,7 @@ class UpdateIndikatorRequest extends FormRequest
             'wajib_catatan' => ['nullable', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
             'expected_updated_at' => ['required', 'date'],
-        ];
+        ]);
     }
 
     /**
@@ -85,6 +114,7 @@ class UpdateIndikatorRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...app(KomponenMutationService::class)->pesanBersarang(),
             'sasaran_strategis_id.required' => 'Sasaran strategis wajib dipilih.',
             'sasaran_strategis_id.exists' => 'Sasaran strategis yang dipilih tidak valid atau berada di luar Renstra asal.',
             'kode.required' => 'Kode indikator kinerja wajib diisi.',

@@ -26,17 +26,6 @@ export type IndikatorStatus = 'aktif' | 'arsip';
 
 export type KomponenPeran = 'pembilang' | 'penyebut' | 'penjumlah';
 
-export interface FormulaKomponenInput {
-    id?: string;
-    kode: string;
-    label: string;
-    peran: KomponenPeran;
-    bobot: number | string;
-    urutan: number | string;
-    satuan: string;
-    aktif: boolean;
-}
-
 export interface FormulaKomponenItem {
     id: string;
     kode: string;
@@ -46,13 +35,6 @@ export interface FormulaKomponenItem {
     urutan: number;
     satuan: string | null;
     aktif: boolean;
-}
-
-export interface FormulaPayload {
-    tipe_perhitungan: IndikatorTipePerhitungan;
-    komponen: FormulaKomponenInput[];
-    expected_updated_at: string;
-    alasan: string;
 }
 
 export interface IndikatorKinerjaItem {
@@ -68,14 +50,13 @@ export interface IndikatorKinerjaItem {
     arah: IndikatorArah;
     tipe_perhitungan: IndikatorTipePerhitungan;
     presisi: number;
-    desimal_tampilan?: number;
+    desimal_tampilan: number;
     wajib_catatan: boolean;
     jenis_agregasi?: string;
     status: IndikatorStatus;
     updated_at?: string | null;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
-    komponen?: FormulaKomponenItem[] | null;
 }
 
 export interface SasaranStrategisItem {
@@ -100,4 +81,5 @@ export interface SasaranIndikatorCapabilities {
     komponen_read?: boolean;
     komponen_create?: boolean;
     komponen_update?: boolean;
+    komponen_delete?: boolean;
 }

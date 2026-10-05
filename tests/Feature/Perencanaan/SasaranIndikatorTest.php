@@ -28,11 +28,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class SasaranIndikatorTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
 
@@ -1648,7 +1650,7 @@ class SasaranIndikatorTest extends TestCase
                 ]);
             }
 
-            // Resolusi kedua di dalam transaksi UpdateIndikator ditolak (simulasi wewenang dicabut saat transaksi)
+            // Resolusi kedua di dalam transaksi ChangeIndicatorFormula ditolak (simulasi wewenang dicabut saat transaksi)
             return new PermissionDecision(false, $code, [
                 'alasan' => 'revoked_inside_transaction',
                 'sumber_allow' => ['roles' => [], 'grants' => []],
@@ -2536,7 +2538,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 'n',
             'label' => 'Pembilang R2-25',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -2548,7 +2550,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 't',
             'label' => 'Penyebut R2-25',
             'peran' => 'penyebut',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 2,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -2608,6 +2610,7 @@ class SasaranIndikatorTest extends TestCase
             'unit_id' => $this->unit->id,
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
+            'alasan' => 'Mengubah metode menjadi input nilai manual.',
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
         ]);
 
@@ -2745,7 +2748,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 'n',
             'label' => 'Pembilang R2-26',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -2757,7 +2760,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 't',
             'label' => 'Penyebut R2-26',
             'peran' => 'penyebut',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 2,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -2853,8 +2856,8 @@ class SasaranIndikatorTest extends TestCase
         $response = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen',
             'komponen' => [
-                ['kode' => 'n', 'label' => 'Pembilang R3-01', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
-                ['kode' => 't', 'label' => 'Penyebut R3-01', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
+                ['kode' => 'n', 'label' => 'Pembilang R3-01', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
+                ['kode' => 't', 'label' => 'Penyebut R3-01', 'peran' => 'penyebut', 'bobot' => '1.0', 'urutan' => 2, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
             'alasan' => 'Transisi atomik manual ke rasio dengan pembilang dan penyebut.',
@@ -2904,7 +2907,7 @@ class SasaranIndikatorTest extends TestCase
         $response = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/formula", [
             'tipe_perhitungan' => 'penjumlahan',
             'komponen' => [
-                ['kode' => 'jml', 'label' => 'Penjumlah R3-01', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
+                ['kode' => 'jml', 'label' => 'Penjumlah R3-01', 'peran' => 'penjumlah', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
             'alasan' => 'Transisi atomik manual ke penjumlahan dengan satu penjumlah.',
@@ -2949,7 +2952,7 @@ class SasaranIndikatorTest extends TestCase
         $response = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen',
             'komponen' => [
-                ['kode' => 'n', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
+                ['kode' => 'n', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
             ],
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
             'alasan' => 'Kontrol transisi tak lengkap: rasio hanya pembilang tanpa penyebut.',
@@ -2963,7 +2966,7 @@ class SasaranIndikatorTest extends TestCase
 
     /**
      * R3-01 Opsi A: transisi atomik menolak payload usang 409 tanpa mutasi
-     * (stale-token fail-closed seperti UpdateIndikator).
+     * (token lama ditolak oleh Action bersama parent dan komponen).
      */
     public function test_r301_transisi_atomik_menolak_payload_usang_409(): void
     {
@@ -2992,8 +2995,8 @@ class SasaranIndikatorTest extends TestCase
         $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/formula", [
             'tipe_perhitungan' => 'rasio_persen',
             'komponen' => [
-                ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
-                ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
+                ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
+                ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1.0', 'urutan' => 2, 'aktif' => true],
             ],
             'expected_updated_at' => $tokenLama,
             'alasan' => 'Tab pertama transisi atomik manual ke rasio.',
@@ -3003,7 +3006,7 @@ class SasaranIndikatorTest extends TestCase
         $responseUsang = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/formula", [
             'tipe_perhitungan' => 'penjumlahan',
             'komponen' => [
-                ['kode' => 'j2', 'label' => 'Penjumlah Susulan', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
+                ['kode' => 'j2', 'label' => 'Penjumlah Susulan', 'peran' => 'penjumlah', 'bobot' => '1.0', 'urutan' => 3, 'aktif' => true],
             ],
             'expected_updated_at' => $tokenLama,
             'alasan' => 'Tab kedua memakai token lama pasca transisi tab pertama.',
@@ -3020,7 +3023,7 @@ class SasaranIndikatorTest extends TestCase
     /**
      * Serialisasi tipe-diubah vs komponen-ditambah: kedua jalur mengunci
      * parent IndikatorKinerja FOR UPDATE dalam urutan parent→child yang sama
-     * (UpdateIndikator + IndikatorKomponenController store/update/destroy),
+     * (PUT metadata dan PATCH definisi memakai ChangeIndicatorFormula),
      * sehingga pemenang pertama ter-commit dan jalur kedua menilainya —
      * tak ada kombinasi invalid yang bertahan.
      *
@@ -3054,7 +3057,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 'n',
             'label' => 'Pembilang R2-26',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 1,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -3066,7 +3069,7 @@ class SasaranIndikatorTest extends TestCase
             'kode' => 't',
             'label' => 'Penyebut R2-26',
             'peran' => 'penyebut',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 2,
             'satuan' => 'dokumen',
             'aktif' => true,
@@ -3094,16 +3097,16 @@ class SasaranIndikatorTest extends TestCase
 
         // Deaktivasi satu per satu merusak rasio dan wajib ditolak.
         foreach ([$pembilang, $penyebut] as $urutan => $komponen) {
-            $this->actingAs($this->perencanaan)->put("/indikator/{$indikator->id}/komponen/{$komponen->id}", [
+            $this->actingAs($this->perencanaan)->updateKomponen($indikator->id, $komponen->id, [
                 'kode' => $komponen->kode,
                 'label' => $komponen->label,
                 'peran' => $komponen->peran,
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => $urutan + 1,
                 'aktif' => false,
                 'alasan' => 'Menonaktifkan komponen sebelum beralih ke tipe manual.',
                 'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString(),
-            ])->assertRedirect()->assertSessionHasErrors(['komponen']);
+            ])->assertRedirect()->assertSessionHasErrors(['tipe_perhitungan']);
             $this->assertTrue($komponen->fresh()->aktif);
         }
 
@@ -3111,7 +3114,7 @@ class SasaranIndikatorTest extends TestCase
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikator->id}/formula", [
                 'tipe_perhitungan' => 'manual',
-                'komponen' => [],
+                'komponen' => collect([$pembilang, $penyebut])->map(fn ($row) => array_merge($row->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan']), ['aktif' => false]))->all(),
                 'expected_updated_at' => $indikator->fresh()->updated_at->toISOString(),
                 'alasan' => 'Menonaktifkan kedua child dan mengubah tipe sekaligus.',
             ])->assertRedirect()->assertSessionHasNoErrors();
@@ -3123,15 +3126,15 @@ class SasaranIndikatorTest extends TestCase
 
         // Urutan serialisasi 2 (ubah-dulu-menang): tambah-komponen melihat
         // tipe manual yang sudah ter-commit → ditolak, kombinasi tetap valid.
-        $this->actingAs($this->perencanaan)->post("/indikator/{$indikator->id}/komponen", [
+        $this->actingAs($this->perencanaan)->createKomponen($indikator->id, [
             'kode' => 'm_baru',
             'label' => 'Komponen susulan saat manual',
             'peran' => 'pembilang',
-            'bobot' => 1.0,
+            'bobot' => '1.0',
             'urutan' => 3,
             'aktif' => true,
             'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString(),
-        ])->assertSessionHasErrors(['indikator']);
+        ])->assertSessionHasErrors(['tipe_perhitungan']);
         $this->assertDatabaseMissing('indikator_komponen', [
             'indikator_id' => $indikator->id,
             'kode' => 'm_baru',
