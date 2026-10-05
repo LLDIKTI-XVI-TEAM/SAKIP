@@ -38,6 +38,8 @@ export interface RenstraSummary {
     tahun_selesai: number;
     status: RenstraStatus;
     is_aktif: boolean;
+    deskripsi?: string | null;
+    dasar_hukum?: string | null;
     regulasi_id: number | null;
     regulasi_nomor: string | null;
     regulasi?: RegulasiOption | null;
