@@ -100,6 +100,8 @@ class RencanaAksiPayloadMatrixTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => $targets,
         ])->assertSessionHasNoErrors();
 

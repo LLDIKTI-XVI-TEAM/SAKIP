@@ -50,6 +50,8 @@ class RencanaAksiPreviewTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
@@ -60,6 +62,8 @@ class RencanaAksiPreviewTest extends TestCase
 
         // Edit TW I 20 → 30: pratinjau ikut berubah tanpa menyimpan.
         $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 30, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
@@ -94,6 +98,8 @@ class RencanaAksiPreviewTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 50, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
@@ -105,6 +111,8 @@ class RencanaAksiPreviewTest extends TestCase
 
         // Pratinjau menyamakan periode terakhir dengan target PK 100 → deviasi hilang.
         $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 50, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
@@ -135,12 +143,16 @@ class RencanaAksiPreviewTest extends TestCase
 
         $tanpaIzin = $this->penggunaDenganPeran('admin');
         $this->actingAs($tanpaIzin)->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
         ])->assertForbidden();
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => (string) Str::uuid(), 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],

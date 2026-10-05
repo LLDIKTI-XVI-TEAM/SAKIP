@@ -121,24 +121,25 @@ class SimpanTargetPeriode
                     }
                 }
 
-                // F4: token konkurensi snapshot (eksplisit, tanpa bump semu
-                // versi header). Snapshot koreksi baru yang terbit antara
-                // baca-simpan mengubah konteks diam-diam (tipe/bobot/presisi/
-                // periode-mulai) sementara ID komponen sama — simpan dengan
-                // token lama ditolak 409 agar nilai tak diterima dengan
-                // konteks yang tak pernah dilihat pengguna. Kunci token
-                // opsional di request: klien lama tanpa token berperilaku
-                // seperti sebelum F4; FE baru selalu mengirim keduanya.
-                if (array_key_exists('expected_snapshot_id', $data) || array_key_exists('expected_snapshot_versi', $data)) {
-                    $tokenId = $data['expected_snapshot_id'] ?? null;
-                    $tokenVersi = $data['expected_snapshot_versi'] ?? null;
-                    $tokenId = $tokenId === null ? null : (string) $tokenId;
-                    $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
-                    $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
-                    $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
-                    if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
-                        throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
-                    }
+                // F1 (Review4 Q1) + F4: token konkurensi snapshot (eksplisit,
+                // tanpa bump semu versi header) WAJIB pada setiap penyimpanan.
+                // Snapshot koreksi baru yang terbit antara baca-simpan mengubah
+                // konteks diam-diam (tipe/bobot/presisi/periode-mulai)
+                // sementara ID komponen sama — simpan dengan token lama/usang
+                // (termasuk kunci hilang yang dinormalisasi menjadi null, atau
+                // null eksplisit saat snapshot ada) ditolak 409 agar nilai tak
+                // diterima dengan konteks yang tak pernah dilihat pengguna.
+                // Null hanya sah bila konteks memang tanpa snapshot (jadwal
+                // belum pernah aktif → snapshot null). Tanpa jalur bypass:
+                // perbandingan selalu dijalankan, bukan hanya bila kunci ada.
+                $tokenId = $data['expected_snapshot_id'] ?? null;
+                $tokenVersi = $data['expected_snapshot_versi'] ?? null;
+                $tokenId = $tokenId === null ? null : (string) $tokenId;
+                $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
+                $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
+                $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
+                if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
+                    throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
                 $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
@@ -402,6 +403,12 @@ class SimpanTargetPeriode
             throw ValidationException::withMessages(['targets' => 'Daftar target wajib diisi.']);
         }
 
+        // F3 (Review4 Q2): validasi periode set-based — satu query untuk
+        // seluruh ID unik, bukan `exists()` per-sel (s/d 600 query) yang
+        // menahan lock transaksi lebih lama dari perlu.
+        $periodeIds = collect($targets)->pluck('periode_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+        $dikenal = Periode::whereIn('id', $periodeIds)->pluck('id')->map(fn ($id): string => (string) $id)->flip()->all();
+
         $kunci = [];
         foreach ($targets as $baris) {
             $pasangan = $baris['periode_id'].'::'.($baris['komponen_id'] ?? 'null');
@@ -410,7 +417,7 @@ class SimpanTargetPeriode
             }
             $kunci[$pasangan] = true;
 
-            if (! Periode::whereKey($baris['periode_id'])->exists()) {
+            if (! array_key_exists($baris['periode_id'], $dikenal)) {
                 throw ValidationException::withMessages(['targets' => 'Periode target tidak dikenal.']);
             }
             if (! in_array($baris['periode_id'], $anggotaJadwal, true)) {

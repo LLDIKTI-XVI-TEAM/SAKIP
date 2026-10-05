@@ -44,6 +44,8 @@ class RencanaAksiReadConsistencyTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 30, 'keterangan' => null],
@@ -55,6 +57,8 @@ class RencanaAksiReadConsistencyTest extends TestCase
         $basi = RencanaAksi::whereKey($header->id)->firstOrFail();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 2,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 40, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 50, 'keterangan' => null],
@@ -90,6 +94,8 @@ class RencanaAksiReadConsistencyTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 30, 'keterangan' => null],
@@ -107,6 +113,8 @@ class RencanaAksiReadConsistencyTest extends TestCase
         // Tulis kedua dengan token segar wajib lolos (tanpa 409 palsu).
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 2,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 25, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 35, 'keterangan' => null],

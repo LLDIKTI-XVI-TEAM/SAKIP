@@ -59,6 +59,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => null,
+            'expected_snapshot_versi' => null,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
@@ -82,6 +84,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 50, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
@@ -104,6 +108,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 60, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
@@ -113,6 +119,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 70, 'keterangan' => null],
             ],
@@ -131,7 +139,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
 
-        JadwalSnapshot::create([
+        $v2 = JadwalSnapshot::create([
             'jadwal_id' => $fixture['jadwal']->id,
             'indikator_id' => $fixture['indikator']->id,
             'nomor_versi' => 2,
@@ -158,6 +166,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 60, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 80, 'keterangan' => null],
@@ -181,6 +191,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $header->refresh();
         $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 65, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 85, 'keterangan' => null],
@@ -208,6 +220,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 40, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
@@ -222,6 +236,8 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 10, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],

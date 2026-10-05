@@ -65,6 +65,34 @@ class PreviewTargetPeriode
             $jadwal = $segel->jadwalTahunan;
 
             $snapshot = $this->snapshotEfektif($jadwal, $indikator);
+
+            // F4 (Review4 Q1): guard keselarasan unit jalur pratinjau — cermin
+            // guard tulis `SimpanTargetPeriode` dan baca `IndexRencanaAksi`.
+            // Ditolak fail-closed SEBELUM payload dibangun agar tak ada
+            // konteks lintas-unit yang terekspos (skor/deviasi beku maupun
+            // definisi komponen).
+            if ($snapshot instanceof JadwalSnapshot) {
+                $unitBeku = (string) ($snapshot->unit_id ?? '');
+                if ($unitBeku !== '' && $unitBeku !== (string) $segel->unit_id) {
+                    throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk rencana aksi ini tidak selaras; muat ulang atau hubungi perencana.']);
+                }
+            }
+
+            // F2 (Review4 Q2): pratinjau terikat token — cermin guard tulis
+            // `SimpanTargetPeriode`. Token halaman dibandingkan dengan snapshot
+            // terbaru; usang (termasuk null eksplisit saat snapshot ada)
+            // ditolak 409 agar yang ditampilkan = yang dipakai simpan.
+            // Null hanya sah bila konteks memang tanpa snapshot.
+            $tokenId = $data['expected_snapshot_id'] ?? null;
+            $tokenVersi = $data['expected_snapshot_versi'] ?? null;
+            $tokenId = $tokenId === null ? null : (string) $tokenId;
+            $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
+            $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
+            $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
+            if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
+                throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
+            }
+
             $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
             $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
             $definisi = $this->definisiEfektif($indikator, $snapshot, $this->jadwalPernahDiaktifkan($jadwal));
@@ -243,6 +271,12 @@ class PreviewTargetPeriode
 
         $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
+        // F3 (Review4 Q2): validasi periode set-based — satu query untuk
+        // seluruh ID unik agar `sharedLock` pratinjau tak tertahan oleh
+        // `exists()` per-sel (s/d 600 query).
+        $periodeIds = collect($targets)->pluck('periode_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+        $dikenal = Periode::whereIn('id', $periodeIds)->pluck('id')->map(fn ($id): string => (string) $id)->flip()->all();
+
         $kunci = [];
         foreach ($targets as $baris) {
             $pasangan = $baris['periode_id'].'::'.($baris['komponen_id'] ?? 'null');
@@ -251,7 +285,7 @@ class PreviewTargetPeriode
             }
             $kunci[$pasangan] = true;
 
-            if (! Periode::whereKey($baris['periode_id'])->exists()) {
+            if (! array_key_exists($baris['periode_id'], $dikenal)) {
                 throw ValidationException::withMessages(['targets' => 'Periode target tidak dikenal.']);
             }
             if (! in_array($baris['periode_id'], $anggotaJadwal, true)) {

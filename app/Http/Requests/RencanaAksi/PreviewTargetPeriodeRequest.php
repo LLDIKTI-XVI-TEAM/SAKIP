@@ -37,9 +37,15 @@ class PreviewTargetPeriodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // F5: subset bentuk simpan tanpa token konkurensi/versi — pratinjau
-            // murni kalkulasi, bukan persistensi. Kelengkapan per-periode
-            // sengaja tidak dituntut (sel hilang = belum_diisi, bukan 422).
+            // F2 (Review4 Q2): token konkurensi snapshot WAJIB dikirim
+            // (`present`), cermin `SimpanTargetPeriodeRequest`; null hanya sah
+            // bila konteks memang tanpa snapshot. Pratinjau menolak konteks
+            // usang 409 agar yang ditampilkan = yang dipakai simpan.
+            'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
+            'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
+            // F5: subset bentuk simpan tanpa versi header — pratinjau murni
+            // kalkulasi, bukan persistensi. Kelengkapan per-periode sengaja
+            // tidak dituntut (sel hilang = belum_diisi, bukan 422).
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],

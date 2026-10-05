@@ -77,6 +77,22 @@ class IndexRencanaAksi
                 $jadwal = $segel->jadwalTahunan;
 
                 $snapshot = $this->snapshotEfektif($jadwal, $indikator);
+
+                // F4 (Review4 Q1): guard keselarasan unit jalur baca — cermin
+                // guard tulis `SimpanTargetPeriode` (lanjutan T9/N1/P1-F1).
+                // Auth baca dievaluasi terhadap header.unit_id, sementara
+                // konteks efektif berasal dari snapshot terbaru; bila snapshot
+                // milik unit B untuk header milik unit A (indikator pindah
+                // unit pasca-aktivasi), tolak fail-closed SEBELUM payload
+                // dibangun agar tak ada konteks lintas-unit yang terekspos
+                // (nama/satuan/target beku, komponen, maupun periode).
+                if ($snapshot instanceof JadwalSnapshot) {
+                    $unitBeku = (string) ($snapshot->unit_id ?? '');
+                    if ($unitBeku !== '' && $unitBeku !== (string) $segel->unit_id) {
+                        throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk rencana aksi ini tidak selaras; muat ulang atau hubungi perencana.']);
+                    }
+                }
+
                 $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
                 $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
                 $definisi = $this->definisiEfektif($indikator, $snapshot, $this->jadwalPernahDiaktifkan($jadwal));

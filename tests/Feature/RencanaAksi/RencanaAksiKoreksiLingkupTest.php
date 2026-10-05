@@ -57,6 +57,8 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         // F2: bentuk UI koreksi parsial — hanya periode tercakup dikirim.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
@@ -83,6 +85,8 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         // Periode luar lingkup tetap ditolak backend (N1 fail-closed).
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
             'targets' => [
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],

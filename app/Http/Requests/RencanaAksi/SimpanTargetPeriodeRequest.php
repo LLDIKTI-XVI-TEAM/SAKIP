@@ -34,13 +34,15 @@ class SimpanTargetPeriodeRequest extends FormRequest
     {
         return [
             'expected_versi' => ['required', 'integer', 'min:1'],
-            // F4: token konkurensi snapshot dari IndexRencanaAksi (identitas
-            // + nomor versi beku). Opsional agar klien lama tanpa token tetap
-            // berperilaku seperti sebelum F4; bila salah satu kunci dikirim,
-            // SimpanTargetPeriode memvalidasi keduanya ketat (tolak 409 bila
-            // snapshot terbaru berubah sejak payload dibaca).
-            'expected_snapshot_id' => ['nullable', 'uuid', 'exists:jadwal_snapshot,id'],
-            'expected_snapshot_versi' => ['nullable', 'integer', 'min:1'],
+            // F1 (Review4 Q1): token konkurensi snapshot dari IndexRencanaAksi
+            // (identitas + nomor versi beku) WAJIB dikirim (`present`) pada
+            // setiap penyimpanan; nilai null hanya sah bila konteks memang
+            // tanpa snapshot (jadwal belum pernah aktif). Jalur bypass
+            // klien-lama-tanpa-token dihapus — SimpanTargetPeriode selalu
+            // membandingkan token dengan snapshot terbaru terkunci (409 bila
+            // beda), tanpa pengecualian.
+            'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
+            'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
             'uraian' => ['nullable', 'string', 'max:10000'],
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
             // T12: batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
@@ -73,7 +75,8 @@ class SimpanTargetPeriodeRequest extends FormRequest
     {
         return [
             'required' => 'Kolom :attribute wajib diisi.',
-            'present' => 'Kolom :attribute harus dikirim; gunakan nilai kosong untuk target yang belum diisi.',
+            'present' => 'Kolom :attribute harus dikirim.',
+            'targets.*.nilai.present' => 'Kolom :attribute harus dikirim; gunakan nilai kosong untuk target yang belum diisi.',
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
             'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
