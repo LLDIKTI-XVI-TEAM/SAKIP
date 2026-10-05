@@ -270,6 +270,12 @@ class RencanaAksiAuthorizationTest extends TestCase
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
+        ])->assertSessionHasErrors('jendela');
+        $this->assertDatabaseCount('rencana_aksi', 0);
+
+        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 

@@ -138,6 +138,12 @@ class RencanaAksiTargetTest extends TestCase
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
+        ])->assertSessionHasErrors('jendela');
+        $this->assertDatabaseCount('rencana_aksi', 0);
+
+        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
@@ -156,6 +162,67 @@ class RencanaAksiTargetTest extends TestCase
             ],
         ])->assertSessionHasNoErrors();
         $this->assertSame(2, $header->fresh()->versi);
+    }
+
+    public function test_ensure_draft_menolak_grant_unit_yang_bukan_pic_efektif(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $bukanPic = $this->penggunaDenganPeran('pegawai');
+        $this->grant($bukanPic, 'rencana_aksi:create', $fixture['unit']->id, $fixture['perencanaan']);
+
+        $this->actingAs($bukanPic)->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasErrors('jendela');
+
+        $this->assertDatabaseCount('rencana_aksi', 0);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->exists());
+    }
+
+    public function test_ensure_draft_menolak_pic_efektif_di_luar_jendela(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasErrors('jendela');
+
+        $this->assertDatabaseCount('rencana_aksi', 0);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->exists());
+    }
+
+    public function test_ensure_draft_mengizinkan_pic_efektif_di_dalam_jendela(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->assertSame($fixture['pic']->id, $header->penanggung_jawab_id);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->exists());
+    }
+
+    public function test_ensure_draft_perencanaan_global_mengikuti_jalur_resmi_di_luar_jendela(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->assertSame($fixture['pic']->id, $header->penanggung_jawab_id);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->exists());
     }
 
     public function test_versi_stale_ditolak_409_dan_tanpa_izin_403(): void

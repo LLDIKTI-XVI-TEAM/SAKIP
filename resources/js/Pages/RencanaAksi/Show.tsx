@@ -17,7 +17,11 @@ interface ShowProps {
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
-    return <RencanaAksiForm key={props.rencanaAksi.id} {...props} />;
+    // T6: sertakan versi dalam key agar useForm remount saat Inertia
+    // mengembalikan props versi baru pasca-simpan; tanpa ini expected_versi
+    // tetap usang dan simpan ke-2 tanpa reload kena 409 palsu. Versi sama
+    // (mis. validasi gagal) mempertahankan draf.
+    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}`} {...props} />;
 }
 
 function RencanaAksiForm({ rencanaAksi }: ShowProps) {

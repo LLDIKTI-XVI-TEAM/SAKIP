@@ -17,6 +17,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -30,6 +31,17 @@ class IndexRencanaAksi
     /**
      * Menyusun satu payload baca untuk matriks target per periode per komponen.
      *
+     * Transaksi baca konsisten (T7): header dimuat ulang di dalam transaksi
+     * dengan `sharedLock` (akuisisi header-dahulu, sama dengan jalur tulis
+     * sehingga pembaca antre — bukan deadlock), seluruh query turunan dibaca
+     * di dalam transaksi yang sama, lalu versi header diverifikasi ulang
+     * setelah seluruh data dibaca. Bila versi berubah di tengah baca,
+     * seluruh baca diulang hingga 3x sebelum gagal fail-closed.
+     * `expected_versi` selalu berasal dari versi terverifikasi di dalam
+     * transaksi, bukan dari model pra-transaksi milik controller, sehingga
+     * tulis-di-tengah-baca menghasilkan payload konsisten tanpa konflik 409
+     * palsu.
+     *
      * Himpunan komponen efektif (D2) dan periode efektif (D3) memakai aturan
      * yang sama dengan jalur tulis `SimpanTargetPeriode`, tetapi tanpa kunci
      * baris karena jalur ini read-only. Estimasi skor dihitung server via
@@ -42,77 +54,125 @@ class IndexRencanaAksi
      */
     public function handle(User $actor, RencanaAksi $header): array
     {
-        $header->loadMissing(['indikator', 'unit', 'jadwalTahunan', 'penanggungJawab']);
-        /** @var IndikatorKinerja $indikator */
-        $indikator = $header->indikator;
-        /** @var JadwalTahunan $jadwal */
-        $jadwal = $header->jadwalTahunan;
+        $percobaan = 0;
 
-        $snapshot = $this->snapshotEfektif($jadwal, $indikator);
-        $tipe = $snapshot?->tipe_perhitungan ?? $indikator->tipe_perhitungan;
-        $presisi = (int) ($snapshot?->presisi ?? $indikator->presisi ?? 2);
-        $definisi = $this->definisiEfektif($indikator, $jadwal, $snapshot);
+        do {
+            $percobaan++;
 
-        $jendela = $this->jendelaTerurut($jadwal);
-        $efektifIds = $this->periodeEfektifIds($header, $indikator, $snapshot, $jendela);
+            /** @var array{payload: array<string, mixed>, versi_awal: int, versi_akhir: int} $baca */
+            $baca = DB::transaction(function () use ($actor, $header): array {
+                $segel = RencanaAksi::whereKey($header->getKey())->sharedLock()->firstOrFail();
+                $versiAwal = (int) $segel->versi;
+                $segel->loadMissing(['indikator', 'unit', 'jadwalTahunan', 'penanggungJawab']);
+                /** @var IndikatorKinerja $indikator */
+                $indikator = $segel->indikator;
+                /** @var JadwalTahunan $jadwal */
+                $jadwal = $segel->jadwalTahunan;
 
-        $baris = $this->petaTarget($header);
-        $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+                $snapshot = $this->snapshotEfektif($jadwal, $indikator);
+                $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
+                $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
+                $definisi = $this->definisiEfektif($indikator, $snapshot, $this->jadwalPernahDiaktifkan($jadwal));
 
-        $unitId = (string) $header->unit_id;
+                $jendela = $this->jendelaTerurut($jadwal);
+                $efektifIds = $this->periodeEfektifIds($segel, $indikator, $snapshot, $jendela);
 
-        return [
-            'id' => $header->id,
-            'tahun' => (int) $header->tahun,
-            'status_alur' => $header->status_alur,
-            'versi' => (int) $header->versi,
-            'expected_versi' => (int) $header->versi,
-            'uraian' => $header->uraian,
-            'alasan_deviasi_pk' => $header->alasan_deviasi_pk,
-            'indikator' => [
-                ...$indikator->only(['id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'status', 'tahun_mulai_berlaku']),
-            ],
-            'unit' => $header->unit?->only(['id', 'nama']),
-            'jadwal' => [
-                ...$jadwal->only(['id', 'tahun', 'status']),
-                'rencana_aksi_mulai' => $jadwal->rencana_aksi_mulai?->toDateString(),
-                'rencana_aksi_selesai' => $jadwal->rencana_aksi_selesai?->toDateString(),
-                'penutupan' => $jadwal->penutupan?->toDateString(),
-            ],
-            'penanggung_jawab' => $header->penanggungJawab?->only(['id', 'nama']),
-            'tipe_perhitungan' => $tipe,
-            'presisi' => $presisi,
-            'target_pk' => $snapshot?->target,
-            'baseline' => $snapshot?->baseline,
-            'komponen' => $definisi->all(),
-            'periode' => $periode,
-            'deviasi_pk' => $this->deviasiPk($header, $indikator, $presisi, $snapshot, $periode),
-            'can' => [
-                'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
-                'update' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId),
-            ],
-        ];
+                $baris = $this->petaTarget($segel);
+                $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+
+                $unitId = (string) $segel->unit_id;
+
+                // T10: metadata indikator (nama, satuan, arah, tipe,
+                // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
+                // untuk konteks RA ini, bukan master berjalan. Kode, status,
+                // dan tahun_mulai_berlaku tetap milik master (tak dibekukan).
+                $indikatorPayload = $indikator->only(['id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'status', 'tahun_mulai_berlaku']);
+                if ($snapshot instanceof JadwalSnapshot) {
+                    $indikatorPayload['nama'] = (string) $snapshot->nama;
+                    $indikatorPayload['satuan'] = (string) $snapshot->satuan;
+                    $indikatorPayload['arah'] = (string) $snapshot->arah;
+                    $indikatorPayload['tipe_perhitungan'] = (string) $snapshot->tipe_perhitungan;
+                    $indikatorPayload['presisi'] = (int) $snapshot->presisi;
+                    $indikatorPayload['desimal_tampilan'] = (int) $snapshot->desimal_tampilan;
+                }
+
+                $payload = [
+                    'id' => $segel->id,
+                    'tahun' => (int) $segel->tahun,
+                    'status_alur' => $segel->status_alur,
+                    'versi' => $versiAwal,
+                    'expected_versi' => $versiAwal,
+                    'uraian' => $segel->uraian,
+                    'alasan_deviasi_pk' => $segel->alasan_deviasi_pk,
+                    'indikator' => $indikatorPayload,
+                    'unit' => $segel->unit?->only(['id', 'nama']),
+                    'jadwal' => [
+                        ...$jadwal->only(['id', 'tahun', 'status']),
+                        'rencana_aksi_mulai' => $jadwal->rencana_aksi_mulai?->toDateString(),
+                        'rencana_aksi_selesai' => $jadwal->rencana_aksi_selesai?->toDateString(),
+                        'penutupan' => $jadwal->penutupan?->toDateString(),
+                    ],
+                    'penanggung_jawab' => $segel->penanggungJawab?->only(['id', 'nama']),
+                    'tipe_perhitungan' => $tipe,
+                    'presisi' => $presisi,
+                    'target_pk' => $snapshot?->target,
+                    'baseline' => $snapshot?->baseline,
+                    'komponen' => $definisi->all(),
+                    'periode' => $periode,
+                    'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
+                    'can' => [
+                        'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
+                        'update' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId),
+                    ],
+                ];
+
+                $versiAkhir = (int) RencanaAksi::whereKey($segel->getKey())->sharedLock()->value('versi');
+
+                return ['payload' => $payload, 'versi_awal' => $versiAwal, 'versi_akhir' => $versiAkhir];
+            });
+
+            if ($baca['versi_awal'] === $baca['versi_akhir']) {
+                return $baca['payload'];
+            }
+        } while ($percobaan < 3);
+
+        throw ValidationException::withMessages(['rencana_aksi' => 'Data berubah saat dibaca. Muat ulang halaman sebelum menyimpan.']);
     }
 
     private function snapshotEfektif(JadwalTahunan $jadwal, IndikatorKinerja $indikator): ?JadwalSnapshot
     {
-        if ($jadwal->status !== 'aktif') {
-            return null;
-        }
-
-        return JadwalSnapshot::where('jadwal_id', $jadwal->id)
+        $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
             ->where('indikator_id', $indikator->id)
             ->orderByDesc('nomor_versi')
             ->first();
+
+        if ($snapshot === null && $this->jadwalPernahDiaktifkan($jadwal)) {
+            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia.']);
+        }
+
+        return $snapshot;
     }
 
     /**
-     * Himpunan komponen efektif memakai snapshot bila jadwal aktif,
-     * selebihnya memakai master aktif (cermin D2 jalur tulis, tanpa kunci).
+     * Jadwal dianggap pernah diaktifkan bila terkunci (aktif/ditutup atau
+     * activated_at terisi). RA yang terikat padanya wajib memakai frozen
+     * snapshot versi resmi terbaru, bukan live master.
      */
-    private function definisiEfektif(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?JadwalSnapshot $snapshot): Collection
+    private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool
     {
-        if ($jadwal->status === 'aktif' && $snapshot instanceof JadwalSnapshot) {
+        return $jadwal->is_terkunci
+            || $jadwal->activated_at !== null
+            || in_array($jadwal->status, ['aktif', 'ditutup'], true);
+    }
+
+    /**
+     * Himpunan komponen efektif selalu memakai frozen snapshot bila tersedia;
+     * jadwal pernah-aktif tanpa snapshot ditolak di snapshotEfektif
+     * (fail-closed), bukan fallback ke master live.
+     */
+    private function definisiEfektif(IndikatorKinerja $indikator, ?JadwalSnapshot $snapshot, bool $snapshotWajib): Collection
+    {
+        if ($snapshot instanceof JadwalSnapshot) {
             return JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshot->id)
                 ->orderBy('urutan')
                 ->orderBy('kode')
@@ -126,6 +186,10 @@ class IndexRencanaAksi
                     'urutan' => (int) $row->urutan,
                 ])
                 ->values();
+        }
+
+        if ($snapshotWajib) {
+            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia.']);
         }
 
         return IndikatorKomponen::where('indikator_id', $indikator->id)

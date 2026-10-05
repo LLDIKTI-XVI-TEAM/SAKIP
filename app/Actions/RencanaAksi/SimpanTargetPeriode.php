@@ -13,6 +13,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -40,9 +41,15 @@ class SimpanTargetPeriode
     /**
      * Menyimpan target per periode per komponen efektif di atas header draf.
      *
-     * Urutan kunci deterministik di dalam transaksi: pengguna beserta baris
-     * ACL, header rencana aksi, indikator, jadwal tahunan, snapshot beserta
-     * komponennya, jendela periode jadwal, lalu baris target. Izin dievaluasi
+     * Urutan kunci deterministik di dalam transaksi (anti-deadlock, sama
+     * dengan `EnsureDraftRencanaAksi`): pengguna beserta baris ACL, header
+     * rencana aksi, indikator, jadwal tahunan, snapshot beserta
+     * komponennya, jendela periode jadwal, lalu baris target. Tanpa retry:
+     * antrean kunci menserialkan transaksi bersamaan, bukan 40P01. Bacaan
+     * tanpa kunci (`Periode::exists`, PIC efektif jalur tulis) tidak ikut
+     * urutan karena tidak menahan kunci baris.
+     *
+     * Izin dievaluasi
      * ulang memakai state terkunci, jendela PIC/Perencanaan diperiksa memakai
      * tanggal Asia/Makassar, nilai turunan dihitung server tanpa disimpan,
      * dan versi bertambah satu dengan penolakan stale memakai status 409.
@@ -68,6 +75,11 @@ class SimpanTargetPeriode
                 $indikator = IndikatorKinerja::lockForUpdate()->findOrFail($header->indikator_id);
                 $jadwal = JadwalTahunan::lockForUpdate()->findOrFail($header->jadwal_tahunan_id);
 
+                $unitHeader = Unit::whereKey((string) $header->unit_id)->sharedLock()->first();
+                if (! $unitHeader instanceof Unit || $unitHeader->status !== 'aktif') {
+                    throw ValidationException::withMessages(['unit_id' => 'Unit pemilik rencana aksi berstatus nonaktif.']);
+                }
+
                 $keputusan = $this->resolver->decide($pengunci, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
                 $dasarIzin = $keputusan;
                 if (! $keputusan['allowed']) {
@@ -85,23 +97,24 @@ class SimpanTargetPeriode
                     throw ValidationException::withMessages(['expected_versi' => 'Data telah berubah. Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
-                $snapshot = null;
-                if ($jadwal->status === 'aktif') {
-                    $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
-                        ->where('indikator_id', $indikator->id)
-                        ->orderByDesc('nomor_versi')
-                        ->lockForUpdate()
-                        ->first();
+                $snapshotWajib = $this->jadwalPernahDiaktifkan($jadwal);
+                $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
+                    ->where('indikator_id', $indikator->id)
+                    ->orderByDesc('nomor_versi')
+                    ->lockForUpdate()
+                    ->first();
+                if ($snapshotWajib && ! $snapshot instanceof JadwalSnapshot) {
+                    throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
                 }
 
-                $tipe = $snapshot?->tipe_perhitungan ?? $indikator->tipe_perhitungan;
-                $presisi = (int) ($snapshot?->presisi ?? $indikator->presisi ?? 2);
-                $definisi = $this->definisiEfektif($indikator, $jadwal, $snapshot);
+                $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
+                $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
+                $definisi = $this->definisiEfektif($indikator, $snapshot, $snapshotWajib);
                 $periodeEfektif = $this->periodeEfektif($header, $indikator, $jadwal, $snapshot);
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
-                $this->pastikanJendela($pengunci, $keputusan, $header, $indikator, $jadwal);
+                $this->pastikanJendela($pengunci, $keputusan, $indikator, $jadwal, $targets);
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
                 $sebelum = $this->auditState($header);
@@ -149,12 +162,25 @@ class SimpanTargetPeriode
     }
 
     /**
-     * Himpunan komponen efektif memakai snapshot bila jadwal aktif,
-     * selebihnya memakai master aktif.
+     * Jadwal dianggap pernah diaktifkan bila terkunci (aktif/ditutup atau
+     * activated_at terisi). RA yang terikat padanya wajib memakai frozen
+     * snapshot versi resmi terbaru, bukan live master.
      */
-    private function definisiEfektif(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?JadwalSnapshot $snapshot): Collection
+    private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool
     {
-        if ($jadwal->status === 'aktif' && $snapshot instanceof JadwalSnapshot) {
+        return $jadwal->is_terkunci
+            || $jadwal->activated_at !== null
+            || in_array($jadwal->status, ['aktif', 'ditutup'], true);
+    }
+
+    /**
+     * Himpunan komponen efektif selalu memakai frozen snapshot bila RA terikat
+     * pada jadwal yang pernah diaktifkan; snapshot wajib-tapi-hilang ditolak
+     * di pemanggil (fail-closed), bukan fallback ke master live.
+     */
+    private function definisiEfektif(IndikatorKinerja $indikator, ?JadwalSnapshot $snapshot, bool $snapshotWajib): Collection
+    {
+        if ($snapshot instanceof JadwalSnapshot) {
             $rows = JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshot->id)
                 ->orderBy('urutan')
                 ->orderBy('kode')
@@ -169,6 +195,10 @@ class SimpanTargetPeriode
                 'bobot' => (string) $row->bobot,
                 'urutan' => (int) $row->urutan,
             ])->values();
+        }
+
+        if ($snapshotWajib) {
+            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
         }
 
         $rows = IndikatorKomponen::where('indikator_id', $indikator->id)
@@ -244,12 +274,13 @@ class SimpanTargetPeriode
 
     /**
      * @param  array<string, mixed>  $keputusan
+     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
      */
-    private function pastikanJendela(User $pengunci, array $keputusan, RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal): void
+    private function pastikanJendela(User $pengunci, array $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): void
     {
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $penutupan = $jadwal->penutupan?->toDateString();
-        if (is_string($penutupan) && $hariIni > $penutupan && ! $this->dalamKoreksiSah($header, $indikator, $jadwal)) {
+        if (is_string($penutupan) && $hariIni > $penutupan && ! $this->dalamKoreksiSah($indikator, $jadwal, $targets)) {
             throw ValidationException::withMessages(['jendela' => 'Tahun jadwal telah ditutup; penyimpanan memerlukan sesi koreksi resmi.']);
         }
 
@@ -293,7 +324,16 @@ class SimpanTargetPeriode
             ->exists();
     }
 
-    private function dalamKoreksiSah(RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    /**
+     * Sesi koreksi sah bila jendela waktu berjalan dan cakupan jenis objek
+     * serta indikator cocok. Setiap periode_id dalam REQUEST wajib termasuk
+     * dalam lingkup_koreksi.periode_ids (bila kunci itu ada) — acuan validasi
+     * adalah periode yang diminta, bukan yang tersimpan, sehingga header
+     * tanpa target lama pun tetap divalidasi.
+     *
+     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
+     */
+    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): bool
     {
         if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
             return false;
@@ -308,10 +348,15 @@ class SimpanTargetPeriode
         if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
             return false;
         }
-        $periodeIds = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->pluck('periode_id')->all();
         $cakupanPeriode = $lingkup['periode_ids'] ?? null;
-        if (is_array($cakupanPeriode) && $periodeIds !== [] && array_intersect($periodeIds, $cakupanPeriode) === []) {
-            return false;
+        if (is_array($cakupanPeriode)) {
+            $diizinkan = array_map(fn ($id): string => (string) $id, $cakupanPeriode);
+            foreach ($targets as $baris) {
+                $periodeId = (string) ($baris['periode_id'] ?? '');
+                if ($periodeId === '' || ! in_array($periodeId, $diizinkan, true)) {
+                    return false;
+                }
+            }
         }
 
         return true;

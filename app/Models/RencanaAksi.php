@@ -16,8 +16,6 @@ class RencanaAksi extends Model
 
     protected $table = 'rencana_aksi';
 
-    public $timestamps = false;
-
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_DIAJUKAN = 'diajukan';

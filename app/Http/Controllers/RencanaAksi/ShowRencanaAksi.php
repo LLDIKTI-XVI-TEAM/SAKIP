@@ -12,6 +12,13 @@ use Inertia\Response;
 
 class ShowRencanaAksi extends Controller
 {
+    /**
+     * T7: header pra-transaksi hanya untuk 404 + otorisasi view (`unit_id`
+     * imutabel pasca-create sehingga aman). Konsistensi payload (versi vs
+     * target) ditegakkan di dalam `IndexRencanaAksi::handle` via transaksi
+     * baca + `sharedLock` + verifikasi versi — model ini tidak diteruskan
+     * apa adanya ke payload.
+     */
     public function __invoke(Request $request, string $rencanaAksi, IndexRencanaAksi $index): Response
     {
         $header = RencanaAksi::findOrFail($rencanaAksi);

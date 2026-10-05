@@ -293,4 +293,19 @@ describe('Rencana aksi matriks target', () => {
             expect.objectContaining({ preserveState: false }),
         );
     });
+
+    it('T6 simpan berurutan tanpa reload memakai token versi terbaru', async () => {
+        const user = userEvent.setup();
+        const awal = buatPayload();
+        const { rerender } = render(<RencanaAksiShow rencanaAksi={awal} />);
+
+        // Simulasi props Inertia pasca-simpan pertama (versi naik 1 → 2).
+        rerender(<RencanaAksiShow rencanaAksi={{ ...awal, versi: 2, expected_versi: 2 }} />);
+
+        await user.click(screen.getByRole('button', { name: 'Simpan Target' }));
+
+        expect(router.post).toHaveBeenCalledTimes(1);
+        const kirim = vi.mocked(router.post).mock.calls[0][1] as { expected_versi: number };
+        expect(kirim.expected_versi).toBe(2);
+    });
 });

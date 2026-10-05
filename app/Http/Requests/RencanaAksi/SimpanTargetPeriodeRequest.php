@@ -36,7 +36,10 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'expected_versi' => ['required', 'integer', 'min:1'],
             'uraian' => ['nullable', 'string', 'max:10000'],
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
-            'targets' => ['required', 'array', 'min:1', 'max:100'],
+            // T12: batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
+            // × 12 periode bulanan = 600 sel. Angka 100 lama menolak matriks
+            // sah (mis. 10×11=110) yang dikirim utuh oleh halaman.
+            'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
