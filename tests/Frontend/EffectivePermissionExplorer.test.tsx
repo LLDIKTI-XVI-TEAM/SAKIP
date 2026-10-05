@@ -1,6 +1,6 @@
 import type { ActiveVisit, PendingVisit } from "@inertiajs/core";
 import type { ReactNode } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { router } from "@inertiajs/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -14,7 +14,7 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
     AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [], hasMore: false }), { status: 200 }))); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const props: EffectivePermissionIndexProps = {
     selectedUser: { id: "target", nama: "Pengguna Sintetis", email: "target@example.test", status: "aktif", role: { id: "role", kode: "pegawai", nama: "Pegawai", aktif: true, in_catalog: true } },
     selectedUnit: { id: "unit-a", nama: "Unit A", status: "aktif" },
@@ -86,7 +86,61 @@ it("unit lookup yang gagal memberi feedback dan dapat dicoba lagi", async () => 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response("", { status: 403 }))
         .mockResolvedValue(new Response(JSON.stringify({ items: [{ id: "unit-b", nama: "Unit B", status: "nonaktif" }], hasMore: false }), { status: 200 })));
     render(<EffectivePermissionIndex {...props} />);
+    await userEvent.setup().click(screen.getByRole("combobox", { name: "Konteks pemeriksaan" }));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Unit belum dapat dimuat. Coba cari kembali.");
     await userEvent.setup().click(screen.getByRole("button", { name: "Cari" }));
     expect(await screen.findByRole("option", { name: "Unit B (nonaktif)" })).toBeTruthy();
+});
+it("pencarian unit dimulai setelah interaksi tanpa request kosong saat mount", async () => {
+    const lookup = vi.mocked(fetch);
+    render(<EffectivePermissionIndex {...props} />);
+    expect(lookup).not.toHaveBeenCalled();
+    expect(screen.getByRole("option", { name: "Unit A" })).toBeTruthy();
+    await userEvent.setup().type(screen.getByRole("searchbox", { name: "Cari unit" }), "Diagnosis{Enter}");
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(String(lookup.mock.calls[0][0])).toContain("q=Diagnosis&page=1");
+    await waitFor(() => expect(screen.queryByText("Memuat unit…")).toBeNull());
+});
+
+it("pencarian baru menggantikan request unit pending dan mengabaikan respons lama", async () => {
+    let finishOld: (response: Response) => void = () => { throw new Error("Request lama belum dimulai."); };
+    const lookup = vi.fn<typeof fetch>().mockImplementationOnce(() => new Promise<Response>((resolve) => { finishOld = resolve; }))
+        .mockResolvedValue(new Response(JSON.stringify({ items: [{ id: "latest", nama: "Unit Terbaru", status: "aktif" }], hasMore: false }), { status: 200 }));
+    vi.stubGlobal("fetch", lookup);
+    const user = userEvent.setup();
+    render(<EffectivePermissionIndex {...props} />);
+    const search = screen.getByRole("searchbox", { name: "Cari unit" });
+    await user.type(search, "lama{Enter}");
+    const previousSignal = lookup.mock.calls[0][1]?.signal;
+    expect(search.hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Cari" }).hasAttribute("disabled")).toBe(false);
+    await user.clear(search);
+    await user.type(search, "baru{Enter}");
+    expect(previousSignal?.aborted).toBe(true);
+    expect(await screen.findByRole("option", { name: "Unit Terbaru" })).toBeTruthy();
+    await act(async () => { finishOld(new Response(JSON.stringify({ items: [{ id: "old", nama: "Unit Lama", status: "aktif" }], hasMore: false }), { status: 200 })); });
+    expect(screen.queryByRole("option", { name: "Unit Lama" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Unit Terbaru" })).toBeTruthy();
+});
+
+it("lookup unit yang melewati batas waktu dapat dicoba kembali dengan query yang sama", async () => {
+    vi.useFakeTimers();
+    const lookup = vi.fn<typeof fetch>().mockImplementation(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", lookup);
+    render(<EffectivePermissionIndex {...props} />);
+    const search = screen.getByRole("searchbox", { name: "Cari unit" });
+    const form = search.closest("form")!;
+    fireEvent.change(search, { target: { value: "lama" } });
+    fireEvent.submit(form);
+    const previousSignal = lookup.mock.calls[0][1]?.signal;
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(screen.getByRole("alert").textContent).toBe("Pencarian unit terlalu lama. Coba cari kembali.");
+    expect(previousSignal?.aborted).toBe(true);
+    expect(screen.queryByText("Memuat unit…")).toBeNull();
+    expect(search.hasAttribute("disabled")).toBe(false);
+    lookup.mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: "retry", nama: "Unit Pulih", status: "aktif" }], hasMore: false }), { status: 200 }));
+    await act(async () => { fireEvent.submit(form); });
+    expect(String(lookup.mock.calls[1][0])).toContain("q=lama&page=1");
+    expect(screen.getByRole("option", { name: "Unit Pulih" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
 });

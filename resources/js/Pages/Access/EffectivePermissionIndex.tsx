@@ -14,18 +14,28 @@ function UnitContextPicker({ selected, disabled, error, onChange }: {
     selected: ExplorerUnit | null; disabled: boolean; error?: string; onChange: (id: string | null) => void;
 }) {
     const [query, setQuery] = useState("");
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [attempt, setAttempt] = useState(0);
     const [items, setItems] = useState<ExplorerUnit[]>([]);
     const [hasMore, setHasMore] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [failure, setFailure] = useState("");
     useEffect(() => {
+        if (search === null) return;
         const controller = new AbortController();
         let active = true;
         setLoading(true);
         setFailure("");
+        setItems([]);
+        setHasMore(false);
+        // Batas waktu tetap memulihkan UI meski transport belum menyelesaikan abort.
+        const deadline = window.setTimeout(() => {
+            active = false;
+            controller.abort();
+            setFailure("Pencarian unit terlalu lama. Coba cari kembali.");
+            setLoading(false);
+        }, 20_000);
         const params = new URLSearchParams({ q: search, page: String(page) });
         void fetch(`/akses/jelaskan-izin/opsi/unit?${params}`, { headers: { Accept: "application/json" }, signal: controller.signal })
             .then(async (response) => {
@@ -34,14 +44,14 @@ function UnitContextPicker({ selected, disabled, error, onChange }: {
                 if (active) { setItems(data.items); setHasMore(data.hasMore); }
             }).catch((reason: unknown) => {
                 if (active) { setFailure(reason instanceof Error ? reason.message : "Gagal memuat unit."); setItems([]); }
-            }).finally(() => { if (active) setLoading(false); });
-        return () => { active = false; controller.abort(); };
+            }).finally(() => { window.clearTimeout(deadline); if (active) setLoading(false); });
+        return () => { active = false; window.clearTimeout(deadline); controller.abort(); };
     }, [search, page, attempt]);
     const options = selected && !items.some((unit) => unit.id === selected.id) ? [selected, ...items] : items;
     return <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         <div className="min-w-0 space-y-2">
             <Select id="explorer-unit" label="Konteks pemeriksaan" labelClassName="sr-only" value={selected?.id ?? ""} disabled={disabled}
-                aria-describedby={error || failure ? "explorer-unit-error" : undefined} aria-invalid={Boolean(error)} onChange={(event) => onChange(event.target.value || null)}>
+                onFocus={() => { if (search === null) setSearch(""); }} aria-describedby={error || failure ? "explorer-unit-error" : undefined} aria-invalid={Boolean(error)} onChange={(event) => onChange(event.target.value || null)}>
                 <option value="">Global</option>
                 {options.map((unit) => <option key={unit.id} value={unit.id}>{unit.nama}{unit.status === "nonaktif" ? " (nonaktif)" : ""}</option>)}
             </Select>
@@ -49,9 +59,9 @@ function UnitContextPicker({ selected, disabled, error, onChange }: {
         </div>
         <div className="min-w-0 space-y-2">
             <form className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); setPage(1); setAttempt((value) => value + 1); }}>
-                <Input id="explorer-unit-search" label="Cari unit" labelClassName="sr-only" placeholder="Cari nama unit..." type="search" value={query} maxLength={100} disabled={disabled || loading}
+                <Input id="explorer-unit-search" label="Cari unit" labelClassName="sr-only" placeholder="Cari nama unit..." type="search" value={query} maxLength={100} disabled={disabled}
                     onChange={(event) => setQuery(event.target.value)} />
-                <Button variant="outline" type="submit" className="h-[42px]" disabled={disabled || loading}>Cari</Button>
+                <Button variant="outline" type="submit" className="h-[42px]" disabled={disabled}>Cari</Button>
             </form>
             <div className={loading || page > 1 || hasMore ? "flex flex-wrap items-center gap-2 text-xs leading-5 text-muted" : "sr-only"} aria-live="polite">
                 {loading ? <span>Memuat unit…</span> : <span className="sr-only">{items.length ? `Pilihan unit · halaman ${page}` : "Tidak ada unit yang cocok."}</span>}
