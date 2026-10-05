@@ -137,4 +137,18 @@ describe('JenisBerkasIndex UI & Reusable Component Standardization', () => {
         // Paragraf panjang sensitif yang diaudit harus sudah hilang
         expect(screen.queryByText(/Penghapusan katalog jenis berkas bersifat sensitif/i)).toBeNull();
     });
+
+    it('merender komponen Pagination untuk tabel persyaratan jenis berkas', () => {
+        render(
+            <JenisBerkasIndex
+                jenisBerkasList={mockJenisBerkas}
+                indikators={[]}
+                can={{ create: true, update: true, delete: true }}
+            />
+        );
+
+        const meta = screen.getByTestId('pagination-meta');
+        expect(meta).toBeTruthy();
+        expect(meta.textContent).toContain('1 - 1 dari 1');
+    });
 });

@@ -86,6 +86,7 @@ export function CustomSelect({
 
     const handleSelect = (val: string | number) => {
         if (disabled) return;
+        setIsHovered(false);
         onChange?.(val);
         setIsOpen(false);
         triggerRef.current?.focus();
@@ -148,8 +149,9 @@ export function CustomSelect({
                         {selectedOption ? (
                             useHoverScroll ? (
                                 <HoverScrollText
+                                    key={String(selectedOption.value)}
                                     text={selectedOption.label}
-                                    isParentHovered={isHovered}
+                                    isParentHovered={isHovered && !isOpen}
                                     className="text-sm font-normal text-ink w-full max-w-full"
                                     textClassName="font-normal"
                                 />

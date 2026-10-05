@@ -356,16 +356,14 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                 }
                             }}
                             aria-pressed={isSelected}
-                            className={`group flex flex-col justify-between rounded-xl border p-3 sm:p-3.5 transition-all duration-150 touch-manipulation min-h-[88px] sm:min-h-[94px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                                isSelected
+                            className={`group flex flex-col justify-between rounded-xl border p-3 sm:p-3.5 transition-all duration-150 touch-manipulation min-h-[88px] sm:min-h-[94px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 ${isSelected
                                     ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-xs'
                                     : 'border-border bg-surface shadow-xs hover:border-primary/40 hover:bg-soft/40 active:scale-[0.99]'
-                            }`}
+                                }`}
                         >
                             <div className="flex items-center justify-between gap-1.5">
-                                <span className={`text-[11px] sm:text-xs font-semibold leading-tight truncate transition-colors ${
-                                    isSelected ? 'text-primary font-bold' : 'text-muted'
-                                }`}>
+                                <span className={`text-[11px] sm:text-xs font-semibold leading-tight truncate transition-colors ${isSelected ? 'text-primary font-bold' : 'text-muted'
+                                    }`}>
                                     {label}
                                 </span>
                                 <div className={`flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-md ${iconBg}`}>
@@ -516,22 +514,19 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                             data-testid={`capaian-category-${cat.label.toLowerCase().replace(/\s+/g, '-')}`}
                                             onMouseEnter={() => setHoveredCategory(cat.label)}
                                             onMouseLeave={() => setHoveredCategory(null)}
-                                            className={`w-full flex items-center justify-between text-xs sm:text-sm px-2.5 py-1.5 -mx-2.5 rounded-lg cursor-pointer transition-all duration-150 ${
-                                                isHovered
+                                            className={`w-full flex items-center justify-between text-xs sm:text-sm px-2.5 py-1.5 -mx-2.5 rounded-lg cursor-pointer transition-all duration-150 ${isHovered
                                                     ? 'bg-soft/90 shadow-2xs'
                                                     : 'hover:bg-soft/40'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <span
-                                                    className={`h-2.5 w-2.5 rounded-full shrink-0 transition-transform duration-150 ${cat.dotClass} ${
-                                                        isHovered ? 'scale-125' : ''
-                                                    }`}
+                                                    className={`h-2.5 w-2.5 rounded-full shrink-0 transition-transform duration-150 ${cat.dotClass} ${isHovered ? 'scale-125' : ''
+                                                        }`}
                                                     aria-hidden="true"
                                                 />
-                                                <span className={`font-medium truncate transition-colors ${
-                                                    isHovered ? 'text-primary font-semibold' : 'text-ink'
-                                                }`}>
+                                                <span className={`font-medium truncate transition-colors ${isHovered ? 'text-primary font-semibold' : 'text-ink'
+                                                    }`}>
                                                     {cat.label}
                                                 </span>
                                             </div>
@@ -539,9 +534,8 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                                 <span className="text-xs sm:text-sm font-semibold text-muted w-4 sm:w-5 text-right">
                                                     {cat.count > 0 ? cat.count : '-'}
                                                 </span>
-                                                <span className={`text-sm sm:text-base font-bold w-10 sm:w-12 text-right transition-colors ${
-                                                    isHovered ? 'text-primary' : 'text-ink'
-                                                }`}>
+                                                <span className={`text-sm sm:text-base font-bold w-10 sm:w-12 text-right transition-colors ${isHovered ? 'text-primary' : 'text-ink'
+                                                    }`}>
                                                     {cat.pct}%
                                                 </span>
                                             </div>
@@ -593,7 +587,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <h3 className="text-sm sm:text-base font-bold text-ink leading-snug">
-                                        {raTotal > 0 ? 'Status Rencana Aksi' : 'Rencana Aksi Belum Tersedia'}
+                                        {raTotal > 0 ? 'Status Rencana Aksi:' : 'Rencana Aksi Belum Tersedia'}
                                     </h3>
                                     {raTotal === 0 && (
                                         <p className="mt-1 text-xs text-muted leading-relaxed">
@@ -621,9 +615,8 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                 </div>
                                 <div className="h-2.5 w-full overflow-hidden rounded-full bg-soft border border-border transition-all duration-200 group-hover/progress:h-3">
                                     <div
-                                        className={`h-full rounded-full transition-all duration-500 ${
-                                            raTotal > 0 ? 'bg-primary group-hover/progress:brightness-110' : 'bg-primary/40'
-                                        }`}
+                                        className={`h-full rounded-full transition-all duration-500 ${raTotal > 0 ? 'bg-primary group-hover/progress:brightness-110' : 'bg-primary/40'
+                                            }`}
                                         style={{ width: `${raTotal > 0 ? raRate : 0}%` }}
                                     />
                                 </div>
@@ -808,7 +801,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                 <TableHead className="px-5 py-3 text-muted text-[11px] font-bold uppercase tracking-wider">
                                     Unit & PIC
                                 </TableHead>
-                                <TableHead className="px-5 py-3 text-muted text-[11px] font-bold uppercase tracking-wider text-right">
+                                <TableHead className="px-5 py-3 text-muted text-[11px] font-bold uppercase tracking-wider text-right w-28 whitespace-nowrap">
                                     Nilai
                                 </TableHead>
                                 <TableHead className="px-5 py-3 text-muted text-[11px] font-bold uppercase tracking-wider">
@@ -855,7 +848,7 @@ export default function DashboardIndex({ activeRenstra, activePeriode, stats, re
                                             <p className="font-medium">{item.unit.nama}</p>
                                             <p className="text-[11px] text-muted mt-0.5">PIC: {item.pic?.nama || '-'}</p>
                                         </TableCell>
-                                        <TableCell className="px-5 py-3 text-right font-mono font-bold text-xs text-ink tabular-nums">
+                                        <TableCell className="px-5 py-3 text-right font-mono font-bold text-xs text-ink tabular-nums whitespace-nowrap">
                                             {item.nilai === null
                                                 ? '-'
                                                 : `${formatNilai(item.nilai, item.desimal_tampilan)} ${item.satuan}`}

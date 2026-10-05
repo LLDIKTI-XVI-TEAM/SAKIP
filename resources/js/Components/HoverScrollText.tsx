@@ -39,6 +39,7 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
     const [overflow, setOverflow] = useState(0);
     const [isSelfHovered, setIsSelfHovered] = useState(false);
     const [isTouched, setIsTouched] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
 
     const updateOverflow = () => {
         if (containerRef.current && textRef.current) {
@@ -48,18 +49,32 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
     };
 
     useEffect(() => {
+        setIsResetting(true);
+        setIsSelfHovered(false);
+        setIsTouched(false);
         updateOverflow();
-        const timer1 = setTimeout(updateOverflow, 150);
-        const timer2 = setTimeout(updateOverflow, 600);
+        const timer1 = setTimeout(() => {
+            updateOverflow();
+            setIsResetting(false);
+        }, 50);
+        const timer2 = setTimeout(updateOverflow, 200);
+        const timer3 = setTimeout(updateOverflow, 600);
         window.addEventListener('resize', updateOverflow);
         return () => {
             clearTimeout(timer1);
             clearTimeout(timer2);
+            clearTimeout(timer3);
             window.removeEventListener('resize', updateOverflow);
         };
     }, [text]);
 
-    const activeHover = isParentHovered || isSelfHovered || isTouched;
+    useEffect(() => {
+        if (!isParentHovered && !isSelfHovered) {
+            setIsTouched(false);
+        }
+    }, [isParentHovered, isSelfHovered]);
+
+    const activeHover = !isResetting && (isParentHovered || isSelfHovered || isTouched);
     const isScrolling = activeHover && overflow > 0;
     const duration = Math.max(2, Math.round(overflow / scrollSpeed));
 
@@ -85,23 +100,26 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
                 updateOverflow();
                 setIsSelfHovered(true);
             }}
-            onMouseLeave={() => setIsSelfHovered(false)}
-            onClick={(e) => {
-                if (overflow > 0) {
+            onMouseLeave={() => {
+                setIsSelfHovered(false);
+                setIsTouched(false);
+            }}
+            onPointerDown={(e) => {
+                if (e.pointerType === 'touch' && overflow > 0) {
                     updateOverflow();
-                    setIsTouched(true);
+                    setIsTouched((prev) => !prev);
                 }
             }}
         >
             {icon && (
-                <span className="shrink-0 z-10 bg-surface pr-0.5 select-none flex items-center">
+                <span className="shrink-0 z-10 bg-surface pr-0.5 select-none flex items-center pointer-events-none">
                     {icon}
                 </span>
             )}
             <div
                 ref={containerRef}
                 className={clsx(
-                    'overflow-hidden relative w-full flex items-center',
+                    'overflow-hidden relative w-full flex items-center pointer-events-none',
                     centerWhenNoOverflow && overflow === 0 && 'justify-center'
                 )}
             >
@@ -113,7 +131,7 @@ export const HoverScrollText: React.FC<HoverScrollTextProps> = ({
                     style={{
                         transform: isScrolling ? `translateX(-${overflow + 6}px)` : 'translateX(0)',
                         transitionProperty: 'transform',
-                        transitionDuration: isScrolling ? `${duration}s` : '0.35s',
+                        transitionDuration: isResetting ? '0s' : isScrolling ? `${duration}s` : '0.35s',
                         transitionTimingFunction: isScrolling
                             ? 'linear'
                             : 'cubic-bezier(0.25, 1, 0.5, 1)',

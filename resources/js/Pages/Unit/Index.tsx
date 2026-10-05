@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { 
     Building2, 
@@ -19,6 +19,7 @@ import { ConfirmModal } from '@/Components/ConfirmModal';
 import { EditIconButton } from '@/Components/EditIconButton';
 import { DeleteIconButton } from '@/Components/DeleteIconButton';
 import { ToggleIconButton } from '@/Components/ToggleIconButton';
+import { Pagination } from '@/Components/Pagination';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -98,6 +99,13 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         snapshot: null,
     });
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, filterStatus]);
+
     const filteredUnits = useMemo(() => {
         return units.filter((u) => {
             const matchesSearch = u.nama.toLowerCase().includes(search.toLowerCase());
@@ -110,6 +118,11 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
             return matchesSearch && matchesStatus;
         });
     }, [units, search, filterStatus]);
+
+    const paginatedUnits = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        return filteredUnits.slice(start, start + perPage);
+    }, [filteredUnits, currentPage, perPage]);
 
     const handleOpenCreate = () => {
         createForm.reset();
@@ -404,107 +417,123 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredUnits.map((unit, index) => (
-                                        <tr 
-                                            key={unit.id}
-                                            className="hover:bg-slate-50/70 transition-colors"
-                                        >
-                                            <td className="py-3.5 px-4 text-center font-medium text-slate-400">
-                                                {index + 1}
-                                            </td>
-                                            <td className="py-3.5 px-4 font-semibold text-slate-900">
-                                                {unit.nama}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.indikators_count > 0 
-                                                        ? 'bg-blue-50 text-blue-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.indikators_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.rencana_aksis_count > 0 
-                                                        ? 'bg-indigo-50 text-indigo-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.rencana_aksis_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.kegiatans_count > 0 
-                                                        ? 'bg-amber-50 text-amber-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.kegiatans_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.grants_count > 0 
-                                                        ? 'bg-purple-50 text-purple-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.grants_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                {unit.is_active ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        Aktif
+                                    paginatedUnits.map((unit, index) => {
+                                        const rowNumber = (currentPage - 1) * perPage + index + 1;
+                                        return (
+                                            <tr 
+                                                key={unit.id}
+                                                className="hover:bg-slate-50/70 transition-colors"
+                                            >
+                                                <td className="py-3.5 px-4 text-center font-medium text-slate-400">
+                                                    {rowNumber}
+                                                </td>
+                                                <td className="py-3.5 px-4 font-semibold text-slate-900">
+                                                    {unit.nama}
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                        unit.indikators_count > 0 
+                                                            ? 'bg-blue-50 text-blue-700' 
+                                                            : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {unit.indikators_count}
                                                     </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                                        <XCircle className="w-3 h-3" />
-                                                        Nonaktif
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                        unit.rencana_aksis_count > 0 
+                                                            ? 'bg-indigo-50 text-indigo-700' 
+                                                            : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {unit.rencana_aksis_count}
                                                     </span>
-                                                )}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    {unit.can.update && (
-                                                        <>
-                                                            <ToggleIconButton
-                                                                isActive={unit.is_active}
-                                                                onClick={() => handleOpenToggleStatus(unit)}
-                                                                label={unit.is_active ? `Nonaktifkan ${unit.nama}` : `Aktifkan ${unit.nama}`}
-                                                                tooltip={unit.is_active ? `Nonaktifkan ${labelUnit}` : `Aktifkan ${labelUnit}`}
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                        unit.kegiatans_count > 0 
+                                                            ? 'bg-amber-50 text-amber-700' 
+                                                            : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {unit.kegiatans_count}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                                        unit.grants_count > 0 
+                                                            ? 'bg-purple-50 text-purple-700' 
+                                                            : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {unit.grants_count}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    {unit.is_active ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                            Aktif
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                                            <XCircle className="w-3 h-3" />
+                                                            Nonaktif
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-3.5 px-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {unit.can.update && (
+                                                            <>
+                                                                <ToggleIconButton
+                                                                    isActive={unit.is_active}
+                                                                    onClick={() => handleOpenToggleStatus(unit)}
+                                                                    label={unit.is_active ? `Nonaktifkan ${unit.nama}` : `Aktifkan ${unit.nama}`}
+                                                                    tooltip={unit.is_active ? `Nonaktifkan ${labelUnit}` : `Aktifkan ${labelUnit}`}
+                                                                    tooltipAlign="right"
+                                                                />
+
+                                                                <EditIconButton
+                                                                    onClick={() => handleOpenEdit(unit)}
+                                                                    label={`Edit ${unit.nama}`}
+                                                                    tooltip={`Edit ${labelUnit}`}
+                                                                    tooltipAlign="right"
+                                                                />
+                                                            </>
+                                                        )}
+
+                                                        {unit.can.delete && (
+                                                            <DeleteIconButton
+                                                                onClick={() => {
+                                                                    setDeletingUnit(unit);
+                                                                    setDeleteReason('');
+                                                                    setDeleteError('');
+                                                                }}
+                                                                label={`Hapus ${unit.nama}`}
+                                                                tooltip="Hapus Unit"
                                                                 tooltipAlign="right"
                                                             />
-
-                                                            <EditIconButton
-                                                                onClick={() => handleOpenEdit(unit)}
-                                                                label={`Edit ${unit.nama}`}
-                                                                tooltip={`Edit ${labelUnit}`}
-                                                                tooltipAlign="right"
-                                                            />
-                                                        </>
-                                                    )}
-
-                                                    {unit.can.delete && (
-                                                        <DeleteIconButton
-                                                            onClick={() => {
-                                                                setDeletingUnit(unit);
-                                                                setDeleteReason('');
-                                                                setDeleteError('');
-                                                            }}
-                                                            label={`Hapus ${unit.nama}`}
-                                                            tooltip="Hapus Unit"
-                                                            tooltipAlign="right"
-                                                        />
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
                     </div>
+
+                    <Pagination
+                        total={filteredUnits.length}
+                        currentPage={currentPage}
+                        perPage={perPage}
+                        lastPage={Math.max(1, Math.ceil(filteredUnits.length / perPage))}
+                        onPageChange={(page) => setCurrentPage(page)}
+                        onPerPageChange={(newPerPage) => {
+                            setPerPage(newPerPage);
+                            setCurrentPage(1);
+                        }}
+                        resourceName={labelUnit.toLowerCase()}
+                    />
                 </Card>
             </div>
 

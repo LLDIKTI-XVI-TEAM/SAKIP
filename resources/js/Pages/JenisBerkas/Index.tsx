@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { 
     Plus, 
@@ -25,6 +25,7 @@ import { HoverScrollText } from '@/Components/HoverScrollText';
 import { EditIconButton } from '@/Components/EditIconButton';
 import { DeleteIconButton } from '@/Components/DeleteIconButton';
 import { IconButton } from '@/Components/IconButton';
+import { Pagination } from '@/Components/Pagination';
 import { 
     JenisBerkasModal, 
     JenisBerkasFormData, 
@@ -109,6 +110,13 @@ export default function JenisBerkasIndex({
     const [auditError, setAuditError] = useState<string | null>(null);
 
     // Filter list
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, selectedTahap]);
+
     const filteredList = useMemo(() => {
         return jenisBerkasList.filter((item) => {
             const matchesTahap = selectedTahap === 'semua' || item.tahap === selectedTahap;
@@ -122,6 +130,11 @@ export default function JenisBerkasIndex({
             return matchesTahap && matchesSearch;
         });
     }, [jenisBerkasList, selectedTahap, searchQuery]);
+
+    const paginatedList = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        return filteredList.slice(start, start + perPage);
+    }, [filteredList, currentPage, perPage]);
 
     // Form handlers
     const handleOpenCreate = () => {
@@ -461,11 +474,13 @@ export default function JenisBerkasIndex({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredList.map((item, index) => (
+                            paginatedList.map((item, index) => {
+                                const rowNumber = (currentPage - 1) * perPage + index + 1;
+                                return (
                                 <TableRow key={item.id}>
                                     {/* No */}
                                     <TableCell className="text-center font-mono text-muted">
-                                        {index + 1}
+                                        {rowNumber}
                                     </TableCell>
 
                                     {/* Nama & Keterangan */}
@@ -639,10 +654,24 @@ export default function JenisBerkasIndex({
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>
+
+                <Pagination
+                    total={filteredList.length}
+                    currentPage={currentPage}
+                    perPage={perPage}
+                    lastPage={Math.max(1, Math.ceil(filteredList.length / perPage))}
+                    onPageChange={(page) => setCurrentPage(page)}
+                    onPerPageChange={(newPerPage) => {
+                        setPerPage(newPerPage);
+                        setCurrentPage(1);
+                    }}
+                    resourceName="Persyaratan"
+                />
             </Card>
 
             {/* Modal Tambah / Ubah */}

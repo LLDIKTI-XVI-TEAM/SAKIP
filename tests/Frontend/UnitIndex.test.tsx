@@ -143,4 +143,12 @@ describe('UnitIndex Component UI & Reusable Components', () => {
         // unit-2 dapat dihapus, tombol hapus harus dirender
         expect(screen.getByRole('button', { name: 'Hapus Bagian Perencanaan dan Kerjasama' })).toBeTruthy();
     });
+
+    it('merender komponen Pagination untuk tabel unit', () => {
+        render(<UnitIndex units={mockUnits} can={{ create: true }} />);
+
+        const meta = screen.getByTestId('pagination-meta');
+        expect(meta).toBeTruthy();
+        expect(meta.textContent).toContain('1 - 2 dari 2');
+    });
 });
