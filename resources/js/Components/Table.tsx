@@ -2,9 +2,13 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-    ({ className, ...props }, ref) => (
-        <div className="relative w-full overflow-x-auto">
+export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+    wrapperClassName?: string;
+}
+
+export const Table = React.forwardRef<HTMLTableElement, TableProps>(
+    ({ className, wrapperClassName, ...props }, ref) => (
+        <div className={twMerge(clsx('relative w-full overflow-x-auto', wrapperClassName))}>
             <table
                 ref={ref}
                 className={twMerge(clsx('w-full caption-bottom text-left text-xs text-ink', className))}

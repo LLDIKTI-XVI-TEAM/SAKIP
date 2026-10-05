@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeftRight, Layers, LockKeyhole, Plus, RotateCcw, Search } from 'lucide-react';
+import { ArrowLeftRight, Eye, Layers, LockKeyhole, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -8,6 +8,7 @@ import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { Tooltip } from '@/Components/Tooltip';
 import { FinalPeriodeReplacement } from '@/Components/Periode/FinalPeriodeReplacement';
 import { PeriodeFields, type PeriodeFormValues } from '@/Components/Periode/PeriodeFields';
 import { Select } from '@/Components/Select';
@@ -23,6 +24,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status ?? '');
     const [editing, setEditing] = useState<PeriodeSummary | null>(null);
+    const [detail, setDetail] = useState<PeriodeSummary | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [swap, setSwap] = useState<{
         current: NonNullable<PeriodeIndexProps['current_final']>;
@@ -292,78 +294,76 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                     </div>
                 </Card>
                 <Card>
-                    <Table className="block w-full text-left text-sm md:table">
-                        <caption className="sr-only">Master periode dan status penguncian metadata</caption>
+                    <Table wrapperClassName="overflow-x-visible" className="block w-full text-left text-sm md:table">
+                        <caption className="sr-only">Master periode ringkas</caption>
                         <thead className="hidden bg-soft text-xs text-muted md:table-header-group">
                             <tr>
-                                {['Nama periode', 'Urutan', 'Status', 'Nilai akhir', 'Metadata', 'Aksi'].map(
-                                    (label) => (
-                                        <th key={label} scope="col" className="px-4 py-3 font-medium">
-                                            {label}
-                                        </th>
-                                    ),
-                                )}
+                                {['Nama periode', 'Urutan', 'Status', 'Aksi'].map((label) => (
+                                    <th
+                                        key={label}
+                                        scope="col"
+                                        className={`px-4 py-3 font-medium ${label === 'Aksi' ? 'text-right' : ''}`}
+                                    >
+                                        {label}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="block divide-y divide-border md:table-row-group">
                             {periode.data.length === 0 && (
                                 <tr className="block md:table-row">
-                                    <td colSpan={6} className="block px-4 py-10 text-center text-muted md:table-cell">
+                                    <td colSpan={4} className="block px-4 py-10 text-center text-muted md:table-cell">
                                         Tidak ada periode ditemukan.
                                     </td>
                                 </tr>
                             )}
                             {periode.data.map((item) => (
-                                <tr key={item.id} className="grid grid-cols-2 gap-3 p-4 md:table-row">
-                                    <td className="col-span-2 break-words font-semibold md:max-w-64 md:px-4 md:py-4">
+                                <tr key={item.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                    <td className="col-span-2 min-w-0 break-words font-semibold md:max-w-64 md:px-4 md:py-4">
                                         {item.nama}
                                     </td>
-                                    <td className="md:px-4 md:py-4">
+                                    <td className="min-w-0 break-words md:px-4 md:py-4">
                                         <span className="mr-2 text-xs text-muted md:hidden">Urutan</span>
                                         {item.urutan}
                                     </td>
-                                    <td className="md:px-4 md:py-4">
+                                    <td className="min-w-0 md:px-4 md:py-4">
                                         <Badge variant={item.aktif ? 'success' : 'warning'}>
                                             {item.aktif ? 'Aktif' : 'Nonaktif'}
                                         </Badge>
                                     </td>
-                                    <td className="md:px-4 md:py-4">
-                                        {item.is_nilai_akhir ? (
-                                            <Badge variant="secondary">
-                                                {item.aktif ? 'Ya · Manual' : 'Ya · Riwayat'}
-                                            </Badge>
-                                        ) : (
-                                            <span className="text-muted">
-                                                <span className="md:hidden">Nilai akhir: </span>—
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="md:px-4 md:py-4">
-                                        {item.metadata_locked ? (
-                                            <>
-                                                <Badge>
-                                                    <LockKeyhole className="h-3 w-3" aria-hidden="true" />
-                                                    Terkunci
-                                                </Badge>
-                                                <p className="mt-1 text-xs text-muted">{item.metadata_locked_reason}</p>
-                                            </>
-                                        ) : (
-                                            <Badge>Dapat diubah</Badge>
-                                        )}
-                                    </td>
-                                    <td className="col-span-2 md:px-4 md:py-4">
-                                        {can.update && (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={blocked || busy}
-                                                onClick={() => openForm(item)}
-                                                aria-label={`${item.metadata_locked ? 'Koreksi nama' : 'Edit'} ${item.nama}`}
-                                            >
-                                                {item.metadata_locked ? 'Koreksi nama' : 'Edit'}
-                                            </Button>
-                                        )}
+                                    <td className="col-span-2 min-w-0 md:px-4 md:py-4 md:text-right">
+                                        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+                                            <Tooltip content="Lihat detail" align="right">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setDetail(item)}
+                                                    aria-label={`Lihat detail ${item.nama}`}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Eye className="h-4 w-4" aria-hidden="true" />
+                                                </Button>
+                                            </Tooltip>
+                                            {can.update && (
+                                                <Tooltip
+                                                    content={item.metadata_locked ? 'Koreksi nama' : 'Edit'}
+                                                    align="right"
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={blocked || busy}
+                                                        onClick={() => openForm(item)}
+                                                        aria-label={`${item.metadata_locked ? 'Koreksi nama' : 'Edit'} ${item.nama}`}
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                    </Button>
+                                                </Tooltip>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -466,6 +466,72 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                         />
                     )}
                 </form>
+            </Modal>
+            <Modal
+                isOpen={Boolean(detail)}
+                onClose={() => setDetail(null)}
+                title={detail ? `Detail periode ${detail.nama}` : 'Detail periode'}
+                size="md"
+                footer={
+                    <Button type="button" variant="outline" onClick={() => setDetail(null)}>
+                        Tutup
+                    </Button>
+                }
+            >
+                {detail && (
+                    <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Nama periode</dt>
+                            <dd className="mt-1 text-sm font-semibold text-ink">{detail.nama}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Urutan</dt>
+                            <dd className="mt-1 text-sm text-ink">{detail.urutan}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Status aktif</dt>
+                            <dd className="mt-1">
+                                <Badge variant={detail.aktif ? 'success' : 'warning'}>
+                                    {detail.aktif ? 'Aktif' : 'Nonaktif'}
+                                </Badge>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Nilai akhir · Diisi manual</dt>
+                            <dd className="mt-1">
+                                {detail.is_nilai_akhir ? (
+                                    <Badge variant="secondary">
+                                        {detail.aktif ? 'Ya · Manual' : 'Ya · Riwayat'}
+                                    </Badge>
+                                ) : (
+                                    <span className="text-sm text-muted">—</span>
+                                )}
+                            </dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <dt className="text-xs font-semibold text-muted">Metadata</dt>
+                            <dd className="mt-1">
+                                {detail.metadata_locked ? (
+                                    <>
+                                        <Badge>
+                                            <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+                                            Terkunci
+                                        </Badge>
+                                        <p className="mt-1 text-xs leading-relaxed text-muted">
+                                            {detail.metadata_locked_reason}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <Badge>Dapat diubah</Badge>
+                                )}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Revisi</dt>
+                            <dd className="mt-1 text-sm text-ink">{detail.revisi}</dd>
+                        </div>
+                    </dl>
+                )}
             </Modal>
         </AuthenticatedLayout>
     );
