@@ -199,4 +199,39 @@ class EffectivePermissionExplorerTest extends TestCase
         DB::disableQueryLog();
         $this->assertLessThanOrEqual($singleCount + 1, $pageCount);
     }
+
+    public function test_search_treats_wildcards_and_escape_as_literal_text(): void
+    {
+        $target = $this->user('pegawai');
+        $comparison = Permission::create(['kode' => 'legacy:comparison', 'entitas' => 'legacy', 'aksi' => 'read', 'keterangan' => 'Pembanding', 'butuh_scope' => 'global', 'aktif' => true]);
+        $this->source('user_permission_granted', $target, $comparison->kode);
+        User::factory()->create(['nama' => 'Pengguna Pembanding', 'email' => 'comparison@example.test']);
+        Unit::create(['nama' => 'Unit Pembanding', 'created_by' => $this->actor->id]);
+
+        foreach (['%', '_', '\\'] as $index => $character) {
+            $literalUser = User::factory()->create(['nama' => 'Pengguna Literal '.$character, 'email' => 'literal-'.$index.'@example.test', 'status' => 'nonaktif']);
+            $userIds = [$literalUser->id];
+            if ($character !== '\\') {
+                $emailUser = User::factory()->create(['nama' => 'Pengguna Email '.$index, 'email' => 'literal'.$character.$index.'@example.test']);
+                $userIds[] = $emailUser->id;
+            }
+            $unit = Unit::create(['nama' => 'Unit Literal '.$character, 'created_by' => $this->actor->id, 'status' => 'nonaktif']);
+            $literalCode = Permission::create(['kode' => 'legacy:code'.$index.$character, 'entitas' => 'legacy', 'aksi' => 'read', 'butuh_scope' => 'global', 'aktif' => true]);
+            $literalDescription = Permission::create(['kode' => 'legacy:description'.$index, 'entitas' => 'legacy', 'aksi' => 'read', 'keterangan' => 'Keterangan literal '.$character, 'butuh_scope' => 'global', 'aktif' => true]);
+            $this->source('user_permission_granted', $target, $literalCode->kode);
+            $this->source('user_permission_granted', $target, $literalDescription->kode);
+            Permission::where('kode', 'dashboard:read')->update(['keterangan' => 'Keterangan literal '.$character]);
+
+            $query = http_build_query(['q' => $character]);
+            $users = $this->getJson('/akses/jelaskan-izin/opsi/pengguna?'.$query)->assertOk()->assertJsonCount(count($userIds), 'items');
+            $this->assertEqualsCanonicalizing($userIds, array_column($users->json('items'), 'id'));
+            $this->getJson('/akses/jelaskan-izin/opsi/unit?'.$query)->assertOk()->assertJsonCount(1, 'items')
+                ->assertJsonPath('items.0.id', $unit->id)->assertJsonPath('items.0.status', 'nonaktif');
+            $this->get($this->url($target, ['q' => $character]))->assertOk()->assertInertia(fn (Assert $page) => $page
+                ->where('filters.q', $character)
+                ->where('permissions', fn ($rows) => collect($rows)->contains('kode', 'dashboard:read'))
+                ->has('diagnostics', 2)
+                ->where('diagnostics', fn ($rows) => collect($rows)->pluck('kode')->sort()->values()->all() === collect([$literalCode->kode, $literalDescription->kode])->sort()->values()->all()));
+        }
+    }
 }

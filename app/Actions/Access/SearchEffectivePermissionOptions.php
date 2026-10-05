@@ -16,10 +16,11 @@ class SearchEffectivePermissionOptions
     public function users(array $input): array
     {
         $q = trim($input['q'] ?? '');
+        $pattern = '%'.addcslashes($q, '\\%_').'%';
         $page = User::query()->select(['id', 'nama', 'email', 'status'])
             ->with('roles:id,nama,kode,aktif')
             ->when($q !== '', fn ($query) => $query->where(fn ($search) => $search
-                ->where('nama', 'ilike', '%'.$q.'%')->orWhere('email', 'ilike', '%'.$q.'%')))
+                ->where('nama', 'ilike', $pattern)->orWhere('email', 'ilike', $pattern)))
             ->orderBy('nama')->orderBy('id')->simplePaginate(20, ['*'], 'page', (int) ($input['page'] ?? 1));
 
         return ['items' => $page->getCollection()->map(fn (User $user) => [
@@ -38,8 +39,9 @@ class SearchEffectivePermissionOptions
     public function units(array $input): array
     {
         $q = trim($input['q'] ?? '');
+        $pattern = '%'.addcslashes($q, '\\%_').'%';
         $page = Unit::query()->select(['id', 'nama', 'status'])
-            ->when($q !== '', fn ($query) => $query->where('nama', 'ilike', '%'.$q.'%'))
+            ->when($q !== '', fn ($query) => $query->where('nama', 'ilike', $pattern))
             ->orderBy('nama')->orderBy('id')->simplePaginate(20, ['*'], 'page', (int) ($input['page'] ?? 1));
 
         return ['items' => $page->items(), 'page' => $page->currentPage(), 'hasMore' => $page->hasMorePages()];

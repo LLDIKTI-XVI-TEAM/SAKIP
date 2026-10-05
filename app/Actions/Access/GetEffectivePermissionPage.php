@@ -72,6 +72,8 @@ class GetEffectivePermissionPage
         $pagination = new LengthAwarePaginator($pageCodes, $catalog->count(), 20, $pageNumber, ['path' => route('effective-permission.index')]);
         $pagination->appends([...$filters, 'diagnostic_page' => $input['diagnostic_page'] ?? 1]);
 
+        // Samakan pencarian literal diagnosis dengan filter katalog di atas.
+        $pattern = '%'.addcslashes($filters['q'], '\\%_').'%';
         $legacy = Permission::whereNotIn('kode', PermissionCatalog::codes())
             ->where(function ($query) use ($user, $role, $filters) {
                 if ($role !== null) {
@@ -90,7 +92,7 @@ class GetEffectivePermissionPage
                 }
             })->when($filters['scope'] !== '', fn ($query) => $query->where('butuh_scope', $filters['scope']))
             ->when($filters['q'] !== '', fn ($query) => $query->where(fn ($search) => $search
-                ->where('kode', 'ilike', '%'.$filters['q'].'%')->orWhere('keterangan', 'ilike', '%'.$filters['q'].'%')))
+                ->where('kode', 'ilike', $pattern)->orWhere('keterangan', 'ilike', $pattern)))
             ->orderBy('kode')->simplePaginate(20, ['id', 'kode', 'keterangan', 'butuh_scope', 'aktif'], 'diagnostic_page', (int) ($input['diagnostic_page'] ?? 1))
             ->withPath(route('effective-permission.index'))->appends([...$filters, 'page' => $pageNumber]);
         foreach ($legacy->items() as $permission) {
