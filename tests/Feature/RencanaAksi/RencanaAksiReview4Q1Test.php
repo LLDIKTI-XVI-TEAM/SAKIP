@@ -144,8 +144,28 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
+        // F3 (Review6 T2): koreksi pindah unit diterbitkan sebagai versi
+        // baru — mutasi langsung snapshot yang dijepit draf kini ditolak
+        // trigger 23514, sehingga skenario ini memakai pola berversi.
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitB->id]);
+        JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi pindah unit.',
+            'rujukan_koreksi' => 'SK-KOREKSI-Q1-UNIT',
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $unitB->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2 pindah unit.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
 
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertSessionHasErrors('snapshot');
 
@@ -170,13 +190,33 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
+        // F3 (Review6 T2): sama seperti di atas — koreksi pindah unit
+        // sebagai versi baru; token pratinjau memakai v2 agar kegagalan
+        // yang diuji murni guard unit (bukan 409 token usang).
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Preview Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitB->id]);
+        $v2 = JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi pindah unit pratinjau.',
+            'rujukan_koreksi' => 'SK-KOREKSI-Q1-PREVIEW',
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $unitB->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2 pindah unit pratinjau.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
 
         $respons = $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", [
             'expected_versi' => 1,
-            'expected_snapshot_id' => $fixture['snapshot']->id,
-            'expected_snapshot_versi' => 1,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],

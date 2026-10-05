@@ -55,6 +55,10 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
             'targets.*.keterangan' => ['nullable', 'string', 'max:10000'],
+            // F2/F3 (Review6 T2): jepit konteks ditulis server saja
+            // (EnsureDraft saat buat, Simpan tiap simpan) — klien dilarang
+            // mengirimnya agar tak dapat memalsukan rekonsiliasi/trigger.
+            'snapshot_draf_id' => ['prohibited'],
             'status_alur' => ['prohibited'],
             'versi' => ['prohibited'],
             'unit_id' => ['prohibited'],

@@ -14,6 +14,7 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonInterface;
@@ -27,6 +28,7 @@ class IndexRencanaAksi
     public function __construct(
         private readonly PermissionResolver $resolver,
         private readonly CalculatePengukuran $calculator,
+        private readonly RekonsiliasiTargetDraf $rekonsiliasi,
     ) {}
 
     /**
@@ -101,6 +103,13 @@ class IndexRencanaAksi
                 $efektifIds = $this->periodeEfektifIds($segel, $indikator, $snapshot, $jendela);
 
                 $baris = $this->petaTarget($segel);
+
+                // F2 (Review6 T2): baris basi transisi (tak efektif pada
+                // satu pun versi antara jepit→terbaru) disaring bagai tak
+                // ada — sel tampil kosong. Tanpa efek samping: penghapusan
+                // + audit milik jalur tulis berikutnya.
+                $baris = $this->rekonsiliasi->saringPetaBasi($baris, $this->rekonsiliasi->rekonsiliasi($segel, $snapshot)['kunci']);
+
                 $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
                 $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
@@ -261,23 +270,33 @@ class IndexRencanaAksi
      * Himpunan periode efektif memakai jendela jadwal minus periode
      * pra-berlaku (cermin D3 jalur tulis: Tidak berlaku, bukan nol/null).
      *
+     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
+     * adalah satu-satunya sumber efektivitas — tahun master diabaikan
+     * agar koreksi master ke atas pasca-aktivasi tak membuat semua
+     * periode tak efektif. Tahun master hanya untuk konteks tanpa
+     * snapshot (cermin Simpan/Preview/Rekonsiliasi).
+     *
      * @param  Collection<int, PeriodeJadwal>  $jendela
      * @return Collection<int, string>
      */
     private function periodeEfektifIds(RencanaAksi $header, IndikatorKinerja $indikator, ?JadwalSnapshot $snapshot, Collection $jendela): Collection
     {
-        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
-            return collect();
+        if ($snapshot instanceof JadwalSnapshot) {
+            if (is_string($snapshot->periode_mulai_id)) {
+                $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
+                if ($mulai instanceof Periode) {
+                    return $jendela
+                        ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
+                        ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
+                        ->values();
+                }
+            }
+
+            return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
         }
 
-        if ($snapshot instanceof JadwalSnapshot && is_string($snapshot->periode_mulai_id)) {
-            $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
-            if ($mulai instanceof Periode) {
-                return $jendela
-                    ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
-                    ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
-                    ->values();
-            }
+        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
+            return collect();
         }
 
         return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();

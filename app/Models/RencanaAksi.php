@@ -26,7 +26,12 @@ class RencanaAksi extends Model
 
     public const STATUS_DISAHKAN = 'disahkan';
 
-    protected $fillable = ['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'penanggung_jawab_id', 'uraian', 'status_alur', 'versi', 'alasan_revisi', 'alasan_deviasi_pk', 'created_by', 'disahkan_at', 'disahkan_by'];
+    /**
+     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi D7 sempit,
+     * audit-safe, tanpa relasi otorisasi): snapshot terakhir yang
+     * direkonsiliasi draf ini. Ditulis server saja, tak pernah dari request.
+     */
+    protected $fillable = ['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'snapshot_draf_id', 'penanggung_jawab_id', 'uraian', 'status_alur', 'versi', 'alasan_revisi', 'alasan_deviasi_pk', 'created_by', 'disahkan_at', 'disahkan_by'];
 
     /** Nilai bawaan header baru (cermin default basis data untuk model belum tersimpan). */
     protected $attributes = [

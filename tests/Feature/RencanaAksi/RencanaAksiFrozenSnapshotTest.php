@@ -19,6 +19,7 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -231,7 +232,20 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $fixture['indikator']->update(['tipe_perhitungan' => 'manual', 'presisi' => 5]);
         $fixture['pembilang']->update(['kode' => 'n_baru', 'label' => 'Pembilang Diubah Master']);
         $fixture['penyebut']->update(['label' => 'Penyebut Diubah Master']);
-        $fixture['snapshot']->update(['target' => 100]);
+
+        // F3 (Review6 T2): snapshot yang dijepit draf beku di basis data —
+        // mutasi langsung ditolak trigger 23514 (bukti temuan: sebelumnya
+        // update langsung lolos diam-diam). Savepoint bersarang memulihkan
+        // transaksi uji pasca-abort PG.
+        try {
+            DB::transaction(function () use ($fixture): void {
+                $fixture['snapshot']->update(['target' => 777]);
+            });
+            $this->fail('Mutasi langsung snapshot yang dipakai draf harus ditolak trigger.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->getCode());
+        }
+        $this->assertSame('100.000000000000', $fixture['snapshot']->fresh()->getRawOriginal('target'));
 
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [

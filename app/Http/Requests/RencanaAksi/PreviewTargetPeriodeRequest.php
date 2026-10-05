@@ -21,7 +21,15 @@ class PreviewTargetPeriodeRequest extends FormRequest
 
         $header = RencanaAksi::whereKey($id)->first();
         if (! $header instanceof RencanaAksi) {
-            return true;
+            // F1 (Review6 T1): header tak ditemukan → 404 SEBELUM validasi
+            // `exists`, bukan lolos (`return true`) yang membiarkan 422 vs
+            // 404 menjadi oracle keberadaan UUID lintas unit. Lookup
+            // mendahului Gate agar urutan respons 404/403 tetap sama —
+            // cermin `UpdateUnitRequest::authorize` (`findOrFail` sebelum
+            // `Gate`). Murni `return false` ditolak: kasus dengan-izin atas
+            // UUID asing wajib 404 (bukan 403). Tanpa ubah kontrak route
+            // publik (tetap string + `whereUuid`).
+            abort(404);
         }
 
         // F2 (Review5 S1): pratinjau menuntut izin baca DAN tulis bersama

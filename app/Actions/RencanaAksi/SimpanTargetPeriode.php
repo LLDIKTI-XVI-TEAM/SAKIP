@@ -19,6 +19,7 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
+use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Carbon\CarbonInterface;
@@ -36,6 +37,7 @@ class SimpanTargetPeriode
         private readonly IndikatorArsipGuard $arsipGuard,
         private readonly CalculatePengukuran $calculator,
         private readonly AuditLogger $audit,
+        private readonly RekonsiliasiTargetDraf $rekonsiliasi,
     ) {}
 
     /**
@@ -152,10 +154,21 @@ class SimpanTargetPeriode
                 $this->pastikanJendela($pengunci, $keputusan, $indikator, $jadwal, $targets);
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
+                // F2 (Review6 T2): rekonsiliasi transisi — baris yang tak
+                // efektif pada satu pun versi antara jepit→terbaru (mis.
+                // v1 → v2 tanpa simpan → v3) ditandai basi. Dihapus setelah
+                // upsert (berdasarkan kunci dimensi, bukan ID) agar nilai
+                // basi tak bangkit lewat request yang dibangun dari baca
+                // basi maupun kiriman klien yang sengaja basi.
+                $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
+
                 $sebelum = $this->auditState($header);
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
+                    // F2/F3: majukan jepit ke snapshot terbaru yang dipakai
+                    // simpan ini (null bila konteks tanpa snapshot).
+                    'snapshot_draf_id' => $aktualId,
                 ]);
                 $header->versi++;
                 $header->save();
@@ -164,6 +177,12 @@ class SimpanTargetPeriode
                 foreach ($targets as $baris) {
                     $this->simpanBaris($header->id, $pengunci->id, $baris);
                 }
+
+                // Hanya sel yang efektif KEMBALI di bawah konteks terbaru
+                // yang dibuang di sini (kandidat bangkit F2); sel yang tak
+                // efektif di bawah konteks terbaru tetap milik
+                // `bersihkanDimensiTakEfektif` (kontrak Review5 S2 utuh).
+                $barisBasi = $this->buangKunciBasi($header->id, $this->kunciBasiEfektifKini($jejak['kunci'], $tipe, $definisi, $periodeEfektif));
 
                 // F3 (Review5 S2, opsi a): singkirkan baris draf yang tak
                 // lagi efektif di bawah konteks snapshot terbaru (komponen
@@ -177,6 +196,9 @@ class SimpanTargetPeriode
 
                 $sesudah = $this->auditState($header->fresh());
                 $alasanSimpan = 'Menyimpan target rencana aksi per periode.';
+                if ($barisBasi > 0) {
+                    $alasanSimpan .= " Rekonsiliasi transisi snapshot v{$jejak['pin_nomor']}->v{$jejak['aktual_nomor']}: {$barisBasi} baris basi dibersihkan.";
+                }
                 if ($barisDisingkirkan > 0) {
                     $alasanSimpan .= " Membersihkan {$barisDisingkirkan} baris dimensi tak efektif (konteks snapshot terbaru).";
                 }
@@ -269,6 +291,12 @@ class SimpanTargetPeriode
 
     /**
      * Himpunan periode efektif memakai jendela jadwal minus periode pra-berlaku.
+     *
+     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
+     * adalah satu-satunya sumber efektivitas — tahun master diabaikan
+     * agar koreksi master ke atas pasca-aktivasi tak membuat semua
+     * periode tak efektif. Tahun master hanya untuk konteks tanpa
+     * snapshot (cermin Index/Preview/Rekonsiliasi).
      */
     private function periodeEfektif(RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?JadwalSnapshot $snapshot): Collection
     {
@@ -279,18 +307,22 @@ class SimpanTargetPeriode
             ->sortBy(fn (PeriodeJadwal $row): int => $row->periode?->urutan ?? 0)
             ->values();
 
-        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
-            return collect();
+        if ($snapshot instanceof JadwalSnapshot) {
+            if (is_string($snapshot->periode_mulai_id)) {
+                $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
+                if ($mulai instanceof Periode) {
+                    return $jendela
+                        ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
+                        ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
+                        ->values();
+                }
+            }
+
+            return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
         }
 
-        if ($snapshot instanceof JadwalSnapshot && is_string($snapshot->periode_mulai_id)) {
-            $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
-            if ($mulai instanceof Periode) {
-                return $jendela
-                    ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
-                    ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
-                    ->values();
-            }
+        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
+            return collect();
         }
 
         return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
@@ -533,6 +565,75 @@ class SimpanTargetPeriode
             'updated_by' => $actorId,
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Membuang baris basi transisi berdasarkan kunci dimensi
+     * (`periode_id::komponen_id`, `manual` untuk baris manual).
+     *
+     * Dijalankan SETELAH upsert agar kiriman untuk sel basi (dari baca
+     * basi maupun klien nakal) ikut terbuang, bukan malah menghidupkan
+     * kembali nilai lama. Selisihnya terekam di audit nilai_lama/nilai_baru.
+     *
+     * @param  list<string>  $kunci
+     */
+    private function buangKunciBasi(string $rencanaAksiId, array $kunci): int
+    {
+        if ($kunci === []) {
+            return 0;
+        }
+
+        return RencanaAksiTarget::where('rencana_aksi_id', $rencanaAksiId)
+            ->where(function ($sub) use ($kunci): void {
+                foreach ($kunci as $item) {
+                    $potong = explode('::', $item, 2);
+                    $periodeId = (string) ($potong[0] ?? '');
+                    $komponen = $potong[1] ?? 'manual';
+                    $sub->orWhere(function ($sel) use ($periodeId, $komponen): void {
+                        $sel->where('periode_id', $periodeId);
+                        if ($komponen === 'manual') {
+                            $sel->whereNull('komponen_id');
+                        } else {
+                            $sel->where('komponen_id', $komponen);
+                        }
+                    });
+                }
+            })
+            ->delete();
+    }
+
+    /**
+     * Menyaring kunci basi ke sel yang efektif kembali di bawah konteks
+     * terbaru — tepat himpunan yang bisa bangkit tanpa jejak ini.
+     *
+     * @param  list<string>  $kunci
+     * @param  Collection<int, string>  $periodeEfektif
+     * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
+     * @return list<string>
+     */
+    private function kunciBasiEfektifKini(array $kunci, string $tipe, Collection $definisi, Collection $periodeEfektif): array
+    {
+        if ($kunci === []) {
+            return [];
+        }
+
+        $hitam = array_flip($kunci);
+        $komponenEfektif = $tipe === 'manual'
+            ? [null]
+            : $definisi->pluck('komponen_id')->map(fn ($id): ?string => $id === null ? null : (string) $id)->all();
+
+        $keluar = [];
+        foreach ($periodeEfektif as $periodeId) {
+            $pid = (string) $periodeId;
+            foreach ($komponenEfektif as $komponenId) {
+                $calon = $this->rekonsiliasi->kunciDimensi($pid, $komponenId);
+                if (isset($hitam[$calon])) {
+                    $keluar[] = $calon;
+                }
+            }
+        }
+
+        return $keluar;
     }
 
     /**

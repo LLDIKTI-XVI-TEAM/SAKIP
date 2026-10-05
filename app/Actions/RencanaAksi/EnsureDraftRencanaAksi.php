@@ -116,7 +116,7 @@ class EnsureDraftRencanaAksi
                 }
 
                 $this->pastikanDapatMembuat($pengunci, $keputusan, $indikator, $jadwal, $pic);
-                $this->pastikanSnapshotTersedia($jadwal, $indikator);
+                $snapshotDraf = $this->pastikanSnapshotTersedia($jadwal, $indikator);
 
                 $existing = RencanaAksi::where('indikator_id', $indikator->id)
                     ->where('tahun', $tahun)
@@ -132,6 +132,9 @@ class EnsureDraftRencanaAksi
                         'tahun' => $tahun,
                         'unit_id' => $unitId,
                         'jadwal_tahunan_id' => $jadwal->id,
+                        // F2/F3 (Review6 T2): jepit konteks awal draf —
+                        // null bila jadwal belum pernah aktif (tanpa snapshot).
+                        'snapshot_draf_id' => $snapshotDraf?->id,
                         'penanggung_jawab_id' => $pic->user_id,
                         'uraian' => null,
                         'status_alur' => RencanaAksi::STATUS_DRAFT,
@@ -219,11 +222,14 @@ class EnsureDraftRencanaAksi
      * konsisten dengan identitas target pengukuran (`targetUnitId` memakai
      * `jadwal_snapshot.unit_id`) dan prasyarat pengajuan yang mensyaratkan
      * `rencana_aksi.unit_id` cocok dengan unit snapshot pengukuran.
+     *
+     * Mengembalikan snapshot terbaru (null bila jadwal belum pernah aktif)
+     * agar pemanggil dapat menjepit konteks awal draf (F2/F3 Review6 T2).
      */
-    private function pastikanSnapshotTersedia(JadwalTahunan $jadwal, IndikatorKinerja $indikator): void
+    private function pastikanSnapshotTersedia(JadwalTahunan $jadwal, IndikatorKinerja $indikator): ?JadwalSnapshot
     {
         if (! $this->jadwalPernahDiaktifkan($jadwal)) {
-            return;
+            return null;
         }
 
         $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
@@ -240,6 +246,8 @@ class EnsureDraftRencanaAksi
         if ($unitBeku !== '' && $unitBeku !== (string) $indikator->unit_id) {
             throw ValidationException::withMessages(['snapshot' => 'Unit pemilik indikator telah berpindah setelah aktivasi jadwal; pembuatan draf ditolak sampai snapshot koreksi tersedia.']);
         }
+
+        return $snapshot;
     }
 
     private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool

@@ -136,14 +136,33 @@ class RencanaAksiWriteGuardTest extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // Simulasi snapshot koreksi terbaru pindah unit B sementara header tetap unit A.
+        // Simulasi snapshot koreksi terbaru pindah unit B sementara header
+        // tetap unit A — diterbitkan sebagai versi baru (F3 Review6 T2:
+        // mutasi langsung snapshot yang dijepit draf ditolak trigger).
         $unitBaru = Unit::create(['nama' => 'Unit Koreksi Pindah RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
-        $fixture['snapshot']->update(['unit_id' => $unitBaru->id]);
+        $v2 = JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi pindah unit.',
+            'rujukan_koreksi' => 'SK-KOREKSI-WG-UNIT',
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $unitBaru->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2 pindah unit.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
-            'expected_snapshot_id' => $fixture['snapshot']->id,
-            'expected_snapshot_versi' => 1,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
