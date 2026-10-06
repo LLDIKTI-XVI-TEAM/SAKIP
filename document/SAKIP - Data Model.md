@@ -808,12 +808,14 @@ Target per indikator per tahun.
 | `id` | uuid | PK | |
 | `indikator_id` | uuid | FK → indikator.id | |
 | `tahun` | int | not null | |
-| `nilai` | numeric | **nullable** | `0` = nilai sah; `null` = belum diisi |
-| `baseline` | numeric | **nullable** | Nilai baseline (capaian tahun sebelumnya) yang dipakai sebagai acuan saat menyusun target tahun ini; ditampilkan pada dokumen PK dan rekapitulasi indikator × periode, dan disalin ke `jadwal_snapshot.baseline` saat aktivasi jadwal |
+| `nilai` | numeric | **nullable**, finite, nonnegatif (`>= 0`) | `0` = nilai sah; `null` = belum diisi |
+| `baseline` | numeric | **nullable**, finite, nonnegatif (`>= 0`) | Nilai baseline (capaian tahun sebelumnya) yang dipakai sebagai acuan saat menyusun target tahun ini; `0` = nilai sah; `null` = belum diisi; ditampilkan pada dokumen PK dan rekapitulasi indikator × periode, dan disalin ke `jadwal_snapshot.baseline` saat aktivasi jadwal |
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
 **Constraint:** `unique(indikator_id, tahun)`.
+
+**Domain nilai — Q33:** `baseline` dan `nilai` (target tahunan PK) boleh `null` secara independen. Jika diisi, keduanya harus berupa desimal biasa yang finite dan nonnegatif (`>= 0`). Nilai `0` merupakan nilai sah dan berbeda dari `null`. `NaN`, infinity, dan nilai negatif ditolak. Tidak ada batas universal maksimum `100`; nilai di atas `100` tetap dapat sah selama sesuai definisi/presisi indikator dan kapasitas storage. Ketentuan ini khusus untuk baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi/pengukuran, nilai komponen, atau target periode Rencana Aksi. Rujukan keputusan: **Q33 — Domain Nilai Baseline dan Target Tahunan PK** pada `SAKIP - Keputusan Penyelarasan.md`.
 
 **Aturan revisi:** revisi target antar-tahun (mis. menaikkan target tahun-tahun mendatang setelah tahun berjalan terlampaui) cukup dilakukan dengan mengubah baris master ini; baris `jadwal_snapshot` untuk tahun tersebut baru terbentuk saat jadwal tahun itu diaktifkan dan otomatis membawa nilai revisi terkini (termasuk `baseline`). Tahun yang jadwalnya sudah beku (snapshot sudah terbentuk dan/atau sudah dirujuk pengukuran) tidak tersentuh oleh revisi ini. Aturan ini berlaku untuk **target tahunan PK**; target komponen per periode pada rencana aksi memiliki jalur revisinya sendiri (lihat §2.23–§2.24).
 
