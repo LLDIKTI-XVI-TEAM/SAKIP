@@ -1,0 +1,134 @@
+<?php
+
+namespace App\Http\Requests\Indikator;
+
+use App\Models\IndikatorKinerja;
+use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
+use App\Services\Kinerja\KomponenMutationService;
+use App\Support\PermissionDecision;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+
+class UpdateIndikatorRequest extends FormRequest
+{
+    private ?PermissionDecision $decision = null;
+
+    protected function prepareForValidation(): void
+    {
+        foreach (['sasaran_strategis_id', 'unit_id', 'regulasi_id'] as $field) {
+            if (is_string($this->input($field))) {
+                $this->merge([$field => strtolower($this->input($field))]);
+            }
+        }
+    }
+
+    public function authorize(): bool
+    {
+        if ($this->user() === null) {
+            return false;
+        }
+        // PUT adalah surface editor parent; izin mutasi ditentukan dari delta terkunci.
+        $this->decision = app(PermissionResolver::class)->resolve($this->user(), 'indikator:read');
+
+        return $this->decision->allowed;
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $indikator = $this->route('indikator');
+        if ($this->user() !== null && $this->decision !== null && $indikator instanceof IndikatorKinerja) {
+            app(AuditLogger::class)->catat(actor: $this->user(), tindakan: 'indikator.ubah_ditolak',
+                objekTipe: 'indikator', objekId: $indikator->id,
+                alasan: 'Penyimpanan indikator ditolak karena tidak memiliki izin membaca indikator.',
+                dasarIzin: $this->decision->toAuditBasis());
+        }
+        parent::failedAuthorization();
+    }
+
+    /**
+     * Jalur edit umum tidak boleh memindahkan unit penanggung jawab:
+     * `unit_id` wajib sama dengan baris yang tersimpan. Pemindahan unit
+     * hanya dilayani endpoint pindah-unit khusus.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        /** @var IndikatorKinerja|null $indikator */
+        $indikator = $this->route('indikator');
+
+        $currentRegulasiId = $indikator?->regulasi_id;
+
+        // Grandfather historis (pola RenstraMutationRequest): rujukan yang
+        // tidak berubah tetap valid meski sudah nonaktif; syarat aktif
+        // hanya untuk regulasi BARU yang ditautkan.
+        $regulasiExistsRule = Rule::exists('regulasi', 'id')->where(function ($query) use ($currentRegulasiId) {
+            if ($currentRegulasiId !== null) {
+                $query->where(function ($q) use ($currentRegulasiId) {
+                    $q->where('aktif', true)->orWhere('id', $currentRegulasiId);
+                });
+            } else {
+                $query->where('aktif', true);
+            }
+        });
+
+        return array_merge(app(KomponenMutationService::class)->aturanDefinisi(), [
+            'sasaran_strategis_id' => [
+                'required',
+                'uuid',
+                Rule::exists('sasaran_strategis', 'id')->where(function ($query) use ($indikator) {
+                    if ($indikator) {
+                        $currentRenstraId = DB::table('sasaran_strategis')
+                            ->where('id', $indikator->sasaran_strategis_id)
+                            ->value('renstra_id');
+                        if ($currentRenstraId) {
+                            $query->where('renstra_id', $currentRenstraId);
+                        }
+                    }
+                }),
+            ],
+            'kode' => ['required', 'string', 'max:50'],
+            'nama' => ['required', 'string', 'max:1000'],
+            'definisi_operasional' => ['nullable', 'string', 'max:2000'],
+            'satuan' => ['required', 'string', 'max:50'],
+            'unit_id' => [
+                'required',
+                'uuid',
+                Rule::in($indikator ? [$indikator->unit_id] : []),
+            ],
+            'arah' => ['required', 'in:naik_baik,turun_baik'],
+            'tipe_perhitungan' => ['required', 'in:manual,rasio_persen,penjumlahan'],
+            'presisi' => ['nullable', 'integer', 'between:0,4'],
+            'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
+            'wajib_catatan' => ['nullable', 'boolean'],
+            'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
+            'expected_updated_at' => ['required', 'date'],
+        ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            ...app(KomponenMutationService::class)->pesanBersarang(),
+            'sasaran_strategis_id.required' => 'Sasaran strategis wajib dipilih.',
+            'sasaran_strategis_id.exists' => 'Sasaran strategis yang dipilih tidak valid atau berada di luar Renstra asal.',
+            'kode.required' => 'Kode indikator kinerja wajib diisi.',
+            'nama.required' => 'Nama indikator kinerja wajib diisi.',
+            'satuan.required' => 'Satuan indikator kinerja wajib diisi.',
+            'unit_id.required' => 'Unit penanggung jawab wajib dipilih.',
+            'unit_id.in' => 'Unit penanggung jawab tidak dapat diubah melalui edit umum. Gunakan endpoint pindah unit khusus untuk memindahkan indikator ke unit lain.',
+            'arah.required' => 'Arah penilaian wajib dipilih.',
+            'arah.in' => 'Arah penilaian harus berupa naik_baik atau turun_baik.',
+            'tipe_perhitungan.required' => 'Tipe perhitungan wajib dipilih.',
+            'tipe_perhitungan.in' => 'Tipe perhitungan harus berupa manual, rasio_persen, atau penjumlahan.',
+            'regulasi_id.exists' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+            'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
+        ];
+    }
+}

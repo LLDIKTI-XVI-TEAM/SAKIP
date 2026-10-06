@@ -8,6 +8,7 @@ use App\Http\Requests\Renstra\UpdateRenstraRequest;
 use App\Models\Renstra;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
 
 class UpdateRenstra extends Controller
 {
@@ -15,10 +16,12 @@ class UpdateRenstra extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        $action->handle($actor, $renstra, $request->validated());
+        $data = $request->validated();
+        $updated = $action->handle($actor, $renstra, $data);
+        $changed = $updated->wasChanged() || ! empty($data['lampiran']);
 
-        return redirect()
-            ->route('renstra.show', $renstra->id)
-            ->with('success', 'Rencana Strategis (Renstra) berhasil diperbarui.');
+        Inertia::flash('success', $changed ? 'Rencana Strategis (Renstra) berhasil diperbarui.' : 'Tidak ada perubahan master yang disimpan.');
+
+        return redirect()->route('renstra.show', $renstra->id);
     }
 }

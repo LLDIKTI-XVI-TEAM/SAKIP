@@ -6,16 +6,20 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
+use App\Models\IndikatorKinerja;
+use App\Models\IndikatorKomponen;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\Role;
+use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
@@ -572,7 +576,7 @@ class MutationConcurrencyTest extends TestCase
         $renstra = Renstra::create(['kode' => 'LOCK-RENSTRA', 'nama' => 'Renstra awal', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $actor->id]);
         $berkas = $renstra->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran awal', 'uploaded_by' => $actor->id]);
         $before = $renstra->fresh()->getAttributes();
-        $data = ['kode' => $operation === 'renstra-create' ? 'LOCK-CREATE' : $renstra->kode, 'nama' => 'Perubahan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Pembaruan fixture konkurensi'];
+        $data = ['expected_state' => $renstra->stateToken(), 'kode' => $operation === 'renstra-create' ? 'LOCK-CREATE' : $renstra->kode, 'nama' => 'Perubahan yang harus ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Pembaruan fixture konkurensi'];
         if ($variant === 'upload') {
             $data['lampiran'] = [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak']];
         }
@@ -698,7 +702,7 @@ class MutationConcurrencyTest extends TestCase
             'actor_id' => $actor->id, 'permission' => 'renstra:update', 'renstra_id' => $renstra->id,
             'expected_error_field' => 'regulasi_id',
             'expected_error_message' => 'Dasar aturan regulasi yang dipilih tidak ditemukan.',
-            'data' => ['nama' => 'Perubahan stale tidak boleh tersimpan', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran stale tidak boleh tersimpan']], 'alasan' => 'Mempertahankan rujukan dari formulir lama'],
+            'data' => ['expected_state' => $renstra->stateToken(), 'nama' => 'Perubahan stale tidak boleh tersimpan', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'regulasi_id' => $regulasiA->id, 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran stale tidak boleh tersimpan']], 'alasan' => 'Mempertahankan rujukan dari formulir lama'],
         ];
         $prepare = fn () => Renstra::whereKey($renstra->id)->lockForUpdate()->firstOrFail();
         $changeWhileBlocked = function (array $pids) use ($actor, $renstra, $regulasiA, $regulasiB, &$expectedRenstra): void {
@@ -714,7 +718,7 @@ class MutationConcurrencyTest extends TestCase
             }
             $this->assertSame(1, DB::transactionLevel());
             $updated = app(UpdateRenstraAction::class)->handle($actor, $renstra, [
-                'nama' => 'Perubahan sah ke rujukan B', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
+                'expected_state' => $renstra->stateToken(), 'nama' => 'Perubahan sah ke rujukan B', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029,
                 'regulasi_id' => $regulasiB->id, 'alasan' => 'Mengganti rujukan dengan regulasi aktif',
             ]);
             $this->assertSame($regulasiB->id, $updated->regulasi_id);
@@ -747,7 +751,7 @@ class MutationConcurrencyTest extends TestCase
         $before = $record->fresh()->getAttributes();
         $data = $domain === 'regulasi'
             ? ['jenis' => 'kepmen', 'nomor' => 'PRESET', 'tahun' => 2026, 'tentang' => 'Perubahan ditolak', 'aktif' => true, 'versi' => $record->versi, 'alasan' => 'Perubahan fixture preset']
-            : ['nama' => 'Perubahan ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture preset'];
+            : ['expected_state' => $record->stateToken(), 'nama' => 'Perubahan ditolak', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'alasan' => 'Perubahan fixture preset'];
         $payload = ['actor_id' => $actor->id, 'permission' => $permission->kode, $domain.'_id' => $record->id, 'data' => $data];
         $prepare = function (): void {
             // Rilis preset memakai urutan role lalu permission; worker harus menunggu role yang sama.
@@ -773,6 +777,86 @@ class MutationConcurrencyTest extends TestCase
     public static function phaseCPresetMutations(): array
     {
         return [['regulasi'], ['renstra']];
+    }
+
+    /** Dua writer aplikasi pada revisi sama: tepat satu commit, lainnya konflik. */
+    public function test_phase_d_two_actual_writers_share_parent_revision(): void
+    {
+        [$actor, $parent, $child] = $this->formulaFixture();
+        $payload = ['tipe_perhitungan' => 'penjumlahan', 'expected_updated_at' => $parent->updated_at->toISOString(),
+            'komponen' => [array_merge($child->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']), ['label' => 'Revisi bersamaan'])],
+            'alasan' => 'Perubahan bersamaan dari dua editor.'];
+        $assignment = ['actor_id' => $actor->id, 'indikator_id' => $parent->id, 'data' => $payload];
+        $results = $this->race('formula-update', $parent->id, '', [$assignment, $assignment],
+            prepare: fn () => IndikatorKinerja::whereKey($parent->id)->lockForUpdate()->firstOrFail());
+        $this->assertEqualsCanonicalizing(['saved', 'conflict'], $results);
+        $this->assertSame('Revisi bersamaan', $child->fresh()->label);
+        $this->assertSame(1, AuditLog::where('tindakan', 'komponen.ubah')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'indikator.ubah_ditolak')->count());
+    }
+
+    /** Reader menunggu writer nyata; data, formula dan token seluruhnya berasal dari commit baru. */
+    public function test_phase_d_reader_cannot_mix_parent_and_child_revisions(): void
+    {
+        [$actor, $parent, $child] = $this->formulaFixture();
+        $oldRevision = $parent->updated_at->toISOString();
+        $newRevision = null;
+        $results = $this->race('formula-read', $parent->id, '', [['actor_id' => $actor->id, 'indikator_id' => $parent->id]],
+            prepare: fn () => IndikatorKinerja::whereKey($parent->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: function () use ($actor, $parent, $child, $oldRevision, &$newRevision): void {
+                $result = app(ChangeIndicatorFormula::class)->handle($actor, $parent, [
+                    'tipe_perhitungan' => 'penjumlahan', 'presisi' => 4, 'expected_updated_at' => $oldRevision,
+                    'komponen' => [array_merge($child->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']), ['bobot' => '2'])],
+                    'alasan' => 'Perubahan definisi selama editor menunggu.',
+                ]);
+                $newRevision = $result['indikator']->updated_at->toISOString();
+            });
+        $editor = $results[0];
+        $this->assertNotSame($oldRevision, $newRevision);
+        $this->assertSame($newRevision, $editor['revision']);
+        $this->assertSame(4, $editor['indikator']['presisi']);
+        $this->assertSame('2.000000000000', $editor['komponen'][0]['bobot']);
+        $this->assertStringContainsString('2', $editor['formulaContract']['formula_text']);
+        $this->assertTrue($editor['validation']['is_valid']);
+    }
+
+    /** ACL writer nyata membuat deny saat editor menunggu kunci aktor. */
+    public function test_phase_d_permission_revoked_before_commit_by_actual_acl_writer(): void
+    {
+        [$actor, $parent, $child] = $this->formulaFixture();
+        $admin = User::factory()->create(['status' => 'aktif']);
+        $admin->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $admin->id, 'created_at' => now()]);
+        $permission = Permission::where('kode', 'komponen:create')->firstOrFail();
+        $assignment = ['actor_id' => $actor->id, 'indikator_id' => $parent->id, 'data' => [
+            'tipe_perhitungan' => 'penjumlahan', 'expected_updated_at' => $parent->updated_at->toISOString(),
+            'komponen' => [['kode' => 'baru', 'label' => 'Baru', 'peran' => 'penjumlah', 'bobot' => '1', 'urutan' => 2, 'aktif' => true]],
+        ]];
+        $result = $this->race('formula-update', $actor->id, '', [$assignment],
+            prepare: fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: fn () => app(CreateDeny::class)->handle($admin, $actor->id, $permission->id, null, 'Pencabutan hak sebelum simpan definisi.'));
+        $this->assertSame(['denied'], $result);
+        $this->assertSame($parent->updated_at->toISOString(), $parent->fresh()->updated_at->toISOString());
+        $this->assertSame(1, $parent->komponen()->count());
+        $audit = AuditLog::where('tindakan', 'indikator.ubah_ditolak')->firstOrFail();
+        $this->assertSame('komponen:create', $audit->dasar_izin['permission']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.buat']);
+    }
+
+    private function formulaFixture(): array
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $renstra = Renstra::create(['kode' => 'D-RACE', 'nama' => 'Renstra Race', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $actor->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'D-RACE', 'deskripsi' => 'Sasaran Race', 'urutan' => 1]);
+        $unit = Unit::create(['nama' => 'Unit Race', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $parent = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id,
+            'kode' => 'D-RACE', 'nama' => 'Indikator Race', 'satuan' => 'poin', 'tipe_perhitungan' => 'penjumlahan', 'arah' => 'naik_baik',
+            'presisi' => 2, 'status' => 'aktif', 'tahun_mulai_berlaku' => 2025, 'created_by' => $actor->id, 'created_by_role' => 'perencanaan']);
+        $child = IndikatorKomponen::create(['indikator_id' => $parent->id, 'kode' => 'a', 'label' => 'A', 'peran' => 'penjumlah', 'bobot' => '1', 'urutan' => 1, 'aktif' => true, 'created_by' => $actor->id]);
+
+        return [$actor, $parent, $child];
     }
 
     /**

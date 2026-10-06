@@ -39,7 +39,10 @@ export interface SharedPageProps extends PageProps {
             jenisBerkas?: boolean;
             storagePolicy?: boolean;
             storagePolicyUpdate?: boolean;
+            sasaranIndikator?: boolean;
             pk?: boolean;
+            periode?: boolean;
+            jadwal?: boolean;
             'pk:create'?: boolean;
             'pk:update'?: boolean;
         };
@@ -55,5 +58,5 @@ export interface SharedPageProps extends PageProps {
 }
 
 declare module '@inertiajs/core' {
-    interface PageFlashData { authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable'; roleAssignmentOutcome?: RoleAssignmentOutcome }
+    interface PageFlashData { success?: string | null; error?: string | null; warning?: string | null; message?: string | null; authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable'; roleAssignmentOutcome?: RoleAssignmentOutcome; indikatorMutation?: unknown }
 }

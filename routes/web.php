@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
+use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
@@ -26,6 +27,18 @@ use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
+use App\Http\Controllers\Perencanaan\ChangeIndicatorFormula;
+use App\Http\Controllers\Perencanaan\DestroyIndikator;
+use App\Http\Controllers\Perencanaan\DestroySasaran;
+use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
+use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
+use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
+use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
+use App\Http\Controllers\Perencanaan\StoreIndikator;
+use App\Http\Controllers\Perencanaan\StoreSasaran;
+use App\Http\Controllers\Perencanaan\UpdateIndikator;
+use App\Http\Controllers\Perencanaan\UpdateSasaran;
+use App\Http\Controllers\Periode\PeriodeController;
 use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
@@ -36,6 +49,7 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
 use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
 use App\Http\Controllers\Renstra\DestroyRenstra;
@@ -73,6 +87,16 @@ Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block()
 Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
+    Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
+    Route::get('/jadwal/opsi/{jenis}', [JadwalController::class, 'options'])->whereIn('jenis', ['renstra', 'periode'])->name('jadwal.options');
+    Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
+    Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
+    Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
+    Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
+    Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
+    Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
+    Route::put('/periode/{periode}', [PeriodeController::class, 'update'])->whereUuid('periode')->name('periode.update');
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
     Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
     Route::get('/akses/jelaskan-izin', [EffectivePermissionExplorer::class, 'index'])->name('effective-permission.index');
@@ -104,6 +128,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
 
     // Master Renstra
+    Route::post('/renstra/{renstra}/aktifkan', [ChangeRenstraStatusController::class, 'activate'])->whereUuid('renstra')->name('renstra.activate');
+    Route::post('/renstra/{renstra}/nonaktifkan', [ChangeRenstraStatusController::class, 'deactivate'])->whereUuid('renstra')->name('renstra.deactivate');
+    Route::post('/renstra/{renstra}/arsipkan', [ChangeRenstraStatusController::class, 'archive'])->whereUuid('renstra')->name('renstra.archive');
     Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
     Route::get('/renstra/create', CreateRenstra::class)->name('renstra.create');
     Route::post('/renstra', StoreRenstra::class)->name('renstra.store');
@@ -154,11 +181,22 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
 
+    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
+    Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
+    Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
+    Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
+
+    Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
+    Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
+    Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
+    Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');
+    Route::post('/perencanaan/indikator/{indikator}/komponen/preview', PreviewIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.preview');
+    Route::patch('/perencanaan/indikator/{indikator}/formula', ChangeIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.formula');
+    Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
+
     // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
     Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');
-    Route::post('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'store'])->whereUuid('indikator')->name('indikator.komponen.store');
-    Route::put('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'update'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.update');
-    Route::delete('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'destroy'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.destroy');
 
     // Perjanjian Kinerja (PK) & Lampiran Legal
     Route::get('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'index'])->name('perjanjian-kinerja.index');

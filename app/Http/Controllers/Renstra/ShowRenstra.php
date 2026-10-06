@@ -85,10 +85,27 @@ class ShowRenstra extends Controller
             ] : null;
         }
 
+        $canChangeStatus = $user->can('update', $renstra);
+        $warnings = [];
+        if (! $renstra->sasaranStrategis()->exists()) {
+            $warnings[] = 'Renstra belum memiliki Sasaran Strategis. Aktivasi tetap dapat dilanjutkan.';
+        } elseif ($renstra->sasaranStrategis()->whereDoesntHave('indikatorKinerjas')->exists()) {
+            $warnings[] = 'Ada Sasaran Strategis yang belum memiliki Indikator. Aktivasi tetap dapat dilanjutkan.';
+        }
+
         return Inertia::render('Renstra/Show', [
             'renstra' => $detail,
+            'expected_state' => $renstra->stateToken(),
+            'lifecycle' => [
+                'warnings' => $warnings,
+                'nonactivation_blocked' => $canChangeStatus && $renstra->status === Renstra::STATUS_AKTIF
+                    && $renstra->jadwalTahunan()->where('status', 'aktif')->exists(),
+            ],
             'can' => [
-                'update' => $user->can('update', $renstra) && $renstra->status !== Renstra::STATUS_DIARSIPKAN,
+                'activate' => $canChangeStatus && $renstra->status === Renstra::STATUS_DRAFT,
+                'deactivate' => $canChangeStatus && $renstra->status === Renstra::STATUS_AKTIF,
+                'archive' => $canChangeStatus && $renstra->status === Renstra::STATUS_NONAKTIF,
+                'update' => $canChangeStatus && in_array($renstra->status, [Renstra::STATUS_DRAFT, Renstra::STATUS_AKTIF], true),
                 'delete' => $user->can('delete', $renstra)
                     && ($canDeleteAttachment || ($canViewAttachments && ! $hasBerkas)),
                 'deleteAttachment' => $canDeleteAttachment,

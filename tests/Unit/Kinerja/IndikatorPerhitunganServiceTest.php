@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Kinerja;
 
+use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Services\Kinerja\IndikatorPerhitunganService;
@@ -18,6 +19,18 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $this->service = new IndikatorPerhitunganService;
     }
 
+    private function calculate(IndikatorKinerja $indikator, array $values): ?string
+    {
+        $definitions = $indikator->komponen->where('aktif', true)->map(fn ($row) => [
+            'komponen_id' => $row->kode, 'peran' => $row->peran, 'bobot' => (string) $row->bobot,
+        ])->values()->all();
+
+        return (new CalculatePengukuran)->handle(
+            $indikator->tipe_perhitungan, $indikator->presisi, $definitions,
+            $indikator->tipe_perhitungan === 'manual' ? [] : $values, $values['nilai'] ?? null,
+        )['nilai'];
+    }
+
     private function createIndikator(string $tipe, int $presisi = 2): IndikatorKinerja
     {
         $indikator = new IndikatorKinerja([
@@ -27,7 +40,7 @@ class IndikatorPerhitunganServiceTest extends TestCase
             'tipe_perhitungan' => $tipe,
             'presisi' => $presisi,
             'desimal_tampilan' => $presisi,
-            'is_aktif' => true,
+            'status' => 'aktif',
         ]);
 
         return $indikator;
@@ -166,7 +179,7 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $indikator->setRelation('komponen', $komponen);
 
         // Hanya komponen 'a' yang diisi, 'b' kosong
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'a' => 10,
         ]);
 
@@ -192,12 +205,12 @@ class IndikatorPerhitunganServiceTest extends TestCase
 
         // Nilai a = 10, b = 20, t = 100
         // (10 * 1 + 20 * 2) / (100 * 1) * 100 = 50 / 100 * 100 = 50.00
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'a' => 10,
             'b' => 20,
             't' => 100,
         ]);
-        $this->assertSame(50.0, $hasil);
+        $this->assertSame('50.00', $hasil);
     }
 
     /**
@@ -218,12 +231,12 @@ class IndikatorPerhitunganServiceTest extends TestCase
         // Misal Skor SAKIP = 75, Skor ZI-WBK = 85
         // (75 * 0.5) + (85 * 0.5) = 37.5 + 42.5 = 80.0
         // (75 + 85) / 2 = 80.0
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'sakip' => 75.0,
             'zi_wbk' => 85.0,
         ]);
 
-        $this->assertSame(80.0, $hasil);
+        $this->assertSame('80.00', $hasil);
     }
 
     /**
@@ -238,7 +251,7 @@ class IndikatorPerhitunganServiceTest extends TestCase
         ]);
         $indikator->setRelation('komponen', $komponen);
 
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'n' => 50,
             't' => 0,
         ]);
@@ -308,10 +321,10 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $indikator = $this->createIndikator('manual', 2);
         $indikator->setRelation('komponen', new Collection);
 
-        $hasil = $this->service->evaluate($indikator, ['nilai' => 88.5432]);
-        $this->assertSame(88.54, $hasil);
+        $hasil = $this->calculate($indikator, ['nilai' => 88.5432]);
+        $this->assertSame('88.54', $hasil);
 
-        $nullHasil = $this->service->evaluate($indikator, []);
+        $nullHasil = $this->calculate($indikator, []);
         $this->assertNull($nullHasil);
     }
 
@@ -328,12 +341,12 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $indikator->setRelation('komponen', $komponen);
 
         // 0.234 + 1.0006 = 1.2346 -> dibulatkan ke presisi 2 menjadi 1.23
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'k1' => 0.234,
             'k2' => 1.0006,
         ]);
 
-        $this->assertSame(1.23, $hasil);
+        $this->assertSame('1.23', $hasil);
     }
 
     /**
@@ -348,10 +361,10 @@ class IndikatorPerhitunganServiceTest extends TestCase
         $indikator->setRelation('komponen', $komponen);
 
         // 100 * 0.123456789012 = 12.3456789012 -> presisi 4 = 12.3457
-        $hasil = $this->service->evaluate($indikator, [
+        $hasil = $this->calculate($indikator, [
             'k1' => 100,
         ]);
 
-        $this->assertSame(12.3457, $hasil);
+        $this->assertSame('12.3457', $hasil);
     }
 }
