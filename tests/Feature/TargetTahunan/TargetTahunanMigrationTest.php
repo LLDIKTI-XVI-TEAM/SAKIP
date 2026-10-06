@@ -54,23 +54,32 @@ class TargetTahunanMigrationTest extends TestCase
     }
 
     #[DataProvider('invalidStoredValues')]
-    public function test_database_rejects_negative_and_nan_values(string $field, string $value): void
+    public function test_database_rejects_negative_and_nonfinite_values(string $field, string $value, string $sqlState): void
     {
         $id = $this->legacyRow();
         $before = DB::table('target_kinerjas')->where('id', $id)->first();
         try {
             DB::transaction(fn () => DB::table('target_kinerjas')->where('id', $id)->update([$field => $value]));
-            $this->fail('Constraint database harus menolak angka negatif dan NaN.');
+            $this->fail('Database harus menolak angka negatif dan non-finite.');
         } catch (QueryException $exception) {
-            $this->assertSame('23514', $exception->errorInfo[0]);
-            $this->assertStringContainsString('target_kinerjas_'.$field.'_valid_check', $exception->getMessage());
+            $this->assertSame($sqlState, $exception->errorInfo[0]);
+            if ($sqlState === '23514') {
+                $this->assertStringContainsString('target_kinerjas_'.$field.'_valid_check', $exception->getMessage());
+            } else {
+                $this->assertStringContainsString('numeric field overflow', $exception->getMessage());
+            }
         }
         $this->assertEquals($before, DB::table('target_kinerjas')->where('id', $id)->first());
     }
 
     public static function invalidStoredValues(): array
     {
-        return [['baseline', '-1'], ['baseline', 'NaN'], ['target_tahunan', '-1'], ['target_tahunan', 'NaN']];
+        return [
+            ['baseline', '-1', '23514'], ['baseline', 'NaN', '23514'],
+            ['target_tahunan', '-1', '23514'], ['target_tahunan', 'NaN', '23514'],
+            ['baseline', 'Infinity', '22003'], ['baseline', '-Infinity', '22003'],
+            ['target_tahunan', 'Infinity', '22003'], ['target_tahunan', '-Infinity', '22003'],
+        ];
     }
 
     public function test_database_preserves_nullable_nonnegative_decimal_range(): void

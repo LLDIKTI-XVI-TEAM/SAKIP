@@ -122,7 +122,7 @@ class TargetTahunanTest extends TestCase
 
     public static function values(): array
     {
-        return [['74.2', '76.25'], ['74.2345', null], [null, '0'], ['0', '124']];
+        return [['74.2', '76.25'], ['74.2345', null], [null, '0'], ['0', '124'], ['0', null], ['0', '0'], ['101.234567890123', '101.25']];
     }
 
     public function test_empty_first_noop_and_existing_clear_have_different_persistence(): void
@@ -322,6 +322,12 @@ class TargetTahunanTest extends TestCase
             ['target_tahunan', 0, 'Isi target dengan angka yang valid.'],
             ['baseline', str_repeat('1', 1001), 'Angka baseline terlalu panjang.'],
             ['target_tahunan', str_repeat('1', 1001), 'Angka target terlalu panjang.'],
+            ['baseline', '-1', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
+            ['target_tahunan', '-1', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
+            ['baseline', 'NaN', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
+            ['target_tahunan', 'NaN', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
+            ['baseline', 'Infinity', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
+            ['target_tahunan', 'Infinity', 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.'],
             ['expected_state', null, 'Data form tidak valid. Muat ulang form.'],
             ['expected_state', [], 'Data form tidak valid. Muat ulang form.'],
             ['expected_state', 'invalid', 'Data form tidak valid. Muat ulang form.'],

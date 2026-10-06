@@ -250,8 +250,8 @@ erDiagram
         uuid id PK
         uuid indikator_id FK
         int tahun
-        numeric nilai "nullable, nonnegatif, bukan NaN"
-        numeric baseline "nullable, nonnegatif, bukan NaN"
+        numeric nilai "nullable, finite, nonnegatif"
+        numeric baseline "nullable, finite, nonnegatif"
         uuid updated_by FK
         timestamp updated_at
     }
@@ -808,14 +808,16 @@ Target per indikator per tahun.
 | `id` | uuid | PK | |
 | `indikator_id` | uuid | FK → indikator.id | |
 | `tahun` | int | not null | |
-| `nilai` | numeric | **nullable**, nonnegatif, bukan `NaN` | `0` = nilai sah; `null` = belum diisi |
-| `baseline` | numeric | **nullable**, nonnegatif, bukan `NaN` | Nilai baseline (capaian tahun sebelumnya) yang dipakai sebagai acuan saat menyusun target tahun ini; ditampilkan pada dokumen PK dan rekapitulasi indikator × periode, dan disalin ke `jadwal_snapshot.baseline` saat aktivasi jadwal |
+| `nilai` | numeric | **nullable**, finite, nonnegatif (`>= 0`) | `0` = nilai sah; `null` = belum diisi |
+| `baseline` | numeric | **nullable**, finite, nonnegatif (`>= 0`) | Nilai baseline (capaian tahun sebelumnya) yang dipakai sebagai acuan saat menyusun target tahun ini; `0` = nilai sah; `null` = belum diisi; ditampilkan pada dokumen PK dan rekapitulasi indikator × periode, dan disalin ke `jadwal_snapshot.baseline` saat aktivasi jadwal |
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
 **Constraint:** `unique(indikator_id, tahun)`.
 
-**Domain nilai — ISS-02.07 / [Issue #28](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/28):** baseline dan target tahunan boleh kosong secara independen. Nilai yang terisi harus berupa desimal biasa, nonnegatif (`>= 0`), dan finite; `NaN` maupun infinity ditolak. Nol tetap nilai sah dan tidak ada batas universal 100. Ketentuan nullable, nonnegatif, dan tanpa batas universal 100 berasal dari keputusan Q5 Issue #28 tanggal 4 Oktober 2026; cakupannya tidak meliputi realisasi, komponen, atau target periode rencana aksi. Pada schema aplikasi, entitas ini dipetakan ke `target_kinerjas`, dengan `nilai` bernama `target_tahunan`; kedua kolom `target_tahunan` dan `baseline` dilindungi CHECK nullable, nonnegatif, dan bukan `NaN`.
+**Domain nilai — Q33:** `baseline` dan `nilai` (target tahunan PK) boleh `null` secara independen. Jika diisi, keduanya harus berupa desimal biasa yang finite dan nonnegatif (`>= 0`). Nilai `0` merupakan nilai sah dan berbeda dari `null`. `NaN`, infinity, dan nilai negatif ditolak. Tidak ada batas universal maksimum `100`; nilai di atas `100` tetap dapat sah selama sesuai definisi/presisi indikator dan kapasitas storage. Ketentuan ini khusus untuk baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi/pengukuran, nilai komponen, atau target periode Rencana Aksi. Rujukan keputusan: **Q33 — Domain Nilai Baseline dan Target Tahunan PK** pada `SAKIP - Keputusan Penyelarasan.md`.
+
+**Pemetaan schema aplikasi:** entitas ini dipetakan ke `target_kinerjas`, dengan `nilai` bernama `target_tahunan`. Kedua kolom `target_tahunan` dan `baseline` memakai `numeric(30,12)` nullable serta CHECK nonnegatif dan bukan `NaN`; infinity juga ditolak oleh kapasitas tipe numeric tersebut.
 
 **Aturan revisi:** revisi target antar-tahun (mis. menaikkan target tahun-tahun mendatang setelah tahun berjalan terlampaui) cukup dilakukan dengan mengubah baris master ini; baris `jadwal_snapshot` untuk tahun tersebut baru terbentuk saat jadwal tahun itu diaktifkan dan otomatis membawa nilai revisi terkini (termasuk `baseline`). Tahun yang jadwalnya sudah beku (snapshot sudah terbentuk dan/atau sudah dirujuk pengukuran) tidak tersentuh oleh revisi ini. Aturan ini berlaku untuk **target tahunan PK**; target komponen per periode pada rencana aksi memiliki jalur revisinya sendiri (lihat §2.23–§2.24).
 
