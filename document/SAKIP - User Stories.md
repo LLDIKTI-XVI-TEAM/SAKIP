@@ -367,11 +367,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** menetapkan baseline dan target tahunan indikator,  
 > **Sehingga** target PK memiliki pembanding resmi sebelum siklus tahunan diaktifkan.
 
+> **Status implementasi parsial — PR #64:** AC-1–3 memiliki bukti QA pada `5c056e5`; batas bukti dan tindak lanjut tercatat pada [ISS-02.07](SAKIP%20-%20User%20Issues.md#iss-0207--feature-penetapan-baseline--target-tahunan). AC-4 tetap terbuka. Centang bukan persetujuan UAT atau deployment.
+
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
-- [ ] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
-- [ ] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
+- [x] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
+- [x] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
+- [x] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 
 **Business Rules / Catatan**
