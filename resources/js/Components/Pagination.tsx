@@ -37,6 +37,10 @@ export interface PaginationProps {
     preserveScroll?: boolean;
     preserveState?: boolean;
     className?: string;
+    prevUrl?: string | null;
+    nextUrl?: string | null;
+    prevLabel?: string;
+    nextLabel?: string;
 }
 
 export function Pagination({
@@ -56,6 +60,10 @@ export function Pagination({
     preserveScroll = true,
     preserveState = true,
     className,
+    prevUrl: propPrevUrl,
+    nextUrl: propNextUrl,
+    prevLabel = 'Halaman sebelumnya',
+    nextLabel = 'Halaman berikutnya',
 }: PaginationProps) {
     const links = pagination?.links ?? propLinks ?? [];
     const total = pagination?.total ?? propTotal ?? 0;
@@ -75,22 +83,29 @@ export function Pagination({
     const currentPerPage = pagination?.per_page ?? propPerPage ?? 10;
 
     // Fallback calculation for from and to when not explicitly provided
-    const calculatedFrom = total > 0 ? (current - 1) * currentPerPage + 1 : 0;
+    const calculatedFrom = total > 0 ? Math.min((current - 1) * currentPerPage + 1, total) : 0;
     const calculatedTo = total > 0 ? Math.min(current * currentPerPage, total) : 0;
 
-    const from = pagination?.from ?? propFrom ?? calculatedFrom;
-    const to = pagination?.to ?? propTo ?? calculatedTo;
+    const rawFrom = pagination?.from ?? propFrom ?? calculatedFrom;
+    const rawTo = pagination?.to ?? propTo ?? calculatedTo;
+    const from = total > 0 ? Math.min(rawFrom, total) : 0;
+    const to = total > 0 ? Math.min(Math.max(rawTo, from), total) : 0;
 
     // Resolve last page
     let resolvedLastPage = pagination?.last_page ?? propLastPage;
     if (!resolvedLastPage) {
-        // Find highest numeric label in links
-        const numericLabels = links
-            .map((l) => parseInt(l.label, 10))
-            .filter((n) => !isNaN(n));
-        resolvedLastPage = numericLabels.length > 0 ? Math.max(...numericLabels) : 1;
+        // Fallback from total and perPage if available
+        if (total > 0 && currentPerPage > 0) {
+            resolvedLastPage = Math.max(1, Math.ceil(total / currentPerPage));
+        } else {
+            // Find highest numeric label in links
+            const numericLabels = links
+                .map((l) => parseInt(l.label, 10))
+                .filter((n) => !isNaN(n));
+            resolvedLastPage = numericLabels.length > 0 ? Math.max(...numericLabels) : 1;
+        }
     }
-    const totalPages = resolvedLastPage;
+    const totalPages = Math.max(1, resolvedLastPage);
 
     const handlePerPageSelect = (newPerPage: number) => {
         if (onPerPageChange) {
@@ -117,7 +132,9 @@ export function Pagination({
     // Helper to find URL for a specific page number
     const getPageUrl = (pageNumber: number): string | null => {
         const link = links.find((l) => l.label === String(pageNumber));
-        if (link?.url) return link.url;
+        if (link?.url) {
+            return normalizeUrl(link.url);
+        }
         if (typeof window !== 'undefined') {
             const searchParams = new URLSearchParams(window.location.search);
             searchParams.set('page', String(pageNumber));
@@ -129,8 +146,23 @@ export function Pagination({
         return null;
     };
 
-    const prevUrl = current > 1 ? getPageUrl(current - 1) : null;
-    const nextUrl = current < totalPages ? getPageUrl(current + 1) : null;
+    const normalizeUrl = (url: string | null | undefined): string | null => {
+        if (!url) return null;
+        if (typeof window !== 'undefined') {
+            try {
+                const parsed = new URL(url, window.location.origin);
+                return `${parsed.pathname}${parsed.search}`;
+            } catch {
+                return url;
+            }
+        }
+        return url;
+    };
+
+    const rawPrevUrl = propPrevUrl !== undefined ? propPrevUrl : (current > 1 ? getPageUrl(current - 1) : null);
+    const rawNextUrl = propNextUrl !== undefined ? propNextUrl : (current < totalPages ? getPageUrl(current + 1) : null);
+    const prevUrl = normalizeUrl(rawPrevUrl);
+    const nextUrl = normalizeUrl(rawNextUrl);
 
     // Build visible page numbers list (matches SIMPEG window logic)
     const pagesToRender: (number | 'ellipsis')[] = [];
@@ -159,8 +191,8 @@ export function Pagination({
         pagesToRender.push(totalPages);
     }
 
-    // If total items is 0, don't show footer at all
-    if (total === 0) {
+    // If total items is 0 and no manual navigation URLs provided, don't show footer at all
+    if (total === 0 && !propPrevUrl && !propNextUrl) {
         return null;
     }
 
@@ -208,11 +240,11 @@ export function Pagination({
             </div>
 
             {/* Right side: Navigasi Halaman Buttons */}
-            {totalPages > 1 && (
+            {(totalPages > 1 || Boolean(propPrevUrl || propNextUrl)) && (
                 <nav aria-label="Navigasi halaman" className="w-full max-w-full overflow-x-auto scrollbar-hide sm:w-auto">
                     <div className="flex w-max min-w-full items-center justify-start gap-1 py-0.5 sm:min-w-0 sm:justify-end">
                         {/* Prev Button */}
-                        {prevUrl && current > 1 ? (
+                        {prevUrl && (current > 1 || Boolean(propPrevUrl)) ? (
                             <Link
                                 href={prevUrl}
                                 preserveScroll={preserveScroll}
@@ -224,7 +256,7 @@ export function Pagination({
                                     }
                                 }}
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-ink hover:bg-soft hover:text-ink shadow-2xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                                aria-label="Halaman sebelumnya"
+                                aria-label={prevLabel}
                             >
                                 <ChevronLeft className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </Link>
@@ -233,7 +265,7 @@ export function Pagination({
                                 type="button"
                                 disabled
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted opacity-40 shadow-2xs cursor-not-allowed"
-                                aria-label="Halaman sebelumnya"
+                                aria-label={prevLabel}
                             >
                                 <ChevronLeft className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
@@ -302,7 +334,7 @@ export function Pagination({
                         })}
 
                         {/* Next Button */}
-                        {nextUrl && current < totalPages ? (
+                        {nextUrl && (current < totalPages || Boolean(propNextUrl)) ? (
                             <Link
                                 href={nextUrl}
                                 preserveScroll={preserveScroll}
@@ -314,7 +346,7 @@ export function Pagination({
                                     }
                                 }}
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-ink hover:bg-soft hover:text-ink shadow-2xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                                aria-label="Halaman berikutnya"
+                                aria-label={nextLabel}
                             >
                                 <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </Link>
@@ -323,7 +355,7 @@ export function Pagination({
                                 type="button"
                                 disabled
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted opacity-40 shadow-2xs cursor-not-allowed"
-                                aria-label="Halaman berikutnya"
+                                aria-label={nextLabel}
                             >
                                 <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>

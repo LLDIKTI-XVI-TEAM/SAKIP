@@ -25,7 +25,11 @@ class DenyManagement
     private function search(Request $request): string
     {
         abort_unless($this->permissions->allows($request->user()->fresh(), 'akses:update'), 403);
-        $query = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'page' => ['nullable', 'integer', 'min:1']]);
+        $query = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'in:10,20,25,50,100'],
+        ]);
 
         return trim($query['q'] ?? '');
     }
@@ -33,11 +37,17 @@ class DenyManagement
     public function index(Request $request): Response
     {
         $search = $this->search($request);
+        $perPage = (int) ($request->input('per_page') ?? 20);
+        if (! in_array($perPage, [10, 20, 25, 50, 100], true)) {
+            $perPage = 20;
+        }
+
+        /** @var \Illuminate\Pagination\LengthAwarePaginator $rows */
         $rows = UserPermissionDeny::select(['id', 'user_id', 'permission_id', 'unit_id', 'alasan', 'ditetapkan_oleh', 'created_at'])
             ->with(['user:id,nama,email,status', 'permission:id,kode,keterangan,butuh_scope,aktif', 'unit:id,nama,status', 'penetap:id,nama'])
             ->when($search !== '', fn ($query) => $query->whereHas('user', fn ($user) => $user
                 ->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%'))))
-            ->orderByDesc('created_at')->orderByDesc('id')->simplePaginate(20)->withQueryString();
+            ->orderByDesc('created_at')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         return Inertia::render('Access/DenyIndex', [
             'denies' => $rows->getCollection()->map(fn (UserPermissionDeny $deny) => [
@@ -46,8 +56,17 @@ class DenyManagement
                 'unit' => $deny->unit?->only(['id', 'nama', 'status']), 'alasan' => $deny->alasan,
                 'ditetapkan_oleh' => $deny->penetap->only(['id', 'nama']), 'created_at' => $deny->created_at->toISOString(),
             ])->all(),
-            'pagination' => ['current_page' => $rows->currentPage(), 'prev_page_url' => $rows->previousPageUrl(), 'next_page_url' => $rows->nextPageUrl()],
-            'filters' => ['q' => $search], 'can' => ['manageDeny' => true],
+            'pagination' => [
+                'current_page' => $rows->currentPage(),
+                'per_page' => $rows->perPage(),
+                'total' => $rows->total(),
+                'last_page' => $rows->lastPage(),
+                'from' => $rows->firstItem() ?? 0,
+                'to' => $rows->lastItem() ?? 0,
+                'prev_page_url' => $rows->previousPageUrl(),
+                'next_page_url' => $rows->nextPageUrl(),
+            ],
+            'filters' => ['q' => $search, 'per_page' => $perPage], 'can' => ['manageDeny' => true],
         ]);
     }
 

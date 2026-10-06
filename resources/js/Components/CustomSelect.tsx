@@ -27,6 +27,8 @@ export interface CustomSelectProps {
     useHoverScroll?: boolean;
     emptyOptionLabel?: string;
     showEmptyOption?: boolean;
+    nativeSelect?: boolean;
+    'aria-label'?: string;
 }
 
 export function CustomSelect({
@@ -46,6 +48,8 @@ export function CustomSelect({
     useHoverScroll = true,
     emptyOptionLabel,
     showEmptyOption = true,
+    nativeSelect = false,
+    'aria-label': propAriaLabel,
 }: CustomSelectProps) {
     const generatedId = useId();
     const selectId = id || name || generatedId;
@@ -105,23 +109,46 @@ export function CustomSelect({
             )}
 
             <div ref={containerRef} className="relative w-full max-w-full min-w-0">
-                {name && (
+                {nativeSelect ? (
+                    <select
+                        id={selectId}
+                        name={name}
+                        value={value ?? ''}
+                        disabled={disabled}
+                        required={required}
+                        aria-label={propAriaLabel || label || placeholder}
+                        onChange={(e) => handleSelect(e.target.value)}
+                        className="sr-only"
+                        tabIndex={-1}
+                    >
+                        {showEmptyOption && (
+                            <option value="" disabled>
+                                {emptyOptionLabel || placeholder}
+                            </option>
+                        )}
+                        {options.map((opt) => (
+                            <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                ) : name ? (
                     <input
                         type="hidden"
                         name={name}
                         value={value ?? ''}
                         disabled={disabled}
                     />
-                )}
+                ) : null}
 
                 <button
                     ref={triggerRef}
                     type="button"
-                    id={selectId}
+                    id={nativeSelect ? undefined : selectId}
                     value={String(value ?? '')}
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
-                    aria-label={label || placeholder}
+                    aria-label={nativeSelect ? undefined : (propAriaLabel || label || placeholder)}
                     disabled={disabled}
                     onClick={() => {
                         if (!disabled) {

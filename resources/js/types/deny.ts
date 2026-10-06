@@ -13,8 +13,17 @@ export type DenyRow = {
 };
 export type DenyIndexProps = {
     denies: DenyRow[];
-    pagination: { current_page: number; prev_page_url: string | null; next_page_url: string | null };
-    filters: { q: string };
+    pagination: {
+        current_page: number;
+        per_page?: number;
+        total?: number;
+        last_page?: number;
+        from?: number;
+        to?: number;
+        prev_page_url: string | null;
+        next_page_url: string | null;
+    };
+    filters: { q: string; per_page?: number };
     can: { manageDeny: boolean };
 };
 export type DenyResultProps = { status: 'created' | 'revoked' | null; canReturn: boolean };

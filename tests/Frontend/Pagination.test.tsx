@@ -168,4 +168,58 @@ describe('Pagination Component (SIMPEG Style)', () => {
         // Page buttons nav should not be shown when lastPage <= 1
         expect(screen.queryByLabelText('Navigasi halaman')).toBeNull();
     });
+
+    it('menghitung totalPages dan meta dengan benar saat total > perPage (kasus 32 izin dengan perPage 25)', () => {
+        render(
+            <Pagination
+                total={32}
+                currentPage={2}
+                perPage={25}
+                resourceName="izin"
+            />
+        );
+
+        const meta = screen.getByTestId('pagination-meta');
+        expect(meta.textContent).toContain('26 - 32 dari 32 izin');
+
+        // Page buttons should render page 1 and 2
+        const nav = screen.getByLabelText('Navigasi halaman');
+        expect(nav).toBeDefined();
+        expect(screen.getByText('1')).toBeDefined();
+        const active = nav.querySelector('[aria-current="page"]');
+        expect(active?.textContent).toBe('2');
+    });
+
+    it('mencegah bug from melebihi to/total (kasus 26 - 25 dari 25)', () => {
+        render(
+            <Pagination
+                from={26}
+                to={25}
+                total={25}
+                currentPage={2}
+                perPage={25}
+                resourceName="izin"
+            />
+        );
+
+        const meta = screen.getByTestId('pagination-meta');
+        // Should clamp so from never exceeds to/total
+        expect(meta.textContent).toContain('25 - 25 dari 25 izin');
+    });
+
+    it('menormalisasi absolute url dari backend Laravel menjadi relative path', () => {
+        render(
+            <Pagination
+                total={50}
+                currentPage={1}
+                perPage={25}
+                nextUrl="http://localhost:8000/akses/izin-peran?page=2"
+                resourceName="izin"
+            />
+        );
+
+        const nextLink = screen.getByLabelText('Halaman berikutnya') as HTMLAnchorElement;
+        expect(nextLink.getAttribute('href')).toBe('/akses/izin-peran?page=2');
+    });
 });
+

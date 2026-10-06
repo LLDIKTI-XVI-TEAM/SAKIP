@@ -19,22 +19,22 @@ class RoleAssignment
     {
         $actor = $request->user()->fresh();
         abort_unless($permissions->allows($actor, 'pengguna:read') && $permissions->allows($actor, 'akses:update'), 403);
-        $query = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'page' => ['nullable', 'integer', 'min:1']]);
+        $query = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'in:10,20,25,50,100'],
+        ]);
         $search = trim($query['q'] ?? '');
+        $perPage = (int) ($query['per_page'] ?? 20);
+
+        /** @var \Illuminate\Pagination\LengthAwarePaginator $users */
         $users = User::select(['id', 'nama', 'email', 'status'])
             ->with('roles:id,kode,nama,aktif')
             ->when($search !== '', fn ($builder) => $builder->where(fn ($filter) => $filter
                 ->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%')))
-            ->orderBy('nama')->orderBy('id')->paginate(20)->withQueryString()
-            ->through(function (User $user): array {
-                $role = $user->roles->first();
+            ->orderBy('nama')->orderBy('id')->paginate($perPage)->withQueryString()
+            ->through(fn (User $user): array => $this->transformUser($user));
 
-                return [
-                    'id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status,
-                    'current_role' => $role ? $role->only(['id', 'kode', 'nama', 'aktif']) : null,
-                    'assignment' => $role ? $role->getRelation('pivot')->only(['id', 'role_id', 'audit_id']) : null,
-                ];
-            });
         $catalog = Role::whereIn('kode', RoleCatalog::codes())->where('aktif', true)->get(['id', 'kode', 'nama'])->keyBy('kode');
         $roles = [];
         foreach (RoleCatalog::codes() as $kode) {
@@ -44,8 +44,28 @@ class RoleAssignment
         }
 
         return Inertia::render('Access/RoleAssignmentIndex', [
-            'users' => $users, 'roles' => $roles, 'filters' => ['q' => $search], 'can' => ['assignRole' => true],
+            'users' => $users,
+            'roles' => $roles,
+            'filters' => ['q' => $search, 'per_page' => $perPage],
+            'can' => ['assignRole' => true],
         ]);
+    }
+
+    /**
+     * @return array{id: string, nama: string, email: string, status: string, current_role: array|null, assignment: array|null}
+     */
+    private function transformUser(User $user): array
+    {
+        $role = $user->roles->first();
+
+        return [
+            'id' => $user->id,
+            'nama' => $user->nama,
+            'email' => $user->email,
+            'status' => $user->status,
+            'current_role' => $role ? $role->only(['id', 'kode', 'nama', 'aktif']) : null,
+            'assignment' => $role ? $role->getRelation('pivot')->only(['id', 'role_id', 'audit_id']) : null,
+        ];
     }
 
     public function store(AssignRoleRequest $request, string $user, AssignRole $assign): RedirectResponse

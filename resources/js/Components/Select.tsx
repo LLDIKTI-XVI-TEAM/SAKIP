@@ -1,4 +1,4 @@
-import React, { SelectHTMLAttributes, useId } from 'react';
+import React, { SelectHTMLAttributes, useId, forwardRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -17,17 +17,20 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
     options?: SelectOption[];
 }
 
-export function Select({
-    label,
-    labelClassName,
-    error,
-    helperText,
-    options,
-    className,
-    id,
-    children,
-    ...props
-}: SelectProps) {
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
+    {
+        label,
+        labelClassName,
+        error,
+        helperText,
+        options,
+        className,
+        id,
+        children,
+        ...props
+    },
+    ref
+) {
     const fallbackId = useId();
     const selectId = id ?? props.name ?? fallbackId;
 
@@ -41,6 +44,7 @@ export function Select({
             )}
             <div className="relative w-full min-w-0 max-w-full">
                 <select
+                    ref={ref}
                     id={selectId}
                     className={twMerge(
                         clsx(
@@ -68,4 +72,4 @@ export function Select({
             {helperText && !error && <p className="mt-1.5 text-xs text-muted">{helperText}</p>}
         </div>
     );
-}
+});
