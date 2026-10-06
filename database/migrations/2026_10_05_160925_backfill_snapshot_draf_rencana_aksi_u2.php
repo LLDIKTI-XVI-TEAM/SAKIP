@@ -16,6 +16,17 @@ return new class extends Migration
     private const BACKUP_TABLE = '_backup_rencana_aksi_jadwal_snapshot_20261004';
 
     /**
+     * Penanda baris yang benar-benar diisi up() (Review8 V1 F3).
+     *
+     * Tanpa penanda, down() lama (`snapshot_draf_id = backup...`) tak dapat
+     * membedakan pin backfill dari jepit sah pra-existing yang kebetulan
+     * bernilai sama (up() hanya menyentuh `IS NULL`, down() lama menyentuh
+     * semua yang sama) sehingga rollback menghancurkan jepit sah. Tabel sisi
+     * deterministik ini mencatat ID ter-update agar down() jujur.
+     */
+    private const MARKER_TABLE = '_backfill_snapshot_draf_rencana_aksi_u2_ids';
+
+    /**
      * Backfill jepit draf lama (Review7 U2 F3).
      *
      * Migrasi penambah `rencana_aksi.snapshot_draf_id`
@@ -46,6 +57,13 @@ return new class extends Migration
      * `jadwal_snapshot` dan `jadwal_snapshot_komponen` (lihat
      * `2026_09_18_030003`), bukan pada `rencana_aksi` — sehingga pengisian
      * jepit tak memicu penolakan 23514.
+     *
+     * F3 (Review8 V1): up() mencatat ID yang benar-benar diisi ke tabel sisi
+     * `MARKER_TABLE` SEBELUM `UPDATE` (himpunan kandidat persis = syarat
+     * `UPDATE` di bawah; `ON CONFLICT DO NOTHING` agar idempoten). down()
+     * hanya me-NULL-kan baris bertanda yang masih memegang nilai backfill
+     * persis — jepit pra-existing yang tak terbedakan nilainya tetap utuh
+     * karena tak pernah masuk penanda.
      */
     public function up(): void
     {
@@ -56,6 +74,26 @@ return new class extends Migration
         if (! Schema::hasTable(self::BACKUP_TABLE)) {
             return;
         }
+
+        DB::statement(sprintf(
+            'CREATE TABLE IF NOT EXISTS "%s" (rencana_aksi_id uuid PRIMARY KEY)',
+            self::MARKER_TABLE
+        ));
+
+        DB::statement(sprintf(
+            <<<'SQL'
+            INSERT INTO "%2$s" (rencana_aksi_id)
+            SELECT ra.id
+            FROM rencana_aksi AS ra
+            INNER JOIN "%1$s" AS backup ON backup.rencana_aksi_id = ra.id
+            INNER JOIN jadwal_snapshot AS js ON js.id = backup.jadwal_snapshot_id
+            WHERE ra.snapshot_draf_id IS NULL
+              AND backup.jadwal_snapshot_id IS NOT NULL
+            ON CONFLICT (rencana_aksi_id) DO NOTHING
+            SQL,
+            self::BACKUP_TABLE,
+            self::MARKER_TABLE
+        ));
 
         DB::statement(sprintf(
             <<<'SQL'
@@ -72,22 +110,35 @@ return new class extends Migration
     }
 
     /**
-     * Kembalikan hasil backfill tanpa merusak jepit baru.
+     * Kembalikan hasil backfill tanpa merusak jepit sah pra-existing.
      *
-     * Hanya baris yang masih memegang nilai backfill persis
-     * (`snapshot_draf_id = backup.jadwal_snapshot_id`) yang di-NULL-kan
-     * kembali. Baris yang sudah dimajukan `SimpanTargetPeriode` ke snapshot
-     * koreksi lebih baru (nilai != peta backup) dipertahankan — down()
-     * tidak mengarang atau menghapus jepit sah pasca-backfill. Tanpa tabel
-     * backup atau kolom jepit, down() adalah no-op yang aman.
+     * Hanya baris bertanda di `MARKER_TABLE` yang masih memegang nilai
+     * backfill persis (`snapshot_draf_id = backup.jadwal_snapshot_id`)
+     * yang di-NULL-kan kembali. Baris yang sudah dimajukan
+     * `SimpanTargetPeriode` ke snapshot koreksi lebih baru (nilai != peta
+     * backup) dipertahankan, dan — yang diperbaiki V1 — jepit sah
+     * pra-existing yang kebetulan sama nilainya dengan peta backup tak
+     * tersentuh karena tak pernah masuk penanda (up() hanya menandai
+     * kandidat `IS NULL`). Tanpa tabel penanda (mis. up() lama pra-V1 yang
+     * tak menandai), down() adalah no-op non-destruktif: tak mengarang
+     * atau menghapus jepit yang tak dapat dibedakan. Tanpa tabel backup
+     * atau kolom jepit, down() membersihkan penanda bila ada lalu no-op.
      */
     public function down(): void
     {
         if (! Schema::hasColumn('rencana_aksi', 'snapshot_draf_id')) {
+            DB::statement(sprintf('DROP TABLE IF EXISTS "%s"', self::MARKER_TABLE));
+
             return;
         }
 
         if (! Schema::hasTable(self::BACKUP_TABLE)) {
+            DB::statement(sprintf('DROP TABLE IF EXISTS "%s"', self::MARKER_TABLE));
+
+            return;
+        }
+
+        if (! Schema::hasTable(self::MARKER_TABLE)) {
             return;
         }
 
@@ -95,11 +146,15 @@ return new class extends Migration
             <<<'SQL'
             UPDATE rencana_aksi AS ra
             SET snapshot_draf_id = NULL
-            FROM "%s" AS backup
-            WHERE backup.rencana_aksi_id = ra.id
+            FROM "%1$s" AS backup, "%2$s" AS penanda
+            WHERE penanda.rencana_aksi_id = ra.id
+              AND backup.rencana_aksi_id = ra.id
               AND ra.snapshot_draf_id = backup.jadwal_snapshot_id
             SQL,
-            self::BACKUP_TABLE
+            self::BACKUP_TABLE,
+            self::MARKER_TABLE
         ));
+
+        DB::statement(sprintf('DROP TABLE IF EXISTS "%s"', self::MARKER_TABLE));
     }
 };

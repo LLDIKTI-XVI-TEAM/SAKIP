@@ -21,7 +21,14 @@ class SimpanTargetPeriodeRequest extends FormRequest
 
         $header = RencanaAksi::whereKey($id)->first();
         if (! $header instanceof RencanaAksi) {
-            return true;
+            // F2 (Review8 V1): header tak ditemukan → 404 SEBELUM validasi
+            // `exists`, cermin `PreviewTargetPeriodeRequest` (T1/Review6).
+            // Tanpa ini UUID asing + payload tak valid memberi 422 sedangkan
+            // payload valid memberi 404 (oracle 422-vs-404), dan tanpa-izin
+            // memberi oracle 403-vs-404. Lookup mendahului Gate agar urutan
+            // respons 404/403 tetap sama. Murni `return false` ditolak: kasus
+            // dengan-izin atas UUID asing wajib 404 (bukan 403).
+            abort(404);
         }
 
         return Gate::allows('update', $header);
