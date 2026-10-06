@@ -31,6 +31,8 @@ use App\Http\Controllers\Perencanaan\DestroyIndikator;
 use App\Http\Controllers\Perencanaan\DestroySasaran;
 use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
 use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
+use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
+use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
 use App\Http\Controllers\Perencanaan\StoreIndikator;
 use App\Http\Controllers\Perencanaan\StoreSasaran;
 use App\Http\Controllers\Perencanaan\UpdateIndikator;
@@ -60,6 +62,7 @@ use App\Http\Controllers\Renstra\IndexRenstra;
 use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
+use App\Http\Controllers\TargetTahunan\TargetTahunanController;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
@@ -88,6 +91,8 @@ Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block()
 Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}/editor', [TargetTahunanController::class, 'editor'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.editor');
+    Route::put('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}', [TargetTahunanController::class, 'update'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.update');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
     Route::get('/jadwal/opsi/{jenis}', [JadwalController::class, 'options'])->whereIn('jenis', ['renstra', 'periode'])->name('jadwal.options');
@@ -188,14 +193,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
+    Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');
+    Route::post('/perencanaan/indikator/{indikator}/komponen/preview', PreviewIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.preview');
     Route::patch('/perencanaan/indikator/{indikator}/formula', ChangeIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.formula');
     Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
 
     // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
     Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');
-    Route::post('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'store'])->whereUuid('indikator')->name('indikator.komponen.store');
-    Route::put('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'update'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.update');
-    Route::delete('/indikator/{indikator}/komponen/{komponen}', [IndikatorKomponenController::class, 'destroy'])->whereUuid('indikator')->whereUuid('komponen')->name('indikator.komponen.destroy');
 
     // Perjanjian Kinerja (PK) & Lampiran Legal
     Route::get('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'index'])->name('perjanjian-kinerja.index');

@@ -92,12 +92,16 @@ class Regulasi extends Model
     {
         // Mengunci semua rujukan, bukan hanya yang aktif, agar status/rujukan tidak berubah
         // setelah guard dievaluasi. Lock regulasi induk menahan insert rujukan baru via FK.
-        $renstras = $this->renstras()
-            ->select(['id', 'is_aktif'])
-            ->lockForUpdate()
-            ->get();
+        // Indikator sebelum Renstra mengikuti pembaca/penulis target (Indikator → Sasaran → Renstra).
+        // Regulasi induk tetap dikunci lebih dahulu, seperti writer rujukan; tiap kelompok terurut.
         $indikatorKinerjas = $this->indikatorKinerjas()
             ->select(['id', 'status'])
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        $renstras = $this->renstras()
+            ->select(['id', 'is_aktif'])
+            ->orderBy('id')
             ->lockForUpdate()
             ->get();
 

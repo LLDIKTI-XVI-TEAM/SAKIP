@@ -205,7 +205,7 @@ class FormulaReadGateTest extends TestCase
         $auditBuat = AuditLog::where('tindakan', 'komponen.buat')->where('objek_id', $baru->id)->firstOrFail();
         $this->assertStringContainsString($alasan, $auditBuat->alasan);
 
-        $auditInduk = AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $this->indikator->id)->firstOrFail();
-        $this->assertStringContainsString($alasan, $auditInduk->alasan);
+        // Child-only: audit granular cukup; tidak mengarang delta/izin parent.
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'indikator.ubah', 'objek_id' => $this->indikator->id]);
     }
 }

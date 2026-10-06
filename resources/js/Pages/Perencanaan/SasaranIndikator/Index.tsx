@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/Button';
@@ -22,9 +22,15 @@ import {
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
 import { PindahUnitModal } from './PindahUnitModal';
+import { HttpResponseError } from '@inertiajs/core';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { Modal } from '@/Components/Modal';
+import { loadDefinition, hasParentMetadata, type DefinitionEditor } from '@/Pages/Indikator/Komponen/definition';
 import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
+import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
 import type {
     IndikatorKinerjaItem,
     IndikatorTipePerhitungan,
@@ -92,7 +98,15 @@ export default function SasaranIndikatorIndex({
 
     const [pindahTarget, setPindahTarget] = useState<IndikatorKinerjaItem | null>(null);
 
-    const [formulaTarget, setFormulaTarget] = useState<IndikatorKinerjaItem | null>(null);
+    const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
+    const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
+    const [annualMessage, setAnnualMessage] = useState('');
+    const [selectedEditor, setSelectedEditor] = useState<DefinitionEditor | null>(null);
+    const [editorLoading, setEditorLoading] = useState(false);
+    const [editorError, setEditorError] = useState('');
+    const editorRecovery = useAuthRecovery();
+    const editorRequest = useRef<AbortController | null>(null);
+    useEffect(() => () => editorRequest.current?.abort(), []);
 
     const toggleCollapse = (id: string) => {
         setCollapsedMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -117,25 +131,43 @@ export default function SasaranIndikatorIndex({
     };
 
     const openCreateIndikator = (sasaranId?: string) => {
+        editorRequest.current?.abort();
+        setSelectedEditor(null);
         setSelectedIndikator(null);
         setDefaultSasaranId(sasaranId || sasarans[0]?.id);
         setIndikatorModalOpen(true);
     };
 
-    const openEditIndikator = (indikator: IndikatorKinerjaItem) => {
-        setSelectedIndikator(indikator);
-        setDefaultSasaranId(indikator.sasaran_strategis_id);
-        setIndikatorModalOpen(true);
+    const openEditor = async (indikator: IndikatorKinerjaItem, mode: 'metadata' | 'formula') => {
+        editorRequest.current?.abort();
+        const controller = new AbortController();
+        editorRequest.current = controller;
+        setEditorLoading(true);
+        setEditorError('');
+        try {
+            const editor = await loadDefinition(`/perencanaan/indikator/${indikator.id}/editor`, controller.signal);
+            if (controller.signal.aborted) return;
+            if (!hasParentMetadata(editor) || editor.indikator.id !== indikator.id) throw new Error('Metadata editor tidak lengkap.');
+            if (mode === 'formula') setFormulaTarget(editor);
+            else {
+                setSelectedEditor(editor);
+                setSelectedIndikator(editor.indikator);
+                setDefaultSasaranId(editor.indikator.sasaran_strategis_id);
+                setIndikatorModalOpen(true);
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                if (error instanceof HttpResponseError) editorRecovery.handleHttpException(error.response, { effectiveMethod: 'get', path: `/perencanaan/indikator/${indikator.id}/editor`, mutation: false });
+                setEditorError('Editor tidak dapat dimuat. Periksa koneksi dan akses, lalu buka kembali indikator.');
+            }
+        }
+        finally { if (!controller.signal.aborted) setEditorLoading(false); }
     };
+    const openEditIndikator = (indikator: IndikatorKinerjaItem) => { void openEditor(indikator, 'metadata'); };
 
     const selectedRenstra = renstras.find((r) => r.id === selectedRenstraId);
 
-    // R8-01 parity gate-vs-API final-set (ChangeIndicatorFormula):
-    // API mensyaratkan indikator:update selalu + komponen:read selalu +
-    // komponen:create/update sesuai delta aktual. Tombol tampil bila
-    // API berpotensi bisa dipakai; deny-at-submit tetap di backend.
-    const canAturFormula =
-        can.indikator_update && can.komponen_read && (can.komponen_create || can.komponen_update);
+    const canAturFormula = can.komponen_read && (can.indikator_update || can.komponen_create || can.komponen_update || can.komponen_delete);
 
     return (
         <AuthenticatedLayout
@@ -146,6 +178,8 @@ export default function SasaranIndikatorIndex({
             ]}
         >
             <Head title="Sasaran Strategis & Indikator Kinerja" />
+
+            {annualMessage && <p role="status" className="mb-4 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">{annualMessage}</p>}
 
             <div className="space-y-6">
                 {/* Header Context Card */}
@@ -427,6 +461,17 @@ export default function SasaranIndikatorIndex({
                                                             {/* 5. Aksi */}
                                                             <td className="px-5 py-4 align-middle text-right">
                                                                 <div className="flex items-center justify-end gap-1.5">
+                                                                    {can.indikator_read && selectedRenstra && (
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`Baseline & target ${ind.kode}`}
+                                                                            onClick={() => {
+                                                                                setAnnualMessage('');
+                                                                                setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
+                                                                            }}
+                                                                            className="inline-flex min-h-9 items-center whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"
+                                                                        >Baseline & target</button>
+                                                                    )}
                                                                     {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
                                                                         <Link
                                                                             href={`/indikator/${ind.id}/komponen`}
@@ -442,7 +487,7 @@ export default function SasaranIndikatorIndex({
                                                                     {canAturFormula && (
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => setFormulaTarget(ind)}
+                                                                            onClick={() => { void openEditor(ind, 'formula'); }}
                                                                             className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                                                             title="Atur Formula"
                                                                             aria-label={`Atur formula indikator ${ind.kode}`}
@@ -502,6 +547,7 @@ export default function SasaranIndikatorIndex({
             </div>
 
             {/* Modal Tambah/Edit Sasaran */}
+            {annualTarget && <TargetModal indikatorId={annualTarget.id} initialYear={annualTarget.year} onClose={() => setAnnualTarget(null)} onSaved={setAnnualMessage} />}
             {selectedRenstraId && (
                 <SasaranModal
                     isOpen={sasaranModalOpen}
@@ -512,7 +558,7 @@ export default function SasaranIndikatorIndex({
             )}
 
             {/* Modal Tambah/Edit Indikator */}
-            <IndikatorModal
+            {indikatorModalOpen && <IndikatorModal
                 isOpen={indikatorModalOpen}
                 onClose={() => setIndikatorModalOpen(false)}
                 sasarans={sasarans}
@@ -520,7 +566,9 @@ export default function SasaranIndikatorIndex({
                 units={units}
                 regulasis={regulasis}
                 indikator={selectedIndikator}
-            />
+                editor={selectedEditor}
+                can={can}
+            />}
 
             {/* Modal Pindah Unit Penanggung Jawab */}
             <PindahUnitModal
@@ -531,11 +579,12 @@ export default function SasaranIndikatorIndex({
             />
 
             {/* Modal Transisi Formula Atomik */}
-            <FormulaModal
+            {formulaTarget && <FormulaModal
                 isOpen={formulaTarget !== null}
                 onClose={() => setFormulaTarget(null)}
-                indikator={formulaTarget}
-            />
+                editor={formulaTarget}
+            />}
+            <Modal isOpen={editorLoading || Boolean(editorError)} onClose={() => { editorRequest.current?.abort(); setEditorLoading(false); setEditorError(''); }} title="Memuat Editor Indikator"><AuthRecoveryNotice recovery={editorRecovery.recovery} /><p role={editorError ? 'alert' : 'status'}>{editorError || 'Memuat metadata dan seluruh komponen pada revisi yang sama…'}</p></Modal>
 
             {/* Modal Konfirmasi Hapus dengan Alasan Audit */}
             <DeleteConfirmModal

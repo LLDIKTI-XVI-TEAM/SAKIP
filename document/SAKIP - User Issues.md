@@ -873,6 +873,7 @@ kegiatan:update
 ### ISS-02.07 · [Feature] Penetapan Baseline & Target Tahunan
 
 > **Q32 FINAL:** baseline IKU 3 2025 = 74,2; target 2026 = 76,25; jangan anggap selisih sebagai tren; 66,395/87,08 bukan realisasi.
+> **Q33 DOMAIN:** baseline dan target tahunan PK boleh `null` secara independen; jika diisi harus finite dan nonnegatif (`>= 0`); `0` adalah nilai sah; tidak ada batas universal maksimum `100`. Aturan ini tidak otomatis berlaku pada realisasi, nilai komponen, atau target periode Rencana Aksi.
 
 **Terkait User Story:** `US-02.07`  
 **Prioritas:** 🟡 P1  
@@ -895,47 +896,56 @@ kegiatan:update
 - **Otorisasi:** `target:update`.
 - **Dampak Data:** `target_tahunan`, `audit_log`.
 - **Rule:** Katalog permission baseline hanya memakai `target:update`; tidak ada `target:create` terpisah pada baseline PRD.
+- **Rule domain nilai (Q33):** `baseline` dan target tahunan nullable secara independen; jika terisi harus berupa desimal finite dan nonnegatif (`>= 0`). `0` berbeda dari `null`, dan tidak ada batas universal maksimum `100`.
+
+> **Status implementasi parsial — PR #64:** centang menunjukkan bukti implementasi dan QA pada `5c056e5`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37452026989); bukan persetujuan UAT atau deployment. Bukti memakai test PHPUnit Feature/Unit existing pada `tests/Feature/TargetTahunan/` dan test frontend pada `tests/Frontend/TargetTahunan/`. AC-3/TEST-3 dibuktikan melalui regresi snapshot existing yang tidak berubah saat master dikoreksi; bukan pengujian laporan akhir atau pembentukan snapshot. Konkurensi pembentukan snapshot dengan koreksi target dituntaskan pada [#53](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/53); koreksi/versi snapshot AC-4/TEST-4 tetap pada ISS-03.03. Checklist gabungan yang belum terbukti penuh tetap terbuka.
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
-- [ ] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
-- [ ] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
+- [x] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
+- [x] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
+- [x] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [x] **AC-5 (Q33):** Given baseline atau target tahunan bernilai `0`, When disimpan, Then sistem menerima `0` sebagai nilai sah dan tetap membedakannya dari `null`.
+- [x] **AC-6 (Q33):** Given baseline atau target tahunan bernilai negatif atau non-finite, When disimpan melalui jalur aplikasi maupun writer yang tunduk pada constraint database, Then nilai ditolak; nilai di atas `100` tidak ditolak hanya karena melewati `100` selama sesuai presisi indikator dan kapasitas storage.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `target_tahunan`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `target_tahunan`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Tegakkan domain Q33 pada persistence: `baseline` dan target tahunan tetap nullable, tetapi nilai terisi harus finite dan nonnegatif; `0` tetap sah; jangan menambahkan cap universal `100`.
 
 **B. Backend / Domain**
-- [ ] Gunakan permission literal `target:update`; jangan membuat `target:create` baru tanpa perubahan katalog permission resmi.
-- [ ] Pisahkan koreksi master target dari koreksi snapshot historis.
+- [x] Gunakan permission literal `target:update`; jangan membuat `target:create` baru tanpa perubahan katalog permission resmi.
+- [x] Pisahkan koreksi master target dari koreksi snapshot historis.
+- [x] Validasi/normalisasi input target tahunan dan baseline di server sesuai Q33; jangan mengandalkan validasi React sebagai enforcement domain.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penetapan Baseline & Target Tahunan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Buat/rapikan page dan reusable component React untuk **Penetapan Baseline & Target Tahunan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [x] **TEST-5 (Q33):** Buktikan `0` dapat disimpan untuk baseline/target tahunan dan tetap berbeda dari `null`.
+- [x] **TEST-6 (Q33):** Buktikan nilai negatif dan non-finite ditolak, sementara nilai valid di atas `100` tidak ditolak hanya karena melewati `100`.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-02.08 · [Feature] Pencatatan Perjanjian Kinerja (PK) & Lampiran Legal

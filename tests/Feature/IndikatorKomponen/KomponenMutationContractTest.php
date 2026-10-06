@@ -13,11 +13,13 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class KomponenMutationContractTest extends TestCase
 {
     use RefreshDatabase;
+    use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
 
@@ -97,7 +99,7 @@ class KomponenMutationContractTest extends TestCase
     }
 
     /**
-     * Payload valid yang sama via POST normal dan PATCH formula menghasilkan
+     * Intent create tunggal dan payload definisi langsung menghasilkan
      * bentuk tersimpan dan audit komponen.buat yang identik.
      */
     public function test_payload_valid_menghasilkan_persisted_dan_audit_identik(): void
@@ -107,7 +109,7 @@ class KomponenMutationContractTest extends TestCase
         $indikatorPatch = $this->buatIndikator('IKU-KONTRAK-VALID-B', 'penjumlahan');
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", [
+            ->createKomponen($indikatorPost->id, [
                 'kode' => 'jml_valid',
                 'label' => '  Penjumlah Valid  ',
                 'peran' => 'penjumlah',
@@ -181,7 +183,7 @@ class KomponenMutationContractTest extends TestCase
                 'kode' => 'dup_kode',
                 'label' => 'Awal',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'created_by' => $this->perencanaan->id,
@@ -189,11 +191,11 @@ class KomponenMutationContractTest extends TestCase
         }
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", [
+            ->createKomponen($indikatorPost->id, [
                 'kode' => 'dup_kode',
                 'label' => 'Duplikat Normal',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 2,
                 'aktif' => true,
                 'expected_updated_at' => $this->tokenVersi($indikatorPost),
@@ -206,9 +208,9 @@ class KomponenMutationContractTest extends TestCase
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
                 'tipe_perhitungan' => 'rasio_persen',
                 'komponen' => [
-                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
-                    ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
-                    ['kode' => 'dup_kode', 'label' => 'Duplikat Atomik', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
+                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
+                    ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1.0', 'urutan' => 2, 'aktif' => true],
+                    ['kode' => 'dup_kode', 'label' => 'Duplikat Atomik', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 3, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
                 'alasan' => 'Kontrol pesan kode duplikat pada jalur formula.',
@@ -228,7 +230,7 @@ class KomponenMutationContractTest extends TestCase
         $pesan = 'Bobot untuk komponen dengan peran penyebut wajib lebih besar dari 0.';
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", [
+            ->createKomponen($indikatorPost->id, [
                 'kode' => 't_nol',
                 'label' => 'Penyebut Nol',
                 'peran' => 'penyebut',
@@ -237,15 +239,15 @@ class KomponenMutationContractTest extends TestCase
                 'aktif' => true,
                 'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
-            ->assertSessionHasErrors(['bobot']);
+            ->assertSessionHasErrors(['komponen.0.bobot']);
 
-        $this->assertSame($pesan, $this->pesanErrorPertama('bobot'));
+        $this->assertSame($pesan, $this->pesanErrorPertama('komponen.0.bobot'));
 
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
                 'tipe_perhitungan' => 'rasio_persen',
                 'komponen' => [
-                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
+                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
                     ['kode' => 't_nol', 'label' => 'Penyebut Nol', 'peran' => 'penyebut', 'bobot' => '0', 'urutan' => 2, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
@@ -273,7 +275,7 @@ class KomponenMutationContractTest extends TestCase
             IndikatorKomponen::create(array_merge($awal, [
                 'indikator_id' => $indikatorPost->id,
                 'created_by' => $this->perencanaan->id,
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'aktif' => true,
             ]));
         }
@@ -284,29 +286,29 @@ class KomponenMutationContractTest extends TestCase
         // Jalur normal menambah satu penjumlah; komposisi akhir menjadi invalid
         // menurut penentu yang sama.
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", [
+            ->createKomponen($indikatorPost->id, [
                 'kode' => 'jml_campur',
                 'label' => 'Penjumlah Campur',
                 'peran' => 'penjumlah',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 3,
                 'aktif' => true,
                 'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
-            ->assertSessionHasErrors('komponen');
+            ->assertSessionHasErrors('tipe_perhitungan');
 
-        $pesanPost = session('errors')->get('komponen');
+        $pesanPost = session('errors')->get('tipe_perhitungan');
         $this->assertSame($beforeChildren, $indikatorPost->komponen()->get()->map->getAttributes()->all());
         $this->assertSame($beforeParent, $indikatorPost->fresh()->getAttributes());
-        $this->assertSame($beforeAudits, AuditLog::count());
+        $this->assertSame($beforeAudits + 1, AuditLog::count());
 
         $this->actingAs($this->perencanaan)
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
                 'tipe_perhitungan' => 'rasio_persen',
                 'komponen' => [
-                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
-                    ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => 1.0, 'urutan' => 2, 'aktif' => true],
-                    ['kode' => 'jml_campur', 'label' => 'Penjumlah Campur', 'peran' => 'penjumlah', 'bobot' => 1.0, 'urutan' => 3, 'aktif' => true],
+                    ['kode' => 'n', 'label' => 'Pembilang', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
+                    ['kode' => 't', 'label' => 'Penyebut', 'peran' => 'penyebut', 'bobot' => '1.0', 'urutan' => 2, 'aktif' => true],
+                    ['kode' => 'jml_campur', 'label' => 'Penjumlah Campur', 'peran' => 'penjumlah', 'bobot' => '1.0', 'urutan' => 3, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
                 'alasan' => 'Kontrol penentu peran campur pada jalur formula.',
@@ -333,18 +335,18 @@ class KomponenMutationContractTest extends TestCase
         $indikatorPatch = $this->buatIndikator('IKU-KONTRAK-TANPA-B', 'manual');
 
         $this->actingAs($this->perencanaan)
-            ->post("/indikator/{$indikatorPost->id}/komponen", [
+            ->createKomponen($indikatorPost->id, [
                 'kode' => 'n_saja',
                 'label' => 'Pembilang Saja',
                 'peran' => 'pembilang',
-                'bobot' => 1.0,
+                'bobot' => '1.0',
                 'urutan' => 1,
                 'aktif' => true,
                 'expected_updated_at' => $this->tokenVersi($indikatorPost),
             ])
-            ->assertSessionHasErrors('komponen');
+            ->assertSessionHasErrors('tipe_perhitungan');
 
-        $pesanPost = session('errors')->get('komponen');
+        $pesanPost = session('errors')->get('tipe_perhitungan');
         $this->assertSame(0, $indikatorPost->komponen()->count());
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.buat']);
 
@@ -352,7 +354,7 @@ class KomponenMutationContractTest extends TestCase
             ->patch("/perencanaan/indikator/{$indikatorPatch->id}/formula", [
                 'tipe_perhitungan' => 'rasio_persen',
                 'komponen' => [
-                    ['kode' => 'n_saja', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => 1.0, 'urutan' => 1, 'aktif' => true],
+                    ['kode' => 'n_saja', 'label' => 'Pembilang Saja', 'peran' => 'pembilang', 'bobot' => '1.0', 'urutan' => 1, 'aktif' => true],
                 ],
                 'expected_updated_at' => $this->tokenVersi($indikatorPatch),
                 'alasan' => 'Kontrol rasio tanpa penyebut pada jalur formula.',

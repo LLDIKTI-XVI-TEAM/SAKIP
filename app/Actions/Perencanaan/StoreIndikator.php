@@ -12,7 +12,7 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Authorization\RoleCatalog;
-use App\Services\Kinerja\IndikatorPerhitunganService;
+use App\Services\Kinerja\KomponenMutationService;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -24,7 +24,7 @@ class StoreIndikator
         private readonly AuditLogger $auditLogger,
         private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
-        private readonly IndikatorPerhitunganService $perhitunganService,
+        private readonly KomponenMutationService $komponen,
     ) {}
 
     /**
@@ -45,173 +45,195 @@ class StoreIndikator
      */
     public function handle(User $actor, array $validated): array
     {
-        $result = DB::transaction(function () use ($validated, $actor) {
-            // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
-            $kunci = $this->lockedActor->handle($actor, PermissionCodes::INDIKATOR_CREATE);
-            /** @var User|null $lockedActor */
-            $lockedActor = $kunci['aktor'];
-            $currentDecision = $kunci['keputusan'];
-            if (! $lockedActor || $lockedActor->status !== 'aktif') {
-                return [
-                    'status' => 'denied',
-                    'alasan' => 'Pembuatan indikator kinerja ditolak karena akun pengguna tidak aktif.',
-                    'dasarIzin' => $currentDecision->toAuditBasis(),
-                ];
-            }
-
-            // 2. Evaluasi ulang keputusan izin di dalam transaksi yang terkunci memakai state terkini
-            if (! $currentDecision->allowed) {
-                return [
-                    'status' => 'denied',
-                    'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
-                    'dasarIzin' => $currentDecision->toAuditBasis(),
-                ];
-            }
-
-            // 2b. Guard rujukan regulasi: bila regulasi_id diisi, aktor wajib
-            // lolos regulasi:read memakai state terkunci agar tebakan UUID tak
-            // bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
-            if (($validated['regulasi_id'] ?? null) !== null && $validated['regulasi_id'] !== '') {
-                $regulasiDecision = $this->resolver->resolve($lockedActor, PermissionCodes::REGULASI_READ);
-                if (! $regulasiDecision->allowed) {
+        $basis = [];
+        try {
+            $result = DB::transaction(function () use ($validated, $actor, &$basis) {
+                // 1. Kunci dan muat ulang instance user aktor secara eksklusif (koordinasi dengan mutasi ACL)
+                $kunci = $this->lockedActor->handle($actor, PermissionCodes::INDIKATOR_CREATE);
+                /** @var User|null $lockedActor */
+                $lockedActor = $kunci['aktor'];
+                $currentDecision = $kunci['keputusan'];
+                $basis = $currentDecision->toAuditBasis();
+                if (! $lockedActor || $lockedActor->status !== 'aktif') {
                     return [
                         'status' => 'denied',
-                        'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
-                        'dasarIzin' => $regulasiDecision->toAuditBasis(),
+                        'alasan' => 'Pembuatan indikator kinerja ditolak karena akun pengguna tidak aktif.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
                     ];
                 }
-            }
 
-            // 2c. Urutan kunci global: Regulasi dikunci SEBELUM Unit/Sasaran
-            // bila regulasi_id tujuan non-null (null = lewati, tanpa kunci).
-            // Kunci bersama diambil di sini agar jalur tulis indikator dan
-            // jalur hapus regulasi selalu memperoleh baris Regulasi dahulu;
-            // pemeriksaan aktif tetap pada 5c agar urutan galat tak berubah.
-            $rawRegulasiId = $validated['regulasi_id'] ?? null;
-            if ($rawRegulasiId === '') {
-                $rawRegulasiId = null;
-            }
-            /** @var Regulasi|null $targetRegulasiTerkunci */
-            $targetRegulasiTerkunci = null;
-            if ($rawRegulasiId !== null) {
-                $targetRegulasiTerkunci = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
-            }
+                // 2. Evaluasi ulang keputusan izin di dalam transaksi yang terkunci memakai state terkini
+                if (! $currentDecision->allowed) {
+                    return [
+                        'status' => 'denied',
+                        'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang tidak lagi berlaku saat transaksi.',
+                        'dasarIzin' => $currentDecision->toAuditBasis(),
+                    ];
+                }
 
-            // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan hasil resolusi izin
-            // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
-            $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
-            $createdRole = null;
-            if (! empty($grantingRoleIds)) {
-                $createdRole = DB::table('roles')
-                    ->whereIn('id', (array) $grantingRoleIds)
-                    ->where('aktif', true)
-                    ->whereIn('kode', RoleCatalog::codes())
-                    ->orderBy('urutan')
-                    ->value('kode');
-            }
+                $componentCreate = null;
+                if (array_key_exists('komponen', $validated)) {
+                    foreach (['komponen:read', 'komponen:create'] as $permission) {
+                        $decision = $this->lockedActor->handle($lockedActor, $permission)['keputusan'];
+                        if (! $decision->allowed && ($permission === 'komponen:read' || ! empty($validated['komponen']))) {
+                            return ['status' => 'denied', 'dasarIzin' => $decision->toAuditBasis(), 'alasan' => 'Pembuatan definisi komponen ditolak karena izin tidak berlaku.'];
+                        }
+                        if ($permission === 'komponen:create') {
+                            $componentCreate = $decision;
+                        }
+                    }
+                }
 
-            if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
-                return [
-                    'status' => 'denied',
-                    'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang pembuatan tidak bersumber dari peran resmi yang sah untuk provenance.',
-                    'dasarIzin' => array_merge($currentDecision->toAuditBasis(), [
-                        'penolakan_provenance' => 'Izin pembuatan indikator tidak bersumber dari peran resmi yang sah untuk provenance.',
-                    ]),
-                ];
-            }
+                // 2b. Guard rujukan regulasi: bila regulasi_id diisi, aktor wajib
+                // lolos regulasi:read memakai state terkunci agar tebakan UUID tak
+                // bisa menautkan dasar hukum tanpa izin baca. Gagal → 403 + audit.
+                if (($validated['regulasi_id'] ?? null) !== null && $validated['regulasi_id'] !== '') {
+                    $regulasiDecision = $this->resolver->resolve($lockedActor, PermissionCodes::REGULASI_READ);
+                    if (! $regulasiDecision->allowed) {
+                        return [
+                            'status' => 'denied',
+                            'alasan' => 'Penautan regulasi ditolak karena Anda tidak berwenang membaca data regulasi yang dirujuk.',
+                            'dasarIzin' => $regulasiDecision->toAuditBasis(),
+                        ];
+                    }
+                }
 
-            // 4. Kunci dan periksa ulang status unit tujuan di dalam transaksi
-            /** @var Unit|null $targetUnit */
-            $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
-            if (! $targetUnit || $targetUnit->status !== 'aktif') {
-                throw ValidationException::withMessages([
-                    'unit_id' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
-                ]);
-            }
+                // 2c. Urutan kunci global: Regulasi dikunci SEBELUM Unit/Sasaran
+                // bila regulasi_id tujuan non-null (null = lewati, tanpa kunci).
+                // Kunci bersama diambil di sini agar jalur tulis indikator dan
+                // jalur hapus regulasi selalu memperoleh baris Regulasi dahulu;
+                // pemeriksaan aktif tetap pada 5c agar urutan galat tak berubah.
+                $rawRegulasiId = $validated['regulasi_id'] ?? null;
+                if ($rawRegulasiId === '') {
+                    $rawRegulasiId = null;
+                }
+                /** @var Regulasi|null $targetRegulasiTerkunci */
+                $targetRegulasiTerkunci = null;
+                if ($rawRegulasiId !== null) {
+                    $targetRegulasiTerkunci = Regulasi::whereKey($rawRegulasiId)->sharedLock()->first();
+                }
 
-            // 5. Kunci sasaran strategis induk
-            $sasaran = SasaranStrategis::whereKey($validated['sasaran_strategis_id'])->sharedLock()->first();
-            if (! $sasaran) {
-                throw ValidationException::withMessages([
-                    'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak valid.',
-                ]);
-            }
+                // 3. Ambil role aktif aktor yang memberikan izin indikator:create berdasarkan hasil resolusi izin
+                // Fail-closed: jangan mengarang role bila izin diperoleh hanya dari direct grant tanpa role pemberi izin
+                $grantingRoleIds = $currentDecision->basis['sumber_allow']['roles'] ?? [];
+                $createdRole = null;
+                if (! empty($grantingRoleIds)) {
+                    $createdRole = DB::table('roles')
+                        ->whereIn('id', (array) $grantingRoleIds)
+                        ->where('aktif', true)
+                        ->whereIn('kode', RoleCatalog::codes())
+                        ->orderBy('urutan')
+                        ->value('kode');
+                }
 
-            // 5b. Turunkan tahun mulai berlaku dari Renstra induk via Sasaran
-            // (kolom NOT NULL; fail-closed bila Renstra tak terbaca).
-            $tahunMulaiBerlaku = Renstra::whereKey($sasaran->renstra_id)->sharedLock()->value('tahun_mulai');
-            if ($tahunMulaiBerlaku === null) {
-                throw ValidationException::withMessages([
-                    'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak memiliki Renstra induk yang sah.',
-                ]);
-            }
+                if (! $createdRole || ! in_array($createdRole, IndikatorKinerja::creatableRoles(), true)) {
+                    return [
+                        'status' => 'denied',
+                        'alasan' => 'Pembuatan indikator kinerja ditolak karena wewenang pembuatan tidak bersumber dari peran resmi yang sah untuk provenance.',
+                        'dasarIzin' => array_merge($currentDecision->toAuditBasis(), [
+                            'penolakan_provenance' => 'Izin pembuatan indikator tidak bersumber dari peran resmi yang sah untuk provenance.',
+                        ]),
+                    ];
+                }
 
-            // 5c. Validasi ulang status aktif memakai baris regulasi yang sudah
-            // dikunci pada 2c (tanpa kunci ulang, agar urutan kunci global
-            // Regulasi sebelum Unit/Sasaran terjaga). Tanpa regulasi_id (null)
-            // tidak perlu izin/kunci — tulis null.
-            // Non-null lolos guard 2b di atas sehingga berizin baca.
-            $effectiveRegulasiId = null;
-            if ($rawRegulasiId !== null) {
-                if (! $targetRegulasiTerkunci || ! $targetRegulasiTerkunci->aktif) {
+                // 4. Kunci dan periksa ulang status unit tujuan di dalam transaksi
+                /** @var Unit|null $targetUnit */
+                $targetUnit = Unit::whereKey($validated['unit_id'])->sharedLock()->first();
+                if (! $targetUnit || $targetUnit->status !== 'aktif') {
                     throw ValidationException::withMessages([
-                        'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+                        'unit_id' => 'Unit penanggung jawab tidak valid atau sudah nonaktif.',
                     ]);
                 }
-                $effectiveRegulasiId = $rawRegulasiId;
-            }
 
-            // 5d. Tolak create nonmanual-invalid (Data Model §2.12, Opsi A
-            // R3-01 pilihan (a)): baris baru selalu tanpa komponen sehingga
-            // kandidat = tipe diminta + koleksi kosong dinilai via satu-satunya
-            // penentu validitas (`validateDefinisiKomponen`). Gagal → 422
-            // `tipe_perhitungan` + messages service + arahan buat manual dulu
-            // lalu transisi atomik. Tanpa mutasi/audit sukses.
-            $kandidatBaru = new IndikatorKinerja(['tipe_perhitungan' => $validated['tipe_perhitungan']]);
-            $kandidatBaru->setRelation('komponen', collect());
-            $validasiBaru = $this->perhitunganService->validateDefinisiKomponen($kandidatBaru);
-            if (! $validasiBaru['is_valid']) {
-                throw ValidationException::withMessages([
-                    'tipe_perhitungan' => [...$validasiBaru['messages'], 'Buat indikator sebagai manual terlebih dahulu, lalu gunakan endpoint transisi formula atomik untuk beralih ke tipe nonmanual beserta komponennya dalam satu transaksi.'],
+                // 5. Kunci sasaran strategis induk
+                $sasaran = SasaranStrategis::whereKey($validated['sasaran_strategis_id'])->sharedLock()->first();
+                if (! $sasaran) {
+                    throw ValidationException::withMessages([
+                        'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak valid.',
+                    ]);
+                }
+
+                // 5b. Turunkan tahun mulai berlaku dari Renstra induk via Sasaran
+                // (kolom NOT NULL; fail-closed bila Renstra tak terbaca).
+                $tahunMulaiBerlaku = Renstra::whereKey($sasaran->renstra_id)->sharedLock()->value('tahun_mulai');
+                if ($tahunMulaiBerlaku === null) {
+                    throw ValidationException::withMessages([
+                        'sasaran_strategis_id' => 'Sasaran strategis yang dipilih tidak memiliki Renstra induk yang sah.',
+                    ]);
+                }
+
+                // 5c. Validasi ulang status aktif memakai baris regulasi yang sudah
+                // dikunci pada 2c (tanpa kunci ulang, agar urutan kunci global
+                // Regulasi sebelum Unit/Sasaran terjaga). Tanpa regulasi_id (null)
+                // tidak perlu izin/kunci — tulis null.
+                // Non-null lolos guard 2b di atas sehingga berizin baca.
+                $effectiveRegulasiId = null;
+                if ($rawRegulasiId !== null) {
+                    if (! $targetRegulasiTerkunci || ! $targetRegulasiTerkunci->aktif) {
+                        throw ValidationException::withMessages([
+                            'regulasi_id' => 'Rujukan regulasi tidak valid atau sudah nonaktif.',
+                        ]);
+                    }
+                    $effectiveRegulasiId = $rawRegulasiId;
+                }
+
+                // Nilai kandidat lengkap sebelum parent maupun child ditulis.
+                $candidateRows = collect($validated['komponen'] ?? [])->map(fn ($item, $index) => $this->komponen->modelKandidat('', $item, "komponen.{$index}"));
+                if ($candidateRows->pluck('kode')->duplicatesStrict()->isNotEmpty()) {
+                    throw ValidationException::withMessages(['kode' => $this->komponen->pesanKodeDuplikat()]);
+                }
+                $candidate = new IndikatorKinerja(['tipe_perhitungan' => $validated['tipe_perhitungan']]);
+                $this->komponen->pastikanDefinisiValid($candidate, $candidateRows, 'tipe_perhitungan');
+
+                $created = IndikatorKinerja::create([
+                    'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
+                    'regulasi_id' => $effectiveRegulasiId,
+                    'kode' => trim($validated['kode']),
+                    'nama' => trim($validated['nama']),
+                    'definisi_operasional' => isset($validated['definisi_operasional']) ? trim($validated['definisi_operasional']) : null,
+                    'satuan' => trim($validated['satuan']),
+                    'unit_id' => $validated['unit_id'],
+                    'arah' => $validated['arah'],
+                    'tipe_perhitungan' => $validated['tipe_perhitungan'],
+                    'presisi' => $validated['presisi'] ?? 2,
+                    'desimal_tampilan' => $validated['desimal_tampilan'] ?? 2,
+                    'wajib_catatan' => (bool) ($validated['wajib_catatan'] ?? false),
+                    'status' => IndikatorKinerja::STATUS_AKTIF,
+                    'tahun_mulai_berlaku' => (int) $tahunMulaiBerlaku,
+                    'created_by' => $lockedActor->id,
+                    'created_by_role' => $createdRole,
                 ]);
+
+                foreach ($candidateRows as $row) {
+                    $child = $this->komponen->buat($created->id, $row->getAttributes(), $lockedActor->id);
+                    $this->auditLogger->catat(actor: $lockedActor, tindakan: 'komponen.buat', objekTipe: 'indikator_komponen', objekId: $child->id,
+                        nilaiLama: null, nilaiBaru: $this->komponen->formatAuditSnapshot($child), alasan: 'Menambah komponen bersama indikator.',
+                        dasarIzin: $componentCreate->toAuditBasis());
+                }
+
+                $this->auditLogger->catat(
+                    actor: $actor,
+                    tindakan: 'indikator.buat',
+                    objekTipe: 'indikator',
+                    objekId: (string) $created->id,
+                    nilaiLama: null,
+                    nilaiBaru: $created->toArray(),
+                    alasan: "Menambah indikator kinerja '{$created->kode} - {$created->nama}'.",
+                    dasarIzin: $currentDecision->toAuditBasis(),
+                );
+
+                return [
+                    'status' => 'created',
+                    'indikator' => $created,
+                    'renstraId' => $sasaran->renstra_id,
+                ];
+            });
+        } catch (ValidationException $exception) {
+            if (array_intersect(['tipe_perhitungan', 'sasaran_strategis_id', 'unit_id', 'regulasi_id'], array_keys($exception->errors())) !== []) {
+                $this->auditLogger->catat(actor: $actor, tindakan: 'indikator.buat_ditolak', objekTipe: 'indikator', objekId: (string) Str::uuid(), alasan: 'Pembuatan indikator ditolak oleh validasi domain.', dasarIzin: $basis);
             }
-
-            $created = IndikatorKinerja::create([
-                'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
-                'regulasi_id' => $effectiveRegulasiId,
-                'kode' => trim($validated['kode']),
-                'nama' => trim($validated['nama']),
-                'definisi_operasional' => isset($validated['definisi_operasional']) ? trim($validated['definisi_operasional']) : null,
-                'satuan' => trim($validated['satuan']),
-                'unit_id' => $validated['unit_id'],
-                'arah' => $validated['arah'],
-                'tipe_perhitungan' => $validated['tipe_perhitungan'],
-                'presisi' => $validated['presisi'] ?? 2,
-                'desimal_tampilan' => $validated['desimal_tampilan'] ?? 2,
-                'wajib_catatan' => (bool) ($validated['wajib_catatan'] ?? false),
-                'status' => IndikatorKinerja::STATUS_AKTIF,
-                'tahun_mulai_berlaku' => (int) $tahunMulaiBerlaku,
-                'created_by' => $lockedActor->id,
-                'created_by_role' => $createdRole,
-            ]);
-
-            $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'indikator.buat',
-                objekTipe: 'indikator',
-                objekId: (string) $created->id,
-                nilaiLama: null,
-                nilaiBaru: $created->toArray(),
-                alasan: "Menambah indikator kinerja '{$created->kode} - {$created->nama}'.",
-                dasarIzin: $currentDecision->toAuditBasis(),
-            );
-
-            return [
-                'status' => 'created',
-                'indikator' => $created,
-                'renstraId' => $sasaran->renstra_id,
-            ];
-        });
+            throw $exception;
+        }
 
         if ($result['status'] === 'denied') {
             $this->auditLogger->catat(

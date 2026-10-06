@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http } from '@inertiajs/core';
+import { definition } from './indikatorFixtures';
 import { router } from '@inertiajs/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
@@ -40,6 +42,7 @@ const indikator: IndikatorKinerjaItem = {
     desimal_tampilan: 2,
     wajib_catatan: false,
     status: 'aktif',
+    tahun_mulai_berlaku: 2025,
 };
 
 const sasaran: SasaranStrategisItem = {
@@ -170,6 +173,7 @@ describe('Pindah Unit Indikator (R2-03)', () => {
     });
 
     it('modal edit menampilkan unit read-only tanpa field alasan pindah', async () => {
+        vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, headers: {}, data: JSON.stringify(definition({ indikator })) });
         const user = userEvent.setup();
         renderIndex();
 
@@ -178,15 +182,15 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         );
 
         expect(
-            screen.getByRole('heading', { name: 'Ubah Indikator Kinerja' })
+            await screen.findByRole('heading', { name: 'Ubah Indikator Kinerja' })
         ).toBeTruthy();
         // Unit tampil sebagai teks read-only, bukan dropdown
         expect(
             screen.queryByRole('combobox', { name: 'Unit Penanggung Jawab' })
         ).toBeNull();
         expect(screen.getByDisplayValue('Unit A')).toBeTruthy();
-        expect(screen.getByText(/tidak dapat diubah melalui edit umum/i)).toBeTruthy();
+        expect(screen.getByText(/Untuk mengganti unit, gunakan aksi “Pindah Unit” pada tabel/i)).toBeTruthy();
         // Tidak ada field alasan pindah unit di modal edit
-        expect(screen.queryByLabelText(/alasan/i)).toBeNull();
+        expect(screen.queryByLabelText(/alasan pindah/i)).toBeNull();
     });
 });

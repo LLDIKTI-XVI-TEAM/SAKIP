@@ -78,6 +78,8 @@ final class PermissionCodes
 
     public const INDIKATOR_READ = 'indikator:read';
 
+    public const TARGET_UPDATE = 'target:update';
+
     public const INDIKATOR_UPDATE = 'indikator:update';
 
     public const INDIKATOR_DELETE = 'indikator:delete';
