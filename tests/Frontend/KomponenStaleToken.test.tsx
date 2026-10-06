@@ -23,8 +23,8 @@ describe('Token dan konflik intent komponen atomik', () => {
         if (intent === 'create') { await user.click(screen.getAllByRole('button', { name: 'Tambah Komponen' }).at(-1)!); await user.type(screen.getByLabelText('Kode komponen 3'), 'X'); await user.type(screen.getByLabelText('Label komponen 3'), 'Tambahan'); }
         if (intent === 'update') await user.type(screen.getByLabelText('Label komponen 1'), ' baru');
         if (intent === 'delete') await user.click(screen.getByRole('button', { name: 'Hapus komponen 1' }));
-        await user.type(screen.getByLabelText(/alasan perubahan formula/i), 'Perbaikan definisi indikator.');
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.type(screen.getByLabelText(/alasan perubahan/i), 'Perbaikan definisi indikator.');
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         expect(patch).toHaveBeenCalledTimes(1);
         expect(patch.mock.calls[0]?.[0]).toBe('/perencanaan/indikator/ind-1/formula');
         expect(patch.mock.calls[0]?.[1]).toMatchObject({ expected_updated_at: REVISION, alasan: 'Perbaikan definisi indikator.', return_to: 'komponen', hapus_komponen_ids: intent === 'delete' ? [COMPONENTS[0].id] : [] });
@@ -32,7 +32,7 @@ describe('Token dan konflik intent komponen atomik', () => {
     it.each(['expected_updated_at', 'konflik', 'hapus_komponen_ids.0'])('menampilkan error %s dan mempertahankan draft', async (field) => {
         const patch = vi.spyOn(router, 'patch').mockImplementation(() => undefined);
         const user = await openEditor(); await user.type(screen.getByLabelText('Label komponen 1'), ' draft');
-        await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
         const options = patch.mock.calls[0]?.[2] as unknown as { onError: (errors: Record<string, string>) => void; onFinish: () => void };
         await act(async () => { options.onError({ [field]: KONFLIK }); options.onFinish(); });
         expect(screen.getByText(KONFLIK)).toBeTruthy();

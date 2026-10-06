@@ -250,8 +250,8 @@ erDiagram
         uuid id PK
         uuid indikator_id FK
         int tahun
-        numeric nilai "nullable"
-        numeric baseline "nullable"
+        numeric nilai "nullable, finite, nonnegatif"
+        numeric baseline "nullable, finite, nonnegatif"
         uuid updated_by FK
         timestamp updated_at
     }
@@ -816,6 +816,8 @@ Target per indikator per tahun.
 **Constraint:** `unique(indikator_id, tahun)`.
 
 **Domain nilai — Q33:** `baseline` dan `nilai` (target tahunan PK) boleh `null` secara independen. Jika diisi, keduanya harus berupa desimal biasa yang finite dan nonnegatif (`>= 0`). Nilai `0` merupakan nilai sah dan berbeda dari `null`. `NaN`, infinity, dan nilai negatif ditolak. Tidak ada batas universal maksimum `100`; nilai di atas `100` tetap dapat sah selama sesuai definisi/presisi indikator dan kapasitas storage. Ketentuan ini khusus untuk baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi/pengukuran, nilai komponen, atau target periode Rencana Aksi. Rujukan keputusan: **Q33 — Domain Nilai Baseline dan Target Tahunan PK** pada `SAKIP - Keputusan Penyelarasan.md`.
+
+**Pemetaan schema aplikasi:** entitas ini dipetakan ke `target_kinerjas`, dengan `nilai` bernama `target_tahunan`. Kedua kolom `target_tahunan` dan `baseline` memakai `numeric(30,12)` nullable serta CHECK nonnegatif dan bukan `NaN`; infinity juga ditolak oleh kapasitas tipe numeric tersebut.
 
 **Aturan revisi:** revisi target antar-tahun (mis. menaikkan target tahun-tahun mendatang setelah tahun berjalan terlampaui) cukup dilakukan dengan mengubah baris master ini; baris `jadwal_snapshot` untuk tahun tersebut baru terbentuk saat jadwal tahun itu diaktifkan dan otomatis membawa nilai revisi terkini (termasuk `baseline`). Tahun yang jadwalnya sudah beku (snapshot sudah terbentuk dan/atau sudah dirujuk pengukuran) tidak tersentuh oleh revisi ini. Aturan ini berlaku untuk **target tahunan PK**; target komponen per periode pada rencana aksi memiliki jalur revisinya sendiri (lihat §2.23–§2.24).
 
@@ -1569,7 +1571,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `user_permission_denials` | unique(`user_id`, `permission_id`, `unit_id`) — pola `COALESCE` yang sama dengan `user_permission_granted` |
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
-| `target_tahunan` | unique(`indikator_id`, `tahun`) |
+| `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13) |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |

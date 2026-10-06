@@ -42,6 +42,7 @@ const indikator: IndikatorKinerjaItem = {
     desimal_tampilan: 2,
     wajib_catatan: false,
     status: 'aktif',
+    tahun_mulai_berlaku: 2025,
 };
 
 const sasaran: SasaranStrategisItem = {
@@ -188,7 +189,7 @@ describe('Pindah Unit Indikator (R2-03)', () => {
             screen.queryByRole('combobox', { name: 'Unit Penanggung Jawab' })
         ).toBeNull();
         expect(screen.getByDisplayValue('Unit A')).toBeTruthy();
-        expect(screen.getByText(/tidak dapat diubah melalui edit umum/i)).toBeTruthy();
+        expect(screen.getByText(/Untuk mengganti unit, gunakan aksi “Pindah Unit” pada tabel/i)).toBeTruthy();
         // Tidak ada field alasan pindah unit di modal edit
         expect(screen.queryByLabelText(/alasan pindah/i)).toBeNull();
     });

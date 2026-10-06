@@ -18,6 +18,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Tests\TestCase;
 
 class PhaseDAtomicDefinitionTest extends TestCase
@@ -405,7 +406,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
     {
         $payload = $this->payload();
         $response = $this->patch("/perencanaan/indikator/{$this->indikator->id}/formula", $payload)->assertSessionHasNoErrors();
-        $this->get($response->headers->get('Location'), ['X-Inertia' => 'true'])
+        $this->get($response->headers->get('Location'), ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia::getVersion()])
             ->assertOk()->assertJsonPath('flash.indikatorMutation.request_id', $payload['request_id'])
             ->assertJsonPath('flash.indikatorMutation.status', 'unchanged');
     }
