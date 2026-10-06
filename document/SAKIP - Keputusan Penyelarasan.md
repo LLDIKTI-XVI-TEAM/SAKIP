@@ -1,9 +1,9 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **20 September 2026**  
+Pembaruan terakhir: **6 Oktober 2026**  
 Branch acuan: `development`  
-Commit branch saat pembaruan terakhir: `6307164c39b084a81e9827499c26f692e1d27576`
+Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -23,6 +23,8 @@ Pembaruan **20 September 2026 (Q31)** sempat mencatat enam role berdasarkan klar
 6. `pegawai`
 
 Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`).
+
+**Keputusan 6 Oktober 2026 (Q33)** menegaskan domain nilai untuk baseline dan target tahunan PK: keduanya boleh `null` secara independen; jika diisi harus berupa desimal finite dan nonnegatif (`>= 0`); nilai `0` adalah nilai sah dan tidak sama dengan `null`; serta tidak ada batas universal maksimum `100`. Q33 hanya berlaku pada baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi, nilai komponen, atau target periode Rencana Aksi.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -644,6 +646,44 @@ Q32 wajib diselaraskan minimal ke:
 13. fixture dan automated test.
 
 Dokumen, issue, dan kode yang masih menyatakan `pic` sebagai role keenam dinyatakan **stale** sampai diselaraskan dengan Q32.
+
+---
+
+# Keputusan Q33 — Domain Nilai Baseline dan Target Tahunan PK
+
+**Keputusan pengguna: 6 Oktober 2026 (WITA).**
+
+Q33 menutup ketidakjelasan domain nilai pada `target_tahunan` tanpa mengubah formula, target resmi, snapshot historis, permission, atau workflow lain yang sudah ditetapkan.
+
+## 33.1 Kontrak Nilai
+
+Untuk baseline dan target tahunan PK berlaku ketentuan berikut:
+
+1. `baseline` dan target tahunan boleh `null` secara independen.
+2. `null` berarti nilai belum diisi; `0` adalah nilai sah dan harus dibedakan dari `null`.
+3. Jika diisi, nilai harus berupa desimal biasa yang **finite** dan **nonnegatif (`>= 0`)**.
+4. `NaN`, infinity, nilai negatif, atau representasi non-desimal biasa tidak termasuk domain nilai yang sah.
+5. Tidak ada batas universal maksimum `100`. Nilai di atas `100` tetap dapat sah selama sesuai definisi indikator, presisi indikator, dan kapasitas storage.
+6. Ketentuan ini hanya berlaku pada **baseline dan target tahunan PK**. Aturan ini tidak otomatis diterapkan pada realisasi/pengukuran, nilai komponen, maupun target periode Rencana Aksi.
+
+## 33.2 Dampak ke Kontrak Implementasi
+
+- Data Model `target_tahunan` harus menyatakan domain nullable, finite, dan nonnegatif secara eksplisit.
+- Validasi domain wajib ditegakkan server-side; constraint database digunakan sebagai pertahanan integritas untuk writer yang melewati UI.
+- Q33 tidak menambah permission baru. Mutation tetap mengikuti permission target tahunan yang sudah ditetapkan.
+- Q33 tidak mengubah snapshot historis existing dan tidak memberi izin untuk memutasi snapshot lama.
+- Q33 tidak mengubah target resmi IKU 3 maupun keputusan Q32 mengenai baseline 74,2, target 76,25, dan larangan menampilkan selisih keduanya sebagai tren yang sebanding.
+
+## 33.3 Traceability
+
+Q33 diselaraskan minimal ke:
+
+- `SAKIP - Data Model.md` §2.13 `target_tahunan`;
+- `SAKIP - User Issues.md` — `ISS-02.07`;
+- `SAKIP - User Stories.md` — `US-02.07` hanya bila Acceptance Criteria perlu dibuat lebih eksplisit;
+- implementation dan regression test `ISS-02.07`.
+
+Q33 adalah keputusan domain tersendiri. **Jangan merujuk ketentuan nonnegatif ini sebagai “Q5 Issue #28”**, karena Q5 pada dokumen ini membahas formula IKU 3 dan bukan domain baseline/target tahunan.
 
 ---
 

@@ -873,6 +873,7 @@ kegiatan:update
 ### ISS-02.07 · [Feature] Penetapan Baseline & Target Tahunan
 
 > **Q32 FINAL:** baseline IKU 3 2025 = 74,2; target 2026 = 76,25; jangan anggap selisih sebagai tren; 66,395/87,08 bukan realisasi.
+> **Q33 DOMAIN:** baseline dan target tahunan PK boleh `null` secara independen; jika diisi harus finite dan nonnegatif (`>= 0`); `0` adalah nilai sah; tidak ada batas universal maksimum `100`. Aturan ini tidak otomatis berlaku pada realisasi, nilai komponen, atau target periode Rencana Aksi.
 
 **Terkait User Story:** `US-02.07`  
 **Prioritas:** 🟡 P1  
@@ -895,6 +896,7 @@ kegiatan:update
 - **Otorisasi:** `target:update`.
 - **Dampak Data:** `target_tahunan`, `audit_log`.
 - **Rule:** Katalog permission baseline hanya memakai `target:update`; tidak ada `target:create` terpisah pada baseline PRD.
+- **Rule domain nilai (Q33):** `baseline` dan target tahunan nullable secara independen; jika terisi harus berupa desimal finite dan nonnegatif (`>= 0`). `0` berbeda dari `null`, dan tidak ada batas universal maksimum `100`.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -902,16 +904,20 @@ kegiatan:update
 - [ ] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
 - [ ] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [ ] **AC-5 (Q33):** Given baseline atau target tahunan bernilai `0`, When disimpan, Then sistem menerima `0` sebagai nilai sah dan tetap membedakannya dari `null`.
+- [ ] **AC-6 (Q33):** Given baseline atau target tahunan bernilai negatif atau non-finite, When disimpan melalui jalur aplikasi maupun writer yang tunduk pada constraint database, Then nilai ditolak; nilai di atas `100` tidak ditolak hanya karena melewati `100` selama sesuai presisi indikator dan kapasitas storage.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
 - [ ] Implementasikan/validasi persistence untuk dampak data: `target_tahunan`, `audit_log`.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [ ] Tegakkan domain Q33 pada persistence: `baseline` dan target tahunan tetap nullable, tetapi nilai terisi harus finite dan nonnegatif; `0` tetap sah; jangan menambahkan cap universal `100`.
 
 **B. Backend / Domain**
 - [ ] Gunakan permission literal `target:update`; jangan membuat `target:create` baru tanpa perubahan katalog permission resmi.
 - [ ] Pisahkan koreksi master target dari koreksi snapshot historis.
+- [ ] Validasi/normalisasi input target tahunan dan baseline di server sesuai Q33; jangan mengandalkan validasi React sebagai enforcement domain.
 
 **C. Authorization & Audit**
 - [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update`.
@@ -929,6 +935,8 @@ kegiatan:update
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [ ] **TEST-5 (Q33):** Buktikan `0` dapat disimpan untuk baseline/target tahunan dan tetap berbeda dari `null`.
+- [ ] **TEST-6 (Q33):** Buktikan nilai negatif dan non-finite ditolak, sementara nilai valid di atas `100` tidak ditolak hanya karena melewati `100`.
 
 #### Definition of Done
 
