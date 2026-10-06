@@ -57,12 +57,8 @@ class IndexSasaranIndikator
                 ->orderBy('urutan')
                 ->orderBy('kode')
                 ->with([
-                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi, $canReadKomponen) {
+                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi) {
                         $relations = ['unit:id,nama'];
-                        if ($canReadKomponen) {
-                            $relations['komponen'] = fn ($components) => $components->orderBy('urutan')->orderBy('id')
-                                ->select(['id', 'indikator_id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'satuan', 'aktif']);
-                        }
                         if ($canReadRegulasi) {
                             $relations[] = 'regulasi:id,jenis,nomor,tahun,tentang';
                         }
@@ -70,7 +66,7 @@ class IndexSasaranIndikator
                     },
                 ])
                 ->get()
-                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi, $canReadKomponen) {
+                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi) {
                     return [
                         'id' => $sasaran->id,
                         'renstra_id' => $sasaran->renstra_id,
@@ -78,7 +74,7 @@ class IndexSasaranIndikator
                         'deskripsi' => $sasaran->deskripsi,
                         'urutan' => $sasaran->urutan,
                         'updated_at' => $sasaran->updated_at?->toISOString(),
-                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi, $canReadKomponen) {
+                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi) {
                             return [
                                 'id' => $indikator->id,
                                 'sasaran_strategis_id' => $indikator->sasaran_strategis_id,
@@ -99,11 +95,6 @@ class IndexSasaranIndikator
                                 'tahun_mulai_berlaku' => $indikator->tahun_mulai_berlaku,
                                 'updated_at' => $indikator->updated_at?->toISOString(),
                                 'created_by_role' => $indikator->created_by_role,
-                                'komponen' => $canReadKomponen ? $indikator->komponen->map(fn ($item) => [
-                                    'id' => $item->id, 'kode' => $item->kode, 'label' => $item->label,
-                                    'peran' => $item->peran, 'bobot' => (string) $item->bobot,
-                                    'satuan' => $item->satuan, 'urutan' => $item->urutan, 'aktif' => $item->aktif,
-                                ])->values() : null,
                                 'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
                                     'id' => $indikator->regulasi->id,
                                     'jenis' => $indikator->regulasi->jenis,
@@ -145,6 +136,7 @@ class IndexSasaranIndikator
                 'komponen_read' => $canReadKomponen,
                 'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
                 'komponen_update' => $this->resolver->resolve($user, 'komponen:update')->allowed,
+                'komponen_delete' => $this->resolver->resolve($user, 'komponen:delete')->allowed,
             ],
         ];
     }

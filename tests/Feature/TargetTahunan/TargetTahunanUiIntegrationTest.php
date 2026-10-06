@@ -148,5 +148,7 @@ class TargetTahunanUiIntegrationTest extends TestCase
         $row = collect($props['sasarans'])->flatMap(fn ($sasaran) => $sasaran['indikator_kinerjas'])->firstWhere('id', $indicator->id);
         $this->assertArrayHasKey('tahun_mulai_berlaku', $row);
         $this->assertSame(2027, $row['tahun_mulai_berlaku']);
+        $this->actingAs($actor)->getJson('/perencanaan/indikator/'.$indicator->id.'/editor')
+            ->assertOk()->assertJsonPath('indikator.tahun_mulai_berlaku', 2027);
     }
 }

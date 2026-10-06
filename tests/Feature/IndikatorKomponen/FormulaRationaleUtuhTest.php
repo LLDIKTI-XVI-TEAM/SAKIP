@@ -127,8 +127,8 @@ class FormulaRationaleUtuhTest extends TestCase
         $this->assertSame($alasan, $auditBuat->alasan);
         $this->assertStringEndsWith('-EKOR-UTUH', $auditBuat->alasan);
 
-        $auditInduk = AuditLog::where('tindakan', 'indikator.ubah')->where('objek_id', $this->indikator->id)->firstOrFail();
-        $this->assertStringContainsString($alasan, $auditInduk->alasan);
+        // Child-only: audit granular cukup; tidak mengarang delta/izin parent.
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'indikator.ubah', 'objek_id' => $this->indikator->id]);
     }
 
     public function test_alasan_lewat_batas_ditolak_422_tanpa_mutasi_atau_audit(): void

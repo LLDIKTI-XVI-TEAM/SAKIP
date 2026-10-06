@@ -1,10 +1,14 @@
 <?php
 
 use App\Actions\Perencanaan\DestroyIndikator;
+use App\Actions\Regulasi\DeleteRegulasiAction;
+use App\Actions\Regulasi\DeleteRegulasiAttachmentAction;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
 use App\Actions\TargetTahunan\ShowTargetTahunan;
+use App\Models\Berkas;
 use App\Models\IndikatorKinerja;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -33,6 +37,19 @@ try {
     if (trim((string) fgets(STDIN)) !== 'GO') {
         throw new RuntimeException('Barrier GO tidak diterima.');
     }
+    if ($payload['pause_before_renstra'] ?? false) {
+        $paused = false;
+        $c->beforeExecuting(function (string $sql) use (&$paused): void {
+            if (! $paused && str_contains($sql, 'from "renstras"') && str_contains($sql, 'for share')) {
+                $paused = true;
+                fwrite(STDOUT, "PAUSED_BEFORE_RENSTRA\n");
+                fflush(STDOUT);
+                if (trim((string) fgets(STDIN)) !== 'CONTINUE') {
+                    throw new RuntimeException('Barrier Renstra tidak diterima.');
+                }
+            }
+        });
+    }
     if ($payload['operation'] === 'migration') {
         $paused = false;
         $c->beforeExecuting(function (string $sql) use (&$paused, $payload): void {
@@ -54,6 +71,15 @@ try {
         // SQL hanya berasal dari fixture test yang dikontrol proses induk, bukan input aplikasi.
         DB::statement($payload['sql'], $payload['bindings'] ?? []);
         $result = ['outcome' => 'changed'];
+    } elseif (in_array($payload['operation'], ['delete_regulasi', 'delete_attachment'], true)) {
+        $actor = User::findOrFail($payload['actor_id']);
+        $regulasi = Regulasi::findOrFail($payload['regulasi_id']);
+        if ($payload['operation'] === 'delete_attachment') {
+            app(DeleteRegulasiAttachmentAction::class)->handle($actor, $regulasi, Berkas::findOrFail($payload['berkas_id']), 'Hapus lampiran fixture konkurensi.');
+        } else {
+            app(DeleteRegulasiAction::class)->handle($actor, $regulasi, 'Hapus regulasi fixture konkurensi.');
+        }
+        $result = ['outcome' => 'deleted'];
     } elseif (in_array($payload['operation'], ['save', 'show', 'shrink', 'archive'], true)) {
         $actor = User::findOrFail($payload['actor_id']);
         $result = match ($payload['operation']) {

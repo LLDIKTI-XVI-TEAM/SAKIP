@@ -3,13 +3,15 @@
 namespace Tests\Feature\TargetTahunan;
 
 use App\Actions\Access\CreateDeny;
+use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
-use App\Actions\Perencanaan\UpdateIndikator;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
 use App\Actions\TargetTahunan\ShowTargetTahunan;
 use App\Models\AuditLog;
+use App\Models\Berkas;
 use App\Models\Permission;
+use App\Models\Regulasi;
 use App\Models\SasaranStrategis;
 use App\Models\TargetKinerja;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -258,7 +260,7 @@ class TargetTahunanConcurrencyTest extends TestCase
             ? ['sasaran_strategis_id' => SasaranStrategis::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'kode' => 'SS-B', 'deskripsi' => 'Sasaran kedua'])->id]
             : ['presisi' => 1];
         DB::beginTransaction();
-        app(UpdateIndikator::class)->handle($first, $indicator, [...$indicator->only(['sasaran_strategis_id', 'kode', 'nama', 'satuan', 'unit_id', 'arah', 'tipe_perhitungan']), ...$changes, 'expected_updated_at' => $indicator->updated_at->toISOString()]);
+        app(ChangeIndicatorFormula::class)->handle($first, $indicator, [...$changes, 'expected_updated_at' => $indicator->updated_at->toISOString(), 'return_to' => 'sasaran-indikator']);
         $worker = $this->start(['operation' => 'save', 'actor_id' => $second->id, 'indicator_id' => $indicator->id, 'year' => 2026, 'data' => $data]);
         $this->go($worker);
         $this->blockedBy($worker, (int) DB::selectOne('select pg_backend_pid() as pid')->pid);
@@ -270,6 +272,72 @@ class TargetTahunanConcurrencyTest extends TestCase
     public static function contextChanges(): array
     {
         return [[false], [true]];
+    }
+
+    #[DataProvider('regulasiOperations')]
+    public function test_target_and_regulasi_deletion_share_lock_order(string $operation, bool $attachment): void
+    {
+        $permissions = ['indikator:read', 'target:update', 'regulasi:delete', 'berkas:delete'];
+        $reader = $this->calendarActor($permissions);
+        $deleter = $this->calendarActor($permissions);
+        $indicator = $this->targetIndicator($reader)->refresh();
+        $regulasi = Regulasi::create(['jenis' => 'kepmen', 'nomor' => 'TARGET-LOCK', 'tahun' => 2026, 'tentang' => 'Rujukan fixture target', 'created_by' => $deleter->id]);
+        $renstra = $indicator->sasaranStrategis->renstra;
+        $renstra->update(['regulasi_id' => $regulasi->id]);
+        $indicator->update(['regulasi_id' => $regulasi->id, 'status' => $operation === 'show' ? 'arsip' : 'aktif']);
+        $file = $regulasi->berkas()->create(['mode' => 'teks', 'isi_teks' => 'Lampiran fixture', 'uploaded_by' => $deleter->id]);
+        $state = app(ShowTargetTahunan::class)->handle($reader, $indicator->id, 2026);
+        $target = $this->start(['operation' => $operation, 'actor_id' => $reader->id, 'indicator_id' => $indicator->id, 'year' => 2026,
+            'data' => ['baseline' => '74.2', 'target_tahunan' => '76.25', 'expected_state' => $state['expected_state'], 'operation_id' => (string) Str::uuid()], 'pause_before_renstra' => true]);
+        $this->go($target);
+        $this->until(fn () => str_contains($target['process']->getOutput(), 'PAUSED_BEFORE_RENSTRA'), [$target]);
+        $deletion = $this->start(['operation' => $attachment ? 'delete_attachment' : 'delete_regulasi', 'actor_id' => $deleter->id,
+            'regulasi_id' => $regulasi->id, 'berkas_id' => $file->id]);
+        $this->go($deletion);
+        // Action target benar-benar memegang Indikator/Sasaran; Action penghapus sedang menunggu lock Indikator itu.
+        $this->blockedBy($deletion, $target['pid']);
+        $target['input']->write("CONTINUE\n");
+        $targetResult = $this->workerResult($target);
+        $deleteResult = $this->workerResult($deletion);
+        $this->assertNotSame('error', $targetResult['outcome'] ?? null, json_encode($targetResult, JSON_THROW_ON_ERROR));
+        $this->assertNotSame('error', $deleteResult['outcome'], json_encode($deleteResult, JSON_THROW_ON_ERROR));
+
+        $deleteAction = $attachment ? 'berkas.hapus' : 'regulasi.hapus';
+        $objectId = $attachment ? $file->id : $regulasi->id;
+        if ($operation === 'show') {
+            $this->assertSame('Indikator arsip hanya dapat dibaca.', $targetResult['read_only_reason']);
+            $this->assertFalse($targetResult['can']['update']);
+            $this->assertNull($targetResult['target_tahunan']);
+            $this->assertSame(['outcome' => 'deleted'], $deleteResult);
+            $this->assertSame(0, TargetKinerja::count());
+            $this->assertSame($attachment, Regulasi::whereKey($regulasi->id)->exists());
+            if (! $attachment) {
+                $this->assertNull($indicator->fresh()->regulasi_id);
+                $this->assertNull($renstra->fresh()->regulasi_id);
+            }
+            $this->assertTrue(Berkas::withTrashed()->findOrFail($file->id)->trashed());
+        } else {
+            $this->assertTrue($targetResult['changed']);
+            $this->assertSame(['outcome' => 'validation', 'fields' => [$attachment ? 'berkas' : 'regulasi'], 'status' => 422], $deleteResult);
+            $this->assertSame('74.200000000000', TargetKinerja::sole()->baseline);
+            $this->assertSame('76.250000000000', TargetKinerja::sole()->target_tahunan);
+            $this->assertSame($regulasi->id, $indicator->fresh()->regulasi_id);
+            $this->assertSame($regulasi->id, $renstra->fresh()->regulasi_id);
+            $this->assertFalse(Berkas::withTrashed()->findOrFail($file->id)->trashed());
+        }
+        $this->assertSame($operation === 'save' ? 1 : 0, AuditLog::where('tindakan', 'target_tahunan.simpan')->where('actor_id', $reader->id)->count());
+        $this->assertSame($operation === 'show' ? 1 : 0, AuditLog::where('tindakan', $deleteAction)->where('objek_id', $objectId)->where('actor_id', $deleter->id)->count());
+        $denial = AuditLog::where('tindakan', $deleteAction.'_ditolak')->where('objek_id', $objectId)->where('actor_id', $deleter->id)->get();
+        $this->assertCount($operation === 'save' ? 1 : 0, $denial);
+        if ($operation === 'save') {
+            $this->assertSame(1, $denial->sole()->nilai_baru['jumlah_indikator_aktif']);
+            $this->assertSame(0, $denial->sole()->nilai_baru['jumlah_renstra_aktif']);
+        }
+    }
+
+    public static function regulasiOperations(): array
+    {
+        return [['show', false], ['save', false], ['show', true], ['save', true]];
     }
 
     #[DataProvider('authorizationChanges')]

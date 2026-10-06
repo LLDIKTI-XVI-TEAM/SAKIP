@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Perencanaan;
 
-use App\Actions\Perencanaan\UpdateIndikator;
+use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\UpdateSasaran;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -498,7 +498,7 @@ class SasaranIndikatorStaleTest extends TestCase
         ]);
 
         $namaAwal = $indikator->nama;
-        $action = app(UpdateIndikator::class);
+        $action = app(ChangeIndicatorFormula::class);
 
         $payloadDasar = [
             'sasaran_strategis_id' => $sasaran->id,
