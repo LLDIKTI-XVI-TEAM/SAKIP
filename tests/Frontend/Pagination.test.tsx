@@ -221,5 +221,27 @@ describe('Pagination Component (SIMPEG Style)', () => {
         const nextLink = screen.getByLabelText('Halaman berikutnya') as HTMLAnchorElement;
         expect(nextLink.getAttribute('href')).toBe('/akses/izin-peran?page=2');
     });
+
+    it('merender compact pagination dengan ellipsis saat totalPages > 3 (kasus 4 halaman tidak merender semua angka)', () => {
+        render(
+            <Pagination
+                total={40}
+                currentPage={2}
+                lastPage={4}
+                perPage={10}
+                resourceName="data"
+            />
+        );
+
+        const nav = screen.getByLabelText('Navigasi halaman');
+        expect(nav).toBeDefined();
+        // Number 1, 2, and 4 should be visible, 3 is hidden under ellipsis
+        expect(screen.getByText('1')).toBeDefined();
+        expect(screen.getByText('2')).toBeDefined();
+        expect(screen.queryByText('3')).toBeNull();
+        expect(screen.getByText('4')).toBeDefined();
+        const ellipses = screen.getAllByText('...');
+        expect(ellipses.length).toBeGreaterThan(0);
+    });
 });
 

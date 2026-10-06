@@ -164,31 +164,20 @@ export function Pagination({
     const prevUrl = normalizeUrl(rawPrevUrl);
     const nextUrl = normalizeUrl(rawNextUrl);
 
-    // Build visible page numbers list (matches SIMPEG window logic)
+    // Build visible page numbers list (compact window: max 3 numbers + ellipsis)
     const pagesToRender: (number | 'ellipsis')[] = [];
-    if (totalPages <= 7) {
+    if (totalPages <= 3) {
         for (let i = 1; i <= totalPages; i++) {
             pagesToRender.push(i);
         }
     } else {
-        pagesToRender.push(1);
-
-        if (current > 3) {
-            pagesToRender.push('ellipsis');
+        if (current <= 2) {
+            pagesToRender.push(1, 2, 'ellipsis', totalPages);
+        } else if (current >= totalPages - 1) {
+            pagesToRender.push(1, 'ellipsis', totalPages - 1, totalPages);
+        } else {
+            pagesToRender.push(1, 'ellipsis', current, 'ellipsis', totalPages);
         }
-
-        const start = Math.max(2, current - 1);
-        const end = Math.min(totalPages - 1, current + 1);
-
-        for (let i = start; i <= end; i++) {
-            pagesToRender.push(i);
-        }
-
-        if (current < totalPages - 2) {
-            pagesToRender.push('ellipsis');
-        }
-
-        pagesToRender.push(totalPages);
     }
 
     // If total items is 0 and no manual navigation URLs provided, don't show footer at all

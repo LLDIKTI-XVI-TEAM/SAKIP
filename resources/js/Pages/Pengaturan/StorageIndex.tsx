@@ -14,6 +14,7 @@ import {
     TableHead,
     TableCell,
 } from '@/Components/Table';
+import { StatCard } from '@/Components/StatCard';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import {
     HardDrive,
@@ -21,12 +22,17 @@ import {
     Link2,
     FileText,
     AlertTriangle,
-    CheckCircle2,
     Save,
     Info,
-    ShieldAlert,
-    HelpCircle,
 } from 'lucide-react';
+
+export function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
 
 export interface StorageSettings {
     berkas_unggahan_aktif: boolean;
@@ -62,14 +68,6 @@ export interface StorageIndexProps {
     can: {
         update: boolean;
     };
-}
-
-export function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
 export default function StorageIndex({ settings, metrics, can }: StorageIndexProps) {
@@ -182,19 +180,15 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
             <Head title="Kebijakan Storage & Saklar Unggah Berkas" />
 
             <div className="space-y-6">
-                {/* Header Information */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-muted">
-                        Pengendalian kapasitas penyimpanan VPS dan kebijakan teknis bukti dukung aplikasi SAKIP.
-                    </p>
-
-                    {!can.update && (
+                {/* Header Information (Read-only notice if applicable) */}
+                {!can.update && (
+                    <div className="flex justify-end">
                         <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-soft px-3 py-1.5 text-xs font-medium text-muted">
                             <Info className="h-4 w-4 text-primary" aria-hidden="true" />
                             <span>Mode Pratinjau (Hanya Baca)</span>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Status Switch Notice if disabled */}
                 {!form.data.berkas_unggahan_aktif && (
@@ -207,8 +201,8 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                             <p className="font-semibold text-warning-dark">
                                 Saklar Unggahan File Global Sedang Dinonaktifkan
                             </p>
-                            <p className="mt-1 text-muted">
-                                Seluruh unggahan berkas fisik ditolak sistem. Penanggung jawab (PIC) hanya dapat memenuhi
+                            <p className="mt-1 text-xs text-muted leading-relaxed">
+                                Seluruh unggahan berkas fisik ditolak sistem. Penanggung jawab (PIC) dapat memenuhi
                                 bukti dukung melalui mode tautan atau teks. Persyaratan yang mewajibkan file akan
                                 dikecualikan secara otomatis tanpa menghalangi alur pengajuan maupun pengesahan.
                             </p>
@@ -220,110 +214,55 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                 <div>
                     <div className="mb-3 flex items-center justify-between">
                         <h2 className="text-base font-semibold text-ink">
-                            Penggunaan Penyimpanan Bukti Dukung (Aktif)
+                            Penggunaan Penyimpanan Bukti Dukung
                         </h2>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {/* Card 1: Total Ukuran File */}
-                        <Card className="border-border">
-                            <CardContent className="p-5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium uppercase tracking-wider text-muted">
-                                        Total Ukuran File
-                                    </span>
-                                    <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                                        <HardDrive className="h-5 w-5" aria-hidden="true" />
-                                    </span>
-                                </div>
-                                <p className="mt-3 text-2xl font-bold text-ink" data-testid="total-bytes-display">
-                                    {formatBytes(metrics.file_total_bytes)}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                    Terdistribusi pada {metrics.file_count.toLocaleString('id-ID')} berkas di private disk
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Card 2: Jumlah Berkas Fisik */}
-                        <Card className="border-border">
-                            <CardContent className="p-5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium uppercase tracking-wider text-muted">
-                                        Berkas Fisik (File)
-                                    </span>
-                                    <span className="rounded-lg bg-soft p-2 text-ink">
-                                        <Files className="h-5 w-5" aria-hidden="true" />
-                                    </span>
-                                </div>
-                                <p className="mt-3 text-2xl font-bold text-ink" data-testid="file-count-display">
-                                    {metrics.file_count.toLocaleString('id-ID')}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                    Dokumen fisik yang tersimpan di disk VPS
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Card 3: Bukti Tautan */}
-                        <Card className="border-border">
-                            <CardContent className="p-5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium uppercase tracking-wider text-muted">
-                                        Bukti Tautan
-                                    </span>
-                                    <span className="rounded-lg bg-secondary/15 p-2 text-ink">
-                                        <Link2 className="h-5 w-5" aria-hidden="true" />
-                                    </span>
-                                </div>
-                                <p className="mt-3 text-2xl font-bold text-ink" data-testid="link-count-display">
-                                    {metrics.link_count.toLocaleString('id-ID')}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                    Tautan eksternal (0 B penggunaan disk)
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Card 4: Bukti Teks */}
-                        <Card className="border-border">
-                            <CardContent className="p-5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium uppercase tracking-wider text-muted">
-                                        Bukti Keterangan Teks
-                                    </span>
-                                    <span className="rounded-lg bg-success/15 p-2 text-success">
-                                        <FileText className="h-5 w-5" aria-hidden="true" />
-                                    </span>
-                                </div>
-                                <p className="mt-3 text-2xl font-bold text-ink" data-testid="text-count-display">
-                                    {metrics.text_count.toLocaleString('id-ID')}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                    Keterangan tertulis (0 B penggunaan disk)
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <StatCard
+                            title="Total Ukuran File"
+                            value={formatBytes(metrics.file_total_bytes)}
+                            icon={HardDrive}
+                            iconVariant="primary"
+                            testId="total-bytes-display"
+                            description={`Terdistribusi pada ${metrics.file_count.toLocaleString('id-ID')} berkas di private disk`}
+                        />
+                        <StatCard
+                            title="Berkas Fisik (File)"
+                            value={metrics.file_count.toLocaleString('id-ID')}
+                            icon={Files}
+                            iconVariant="muted"
+                            testId="file-count-display"
+                        />
+                        <StatCard
+                            title="Bukti Tautan"
+                            value={metrics.link_count.toLocaleString('id-ID')}
+                            icon={Link2}
+                            iconVariant="secondary"
+                            testId="link-count-display"
+                        />
+                        <StatCard
+                            title="Bukti Keterangan Teks"
+                            value={metrics.text_count.toLocaleString('id-ID')}
+                            icon={FileText}
+                            iconVariant="success"
+                            testId="text-count-display"
+                        />
                     </div>
                 </div>
 
                 {/* Header Bagian Tabel Distribusi */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold text-ink">
-                            Distribusi Bukti Dukung per Induk Dokumen SAKIP
-                        </h2>
-                        <p className="text-xs text-muted mt-0.5">
-                            Rincian akumulasi bukti fisik file, tautan, dan teks pada seluruh modul kinerja.
-                        </p>
-                    </div>
+                    <h2 className="text-sm font-semibold text-ink">
+                        Distribusi Bukti Dukung per Induk Dokumen SAKIP
+                    </h2>
                     <Badge variant="primary">
                         {metrics.total_evidence_count.toLocaleString('id-ID')} Total Bukti
                     </Badge>
                 </div>
 
                 {/* Tabel Breakdown per Induk Bukti Dukung */}
-                <Card className="overflow-hidden border-border">
+                <Card className="overflow-hidden border-border bg-surface shadow-xs">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -363,38 +302,25 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                 </Card>
 
                 {/* Form Kebijakan Storage */}
-                <Card className="border-border">
-                    <CardHeader>
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <HardDrive className="h-5 w-5 text-primary" aria-hidden="true" />
-                                <span>Konfigurasi Kebijakan & Saklar Unggahan</span>
-                            </CardTitle>
-                            <p className="mt-1 text-xs text-muted">
-                                Nilai default ini berfungsi sebagai fallback teknis aplikasi bila batas spesifik pada
-                                persyaratan berkas (Perencanaan) tidak ditentukan.
-                            </p>
-                        </div>
+                <Card className="border-border bg-surface shadow-xs">
+                    <CardHeader className="pb-3 border-b border-border/70">
+                        <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-bold text-ink">
+                            <HardDrive className="h-4.5 w-4.5 text-primary" aria-hidden="true" />
+                            <span>Konfigurasi Kebijakan & Saklar Unggahan</span>
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6">
-                        <form onSubmit={handleOpenModal} className="space-y-6">
+                    <CardContent className="p-5 sm:p-6">
+                        <form onSubmit={handleOpenModal} className="space-y-5">
                             {/* Field 1: Saklar Global Unggahan */}
-                            <div className="rounded-xl border border-border bg-soft/50 p-4 sm:p-5">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-ink text-sm sm:text-base">
-                                                Saklar Unggahan Berkas Global
-                                            </span>
-                                            <Badge variant={form.data.berkas_unggahan_aktif ? 'success' : 'warning'}>
-                                                {form.data.berkas_unggahan_aktif ? 'Unggahan Aktif' : 'Unggahan Nonaktif'}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-xs text-muted max-w-2xl leading-relaxed">
-                                            Mengendalikan penerimaan berkas file fisik di seluruh aplikasi (Regulasi, Rencana
-                                            Aksi, Pengukuran, dan Kegiatan). Bila dimatikan, PIC tetap dapat mengirim bukti
-                                            dukung berupa tautan dan teks.
-                                        </p>
+                            <div className="rounded-xl border border-border/80 bg-soft/40 p-4 sm:p-4.5">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="font-semibold text-ink text-xs sm:text-sm">
+                                            Saklar Unggahan Berkas Global
+                                        </span>
+                                        <Badge variant={form.data.berkas_unggahan_aktif ? 'success' : 'warning'} size="sm">
+                                            {form.data.berkas_unggahan_aktif ? 'Unggahan Aktif' : 'Unggahan Nonaktif'}
+                                        </Badge>
                                     </div>
 
                                     <Switch
@@ -410,9 +336,9 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                 </div>
                             </div>
 
-                            {/* Field 2: Batas Ukuran Fallback (KB) */}
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
+                            {/* Field 2 & 3: Batas Ukuran Fallback (KB) & Format File Diizinkan */}
+                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <div className="space-y-1.5">
                                     <Input
                                         id="berkas_ukuran_maks_kb"
                                         label="Batas Ukuran Berkas Default (KB)"
@@ -433,8 +359,7 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                     />
                                 </div>
 
-                                {/* Field 3: Format File Diizinkan */}
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                     <Input
                                         id="berkas_format_diizinkan"
                                         label="Daftar Format File Default (Dipisahkan koma)"
@@ -463,36 +388,17 @@ export default function StorageIndex({ settings, metrics, can }: StorageIndexPro
                                 </div>
                             </div>
 
-                            {/* Field 4: Status Tautan Selalu Diizinkan */}
-                            <div className="rounded-xl border border-border bg-surface p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0 mt-0.5">
-                                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-semibold text-ink">
-                                            Mode Tautan dan Teks Selalu Tersedia Sebagai Alternatif Bebas Storage
-                                        </p>
-                                        <p className="text-xs text-muted leading-relaxed">
-                                            Sesuai ketentuan PRD §18.9, ketersediaan mode tautan (link dokumen eksternal)
-                                            dan teks selalu aktif sebagai katup pengaman anti-macet. Pengguna tidak akan
-                                            terhambat memenuhi kewajiban kinerja saat kapasitas storage mendekati ambang batas.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Submit Actions */}
                             {can.update && (
-                                <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+                                <div className="flex items-center justify-end gap-3 border-t border-border/80 pt-4">
                                     <Button
                                         type="button"
                                         variant="primary"
                                         disabled={form.processing}
-                                        className="min-h-[44px] px-6 text-sm font-medium"
+                                        className="h-10 px-5 text-xs font-semibold gap-2 shadow-xs"
                                         onClick={() => handleOpenModal()}
                                     >
-                                        <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                                        <Save className="h-4 w-4" aria-hidden="true" />
                                         Simpan Kebijakan Storage
                                     </Button>
                                 </div>
