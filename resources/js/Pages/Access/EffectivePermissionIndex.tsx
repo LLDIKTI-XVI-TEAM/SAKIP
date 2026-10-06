@@ -80,10 +80,14 @@ function PermissionTable({ rows, caption }: { rows: EffectivePermissionRow[]; ca
             <TableCell className="min-w-56 align-top whitespace-normal">
                 <Badge variant={row.decision.allowed ? "success" : row.decision.reason === "explicit_deny" ? "danger" : row.decision.reason === "invalid_scope" ? "info" : "muted"}
                     className={row.decision.allowed ? "text-success-dark" : undefined}>{row.status}</Badge>
-                <p className="mt-2 max-w-sm text-xs text-muted">{row.explanation}</p>
+                {row.explanation &&
+                    row.explanation !== "Tidak ada sumber allow yang berlaku dalam konteks ini." &&
+                    row.explanation !== "Ada sumber izin yang berlaku dan tidak ada Deny yang cocok." && (
+                    <p className="mt-2 max-w-sm text-xs text-muted">{row.explanation}</p>
+                )}
             </TableCell>
             <TableCell className="min-w-60 align-top whitespace-normal">
-                {row.sources.length === 0 ? <span className="text-xs text-muted">Tidak ada sumber dalam konteks ini.</span>
+                {row.sources.length === 0 ? <span className="text-sm text-muted">-</span>
                     : <ul className="space-y-3">{row.sources.map((source) => <li key={source.kind + source.id} className="text-xs">
                         <p className="font-semibold">{source.label}</p>
                         <p className="mt-0.5 text-muted">{source.unit ? `${source.unit.nama}${source.unit.status === "nonaktif" ? " (nonaktif)" : ""}` : "Global"}

@@ -36,6 +36,7 @@ it("menjelaskan hasil server dan sumber tersimpan tanpa kontrol mutasi", async (
     render(<EffectivePermissionIndex {...props} />);
     expect(screen.getByText("Pengguna Sintetis")).toBeTruthy();
     expect(screen.getByText("Dicabut oleh Deny")).toBeTruthy();
+    expect(screen.getByText("Deny menang atas Grant.")).toBeTruthy();
     expect(screen.getByText("Alasan: Hak pengisian")).toBeTruthy();
     expect(screen.getByText(/Tersimpan, tidak efektif/)).toBeTruthy();
     expect(screen.getByText(/Pembatasan berlaku/)).toBeTruthy();
@@ -160,4 +161,28 @@ it("respons unit setelah 31 detik tetap diterima selama pencarian belum diganti"
     expect(screen.getByRole("option", { name: "Unit Lambat" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Unit A" })).toBeTruthy();
     expect(screen.queryByText("Memuat unit…")).toBeNull();
+});
+
+it("menyembunyikan fallback allow redundant dan menampilkan strip untuk empty source", async () => {
+    render(<EffectivePermissionIndex {...props} permissions={[
+        {
+            id: "perm-no-allow", kode: "kegiatan:create", keterangan: "Membuat kegiatan pada unit tertentu", scope: "unit", aktif: true,
+            decision: { allowed: false, permission: "kegiatan:create", reason: "no_allow", roles: [], grants: [], denies: [] },
+            status: "Tidak diberikan", explanation: "Tidak ada sumber allow yang berlaku dalam konteks ini.",
+            sources: [],
+        },
+        {
+            id: "perm-allowed", kode: "kegiatan:read", keterangan: "Melihat kegiatan pada unit tertentu", scope: "unit", aktif: true,
+            decision: { allowed: true, permission: "kegiatan:read", reason: "allow", roles: ["pegawai"], grants: [], denies: [] },
+            status: "Diizinkan", explanation: "Ada sumber izin yang berlaku dan tidak ada Deny yang cocok.",
+            sources: [{ id: "role-pegawai", kind: "role", label: "Peran Pegawai", unit: null, alasan: null, effective: true }],
+        },
+    ]} />);
+    expect(screen.getByText("Tidak diberikan")).toBeTruthy();
+    expect(screen.queryByText("Tidak ada sumber allow yang berlaku dalam konteks ini.")).toBeNull();
+    expect(screen.getByText("-")).toBeTruthy();
+    expect(screen.queryByText("Tidak ada sumber dalam konteks ini.")).toBeNull();
+    expect(screen.getByText("Diizinkan")).toBeTruthy();
+    expect(screen.queryByText("Ada sumber izin yang berlaku dan tidak ada Deny yang cocok.")).toBeNull();
+    expect(screen.getByText("Peran Pegawai")).toBeTruthy();
 });
