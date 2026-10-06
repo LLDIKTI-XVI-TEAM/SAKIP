@@ -59,11 +59,18 @@ return new class extends Migration
      * jepit tak memicu penolakan 23514.
      *
      * F3 (Review8 V1): up() mencatat ID yang benar-benar diisi ke tabel sisi
-     * `MARKER_TABLE` SEBELUM `UPDATE` (himpunan kandidat persis = syarat
-     * `UPDATE` di bawah; `ON CONFLICT DO NOTHING` agar idempoten). down()
-     * hanya me-NULL-kan baris bertanda yang masih memegang nilai backfill
-     * persis — jepit pra-existing yang tak terbedakan nilainya tetap utuh
-     * karena tak pernah masuk penanda.
+     * `MARKER_TABLE` dalam statement atomik yang SAMA dengan `UPDATE`
+     * (Review9 W2 F2: CTE data-modifying `WITH updated AS (UPDATE ...
+     * RETURNING) INSERT INTO penanda SELECT FROM updated`). Sebelum W2,
+     * penanda dipilih via `SELECT` di statement terpisah SEBELUM `UPDATE`
+     * sehingga write aplikasi yang commit di antaranya (pin sah, bahkan yang
+     * kebetulan sama nilainya dengan peta backup) ikut tertanda tanpa
+     * dibackfill, lalu down() me-NULL-kan pin sah tersebut. Dengan satu
+     * statement, PostgreSQL memakai satu snapshot: hanya baris yang
+     * benar-benar ter-UPDATE yang tercatat — write aplikasi di antara tak
+     * mungkin menyelinap. down() hanya me-NULL-kan baris bertanda yang
+     * masih memegang nilai backfill persis — jepit pra-existing yang tak
+     * terbedakan nilainya tetap utuh karena tak pernah masuk penanda.
      */
     public function up(): void
     {
@@ -80,32 +87,32 @@ return new class extends Migration
             self::MARKER_TABLE
         ));
 
+        // Review9 W2 F2: SATU statement atomik — UPDATE + pencatatan penanda
+        // via CTE data-modifying (`WITH updated AS (UPDATE ... RETURNING)
+        // INSERT INTO penanda SELECT FROM updated`). Satu snapshot PostgreSQL
+        // untuk baca+tulis: write aplikasi yang commit tepat di tengah
+        // jendela tak dapat ikut tertanda tanpa dibackfill (sebelum W2,
+        // `INSERT INTO penanda SELECT ...` dan `UPDATE` adalah dua statement
+        // terpisah dengan dua snapshot). `ON CONFLICT DO NOTHING` menjaga
+        // idempotensi pemanggilan ulang.
         DB::statement(sprintf(
             <<<'SQL'
+            WITH updated AS (
+                UPDATE rencana_aksi AS ra
+                SET snapshot_draf_id = backup.jadwal_snapshot_id
+                FROM "%1$s" AS backup
+                INNER JOIN jadwal_snapshot AS js ON js.id = backup.jadwal_snapshot_id
+                WHERE backup.rencana_aksi_id = ra.id
+                  AND ra.snapshot_draf_id IS NULL
+                  AND backup.jadwal_snapshot_id IS NOT NULL
+                RETURNING ra.id
+            )
             INSERT INTO "%2$s" (rencana_aksi_id)
-            SELECT ra.id
-            FROM rencana_aksi AS ra
-            INNER JOIN "%1$s" AS backup ON backup.rencana_aksi_id = ra.id
-            INNER JOIN jadwal_snapshot AS js ON js.id = backup.jadwal_snapshot_id
-            WHERE ra.snapshot_draf_id IS NULL
-              AND backup.jadwal_snapshot_id IS NOT NULL
+            SELECT id FROM updated
             ON CONFLICT (rencana_aksi_id) DO NOTHING
             SQL,
             self::BACKUP_TABLE,
             self::MARKER_TABLE
-        ));
-
-        DB::statement(sprintf(
-            <<<'SQL'
-            UPDATE rencana_aksi AS ra
-            SET snapshot_draf_id = backup.jadwal_snapshot_id
-            FROM "%s" AS backup
-            INNER JOIN jadwal_snapshot AS js ON js.id = backup.jadwal_snapshot_id
-            WHERE backup.rencana_aksi_id = ra.id
-              AND ra.snapshot_draf_id IS NULL
-              AND backup.jadwal_snapshot_id IS NOT NULL
-            SQL,
-            self::BACKUP_TABLE
         ));
     }
 
