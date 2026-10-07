@@ -55,7 +55,7 @@ const jadwal: JadwalDetail = {
         },
     ],
 };
-const props: JadwalEditorProps = { jadwal, can: { create: true, update: true }, read_only_reason: null };
+const props: JadwalEditorProps = { jadwal, can: { create: true, update: true, activate: false }, read_only_reason: null };
 const page = (flash: Page['flash'] = {}): Page => ({
     component: 'Jadwal/Editor',
     props: { errors: {}, jadwal },
@@ -214,7 +214,7 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
         <Editor
             {...props}
             jadwal={{ ...jadwal, renstra: { ...jadwal.renstra, status } }}
-            can={{ create: true, update: false }}
+            can={{ create: true, update: false, activate: false }}
             read_only_reason={`Renstra ${status}.`}
         />,
     );
@@ -340,9 +340,9 @@ it('kegagalan lookup dapat ditutup dengan keyboard tanpa menghapus draft', async
 });
 
 it('mode create aman dirender server tanpa hardcode tahun atau tanggal', () => {
-    const html = renderToString(<Editor jadwal={null} can={{ create: true, update: false }} read_only_reason={null} />);
+    const html = renderToString(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
     expect(html).toContain('Informasi tahunan');
-    render(<Editor jadwal={null} can={{ create: true, update: false }} read_only_reason={null} />);
+    render(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
     expect(screen.getByLabelText<HTMLInputElement>(/^Tahun/).value).toBe('');
     expect(screen.getByLabelText<HTMLInputElement>(/^Penutupan/).value).toBe('');
     expect(screen.getByText(/Belum ada periode dipilih/)).toBeTruthy();
@@ -356,7 +356,7 @@ it('pilihan Renstra pada create memperbarui identitas tanpa mengisi tanggal atau
             .fn<typeof fetch>()
             .mockResolvedValue(new Response(JSON.stringify({ data: [jadwal.renstra], has_more: false }))),
     );
-    render(<Editor jadwal={null} can={{ create: true, update: false }} read_only_reason={null} />);
+    render(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
     await user.click(screen.getByRole('button', { name: 'Pilih Renstra' }));
     await user.click(await screen.findByRole('button', { name: /Renstra pengujian/ }));
     fireEvent.change(screen.getByLabelText(/^Tahun/), { target: { value: '2028' } });
@@ -393,4 +393,48 @@ it('pasangan Renstra dan tahun existing ditautkan ke kalender tanpa menawarkan c
     expect(screen.getByText('Jadwal tahun ini sudah tersedia')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Edit jadwal' }).getAttribute('href')).toBe('/jadwal/jadwal-1');
     expect(screen.queryByRole('link', { name: 'Susun jadwal' })).toBeNull();
+});
+
+it('panel aktivasi hanya untuk can.activate dan kalender dirty memblokir aktivasi', async () => {
+    const readiness = {
+        jadwal_id: 'jadwal-1', checked_revisi: 4, checked_at: '2026-10-07T02:00:00Z', allowed: true, blockers: [],
+        gates: (['G1', 'G2', 'G3', 'G4'] as const).map((key) => ({ key, status: 'lolos', message: 'Lolos.', count: null })),
+        counts: { indikator_berlaku: 1, target_belum_terisi: 0, snapshot_existing: 0, snapshot_baru: 1, komponen_baru: 0 }, periode_lampau_ids: [],
+    };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(readiness), { status: 200 }))));
+    const { unmount } = render(<Editor {...props} />);
+    expect(screen.queryByText('Kesiapan aktivasi')).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    unmount();
+
+    render(<Editor {...props} can={{ create: false, update: false, activate: true }} read_only_reason="Anda tidak memiliki izin mengubah jadwal." />);
+    expect(await screen.findByText('Siap diaktifkan')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(false);
+    cleanup();
+
+    render(<Editor {...props} can={{ create: true, update: true, activate: true }} />);
+    await screen.findByText('Siap diaktifkan');
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review'), { target: { value: '2027-01-17' } });
+    expect(screen.getByText(/Simpan atau batalkan perubahan kalender/)).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(true);
+});
+
+it('revisi props baru dengan kalender tampil lama tetap memakai revisi tampil dan dianggap stale', async () => {
+    const readiness = (revisi: number) => ({
+        jadwal_id: 'jadwal-1', checked_revisi: revisi, checked_at: '2026-10-07T02:00:00Z', allowed: true, blockers: [],
+        gates: (['G1', 'G2', 'G3', 'G4'] as const).map((key) => ({ key, status: 'lolos', message: 'Lolos.', count: null })),
+        counts: { indikator_berlaku: 1, target_belum_terisi: 0, snapshot_existing: 0, snapshot_baru: 1, komponen_baru: 0 }, periode_lampau_ids: [],
+    });
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(readiness(4)), { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+    const activator = { ...props, can: { create: false, update: false, activate: true }, read_only_reason: 'Anda tidak memiliki izin mengubah jadwal.' };
+    const { rerender } = render(<Editor {...activator} />);
+    await screen.findByText('Siap diaktifkan');
+    // preserveState sesudah POST gagal: props revisi naik, kalender yang tampil tetap revisi 4.
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify(readiness(5)), { status: 200 })));
+    rerender(<Editor {...activator} jadwal={{ ...jadwal, revisi: 5, penutupan: '2027-01-20' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Periksa ulang' }));
+    expect(await screen.findByText(/Kalender sudah berubah/)).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(true);
 });

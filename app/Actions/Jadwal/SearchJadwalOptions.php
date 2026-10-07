@@ -15,7 +15,7 @@ class SearchJadwalOptions
     /** Pilihan minimal tidak membuka detail domain Renstra atau seluruh katalog. @param array<string, mixed> $filters @return array<string, mixed> */
     public function handle(User $actor, string $jenis, array $filters): array
     {
-        $this->policy->viewAny($actor)->authorize();
+        $this->policy->manage($actor)->authorize();
         abort_unless(in_array($jenis, ['renstra', 'periode'], true), 404);
         $filters = Validator::make($filters, ['q' => ['nullable', 'string', 'max:100'], 'page' => ['nullable', 'integer', 'min:1']])->validate();
         $query = $jenis === 'renstra'

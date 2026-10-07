@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionDecision;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -12,6 +13,9 @@ use Illuminate\Support\Str;
 /** Audit penolakan input/izin sebelum Action; tidak membaca target maupun menyimpan payload mentah. */
 abstract class PeriodeJadwalMutationRequest extends FormRequest
 {
+    /** Keputusan yang benar-benar dipakai authorize(); audit penolakan tidak me-resolve ulang. */
+    private ?PermissionDecision $decision = null;
+
     abstract public function permissionCode(): string;
 
     abstract public function auditEvent(): string;
@@ -77,7 +81,12 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user() instanceof User && app(PermissionResolver::class)->allows($this->user(), $this->permissionCode());
+        if (! $this->user() instanceof User) {
+            return false;
+        }
+        $this->decision = app(PermissionResolver::class)->resolve($this->user(), $this->permissionCode());
+
+        return $this->decision->allowed;
     }
 
     /** Menolak field di luar kontrak, termasuk key yang nilainya null. */
@@ -117,6 +126,6 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
         app(AuditLogger::class)->catat(actor: $actor, tindakan: $this->auditEvent().'_ditolak', objekTipe: $domain,
             objekId: is_string($id) && Str::isUuid($id) ? strtolower($id) : (string) Str::uuid(),
             nilaiBaru: ['alasan_penolakan' => $reason, 'field_tidak_valid' => $fields],
-            dasarIzin: app(PermissionResolver::class)->resolve($actor, $this->permissionCode())->toAuditBasis());
+            dasarIzin: ($this->decision ?? app(PermissionResolver::class)->resolve($actor, $this->permissionCode()))->toAuditBasis());
     }
 }

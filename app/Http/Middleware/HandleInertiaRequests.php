@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\JadwalTahunan;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
@@ -149,7 +150,7 @@ class HandleInertiaRequests extends Middleware
             'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
             'pk' => $user->can('viewAny', RenstraPk::class),
             'periode' => $resolver->allows($user, 'periode:create') || $resolver->allows($user, 'periode:update'),
-            'jadwal' => $resolver->allows($user, 'jadwal:create') || $resolver->allows($user, 'jadwal:update'),
+            'jadwal' => $user->can('viewAny', JadwalTahunan::class),
             'pk:create' => $resolver->allows($user, 'pk:create'),
             'pk:update' => $resolver->allows($user, 'pk:update'),
         ];
