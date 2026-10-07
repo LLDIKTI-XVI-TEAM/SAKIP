@@ -92,6 +92,7 @@ class IndexSasaranIndikator
                                 'wajib_catatan' => $indikator->wajib_catatan,
                                 'jenis_agregasi' => $indikator->jenis_agregasi,
                                 'status' => $indikator->status,
+                                'tahun_mulai_berlaku' => $indikator->tahun_mulai_berlaku,
                                 'updated_at' => $indikator->updated_at?->toISOString(),
                                 'created_by_role' => $indikator->created_by_role,
                                 'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [

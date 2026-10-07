@@ -102,7 +102,7 @@ export function FormulaModal({ isOpen, onClose, editor, returnTo = 'sasaran-indi
             footer={(
                 <div className="flex justify-end gap-3">
                     <Button type="button" variant="outline" onClick={close} disabled={form.processing}>Batal</Button>
-                    <Button type="submit" form="formula-editor-form" isLoading={form.processing} disabled={disabled}>Simpan Formula</Button>
+                    <Button type="submit" form="formula-editor-form" isLoading={form.processing} disabled={disabled}>Simpan</Button>
                 </div>
             )}
         >
@@ -128,7 +128,7 @@ export function FormulaModal({ isOpen, onClose, editor, returnTo = 'sasaran-indi
                 <fieldset disabled={disabled} className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                         <Select
-                            id="formula_tipe" label="Tipe Perhitungan Target"
+                            id="formula_tipe" label="Cara menghitung target"
                             disabled={!baseline.can.update_indikator} value={form.data.tipe_perhitungan} error={errors.tipe_perhitungan}
                             onChange={(event) => {
                                 const tipe = event.target.value;
@@ -151,7 +151,7 @@ export function FormulaModal({ isOpen, onClose, editor, returnTo = 'sasaran-indi
                         onRows={(rows) => form.setData('komponen', rows)} onDeleted={(ids) => form.setData('hapus_komponen_ids', ids)} errors={errors}
                     />
                     <Textarea
-                        id="formula_alasan" label="Alasan perubahan formula" value={form.data.alasan}
+                        id="formula_alasan" label="Alasan perubahan" placeholder="Contoh: Menyesuaikan formula dengan pedoman terbaru." value={form.data.alasan}
                         onChange={(event) => form.setData('alasan', event.target.value)} error={errors.alasan}
                         helperText="Wajib untuk perubahan sensitif; 5–1.000 karakter."
                     />

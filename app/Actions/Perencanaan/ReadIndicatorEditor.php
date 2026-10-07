@@ -33,7 +33,7 @@ class ReadIndicatorEditor
             $metadata = $indikator->only(['id', 'kode', 'nama', 'satuan', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']);
             $metadata['unit_nama'] = $indikator->unit()->value('nama');
             if ($parentSurface) {
-                $metadata = array_merge($metadata, $indikator->only(['sasaran_strategis_id', 'unit_id', 'definisi_operasional', 'arah', 'wajib_catatan', 'status', 'created_by_role', 'jenis_agregasi']));
+                $metadata = array_merge($metadata, $indikator->only(['sasaran_strategis_id', 'unit_id', 'definisi_operasional', 'arah', 'wajib_catatan', 'status', 'created_by_role', 'jenis_agregasi', 'tahun_mulai_berlaku']));
                 $metadata['regulasi_id'] = $this->resolver->resolve($actor, 'regulasi:read')->allowed ? $indikator->regulasi_id : null;
             }
             $total = $canRead ? $indikator->komponen()->count() : 0;

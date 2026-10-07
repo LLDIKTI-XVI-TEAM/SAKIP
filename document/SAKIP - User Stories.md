@@ -367,11 +367,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** menetapkan baseline dan target tahunan indikator,  
 > **Sehingga** target PK memiliki pembanding resmi sebelum siklus tahunan diaktifkan.
 
+> **Status implementasi parsial — PR #64:** AC-1–3 memiliki bukti QA pada `5c056e5`; batas bukti dan tindak lanjut tercatat pada [ISS-02.07](SAKIP%20-%20User%20Issues.md#iss-0207--feature-penetapan-baseline--target-tahunan). AC-4 tetap terbuka. Centang bukan persetujuan UAT atau deployment.
+
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
-- [ ] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
-- [ ] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
+- [x] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
+- [x] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
+- [x] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
 - [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 
 **Business Rules / Catatan**
@@ -471,14 +473,16 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** mengaktifkan jadwal setelah seluruh gerbang wajib terpenuhi,  
 > **Sehingga** konteks indikator dan formula tahun berjalan dibekukan secara aman sebelum pekerjaan PIC dimulai.
 
+> **Status implementasi — PR #67:** AC-1–6 memiliki bukti QA pada `57c0e46`; batas bukti dan item terbuka tercatat pada [ISS-03.02](SAKIP%20-%20User%20Issues.md#iss-0302--feature-aktivasi-jadwal-tahunan-melalui-empat-gerbang--pembentukan-snapshot). Centang bukan persetujuan UAT atau deployment.
+
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given aktivasi diminta, When server mengevaluasi, Then empat gerbang diperiksa: PK tersedia; target tahunan semua indikator aktif tersedia; tahun berada dalam rentang Renstra; lampiran PK tersedia atau pengecualian file yang sah tercatat.
-- [ ] **AC-2:** Given salah satu gerbang wajib gagal, When aktivasi diproses, Then seluruh transaksi ditolak atomik dan pesan menjelaskan gerbang yang gagal.
-- [ ] **AC-3:** Given semua gerbang lolos, When commit berhasil, Then jadwal menjadi `aktif` dan `activated_at` terisi.
-- [ ] **AC-4:** Given indikator aktif belum memiliki snapshot pada jadwal, When aktivasi sukses, Then `jadwal_snapshot` dibuat idempoten beserta `jadwal_snapshot_komponen`.
-- [ ] **AC-5:** Given snapshot pasangan indikator-jadwal sudah ada, When proses diulang, Then baris lama tidak ditimpa/duplikasi.
-- [ ] **AC-6:** Given permission sensitif digunakan, Then audit menyimpan `dasar_izin` dan aktor sebenarnya.
+- [x] **AC-1:** Given aktivasi diminta, When server mengevaluasi, Then empat gerbang diperiksa: PK tersedia; target tahunan semua indikator aktif tersedia; tahun berada dalam rentang Renstra; lampiran PK tersedia atau pengecualian file yang sah tercatat.
+- [x] **AC-2:** Given salah satu gerbang wajib gagal, When aktivasi diproses, Then seluruh transaksi ditolak atomik dan pesan menjelaskan gerbang yang gagal.
+- [x] **AC-3:** Given semua gerbang lolos, When commit berhasil, Then jadwal menjadi `aktif` dan `activated_at` terisi.
+- [x] **AC-4:** Given indikator aktif belum memiliki snapshot pada jadwal, When aktivasi sukses, Then `jadwal_snapshot` dibuat idempoten beserta `jadwal_snapshot_komponen`.
+- [x] **AC-5:** Given snapshot pasangan indikator-jadwal sudah ada, When proses diulang, Then baris lama tidak ditimpa/duplikasi.
+- [x] **AC-6:** Given permission sensitif digunakan, Then audit menyimpan `dasar_izin` dan aktor sebenarnya.
 
 ### US-03.03 · Koreksi Snapshot Terkendali dan Versioning Konteks
 

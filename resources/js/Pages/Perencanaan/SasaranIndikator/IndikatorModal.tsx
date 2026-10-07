@@ -212,7 +212,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                                 value={unitNamaSaatIni}
                                 disabled
                                 readOnly
-                                helperText='Unit tidak dapat diubah melalui edit umum. Gunakan aksi "Pindah Unit" pada tabel untuk memindahkan kepemilikan beserta alasan audit.'
+                                helperText='Untuk mengganti unit, gunakan aksi “Pindah Unit” pada tabel.'
                             />
                         ) : (
                             <Select
@@ -243,8 +243,8 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             error={errors.arah}
                             required
                         >
-                            <option value="naik_baik">Makin Tinggi Makin Baik (naik_baik)</option>
-                            <option value="turun_baik">Makin Rendah Makin Baik (turun_baik)</option>
+                            <option value="naik_baik">Makin Tinggi Makin Baik</option>
+                            <option value="turun_baik">Makin Rendah Makin Baik</option>
                         </Select>
                     </div>
                     <div>

@@ -19,6 +19,7 @@ export interface UserOptionPage {
 export interface GrantUserAutocompleteProps {
     id?: string;
     label?: string;
+    labelClassName?: string;
     value: string;
     onChange: (id: string, user?: UserOption | null) => void;
     disabled?: boolean;
@@ -27,11 +28,13 @@ export interface GrantUserAutocompleteProps {
     debounceMs?: number;
     placeholder?: string;
     endpoint?: string;
+    required?: boolean;
 }
 
 export function GrantUserAutocomplete({
     id = 'grant-user-target',
     label = 'Pengguna Target',
+    labelClassName,
     value,
     onChange,
     disabled = false,
@@ -40,6 +43,7 @@ export function GrantUserAutocomplete({
     debounceMs = 350,
     placeholder = 'Cari nama atau email pengguna...',
     endpoint = '/akses/grant/opsi/pengguna',
+    required = true,
 }: GrantUserAutocompleteProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
@@ -59,12 +63,12 @@ export function GrantUserAutocomplete({
     useEffect(() => {
         if (!value) {
             setSelectedUser(null);
-            setSearchTerm('');
+            setPage(1); setHasMore(false); setSearchTerm('');
             setItems([]);
             setIsOpen(false);
             setHighlightedIndex(-1);
         } else if (initialUser && initialUser.id === value) {
-            setSelectedUser((current) => current ?? initialUser);
+            setSelectedUser(initialUser);
         }
     }, [value, initialUser]);
 
@@ -103,6 +107,7 @@ export function GrantUserAutocomplete({
         setFailure('');
         setHighlightedIndex(-1);
 
+        let active = true;
         const timer = setTimeout(() => {
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
@@ -124,24 +129,25 @@ export function GrantUserAutocomplete({
                         throw new Error('Daftar pengguna belum dapat dimuat. Coba cari kembali.');
                     }
                     const data: UserOptionPage = await response.json();
-                    if (controller.signal.aborted) return;
-                    const incoming = Array.isArray(data?.items) ? data.items : [];
-                    setItems((current) => page === 1 ? incoming : [...current, ...incoming.filter((item) => !current.some((existing) => existing.id === item.id))]);
-                    setHasMore(data.hasMore === true);
+                    if (!active) return;
+                    setItems(Array.isArray(data?.items) ? data.items : []);
+                    setHasMore(Boolean(data.hasMore));
+
                     setIsOpen(true);
                 })
                 .catch((err: unknown) => {
-                    if (!controller.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) {
+                    if (active && !(err instanceof DOMException && err.name === 'AbortError')) {
                         setFailure(err instanceof Error ? err.message : 'Gagal memuat pengguna.');
                         setItems([]);
                     }
                 })
                 .finally(() => {
-                    if (!controller.signal.aborted) setIsLoading(false);
+                    if (active) setIsLoading(false);
                 });
         }, debounceMs);
 
         return () => {
+            active = false;
             clearTimeout(timer);
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
@@ -150,14 +156,14 @@ export function GrantUserAutocomplete({
         };
     }, [searchTerm, debounceMs, endpoint, page]);
 
-    // Opsi keyboard aktif harus tetap terlihat dalam daftar yang dapat digulir.
+    // Opsi keyboard aktif tetap terlihat dalam daftar yang dapat digulir.
     useEffect(() => {
         if (highlightedIndex >= 0) wrapperRef.current?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' });
     }, [highlightedIndex]);
 
     const handleSelectUser = useCallback((user: UserOption) => {
         setSelectedUser(user);
-        setSearchTerm('');
+        setPage(1); setHasMore(false); setSearchTerm('');
         setItems([]);
         setIsOpen(false);
         setHighlightedIndex(-1);
@@ -166,7 +172,7 @@ export function GrantUserAutocomplete({
 
     const handleClear = useCallback(() => {
         setSelectedUser(null);
-        setSearchTerm('');
+        setPage(1); setHasMore(false); setSearchTerm('');
         setItems([]);
         setIsOpen(false);
         setHighlightedIndex(-1);
@@ -177,6 +183,11 @@ export function GrantUserAutocomplete({
     }, [onChange]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (disabled || isLoading) {
+            if (e.key === 'Escape') setIsOpen(false);
+            if (e.key === 'Enter') e.preventDefault();
+            return;
+        }
         if (!isOpen) {
             if (e.key === 'ArrowDown' && (items.length > 0 || searchTerm.trim().length >= 2)) {
                 setIsOpen(true);
@@ -210,9 +221,9 @@ export function GrantUserAutocomplete({
     const shouldShowDropdown = isOpen && (isLoading || Boolean(failure) || trimmed.length >= 2);
 
     return (
-        <div className="space-y-1" ref={wrapperRef}>
-            <label htmlFor={selectedUser ? undefined : id} className="block text-xs font-semibold text-ink">
-                {label} <span className="text-danger">*</span>
+        <div className="space-y-1.5" ref={wrapperRef}>
+            <label htmlFor={selectedUser ? undefined : id} className={`block text-sm font-medium text-ink ${labelClassName ?? ''}`}>
+                {label} {required && <span className="text-danger" aria-hidden="true">*</span>}
             </label>
 
             {/* Input tersembunyi untuk form data */}
@@ -220,7 +231,7 @@ export function GrantUserAutocomplete({
 
             {selectedUser ? (
                 /* State: Pengguna Terpilih */
-                <div className="relative flex items-center justify-between p-2.5 bg-soft border border-border rounded-md focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                <div className="relative flex items-center justify-between p-2.5 bg-soft border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
                     <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                             {selectedUser.nama ? selectedUser.nama.charAt(0).toUpperCase() : 'U'}
@@ -229,9 +240,10 @@ export function GrantUserAutocomplete({
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-semibold text-ink truncate">
                                     {selectedUser.nama || selectedUser.name}
+                                    {selectedUser.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                 </span>
                                 {selectedUser.roles && selectedUser.roles.length > 0 ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                         {selectedUser.roles.join(', ')}
                                     </span>
                                 ) : (
@@ -266,16 +278,15 @@ export function GrantUserAutocomplete({
                             role="combobox"
                             aria-expanded={isOpen}
                             aria-autocomplete="list"
-                            aria-required="true"
-                            aria-activedescendant={highlightedIndex >= 0 ? `${id}-option-${highlightedIndex}` : undefined}
+                            aria-required={required}
                             aria-controls={`${id}-suggestions`}
+                            aria-activedescendant={shouldShowDropdown && !isLoading && !failure && highlightedIndex >= 0 ? `${id}-option-${highlightedIndex}` : undefined}
+                            maxLength={100}
                             disabled={disabled}
                             placeholder={placeholder}
                             value={searchTerm}
                             onChange={(e) => {
                                 setPage(1);
-                                setHasMore(false);
-                                setItems([]);
                                 setSearchTerm(e.target.value);
                                 setIsOpen(true);
                             }}
@@ -287,7 +298,7 @@ export function GrantUserAutocomplete({
                             onKeyDown={handleKeyDown}
                             aria-invalid={Boolean(error)}
                             aria-describedby={error ? `${id}-error` : undefined}
-                            className="w-full text-xs rounded-md border-border pl-9 pr-9 py-2 focus:border-primary focus:ring-primary"
+                            className={`w-full h-[42px] rounded-lg border bg-surface pl-9 pr-9 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted ${error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
                         />
                         {isLoading ? (
                             <Loader2 className="w-4 h-4 text-primary animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -295,7 +306,7 @@ export function GrantUserAutocomplete({
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSearchTerm('');
+                                    setPage(1); setHasMore(false); setSearchTerm('');
                                     setItems([]);
                                     setIsOpen(false);
                                     inputRef.current?.focus();
@@ -310,12 +321,12 @@ export function GrantUserAutocomplete({
 
                     {/* Dropdown Suggestions */}
                     {shouldShowDropdown && (
-                        <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-surface shadow-lg">
+                        <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-surface shadow-lg">
                         <div
                             id={`${id}-suggestions`}
                             role="listbox"
                             aria-label="Daftar saran pengguna target"
-                            className="divide-y divide-border"
+                            className="max-h-60 overflow-y-auto divide-y divide-border"
                         >
                             {isLoading ? (
                                 <div className="px-4 py-3 text-xs text-muted flex items-center justify-center gap-2" role="status">
@@ -334,10 +345,10 @@ export function GrantUserAutocomplete({
                                 items.map((user, index) => (
                                     <button
                                         key={user.id}
-                                        id={`${id}-option-${index}`}
                                         type="button"
                                         role="option"
                                         tabIndex={-1}
+                                        id={`${id}-option-${index}`}
                                         aria-selected={highlightedIndex === index}
                                         onClick={() => handleSelectUser(user)}
                                         onMouseEnter={() => setHighlightedIndex(index)}
@@ -348,9 +359,10 @@ export function GrantUserAutocomplete({
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-xs font-semibold text-ink">
                                                 {user.nama || user.name}
+                                                {user.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                             </span>
                                             {user.roles && user.roles.length > 0 ? (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                                     {user.roles.join(', ')}
                                                 </span>
                                             ) : (
@@ -364,7 +376,13 @@ export function GrantUserAutocomplete({
                                 ))
                             )}
                         </div>
-                        {hasMore && !isLoading && !failure && <button type="button" onClick={() => setPage((current) => current + 1)} className="w-full border-t border-border px-3 py-3 text-left text-sm font-medium text-primary hover:bg-soft">Muat pengguna berikutnya</button>}
+                        {(page > 1 || (hasMore && !failure)) && <nav aria-label="Halaman pilihan pengguna" className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
+                            <span className="text-muted" aria-live="polite">Halaman {page}</span>
+                            <div className="flex gap-2">
+                                {page > 1 && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page - 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna sebelumnya</button>}
+                                {hasMore && !failure && <button type="button" disabled={isLoading || disabled} onClick={() => setPage(page + 1)} className="rounded px-2 py-1 text-primary hover:bg-soft focus-visible:outline-primary disabled:opacity-50">Pengguna berikutnya</button>}
+                            </div>
+                        </nav>}
                         </div>
                     )}
                 </div>

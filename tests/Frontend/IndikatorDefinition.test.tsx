@@ -27,7 +27,7 @@ it('draft yang dipertahankan memakai token asal setelah props baru', async () =>
     await user.click(screen.getAllByTitle('Ubah Komponen')[0]);
     await user.type(screen.getByLabelText('Label komponen 1'), ' draft');
     rerender(<KomponenIndex editor={{ ...editor, revision: '2026-10-02T11:00:00.123456Z' }} />);
-    await user.click(screen.getByRole('button', { name: 'Simpan Formula' }));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
     expect(patch.mock.calls[0]?.[1]).toHaveProperty('expected_updated_at', REVISION);
     expect(patch.mock.calls[0]?.[1]).toHaveProperty('komponen', [expect.objectContaining({ bobot: exact, label: 'Capaian aktual draft' })]);
 });

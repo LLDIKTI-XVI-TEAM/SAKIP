@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Jadwal;
 
+use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\Jadwal\ListJadwal;
+use App\Actions\Jadwal\ReadJadwalActivation;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Jadwal\SearchJadwalOptions;
 use App\Actions\Jadwal\ShowJadwalEditor;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Jadwal\ActivateJadwalRequest;
 use App\Http\Requests\Jadwal\StoreJadwalRequest;
 use App\Http\Requests\Jadwal\UpdateJadwalRequest;
 use App\Models\JadwalTahunan;
@@ -36,6 +39,19 @@ class JadwalController extends Controller
     public function options(Request $request, string $jenis, SearchJadwalOptions $action): JsonResponse
     {
         return response()->json($action->handle($request->user(), $jenis, $request->query()));
+    }
+
+    public function readiness(Request $request, string $jadwal, ReadJadwalActivation $action): JsonResponse
+    {
+        return response()->json($action->handle($request->user(), $jadwal));
+    }
+
+    /** Hasil diikat operation_id + jadwal_id; klien hanya menerima sukses dari flash yang cocok dengan request-nya. */
+    public function activate(ActivateJadwalRequest $request, string $jadwal, ActivateJadwal $action): RedirectResponse
+    {
+        Inertia::flash('jadwal_aktivasi', $action->handle($request->user(), $jadwal, $request->validated()));
+
+        return redirect()->route('jadwal.show', $jadwal);
     }
 
     public function store(StoreJadwalRequest $request, SaveJadwalDraft $action): RedirectResponse

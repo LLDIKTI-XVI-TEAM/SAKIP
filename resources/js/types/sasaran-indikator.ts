@@ -54,6 +54,7 @@ export interface IndikatorKinerjaItem {
     wajib_catatan: boolean;
     jenis_agregasi?: string;
     status: IndikatorStatus;
+    tahun_mulai_berlaku: number;
     updated_at?: string | null;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
