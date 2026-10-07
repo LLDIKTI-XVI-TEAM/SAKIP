@@ -65,6 +65,10 @@ it('menampilkan empat gerbang, jumlah agregat, dan periode lampau dari server', 
     }
     expect(screen.getByText('Pengecualian')).toBeTruthy();
     expect(screen.getAllByText('Lolos')).toHaveLength(3);
+    // text-success (#16A34A) hanya 3.3:1 di atas surface; teks status wajib memakai token gelap ≥4.5:1.
+    for (const el of [...screen.getAllByText('Lolos'), screen.getByText('Siap diaktifkan')]) {
+        expect(el.className).toContain('text-success-dark');
+    }
     expect(screen.getByText(/Triwulan I sudah lewat/)).toBeTruthy();
     expect(screen.getByText(/snapshot baru/).closest('p')?.textContent).toContain('12 indikator12 snapshot baru9 komponen');
     expect(fetch).toHaveBeenCalledWith('/jadwal/jadwal-1/kesiapan-aktivasi', expect.objectContaining({ headers: { Accept: 'application/json' } }));

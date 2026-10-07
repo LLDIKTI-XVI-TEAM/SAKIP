@@ -21,7 +21,7 @@ interface ActivationPanelProps {
 
 const GATE_LABELS = { G1: 'Perjanjian Kinerja', G2: 'Target tahunan', G3: 'Tahun dalam Renstra', G4: 'Lampiran PK' } as const;
 const GATE_STATUS = {
-    lolos: { text: 'Lolos', icon: '✓', color: 'text-success' },
+    lolos: { text: 'Lolos', icon: '✓', color: 'text-success-dark' },
     pengecualian: { text: 'Pengecualian', icon: '!', color: 'text-warning-dark' },
     gagal: { text: 'Gagal', icon: '✕', color: 'text-danger' },
 } as const;
@@ -127,7 +127,7 @@ export function ActivationPanel({ jadwalId, tahun, revisi, status, dirtyCalendar
                     Kesiapan aktivasi
                 </h2>
                 {readiness && status === 'draft' && (
-                    <span className={`text-sm font-medium ${canSubmit ? 'text-success' : 'text-danger'}`}>{canSubmit ? 'Siap diaktifkan' : 'Belum siap'}</span>
+                    <span className={`text-sm font-medium ${canSubmit ? 'text-success-dark' : 'text-danger'}`}>{canSubmit ? 'Siap diaktifkan' : 'Belum siap'}</span>
                 )}
             </CardHeader>
             <CardContent className="space-y-4 p-4 sm:p-5">
