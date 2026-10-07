@@ -49,6 +49,7 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
 use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
 use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
@@ -158,6 +159,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+
+    // Pengesahan Rencana Aksi (ISS-05.05)
+    Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 
