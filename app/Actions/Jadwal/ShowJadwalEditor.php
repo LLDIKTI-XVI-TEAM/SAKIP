@@ -20,11 +20,12 @@ class ShowJadwalEditor
     {
         ($jadwal ? $this->policy->viewAny($actor) : $this->policy->create($actor))->authorize();
         $canCreate = $this->policy->create($actor)->allowed();
+        $canActivate = $this->policy->activate($actor)->allowed();
         if ($jadwal === null) {
-            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false], 'read_only_reason' => null];
+            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false], 'read_only_reason' => null];
         }
 
-        return DB::transaction(function () use ($actor, $jadwal, $canCreate): array {
+        return DB::transaction(function () use ($actor, $jadwal, $canCreate, $canActivate): array {
             Periode::lockConfiguration();
             $original = JadwalTahunan::findOrFail($jadwal->id);
             $renstra = Renstra::whereKey($original->renstra_id)->sharedLock()->firstOrFail();
@@ -49,7 +50,8 @@ class ShowJadwalEditor
             })->sortBy('urutan')->values()->all();
 
             return ['jadwal' => [...$attributes, 'renstra' => $renstra->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']), 'periode' => $windows],
-                'can' => ['create' => $canCreate, 'update' => $reason === null], 'read_only_reason' => $reason];
+                // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
+                'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate], 'read_only_reason' => $reason];
         });
     }
 }
