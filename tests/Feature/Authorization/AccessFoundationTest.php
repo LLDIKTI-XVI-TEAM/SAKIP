@@ -38,11 +38,11 @@ class AccessFoundationTest extends TestCase
         $this->assertSame(5, Role::pluck('urutan')->unique()->count());
         $this->assertSame(['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'], RoleCatalog::codes());
         $this->assertDatabaseMissing('roles', ['kode' => 'pic']);
-        $this->assertDatabaseCount('role_permissions', 165);
+        $this->assertDatabaseCount('role_permissions', 167);
         $this->assertSame(7, Permission::where('butuh_scope', 'unit')->count());
         $this->assertSame(22, Permission::where('sensitif', true)->count());
         $this->assertEqualsCanonicalizing(['pengukuran:read', 'rencana_aksi:read', 'kegiatan:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read'], RolePermissionPresets::forRole('pegawai'));
-        $this->assertEqualsCanonicalizing(['pengguna:read', 'akses:update', 'delegasi:update', 'unit:create', 'unit:read', 'unit:update', 'pengaturan:update', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'audit:read', 'dashboard:read', 'laporan:read'], RolePermissionPresets::forRole('admin'));
+        $this->assertEqualsCanonicalizing(['pengguna:read', 'akses:update', 'delegasi:update', 'unit:create', 'unit:read', 'unit:update', 'pengaturan:update', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'audit:read', 'dashboard:read', 'laporan:read', 'rencana_aksi:read', 'kegiatan:read'], RolePermissionPresets::forRole('admin'));
         $this->assertCount(71, RolePermissionPresets::forRole('superadmin'));
         $this->assertCount(63, RolePermissionPresets::forRole('perencanaan'));
         $this->assertCount(11, RolePermissionPresets::forRole('pimpinan'));
@@ -145,7 +145,7 @@ class AccessFoundationTest extends TestCase
         $this->assertFalse($resolver->allows($user, 'pengukuran:update'));
         DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $unit->id));
-        $this->assertDatabaseCount('role_permissions', 165);
+        $this->assertDatabaseCount('role_permissions', 167);
     }
 
     public function test_global_permission_is_checked_against_the_target_unit_deny(): void

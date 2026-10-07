@@ -57,6 +57,6 @@ class BootstrapSuperadminCommandTest extends TestCase
 
         $this->assertSame('nonaktif', $user->fresh()->status);
         $this->assertDatabaseCount('auth_bootstraps', 0);
-        $this->assertDatabaseCount('role_permissions', 165);
+        $this->assertDatabaseCount('role_permissions', 167);
     }
 }

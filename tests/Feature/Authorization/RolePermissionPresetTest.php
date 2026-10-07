@@ -35,7 +35,7 @@ class RolePermissionPresetTest extends TestCase
             $this->assertNull($creation->nilai_lama);
             $this->assertEquals($role->only(['kode', 'nama', 'is_sistem', 'urutan', 'aktif']), $creation->nilai_baru);
         }
-        $this->assertDatabaseCount('role_permissions', 165);
+        $this->assertDatabaseCount('role_permissions', 167);
         $this->assertSame(5, AuditLog::where('tindakan', 'role_permissions.ubah')->count());
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->firstOrFail();
         $this->assertSame(['permissions' => []], $audit->nilai_lama);
@@ -279,7 +279,14 @@ class RolePermissionPresetTest extends TestCase
         $this->assertSame($preserved, array_intersect_key($this->snapshot(), $preserved));
         $this->assertSame($before, $historical->fresh()->getRawOriginal());
         $resolver = app(PermissionResolver::class);
-        $this->assertFalse($resolver->allows($user, 'rencana_aksi:read'));
+        // Preset admin kini membawa rencana_aksi:read global; allow tanpa unit berasal dari role,
+        // bukan dari globalisasi legacy grant ber-unit (grants tetap kosong). Deny ber-unit tetap
+        // memblokir pada scope unit tersebut.
+        $this->assertTrue($resolver->allows($user, 'rencana_aksi:read'));
+        $globalDecision = $resolver->decide($user, 'rencana_aksi:read');
+        $this->assertTrue($globalDecision['allowed']);
+        $this->assertSame([], $globalDecision['grants']);
+        $this->assertNotEmpty($globalDecision['roles']);
         $decision = $resolver->decide($user, 'rencana_aksi:read', $unit->id);
         $this->assertFalse($decision['allowed']);
         $this->assertSame([], $decision['grants']);
