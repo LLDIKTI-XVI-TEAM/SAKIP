@@ -21,6 +21,13 @@ export interface RencanaAksiBukti {
     isi_teks: string | null;
 }
 
+export interface RencanaAksiKomponenBeku {
+    komponen_id: string | null;
+    kode: string | null;
+    label: string | null;
+    nilai: string | number | null;
+}
+
 export interface RencanaAksiRingkas {
     id: string;
     versi: number;
@@ -35,8 +42,8 @@ export interface RencanaAksiRingkas {
     pic: { id: string; nama: string } | null;
     bukti_count: number;
     bukti_dukungs: RencanaAksiBukti[];
-    target_periode: { periode_id: string | null; nilai: string | number | null; status_perhitungan: string | null; komponen: { komponen_id: string; nilai: string | number | null }[] }[];
-    can: { view: boolean; ratify: boolean };
+    target_periode: { periode_id: string | null; nilai: string | number | null; status_perhitungan: string | null; komponen: RencanaAksiKomponenBeku[] }[];
+    can: { view: boolean };
 }
 
 export interface RencanaAksiDetail extends RencanaAksiRingkas {
@@ -48,10 +55,10 @@ export interface RencanaAksiDetail extends RencanaAksiRingkas {
         periode_urutan: number | null;
         nilai: string | number | null;
         status_perhitungan: string | null;
-        komponen: { komponen_id: string; nilai: string | number | null }[];
+        komponen: RencanaAksiKomponenBeku[];
     }[];
     bukti_dukungs: RencanaAksiBukti[];
-    can: { view: boolean; ratify: boolean };
+    can: { view: boolean; ratify: boolean; evidence: boolean };
 }
 
 export interface RencanaAksiPagination {

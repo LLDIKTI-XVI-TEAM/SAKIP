@@ -12,9 +12,15 @@ Transisi `diverifikasi → disahkan` untuk `rencana_aksi`, dengan pemisahan tuga
 | Dibuat | `app/Http/Controllers/RencanaAksi/SahkanRencanaAksi.php` | Controller tipis invokabel yang mendelegasikan ke satu Action lalu redirect back. |
 | Diubah | `app/Models/RencanaAksi.php` | Ditambah relasi `indikator()`, `jadwalSnapshot()`, `jadwalTahunan()`, `versions()`, `latestVersion()`, `ratifiedVersion()`, dan `targetUnitId()`. |
 | Diubah | `app/Support/PermissionCodes.php` | Ditambah 4 konstanta: `RENCANA_AKSI_VERIFIKASI`, `RENCANA_AKSI_KEMBALIKAN`, `RENCANA_AKSI_SAHKAN` (`'rencana_aksi:sahkan'`), `RENCANA_AKSI_BUKA_KEMBALI`. |
-| Diubah | `routes/web.php` | Registrasi satu route POST pengesahan (lihat tabel route). |
-| Dibuat | `resources/js/Pages/RencanaAksi/types.ts` | Tipe `RencanaAksiSahkan` (`id`, `versi`, `status`, `nomor_pengajuan`, `can.ratify`). |
-| Dibuat | `resources/js/Pages/RencanaAksi/Show.tsx` | Stub halaman status + tombol yang membuka dialog hanya bila `can.ratify && status === 'diverifikasi'`. |
+| Diubah | `routes/web.php` | Registrasi GET antrean + GET detail + POST pengesahan (lihat tabel route). |
+| Dibuat | `app/Actions/RencanaAksi/PresentRencanaAksi.php` | Presenter daftar ringkas (`can.view` saja) + detail (`can.view/ratify/evidence`, matriks beku, bukti gated, tanpa live fallback beku). |
+| Dibuat | `app/Http/Controllers/RencanaAksi/IndexRencanaAksi.php` | Antrean butuh-tindakan (`diajukan`, `diverifikasi`), paginate 20, guard `rencana_aksi:read` + deny unit read. |
+| Dibuat | `app/Http/Controllers/RencanaAksi/ShowRencanaAksi.php` | Detail `findOrFail` + `Gate view`; tanpa guard sahkan agar read-only bisa lihat. |
+| Diubah | `app/Http/Middleware/HandleInertiaRequests.php` | Capability `rencanaAksi` = `rencana_aksi:read` saja (menu lihat longgar; tombol tetap via `can.ratify`). |
+| Diubah | `resources/js/Layouts/AuthenticatedLayout.tsx` | Menu Rencana Aksi mengikuti `auth.can.rencanaAksi`. |
+| Dibuat | `resources/js/Pages/RencanaAksi/types.ts` | Tipe `RencanaAksiSahkan` + `RencanaAksiRingkas` (`can.view` saja) + `RencanaAksiDetail` (`can.view/ratify/evidence`, komponen beku `kode/label/nilai`). |
+| Dibuat | `resources/js/Pages/RencanaAksi/Index.tsx` | Tabel antrean + tautan Lihat via `can.view`; tanpa memakai `can.ratify`. |
+| Dibuat | `resources/js/Pages/RencanaAksi/Show.tsx` | Matriks target beku + rincian komponen beku + bukti gated `can.evidence` + tombol hanya bila `can.ratify && status === 'diverifikasi'`. |
 | Dibuat | `resources/js/Pages/RencanaAksi/SahkanDialog.tsx` | Dialog konfirmasi `useForm({ versi })` yang POST ke URL sahkan tanpa field bisnis tambahan. |
 | Dibuat | `tests/Feature/RencanaAksi/SahkanRencanaAksiTest.php` | 8 test feature terisolasi untuk AC-1–AC-6 + regresi provenance + stale concurrency. |
 | Tidak disentuh | `app/Models/RencanaAksiVersi.php` | Model versi beku sudah ada; tidak ada perubahan skema pada issue ini. |
@@ -23,9 +29,11 @@ Route (di dalam grup `Route::middleware(['auth', 'active'])`):
 
 | Method | URL | Nama | Constraint |
 |---|---|---|---|
+| `GET` | `/rencana-aksi` | `rencana-aksi.index` | — |
+| `GET` | `/rencana-aksi/{id}` | `rencana-aksi.show` | `whereUuid('id')` |
 | `POST` | `/rencana-aksi/{id}/sahkan` | `rencana-aksi.sahkan` | `whereUuid('id')` |
 
-Tidak ada route GET halaman/antrean — `Show.tsx` adalah stub tanpa route terdaftar.
+Antrean + detail sudah terdaftar di HEAD; sahkan tetap POST via `can.ratify` + Policy.
 
 ## 2. Layer kanonis
 
@@ -153,8 +161,9 @@ Hasil terakhir: **8/8 lulus, 39 assertions; PHPStan 0 error; Pint passed.**
 
 ## 10. Non-goal dan follow-up terpisah
 
-- **GET halaman/antrean:** `Show.tsx`/`SahkanDialog.tsx` stub presentasional; belum ada route GET, controller index/show, maupun query antrean. Tombol hanya tampil bila `can.ratify && status === 'diverifikasi'`.
-- **Endpoint hapus-bukti:** `RencanaAksiPolicy::deleteEvidence()` sudah mendefinisikan gerbang (tolak bila `status_alur === 'disahkan'` atau `ratifiedVersion !== null`), tetapi belum ada route/controller untuk eksekusi hapus — milik ISS-05.02/freeze penuh.
+- **Halaman/antrean sudah ada:** GET index (`diajukan`/`diverifikasi`, paginate 20, guard read + deny read) + GET show (`findOrFail` + `Gate view`) sudah terdaftar; akses lihat longgar read-only, tombol tetap via `can.ratify && status === 'diverifikasi'`. Bukti read-only tanpa `download_url`.
+- **Endpoint hapus-bukti:** `RencanaAksiPolicy::deleteEvidence()` hanya menolak ID bukti yang dirujuk snapshot versi tersahkan (bukti baru pasca-buka-kembali bisa dihapus); belum ada route/controller eksekusi hapus — milik ISS-05.02/freeze penuh.
+- **ACL locking (S1 tech-debt):** `SahkanRencanaAksi` meniru `ChangePengukuran` (kunci header/snapshot/jadwal + `decide` ulang dalam tx, tanpa `ResolveLockedActor`); kanonis Perencanaan memakai `ResolveLockedActor`, tetapi alur sahkan pengukuran/RA tidak mengunci ACL — jangan implementasikan di sini, catat follow-up bila dibutuhkan.
 - **Sinkron `rencanaAksiUnitScoped()`:** helper `PermissionCodes::rencanaAksiUnitScoped()` (filter `unitScoped()` berprefix `rencana_aksi:`) belum dipakai alur ini; sinkronisasi katalog/scope menyusul terpisah.
 
 ## 11. Gotcha

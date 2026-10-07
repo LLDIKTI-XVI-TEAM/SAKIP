@@ -18,11 +18,11 @@ class IndexRencanaAksi extends Controller
     {
         $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
         $actor = $request->user();
-        abort_unless($resolver->allows($actor, 'rencana_aksi:read') && $resolver->allows($actor, 'rencana_aksi:sahkan'), 403);
+        // Akses lihat longgar: cukup rencana_aksi:read. Sahkan tetap di Gate per-item/detail + POST.
+        abort_unless($resolver->allows($actor, 'rencana_aksi:read'), 403);
         $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->whereIn('status_alur', ['diajukan', 'diverifikasi'])
             ->whereNotIn('unit_id', $this->deniedUnits($actor->id, 'rencana_aksi:read'))
-            ->whereNotIn('unit_id', $this->deniedUnits($actor->id, 'rencana_aksi:sahkan'))
             ->orderByDesc('updated_at')->orderBy('id')->withCount('buktiDukungs')->paginate(20)->withQueryString();
 
         return Inertia::render('RencanaAksi/Index', [

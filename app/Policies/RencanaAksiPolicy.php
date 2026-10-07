@@ -23,6 +23,23 @@ class RencanaAksiPolicy
         return $this->resolver->allows($user, 'rencana_aksi:read', $ra->targetUnitId());
     }
 
+    /**
+     * Isi bukti (tautan/isi_teks) hanya dibuka bila baca ringkasan lolos dan
+     * akses berkas tidak ditolak. Deny berkas:read menang atas fallback kelola.
+     */
+    public function viewEvidence(User $user, RencanaAksi $ra): bool
+    {
+        if (! $this->view($user, $ra)) {
+            return false;
+        }
+        $decision = $this->resolver->decide($user, 'berkas:read', $ra->targetUnitId());
+        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true)) {
+            return false;
+        }
+
+        return $decision['allowed'] || $this->resolver->allows($user, 'rencana_aksi:update', $ra->targetUnitId()) || $this->resolver->allows($user, 'rencana_aksi:ajukan', $ra->targetUnitId());
+    }
+
     public function usesPlanningPath(User $user, RencanaAksi $ra): bool
     {
         $decision = $this->resolver->decide($user, 'rencana_aksi:update', $ra->targetUnitId());
@@ -36,16 +53,24 @@ class RencanaAksiPolicy
     }
 
     /**
-     * Guard bukti pasca-sah: bukti yang dirujuk versi resmi tidak boleh dihapus.
-     * Freeze penuh milik ISS-05.02; di sini hanya gerbang status minimal pasca-sah.
+     * Guard bukti pasca-sah: status disahkan membeku semua; setelah buka-kembali
+     * (dikembalikan + ratifiedVersion ada) hanya ID dalam snapshot resmi yang beku.
+     * Bukti baru pasca-buka-kembali (ID tidak ada di snapshot resmi) tetap bisa dihapus.
      */
     public function deleteEvidence(User $user, RencanaAksi $ra, BuktiDukung $bukti): Response
     {
         if ($bukti->berkasable_type !== 'rencana_aksi' || $bukti->berkasable_id !== $ra->id) {
             return Response::deny('Bukti tidak terkait dengan rencana aksi ini.');
         }
-        if ($ra->status_alur === 'disahkan' || $ra->ratifiedVersion !== null) {
+        if ($ra->status_alur === 'disahkan') {
             return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
+        }
+        $ratified = $ra->ratifiedVersion ?? $ra->loadMissing('ratifiedVersion')->ratifiedVersion;
+        if ($ratified !== null) {
+            $frozenIds = is_array($ratified->snapshot) ? array_column($ratified->snapshot['bukti_dukungs'] ?? [], 'id') : [];
+            if (in_array($bukti->id, $frozenIds, true)) {
+                return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
+            }
         }
         if (! $this->resolver->allows($user, 'berkas:delete', $ra->targetUnitId())) {
             return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');

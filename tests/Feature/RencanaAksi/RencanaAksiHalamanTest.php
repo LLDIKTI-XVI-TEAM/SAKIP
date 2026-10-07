@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -18,6 +19,7 @@ use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -99,13 +101,14 @@ class RencanaAksiHalamanTest extends TestCase
                 === collect([$diajukan->id, $diverifikasi->id])->sort()->values()->all()));
     }
 
-    public function test_index_menyembunyikan_unit_terdeny_dan_menolak_tanpa_izin_sahkan(): void
+    public function test_index_menyembunyikan_unit_terdeny_read_dan_mengizinkan_read_only_tanpa_sahkan(): void
     {
         $unitLain = Unit::create(['nama' => 'Unit Lain Halaman', 'created_by' => $this->perencana->id]);
         $tersembunyi = $this->buatRencanaAksi('diverifikasi', $unitLain, 'pic');
         $terlihat = $this->buatRencanaAksi('diverifikasi', null, 'pic');
+        // Deny read menyembunyikan unit; deny sahkan tidak menyembunyikan antrean lihat.
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
-            'permission_id' => Permission::where('kode', 'rencana_aksi:sahkan')->value('id'),
+            'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
             'unit_id' => $unitLain->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
 
         $this->actingAs($this->perencana)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
@@ -114,7 +117,14 @@ class RencanaAksiHalamanTest extends TestCase
             ->missing('rencanaAksis.1'));
         $this->assertNotContains($tersembunyi->id, [$terlihat->id]);
 
+        // Pegawai read-only (tanpa sahkan) tetap boleh lihat antrean.
         $pegawai = $this->userWithRole('pegawai');
+        $this->actingAs($pegawai)->get('/rencana-aksi')->assertOk();
+
+        // Tanpa read global (deny global) tetap 403.
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $pegawai->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
+            'unit_id' => null, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
         $this->actingAs($pegawai)->get('/rencana-aksi')->assertForbidden();
     }
 
@@ -134,8 +144,10 @@ class RencanaAksiHalamanTest extends TestCase
     {
         $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic');
 
+        // Admin read-only boleh lihat detail, tetapi can.ratify false.
         $admin = $this->userWithRole('admin');
-        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id)->assertForbidden();
+        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', false)->where('rencanaAksi.can.evidence', false));
 
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
             'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
@@ -156,6 +168,100 @@ class RencanaAksiHalamanTest extends TestCase
 
         $this->actingAs($this->perencana)->get('/rencana-aksi/'.$raSah->id)->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', true)->where('rencanaAksi.indikator.kode', $raSah->fresh()->indikator->kode));
+    }
+
+    public function test_read_only_admin_pimpinan_pegawai_lihat_tetapi_sahkan_403(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
+
+        foreach (['admin', 'pimpinan', 'pegawai'] as $kode) {
+            $user = $this->userWithRole($kode);
+            $this->actingAs($user)->get('/rencana-aksi')->assertOk();
+            $this->actingAs($user)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+                ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', false));
+            // Tombol tersembunyi mengikuti can.ratify false di Show.tsx; POST tetap ditolak.
+            $this->actingAs($user)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
+        }
+    }
+
+    public function test_deny_berkas_read_menyembunyikan_bukti_tetapi_count_tetap(): void
+    {
+        // RA tanpa versi dulu agar snapshot beku bisa di-INSERT dengan ID bukti yang sudah ada.
+        $ra = $this->buatRencanaAksi('diverifikasi');
+        $buktiId = (string) Str::uuid();
+        $buktiSnapshot = [['id' => $buktiId, 'jenis_berkas_id' => null, 'menggantikan_id' => null, 'alasan_koreksi' => null,
+            'mode' => 'tautan', 'nama_asli' => 'Dokumen Rahasia', 'mime' => null, 'ukuran_bytes' => null, 'tautan' => 'https://rahasia.internal/dokumen', 'isi_teks' => null]];
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 1,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'snapshot' => ['uraian' => 'Versi pengajuan beku.',
+                'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]],
+                'bukti_dukungs' => $buktiSnapshot]]);
+
+        // Perencana normal (punya berkas:read) melihat bukti.
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.can.evidence', true)->has('rencanaAksi.bukti_dukungs', 1)
+            ->where('rencanaAksi.bukti_dukungs.0.tautan', 'https://rahasia.internal/dokumen'));
+
+        // Deny berkas:read unit target menyembunyikan isi bukti.
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
+            'permission_id' => Permission::where('kode', 'berkas:read')->value('id'),
+            'unit_id' => $this->unit->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
+        // Cabut fallback kelola agar deny benar-benar menutup akses bukti.
+        DB::table('role_permissions')->where('role_id', Role::where('kode', 'perencanaan')->value('id'))
+            ->whereIn('permission_id', Permission::whereIn('kode', ['rencana_aksi:update', 'rencana_aksi:ajukan'])->pluck('id'))->delete();
+
+        $this->actingAs($this->perencana->fresh())->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.can.evidence', false)->has('rencanaAksi.bukti_dukungs', 0)
+            ->where('rencanaAksi.bukti_count', 1)->missing('rencanaAksi.bukti_dukungs.0.tautan'));
+    }
+
+    public function test_snapshot_tanpa_bukti_dukungs_tidak_fallback_live(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
+        // Snapshot fixture memang tanpa key bukti_dukungs; buat bukti live yang tidak boleh bocor ke beku.
+        $live = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti live yang tidak dibekukan.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.bukti_count', 0)->has('rencanaAksi.bukti_dukungs', 0));
+
+        $this->assertNotNull($live->id);
+        // Target periode tanpa key juga kosong, bukan live (pola sama, sudah benar).
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk();
+    }
+
+    public function test_delete_evidence_baru_pasca_buka_kembali_bisa_dihapus(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi');
+        $lama = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti resmi beku.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 1,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'snapshot' => ['uraian' => 'Versi pengajuan beku.',
+                'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]],
+                'bukti_dukungs' => [[
+                    'id' => $lama->id, 'jenis_berkas_id' => null, 'menggantikan_id' => null, 'alasan_koreksi' => null,
+                    'mode' => 'teks', 'nama_asli' => null, 'mime' => null, 'ukuran_bytes' => null, 'tautan' => null, 'isi_teks' => 'Bukti resmi beku.']]]]);
+
+        // Sahkan agar ratifiedVersion terbentuk.
+        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
+        $ra = $ra->fresh();
+        $this->assertSame('disahkan', $ra->status_alur);
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $lama])->denied());
+
+        // Buka-kembali resmi: status dikembalikan tetapi ratifiedVersion tetap ada.
+        $ra->update(['status_alur' => 'dikembalikan']);
+        $ra = $ra->fresh();
+        $this->assertNotNull($ra->ratifiedVersion);
+
+        $baru = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti baru pasca-buka-kembali.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+
+        // Bukti lama (ID di snapshot resmi) tetap beku; bukti baru bisa dihapus.
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $lama])->denied());
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $baru])->allowed());
     }
 
     private function userWithRole(string $kode): User

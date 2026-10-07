@@ -64,9 +64,45 @@ export default function RencanaAksiShow({ rencanaAksi }: { rencanaAksi: RencanaA
                 </CardContent>
             </Card>
             <Card>
+                <CardHeader><CardTitle>Rincian komponen beku</CardTitle></CardHeader>
+                <CardContent>
+                    {rencanaAksi.target_periode.every((row) => (row.komponen ?? []).length === 0) ? (
+                        <p className="text-sm text-muted">Tidak ada rincian komponen pada versi pengajuan ini.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <caption className="mb-2 text-left font-medium">Nilai tiap komponen beku per periode</caption>
+                                <thead>
+                                    <tr className="border-b border-border">
+                                        <th scope="col" className="p-2">Periode</th>
+                                        <th scope="col" className="p-2">Kode komponen</th>
+                                        <th scope="col" className="p-2">Label komponen</th>
+                                        <th scope="col" className="p-2 text-right">Nilai</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rencanaAksi.target_periode.flatMap((row) =>
+                                        (row.komponen ?? []).map((komponen, index) => (
+                                            <tr key={`${row.periode_id ?? row.periode_nama ?? 'tanpa-periode'}-${komponen.komponen_id ?? index}`} className="border-b border-border">
+                                                <th scope="row" className="p-2 font-normal">{row.periode_nama || row.periode_id || '—'}</th>
+                                                <td className="p-2 font-mono text-xs">{komponen.kode || komponen.komponen_id || '—'}</td>
+                                                <td className="p-2 text-muted">{komponen.label || '—'}</td>
+                                                <td className="p-2 text-right">{komponen.nilai === null || komponen.nilai === undefined ? 'Belum diisi' : String(komponen.nilai)}</td>
+                                            </tr>
+                                        )),
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            <Card>
                 <CardHeader><CardTitle>Bukti dukung pengajuan</CardTitle></CardHeader>
                 <CardContent>
-                    {rencanaAksi.bukti_dukungs.length === 0 ? (
+                    {!rencanaAksi.can.evidence ? (
+                        <p className="text-sm text-muted">Anda tidak memiliki akses untuk melihat bukti dukung pengajuan ini.</p>
+                    ) : rencanaAksi.bukti_dukungs.length === 0 ? (
                         <p className="text-sm text-muted">Tidak ada bukti dukung pada versi pengajuan ini.</p>
                     ) : (
                         <ul className="space-y-3 text-sm">
