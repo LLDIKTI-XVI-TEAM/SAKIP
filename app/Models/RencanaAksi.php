@@ -38,6 +38,24 @@ class RencanaAksi extends Model
         return $this->belongsTo(JadwalTahunan::class, 'jadwal_tahunan_id');
     }
 
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function penanggungJawab(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'penanggung_jawab_id');
+    }
+
+    /** @return HasMany<BuktiDukung, $this> */
+    public function buktiDukungs(): HasMany
+    {
+        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi')->whereNull('dihapus_pada');
+    }
+
     /** @return HasMany<RencanaAksiVersi, $this> */
     public function versions(): HasMany
     {

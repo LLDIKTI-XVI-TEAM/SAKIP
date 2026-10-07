@@ -28,6 +28,7 @@ class HandleInertiaRequests extends Middleware
                         'dashboard' => $can['dashboard'],
                         'pengukuran' => $can['pengukuran'],
                         'verifikasi' => $can['verifikasi'],
+                        'rencanaAksi' => $can['rencanaAksi'],
                         'aktivasi' => $can['aktivasi'],
                         'regulasi' => $can['regulasi'],
                         'renstra' => $can['renstra'],
@@ -69,6 +70,7 @@ class HandleInertiaRequests extends Middleware
             'dashboard' => false,
             'pengukuran' => false,
             'verifikasi' => false,
+            'rencanaAksi' => false,
             'aktivasi' => false,
             'assignRole' => false,
             'manageDeny' => false,
@@ -122,6 +124,8 @@ class HandleInertiaRequests extends Middleware
                 && ($resolver->allows($user, 'pengukuran:verifikasi')
                     || $resolver->allows($user, 'pengukuran:sahkan')
                     || $resolver->allows($user, 'pengukuran:kembalikan')),
+            'rencanaAksi' => $resolver->allows($user, 'rencana_aksi:read')
+                && $resolver->allows($user, 'rencana_aksi:sahkan'),
             'aktivasi' => $resolver->allows($user, 'pengguna:read'),
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),

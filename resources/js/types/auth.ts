@@ -21,6 +21,7 @@ export interface SharedPageProps extends PageProps {
             dashboard: boolean;
             pengukuran: boolean;
             verifikasi: boolean;
+            rencanaAksi?: boolean;
             aktivasi: boolean;
             regulasi: boolean;
             renstra?: boolean;

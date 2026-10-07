@@ -152,6 +152,7 @@ export function AuthenticatedLayout({
         { href: '/perencanaan/sasaran-indikator', label: 'Sasaran & Indikator', icon: Target, visible: auth.can.sasaranIndikator ?? false },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
+        { href: '/rencana-aksi', label: 'Rencana Aksi', icon: CheckCircle2, visible: auth.can.rencanaAksi ?? false },
         { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },
         { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
         { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
