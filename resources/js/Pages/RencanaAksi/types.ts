@@ -40,6 +40,7 @@ export interface RencanaAksiRingkas {
     indikator: { kode: string; nama: string };
     unit_kerja: { id: string; nama: string };
     pic: { id: string; nama: string } | null;
+    konteks_tidak_lengkap: string[];
     bukti_count: number;
     bukti_dukungs: RencanaAksiBukti[];
     target_periode: { periode_id: string | null; nilai: string | number | null; status_perhitungan: string | null; komponen: RencanaAksiKomponenBeku[] }[];

@@ -6,6 +6,7 @@ use App\Actions\Audit\WriteAuditLog;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\RencanaAksi;
+use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
 use App\Services\Authorization\PermissionResolver;
@@ -29,6 +30,13 @@ class SahkanRencanaAksi
                 $ra = RencanaAksi::lockForUpdate()->findOrFail($id);
                 $snapshot = JadwalSnapshot::lockForUpdate()->findOrFail($ra->jadwal_snapshot_id);
                 $snapshot->setRelation('jadwal', JadwalTahunan::lockForUpdate()->findOrFail($snapshot->jadwal_id));
+                // FIX1: serialkan penonaktifan unit paralel. Urutan kunci satu arah
+                // User→RencanaAksi→Snapshot→Jadwal→Unit (konsisten dengan
+                // UpdateUnitAction/DeleteUnitAction yang mengunci User dulu lalu Unit,
+                // sehingga tidak ada siklus lock). lockForUpdate (bukan sharedLock)
+                // mengikuti rantai eksklusif Sahkan/ChangePengukuran; baris unit yang
+                // dicek businessErrors adalah baris terkunci ini.
+                $snapshot->setRelation('unit', Unit::lockForUpdate()->findOrFail($snapshot->unit_id));
                 $ra->setRelation('jadwalSnapshot', $snapshot);
                 $decision = $this->resolver->decide($actor, $permission, $ra->targetUnitId());
                 if (! $decision['allowed']) {

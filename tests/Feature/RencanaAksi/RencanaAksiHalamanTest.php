@@ -77,9 +77,14 @@ class RencanaAksiHalamanTest extends TestCase
         $ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $unit->id, 'jadwal_tahunan_id' => $this->jadwal->id,
             'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $this->picUser->id, 'created_by' => $this->perencana->id, 'status_alur' => $status]);
         if ($jalur !== null) {
+            // FIX3: snapshot versi memuat konteks beku (kontrak PresentRencanaAksi).
             RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $snapshot->id, 'nomor' => 1, 'diajukan_by' => ($diajukanBy ?? $this->picUser)->id,
                 'diajukan_at' => now(), 'jalur_pengajuan' => $jalur, 'dasar_izin_pengajuan' => ['jalur' => $jalur, 'unit_id' => $unit->id],
-                'snapshot' => ['uraian' => 'Versi pengajuan beku.', 'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
+                'snapshot' => ['uraian' => 'Versi pengajuan beku.',
+                    'indikator' => ['kode' => $indikator->kode, 'nama' => $indikator->nama],
+                    'unit_kerja' => ['id' => $unit->id, 'nama' => $unit->nama],
+                    'pic' => ['id' => $this->picUser->id, 'nama' => $this->picUser->nama],
+                    'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
         }
 
         return $ra;
@@ -262,6 +267,114 @@ class RencanaAksiHalamanTest extends TestCase
         // Bukti lama (ID di snapshot resmi) tetap beku; bukti baru bisa dihapus.
         $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $lama])->denied());
         $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $baru])->allowed());
+    }
+
+    /**
+     * FIX1: penonaktifan unit di antara baca (Gate lolos saat aktif) dan tulis
+     * (POST sahkan) membuat pengesahan ditolak — cek terkunci terserialisasi.
+     */
+    public function test_sahkan_ditolak_saat_unit_dinonaktifkan_setelah_baca(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
+
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('sahkan', $ra->fresh())->allowed());
+
+        $this->unit->update(['status' => 'nonaktif']);
+
+        $denied = Gate::forUser($this->perencana)->inspect('sahkan', $ra->fresh());
+        $this->assertTrue($denied->denied());
+        $this->assertStringContainsString('nonaktif', (string) $denied->message());
+
+        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
+        $this->assertSame('diverifikasi', $ra->fresh()->status_alur);
+        $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_tipe' => 'rencana_aksi', 'objek_id' => $ra->id]);
+    }
+
+    /**
+     * FIX2: ID bukti yang ada di snapshot SEMUA versi tersahkan tetap beku
+     * walau versi tersahkan terbaru tidak merujuknya. v1=[A] tersahkan,
+     * v2=[B] tersahkan, lalu buka-kembali: A dan B ditolak, bukti baru (C) diizinkan.
+     */
+    public function test_delete_evidence_menolak_id_dari_semua_versi_tersahkan(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi');
+        $a = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti A versi satu.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+        $b = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti B versi dua.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+        $beku = ['uraian' => 'Versi pengajuan beku.',
+            'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]];
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 1,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'disahkan_by' => $this->perencana->id, 'disahkan_at' => now(),
+            'snapshot' => [...$beku, 'bukti_dukungs' => [['id' => $a->id, 'mode' => 'teks', 'isi_teks' => 'Bukti A versi satu.']]]]);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 2,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'disahkan_by' => $this->perencana->id, 'disahkan_at' => now(),
+            'snapshot' => [...$beku, 'bukti_dukungs' => [['id' => $b->id, 'mode' => 'teks', 'isi_teks' => 'Bukti B versi dua.']]]]);
+
+        // Buka-kembali resmi: status dikembalikan tetapi kedua versi tersahkan tetap ada.
+        $ra->update(['status_alur' => 'dikembalikan']);
+        $ra = $ra->fresh();
+        $this->assertCount(2, $ra->versions()->whereNotNull('disahkan_at')->get());
+
+        // Versi terbaru (v2) tidak merujuk A — cek terbaru-saja akan keliru mengizinkan.
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $a])->denied());
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $b])->denied());
+
+        $c = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
+            'mode' => 'teks', 'isi_teks' => 'Bukti baru tak di snapshot mana pun.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $c])->allowed());
+    }
+
+    /**
+     * FIX3: master berubah setelah submit — detail beku tetap nilai snapshot,
+     * bukan nilai live.
+     */
+    public function test_detail_beku_memakai_snapshot_bukan_master_live(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
+        $beku = $ra->fresh()->latestVersion->snapshot;
+
+        $ra->indikator->update(['kode' => 'I-BERUBAH', 'nama' => 'Indikator berubah live']);
+        $this->unit->update(['nama' => 'Unit berubah live']);
+        $this->picUser->update(['nama' => 'PIC berubah live']);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/Show')
+            ->where('rencanaAksi.indikator.kode', $beku['indikator']['kode'])
+            ->where('rencanaAksi.indikator.nama', $beku['indikator']['nama'])
+            ->where('rencanaAksi.unit_kerja.nama', $beku['unit_kerja']['nama'])
+            ->where('rencanaAksi.pic.nama', $beku['pic']['nama'])
+            ->where('rencanaAksi.uraian', 'Versi pengajuan beku.')
+            ->where('rencanaAksi.konteks_tidak_lengkap', []));
+    }
+
+    /**
+     * FIX3: snapshot lama tanpa key konteks → penanda 'konteks tidak lengkap',
+     * bukan nilai live dan bukan 500.
+     */
+    public function test_detail_beku_tanpa_konteks_menampilkan_penanda(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi');
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 1,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'snapshot' => ['target_periode' => []]]);
+        $ra->indikator->update(['kode' => 'I-BERUBAH', 'nama' => 'Indikator berubah live']);
+        $jadwalNamaBeku = $ra->jadwalSnapshot->nama;
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/Show')
+            ->where('rencanaAksi.indikator.kode', 'konteks tidak lengkap')
+            ->where('rencanaAksi.indikator.nama', $jadwalNamaBeku)
+            ->where('rencanaAksi.unit_kerja.nama', 'konteks tidak lengkap')
+            ->where('rencanaAksi.pic.nama', 'konteks tidak lengkap')
+            ->where('rencanaAksi.uraian', 'konteks tidak lengkap')
+            ->where('rencanaAksi.konteks_tidak_lengkap', fn ($hilang) => collect($hilang)->contains('indikator_kode')
+                && collect($hilang)->contains('unit_nama') && collect($hilang)->contains('uraian')));
     }
 
     private function userWithRole(string $kode): User

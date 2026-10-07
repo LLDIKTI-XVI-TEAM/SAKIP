@@ -54,8 +54,11 @@ class RencanaAksiPolicy
 
     /**
      * Guard bukti pasca-sah: status disahkan membeku semua; setelah buka-kembali
-     * (dikembalikan + ratifiedVersion ada) hanya ID dalam snapshot resmi yang beku.
+     * (dikembalikan + versi tersahkan ada) hanya ID dalam snapshot resmi yang beku.
      * Bukti baru pasca-buka-kembali (ID tidak ada di snapshot resmi) tetap bisa dihapus.
+     * FIX2: cek SEMUA versi dengan disahkan_at NOT NULL (satu query versions),
+     * bukan hanya ratifiedVersion terbaru — ID yang muncul di salah satu snapshot
+     * resmi tetap beku walau versi terbaru tidak merujuknya lagi.
      */
     public function deleteEvidence(User $user, RencanaAksi $ra, BuktiDukung $bukti): Response
     {
@@ -65,12 +68,11 @@ class RencanaAksiPolicy
         if ($ra->status_alur === 'disahkan') {
             return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
         }
-        $ratified = $ra->ratifiedVersion ?? $ra->loadMissing('ratifiedVersion')->ratifiedVersion;
-        if ($ratified !== null) {
-            $frozenIds = is_array($ratified->snapshot) ? array_column($ratified->snapshot['bukti_dukungs'] ?? [], 'id') : [];
-            if (in_array($bukti->id, $frozenIds, true)) {
-                return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
-            }
+        $frozenIds = $ra->versions()->whereNotNull('disahkan_at')->get(['snapshot'])
+            ->flatMap(fn ($version) => is_array($version->snapshot) ? array_values($version->snapshot['bukti_dukungs'] ?? []) : [])
+            ->pluck('id')->filter()->unique()->values()->all();
+        if (in_array($bukti->id, $frozenIds, true)) {
+            return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
         }
         if (! $this->resolver->allows($user, 'berkas:delete', $ra->targetUnitId())) {
             return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
@@ -104,7 +106,12 @@ class RencanaAksiPolicy
         if ($jadwal->renstra_id !== $ra->indikator->sasaranStrategis->renstra_id) {
             $errors[] = 'Renstra jadwal tidak cocok dengan indikator.';
         }
-        if (! DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists()) {
+        // FIX1: bila Action sudah mengunci baris unit (SahkanRencanaAksi), nilai
+        // terkunci yang dipakai — bukan baca ulang tanpa lock (anti-TOCTOU).
+        // Jalur Gate tanpa transaksi memakai cek DB seperti sebelumnya.
+        $unitAktif = $this->lockedUnitStatus($ra)
+            ?? DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists();
+        if (! $unitAktif) {
             $errors[] = 'Unit organisasi rencana aksi berstatus nonaktif.';
         }
         if ($jadwal->status !== 'aktif') {
@@ -131,5 +138,18 @@ class RencanaAksiPolicy
         }
 
         return $errors;
+    }
+
+    /**
+     * Status unit dari relasi terkunci (SahkanRencanaAksi mengunci
+     * jadwalSnapshot.unit via lockForUpdate). Null bila relasi tak dimuat —
+     * pemanggil memakai cek DB biasa.
+     */
+    private function lockedUnitStatus(RencanaAksi $ra): ?bool
+    {
+        $snapshot = $ra->relationLoaded('jadwalSnapshot') ? $ra->jadwalSnapshot : null;
+        $unit = $snapshot && $snapshot->relationLoaded('unit') ? $snapshot->unit : null;
+
+        return $unit ? $unit->status === 'aktif' : null;
     }
 }
