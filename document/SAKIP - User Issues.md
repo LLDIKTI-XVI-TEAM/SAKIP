@@ -1179,7 +1179,7 @@ kegiatan:update
 - **Otorisasi:** `jadwal:aktivasi` (sensitif).
 - **Dampak Data:** `jadwal_tahunan`, `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 
-> **Status implementasi — PR #67:** centang menunjukkan bukti implementasi dan QA pada `57c0e46`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37603846679); bukan persetujuan UAT atau deployment. Bukti memakai test PHPUnit pada `tests/Feature/Jadwal/JadwalActivation*`, test integrasi PostgreSQL dua koneksi dan commit fisik pada `tests/Integration/Jadwal/`, test frontend `tests/Frontend/JadwalActivationPanel.test.tsx`, serta E2E browser lokal. Indikator yang belum mulai berlaku pada tahun jadwal tidak termasuk gerbang/snapshot sesuai Q20. Kontras teks dan checklist `design-system.md` belum diaudit formal sehingga dua item terkait tetap terbuka. Pembentukan snapshot saat `jadwal:buka_kembali` (Plan 3.9) dan koreksi/versi snapshot (ISS-03.03) bukan cakupan PR ini.
+> **Status implementasi — PR #67:** centang menunjukkan bukti implementasi dan QA pada `57c0e46`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37603846679); bukan persetujuan UAT atau deployment. Bukti memakai test PHPUnit pada `tests/Feature/Jadwal/JadwalActivation*`, test integrasi PostgreSQL dua koneksi dan commit fisik pada `tests/Integration/Jadwal/`, test frontend `tests/Frontend/JadwalActivationPanel.test.tsx`, serta E2E browser lokal. Indikator yang belum mulai berlaku pada tahun jadwal tidak termasuk gerbang/snapshot sesuai Q20. Audit kontras dan checklist `design-system.md` dilakukan pada perbaikan token `text-success-dark` (status lolos/siap sebelumnya 3,3:1; seluruh teks panel kini ≥4,5:1 pada state siap, gagal, blocker, dirty, sukses, dan pemulihan). Pembentukan snapshot saat `jadwal:buka_kembali` (Plan 3.9) dan koreksi/versi snapshot (ISS-03.03) bukan cakupan PR ini.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -1209,7 +1209,7 @@ kegiatan:update
 **D. Frontend / UX**
 - [x] Buat/rapikan page dan reusable component React untuk **Aktivasi Jadwal Tahunan melalui Empat Gerbang & Pembentukan Snapshot**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 - [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
@@ -1228,7 +1228,7 @@ kegiatan:update
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-03.03 · [Feature] Koreksi Snapshot Terkendali dan Versioning Konteks
