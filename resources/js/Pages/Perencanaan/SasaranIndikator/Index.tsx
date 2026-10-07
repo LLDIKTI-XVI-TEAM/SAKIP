@@ -18,6 +18,7 @@ import {
     ChevronUp,
     Sigma,
     BookOpen,
+    UserCheck,
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
@@ -169,6 +170,15 @@ export default function SasaranIndikatorIndex({
     return (
         <AuthenticatedLayout
             title="Sasaran & Indikator Kinerja"
+            headerActions={can.penanggung_jawab_update && (
+                <Link
+                    href="/penanggung-jawab"
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1"
+                >
+                    <UserCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    Monitoring PJ
+                </Link>
+            )}
             breadcrumbs={[
                 { label: 'Perencanaan' },
                 { label: 'Sasaran & Indikator' },
@@ -179,7 +189,7 @@ export default function SasaranIndikatorIndex({
             <div className="space-y-6">
                 {/* Header Context Card */}
                 <Card className="p-4 sm:p-5 bg-surface shadow-xs border border-border overflow-visible relative z-20">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                         {/* Metadata Renstra (Paling Kiri) */}
                         {selectedRenstra ? (
                             <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted">
@@ -211,18 +221,19 @@ export default function SasaranIndikatorIndex({
                         )}
 
                         {/* Filter & Actions (Sisi Kanan) */}
-                        <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:shrink-0">
                             {/* Renstra Selector */}
-                            <div className="w-full sm:w-60">
+                            <div className="w-full lg:w-72">
                                 <Select
                                     id="renstra_filter"
+                                    className="renstra-filter h-10"
                                     value={selectedRenstraId || ''}
                                     onChange={(e) => handleRenstraChange(e.target.value)}
                                     aria-label="Pilih Periode Renstra"
                                 >
                                     {renstras.map((r) => (
                                         <option key={r.id} value={r.id}>
-                                            {r.nama} ({r.tahun_mulai} - {r.tahun_selesai}) {r.is_aktif ? '★ Aktif' : ''}
+                                            {r.nama} ({r.tahun_mulai} - {r.tahun_selesai}) {r.is_aktif ? 'Aktif' : ''}
                                         </option>
                                     ))}
                                 </Select>
@@ -299,9 +310,6 @@ export default function SasaranIndikatorIndex({
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-primary text-white">
                                                 {sasaran.kode}
                                             </span>
-                                            <span className="text-xs font-medium text-muted">
-                                                Urutan #{sasaran.urutan}
-                                            </span>
                                             <Badge variant="primary" size="sm">
                                                 {sasaran.indikator_kinerjas.length} Indikator
                                             </Badge>
@@ -330,7 +338,7 @@ export default function SasaranIndikatorIndex({
                                         <button
                                             type="button"
                                             onClick={() => openEditSasaran(sasaran)}
-                                            className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                             title="Ubah Sasaran"
                                             aria-label={`Ubah sasaran ${sasaran.kode}`}
                                         >
@@ -342,7 +350,7 @@ export default function SasaranIndikatorIndex({
                                         <button
                                             type="button"
                                             onClick={() => setDeleteTarget({ type: 'sasaran', item: sasaran })}
-                                            className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
                                             title="Hapus Sasaran"
                                             aria-label={`Hapus sasaran ${sasaran.kode}`}
                                         >
@@ -357,23 +365,9 @@ export default function SasaranIndikatorIndex({
                                 <div>
                                     {sasaran.indikator_kinerjas.length === 0 ? (
                                         <div className="p-8 text-center bg-soft/30">
-                                            <Calculator className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
-                                            <p className="mt-2 text-sm text-muted">
+                                            <p className="text-sm text-muted">
                                                 Sasaran strategis ini belum memiliki indikator kinerja.
                                             </p>
-                                            {can.indikator_create && (
-                                                <div className="mt-3">
-                                                    <Button
-                                                        variant="primary"
-                                                        size="sm"
-                                                        onClick={() => openCreateIndikator(sasaran.id)}
-                                                        className="gap-1.5"
-                                                    >
-                                                        <Plus className="h-3.5 w-3.5" />
-                                                        Tambah Indikator Pertama
-                                                    </Button>
-                                                </div>
-                                            )}
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto">
@@ -456,6 +450,7 @@ export default function SasaranIndikatorIndex({
                                                             {/* 5. Aksi */}
                                                             <td className="px-5 py-4 align-middle text-right">
                                                                 <div className="flex items-center justify-end gap-1.5">
+                                                                    {can.penanggung_jawab_update && <Link href={`/perencanaan/indikator/${ind.id}/penanggung-jawab`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-primary hover:bg-soft" aria-label={`Penanggung jawab ${ind.kode}`}>PJ</Link>}
                                                                     {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
                                                                         <Link
                                                                             href={`/indikator/${ind.id}/komponen`}

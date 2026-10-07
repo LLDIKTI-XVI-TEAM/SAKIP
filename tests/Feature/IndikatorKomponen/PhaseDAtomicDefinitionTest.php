@@ -3,6 +3,7 @@
 namespace Tests\Feature\IndikatorKomponen;
 
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
@@ -16,6 +17,7 @@ use App\Models\UserPermissionDeny;
 use App\Services\AuditLogger;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -405,7 +407,10 @@ class PhaseDAtomicDefinitionTest extends TestCase
     {
         $payload = $this->payload();
         $response = $this->patch("/perencanaan/indikator/{$this->indikator->id}/formula", $payload)->assertSessionHasNoErrors();
-        $this->get($response->headers->get('Location'), ['X-Inertia' => 'true'])
+        $this->get($response->headers->get('Location'), [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(Request::create($response->headers->get('Location'))),
+        ])
             ->assertOk()->assertJsonPath('flash.indikatorMutation.request_id', $payload['request_id'])
             ->assertJsonPath('flash.indikatorMutation.status', 'unchanged');
     }

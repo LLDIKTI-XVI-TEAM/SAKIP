@@ -17,6 +17,7 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
 use App\Http\Controllers\Pengaturan\UpdatePengaturan;
@@ -86,6 +87,13 @@ Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block()
 Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/penanggung-jawab', [PenanggungJawabController::class, 'index'])->name('penanggung-jawab.index');
+    Route::get('/penanggung-jawab/opsi/pengguna', [PenanggungJawabController::class, 'users'])->name('penanggung-jawab.users');
+    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'show'])->whereUuid('indikator')->name('penanggung-jawab.show');
+    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab/hak-kerja', [PenanggungJawabController::class, 'readiness'])->whereUuid('indikator')->name('penanggung-jawab.readiness');
+    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'store'])->whereUuid('indikator')->name('penanggung-jawab.store');
+    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab/pergantian', [PenanggungJawabController::class, 'change'])->whereUuid('indikator')->name('penanggung-jawab.change');
+
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
     Route::get('/jadwal/opsi/{jenis}', [JadwalController::class, 'options'])->whereIn('jenis', ['renstra', 'periode'])->name('jadwal.options');

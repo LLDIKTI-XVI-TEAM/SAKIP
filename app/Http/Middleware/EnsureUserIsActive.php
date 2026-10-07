@@ -12,6 +12,9 @@ class EnsureUserIsActive
     {
         // Baca status saat request, termasuk session yang dibentuk sebelum penonaktifan.
         if ($request->user()?->fresh()?->status !== 'aktif') {
+            // Respons tanpa navigasi menjaga draft form saat akun dinonaktifkan di sesi lain.
+            abort_if($request->header('X-Inertia') && ! $request->isMethodSafe(), 403, 'Akun tidak aktif. Periksa status akun sebelum melanjutkan.');
+
             return redirect()->route('auth.pending');
         }
 

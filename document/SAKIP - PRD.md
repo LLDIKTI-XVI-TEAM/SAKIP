@@ -552,13 +552,20 @@ Aturan final:
 2. tidak ada syarat PIC operasional (bukan role) karena role tersebut tidak ada;
 3. Perencanaan dan Superadmin dapat menetapkan PJ sesuai permission efektif;
 4. assignment tidak memberikan permission;
-5. untuk melakukan pekerjaan unit, user tetap membutuhkan grant unit yang sesuai;
-6. calon PJ tanpa grant menimbulkan **warning**, bukan blokir;
+5. hak kerja pada unit indikator tetap dinilai oleh PermissionResolver dari role/grant yang sah dan explicit deny;
+6. calon PJ dengan izin kerja belum lengkap menimbulkan **warning**, bukan blokir;
 7. sistem menyediakan daftar **PJ aktif tanpa hak isi**;
 8. perubahan role user tidak mengakhiri assignment;
 9. revoke hak isi harus eksplisit, beralasan, dan teraudit.
 
-Penanggung jawab efektif pada tanggal T adalah assignment terakhir dengan `tanggal_mulai_berlaku <= T`. Histori lama tidak dihapus ketika terjadi pergantian.
+Penanggung jawab efektif pada tanggal T adalah assignment dengan `tanggal_mulai_berlaku` terbesar yang `<= T`. Histori lama tidak dihapus atau ditimpa ketika terjadi pergantian.
+
+Keputusan ISS-04.01 (#54):
+
+- Tanggal lampau dan mendatang diperbolehkan; kombinasi indikator dan tanggal mulai berlaku harus unik.
+- Penetapan yang tidak mengubah PJ efektif pada tanggal tersebut ditolak sebagai no-op. User lama dapat ditetapkan kembali setelah digantikan user lain; pergantian wajib alasan.
+- Indikator berstatus `arsip`, Renstra `diarsipkan`, atau unit `nonaktif` menolak mutasi di server dan tetap mengizinkan pembacaan histori sesuai akses.
+- Monitoring menilai seluruh tujuh permission scoped untuk unit indikator: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, dan `kegiatan:create/update`. Tampilkan izin tersedia dan kurang menurut PermissionResolver saat ini; explicit deny menang dan akun nonaktif fail-closed. Diagnosis tidak menggantikan pemeriksaan setiap aksi.
 
 Untuk initial setup 2026, Rencana Aksi yang sudah disusun Perencanaan harus dicatat sebagai **disahkan** sebelum pengajuan TW III. Workflow PIC operasional normal untuk RA baru dimulai dari siklus berikutnya (2027).
 

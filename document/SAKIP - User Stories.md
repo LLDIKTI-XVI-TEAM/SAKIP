@@ -581,7 +581,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-04.01 · Penetapan, Pergantian, dan Resolusi PIC Efektif
 
-> **Q32:** PJ dapat menunjuk user aktif mana pun. Assignment tidak memberi permission; calon PJ tanpa grant hanya diberi warning dan masuk daftar “PJ aktif tanpa hak isi”.
+> **Q32:** PJ dapat menunjuk user aktif mana pun. Assignment tidak memberi permission; calon PJ dengan izin kerja belum lengkap diberi warning dan masuk daftar “PJ aktif tanpa hak isi”.
 
 | Field | Detail |
 |---|---|
@@ -599,20 +599,23 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
-- [ ] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
+- [x] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
+- [x] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
 - [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
 - [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
-- [ ] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
-- [ ] **AC-6 (Q31-OPEN):** Given belum ada keputusan final eligibility role terhadap `penanggung_jawab`, When implementasi assignment dibangun, Then tidak boleh ada constraint hardcoded yang hanya menerima PIC operasional (bukan role); validasi tersebut baru menjadi final setelah keputusan bisnis diterbitkan.
+- [x] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
+- [x] **AC-6 (Q32):** Given target user aktif dengan role apa pun atau belum memiliki role, When ditetapkan sebagai PJ, Then assignment diperbolehkan tanpa memberi permission; kesiapan tujuh izin kerja dinilai terpisah melalui PermissionResolver.
 
 
-**Business Rules / Catatan Q31**
+**Business Rules / Q32 dan keputusan ISS-04.01 (#54)**
 
 - `penanggung_jawab` tetap menjadi sumber histori assignment indikator.
-- Role `pic` dan assignment `penanggung_jawab` adalah dua data yang berbeda.
-- Belum boleh diasumsikan bahwa `penanggung_jawab.user_id` wajib PIC operasional (bukan role).
-- Bila keputusan eligibility nanti ditetapkan, story ini wajib direvisi bersamaan dengan Data Model, Workflow, Plan, User Issues, dan test.
+- Peran pengguna dan assignment `penanggung_jawab` merupakan dua data yang berbeda; tidak ada syarat role PIC.
+- Tanggal lampau/mendatang diperbolehkan dengan unique(`indikator_id`, `tanggal_mulai_berlaku`). Resolver memilih tanggal terbesar yang <= tanggal acuan.
+- Tolak penetapan yang tidak mengubah PJ efektif pada tanggal tersebut. PJ lama boleh kembali setelah digantikan user lain; pergantian nyata wajib alasan dan tidak menimpa histori mendatang.
+- Mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak di server; histori tetap tersimpan dan terbaca sesuai akses.
+- Monitoring menampilkan izin tersedia dan kurang untuk semua tujuh permission scoped pada unit indikator menurut ACL saat ini. Explicit deny menang dan user nonaktif fail-closed. Diagnosis tidak menjadi gate pengganti resolver saat aksi dilakukan.
+- Bukti reuse Rencana Aksi pada AC-3/AC-4 dan Plan 4.4 tetap bergantung pada implementasi Modul 11.
 
 ---
 

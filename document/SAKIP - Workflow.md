@@ -1672,6 +1672,10 @@ Halaman **read-only** digerbangi `pengguna:read`. Tidak ada form add/revoke `rol
 - Assignment PJ tidak memberi permission.
 - Jika PJ belum punya hak isi, tampilkan warning dan masukkan ke daftar “PJ aktif tanpa hak isi”.
 - Perubahan role tidak mengakhiri assignment PJ.
+- Tanggal efektif lampau/mendatang diperbolehkan, tetapi satu indikator hanya memiliki satu assignment pada tanggal yang sama. Resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
+- Pergantian menambah histori dan wajib alasan; assignment baru dengan user yang sudah efektif pada tanggal tersebut ditolak sebagai no-op. PJ lama dapat kembali setelah pergantian nyata ke user lain. Histori mendatang yang sudah ada tetap dipertahankan.
+- Server menolak mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif dan mencatat penolakan sesuai kontrak audit; histori tetap dapat dibaca sesuai akses.
+- Monitoring memakai tujuh izin scoped pada unit indikator (`pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`), menampilkan izin tersedia/kurang memakai ACL saat ini. Assignment tidak memberi izin, explicit deny menang, akun nonaktif fail-closed; diagnosis bukan pengganti resolver saat aksi.
 
 ## 23. Catatan Penyelarasan Q32 — Klarifikasi Final
 

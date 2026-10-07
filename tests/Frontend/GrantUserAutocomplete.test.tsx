@@ -278,4 +278,18 @@ describe('GrantUserAutocomplete Component', () => {
         expect(handleChange).toHaveBeenCalled();
         expect(screen.getByText('Dion Kobi')).toBeTruthy();
     });
+
+    it('memakai endpoint PJ dan dapat memuat pilihan di halaman berikutnya', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-a', nama: 'Calon A', email: 'a@example.test', roles: [] }], page: 1, hasMore: true }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-b', nama: 'Calon B', email: 'b@example.test', roles: [] }], page: 2, hasMore: false }), { status: 200 }));
+        const user = userEvent.setup();
+        render(<GrantUserAutocomplete endpoint="/penanggung-jawab/opsi/pengguna" value="" onChange={vi.fn()} debounceMs={10} />);
+        await user.type(screen.getByRole('combobox'), 'Calon');
+        await screen.findByText('Calon A');
+        await user.click(screen.getByRole('button', { name: 'Muat pengguna berikutnya' }));
+        await screen.findByText('Calon B');
+        expect(screen.getByText('Calon A')).toBeTruthy();
+        expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain('/penanggung-jawab/opsi/pengguna?q=Calon&page=2');
+    });
 });

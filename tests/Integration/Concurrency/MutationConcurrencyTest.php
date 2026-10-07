@@ -6,6 +6,8 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\PenanggungJawab\AssignPenanggungJawab;
+use App\Actions\Pengukuran\ChangePengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
@@ -13,11 +15,20 @@ use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\PengukuranKinerja;
+use App\Models\PenugasanIndikator;
+use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\Regulasi;
+use App\Models\RencanaAksi;
+use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
@@ -841,6 +852,112 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('komponen:create', $audit->dasar_izin['permission']);
         $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.buat']);
+    }
+
+    public function test_pj_two_appends_from_one_state_have_one_winner(): void
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $target = User::factory()->create(['status' => 'aktif']);
+        $payload = ['actor_id' => $actor->id, 'indikator_id' => $indicator->id, 'data' => [
+            'user_id' => $target->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'expected_state' => $indicator->assignmentStateToken(),
+        ]];
+        $results = $this->race('pj-assign', $indicator->id, '', [$payload, $payload],
+            prepare: fn () => User::whereKey($actor->id)->lockForUpdate()->firstOrFail());
+        $this->assertEqualsCanonicalizing(['assigned', 'conflict'], $results);
+        $this->assertDatabaseCount('penanggung_jawab', 1);
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.tetapkan')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+    }
+
+    public function test_pj_reader_waits_for_append_and_returns_matching_token_and_history(): void
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $payload = ['indikator_id' => $indicator->id];
+        $results = $this->race('pj-read', $indicator->id, '', [$payload],
+            prepare: fn () => IndikatorKinerja::whereKey($indicator->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: fn () => app(AssignPenanggungJawab::class)->handle($actor, $indicator, [
+                'user_id' => $actor->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'expected_state' => $indicator->assignmentStateToken(),
+            ]));
+        $this->assertSame(1, $results[0]['count']);
+        $this->assertSame($actor->id, $results[0]['pic_id']);
+        $this->assertSame($indicator->fresh()->assignmentStateToken(), $results[0]['token']);
+    }
+
+    #[DataProvider('pjBoundaryCases')]
+    public function test_pj_rechecks_locked_state_after_waiting(string $change, string $field): void
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $target = User::factory()->create(['status' => 'aktif']);
+        $payload = ['actor_id' => $actor->id, 'indikator_id' => $indicator->id, 'expected_error_field' => $field, 'data' => [
+            'user_id' => $target->id, 'tanggal_mulai_berlaku' => '2026-02-01', 'expected_state' => $indicator->assignmentStateToken(),
+        ]];
+        $results = $this->race('pj-assign', $indicator->id, '', [$payload],
+            prepare: fn () => User::whereIn('id', [$actor->id, $target->id])->orderBy('id')->lockForUpdate()->get(),
+            assertBlocked: function () use ($change, $actor, $target, $indicator): void {
+                match ($change) {
+                    'actor' => $actor->update(['status' => 'nonaktif']),
+                    'target' => $target->update(['status' => 'nonaktif']),
+                    'lifecycle' => $indicator->update(['status' => 'arsip']),
+                    'unit' => $indicator->update(['unit_id' => Unit::create(['nama' => 'Unit Baru', 'created_by' => $actor->id])->id]),
+                    'backdate' => app(AssignPenanggungJawab::class)->handle($actor, $indicator, [
+                        'user_id' => $actor->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'expected_state' => $indicator->assignmentStateToken(),
+                    ]),
+                    default => throw new RuntimeException('Kasus race tidak dikenal.'),
+                };
+            });
+        $this->assertSame([$change === 'actor' ? 'denied' : 'conflict'], $results);
+        $this->assertDatabaseCount('penanggung_jawab', $change === 'backdate' ? 1 : 0);
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+    }
+
+    public static function pjBoundaryCases(): array
+    {
+        return [['actor', 'authorization'], ['target', 'user_id'], ['lifecycle', 'indikator'], ['unit', 'expected_state'], ['backdate', 'expected_state']];
+    }
+
+    public function test_pj_change_waits_until_submission_provenance_is_frozen(): void
+    {
+        [$operator, $indicator] = $this->formulaFixture();
+        $indicator->update(['tipe_perhitungan' => 'manual']);
+        $pic = User::factory()->create(['status' => 'aktif']);
+        $pic->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $permission = Permission::where('kode', 'pengukuran:update')->sole();
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $pic->id, 'permission_id' => $permission->id,
+            'unit_id' => $indicator->unit_id, 'alasan' => 'Fixture', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id,
+            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $operator->id, 'created_at' => now()]);
+        $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
+        $renstra = $indicator->sasaranStrategis->renstra;
+        $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-PJ', 'tanggal_pk' => '2026-01-01', 'created_by' => $operator->id]);
+        $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $schedule = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => '2026-03-01',
+            'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+        $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
+            'unit_id' => $indicator->unit_id, 'nama' => 'Indikator PJ', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
+        $plan = RencanaAksi::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'unit_id' => $indicator->unit_id,
+            'jadwal_tahunan_id' => $schedule->id, 'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $pic->id, 'created_by' => $pic->id,
+            'status_alur' => 'disahkan', 'disahkan_by' => $operator->id, 'disahkan_at' => now()]);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $plan->id, 'jadwal_snapshot_id' => $snapshot->id, 'nomor' => 1, 'diajukan_by' => $pic->id,
+            'diajukan_at' => now(), 'jalur_pengajuan' => 'pic', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'],
+            'snapshot' => ['target_periode' => [['periode_id' => $period->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]],
+            'disahkan_by' => $operator->id, 'disahkan_at' => now()]);
+        $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'periode_id' => $period->id,
+            'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
+        $payload = ['actor_id' => $operator->id, 'indikator_id' => $indicator->id, 'data' => [
+            'user_id' => $target->id, 'tanggal_mulai_berlaku' => '2026-02-01', 'expected_state' => $indicator->assignmentStateToken(), 'alasan' => 'Pergantian setelah pengajuan',
+        ]];
+        $results = $this->race('pj-change', $indicator->id, '', [$payload],
+            prepare: fn () => app(ChangePengukuran::class)->handle($pic, $measurement->id, 'ajukan', ['versi' => 1, 'nilai' => 70]));
+        $this->assertSame(['assigned'], $results);
+        $version = $measurement->fresh()->latestVersion;
+        $this->assertSame($pic->id, $version->diajukan_by);
+        $this->assertSame($pic->id, $version->dasar_izin_pengajuan['pic_id']);
+        $this->assertSame($pic->id, $version->snapshot['pic']['id']);
+        $this->assertSame($target->id, $measurement->fresh()->effectivePic()->user_id);
     }
 
     private function formulaFixture(): array

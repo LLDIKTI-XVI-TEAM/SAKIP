@@ -4,6 +4,7 @@ namespace App\Actions\Pengukuran;
 
 use App\Actions\Audit\WriteAuditLog;
 use App\Models\BuktiDukung;
+use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
@@ -40,7 +41,14 @@ class ChangePengukuran
         try {
             return DB::transaction(function () use ($actor, $id, $command, $data, $permission, &$path, &$decision) {
                 $actor = User::lockForUpdate()->findOrFail($actor->id);
+                // Timeline PJ stabil sejak guard hingga provenance dan snapshot tersimpan.
+                $indicatorId = PengukuranKinerja::findOrFail($id)->indikator_id;
+                $indicator = IndikatorKinerja::whereKey($indicatorId)->sharedLock()->firstOrFail();
                 $p = PengukuranKinerja::lockForUpdate()->findOrFail($id);
+                if ($p->indikator_id !== $indicator->id) {
+                    throw ValidationException::withMessages(['versi' => 'Konteks indikator telah berubah. Muat ulang pengukuran.']);
+                }
+                $p->setRelation('indikator', $indicator);
                 $snapshot = JadwalSnapshot::lockForUpdate()->findOrFail($p->jadwal_snapshot_id);
                 $snapshot->setRelation('jadwal', JadwalTahunan::lockForUpdate()->findOrFail($snapshot->jadwal_id));
                 $period = PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $p->periode_id)->lockForUpdate()->first();

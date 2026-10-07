@@ -966,15 +966,17 @@ Riwayat assignment penanggung jawab per indikator. Baris tidak dihapus untuk men
 | `alasan` | text | nullable | wajib untuk pergantian setelah assignment pertama |
 | `created_at` | timestamp | not null | |
 
-Penanggung jawab efektif pada tanggal T adalah baris terbaru dengan `tanggal_mulai_berlaku <= T`.
+Penanggung jawab efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`; tidak ada tie-break `created_at`.
+
+**Constraint ISS-04.01 (#54):** unique(`indikator_id`, `tanggal_mulai_berlaku`). Tanggal lampau/mendatang diperbolehkan. Histori append-only; baris baru yang tidak mengubah PJ efektif pada tanggal tersebut ditolak. User yang pernah menjadi PJ dapat kembali setelah digantikan user lain. Mutasi ditolak untuk indikator arsip, Renstra diarsipkan, atau unit nonaktif; histori existing tetap tersimpan.
 
 **Kontrak final:**
 
 - tidak ada constraint PIC operasional (bukan role);
 - user aktif mana pun dapat ditunjuk;
 - assignment tidak memberi permission;
-- user tetap membutuhkan Grant Unit yang cocok untuk hak isi;
-- calon PJ tanpa grant menghasilkan warning, bukan blokir;
+- hak kerja dinilai PermissionResolver dari role/grant yang sah dan explicit deny pada unit indikator;
+- calon PJ dengan izin kerja belum lengkap menghasilkan warning, bukan blokir;
 - sistem perlu query/report **PJ aktif tanpa hak isi**;
 - perubahan role tidak mengakhiri assignment;
 - revoke grant harus eksplisit, beralasan, dan teraudit.
@@ -1570,6 +1572,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`) |
+| `penanggung_jawab` | unique(`indikator_id`, `tanggal_mulai_berlaku`) — satu perubahan PJ per indikator pada tanggal yang sama |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |

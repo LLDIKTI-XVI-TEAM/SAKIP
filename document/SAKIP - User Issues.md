@@ -1469,33 +1469,36 @@ Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai <
 - Target PJ dapat berupa **user aktif mana pun**; tidak ada syarat role `pic`.
 - Penetapan dilakukan Perencanaan/Superadmin sesuai `penanggung_jawab:update`.
 - Assignment tidak memberikan permission.
-- User tetap membutuhkan Grant Unit yang cocok untuk hak kerja scoped.
-- Calon PJ tanpa grant: **warning, bukan blokir**.
-- Sistem menyediakan daftar **PJ aktif tanpa hak isi**.
+- Hak kerja scoped dinilai oleh PermissionResolver pada unit indikator; assignment sendiri bukan sumber allow.
+- Calon PJ dengan izin kerja belum lengkap: **warning, bukan blokir**.
+- Sistem menyediakan daftar **PJ aktif tanpa hak isi** dengan tujuh permission scoped: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`; tampilkan izin tersedia/kurang menggunakan ACL saat ini. Explicit deny menang dan user nonaktif fail-closed; diagnosis tidak menggantikan resolver pada aksi.
 - Pergantian menambah histori baru; baris lama tidak ditimpa.
 - Perubahan role user tidak mengakhiri assignment.
+- Tanggal lampau/mendatang diperbolehkan dengan unique(`indikator_id`, `tanggal_mulai_berlaku`); resolusi cukup memakai tanggal terbesar yang <= tanggal acuan.
+- Tolak no-op bila target sudah menjadi PJ efektif pada tanggal tersebut. PJ lama boleh kembali setelah digantikan user lain; histori mendatang existing tidak ditimpa.
+- Mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak di server dan diaudit sesuai kontrak; histori tetap dapat dibaca sesuai akses.
 
 #### Acceptance Criteria
 
-- [ ] Penugasan awal user aktif berhasil.
-- [ ] User nonaktif ditolak.
-- [ ] User tanpa grant tetap dapat ditetapkan dengan warning.
-- [ ] Pergantian PJ wajib alasan dan menjaga histori.
-- [ ] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
-- [ ] Role change tidak menonaktifkan PJ.
-- [ ] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
+- [x] Penugasan awal user aktif berhasil.
+- [x] User nonaktif ditolak.
+- [x] User tanpa grant tetap dapat ditetapkan dengan warning.
+- [x] Pergantian PJ wajib alasan dan menjaga histori.
+- [x] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
+- [x] Role change tidak menonaktifkan PJ.
+- [x] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
 
 #### Automated Tests
 
-- [ ] Assignment awal/pergantian/histori.
-- [ ] User nonaktif.
-- [ ] Warning tanpa grant.
-- [ ] Monitoring PJ tanpa hak isi.
-- [ ] Regression role change tidak menghapus assignment.
+- [x] Assignment awal/pergantian/histori.
+- [x] User nonaktif.
+- [x] Warning tanpa grant.
+- [x] Monitoring PJ tanpa hak isi.
+- [x] Regression role change tidak menghapus assignment.
 
 #### Definition of Done
 
-- [ ] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
+- [x] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
 
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 

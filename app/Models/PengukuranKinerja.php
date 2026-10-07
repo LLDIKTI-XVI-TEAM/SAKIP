@@ -85,7 +85,7 @@ class PengukuranKinerja extends Model
     /** Hak PIC mengikuti riwayat efektif, bukan pembuat header atau PIC lama. */
     public function effectivePic(): ?PenugasanIndikator
     {
-        return PenugasanIndikator::with('pic')->where('indikator_id', $this->indikator_id)
-            ->whereDate('tanggal_mulai_berlaku', '<=', today(config('app.business_timezone')))->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('created_at')->first();
+        return PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
+            ->with('pic')->where('indikator_id', $this->indikator_id)->first();
     }
 }
