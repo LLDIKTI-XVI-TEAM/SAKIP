@@ -84,7 +84,8 @@ class RencanaAksiHalamanTest extends TestCase
                     'indikator' => ['kode' => $indikator->kode, 'nama' => $indikator->nama],
                     'unit_kerja' => ['id' => $unit->id, 'nama' => $unit->nama],
                     'pic' => ['id' => $this->picUser->id, 'nama' => $this->picUser->nama],
-                    'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
+                    'target_periode' => [['periode_id' => $this->periode->id, 'periode_nama' => $this->periode->nama,
+                        'periode_urutan' => $this->periode->urutan, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
         }
 
         return $ra;
@@ -375,6 +376,47 @@ class RencanaAksiHalamanTest extends TestCase
             ->where('rencanaAksi.uraian', 'konteks tidak lengkap')
             ->where('rencanaAksi.konteks_tidak_lengkap', fn ($hilang) => collect($hilang)->contains('indikator_kode')
                 && collect($hilang)->contains('unit_nama') && collect($hilang)->contains('uraian')));
+    }
+
+    /**
+     * FIX1-Codex: rename master Periode pasca-submit tidak mengubah matriks
+     * beku — nama/urutan dibaca dari snapshot versi, bukan join live.
+     */
+    public function test_matrisk_beku_memakai_nama_periode_snapshot_setelah_master_diubah(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
+        $beku = $ra->fresh()->latestVersion->snapshot['target_periode'][0];
+
+        $this->periode->update(['nama' => 'Triwulan I (Revisi Master)', 'urutan' => 9]);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/Show')
+            ->where('rencanaAksi.target_periode.0.periode_nama', $beku['periode_nama'])
+            ->where('rencanaAksi.target_periode.0.periode_urutan', $beku['periode_urutan'])
+            ->where('rencanaAksi.konteks_tidak_lengkap', []));
+    }
+
+    /**
+     * FIX1-Codex: snapshot lama tanpa kunci periode_nama/urutan menampilkan
+     * penanda 'konteks tidak lengkap' (HTTP 200, bukan live join, bukan 500).
+     */
+    public function test_matrisk_beku_tanpa_nama_periode_menampilkan_penanda(): void
+    {
+        $ra = $this->buatRencanaAksi('diverifikasi');
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $ra->jadwal_snapshot_id, 'nomor' => 1,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
+            'snapshot' => ['uraian' => 'Versi pengajuan lama.',
+                'indikator' => ['kode' => 'I-LAMA', 'nama' => 'Indikator lama beku'],
+                'unit_kerja' => ['id' => $this->unit->id, 'nama' => $this->unit->nama],
+                'pic' => ['id' => $this->picUser->id, 'nama' => $this->picUser->nama],
+                'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/Show')
+            ->where('rencanaAksi.target_periode.0.periode_nama', 'konteks tidak lengkap')
+            ->where('rencanaAksi.konteks_tidak_lengkap', fn ($hilang) => collect($hilang)->contains('target_periode_nama')
+                && collect($hilang)->contains('target_periode_urutan')));
     }
 
     private function userWithRole(string $kode): User

@@ -100,6 +100,11 @@ class RencanaAksiPolicy
         }
         $jadwal = $snapshot->jadwal;
         $errors = [];
+        // Header harus menunjuk jadwal yang sama dengan snapshot beku;
+        // dicek sebelum evaluasi penutupan/sesi koreksi.
+        if ($snapshot->jadwal_id !== $ra->jadwal_tahunan_id) {
+            $errors[] = 'Jadwal tahunan rencana aksi tidak cocok dengan snapshot jadwal.';
+        }
         if ($ra->unit_id !== $snapshot->unit_id) {
             $errors[] = 'Unit rencana aksi tidak cocok dengan snapshot jadwal.';
         }

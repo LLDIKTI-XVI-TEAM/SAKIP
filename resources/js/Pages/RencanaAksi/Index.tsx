@@ -117,7 +117,7 @@ export default function RencanaAksiIndex({ rencanaAksis = [], pagination }: Renc
                         </tbody>
                     </table>
                 </div>
-                <Pagination pagination={pagination} />
+                <Pagination pagination={pagination} entityLabel="rencana aksi" />
             </Card>
         </AuthenticatedLayout>
     );

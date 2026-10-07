@@ -9,15 +9,23 @@ use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
+use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\Renstra\UpdateRenstraAction;
+use App\Actions\Unit\UpdateUnitAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
 use App\Models\Pengaturan;
+use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\Regulasi;
+use App\Models\RencanaAksi;
+use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
@@ -841,6 +849,97 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('komponen:create', $audit->dasar_izin['permission']);
         $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'komponen.buat']);
+    }
+
+    /**
+     * Paralel sejati ISS-05.05: worker sahkan terbukti menunggu lock baris unit,
+     * penonaktifan komit lebih dahulu, sahkan melihatnya dan ditolak.
+     * Sensitif terhadap Unit::lockForUpdate() di SahkanRencanaAksi.
+     */
+    public function test_sahkan_menunggu_lock_unit_dan_menolak_setelah_nonaktif_komit(): void
+    {
+        [$perencana, $superadmin, $unit, $ra] = $this->rencanaAksiRaceFixture();
+        $payload = ['actor_id' => $perencana->id, 'rencana_aksi_id' => $ra->id, 'data' => ['versi' => 1]];
+        $prepare = fn () => Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
+        $nonaktifkanSaatSahkanMenunggu = function (array $pids) use ($superadmin, $unit): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('unit', (string) $query);
+            $this->assertStringContainsString('for update', (string) $query);
+            app(UpdateUnitAction::class)->handle($superadmin, $unit->id, [
+                'nama' => $unit->nama, 'status' => 'nonaktif', 'version_token' => $unit->getVersionToken(),
+                'expected_nama' => null, 'expected_status' => null, 'snapshot' => null,
+            ]);
+            $this->assertSame('nonaktif', $unit->fresh()->status);
+        };
+
+        $results = $this->race('rencana-sahkan', $unit->id, '', [$payload], $prepare, assertBlocked: $nonaktifkanSaatSahkanMenunggu);
+
+        $this->assertSame(['ditolak'], $results);
+        $this->assertSame('nonaktif', $unit->fresh()->status);
+        $this->assertSame('diverifikasi', $ra->fresh()->status_alur);
+        $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_id' => $ra->id]);
+    }
+
+    /**
+     * Urutan komit sebaliknya: sahkan komit lebih dahulu (unit masih aktif)
+     * sehingga lolos; penonaktifan worker menyusul setelahnya.
+     */
+    public function test_sahkan_lolos_bila_komit_sebelum_nonaktif(): void
+    {
+        [$perencana, $superadmin, $unit, $ra] = $this->rencanaAksiRaceFixture();
+        $unitPayload = ['actor_id' => $superadmin->id, 'unit_id' => $unit->id, 'permission' => 'unit:update',
+            'data' => ['nama' => $unit->nama, 'status' => 'nonaktif', 'version_token' => $unit->getVersionToken(),
+                'expected_nama' => null, 'expected_status' => null, 'snapshot' => null]];
+        $prepare = fn () => Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
+        $sahkanDulu = function (array $pids) use ($perencana, $ra): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('unit', (string) $query);
+            $this->assertStringContainsString('for update', (string) $query);
+            $hasil = app(SahkanRencanaAksi::class)->handle($perencana, $ra->id, ['versi' => 1]);
+            $this->assertSame('disahkan', $hasil->status_alur);
+        };
+
+        $results = $this->race('unit-update', $unit->id, '', [$unitPayload], $prepare, assertBlocked: $sahkanDulu);
+
+        $this->assertSame([$unit->nama], $results);
+        $this->assertSame('disahkan', $ra->fresh()->status_alur);
+        $this->assertSame('nonaktif', $unit->fresh()->status);
+    }
+
+    /**
+     * Fixture RA diverifikasi + versi beku jalur PIC tanpa grant unit, agar
+     * penonaktifan unit oleh UpdateUnitAction tidak terhalang guard grant.
+     *
+     * @return array{User, User, Unit, RencanaAksi}
+     */
+    private function rencanaAksiRaceFixture(): array
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $perencana = User::factory()->create(['status' => 'aktif']);
+        $perencana->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $perencana->id, 'created_at' => now()]);
+        $pic = User::factory()->create(['status' => 'aktif']);
+        $pic->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $pic->id, 'created_at' => now()]);
+        $superadmin = User::factory()->create(['status' => 'aktif']);
+        $superadmin->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $superadmin->id, 'created_at' => now()]);
+        $unit = Unit::create(['nama' => 'Unit Race Sahkan', 'status' => 'aktif', 'created_by' => $superadmin->id]);
+        $renstra = Renstra::create(['kode' => 'RACE-RA', 'nama' => 'Renstra Race RA', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $superadmin->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-RACE-RA', 'deskripsi' => 'Sasaran Race RA']);
+        $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id, 'kode' => 'I-RACE-RA', 'nama' => 'Indikator Race RA',
+            'satuan' => 'poin', 'tipe_perhitungan' => 'manual', 'status' => 'aktif', 'tahun_mulai_berlaku' => 2025,
+            'created_by' => $superadmin->id, 'created_by_role' => 'superadmin']);
+        $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-RACE-RA', 'tanggal_pk' => '2026-01-01', 'created_by' => $superadmin->id]);
+        $periode = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id, 'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+        $snapshot = JadwalSnapshot::create(['jadwal_id' => $jadwal->id, 'indikator_id' => $indikator->id, 'periode_mulai_id' => $periode->id, 'unit_id' => $unit->id,
+            'nama' => 'Indikator Race RA', 'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
+        $ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $unit->id, 'jadwal_tahunan_id' => $jadwal->id,
+            'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $pic->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $snapshot->id, 'nomor' => 1, 'diajukan_by' => $pic->id,
+            'diajukan_at' => now(), 'jalur_pengajuan' => 'pic', 'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $unit->id],
+            'snapshot' => ['uraian' => 'Versi pengajuan beku.', 'target_periode' => []]]);
+
+        return [$perencana, $superadmin, $unit, $ra];
     }
 
     private function formulaFixture(): array

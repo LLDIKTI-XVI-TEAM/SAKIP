@@ -152,6 +152,30 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
     }
 
+    /**
+     * Guard jadwal: header menunjuk jadwal B sementara snapshot beku berasal
+     * dari jadwal A → sahkan ditolak sebelum evaluasi penutupan/koreksi.
+     */
+    public function test_7_header_jadwal_tidak_cocok_snapshot_ditolak(): void
+    {
+        $this->ajukanVersi('pic', $this->picUser);
+        $jadwalA = JadwalTahunan::findOrFail($this->ra->jadwal_tahunan_id);
+        // Jadwal B valid (aktif, belum tutup) tetapi berbeda dari snapshot beku;
+        // tahun berbeda agar tidak melanggar unique (renstra_id, tahun).
+        $jadwalB = JadwalTahunan::create(['renstra_id' => $jadwalA->renstra_id, 'tahun' => 2027, 'renstra_pk_id' => $jadwalA->renstra_pk_id,
+            'penutupan' => '2027-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+        $this->ra->update(['jadwal_tahunan_id' => $jadwalB->id]);
+
+        $denied = Gate::forUser($this->perencana)->inspect('sahkan', $this->ra->fresh());
+        $this->assertTrue($denied->denied());
+        $this->assertStringContainsString('tidak cocok', (string) $denied->message());
+
+        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
+        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
+        $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
+        $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_tipe' => 'rencana_aksi', 'objek_id' => $this->ra->id]);
+    }
+
     public function test_6_bukti_rujukan_versi_resmi_tidak_boleh_dihapus(): void
     {
         $this->ajukanVersi('pic', $this->picUser);
