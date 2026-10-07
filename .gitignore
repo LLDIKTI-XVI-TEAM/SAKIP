@@ -30,4 +30,13 @@ Thumbs.db
 CLAUDE.md
 claude.md
 
+# AI agent workspace — tracking, sesi, artefak agen; tidak ikut repo.
+# Dokumen publik tetap di document/ (mis. document/pengesahan-rencana-aksi/).
+/.agents/
+/.claude/
+/tasks/
+.mcp.json
+boost.json
+opencode.json
+
 composer.phar
