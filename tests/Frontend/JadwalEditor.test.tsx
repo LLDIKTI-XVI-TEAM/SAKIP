@@ -4,7 +4,7 @@ import { router } from '@inertiajs/react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import Editor from '@/Pages/Jadwal/Editor';
 import Index from '@/Pages/Jadwal/Index';
 import type { JadwalDetail, JadwalEditorProps } from '@/types/periode-jadwal';
@@ -67,6 +67,19 @@ const page = (flash: Page['flash'] = {}): Page => ({
     rememberedState: {},
     flash,
 });
+
+const dialogMethods = ['showModal', 'close'] as const;
+const originalDialogMethods = dialogMethods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
+beforeAll(() => {
+    // jsdom belum menerapkan API dialog native; fokus trap tetap diverifikasi lewat browser.
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; } });
+});
+afterAll(() => dialogMethods.forEach((name, index) => {
+    const descriptor = originalDialogMethods[index];
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+}));
 
 beforeEach(() => {
     vi.spyOn(router, 'put').mockImplementation(() => undefined);

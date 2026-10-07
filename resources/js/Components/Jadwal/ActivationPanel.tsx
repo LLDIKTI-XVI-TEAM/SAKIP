@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
+import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
-import { Modal } from '@/Components/Modal';
 import { Textarea } from '@/Components/Textarea';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { JadwalActivationOutcome, JadwalActivationReadiness, JadwalStatus } from '@/types/periode-jadwal';
@@ -225,43 +225,27 @@ export function ActivationPanel({ jadwalId, tahun, revisi, status, dirtyCalendar
                     </>
                 )}
             </CardContent>
-            <Modal
-                isOpen={open}
-                onClose={() => !form.processing && setOpen(false)}
+            {/* Batas 1000 karakter ditegakkan server (ActivateJadwalRequest); modal audit bersama tidak membatasi panjang di UI. */}
+            <AuditReasonModal
+                open={open}
                 title={`Aktifkan jadwal ${tahun}`}
-                footer={
-                    <>
-                        <Button type="button" variant="outline" disabled={form.processing} onClick={() => setOpen(false)}>
-                            Batal
-                        </Button>
-                        <Button type="button" isLoading={form.processing} disabled={!canSubmit || form.data.alasan.trim() === ''} onClick={confirm}>
-                            Aktifkan
-                        </Button>
-                    </>
-                }
-            >
-                <div className="space-y-4">
-                    <p className="text-sm">Target dan formula untuk pengukuran dikunci. Data yang sudah dikunci tetap digunakan.</p>
-                    {serverErrors.length > 0 && (
-                        <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm">
-                            {serverErrors.map(([field, message]) => (
-                                <p key={field}>{message}</p>
-                            ))}
-                        </div>
-                    )}
-                    <Textarea
-                        label="Alasan"
-                        name="alasan"
-                        required
-                        maxLength={1000}
-                        placeholder="Contoh: PK sudah ditandatangani"
-                        value={form.data.alasan}
-                        error={errors.alasan}
-                        disabled={form.processing}
-                        onChange={(event) => form.setData('alasan', event.target.value)}
-                    />
-                </div>
-            </Modal>
+                description="Target dan formula untuk pengukuran dikunci. Data yang sudah dikunci tetap digunakan."
+                reason={form.data.alasan}
+                error={errors.alasan}
+                busy={form.processing}
+                submitDisabled={!canSubmit || form.data.alasan.trim() === ''}
+                notice={serverErrors.length > 0 && (
+                    <div role="alert" className="mb-4 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm">
+                        {serverErrors.map(([field, message]) => (
+                            <p key={field}>{message}</p>
+                        ))}
+                    </div>
+                )}
+                confirmLabel="Aktifkan"
+                onReasonChange={(value) => form.setData('alasan', value)}
+                onClose={() => !form.processing && setOpen(false)}
+                onConfirm={confirm}
+            />
         </Card>
     );
 }

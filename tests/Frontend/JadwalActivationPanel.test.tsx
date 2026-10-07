@@ -2,7 +2,7 @@ import type { Page } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import type { JadwalActivationReadiness } from '@/types/periode-jadwal';
 
@@ -36,6 +36,19 @@ const page = (flash: Page['flash'] = {}): Page => ({
     flash,
 });
 const respond = (body: JadwalActivationReadiness) => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+
+const dialogMethods = ['showModal', 'close'] as const;
+const originalDialogMethods = dialogMethods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
+beforeAll(() => {
+    // jsdom belum menerapkan API dialog native; fokus trap tetap diverifikasi lewat browser.
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; } });
+});
+afterAll(() => dialogMethods.forEach((name, index) => {
+    const descriptor = originalDialogMethods[index];
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+}));
 
 beforeEach(() => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
