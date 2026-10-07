@@ -55,6 +55,8 @@ final class PermissionCodes
 
     public const JADWAL_UPDATE = 'jadwal:update';
 
+    public const JADWAL_AKTIVASI = 'jadwal:aktivasi';
+
     // Pengaturan Presentasional & Storage
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 

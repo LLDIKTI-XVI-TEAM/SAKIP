@@ -99,6 +99,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
     Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
     Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
+    Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
+    Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');

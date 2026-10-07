@@ -59,5 +59,5 @@ export interface SharedPageProps extends PageProps {
 }
 
 declare module '@inertiajs/core' {
-    interface PageFlashData { success?: string | null; error?: string | null; warning?: string | null; message?: string | null; authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable'; roleAssignmentOutcome?: RoleAssignmentOutcome; indikatorMutation?: unknown }
+    interface PageFlashData { success?: string | null; error?: string | null; warning?: string | null; message?: string | null; authRecoveryNotice?: 'no_replay'; logoutNotice?: 'sso_unavailable'; roleAssignmentOutcome?: RoleAssignmentOutcome; indikatorMutation?: unknown; jadwal_aktivasi?: unknown }
 }
