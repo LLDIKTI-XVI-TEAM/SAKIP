@@ -3,7 +3,6 @@
 namespace Tests\Feature\IndikatorKomponen;
 
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
@@ -17,9 +16,9 @@ use App\Models\UserPermissionDeny;
 use App\Services\AuditLogger;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Tests\TestCase;
 
 class PhaseDAtomicDefinitionTest extends TestCase
@@ -405,11 +404,13 @@ class PhaseDAtomicDefinitionTest extends TestCase
 
     public function test_receipt_tersedia_di_flash_inertia_bukan_props_saja(): void
     {
+        // Simulasikan checkout CI tanpa build aset meskipun manifest lokal tersedia.
+        $this->app->usePublicPath(base_path('tests'));
         $payload = $this->payload();
         $response = $this->patch("/perencanaan/indikator/{$this->indikator->id}/formula", $payload)->assertSessionHasNoErrors();
         $this->get($response->headers->get('Location'), [
             'X-Inertia' => 'true',
-            'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(Request::create($response->headers->get('Location'))),
+            'X-Inertia-Version' => Inertia::getVersion(),
         ])
             ->assertOk()->assertJsonPath('flash.indikatorMutation.request_id', $payload['request_id'])
             ->assertJsonPath('flash.indikatorMutation.status', 'unchanged');
