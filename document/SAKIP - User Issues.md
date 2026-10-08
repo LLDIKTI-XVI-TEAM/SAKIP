@@ -1256,6 +1256,7 @@ kegiatan:update
 - **Dependensi:** Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi.
 - **Otorisasi:** `target:update` / permission substantif terkait serta guard jadwal.
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
+- **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya.
 
 #### Acceptance Criteria (QA/UAT)
 

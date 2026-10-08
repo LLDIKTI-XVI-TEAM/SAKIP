@@ -31,7 +31,7 @@ use Tests\TestCase;
  * Keputusan: opsi (a) — hapus eksplisit baris draf tak efektif saat konteks
  * baru diterima, teraudit via `rencana_aksi.ubah` (selisih
  * nilai_lama/nilai_baru + jumlah pada alasan). Alasan pemilihan ada di
- * `document/PR-62-Review5-Tracking.md` S2 Bukti.
+ * docblock `SimpanTargetPeriode::bersihkanDimensiTakEfektif()`.
  */
 class RencanaAksiReview5S2Test extends TestCase
 {

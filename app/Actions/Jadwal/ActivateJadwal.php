@@ -101,9 +101,11 @@ class ActivateJadwal
 
                 $basis = $decision->toAuditBasis();
                 $snapshotIds = $this->createSnapshots($actor, $context, $data['alasan'], $basis);
-                // Review10 D2: snapshot existing milik jadwal ini yang belum final ikut dibekukan.
-                // Flag false hanya mungkin berasal dari jalur publikasi sebelum finalisasi ada, dan
-                // membiarkannya terbuka membuat komposisi terbit masih dapat disisipi komponen.
+                // Snapshot existing milik jadwal ini yang belum final ikut dibekukan. Flag false hanya
+                // mungkin berasal dari jalur publikasi sebelum finalisasi ada, dan membiarkannya terbuka
+                // membuat komposisi terbit masih dapat disisipi komponen. Draf koreksi berversi yang belum
+                // terbit (bila kelak ada) wajib dikecualikan di sini dan di trigger
+                // `finalisasi_snapshot_saat_jadwal_aktif`.
                 $finalizedExisting = JadwalSnapshot::where('jadwal_id', $jadwal->id)
                     ->where('komposisi_final', false)
                     ->update(['komposisi_final' => true]);

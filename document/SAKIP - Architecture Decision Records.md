@@ -1,6 +1,6 @@
 # SAKIP — Architecture Decision Records
 
-> **Status dokumen:** Draft untuk review tim. File ini menggabungkan ADR awal SAKIP dalam satu dokumen agar mudah dibaca/dibagikan. Untuk repository, format yang direkomendasikan tetap `document/adr/` dengan satu file per ADR agar histori perubahan dan supersession dapat dilacak lebih jelas.
+> **Status dokumen:** Draft untuk review tim. File ini menggabungkan ADR awal SAKIP dalam satu dokumen agar mudah dibaca/dibagikan. ADR baru ditambahkan pada dokumen ini dengan nomor berurutan berikutnya; jangan membuat file ADR terpisah di `docs/adr/` atau `document/adr/` agar penomoran tidak bentrok.
 
 ## Tujuan
 
@@ -13,7 +13,7 @@ Architecture Decision Record (ADR) mencatat keputusan teknis yang berdampak lint
 - `Deprecated`: tidak dipakai untuk pekerjaan baru tetapi belum sepenuhnya dihapus.
 - `Superseded`: digantikan ADR lain.
 
-ADR dalam dokumen ini merekam keputusan yang **sudah berlaku pada source-of-truth proyek**, sehingga `Status keputusan` ditandai `Accepted`. File dokumentasinya sendiri tetap draft sampai direview/ditambahkan melalui proses tim.
+ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-truth proyek**, sehingga `Status keputusan` ditandai `Accepted`. ADR berstatus `Proposed` belum boleh diklaim sebagai keputusan stakeholder sampai ada bukti ratifikasi. File dokumentasinya sendiri tetap draft sampai direview/ditambahkan melalui proses tim.
 
 ## Indeks
 
@@ -23,6 +23,8 @@ ADR dalam dokumen ini merekam keputusan yang **sudah berlaku pada source-of-trut
 4. ADR-0004 — Snapshot Historis Immutable dan Koreksi Berbasis Versi.
 5. ADR-0005 — Atomic Indicator Definition Writer.
 6. ADR-0006 — Private File Storage dan Authorized Streaming.
+7. ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL` (Proposed).
+8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi (Proposed).
 
 ---
 
@@ -674,6 +676,100 @@ Test sesuai risiko:
 - `document/SAKIP - Data Model.md` entitas `jenis_berkas` dan `berkas`.
 - `document/SAKIP_ENGINEERING_STANDARDS.md` §7 Bukti dukung dan audit.
 - `document/SAKIP - Plan Pengembangan.md` P.1 private storage baseline.
+
+
+---
+
+# ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`
+
+- **Status keputusan:** Proposed — Pending Stakeholder Ratification
+- **Status dokumen:** Draft untuk review tim
+- **Scope:** `rencana_aksi_target`, ISS-05.01 Penyusunan Target Rencana Aksi per Periode
+
+## Context
+
+Data Model §2.24 dan ERD mendefinisikan `rencana_aksi_target.komponen_id` sebagai FK `NOT NULL` dengan `unique(rencana_aksi_id, periode_id, komponen_id)`. PRD §14.3 dan Plan 11.2 mengikuti definisi yang sama.
+
+Keputusan Penyelarasan **Q7** menetapkan indikator `manual` memiliki satu target langsung per periode, indikator nonmanual memakai target per komponen dengan skor turunan, dan **tanpa komponen semu**. Struktur Data Model tidak dapat menampung target manual tanpa melanggar Q7.
+
+## Decision
+
+1. `rencana_aksi_target.komponen_id` nullable. Baris indikator manual wajib `komponen_id IS NULL`, tepat satu baris per (`rencana_aksi_id`, `periode_id`). Baris nonmanual wajib `komponen_id NOT NULL` dan merujuk komponen efektif.
+2. Keunikan ditegakkan database dengan dua partial unique index: (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL`.
+3. Validasi server membedakan tipe: manual menolak `komponen_id` terisi; nonmanual menolak `komponen_id` kosong. `nilai` tetap nullable: `0` sah, `null` berarti belum diisi.
+4. Snapshot komponen kosong untuk indikator manual adalah keadaan sah (Data Model §2.18).
+
+## Alternatives Considered
+
+### Komponen semu per indikator manual
+
+Ditolak karena melanggar Q7, mengotori master `indikator_komponen`, ikut membeku ke `jadwal_snapshot_komponen`, dan membuat gerbang kelengkapan pengajuan ambigu.
+
+### Tabel terpisah untuk target manual
+
+Ditolak karena menduplikasi skema dan memecah jalur baca/tulis permanen hanya untuk satu kasus nullable.
+
+## Consequences
+
+- Data Model §2.24 perlu diselaraskan setelah keputusan diratifikasi.
+- Gerbang kelengkapan pengajuan (Plan 11.3, ISS-05.03) untuk indikator manual memeriksa satu baris `NULL` per periode efektif, bukan per komponen.
+
+## Verification
+
+- `tests/Feature/RencanaAksi/RencanaAksiTargetTest.php` dan `RencanaAksiPersistenceTest.php`: keunikan, nilai `0` vs `null`, dan pembedaan manual/nonmanual.
+
+## References
+
+- `document/SAKIP - Keputusan Penyelarasan.md` Q7.
+- `document/SAKIP - Data Model.md` §2.18, §2.24.
+- `document/SAKIP - PRD.md` §14.3; `document/SAKIP - Plan Pengembangan.md` 11.1–11.2.
+- Migration `2026_10_04_043803_align_rencana_aksi_header_d1_d5_d7.php`.
+
+
+---
+
+# ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi
+
+- **Status keputusan:** Proposed — Pending Stakeholder Ratification
+- **Status dokumen:** Draft untuk review tim
+- **Scope:** header `rencana_aksi`, ISS-05.01 (penyimpanan draf) dan ISS-05.03 (pengajuan)
+
+## Context
+
+PRD §14.5, Workflow §7, dan Data Model §2.24 menetapkan rekonsiliasi target periodik terhadap target tahunan PK sebagai **peringatan + alasan wajib**, bukan blokir. Data Model §2.23 hanya menyediakan `alasan_revisi`; Plan 11.6 membolehkan `alasan_revisi` atau kolom alasan pengajuan yang relevan. Memakai `alasan_revisi` akan mencampur alasan deviasi dengan alasan revisi/buka-kembali.
+
+## Decision
+
+1. Tambah kolom `alasan_deviasi_pk` (text, nullable) pada header `rencana_aksi` untuk alasan deviasi total target periode efektif terakhir terhadap target tahunan PK **snapshot**. `alasan_revisi` tidak dipakai untuk makna ini.
+2. **Penyimpanan draf (ISS-05.01):** alasan boleh kosong. Deviasi hanya menghasilkan peringatan non-blokir; draf tetap dapat disimpan.
+3. **Pengajuan (ISS-05.03):** alasan wajib non-kosong bila total periode efektif terakhir tidak setara target PK (toleransi `indikator.presisi`). Validasi ini ditegakkan server pada Action pengajuan di dalam transaksi terkunci milik ISS-05.03, bukan pada penyimpanan draf.
+4. Nilai alasan tampil pada payload baca/preview dan setiap perubahan tercatat di `audit_log`.
+
+## Alternatives Considered
+
+### Pakai ulang `alasan_revisi`
+
+Ditolak karena mencampur dua makna dan membuat validasi serta riwayat ambigu.
+
+### Hanya dicatat di `audit_log`
+
+Ditolak karena alasan tidak queryable untuk payload baca/preview dan tidak tampil persisten di layar.
+
+## Consequences
+
+- Data Model §2.23 perlu diselaraskan setelah keputusan diratifikasi.
+- Target PK tetap hanya berubah melalui revisi PK resmi.
+
+## Verification
+
+- `tests/Feature/RencanaAksi/RencanaAksiIndexTest.php` (`test_deviasi_pk_butuh_alasan_dan_tersimpan_sebagai_simpan`, `test_nonmanual_menampilkan_skor_turunan_peringatan_dan_deviasi`) dan `RencanaAksiPreviewTest.php` untuk peringatan non-blokir pada draf.
+- Validasi wajib saat pengajuan diuji pada ISS-05.03.
+
+## References
+
+- `document/SAKIP - PRD.md` §14.5; `document/SAKIP - Workflow.md` §7.
+- `document/SAKIP - Data Model.md` §2.23–§2.24; `document/SAKIP - Plan Pengembangan.md` 11.6.
+- `document/SAKIP - User Issues.md` ISS-05.01 AC-6, ISS-05.03.
 
 
 ---
