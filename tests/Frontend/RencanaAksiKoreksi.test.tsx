@@ -129,6 +129,14 @@ describe('F2 lingkup koreksi di UI', () => {
         expect(kirim.targets.find((item) => item.periode_id === P4)).toBeUndefined();
     });
 
+    it('lingkup koreksi tanpa periode mengunci semua baris dengan satu pesan', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [] })} />);
+
+        expect(screen.getByText('Tidak ada periode yang dapat dikoreksi.')).toBeTruthy();
+        expect(screen.queryByText(/Sesi koreksi aktif/)).toBeNull();
+        expect(screen.queryAllByRole('spinbutton')).toHaveLength(0);
+    });
+
     it('tanpa koreksi aktif semua periode efektif dapat disunting', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] })} />);

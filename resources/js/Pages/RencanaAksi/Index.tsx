@@ -33,6 +33,7 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
             <Button
                 type="button"
                 size="sm"
+                className="whitespace-nowrap"
                 isLoading={form.processing}
                 onClick={() => form.post('/rencana-aksi/ensure-draft')}
                 aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
@@ -58,9 +59,9 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                     <TableHeader>
                         <TableRow>
                             <TableHead>Indikator</TableHead>
-                            <TableHead>Unit</TableHead>
-                            <TableHead>Tahun</TableHead>
-                            <TableHead>Penanggung Jawab</TableHead>
+                            <TableHead className="hidden md:table-cell">Unit</TableHead>
+                            <TableHead className="hidden md:table-cell">Tahun</TableHead>
+                            <TableHead className="hidden md:table-cell">Penanggung Jawab</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
@@ -76,12 +77,20 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                             daftar.map((baris) => (
                                 <TableRow key={`${baris.indikator_id}:${baris.tahun}`}>
                                     <TableCell className="max-w-sm">
-                                        <div className="font-semibold">{baris.kode}</div>
+                                        <div className="font-semibold">
+                                            {baris.kode}
+                                            <span className="font-normal text-muted md:hidden"> · {baris.tahun}</span>
+                                            {baris.milik_saya && (
+                                                <Badge variant="primary" size="sm" className="ml-2 md:hidden">
+                                                    Anda
+                                                </Badge>
+                                            )}
+                                        </div>
                                         <div className="mt-0.5 text-muted">{baris.nama}</div>
                                     </TableCell>
-                                    <TableCell>{baris.unit_nama ?? '—'}</TableCell>
-                                    <TableCell>{baris.tahun}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.unit_nama ?? '—'}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.tahun}</TableCell>
+                                    <TableCell className="hidden md:table-cell">
                                         <span className="inline-flex items-center gap-2">
                                             {baris.pj_nama ?? '—'}
                                             {baris.milik_saya && (
@@ -105,7 +114,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                             <Link
                                                 href={`/rencana-aksi/${baris.rencana_aksi.id}`}
                                                 aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
-                                                className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                                className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
                                             >
                                                 Buka
                                             </Link>

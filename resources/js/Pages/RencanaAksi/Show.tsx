@@ -232,9 +232,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
             <Head title={`Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="mx-auto max-w-4xl space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    <Link href="/rencana-aksi" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Kembali ke dashboard
+                        Kembali ke daftar
                     </Link>
                     <div className="flex items-center gap-2">
                         <Badge status={rencanaAksi.status_alur} />
@@ -292,15 +292,10 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         Formulir hanya dapat dibaca sesuai status dan izin akses Anda.
                     </p>
                 )}
-                {koreksi.aktif && (
+                {koreksi.aktif && !terkunciSemua && (
                     <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
                         Sesi koreksi aktif: hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode dalam lingkup yang dapat
                         disunting; baris lain dikunci dan tidak dikirim.
-                    </p>
-                )}
-                {terkunciSemua && (
-                    <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
-                        Tidak ada periode dalam lingkup koreksi yang dapat disunting.
                     </p>
                 )}
 
@@ -368,7 +363,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                 </p>
                             ) : terkunciSemua ? (
                                 <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
-                                    Seluruh periode efektif di luar lingkup koreksi; tidak ada yang dapat disimpan.
+                                    Tidak ada periode yang dapat dikoreksi.
                                 </p>
                             ) : (
                                 <>

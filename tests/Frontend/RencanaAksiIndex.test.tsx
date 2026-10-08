@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,10 +49,14 @@ describe('Daftar Rencana Aksi', () => {
         );
 
         expect(screen.getAllByRole('button', { name: /Buat Rencana Aksi/ })).toHaveLength(1);
-        expect(screen.getAllByText('Anda')).toHaveLength(1);
-        expect(screen.getByRole('link', { name: 'Buka Rencana Aksi IKU-5 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-2');
+        const tombolBuat = screen.getByRole('button', { name: 'Buat Rencana Aksi IKU-3 2026' });
+        const tautanBuka = screen.getByRole('link', { name: 'Buka Rencana Aksi IKU-5 2026' });
+        expect(tautanBuka.getAttribute('href')).toBe('/rencana-aksi/ra-2');
+        // Penanda "Anda" hanya pada baris milik sendiri (dirender untuk tata letak desktop dan mobile).
+        expect(within(tombolBuat.closest('tr') as HTMLElement).queryAllByText('Anda').length).toBeGreaterThan(0);
+        expect(within(tautanBuka.closest('tr') as HTMLElement).queryByText('Anda')).toBeNull();
 
-        await user.click(screen.getByRole('button', { name: 'Buat Rencana Aksi IKU-3 2026' }));
+        await user.click(tombolBuat);
 
         expect(router.post).toHaveBeenCalledTimes(1);
         expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ensure-draft', { indikator_id: 'ind-1', tahun: 2026 }]);
