@@ -1504,6 +1504,26 @@ Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai <
 
 - [x] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
 
+#### Status Review dan Traceability ISS-04.01 — 8 Oktober 2026
+
+**MAJOR: PENDING STAKEHOLDER DECISION.** Pemeriksaan [review PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#pullrequestreview-5446456471), [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54), seluruh komentar issue (0 komentar), Q32, dan ADR pada HEAD `d4e9018964496daef983f47c5fa2153d8c0848aa` belum menemukan sumber persetujuan stakeholder untuk seluruh aturan tambahan di bawah. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch ini bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, UAT, atau deployment sudah selesai.
+
+| Aturan | Sumber yang dapat diverifikasi | Keputusan yang masih diperlukan |
+|---|---|---|
+| User aktif dengan/tanpa role boleh menjadi PJ; assignment tidak memberi permission; warning hak isi; role change menjaga assignment | `SAKIP - Keputusan Penyelarasan.md` §32.2–32.3 dan Issue #54 | Sudah ditetapkan oleh Q32; bukan bagian keputusan tambahan yang pending. |
+| Resolusi tanggal terbesar ≤ tanggal acuan; pergantian beralasan menambah histori | `SAKIP - Plan Pengembangan.md` §4.3–4.4 dan Issue #54 AC-4–AC-5 | Kontrak dasar sudah tersedia sebelum PR. |
+| Tanggal penetapan lampau maupun mendatang diperbolehkan | Tambahan pada PRD §13, Data Model §2.19, dan Workflow §22.1 di PR #68 | Apakah kedua jenis tanggal penetapan tersebut disetujui? Query tanggal acuan lampau pada Plan §4.4 sendiri tidak menetapkan kebijakan tanggal mutasi. |
+| Unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Tambahan Data Model §2.19/§5 dan migration pada PR #68 | Apakah satu assignment per indikator per tanggal merupakan constraint domain final? |
+| No-op ditolak; mantan PJ boleh kembali sesudah digantikan user lain | Tambahan PRD §13 dan Workflow §22.1 pada PR #68 | Apakah kedua aturan penetapan tersebut disetujui? |
+| Assignment mendatang existing tidak ditimpa | Histori append-only didukung Plan §4.3; penanganan assignment mendatang eksplisit ditambahkan pada PR #68 | Apakah aturan mempertahankan jadwal mendatang juga berlaku ketika assignment bertanggal lebih awal ditambahkan? |
+| Mutasi PJ ditolak pada indikator arsip, Renstra diarsipkan, atau unit nonaktif | Guard implementasi dan tambahan PRD §13/Workflow §22.1 pada PR #68 | Apakah ketiga kondisi tersebut secara eksplisit melarang mutasi PJ, dengan histori tetap dapat dibaca sesuai akses? |
+
+Pembandingan dilakukan terhadap [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55). Folder `docs/adr/` tidak tersedia pada snapshot ini; ADR accepted yang tersedia berada pada `SAKIP - Architecture Decision Records.md` dan tidak menetapkan keputusan tanggal/no-op/lifecycle PJ di atas. Behavior domain dan constraint existing dipertahankan sampai sumber keputusan resmi tersedia; catatan ini tidak membuat keputusan baru.
+
+**Perbaikan MINOR terverifikasi pada working tree:** canonical `Badge` success memakai `text-success-dark` dengan background/border/API tetap; timestamp histori memakai `useFormatTanggal` mengikuti preferensi tampilan tanpa mengubah tanggal efektif/input/payload API. Focused test Badge/PJ/formatter lulus **21 test**. Typecheck, lint, dan build lulus; smoke build produksi dengan props sintetis pada 1440×1000 dan 390×844 memeriksa histori, readiness, autocomplete keyboard, modal pergantian, form awal, serta navigasi monitoring tanpa operasi database. Kontras success pada background 10% di atas surface putih **6,38:1**, di atas soft **5,86:1**.
+
+Suite frontend seluruh workspace: **365 lulus / 11 gagal (47 file)**; seluruh kegagalan berasal dari `tests/Frontend/DashboardIndex.test.tsx` yang sudah untracked sebelum task. Pembandingan menggunakan Badge dari HEAD awal tetap menghasilkan **11 gagal / 6 lulus** pada file tersebut. File pengguna tidak diubah. Tidak ada perubahan PHP/schema; backend test tidak dijalankan ulang. Catatan verifikasi ini dibuat sebelum commit/push; hasil CI HEAD publik sebelumnya tidak membuktikan patch ini. Status publikasi dan CI commit terbaru dilacak pada PR #68.
+
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 
 **Terkait User Story:** `US-05.01`  

@@ -621,6 +621,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - Monitoring menampilkan izin tersedia dan kurang untuk semua tujuh permission scoped pada unit indikator menurut ACL saat ini. Explicit deny menang dan user nonaktif fail-closed. Diagnosis tidak menjadi gate pengganti resolver saat aksi dilakukan.
 - Bukti reuse Rencana Aksi pada AC-3/AC-4 dan Plan 4.4 tetap bergantung pada implementasi Modul 11.
 
+**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) sudah diperbaiki serta diverifikasi lokal. MAJOR provenance aturan tambahan tanggal/no-op/lifecycle tetap **PENDING STAKEHOLDER DECISION**; pemetaan sumber dan pertanyaan keputusan tercatat pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. AC-3/AC-4 tetap terbuka; catatan ini tidak mengubah requirement atau mengklaim persetujuan domain, CI patch lokal, merge, UAT, maupun deployment.
+
 ---
 
 

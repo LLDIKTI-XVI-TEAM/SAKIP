@@ -9,6 +9,7 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { GrantUserAutocomplete } from '@/Components/Access/GrantUserAutocomplete';
 import { WorkReadinessList } from '@/Components/Access/WorkReadinessList';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { AssignmentDetailProps, WorkReadiness } from '@/types/penanggung-jawab';
 
 function validReadiness(value: unknown): value is WorkReadiness & { user_id: string; unit_id: string } {
@@ -28,6 +29,7 @@ export default function Show(props: AssignmentDetailProps) {
     return <AssignmentDetail key={props.indicator.id} {...props} />;
 }
 function AssignmentDetail({ indicator, unit, renstra, effective, readiness, history, has_history, expected_state, tanggal_acuan, today, blocked_reason, can }: AssignmentDetailProps) {
+    const formatTanggal = useFormatTanggal();
     const base = `/perencanaan/indikator/${indicator.id}/penanggung-jawab`;
     const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, alasan: '', expected_state });
     const [reference, setReference] = useState(tanggal_acuan);
@@ -161,7 +163,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
                     <ol className="mt-4 divide-y divide-border">{history.data.map((row) => <li key={row.id} className="py-4">
                         <div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold text-ink">{row.pic?.nama ?? 'Pengguna tidak tersedia'}</p><Badge size="sm" variant={row.state === 'Efektif' ? 'success' : row.state === 'Terjadwal' ? 'info' : 'muted'}>{row.state}</Badge></div>
                         <p className="mt-1 text-xs text-muted">Berlaku {row.tanggal_mulai_berlaku} · Ditetapkan oleh {row.ditetapkan_oleh?.nama ?? 'Tidak tersedia'}</p>
-                        <p className="mt-1 text-xs text-muted">Dicatat {row.created_at ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Makassar' }).format(new Date(row.created_at)) : 'Tidak tersedia'}</p>
+                        <p className="mt-1 text-xs text-muted">Dicatat {row.created_at ? formatTanggal(row.created_at, { withTime: true }) : 'Tidak tersedia'}</p>
                         <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Penetapan awal'}</p>
                     </li>)}</ol>}
                 <nav aria-label="Halaman histori" className="mt-4 flex justify-between gap-3">
