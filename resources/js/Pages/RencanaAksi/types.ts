@@ -19,6 +19,7 @@ export interface RencanaAksiBukti {
     ukuran_bytes: number | null;
     tautan: string | null;
     isi_teks: string | null;
+    download_url: string | null;
 }
 
 export interface RencanaAksiKomponenBeku {

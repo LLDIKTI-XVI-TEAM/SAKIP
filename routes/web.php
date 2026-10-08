@@ -50,6 +50,7 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\IndexRencanaAksi;
 use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
@@ -180,6 +181,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/rencana-aksi', IndexRencanaAksi::class)->name('rencana-aksi.index');
     Route::get('/rencana-aksi/{id}', ShowRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.show');
     Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
+    Route::get('/rencana-aksi/{id}/bukti/{buktiId}', DownloadBuktiRencanaAksi::class)->whereUuid('id')->whereUuid('buktiId')->name('rencana-aksi.bukti');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 

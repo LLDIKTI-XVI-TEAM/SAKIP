@@ -111,6 +111,11 @@ export default function RencanaAksiShow({ rencanaAksi }: { rencanaAksi: RencanaA
                                 <li key={bukti.id} className="rounded-lg border border-border bg-soft p-3">
                                     <p className="font-medium">{bukti.nama_asli || bukti.mode}</p>
                                     <p className="mt-0.5 text-xs text-muted">Mode: {bukti.mode}</p>
+                                    {bukti.mode === 'file' && bukti.download_url && (
+                                        <p className="mt-1 text-xs">
+                                            <a href={bukti.download_url} className="rounded text-primary underline focus:outline-none focus:ring-2 focus:ring-primary">Unduh berkas</a>
+                                        </p>
+                                    )}
                                     {bukti.mode === 'tautan' && bukti.tautan && <p className="mt-1 break-all text-xs text-primary">{bukti.tautan}</p>}
                                     {bukti.mode === 'teks' && bukti.isi_teks && <p className="mt-1 whitespace-pre-wrap text-xs">{bukti.isi_teks}</p>}
                                 </li>

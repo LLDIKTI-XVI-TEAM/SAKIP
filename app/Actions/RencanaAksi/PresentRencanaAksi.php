@@ -149,7 +149,9 @@ class PresentRencanaAksi
                 $items = $ra->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all();
             }
             $data['bukti_dukungs'] = array_map(fn ($b) => [...array_intersect_key($b, array_flip(['id', 'jenis_berkas_id', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks'])),
-                'menggantikan_id' => $b['menggantikan_id'] ?? null, 'alasan_koreksi' => $b['alasan_koreksi'] ?? null], is_array($items) ? $items : []);
+                'menggantikan_id' => $b['menggantikan_id'] ?? null, 'alasan_koreksi' => $b['alasan_koreksi'] ?? null,
+                // Tautan unduh hanya untuk mode file; mode tautan/teks sudah membawa isinya.
+                'download_url' => ($b['mode'] ?? null) === 'file' && ! empty($b['id']) ? route('rencana-aksi.bukti', ['id' => $ra->id, 'buktiId' => $b['id']]) : null], is_array($items) ? $items : []);
         }
 
         return $data;
