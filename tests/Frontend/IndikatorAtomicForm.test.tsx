@@ -12,12 +12,11 @@ const common = { isOpen: true, sasarans: [{ id: 'sas-1', renstra_id: 'ren-1', ko
 it('membuat nonmanual bersama definisi dalam satu POST', async () => {
     const user = userEvent.setup(); const post = vi.spyOn(router, 'post').mockImplementation(() => undefined);
     render(<IndikatorModal {...common} indikator={null} editor={null} onClose={vi.fn()} />);
-    await user.type(screen.getByLabelText(/Nama Indikator Kinerja/), 'Skor baru');
+    await user.type(screen.getByLabelText(/Kode IKU/), 'IKU-NEW'); await user.type(screen.getByLabelText(/Nama Indikator Kinerja/), 'Skor baru');
     await user.selectOptions(screen.getByLabelText(/Tipe Perhitungan/), 'penjumlahan'); await user.click(screen.getByRole('button', { name: 'Tambah Komponen' }));
     await user.type(screen.getByLabelText('Kode komponen 1'), 'A'); await user.type(screen.getByLabelText('Label komponen 1'), 'Skor pertama');
     await user.click(screen.getByRole('button', { name: 'Tambah Indikator' }));
     expect(post).toHaveBeenCalledTimes(1); expect(post.mock.calls[0]?.[1]).toMatchObject({ tipe_perhitungan: 'penjumlahan', komponen: [{ kode: 'A', label: 'Skor pertama', peran: 'penjumlah', bobot: '1', aktif: true }], request_id: expect.any(String) });
-    expect(post.mock.calls[0]?.[1]).not.toHaveProperty('kode');
 });
 it('metadata repair menyertakan hanya child berubah dan token editor asal', async () => {
     const user = userEvent.setup(); const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);

@@ -69,7 +69,9 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
             'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
             'alasan' => $mentah,
         ]);
 
@@ -86,7 +88,9 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
             'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
             'alasan' => '   ',
         ]);
 
@@ -107,7 +111,9 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
             'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
             'alasan' => $alasan,
         ]);
 
@@ -128,7 +134,9 @@ class PolicyAlasanSanitasiTest extends TestCase
         $this->tolakIzin('sasaran:update');
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 2,
             'alasan' => str_repeat('b', 1500),
             'expected_updated_at' => $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString(),
         ]);
@@ -152,6 +160,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Indikator uji sanitasi alasan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -179,6 +188,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Indikator uji sanitasi alasan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -209,6 +219,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Indikator uji sanitasi alasan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -250,6 +261,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Perubahan nama yang tidak diizinkan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -278,7 +290,9 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
             'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
             'alasan' => "upaya\0tanpa\0izin",
         ]);
 
@@ -301,6 +315,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/indikator', [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Indikator uji sanitasi alasan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -327,7 +342,9 @@ class PolicyAlasanSanitasiTest extends TestCase
         $this->tolakIzin('sasaran:update');
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 2,
             'alasan' => "  ubah\0sasaran  ",
             'expected_updated_at' => $sasaran->fresh()->updated_at?->toISOString() ?? $sasaran->fresh()->created_at->toISOString(),
         ]);
@@ -366,6 +383,7 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-SANITASI',
             'nama' => 'Perubahan nama yang tidak diizinkan',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -392,7 +410,9 @@ class PolicyAlasanSanitasiTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/perencanaan/sasaran', [
             'renstra_id' => $this->renstra->id,
+            'kode' => 'SS-SANITASI',
             'deskripsi' => 'Sasaran uji sanitasi alasan',
+            'urutan' => 1,
             'alasan' => "\xFF\xFE",
         ]);
 

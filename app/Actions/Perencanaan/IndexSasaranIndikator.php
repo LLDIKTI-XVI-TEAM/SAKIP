@@ -62,7 +62,7 @@ class IndexSasaranIndikator
                         if ($canReadRegulasi) {
                             $relations[] = 'regulasi:id,jenis,nomor,tahun,tentang';
                         }
-                        $query->orderBy('urutan')->orderBy('kode')->with($relations);
+                        $query->orderBy('kode')->with($relations);
                     },
                 ])
                 ->get()

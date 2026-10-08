@@ -30,8 +30,6 @@ class ChangeIndicatorFormula
      * Memiliki pembaruan metadata dan definisi atomik: otorisasi live, transaksi,
      * kunci, delta, penyimpanan, revisi serta audit. Omission mempertahankan row;
      * nonaktivasi dan hapus harus eksplisit. Tidak menulis snapshot historis.
-     * `kode` indikator bersifat server-managed (deret kode otomatis) sehingga
-     * tidak pernah diperbarui lewat jalur ini.
      * Urutan kunci: aktor/ACL → Regulasi → Indikator → Sasaran terurut → child.
      */
     public function handle(User $actor, IndikatorKinerja $indikator, array $data): array
@@ -94,7 +92,7 @@ class ChangeIndicatorFormula
                 if (isset($data['unit_id']) && $data['unit_id'] !== $parent->unit_id) {
                     throw ValidationException::withMessages(['unit_id' => 'Unit penanggung jawab tidak dapat diubah melalui edit umum. Gunakan endpoint pindah unit khusus.']);
                 }
-                foreach (['sasaran_strategis_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'definisi_operasional'] as $field) {
+                foreach (['sasaran_strategis_id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'definisi_operasional'] as $field) {
                     if (array_key_exists($field, $data)) {
                         $parent->$field = is_string($data[$field]) ? trim($data[$field]) : $data[$field];
                     }

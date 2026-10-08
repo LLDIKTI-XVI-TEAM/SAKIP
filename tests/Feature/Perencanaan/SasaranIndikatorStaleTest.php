@@ -84,6 +84,7 @@ class SasaranIndikatorStaleTest extends TestCase
 
         $payloadA = [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-STALE',
             'nama' => 'Nama Oleh Tab Pertama',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -102,6 +103,7 @@ class SasaranIndikatorStaleTest extends TestCase
 
         $payloadB = [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-STALE',
             'nama' => 'Nama Oleh Tab Kedua Usang',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -138,7 +140,9 @@ class SasaranIndikatorStaleTest extends TestCase
         Carbon::setTestNow(now()->addSeconds(5));
 
         $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-STALE-2',
             'deskripsi' => 'Deskripsi oleh tab pertama',
+            'urutan' => 1,
             'expected_updated_at' => $tokenLama,
         ]);
         $responseA->assertSessionHasNoErrors();
@@ -149,7 +153,9 @@ class SasaranIndikatorStaleTest extends TestCase
         Carbon::setTestNow(now()->addSeconds(5));
 
         $payloadB = [
+            'kode' => 'SS-STALE-2',
             'deskripsi' => 'Deskripsi oleh tab kedua usang',
+            'urutan' => 1,
             'expected_updated_at' => $tokenLama,
         ];
 
@@ -183,7 +189,9 @@ class SasaranIndikatorStaleTest extends TestCase
 
         // Mutasi lain memakai T1 → baris kini pada T2.
         $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", [
+            'kode' => 'SS-NOTOKEN',
             'deskripsi' => 'Deskripsi oleh tab pertama',
+            'urutan' => 1,
             'expected_updated_at' => $tokenT1,
         ]);
         $responseA->assertSessionHasNoErrors();
@@ -195,7 +203,9 @@ class SasaranIndikatorStaleTest extends TestCase
 
         // Direct request TANPA token: wajib ditolak validasi, bukan bypass.
         $payloadTanpaToken = [
+            'kode' => 'SS-NOTOKEN',
             'deskripsi' => 'Deskripsi overwrite tanpa token',
+            'urutan' => 1,
         ];
 
         $responseB = $this->actingAs($this->perencanaan)->put("/perencanaan/sasaran/{$sasaran->id}", $payloadTanpaToken);
@@ -243,6 +253,7 @@ class SasaranIndikatorStaleTest extends TestCase
         // Mutasi lain memakai T1 → baris kini pada T2.
         $responseA = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-NOTOKEN',
             'nama' => 'Nama Oleh Tab Pertama',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -260,6 +271,7 @@ class SasaranIndikatorStaleTest extends TestCase
         // Direct request TANPA token: wajib ditolak validasi, bukan bypass.
         $payloadTanpaToken = [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-NOTOKEN',
             'nama' => 'Nama Overwrite Tanpa Token',
             'satuan' => '%',
             'unit_id' => $this->unit->id,
@@ -297,7 +309,9 @@ class SasaranIndikatorStaleTest extends TestCase
             $tokenAwal = $sasaran->updated_at?->toISOString() ?? $sasaran->created_at->toISOString();
 
             $payloadA = [
+                'kode' => 'SS-SAMADETIK',
                 'deskripsi' => 'Deskripsi oleh save pertama',
+                'urutan' => 1,
                 'expected_updated_at' => $tokenAwal,
             ];
 
@@ -312,7 +326,9 @@ class SasaranIndikatorStaleTest extends TestCase
             // dalam detik yang sama akan menghasilkan updated_at identik
             // dan lolos guard usang.
             $payloadB = [
+                'kode' => 'SS-SAMADETIK',
                 'deskripsi' => 'Deskripsi oleh save kedua usang',
+                'urutan' => 1,
                 'expected_updated_at' => $tokenAwal,
             ];
 
@@ -362,6 +378,7 @@ class SasaranIndikatorStaleTest extends TestCase
 
             $payloadA = [
                 'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-SAMADETIK',
                 'nama' => 'Nama Oleh Save Pertama',
                 'satuan' => '%',
                 'unit_id' => $this->unit->id,
@@ -382,6 +399,7 @@ class SasaranIndikatorStaleTest extends TestCase
             // dan lolos guard usang.
             $payloadB = [
                 'sasaran_strategis_id' => $sasaran->id,
+                'kode' => 'IKU-SAMADETIK',
                 'nama' => 'Nama Oleh Save Kedua Usang',
                 'satuan' => '%',
                 'unit_id' => $this->unit->id,
@@ -418,7 +436,9 @@ class SasaranIndikatorStaleTest extends TestCase
         $action = app(UpdateSasaran::class);
 
         $payloadDasar = [
+            'kode' => 'SS-ACTION-TOKEN',
             'deskripsi' => 'Deskripsi overwrite via Action langsung',
+            'urutan' => 1,
         ];
 
         $varian = [
@@ -482,6 +502,7 @@ class SasaranIndikatorStaleTest extends TestCase
 
         $payloadDasar = [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-ACTION-TOKEN',
             'nama' => 'Nama Overwrite via Action Langsung',
             'satuan' => '%',
             'unit_id' => $this->unit->id,

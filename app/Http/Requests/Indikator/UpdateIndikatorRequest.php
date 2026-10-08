@@ -89,7 +89,7 @@ class UpdateIndikatorRequest extends FormRequest
                     }
                 }),
             ],
-            'kode' => ['prohibited'],
+            'kode' => ['required', 'string', 'max:50'],
             'nama' => ['required', 'string', 'max:1000'],
             'definisi_operasional' => ['nullable', 'string', 'max:2000'],
             'satuan' => ['required', 'string', 'max:50'],
@@ -117,7 +117,7 @@ class UpdateIndikatorRequest extends FormRequest
             ...app(KomponenMutationService::class)->pesanBersarang(),
             'sasaran_strategis_id.required' => 'Sasaran strategis wajib dipilih.',
             'sasaran_strategis_id.exists' => 'Sasaran strategis yang dipilih tidak valid atau berada di luar Renstra asal.',
-            'kode.prohibited' => 'Kode indikator kinerja dibangkitkan otomatis oleh sistem dan tidak dapat diubah.',
+            'kode.required' => 'Kode indikator kinerja wajib diisi.',
             'nama.required' => 'Nama indikator kinerja wajib diisi.',
             'satuan.required' => 'Satuan indikator kinerja wajib diisi.',
             'unit_id.required' => 'Unit penanggung jawab wajib dipilih.',

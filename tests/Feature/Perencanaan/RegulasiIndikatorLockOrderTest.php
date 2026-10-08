@@ -131,6 +131,7 @@ class RegulasiIndikatorLockOrderTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [
             'sasaran_strategis_id' => $sasaran->id,
+            'kode' => 'IKU-R221-LINK',
             'nama' => 'Indikator Menaut Regulasi Kedua',
             'satuan' => '%',
             'unit_id' => $this->unit->id,

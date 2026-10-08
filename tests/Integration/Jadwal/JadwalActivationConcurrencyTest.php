@@ -195,10 +195,9 @@ class JadwalActivationConcurrencyTest extends TestCase
         $worker = $this->start([...$this->activationJob(), 'pause_on' => ['from "renstras"', 'for update']]);
         $this->go($worker);
         $this->until(fn () => str_contains($worker['process']->getOutput(), 'PAUSED'), [$worker]);
-        $dibuat = app(StoreIndikator::class)->handle($writer, $this->newIndicatorPayload());
+        app(StoreIndikator::class)->handle($writer, $this->newIndicatorPayload());
         // Indikator baru lengkap, sehingga hanya re-enumerasi sesudah lock Renstra yang menolak snapshot campuran.
-        // Kode indikator dibangkitkan server, jadi identitas diambil dari hasil Action, bukan dari payload.
-        TargetKinerja::create(['indikator_kinerja_id' => $dibuat['indikator']->id, 'tahun' => 2026, 'target_tahunan' => '3']);
+        TargetKinerja::create(['indikator_kinerja_id' => IndikatorKinerja::where('kode', 'IKU-BARU')->value('id'), 'tahun' => 2026, 'target_tahunan' => '3']);
         $worker['input']->write("CONTINUE\n");
         $this->assertSame(['outcome' => 'validation', 'fields' => ['aktivasi']], $this->workerResult($worker));
         $this->assertSame(0, JadwalSnapshot::count());
@@ -349,8 +348,7 @@ class JadwalActivationConcurrencyTest extends TestCase
 
     private function newIndicatorPayload(): array
     {
-        // Tanpa `kode`: dibangkitkan server-side oleh StoreIndikator (kode berurutan `IK-<nomor>`).
-        return ['sasaran_strategis_id' => $this->ready['sasaran']->id, 'nama' => 'Indikator baru', 'satuan' => 'persen',
+        return ['sasaran_strategis_id' => $this->ready['sasaran']->id, 'kode' => 'IKU-BARU', 'nama' => 'Indikator baru', 'satuan' => 'persen',
             'unit_id' => $this->ready['unit']->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'presisi' => 2, 'desimal_tampilan' => 2];
     }
 

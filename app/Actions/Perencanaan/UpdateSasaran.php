@@ -17,12 +17,11 @@ class UpdateSasaran
     public function __construct(private readonly AuditLogger $auditLogger, private readonly ResolveLockedActor $lockedActor) {}
 
     /**
-     * Memperbarui deskripsi Sasaran. Kode dan urutan bersifat server-managed
-     * (dibangkitkan otomatis dari deret kode) sehingga tidak ikut diubah.
-     * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
-     * state terkini (anti-TOCTOU), lalu baris dikunci dan nilai lama diambil
-     * dari baris terkunci agar audit before/after sesuai state database
-     * sesaat sebelum mutasi (bukan dari route binding).
+     * Memperbarui kode/deskripsi/urutan Sasaran. Keputusan izin dievaluasi
+     * ulang di dalam transaksi terkunci memakai state terkini (anti-TOCTOU),
+     * lalu baris dikunci dan nilai lama diambil dari baris terkunci agar
+     * audit before/after sesuai state database sesaat sebelum mutasi
+     * (bukan dari route binding).
      *
      * Penolakan dicatat sebagai audit `sasaran.ubah_ditolak` di luar
      * transaksi (agar tidak ikut rollback) lalu 403 dilempar.
@@ -87,7 +86,9 @@ class UpdateSasaran
             $nilaiLama = $lockedSasaran->withoutRelations()->toArray();
 
             $lockedSasaran->update([
+                'kode' => trim($validated['kode']),
                 'deskripsi' => trim($validated['deskripsi']),
+                'urutan' => $validated['urutan'] ?? $lockedSasaran->urutan,
             ]);
 
             $this->auditLogger->catat(

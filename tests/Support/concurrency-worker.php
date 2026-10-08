@@ -11,7 +11,6 @@ use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\PenanggungJawab\ReadPenanggungJawab;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
-use App\Actions\Perencanaan\StoreSasaran;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
@@ -53,7 +52,7 @@ try {
     $identity = $argv[2];
     try {
         $assignment = isset($argv[3]) ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
-        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment', 'sasaran-create'], true)) {
+        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
             $actor = User::findOrFail($assignment['actor_id']);
             $initialDecision = app(PermissionResolver::class)->resolve($actor, $assignment['permission']);
             if (! $initialDecision->allowed) {
@@ -66,7 +65,6 @@ try {
             'pj-change' => app(ChangePenanggungJawab::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data']) ? 'assigned' : 'failed',
             'formula-update' => app(ChangeIndicatorFormula::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data'])['status'],
             'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
-            'sasaran-create' => app(StoreSasaran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['data'])->kode,
             'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment' => performRenstraMutation($argv[1], $assignment),
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),

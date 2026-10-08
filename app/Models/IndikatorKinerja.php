@@ -21,7 +21,6 @@ class IndikatorKinerja extends Model
         'sasaran_strategis_id',
         'regulasi_id',
         'kode',
-        'urutan',
         'nama',
         'definisi_operasional',
         'satuan',
@@ -63,7 +62,7 @@ class IndikatorKinerja extends Model
 
     protected $casts = [
         'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
-        'tahun_mulai_berlaku' => 'integer', 'urutan' => 'integer',
+        'tahun_mulai_berlaku' => 'integer',
     ];
 
     protected $dateFormat = 'Y-m-d H:i:s.u';

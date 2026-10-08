@@ -94,7 +94,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
     public function test_metadata_tipe_sama_tidak_melewati_definisi_invalid(): void
     {
         $this->indikator->komponen()->update(['aktif' => false]);
-        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi']);
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi']);
         $data['nama'] = 'Nama baru';
         $data['presisi'] = 2;
         $this->put("/perencanaan/indikator/{$this->indikator->id}", array_merge($data, ['expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString()]))
@@ -109,7 +109,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $beforeParent = $this->indikator->fresh()->getAttributes();
         $beforeChildren = $this->indikator->komponen()->orderBy('id')->get()->map->getAttributes()->all();
         $beforeAudits = AuditLog::count();
-        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'satuan', 'arah', 'tipe_perhitungan']);
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'satuan', 'arah', 'tipe_perhitungan']);
         $this->put("/perencanaan/indikator/{$this->indikator->id}", [...$data, 'nama' => 'Metadata kode numerik',
             'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
         ])->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
@@ -130,7 +130,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
         UserPermissionDeny::create(['user_id' => $this->actor->id,
             'permission_id' => Permission::where('kode', 'indikator:update')->value('id'),
             'ditetapkan_oleh' => $this->actor->id, 'alasan' => 'Uji pencabutan izin parent.']);
-        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']);
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan']);
         $data['expected_updated_at'] = $this->indikator->fresh()->updated_at->toISOString();
         $row = $this->indikator->komponen()->firstOrFail()->only(['id', 'kode', 'label', 'peran', 'bobot', 'urutan', 'aktif']);
         $oldParent = $this->indikator->fresh()->getAttributes();
@@ -166,7 +166,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
         UserPermissionDeny::create(['user_id' => $this->actor->id,
             'permission_id' => Permission::where('kode', 'komponen:read')->value('id'),
             'ditetapkan_oleh' => $this->actor->id, 'alasan' => 'Tidak boleh membaca konfigurasi.']);
-        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'satuan', 'arah', 'tipe_perhitungan']);
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'satuan', 'arah', 'tipe_perhitungan']);
         $this->put("/perencanaan/indikator/{$this->indikator->id}", [...$data, 'nama' => 'Metadata parent saja',
             'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
         ])->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
@@ -199,7 +199,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $this->indikator->update(['tipe_perhitungan' => 'manual', 'presisi' => 2]);
         $oldParent = $this->indikator->fresh()->getAttributes();
         $oldAudit = AuditLog::count();
-        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'presisi']);
+        $data = $this->indikator->only(['sasaran_strategis_id', 'unit_id', 'kode', 'nama', 'satuan', 'arah', 'presisi']);
         $data += ['tipe_perhitungan' => 'penjumlahan', 'expected_updated_at' => $this->indikator->updated_at->toISOString(),
             'komponen' => [['kode' => 'baru', 'label' => 'Baru', 'peran' => 'penjumlah', 'bobot' => '1', 'urutan' => 2, 'aktif' => true]]];
         foreach ([null, 'abc'] as $alasan) {
@@ -241,14 +241,12 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $data['presisi'] = 2;
         $row = $this->indikator->komponen()->firstOrFail()->only(['kode', 'label', 'satuan', 'peran', 'bobot', 'urutan', 'aktif']);
         $beforeAudits = AuditLog::count();
-        $this->post('/perencanaan/indikator', array_merge($data, ['komponen' => [
+        $this->post('/perencanaan/indikator', array_merge($data, ['kode' => 'BARU', 'komponen' => [
             array_replace($row, ['kode' => '1']),
             array_replace($row, ['kode' => '01', 'urutan' => 2]),
         ], 'request_id' => (string) Str::uuid()]))
             ->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
-        // Kode dibangkitkan server-side; indikator baru dikenali dari komponen `01` yang unik.
-        $created = IndikatorKinerja::whereHas('komponen', fn ($query) => $query->where('kode', '01'))->firstOrFail();
-        $this->assertMatchesRegularExpression('/^IK-[0-9]+$/', $created->kode);
+        $created = IndikatorKinerja::where('kode', 'BARU')->firstOrFail();
         $this->assertSame('perencanaan', $created->created_by_role);
         $this->assertSame('0.500000000001', $created->komponen()->firstOrFail()->bobot);
         $this->assertSame(['1', '01'], $created->komponen()->orderBy('urutan')->pluck('kode')->all());
@@ -265,7 +263,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
         $beforeParents = IndikatorKinerja::orderBy('id')->get()->map->getAttributes()->all();
         $beforeChildren = IndikatorKomponen::orderBy('id')->get()->map->getAttributes()->all();
         $beforeAudits = AuditLog::count();
-        $this->postJson('/perencanaan/indikator', [...$data, 'komponen' => [$row, $row]])
+        $this->postJson('/perencanaan/indikator', [...$data, 'kode' => 'DUPLIKAT', 'komponen' => [$row, $row]])
             ->assertUnprocessable()->assertJsonValidationErrors(['komponen.0.kode', 'komponen.1.kode']);
         $this->assertSame($beforeParents, IndikatorKinerja::orderBy('id')->get()->map->getAttributes()->all());
         $this->assertSame($beforeChildren, IndikatorKomponen::orderBy('id')->get()->map->getAttributes()->all());
