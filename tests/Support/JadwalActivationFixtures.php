@@ -111,6 +111,21 @@ trait JadwalActivationFixtures
             DB::table('jadwal_snapshot_komponen')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all()];
     }
 
+    /**
+     * Sidik jari tanpa kolom `komposisi_final`. Aktivasi memang memfinalkan snapshot
+     * terbit (Review10 D1/D2), sehingga konten beku yang wajib identik adalah seluruh
+     * kolom selain flag itu.
+     *
+     * @param  array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}  $fingerprint
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    private function tanpaFlagFinalisasi(array $fingerprint): array
+    {
+        $strip = fn (array $rows): array => array_map(fn (array $row): array => array_diff_key($row, ['komposisi_final' => true]), $rows);
+
+        return [$strip($fingerprint[0]), $strip($fingerprint[1])];
+    }
+
     /** @return array<string, mixed> */
     private function activationPayload(array $overrides = []): array
     {

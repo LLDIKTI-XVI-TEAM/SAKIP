@@ -101,6 +101,12 @@ class ActivateJadwal
 
                 $basis = $decision->toAuditBasis();
                 $snapshotIds = $this->createSnapshots($actor, $context, $data['alasan'], $basis);
+                // Review10 D2: snapshot existing milik jadwal ini yang belum final ikut dibekukan.
+                // Flag false hanya mungkin berasal dari jalur publikasi sebelum finalisasi ada, dan
+                // membiarkannya terbuka membuat komposisi terbit masih dapat disisipi komponen.
+                $finalizedExisting = JadwalSnapshot::where('jadwal_id', $jadwal->id)
+                    ->where('komposisi_final', false)
+                    ->update(['komposisi_final' => true]);
                 $exception = $this->readiness->usesAttachmentException($context);
                 if ($exception) {
                     $this->markAttachmentException($actor, $context['pk'], $data['alasan'], $basis);
@@ -109,7 +115,8 @@ class ActivateJadwal
                 $jadwal->forceFill(['status' => 'aktif', 'renstra_pk_id' => $context['pk']->id, 'activated_at' => $at->format('Y-m-d H:i:s'), 'revisi' => $jadwal->revisi + 1])->save();
                 $this->audit->catat(actor: $actor, tindakan: 'jadwal.aktivasi', objekTipe: 'jadwal', objekId: $jadwal->id, nilaiLama: $before,
                     nilaiBaru: [...$jadwal->only(['status', 'revisi', 'renstra_pk_id']), 'activated_at' => $at->toIso8601ZuluString(),
-                        'snapshot_ids' => $snapshotIds, 'snapshot_created_count' => count($snapshotIds), 'pengecualian_lampiran_pk' => $exception],
+                        'snapshot_ids' => $snapshotIds, 'snapshot_created_count' => count($snapshotIds),
+                        'snapshot_finalized_existing_count' => $finalizedExisting, 'pengecualian_lampiran_pk' => $exception],
                     alasan: $data['alasan'], dasarIzin: $basis);
 
                 return $this->outcome($jadwal, $data['operation_id'], changed: true, created: count($snapshotIds));
@@ -177,8 +184,14 @@ class ActivateJadwal
             ])->all();
             // Satu INSERT per snapshot agar lock aktivasi tidak tertahan oleh round-trip per komponen.
             JadwalSnapshotKomponen::insert(array_map(fn (array $row): array => ['id' => (string) Str::uuid(), 'jadwal_snapshot_id' => $snapshot->id, ...$row], $komponen));
+            // Finalisasi komposisi (Review10 D1): komposisi beku sejak terbit. Setelah flag ini true,
+            // guard INSERT menolak child tambahan sehingga rumus yang dilihat pembaca RA tidak dapat
+            // berubah tanpa versi baru. Hanya kolom flag yang berubah, jadi guard UPDATE (yang
+            // membandingkan seluruh kolom beku lain) meloloskannya.
+            JadwalSnapshot::whereKey($snapshot->id)->update(['komposisi_final' => true]);
             $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.buat', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
                 nilaiBaru: [...$snapshot->only(['jadwal_id', 'indikator_id', 'nomor_versi', 'periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan']),
+                    'komposisi_final' => true,
                     'target' => $snapshot->getRawOriginal('target'), 'baseline' => $snapshot->getRawOriginal('baseline'),
                     'komponen' => array_map(fn (array $row): array => array_diff_key($row, ['label' => true]), $komponen)],
                 alasan: $alasan, dasarIzin: $basis);
