@@ -20,6 +20,13 @@ class RencanaAksiPolicy
 
     public function view(User $user, RencanaAksi $ra): bool
     {
+        // Fail-closed saat unit header tidak konsisten dengan unit snapshot beku:
+        // data beku tidak boleh dibaca memakai scope unit yang berbeda.
+        $snapshotUnit = $ra->jadwalSnapshot?->unit_id;
+        if ($snapshotUnit !== null && $snapshotUnit !== $ra->unit_id) {
+            return false;
+        }
+
         return $this->resolver->allows($user, 'rencana_aksi:read', $ra->targetUnitId());
     }
 

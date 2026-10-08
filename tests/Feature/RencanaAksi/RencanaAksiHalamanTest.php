@@ -419,6 +419,52 @@ class RencanaAksiHalamanTest extends TestCase
                 && collect($hilang)->contains('target_periode_urutan')));
     }
 
+    public function test_index_filter_status_disahkan_untuk_monitoring_read_only(): void
+    {
+        $diajukan = $this->buatRencanaAksi('diajukan', null, 'pic');
+        $disahkan = $this->buatRencanaAksi('disahkan', null, 'pic');
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('status', 'antrean')->where('pagination.total', 1)->where('rencanaAksis.0.id', $diajukan->id));
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi?status=disahkan')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('status', 'disahkan')->where('pagination.total', 1)->where('rencanaAksis.0.id', $disahkan->id));
+
+        $pimpinan = $this->userWithRole('pimpinan');
+        $this->actingAs($pimpinan)->get('/rencana-aksi?status=disahkan')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('status', 'disahkan')->where('pagination.total', 1));
+
+        $this->actingAs($pimpinan)->get('/rencana-aksi?status=lain')->assertSessionHasErrors('status');
+    }
+
+    public function test_index_mengurutkan_antrean_dari_pengajuan_terbaru(): void
+    {
+        // Versi beku tidak boleh dimutasi (trigger DB), jadi waktu pengajuan diatur saat pembuatan.
+        $lama = $this->buatRencanaAksi('diajukan', null, 'pic');
+        $this->travel(2)->hours();
+        $baru = $this->buatRencanaAksi('diajukan', null, 'pic');
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pagination.total', 2)
+            ->where('rencanaAksis.0.id', $baru->id)
+            ->where('rencanaAksis.1.id', $lama->id));
+    }
+
+    public function test_detail_dan_antrean_menolak_record_unit_tidak_konsisten(): void
+    {
+        $unitLain = Unit::create(['nama' => 'Unit Snapshot Beda', 'created_by' => $this->perencana->id]);
+        $konsisten = $this->buatRencanaAksi('diverifikasi', null, 'pic');
+        $inkonsisten = $this->buatRencanaAksi('diverifikasi', null, 'pic');
+        DB::table('rencana_aksi')->where('id', $inkonsisten->id)->update(['unit_id' => $unitLain->id]);
+
+        // Fail-closed: data beku unit snapshot tidak dibaca memakai scope unit header yang berbeda.
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$inkonsisten->id)->assertForbidden();
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$konsisten->id)->assertOk();
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pagination.total', 1)->where('rencanaAksis.0.id', $konsisten->id));
+    }
+
     private function userWithRole(string $kode): User
     {
         $user = User::factory()->create(['status' => 'aktif']);

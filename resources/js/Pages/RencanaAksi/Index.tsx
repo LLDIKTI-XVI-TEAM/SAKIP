@@ -8,12 +8,17 @@ import type { RencanaAksiRingkas, RencanaAksiPagination } from './types';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 
+type StatusFilter = 'antrean' | 'disahkan';
+
 interface RencanaAksiIndexProps {
     rencanaAksis: RencanaAksiRingkas[];
     pagination: RencanaAksiPagination;
+    status: StatusFilter;
 }
 
-export default function RencanaAksiIndex({ rencanaAksis = [], pagination }: RencanaAksiIndexProps) {
+const TAB_LABELS: Record<StatusFilter, string> = { antrean: 'Antrean', disahkan: 'Disahkan' };
+
+export default function RencanaAksiIndex({ rencanaAksis = [], pagination, status = 'antrean' }: RencanaAksiIndexProps) {
     const labelUnit = useLabelUnit();
 
     return (
@@ -23,19 +28,37 @@ export default function RencanaAksiIndex({ rencanaAksis = [], pagination }: Renc
         >
             <Head title="Rencana Aksi" />
 
-            <div className="mb-6">
-                <h2 className="text-sm font-semibold text-ink">
-                    Antrean Pengesahan Rencana Aksi
-                </h2>
-                <p className="mt-0.5 text-xs text-muted">
-                    Daftar rencana aksi yang diajukan dan memerlukan pengesahan resmi oleh Tim Perencanaan.
-                </p>
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold text-ink">
+                        {status === 'disahkan' ? 'Daftar Rencana Aksi Disahkan' : 'Antrean Pengesahan Rencana Aksi'}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted">
+                        {status === 'disahkan'
+                            ? 'Rencana aksi yang telah disahkan dan menjadi dokumen resmi.'
+                            : 'Daftar rencana aksi yang diajukan dan memerlukan pengesahan resmi oleh Tim Perencanaan.'}
+                    </p>
+                </div>
+                <nav aria-label="Filter status rencana aksi" className="flex gap-1 rounded-lg border border-border bg-soft p-1">
+                    {(Object.keys(TAB_LABELS) as StatusFilter[]).map((tab) => (
+                        <Link
+                            key={tab}
+                            href={`/rencana-aksi?status=${tab}`}
+                            aria-current={status === tab ? 'page' : undefined}
+                            className={status === tab
+                                ? 'rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-primary shadow-xs'
+                                : 'rounded-md px-3 py-1.5 text-xs font-medium text-muted hover:text-ink'}
+                        >
+                            {TAB_LABELS[tab]}
+                        </Link>
+                    ))}
+                </nav>
             </div>
 
             <Card>
                 <CardHeader>
                     <CardTitle className="text-ink">
-                        Daftar Pengajuan Masuk ({pagination.total})
+                        {status === 'disahkan' ? 'Daftar Disahkan' : 'Daftar Pengajuan Masuk'} ({pagination.total})
                     </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
@@ -59,10 +82,12 @@ export default function RencanaAksiIndex({ rencanaAksis = [], pagination }: Renc
                                                 <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                                             </div>
                                             <p className="text-sm font-semibold text-ink">
-                                                Semua pengajuan telah diproses
+                                                {status === 'disahkan' ? 'Belum ada rencana aksi disahkan' : 'Semua pengajuan telah diproses'}
                                             </p>
                                             <p className="mt-1 text-xs text-muted max-w-sm">
-                                                Tidak ada antrean rencana aksi yang menunggu pengesahan saat ini.
+                                                {status === 'disahkan'
+                                                    ? 'Rencana aksi yang telah disahkan akan tampil di sini.'
+                                                    : 'Tidak ada antrean rencana aksi yang menunggu pengesahan saat ini.'}
                                             </p>
                                         </div>
                                     </td>
