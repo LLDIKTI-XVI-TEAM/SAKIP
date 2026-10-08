@@ -14,10 +14,10 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +29,7 @@ class IndexRencanaAksi
         private readonly PermissionResolver $resolver,
         private readonly CalculatePengukuran $calculator,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
+        private readonly JendelaTulisRencanaAksi $jendela,
     ) {}
 
     /**
@@ -114,6 +115,7 @@ class IndexRencanaAksi
                 $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
                 $unitId = (string) $segel->unit_id;
+                $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
 
                 // T10: metadata indikator (nama, satuan, arah, tipe,
                 // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
@@ -166,9 +168,14 @@ class IndexRencanaAksi
                     // ada: tidak ada periode tercakup (gagal tertutup).
                     'koreksi' => $koreksi,
                     'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
+                    // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
+                    // (izin, status draf, jendela tulis) agar formulir tidak
+                    // dibuka untuk penyimpanan yang pasti ditolak.
                     'can' => [
                         'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
-                        'update' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId),
+                        'update' => $keputusanUbah->allowed
+                            && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
+                            && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, null, 'penyimpanan') === null,
                     ],
                 ];
 
@@ -303,45 +310,23 @@ class IndexRencanaAksi
     }
 
     /**
-     * Status sesi koreksi untuk UI (F2).
-     *
-     * `aktif` true hanya bila penutupan terlewati (zona bisnis) dan sesi
-     * koreksi sah: jendela waktu berjalan, `jenis_objek` memuat
-     * `rencana_aksi`, dan indikator tercakup. Cermin gerbang tulis
-     * `SimpanTargetPeriode::dalamKoreksiSah` tanpa memeriksa targets —
-     * UI memakai ini untuk menonaktifkan periode di luar lingkup, backend
-     * tetap menolak fail-closed bila klien nakal mengirimnya.
+     * Status sesi koreksi untuk UI (F2): `aktif` true hanya bila penutupan
+     * terlewati (zona bisnis) dan sesi koreksi sah menurut
+     * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan gerbang
+     * tulis. UI memakai ini untuk menonaktifkan periode di luar lingkup;
+     * backend tetap menolak fail-closed bila klien nakal mengirimnya.
      *
      * @return array{aktif: bool, periode_ids: list<string>}
      */
     private function statusKoreksi(JadwalTahunan $jadwal, IndikatorKinerja $indikator): array
     {
-        $lingkup = $jadwal->lingkup_koreksi ?? [];
-        $periodeIds = $lingkup['periode_ids'] ?? [];
-        $periodeIds = is_array($periodeIds)
-            ? array_values(array_map(fn ($id): string => (string) $id, $periodeIds))
-            : [];
-
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $penutupan = $jadwal->penutupan?->toDateString();
-        if (! is_string($penutupan) || $hariIni <= $penutupan) {
-            return ['aktif' => false, 'periode_ids' => $periodeIds];
-        }
 
-        if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
-            return ['aktif' => false, 'periode_ids' => $periodeIds];
-        }
-        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
-            return ['aktif' => false, 'periode_ids' => $periodeIds];
-        }
-        if (! in_array('rencana_aksi', $lingkup['jenis_objek'] ?? [], true)) {
-            return ['aktif' => false, 'periode_ids' => $periodeIds];
-        }
-        if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
-            return ['aktif' => false, 'periode_ids' => $periodeIds];
-        }
-
-        return ['aktif' => true, 'periode_ids' => $periodeIds];
+        return [
+            'aktif' => is_string($penutupan) && $hariIni > $penutupan && $this->jendela->sesiKoreksiAktif($indikator, $jadwal),
+            'periode_ids' => $this->jendela->periodeLingkupKoreksi($jadwal),
+        ];
     }
 
     /**

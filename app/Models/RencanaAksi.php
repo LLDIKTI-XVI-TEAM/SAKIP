@@ -26,6 +26,9 @@ class RencanaAksi extends Model
 
     public const STATUS_DISAHKAN = 'disahkan';
 
+    /** Status header yang targetnya masih boleh disunting. */
+    public const STATUS_DAPAT_DISUNTING = [self::STATUS_DRAFT, self::STATUS_DIKEMBALIKAN];
+
     /**
      * `snapshot_draf_id` adalah jepit konteks non-FK (revisi D7 sempit,
      * audit-safe, tanpa relasi otorisasi): snapshot terakhir yang

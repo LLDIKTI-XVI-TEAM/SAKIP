@@ -13,10 +13,9 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
-use App\Support\PermissionDecision;
-use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,6 +29,7 @@ class EnsureDraftRencanaAksi
         private readonly ResolveLockedActor $lockedActor,
         private readonly IndikatorArsipGuard $arsipGuard,
         private readonly AuditLogger $audit,
+        private readonly JendelaTulisRencanaAksi $jendela,
     ) {}
 
     /**
@@ -117,7 +117,10 @@ class EnsureDraftRencanaAksi
                     throw ValidationException::withMessages(['indikator_id' => 'Penugasan PIC efektif belum tersedia untuk indikator ini.']);
                 }
 
-                $this->pastikanDapatMembuat($pengunci, $keputusan, $indikator, $jadwal, $pic);
+                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, null, 'pembuatan');
+                if ($alasan !== null) {
+                    throw ValidationException::withMessages(['jendela' => $alasan]);
+                }
                 $snapshotDraf = $this->pastikanSnapshotTersedia($jadwal, $indikator);
 
                 $existing = RencanaAksi::where('indikator_id', $indikator->id)
@@ -177,33 +180,6 @@ class EnsureDraftRencanaAksi
     }
 
     /**
-     * Menegakkan batas mutation create: penutupan tahun untuk semua jalur,
-     * lalu PIC efektif + jendela RA khusus jalur unit-scoped.
-     */
-    private function pastikanDapatMembuat(User $pengunci, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, PenugasanIndikator $pic): void
-    {
-        $hariIni = today(config('app.business_timezone'))->toDateString();
-        $penutupan = $jadwal->penutupan?->toDateString();
-        if (is_string($penutupan) && $hariIni > $penutupan && ! $this->dalamKoreksiSah($indikator, $jadwal)) {
-            throw ValidationException::withMessages(['jendela' => 'Tahun jadwal telah ditutup; pembuatan memerlukan sesi koreksi resmi.']);
-        }
-
-        if ($this->jalurPerencanaan($keputusan)) {
-            return;
-        }
-
-        if ((string) $pic->user_id !== (string) $pengunci->id) {
-            throw ValidationException::withMessages(['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
-        }
-
-        $mulai = $jadwal->rencana_aksi_mulai?->toDateString();
-        $selesai = $jadwal->rencana_aksi_selesai?->toDateString();
-        if (! is_string($mulai) || ! is_string($selesai) || $hariIni < $mulai || $hariIni > $selesai) {
-            throw ValidationException::withMessages(['jendela' => 'Jendela penyusunan rencana aksi periode ini sudah ditutup.']);
-        }
-    }
-
-    /**
      * Snapshot beku wajib ada begitu jadwal pernah diaktifkan; tanpanya
      * pembuatan draf ditolak fail-closed (audit buat_ditolak di pemanggil).
      * Bila snapshot tersedia tetapi unit bekunya berbeda dari unit master
@@ -246,35 +222,6 @@ class EnsureDraftRencanaAksi
         return $jadwal->is_terkunci
             || $jadwal->activated_at !== null
             || in_array($jadwal->status, ['aktif', 'ditutup'], true);
-    }
-
-    /**
-     * Jalur global bila allow berasal dari peran, bukan hanya grant unit
-     * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
-     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
-     */
-    private function jalurPerencanaan(PermissionDecision $keputusan): bool
-    {
-        return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
-    }
-
-    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
-    {
-        if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
-            return false;
-        }
-        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
-            return false;
-        }
-        $lingkup = $jadwal->lingkup_koreksi ?? [];
-        if (! in_array('rencana_aksi', $lingkup['jenis_objek'] ?? [], true)) {
-            return false;
-        }
-        if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
-            return false;
-        }
-
-        return true;
     }
 
     /**

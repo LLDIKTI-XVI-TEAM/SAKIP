@@ -8,7 +8,6 @@ use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
-use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
@@ -19,11 +18,10 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
-use App\Support\PermissionDecision;
-use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +37,7 @@ class SimpanTargetPeriode
         private readonly CalculatePengukuran $calculator,
         private readonly AuditLogger $audit,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
+        private readonly JendelaTulisRencanaAksi $jendela,
     ) {}
 
     /**
@@ -93,7 +92,7 @@ class SimpanTargetPeriode
 
                 $this->arsipGuard->pastikanDapatDibuatkan($indikator, 'rencana_aksi');
 
-                if (! in_array($header->status_alur, [RencanaAksi::STATUS_DRAFT, RencanaAksi::STATUS_DIKEMBALIKAN], true)) {
+                if (! in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)) {
                     throw ValidationException::withMessages(['status_alur' => 'Target hanya dapat disimpan pada draf yang dapat disunting.']);
                 }
 
@@ -152,7 +151,10 @@ class SimpanTargetPeriode
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
-                $this->pastikanJendela($pengunci, $keputusan, $indikator, $jadwal, $targets);
+                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, array_column($targets, 'periode_id'), 'penyimpanan');
+                if ($alasan !== null) {
+                    throw ValidationException::withMessages(['jendela' => $alasan]);
+                }
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
                 // F2 (Review6 T2) + F1 (Review7 U1): rekonsiliasi transisi —
@@ -364,80 +366,6 @@ class SimpanTargetPeriode
         }
 
         return $hasil;
-    }
-
-    /**
-     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
-     */
-    private function pastikanJendela(User $pengunci, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): void
-    {
-        $hariIni = today(config('app.business_timezone'))->toDateString();
-        $penutupan = $jadwal->penutupan?->toDateString();
-        if (is_string($penutupan) && $hariIni > $penutupan && ! $this->dalamKoreksiSah($indikator, $jadwal, $targets)) {
-            throw ValidationException::withMessages(['jendela' => 'Tahun jadwal telah ditutup; penyimpanan memerlukan sesi koreksi resmi.']);
-        }
-
-        if ($this->jalurPerencanaan($keputusan)) {
-            return;
-        }
-
-        $pic = PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->first();
-        if (! $pic instanceof PenugasanIndikator || (string) $pic->user_id !== (string) $pengunci->id) {
-            throw ValidationException::withMessages(['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
-        }
-
-        $mulai = $jadwal->rencana_aksi_mulai?->toDateString();
-        $selesai = $jadwal->rencana_aksi_selesai?->toDateString();
-        if (! is_string($mulai) || ! is_string($selesai) || $hariIni < $mulai || $hariIni > $selesai) {
-            throw ValidationException::withMessages(['jendela' => 'Jendela penyusunan rencana aksi periode ini sudah ditutup.']);
-        }
-    }
-
-    /**
-     * Jalur global bila allow berasal dari peran, bukan hanya grant unit
-     * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
-     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
-     */
-    private function jalurPerencanaan(PermissionDecision $keputusan): bool
-    {
-        return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
-    }
-
-    /**
-     * Sesi koreksi sah bila jendela waktu berjalan dan cakupan jenis objek
-     * serta indikator cocok. Setiap periode_id dalam REQUEST wajib termasuk
-     * dalam lingkup_koreksi.periode_ids — acuan validasi adalah periode yang
-     * diminta, bukan yang tersimpan, sehingga header tanpa target lama pun
-     * tetap divalidasi. Kunci yang tidak ada berarti tidak ada periode yang
-     * tercakup (gagal tertutup, sama dengan PengukuranKinerjaPolicy).
-     *
-     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
-     */
-    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): bool
-    {
-        if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
-            return false;
-        }
-        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
-            return false;
-        }
-        $lingkup = $jadwal->lingkup_koreksi ?? [];
-        if (! in_array('rencana_aksi', $lingkup['jenis_objek'] ?? [], true)) {
-            return false;
-        }
-        if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
-            return false;
-        }
-        $cakupanPeriode = $lingkup['periode_ids'] ?? [];
-        $diizinkan = is_array($cakupanPeriode) ? array_map(fn ($id): string => (string) $id, $cakupanPeriode) : [];
-        foreach ($targets as $baris) {
-            $periodeId = (string) ($baris['periode_id'] ?? '');
-            if ($periodeId === '' || ! in_array($periodeId, $diizinkan, true)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private function pastikanTargetsSah(string $tipe, int $presisi, Collection $definisi, Collection $periodeEfektif, array $anggotaJadwal, array $targets): void

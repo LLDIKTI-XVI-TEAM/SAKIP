@@ -12,8 +12,8 @@ class StoreRencanaAksiDraft extends Controller
     public function __invoke(EnsureDraftRencanaAksiRequest $request, EnsureDraftRencanaAksi $action): RedirectResponse
     {
         $data = $request->validated();
-        $action->handle($request->user(), (string) $data['indikator_id'], (int) $data['tahun']);
+        $rencanaAksi = $action->handle($request->user(), (string) $data['indikator_id'], (int) $data['tahun']);
 
-        return redirect()->back()->with('success', 'Draf rencana aksi berhasil disiapkan.');
+        return redirect()->route('rencana-aksi.show', $rencanaAksi)->with('success', 'Draf rencana aksi berhasil disiapkan.');
     }
 }

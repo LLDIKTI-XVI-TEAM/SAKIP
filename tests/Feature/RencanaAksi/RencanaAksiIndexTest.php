@@ -275,6 +275,33 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
+     * `can.update` memakai gerbang tulis yang sama dengan SimpanTargetPeriode:
+     * PIC di luar jendela dan header yang sudah diajukan tidak ditawari form.
+     */
+    public function test_can_update_mengikuti_gerbang_tulis(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $respon = $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $respon->assertRedirect(route('rencana-aksi.show', $header));
+
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', true));
+
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function buatFixtureManual(string $tipe = 'manual', int $mulaiUrutan = 1): array
