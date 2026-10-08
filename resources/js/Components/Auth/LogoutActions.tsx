@@ -79,20 +79,30 @@ export function LogoutActions({ appearance = 'default', showLocal = true, onPend
                 <Button
                     type="button"
                     variant={menu ? 'ghost' : 'primary'}
-                    className={menu ? 'w-full justify-start text-ink' : undefined}
+                    size={menu ? 'sm' : 'md'}
+                    className={
+                        menu
+                            ? 'w-full justify-start gap-2.5 px-3 py-2 text-sm font-medium text-ink hover:bg-soft rounded-lg h-auto transition-colors'
+                            : undefined
+                    }
                     isLoading={intent === '/logout'}
                     disabled={disabled}
                     onClick={() => leave('/logout')}
                 >
-                    {menu && intent !== '/logout' && <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />}
+                    {menu && intent !== '/logout' && <LogOut aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />}
                     Keluar dari SAKIP
                 </Button>
             )}
-            <div className={menu ? 'border-t border-border pt-1' : 'border-t border-border pt-3'}>
+            <div className={menu ? 'border-t border-border/80 my-1 pt-1' : 'border-t border-border pt-3'}>
                 <Button
                     type="button"
                     variant={menu ? 'ghost' : 'outline'}
-                    className={menu ? 'w-full justify-start text-danger hover:bg-danger/10 hover:text-danger' : undefined}
+                    size={menu ? 'sm' : 'md'}
+                    className={
+                        menu
+                            ? 'w-full justify-start gap-2.5 px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10 hover:text-danger rounded-lg h-auto transition-colors'
+                            : undefined
+                    }
                     aria-haspopup="dialog"
                     isLoading={intent === '/logout/sso'}
                     disabled={disabled}
@@ -101,7 +111,7 @@ export function LogoutActions({ appearance = 'default', showLocal = true, onPend
                         setConfirmSso(true);
                     }}
                 >
-                    {menu && intent !== '/logout/sso' && <ShieldOff aria-hidden="true" className="h-4 w-4 shrink-0" />}
+                    {menu && intent !== '/logout/sso' && <ShieldOff aria-hidden="true" className="h-4 w-4 shrink-0 text-danger/80" />}
                     Keluar dari layanan terhubung
                 </Button>
             </div>
