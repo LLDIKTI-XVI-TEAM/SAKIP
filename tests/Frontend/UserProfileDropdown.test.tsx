@@ -280,6 +280,49 @@ describe('UI-01-F — Kegagalan logout tetap terbaca', () => {
         await user.click(within(panel).getByRole('button', { name: 'Keluar dari SAKIP' }));
         expect(router.post).toHaveBeenCalledTimes(1);
     });
+
+    it('Escape selama logout berjalan tidak menyembunyikan hasil kegagalan', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { trigger, panel } = await openProfile(user);
+
+        await user.click(within(panel).getByRole('button', { name: 'Keluar dari SAKIP' }));
+        await user.keyboard('{Escape}');
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        expect(panel.hasAttribute('hidden')).toBe(false);
+
+        await act(async () => {
+            postOptions().onHttpException?.({ status: 419, data: {}, headers: {} } as never);
+            postOptions().onFinish?.({} as never);
+        });
+        expect(screen.getByRole('alert').textContent).toContain('Keluar belum terkonfirmasi');
+
+        // Setelah request selesai, Escape kembali menutup panel dan memulihkan fokus.
+        await user.keyboard('{Escape}');
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('klik ulang tombol profil selama logout berjalan tidak menyembunyikan hasil kegagalan', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { trigger, panel } = await openProfile(user);
+
+        await user.click(within(panel).getByRole('button', { name: 'Keluar dari layanan terhubung' }));
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keluar dari layanan terhubung' }));
+        await user.click(trigger);
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+        await act(async () => {
+            postOptions().onNetworkError?.({} as never);
+            postOptions().onFinish?.({} as never);
+        });
+        expect(screen.getByRole('alert').textContent).toContain('Keluar belum terkonfirmasi');
+
+        await user.click(trigger);
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(router.post).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('UI-01-G — Akses profil pada viewport mobile', () => {

@@ -38,7 +38,7 @@ export function UserProfileDropdown({ user, placement, disabled = false }: UserP
     useEffect(() => {
         if (!open) return;
 
-        // Penutupan implisit ditahan selama logout berjalan agar hasil atau errornya tetap terbaca.
+        // Seluruh jalur penutupan ditahan selama logout berjalan agar hasil atau errornya tetap terbaca.
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
             if (logoutPending || !(target instanceof Node)) return;
@@ -46,7 +46,7 @@ export function UserProfileDropdown({ user, placement, disabled = false }: UserP
             setOpen(false);
         };
         const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || isInsideDialog(event.target)) return;
+            if (event.key !== 'Escape' || logoutPending || isInsideDialog(event.target)) return;
             setOpen(false);
             triggerRef.current?.focus();
         };
@@ -79,7 +79,8 @@ export function UserProfileDropdown({ user, placement, disabled = false }: UserP
                 aria-expanded={open}
                 aria-controls={panelId}
                 aria-label={`Menu akun ${nama} (${peran})`}
-                onClick={() => setOpen((isOpen) => !isOpen)}
+                // Tetap terbuka bila logout masih berjalan; selain itu berfungsi sebagai toggle biasa.
+                onClick={() => setOpen((isOpen) => !isOpen || logoutPending)}
                 className={mobile
                     ? 'inline-flex items-center gap-1.5 rounded-lg p-1.5 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40'
                     : `flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary/25 ${
