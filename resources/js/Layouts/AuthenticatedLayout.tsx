@@ -45,6 +45,8 @@ export function AuthenticatedLayout({
         ? (rawLogo && rawLogo.trim() !== '' ? rawLogo : null)
         : '/img/dikti16-favicon-blue-150x150.png';
     const [navigationOpen, setNavigationOpen] = useState(false);
+    // Drawer tidak dibuka selama logout berjalan agar profil tidak menjadi inert dan hasilnya tetap terbaca.
+    const [logoutPending, setLogoutPending] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 768px)').matches);
@@ -165,7 +167,12 @@ export function AuthenticatedLayout({
                 <div className="flex shrink-0 items-center gap-1">
                     {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
                     {!isDesktopViewport && (
-                        <UserProfileDropdown user={auth?.user ?? null} placement="mobile" disabled={navigationOpen} />
+                        <UserProfileDropdown
+                            user={auth?.user ?? null}
+                            placement="mobile"
+                            disabled={navigationOpen}
+                            onLogoutPendingChange={setLogoutPending}
+                        />
                     )}
                     <button
                         ref={menuButtonRef}
@@ -173,8 +180,9 @@ export function AuthenticatedLayout({
                         aria-expanded={navigationOpen}
                         aria-controls="application-navigation"
                         aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+                        disabled={logoutPending}
                         onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
                     </button>

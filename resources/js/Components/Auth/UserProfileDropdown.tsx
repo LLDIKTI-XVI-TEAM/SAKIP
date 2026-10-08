@@ -9,9 +9,12 @@ interface UserProfileDropdownProps {
     placement: 'header' | 'mobile';
     /**
      * Menjadikan profil inert, misalnya saat drawer navigasi mobile terbuka sebagai modal.
-     * Panel sudah tertutup lebih dulu karena membuka drawer memindahkan pointer/fokus ke luar profil.
+     * Panel sudah tertutup lebih dulu karena membuka drawer memindahkan pointer/fokus ke luar profil;
+     * selama logout berjalan, pemanggil wajib menahan pembukaan drawer melalui onLogoutPendingChange.
      */
     disabled?: boolean;
+    /** Memberi tahu pemanggil selama request keluar berjalan agar overlay lain tidak menutupi hasilnya. */
+    onLogoutPendingChange?: (pending: boolean) => void;
 }
 
 /** Dialog konfirmasi logout SSO dirender lewat portal sehingga berada di luar kontainer dropdown. */
@@ -23,7 +26,7 @@ const isInsideDialog = (target: EventTarget | null): boolean =>
  * Panel tetap ter-mount saat tertutup agar status, error, dan penahan request
  * milik LogoutActions tidak hilang ketika pengguna menutup lalu membuka kembali panel.
  */
-export function UserProfileDropdown({ user, placement, disabled = false }: UserProfileDropdownProps) {
+export function UserProfileDropdown({ user, placement, disabled = false, onLogoutPendingChange }: UserProfileDropdownProps) {
     const [open, setOpen] = useState(false);
     const [logoutPending, setLogoutPending] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -142,7 +145,13 @@ export function UserProfileDropdown({ user, placement, disabled = false }: UserP
                     </div>
                 </div>
                 <div className="p-2">
-                    <LogoutActions appearance="menu" onPendingChange={setLogoutPending} />
+                    <LogoutActions
+                        appearance="menu"
+                        onPendingChange={(pending) => {
+                            setLogoutPending(pending);
+                            onLogoutPendingChange?.(pending);
+                        }}
+                    />
                 </div>
             </div>
         </div>

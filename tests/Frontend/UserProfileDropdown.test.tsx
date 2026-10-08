@@ -392,6 +392,39 @@ describe('UI-01-G — Akses profil pada viewport mobile', () => {
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Buka navigasi' }));
         expect(trigger.getAttribute('aria-expanded')).toBe('false');
     });
+
+    it('drawer tidak dapat dibuka selama logout berjalan sehingga hasil kegagalan tetap terlihat', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { trigger, panel } = await openProfile(user);
+        const menuButton = screen.getByRole('button', { name: 'Buka navigasi' });
+        const drawer = document.getElementById('application-navigation') as HTMLElement;
+
+        await user.click(within(panel).getByRole('button', { name: 'Keluar dari SAKIP' }));
+        expect(menuButton.hasAttribute('disabled')).toBe(true);
+
+        await user.click(menuButton);
+        expect(drawer.getAttribute('aria-modal')).toBeNull();
+        expect(drawer.getAttribute('aria-hidden')).toBe('true');
+        expect(trigger.closest('[inert]')).toBeNull();
+
+        await act(async () => {
+            postOptions().onNetworkError?.({} as never);
+            postOptions().onFinish?.({} as never);
+        });
+
+        const alert = within(panel).getByRole('alert');
+        expect(alert.textContent).toContain('Keluar belum terkonfirmasi');
+        expect(panel.hasAttribute('hidden')).toBe(false);
+        expect(alert.closest('[inert]')).toBeNull();
+        expect(menuButton.hasAttribute('disabled')).toBe(false);
+
+        // Setelah request selesai, navigasi kembali normal dan panel profil menutup seperti biasa.
+        await user.click(menuButton);
+        expect(drawer.getAttribute('aria-modal')).toBe('true');
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(router.post).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('UI-01-H — Perubahan viewport dan ruang panel', () => {
