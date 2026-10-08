@@ -275,6 +275,78 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
+     * Daftar Rencana Aksi adalah titik masuk PIC: indikator miliknya tampil
+     * di atas, "Buat" hanya ditawarkan bila gerbang server mengizinkan, dan
+     * berubah menjadi "Buka" setelah draf ada.
+     */
+    public function test_daftar_menawarkan_buat_lalu_buka_dengan_milik_sendiri_di_atas(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $lain = $this->tambahIndikatorTerjadwal($fixture, 'A-LAIN');
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('RencanaAksi/Index')
+                ->where('auth.can.rencanaAksi', true)
+                ->has('daftar', 2)
+                ->where('daftar.0.indikator_id', $fixture['indikator']->id)
+                ->where('daftar.0.tahun', 2026)
+                ->where('daftar.0.milik_saya', true)
+                ->where('daftar.0.rencana_aksi', null)
+                ->where('daftar.0.can.buat', true)
+                ->where('daftar.0.can.buka', false)
+                ->where('daftar.1.indikator_id', $lain->id)
+                ->where('daftar.1.milik_saya', false)
+                ->where('daftar.1.can.buat', false));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page
+                ->where('daftar.0.rencana_aksi.id', $header->id)
+                ->where('daftar.0.rencana_aksi.status_alur', 'draft')
+                ->where('daftar.0.can.buat', false)
+                ->where('daftar.0.can.buka', true));
+    }
+
+    public function test_daftar_di_luar_jendela_hanya_perencanaan_yang_ditawari_buat(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.can.buat', false));
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.can.buat', true));
+    }
+
+    public function test_daftar_menyaring_unit_yang_ditolak_dan_menolak_tanpa_izin_baca(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $fixture['pic']->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
+            'unit_id' => $fixture['unit']->id,
+            'alasan' => 'Fixture pembatasan',
+            'ditetapkan_oleh' => $fixture['perencanaan']->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('daftar', 0));
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi')->assertForbidden();
+    }
+
+    /**
      * `can.update` memakai gerbang tulis yang sama dengan SimpanTargetPeriode:
      * PIC di luar jendela dan header yang sudah diajukan tidak ditawari form.
      */
@@ -418,6 +490,53 @@ class RencanaAksiIndexTest extends TestCase
         }
 
         return [...$dasar, 'pembilang' => $pembilang, 'penyebut' => $penyebut];
+    }
+
+    /**
+     * Indikator kedua pada jadwal fixture yang sama, dengan PJ pengguna lain.
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function tambahIndikatorTerjadwal(array $fixture, string $kode): IndikatorKinerja
+    {
+        $indikator = IndikatorKinerja::create([
+            'sasaran_strategis_id' => $fixture['sasaran']->id,
+            'unit_id' => $fixture['unit']->id,
+            'kode' => $kode,
+            'nama' => 'Indikator Lain',
+            'satuan' => 'poin',
+            'tipe_perhitungan' => 'manual',
+            'arah' => 'naik_baik',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'status' => 'aktif',
+            'tahun_mulai_berlaku' => 2025,
+            'created_by' => $fixture['perencanaan']->id,
+            'created_by_role' => 'perencanaan',
+        ]);
+        JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $indikator->id,
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $fixture['unit']->id,
+            'nama' => $indikator->nama,
+            'definisi' => 'Definisi beku.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 50,
+        ]);
+        PenugasanIndikator::create([
+            'indikator_id' => $indikator->id,
+            'user_id' => $this->penggunaDenganPeran('pegawai')->id,
+            'tanggal_mulai_berlaku' => '2026-01-01',
+            'ditetapkan_oleh' => $fixture['perencanaan']->id,
+            'created_at' => now(),
+        ]);
+
+        return $indikator;
     }
 
     private function penggunaDenganPeran(string $kode): User

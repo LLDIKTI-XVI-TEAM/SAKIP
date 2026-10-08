@@ -26,6 +26,7 @@ import {
     Target,
     Layers,
     CalendarDays,
+    ClipboardList,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 
@@ -150,6 +151,7 @@ export function AuthenticatedLayout({
     const navigation = [
         { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
         { href: '/perencanaan/sasaran-indikator', label: 'Sasaran & Indikator', icon: Target, visible: auth.can.sasaranIndikator ?? false },
+        { href: '/rencana-aksi', label: 'Rencana Aksi', icon: ClipboardList, visible: auth.can.rencanaAksi ?? false },
         { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
         { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
         { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },

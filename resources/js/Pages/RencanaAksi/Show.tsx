@@ -227,7 +227,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     return (
         <AuthenticatedLayout
             title={`Rencana Aksi ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`}
-            breadcrumbs={[{ label: 'Rencana Aksi' }, { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}` }]}
+            breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}` }]}
         >
             <Head title={`Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="mx-auto max-w-4xl space-y-6">
