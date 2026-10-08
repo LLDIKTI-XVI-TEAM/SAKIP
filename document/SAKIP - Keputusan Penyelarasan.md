@@ -1,9 +1,10 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **6 Oktober 2026**  
+Pembaruan terakhir: **9 Oktober 2026**  
 Branch acuan: `development`  
-Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`
+Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
+Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -25,6 +26,8 @@ Pembaruan **20 September 2026 (Q31)** sempat mencatat enam role berdasarkan klar
 Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`).
 
 **Keputusan 6 Oktober 2026 (Q33)** menegaskan domain nilai untuk baseline dan target tahunan PK: keduanya boleh `null` secara independen; jika diisi harus berupa desimal finite dan nonnegatif (`>= 0`); nilai `0` adalah nilai sah dan tidak sama dengan `null`; serta tidak ada batas universal maksimum `100`. Q33 hanya berlaku pada baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi, nilai komponen, atau target periode Rencana Aksi.
+
+**Keputusan 9 Oktober 2026 (Q34)** meratifikasi aturan Penanggung Jawab indikator — termasuk pergantian PJ pada tanggal yang sama dengan satu PJ efektif deterministik — serta ADR-0007 (`komponen_id = NULL` untuk target manual Rencana Aksi) dan ADR-0008 (`alasan_deviasi_pk`, wajib saat pengajuan, bukan saat simpan draf).
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -684,6 +687,36 @@ Q33 diselaraskan minimal ke:
 - implementation dan regression test `ISS-02.07`.
 
 Q33 adalah keputusan domain tersendiri. **Jangan merujuk ketentuan nonnegatif ini sebagai “Q5 Issue #28”**, karena Q5 pada dokumen ini membahas formula IKU 3 dan bukan domain baseline/target tahunan.
+
+---
+
+# Keputusan Q34 — Aturan Penanggung Jawab Indikator dan Struktur Target Rencana Aksi
+
+**Keputusan PM (Dion), 9 Oktober 2026 (WITA), via WhatsApp atas konfirmasi tim pengembang.**
+
+Q34 meratifikasi aturan Penanggung Jawab (PJ) yang berstatus *pending stakeholder decision* pada ISS-04.01 serta dua penyimpangan struktur Rencana Aksi dari Data Model yang dicatat sebagai ADR-0007/0008.
+
+## 34.1 Aturan Penanggung Jawab Indikator
+
+1. **Pergantian PJ pada tanggal yang sama diperbolehkan.** Histori penugasan tetap append-only. Sistem menentukan tepat satu PJ efektif secara deterministik berdasarkan tanggal efektif lalu urutan penugasan. Perubahan dari keadaan usang ditolak melalui locking dan validasi stale-state.
+2. Tanggal penetapan boleh lampau maupun mendatang, tetapi tidak boleh mengubah data historis yang sudah dibekukan.
+3. Penetapan ulang ke PJ yang sama ditolak bila tidak mengubah PJ efektif pada tanggal yang dipilih.
+4. Mantan PJ boleh ditetapkan kembali.
+5. Penugasan mendatang yang sudah ada tetap dipertahankan saat ditambahkan penugasan bertanggal lebih awal.
+6. Indikator arsip, Renstra arsip, atau unit nonaktif tidak menerima perubahan PJ baru; histori tetap dapat dibaca sesuai akses.
+
+**Status implementasi:** butir 2–6 sudah diimplementasikan pada ISS-04.01 (#68). Butir 1 **belum**: implementasi saat ini masih menolak penugasan kedua pada tanggal yang sama melalui unique `(indikator_id, tanggal_mulai_berlaku)`. Perubahan dikerjakan pada modul Penanggung Jawab, bukan dengan mengubah business logic Rencana Aksi, dan wajib disertai regression test pergantian tanggal sama, concurrency, histori, penugasan mendatang, serta integrasi Rencana Aksi dan Pengukuran. Urutan penugasan tidak boleh bergantung pada `created_at` saja karena dua baris dapat memiliki nilai identik.
+
+## 34.2 Struktur Target dan Alasan Deviasi Rencana Aksi
+
+1. **ADR-0007 disetujui:** target indikator manual memakai `rencana_aksi_target.komponen_id = NULL`, tepat satu baris per periode, tanpa komponen semu, dengan constraint database yang menjamin keunikannya.
+2. **ADR-0008 disetujui:** kolom `rencana_aksi.alasan_deviasi_pk` terpisah dari `alasan_revisi`. Penyimpanan draf hanya menghasilkan peringatan deviasi; alasan wajib divalidasi saat pengajuan Rencana Aksi (ISS-05.03).
+
+## 34.3 Dampak dan Traceability
+
+- Data Model §2.23–§2.24, ERD, dan §5 diselaraskan dengan 34.2.
+- `SAKIP - Architecture Decision Records.md`: ADR-0007/0008 menjadi `Accepted`.
+- Keputusan PJ tidak menjadi blocker khusus merge ISS-05.01 (PR #62) selama Rencana Aksi memakai resolver PJ kanonis modul Penanggung Jawab dan seluruh quality gate terpenuhi.
 
 ---
 

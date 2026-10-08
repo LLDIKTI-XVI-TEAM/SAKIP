@@ -337,6 +337,7 @@ erDiagram
         enum status_alur
         int versi
         text alasan_revisi "nullable"
+        text alasan_deviasi_pk "nullable"
         uuid created_by FK
         timestamp created_at
         timestamp updated_at
@@ -348,7 +349,7 @@ erDiagram
         uuid id PK
         uuid rencana_aksi_id FK
         uuid periode_id FK
-        uuid komponen_id FK
+        uuid komponen_id FK "nullable, NULL untuk indikator manual"
         numeric nilai "nullable"
         text keterangan "nullable"
         uuid updated_by FK
@@ -1090,7 +1091,8 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 | `uraian` | text | nullable | |
 | `status_alur` | enum(`draft`,`diajukan`,`diverifikasi`,`dikembalikan`,`disahkan`) | not null, default `draft` | |
 | `versi` | int | not null, default 1 | Optimistic locking |
-| `alasan_revisi` | text | nullable | |
+| `alasan_revisi` | text | nullable | Alasan revisi/buka-kembali; tidak dipakai untuk deviasi target PK |
+| `alasan_deviasi_pk` | text | nullable | Alasan deviasi total target periode efektif terakhir terhadap target tahunan PK snapshot. Boleh kosong saat draf (hanya peringatan); wajib saat pengajuan bila terdapat deviasi (Q34, ADR-0008) |
 | `created_by` | uuid | FK → users.id | |
 | `created_at` | timestamp | not null | |
 | `updated_at` | timestamp | not null | |
@@ -1115,26 +1117,26 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 ### 2.24 `rencana_aksi_target`
 
-Target per periode per komponen di bawah satu `rencana_aksi`. Target diinput pada level komponen (angka mentah), bukan sebagai skor final indikator.
+Target per periode di bawah satu `rencana_aksi`. Indikator nonmanual diinput per komponen (angka mentah), bukan sebagai skor final indikator; indikator manual memiliki satu target langsung per periode tanpa komponen semu (Q7, Q34, ADR-0007).
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `rencana_aksi_id` | uuid | FK → rencana_aksi.id, not null | |
 | `periode_id` | uuid | FK → periode.id, not null | |
-| `komponen_id` | uuid | FK → indikator_komponen.id, not null | |
+| `komponen_id` | uuid | FK → indikator_komponen.id, **nullable** | `NULL` wajib untuk indikator manual; wajib terisi komponen efektif untuk indikator nonmanual |
 | `nilai` | numeric | **nullable** | `0` sah; `null` = belum diisi |
 | `keterangan` | text | nullable | |
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
-**Constraint:** `unique(rencana_aksi_id, periode_id, komponen_id)`.
+**Constraint:** dua partial unique index — `unique(rencana_aksi_id, periode_id) WHERE komponen_id IS NULL` (manual: tepat satu baris per periode) dan `unique(rencana_aksi_id, periode_id, komponen_id) WHERE komponen_id IS NOT NULL` (nonmanual).
 
 **Sifat nilai turunan:** perkiraan skor indikator pada tampilan rencana aksi dihitung dari nilai komponen memakai mesin perhitungan yang sama dengan pengukuran (lihat §2.28) — perkiraan itu tidak disimpan sebagai kolom, murni hasil tampilan.
 
 **Sifat kumulatif:** target triwulan bersifat **kumulatif** — nilai suatu periode mencakup capaian periode-periode sebelumnya dalam tahun yang sama (mis. target Triwulan II = target kumulatif Januari–Juni, bukan hanya April–Juni). Sistem menampilkan **peringatan, bukan blokir**, bila nilai suatu periode lebih kecil dari periode sebelumnya pada komponen yang sama.
 
-**Rekonsiliasi dengan target tahunan PK:** total target komponen pada periode terakhir seharusnya setara dengan hasil hitung target `target_tahunan` tahun tersebut. Ketidaksetaraan **tidak memblokir** pengajuan — sistem menampilkan peringatan dan **mewajibkan alasan** pada saat pengajuan rencana aksi. Target tahunan PK tetap hanya dapat diubah lewat revisi PK resmi (§2.13); deviasi pada rencana aksi wajib terlihat di layar dan tercatat di audit, tidak disesuaikan secara diam-diam.
+**Rekonsiliasi dengan target tahunan PK:** total target komponen pada periode terakhir seharusnya setara dengan hasil hitung target `target_tahunan` tahun tersebut. Ketidaksetaraan **tidak memblokir** pengajuan — sistem menampilkan peringatan dan **mewajibkan alasan** pada saat pengajuan rencana aksi, disimpan di `rencana_aksi.alasan_deviasi_pk` (§2.23). Penyimpanan draf tidak mewajibkan alasan. Target tahunan PK tetap hanya dapat diubah lewat revisi PK resmi (§2.13); deviasi pada rencana aksi wajib terlihat di layar dan tercatat di audit, tidak disesuaikan secara diam-diam.
 
 ---
 
@@ -1587,7 +1589,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`) |
 | `pengaturan` | unique(`kunci`) |
 | `rencana_aksi` | unique(`indikator_id`, `tahun`) |
-| `rencana_aksi_target` | unique(`rencana_aksi_id`, `periode_id`, `komponen_id`) |
+| `rencana_aksi_target` | partial unique (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL` (§2.24) |
 | `klaim_kegiatan` | unique(`rencana_aksi_id`, `kegiatan_id`, `komponen_id`) — implementasi index memakai `COALESCE(komponen_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
 | `indikator_komponen` | unique(`indikator_id`, `kode`) |
 | `pengukuran_komponen` | unique(`pengukuran_id`, `komponen_id`) |

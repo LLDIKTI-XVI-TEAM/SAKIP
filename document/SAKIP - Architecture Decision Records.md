@@ -13,7 +13,7 @@ Architecture Decision Record (ADR) mencatat keputusan teknis yang berdampak lint
 - `Deprecated`: tidak dipakai untuk pekerjaan baru tetapi belum sepenuhnya dihapus.
 - `Superseded`: digantikan ADR lain.
 
-ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-truth proyek**, sehingga `Status keputusan` ditandai `Accepted`. ADR berstatus `Proposed` belum boleh diklaim sebagai keputusan stakeholder sampai ada bukti ratifikasi. File dokumentasinya sendiri tetap draft sampai direview/ditambahkan melalui proses tim.
+ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-truth proyek**, sehingga `Status keputusan` ditandai `Accepted`. ADR-0007/0008 diterima melalui Keputusan Penyelarasan Q34. ADR berstatus `Proposed` belum boleh diklaim sebagai keputusan stakeholder sampai ada bukti ratifikasi. File dokumentasinya sendiri tetap draft sampai direview/ditambahkan melalui proses tim.
 
 ## Indeks
 
@@ -23,8 +23,8 @@ ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-t
 4. ADR-0004 — Snapshot Historis Immutable dan Koreksi Berbasis Versi.
 5. ADR-0005 — Atomic Indicator Definition Writer.
 6. ADR-0006 — Private File Storage dan Authorized Streaming.
-7. ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL` (Proposed).
-8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi (Proposed).
+7. ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`.
+8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi.
 
 ---
 
@@ -682,7 +682,7 @@ Test sesuai risiko:
 
 # ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`
 
-- **Status keputusan:** Proposed — Pending Stakeholder Ratification
+- **Status keputusan:** Accepted (Q34, 9 Oktober 2026)
 - **Status dokumen:** Draft untuk review tim
 - **Scope:** `rencana_aksi_target`, ISS-05.01 Penyusunan Target Rencana Aksi per Periode
 
@@ -711,7 +711,7 @@ Ditolak karena menduplikasi skema dan memecah jalur baca/tulis permanen hanya un
 
 ## Consequences
 
-- Data Model §2.24 perlu diselaraskan setelah keputusan diratifikasi.
+- Data Model §2.24 diselaraskan melalui Q34.
 - Gerbang kelengkapan pengajuan (Plan 11.3, ISS-05.03) untuk indikator manual memeriksa satu baris `NULL` per periode efektif, bukan per komponen.
 
 ## Verification
@@ -720,7 +720,7 @@ Ditolak karena menduplikasi skema dan memecah jalur baca/tulis permanen hanya un
 
 ## References
 
-- `document/SAKIP - Keputusan Penyelarasan.md` Q7.
+- `document/SAKIP - Keputusan Penyelarasan.md` Q7, Q34.
 - `document/SAKIP - Data Model.md` §2.18, §2.24.
 - `document/SAKIP - PRD.md` §14.3; `document/SAKIP - Plan Pengembangan.md` 11.1–11.2.
 - Migration `2026_10_04_043803_align_rencana_aksi_header_d1_d5_d7.php`.
@@ -730,7 +730,7 @@ Ditolak karena menduplikasi skema dan memecah jalur baca/tulis permanen hanya un
 
 # ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi
 
-- **Status keputusan:** Proposed — Pending Stakeholder Ratification
+- **Status keputusan:** Accepted (Q34, 9 Oktober 2026)
 - **Status dokumen:** Draft untuk review tim
 - **Scope:** header `rencana_aksi`, ISS-05.01 (penyimpanan draf) dan ISS-05.03 (pengajuan)
 
@@ -757,7 +757,7 @@ Ditolak karena alasan tidak queryable untuk payload baca/preview dan tidak tampi
 
 ## Consequences
 
-- Data Model §2.23 perlu diselaraskan setelah keputusan diratifikasi.
+- Data Model §2.23 diselaraskan melalui Q34.
 - Target PK tetap hanya berubah melalui revisi PK resmi.
 
 ## Verification
@@ -770,6 +770,7 @@ Ditolak karena alasan tidak queryable untuk payload baca/preview dan tidak tampi
 - `document/SAKIP - PRD.md` §14.5; `document/SAKIP - Workflow.md` §7.
 - `document/SAKIP - Data Model.md` §2.23–§2.24; `document/SAKIP - Plan Pengembangan.md` 11.6.
 - `document/SAKIP - User Issues.md` ISS-05.01 AC-6, ISS-05.03.
+- `document/SAKIP - Keputusan Penyelarasan.md` Q34.
 
 
 ---
