@@ -75,6 +75,21 @@ class IndikatorKinerjaPolicy
         return $this->response($decision);
     }
 
+    public function assignPenanggungJawab(User $user, IndikatorKinerja $indikator): Response
+    {
+        $decision = $this->permissionResolver->resolve($user, 'penanggung_jawab:update');
+        if (! $decision->allowed) {
+            $this->auditLogger->catat(
+                actor: $user, tindakan: 'penanggung_jawab.ditolak', objekTipe: 'indikator',
+                objekId: $indikator->id, nilaiBaru: ['hasil' => 'ditolak', 'field' => 'authorization'],
+                alasan: 'Percobaan penetapan penanggung jawab ditolak oleh sistem otorisasi.',
+                dasarIzin: $decision->toAuditBasis(),
+            );
+        }
+
+        return $this->response($decision);
+    }
+
     private function response(PermissionDecision $decision): Response
     {
         return $decision->allowed

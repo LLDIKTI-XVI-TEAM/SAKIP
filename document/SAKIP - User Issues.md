@@ -1468,38 +1468,75 @@ Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai <
 **Story Points:** 8  
 **Labels:** `feature`, `assignment`, `audit-sensitive`, `frontend`
 
-#### Kontrak Teknis Final Q32
+#### Kontrak Final Q32
 
 - Target PJ dapat berupa **user aktif mana pun**; tidak ada syarat role `pic`.
 - Penetapan dilakukan Perencanaan/Superadmin sesuai `penanggung_jawab:update`.
 - Assignment tidak memberikan permission.
-- User tetap membutuhkan Grant Unit yang cocok untuk hak kerja scoped.
-- Calon PJ tanpa grant: **warning, bukan blokir**.
-- Sistem menyediakan daftar **PJ aktif tanpa hak isi**.
+- Hak kerja scoped dinilai oleh PermissionResolver pada unit indikator; assignment sendiri bukan sumber allow.
+- Calon PJ dengan izin kerja belum lengkap: **warning, bukan blokir**.
+- Sistem menyediakan daftar **PJ aktif tanpa hak isi** dengan tujuh permission scoped: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`; tampilkan izin tersedia/kurang menggunakan ACL saat ini. Explicit deny menang dan user nonaktif fail-closed; diagnosis tidak menggantikan resolver pada aksi.
 - Pergantian menambah histori baru; baris lama tidak ditimpa.
 - Perubahan role user tidak mengakhiri assignment.
 
+#### Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54
+
+- Pergantian wajib alasan dan menambah histori tanpa menimpa baris lama.
+- PJ efektif pada tanggal acuan adalah assignment dengan tanggal mulai terbesar yang <= tanggal acuan.
+
+#### Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder
+
+PJ-01–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah merekam behavior branch: tanggal mutasi lampau/mendatang, unique indikator/tanggal, penolakan no-op dan pengembalian mantan PJ, pemeliharaan assignment mendatang, serta guard lifecycle. Seluruhnya **PENDING STAKEHOLDER DECISION** dan terpisah dari kontrak final Q32/kontrak dasar di atas. Behavior dan constraint existing dipertahankan sementara; kode/test tidak membuktikan persetujuan produk.
+
+**Decision gate:** pemilik requirement perlu menyetujui setiap kebijakan PJ-01–PJ-05 melalui evidence resmi sebelum kebijakan tersebut dijadikan dasar penggunaan operasional. Nama individu pemilik keputusan belum terkonfirmasi; assignee development pada Issue #54 tidak otomatis menjadi bukti approval produk. Persetujuan dan dampak rekonsiliasi dokumen/kode/schema ditelusuri pada matriks di bawah.
+
 #### Acceptance Criteria
 
-- [ ] Penugasan awal user aktif berhasil.
-- [ ] User nonaktif ditolak.
-- [ ] User tanpa grant tetap dapat ditetapkan dengan warning.
-- [ ] Pergantian PJ wajib alasan dan menjaga histori.
-- [ ] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
-- [ ] Role change tidak menonaktifkan PJ.
-- [ ] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
+> Centang di bagian AC, Automated Tests, dan DoD mencatat implementasi/verifikasi teknis yang tersedia, bukan persetujuan PJ-01–PJ-05, penyelesaian review, merge, UAT, atau deployment. Decision gate tetap terbuka; cakupan monitoring akun nonaktif masih memerlukan klarifikasi.
+
+- [x] Penugasan awal user aktif berhasil.
+- [x] User nonaktif ditolak.
+- [x] User tanpa grant tetap dapat ditetapkan dengan warning.
+- [x] Pergantian PJ wajib alasan dan menjaga histori.
+- [x] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
+- [x] Role change tidak menonaktifkan PJ.
+- [x] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
 
 #### Automated Tests
 
-- [ ] Assignment awal/pergantian/histori.
-- [ ] User nonaktif.
-- [ ] Warning tanpa grant.
-- [ ] Monitoring PJ tanpa hak isi.
-- [ ] Regression role change tidak menghapus assignment.
+- [x] Assignment awal/pergantian/histori.
+- [x] User nonaktif.
+- [x] Warning tanpa grant.
+- [x] Monitoring PJ tanpa hak isi.
+- [x] Regression role change tidak menghapus assignment.
 
 #### Definition of Done
 
-- [ ] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
+- [x] Tidak ada validasi role PIC; authorization dan audit server-side; UI sesuai Design System.
+
+#### Status Review dan Traceability ISS-04.01 — 8 Oktober 2026
+
+**Tindak lanjut teknis M-02/M-03 — terverifikasi lokal, belum dipublikasikan:** penolakan aktor nonaktif pada mutasi PJ mencatat tepat satu audit melalui policy/resolver canonical sebelum respons existing dikirim; assignment dan histori tidak berubah. Monitoring membatasi evaluasi pada 100 kandidat per request dan 20 hasil, meneruskan cursor dari kandidat terakhir yang diperiksa walaupun halaman kosong, serta memulai ulang scan saat filter berubah. Regresi berada pada `tests/Feature/PenanggungJawabTest.php` dan `tests/Frontend/PenanggungJawabMonitoring.test.tsx`; rincian eksekusi/benchmark berada pada laporan QA di luar repository. Status ini tidak menutup dependency keputusan domain atau menyatakan CI patch lokal, merge, UAT, maupun deployment.
+
+**D-01: OPEN — PENDING REQUIREMENT CLARIFICATION.** Frasa “PJ aktif tanpa hak isi” pada Q32, Plan §4.5, dan Issue #54 belum membuktikan keputusan eksplisit mengenai PJ efektif yang kemudian dinonaktifkan. Filter akun aktif existing dipertahankan sementara. Stakeholder perlu memilih **A:** hanya akun aktif dengan assignment efektif dan izin kurang, atau **B:** seluruh assignment efektif yang bermasalah termasuk akun nonaktif. Opsi B memerlukan penjelasan status akun/reason `inactive_user` dan regresi monitoring; kedua opsi tetap menjaga histori, fail-closed, serta tidak memberi grant/aktivasi otomatis. Evidence keputusan perlu ditautkan pada Issue #54 atau dokumen pemilik requirement sebelum perilaku diubah.
+
+**MAJOR: OPEN — PENDING STAKEHOLDER DECISION.** Pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
+
+Matriks berikut memisahkan kontrak baseline yang **CONFIRMED**, inferensi engineering (**INFERRED / TECHNICAL ASSUMPTION**), dan keputusan produk yang **PENDING DECISION**. Inferensi engineering menjelaskan implementasi saat ini; tidak menyetujui requirement tambahan yang ditulis pada PRD §13, Data Model §2.19/§5, Workflow §22.1, User Story, atau kontrak issue di branch ini.
+
+| Rule | Existing baseline | Evidence resmi | Status | Dampak kode |
+|---|---|---|---|---|
+| Q32: user aktif dengan/tanpa role boleh menjadi PJ; assignment tidak memberi permission; warning hak isi; role change menjaga assignment | Keputusan Penyelarasan §32.2–32.3; Plan §4.5 | Klarifikasi final LLDIKTI 24 September 2026 (Q32); Issue #54, kontrak Q32 | **CONFIRMED** | Pertahankan pemisahan assignment dan role/grant, tujuh izin scoped, canonical PermissionResolver, deny-wins, dan akun nonaktif fail-closed. |
+| Resolusi tanggal terbesar ≤ tanggal acuan; pergantian beralasan menambah histori | Plan §4.3–4.4; Data Model baseline §2.19 | Issue #54 AC-4–AC-5 dan Plan Modul 4 | **CONFIRMED** | Pertahankan `PenugasanIndikator::effectiveOn()` dan histori append-only; integrasi Rencana Aksi masih bergantung pada Modul 11. |
+| PJ-01: tanggal mutasi lampau dan mendatang diperbolehkan | Plan §4.4 mengizinkan query tanggal acuan lampau, tetapi tidak menetapkan tanggal mutasi yang boleh dipilih | Belum ada persetujuan spesifik; aturan ditambahkan pada PRD §13, Data Model §2.19, Workflow §22.1 di PR #68 | **PENDING DECISION** | `AssignmentRequest` menerima tanggal valid tanpa batas hari ini; `AppendAssignment` memakai tanggal yang dipilih. Jika dibatasi, ubah validasi dan test tanggal; data historis existing tidak dikoreksi otomatis. |
+| PJ-02: unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Data Model baseline §2.19 dan Plan §4.4 meminta PJ efektif, tanpa menetapkan constraint satu assignment per tanggal | Belum ada persetujuan spesifik; constraint ditambahkan pada Data Model §2.19/§5 dan migration PR #68 | **PENDING DECISION**; determinisme tanpa tie-break merupakan **TECHNICAL ASSUMPTION** | `AppendAssignment` menolak tanggal duplikat; migration `2026_10_06_000001_add_unique_indicator_date_to_penanggung_jawab.php` menambah unique. Jika lebih dari satu assignment per tanggal diizinkan, tetapkan urutan resmi lalu selaraskan resolver, constraint, migration, dan test; jangan memilih/menghapus duplikat otomatis. |
+| PJ-03: no-op ditolak; mantan PJ boleh kembali sesudah digantikan | Plan §4.3 dan Issue #54 AC-4 menetapkan alasan/histori pergantian; belum mengatur kedua kebijakan ini | Belum ada persetujuan spesifik; aturan ditambahkan pada PRD §13 dan Workflow §22.1 di PR #68 | **PENDING DECISION**; penolakan baris tanpa perubahan PJ merupakan **INFERRED** engineering | `AppendAssignment` membandingkan target dengan PJ efektif pada tanggal mutasi. Jika keputusan berbeda, selaraskan validasi no-op/reassignment dan audit/test; tidak perlu mengubah schema hanya untuk membolehkan no-op. |
+| PJ-04: assignment mendatang existing dipertahankan ketika assignment lebih awal ditambahkan | Plan §4.3 dan Issue #54 AC-4 melarang overwrite histori; belum menetapkan kebijakan benturan jadwal mendatang secara spesifik | Belum ada persetujuan spesifik; aturan eksplisit ditambahkan pada Workflow §22.1 di PR #68 | **PENDING DECISION**; mempertahankan seluruh baris merupakan **INFERRED** dari append-only | `AppendAssignment` hanya menambah baris; jadwal mendatang kembali efektif pada tanggalnya. Jika benturan harus ditolak, tambah guard/test; jika diperlukan pembatalan jadwal, tentukan kontrak data/migration dan audit terlebih dahulu tanpa overwrite histori. |
+| PJ-05: mutasi diblokir pada indikator arsip, Renstra diarsipkan, atau unit nonaktif; histori tetap terbaca | Lifecycle entitas dan fail-closed tersedia, tetapi larangan mutasi PJ untuk ketiga kondisi belum dinyatakan pada baseline Modul 4/Issue #54 | Belum ada persetujuan spesifik; guard dan tambahan PRD §13/Workflow §22.1 berasal dari PR #68 | **PENDING DECISION**; perluasan guard lifecycle ke mutasi PJ merupakan **INFERRED** engineering | `IndikatorKinerja::assignmentBlockReason()` dipakai `AppendAssignment` dan capability read path. Jika ada pengecualian resmi, selaraskan guard/capability/audit/test; tidak memberi permission baru atau menghapus histori. |
+
+Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Behavior domain dan constraint existing dipertahankan hingga keputusan resmi tersedia. Untuk menutup MAJOR, pemilik requirement perlu memutuskan tiap rule dan menautkan evidence pada Issue #54 atau catatan keputusan resmi; bila berbeda, rekonsiliasi dokumen pemilik kontrak, kode, migration, dan test berdasarkan keputusan tersebut.
+
+**MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah checkbox atau keputusan domain.
 
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 
