@@ -60,7 +60,7 @@ class PenanggungJawabTest extends TestCase
         ]);
     }
 
-    public function test_inactive_actor_inertia_mutation_is_rejected_without_navigation_or_writes(): void
+    public function test_inactive_actor_inertia_mutation_is_audited_without_navigation_or_assignment(): void
     {
         $this->actingAs($this->actor);
         $this->actor->update(['status' => 'nonaktif']);
@@ -70,9 +70,68 @@ class PenanggungJawabTest extends TestCase
             ->assertForbidden()->assertHeaderMissing('Location')->assertHeaderMissing('X-Inertia-Location')
             ->assertHeaderMissing('X-Inertia')->assertJsonPath('message', 'Akun tidak aktif. Periksa status akun sebelum melanjutkan.');
         $this->assertDatabaseCount('penanggung_jawab', 0);
-        $this->assertDatabaseCount('audit_log', $before);
+        $this->assertDatabaseCount('audit_log', $before + 1);
+        $audit = AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->sole();
+        $this->assertSame($this->actor->id, $audit->actor_id);
+        $this->assertSame($this->indicator->id, $audit->objek_id);
+        $this->assertSame('indikator', $audit->objek_tipe);
+        $this->assertSame('ditolak', $audit->nilai_baru['hasil']);
+        $this->assertSame('penanggung_jawab:update', $audit->dasar_izin['permission']);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
         // Navigasi biasa tetap memakai halaman onboarding existing.
         $this->get($this->url())->assertRedirect('/auth/pending');
+        $this->assertDatabaseCount('audit_log', $before + 1);
+    }
+
+    #[DataProvider('inactiveMutationRequests')]
+    public function test_inactive_actor_replacement_is_audited_once_and_preserves_history(bool $inertia): void
+    {
+        $row = $this->assignment($this->target, '2026-01-01');
+        $history = $row->fresh()->getRawOriginal();
+        $this->actingAs($this->actor);
+        $this->actor->update(['status' => 'nonaktif']);
+        $response = $this->post($this->url().'/pergantian', $this->payload($this->actor, '2026-02-01', 'Pergantian'), $inertia ? ['X-Inertia' => 'true'] : []);
+        if ($inertia) {
+            $response->assertForbidden()->assertHeaderMissing('Location')->assertHeaderMissing('X-Inertia-Location');
+        } else {
+            $response->assertRedirect('/auth/pending');
+        }
+        $this->assertDatabaseCount('penanggung_jawab', 1);
+        $this->assertSame($history, $row->fresh()->getRawOriginal());
+        $audit = AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->sole();
+        $this->assertSame($this->actor->id, $audit->actor_id);
+        $this->assertSame($this->indicator->id, $audit->objek_id);
+        $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
+    }
+
+    public static function inactiveMutationRequests(): array
+    {
+        return [[true], [false]];
+    }
+
+    public function test_inactive_standard_initial_request_is_audited_without_copying_payload(): void
+    {
+        $this->actingAs($this->actor);
+        $this->actor->update(['status' => 'nonaktif']);
+        $payload = $this->payload($this->target, '2026-01-01') + ['indikator_id' => (string) Str::uuid(), 'token' => 'payload-tidak-boleh-diaudit'];
+        $payload['alasan'] = 'payload-tidak-boleh-diaudit';
+        $this->post($this->url(), $payload)->assertRedirect('/auth/pending');
+        $this->assertDatabaseCount('penanggung_jawab', 0);
+        $audit = AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->sole();
+        $this->assertSame($this->indicator->id, $audit->objek_id);
+        $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
+        $this->assertStringNotContainsString('payload-tidak-boleh-diaudit', $audit->toJson());
+    }
+
+    public function test_inactive_non_pj_and_invalid_object_requests_do_not_create_pj_audit(): void
+    {
+        $this->actingAs($this->actor);
+        $this->actor->update(['status' => 'nonaktif']);
+        $this->post('/unit', ['nama' => 'Unit tidak boleh dibuat'], ['X-Inertia' => 'true'])->assertForbidden();
+        $this->post('/perencanaan/indikator/bukan-uuid/penanggung-jawab', [], ['X-Inertia' => 'true'])->assertNotFound();
+        $this->post('/perencanaan/indikator/'.Str::uuid().'/penanggung-jawab', [], ['X-Inertia' => 'true'])->assertNotFound();
+        $this->assertSame(0, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
     }
 
     public function test_database_rejects_two_assignments_on_the_same_indicator_date(): void
@@ -161,6 +220,7 @@ class PenanggungJawabTest extends TestCase
         $this->assertSame($this->target->id, $audit->nilai_baru['user_id']);
         $this->assertSame('2026-01-01', $audit->nilai_baru['tanggal_mulai_berlaku']);
         $this->assertSame('penanggung_jawab:update', $audit->dasar_izin['permission']);
+        $this->assertSame(0, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
     }
 
     public function test_inactive_target_and_direct_request_without_permission_are_rejected(): void
@@ -173,6 +233,7 @@ class PenanggungJawabTest extends TestCase
         $this->actingAs($this->target)->post($this->url(), $this->payload($this->target, '2026-01-01'))->assertForbidden();
         $this->assertDatabaseCount('penanggung_jawab', 0);
         $this->assertSame(2, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->where('actor_id', $this->target->id)->count());
     }
 
     public function test_replacement_keeps_history_and_allows_return_after_another_user(): void
@@ -301,24 +362,119 @@ class PenanggungJawabTest extends TestCase
         return ['user_id' => $user->id, 'tanggal_mulai_berlaku' => $date, 'alasan' => $reason, 'expected_state' => $this->indicator->fresh()->assignmentStateToken()];
     }
 
-    public function test_monitor_pagination_does_not_skip_extra_incomplete_row(): void
+    #[DataProvider('monitorPageBoundaries')]
+    public function test_monitor_pagination_does_not_skip_extra_incomplete_row(int $count): void
     {
-        for ($i = 0; $i < 21; $i++) {
+        $expected = [];
+        for ($i = 0; $i < $count; $i++) {
             $indicator = $this->indicator->replicate();
             $indicator->kode = 'I-PJ-PAGE-'.$i;
             $indicator->save();
+            $expected[] = $indicator->id;
             PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $this->target->id,
                 'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
         }
         $action = app(MonitorPenanggungJawab::class);
         $first = $action->handle(['tanggal_acuan' => '2026-03-15']);
-        $this->assertCount(20, $first['assignments']['data']);
+        $this->assertCount(min(20, $count), $first['assignments']['data']);
+        $firstIds = array_column(array_column($first['assignments']['data'], 'indicator'), 'id');
+        sort($expected);
+        if ($count <= 20) {
+            $this->assertSame($expected, $firstIds);
+            $this->assertNull($first['assignments']['next_page_url']);
+
+            return;
+        }
         parse_str(parse_url($first['assignments']['next_page_url'], PHP_URL_QUERY), $filters);
         $second = $action->handle($filters);
         $this->assertCount(1, $second['assignments']['data']);
         $ids = array_column(array_column([...$first['assignments']['data'], ...$second['assignments']['data']], 'indicator'), 'id');
         $this->assertCount(21, array_unique($ids));
+        $this->assertSame($expected, $ids);
         $this->assertNull($second['assignments']['next_page_url']);
+        // Continuation harus lolos validasi HTTP dan diteruskan utuh ke Action.
+        $this->actingAs($this->actor)->get($first['assignments']['next_page_url'])->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('assignments.data', 1)
+                ->where('assignments.data.0.indicator.id', $second['assignments']['data'][0]['indicator']['id'])
+                ->where('assignments.next_page_url', null));
+        $this->getJson('/penanggung-jawab?after_scope=bukan-scope')->assertUnprocessable()->assertJsonValidationErrors('after_scope');
+    }
+
+    public static function monitorPageBoundaries(): array
+    {
+        return [[19], [20], [21]];
+    }
+
+    public function test_monitoring_preserves_unit_grant_deny_and_unknown_permission_diagnoses(): void
+    {
+        $this->attachRole($this->target, 'pegawai');
+        $this->assignment($this->target, '2026-01-01');
+        $permission = Permission::where('kode', 'pengukuran:create')->sole();
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $this->target->id,
+            'permission_id' => $permission->id, 'unit_id' => $this->indicator->unit_id,
+            'alasan' => 'Fixture grant monitoring', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $filters = ['tanggal_acuan' => '2026-03-15'];
+        $granted = app(MonitorPenanggungJawab::class)->handle($filters)['assignments']['data'][0]['readiness'];
+        $this->assertCount(6, $granted['missing']);
+        $this->assertTrue($granted['permissions'][0]['allowed']);
+        DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $this->target->id,
+            'permission_id' => $permission->id, 'unit_id' => $this->indicator->unit_id,
+            'alasan' => 'Fixture deny monitoring', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $denied = app(MonitorPenanggungJawab::class)->handle($filters)['assignments']['data'][0]['readiness'];
+        $this->assertCount(7, $denied['missing']);
+        $this->assertFalse($denied['permissions'][0]['allowed']);
+        $this->assertSame('explicit_deny', $denied['permissions'][0]['reason']);
+        $permission->update(['aktif' => false]);
+        $unknown = app(MonitorPenanggungJawab::class)->handle($filters)['assignments']['data'][0]['readiness'];
+        $this->assertFalse($unknown['permissions'][0]['allowed']);
+        $this->assertSame('unknown_permission', $unknown['permissions'][0]['reason']);
+    }
+
+    public function test_monitoring_continues_after_twenty_matches_when_ready_candidates_remain(): void
+    {
+        $ids = $this->monitoringCandidates(25, range(1, 20));
+        $first = app(MonitorPenanggungJawab::class)->handle(['tanggal_acuan' => '2026-03-15']);
+        $this->assertSame(array_values(array_slice($ids, 0, 20, true)), array_column(array_column($first['assignments']['data'], 'indicator'), 'id'));
+        $this->assertNotNull($first['assignments']['next_page_url']);
+        parse_str(parse_url($first['assignments']['next_page_url'], PHP_URL_QUERY), $filters);
+        $this->assertSame($ids[20], $filters['after']);
+        $second = app(MonitorPenanggungJawab::class)->handle($filters);
+        $this->assertSame([], $second['assignments']['data']);
+        $this->assertNull($second['assignments']['next_page_url']);
+    }
+
+    public function test_monitoring_continuation_reads_live_changes_without_rewinding_processed_candidates(): void
+    {
+        $ids = $this->monitoringCandidates(120, [110]);
+        $first = app(MonitorPenanggungJawab::class)->handle(['tanggal_acuan' => '2026-03-15']);
+        $this->assertSame([], $first['assignments']['data']);
+        parse_str(parse_url($first['assignments']['next_page_url'], PHP_URL_QUERY), $filters);
+        $this->assertSame($ids[100], $filters['after']);
+        $permissionId = Permission::where('kode', 'pengukuran:create')->value('id');
+        foreach ([50, 101] as $position) {
+            $assignment = PenugasanIndikator::where('indikator_id', $ids[$position])->sole();
+            DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $assignment->user_id,
+                'permission_id' => $permissionId, 'unit_id' => $this->indicator->unit_id,
+                'alasan' => 'Fixture pencabutan hak saat pagination', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        }
+        IndikatorKinerja::whereKey($ids[101])->update(['status' => 'arsip']);
+        $inactive = PenugasanIndikator::where('indikator_id', $ids[105])->sole();
+        User::whereKey($inactive->user_id)->update(['status' => 'nonaktif']);
+        $old = PenugasanIndikator::where('indikator_id', $ids[110])->sole();
+        $history = $old->fresh()->getRawOriginal();
+        PenugasanIndikator::create(['indikator_id' => $ids[110], 'user_id' => $this->actor->id,
+            'tanggal_mulai_berlaku' => '2026-02-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+
+        $next = app(MonitorPenanggungJawab::class)->handle($filters);
+        $this->assertSame([$ids[101]], array_column(array_column($next['assignments']['data'], 'indicator'), 'id'));
+        $this->assertSame('explicit_deny', $next['assignments']['data'][0]['readiness']['permissions'][0]['reason']);
+        $this->assertNotNull($next['assignments']['data'][0]['blocked_reason']);
+        $this->assertNull($next['assignments']['next_page_url']);
+        $this->assertSame($history, $old->fresh()->getRawOriginal());
+        $this->assertDatabaseHas('penanggung_jawab', ['id' => $inactive->id, 'user_id' => $inactive->user_id]);
+        // Perubahan di belakang cursor terlihat saat scan baru; continuation bukan snapshot beku.
+        $fresh = app(MonitorPenanggungJawab::class)->handle(['tanggal_acuan' => '2026-03-15']);
+        $this->assertSame([$ids[50]], array_column(array_column($fresh['assignments']['data'], 'indicator'), 'id'));
     }
 
     public function test_user_options_are_active_bounded_and_require_management_permission(): void
@@ -333,6 +489,99 @@ class PenanggungJawabTest extends TestCase
         }
         $this->getJson('/penanggung-jawab/opsi/pengguna?q=Calon&page=2')->assertOk()->assertJsonCount(1, 'items')->assertJsonPath('hasMore', false);
         $this->actingAs($this->target)->getJson('/penanggung-jawab/opsi/pengguna?q=Calon')->assertForbidden();
+    }
+
+    public function test_monitoring_bounds_candidates_even_when_all_users_are_ready(): void
+    {
+        $this->monitoringCandidates(250);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        try {
+            $result = app(MonitorPenanggungJawab::class)->handle(['tanggal_acuan' => '2026-03-15']);
+            $queries = DB::getQueryLog();
+        } finally {
+            DB::disableQueryLog();
+        }
+        $this->assertSame([], $result['assignments']['data']);
+        $this->assertNotNull($result['assignments']['next_page_url']);
+        $aclQueries = array_filter($queries, fn ($query) => str_contains($query['query'], 'from "permissions"'));
+        $this->assertCount(100, $aclQueries);
+        $this->assertLessThanOrEqual(550, count($queries));
+    }
+
+    public function test_sparse_incomplete_rows_are_found_across_empty_scan_pages(): void
+    {
+        $ids = $this->monitoringCandidates(250, [125, 240]);
+        $filters = ['tanggal_acuan' => '2026-03-15', 'q' => 'MON-', 'unit_id' => $this->indicator->unit_id];
+        $found = [];
+        $cursors = [];
+        $pages = 0;
+        do {
+            $result = app(MonitorPenanggungJawab::class)->handle($filters);
+            if (++$pages === 1) {
+                $this->assertSame([], $result['assignments']['data']);
+                $this->assertNotNull($result['assignments']['next_page_url']);
+            }
+            $found = [...$found, ...array_column(array_column($result['assignments']['data'], 'indicator'), 'id')];
+            $next = $result['assignments']['next_page_url'];
+            if ($next !== null) {
+                parse_str(parse_url($next, PHP_URL_QUERY), $filters);
+                $this->assertSame('MON-', $filters['q']);
+                $this->assertSame($this->indicator->unit_id, $filters['unit_id']);
+                $this->assertSame('2026-03-15', $filters['tanggal_acuan']);
+                $this->assertGreaterThan($cursors === [] ? '' : end($cursors), $filters['after']);
+                $cursors[] = $filters['after'];
+            }
+            $this->assertLessThanOrEqual(3, $pages);
+        } while ($next !== null);
+        $this->assertSame([$ids[125], $ids[240]], $found);
+        $this->assertCount(2, array_unique($found));
+        $this->assertSame(3, $pages);
+    }
+
+    public function test_monitoring_restarts_cursor_when_search_date_or_unit_changes(): void
+    {
+        $ids = $this->monitoringCandidates(120, [50, 120]);
+        $first = app(MonitorPenanggungJawab::class)->handle(['tanggal_acuan' => '2026-03-15']);
+        parse_str(parse_url($first['assignments']['next_page_url'], PHP_URL_QUERY), $continuation);
+        foreach ([['q' => 'MON-00050'], ['tanggal_acuan' => '2026-02-01'], ['unit_id' => $this->indicator->unit_id]] as $change) {
+            $result = app(MonitorPenanggungJawab::class)->handle(array_replace($continuation, $change));
+            $this->assertSame($ids[50], $result['assignments']['data'][0]['indicator']['id']);
+        }
+        $missingScope = $continuation;
+        unset($missingScope['after_scope']);
+        $result = app(MonitorPenanggungJawab::class)->handle($missingScope);
+        $this->assertSame($ids[50], $result['assignments']['data'][0]['indicator']['id']);
+    }
+
+    /** Fixture sintetis berurutan; setiap pasangan user/unit berbeda agar biaya ACL terukur. */
+    protected function monitoringCandidates(int $count, array $incompleteAt = []): array
+    {
+        $users = User::factory()->count($count)->create(['status' => 'aktif']);
+        $roleId = Role::where('kode', 'perencanaan')->value('id');
+        $indicators = [];
+        $assignments = [];
+        $roles = [];
+        $ids = [];
+        foreach ($users as $index => $user) {
+            $position = $index + 1;
+            $id = sprintf('00000000-0000-4000-8000-%012d', $position);
+            $ids[$position] = $id;
+            $indicators[] = array_replace($this->indicator->getAttributes(), ['id' => $id, 'kode' => sprintf('MON-%05d', $position)]);
+            $assignments[] = ['id' => (string) Str::uuid(), 'indikator_id' => $id, 'user_id' => $user->id,
+                'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()];
+            if (! in_array($position, $incompleteAt, true)) {
+                $roles[] = ['id' => (string) Str::uuid(), 'user_id' => $user->id, 'role_id' => $roleId,
+                    'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()];
+            }
+        }
+        DB::table('indikator_kinerjas')->insert($indicators);
+        DB::table('penanggung_jawab')->insert($assignments);
+        if ($roles !== []) {
+            DB::table('user_roles')->insert($roles);
+        }
+
+        return $ids;
     }
 
     private function assignment(User $user, string $date): PenugasanIndikator

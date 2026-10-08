@@ -81,7 +81,8 @@ class IndikatorKinerjaPolicy
         if (! $decision->allowed) {
             $this->auditLogger->catat(
                 actor: $user, tindakan: 'penanggung_jawab.ditolak', objekTipe: 'indikator',
-                objekId: $indikator->id, alasan: 'Percobaan penetapan penanggung jawab ditolak oleh sistem otorisasi.',
+                objekId: $indikator->id, nilaiBaru: ['hasil' => 'ditolak', 'field' => 'authorization'],
+                alasan: 'Percobaan penetapan penanggung jawab ditolak oleh sistem otorisasi.',
                 dasarIzin: $decision->toAuditBasis(),
             );
         }

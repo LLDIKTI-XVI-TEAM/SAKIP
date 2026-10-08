@@ -21,6 +21,7 @@ class QueryRequest extends FormRequest
             'unit_id' => ['nullable', 'uuid'],
             'user_id' => [$this->routeIs('penanggung-jawab.readiness') ? 'required' : 'nullable', 'uuid'],
             'after' => ['nullable', 'uuid'],
+            'after_scope' => ['nullable', 'string', 'size:64', 'regex:/\A[0-9a-f]{64}\z/'],
             'page' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ];
     }

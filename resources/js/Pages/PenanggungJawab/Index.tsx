@@ -31,8 +31,10 @@ export default function Index({ assignments, filters }: Props) {
             {filters.unit_id && <Link href="/penanggung-jawab" className="text-sm font-medium text-primary underline">Hapus filter unit</Link>}
             <p className="sr-only" aria-live="polite">{assignments.data.length} indikator ditampilkan pada halaman ini.</p>
             {assignments.data.length === 0 ? <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                <h2 className="font-semibold text-ink">Tidak ada PJ aktif dengan izin kerja kurang</h2>
-                <p className="mt-2 text-sm text-muted">Coba ubah pencarian atau tanggal acuan. Indikator tanpa PJ dan pengguna nonaktif tidak termasuk daftar ini.</p>
+                <h2 className="font-semibold text-ink">{assignments.next_page_url ? 'Belum ditemukan PJ dengan izin kerja kurang pada halaman ini' : 'Tidak ada PJ aktif dengan izin kerja kurang pada halaman ini'}</h2>
+                <p className="mt-2 text-sm text-muted">{assignments.next_page_url
+                    ? 'Masih ada penugasan yang belum diperiksa. Lanjutkan ke halaman berikutnya.'
+                    : 'Coba ubah pencarian atau tanggal acuan. Indikator tanpa PJ dan pengguna nonaktif tidak termasuk daftar ini.'}</p>
             </div> : <div className="space-y-4">{assignments.data.map((row) => <article key={row.indicator.id} className="rounded-xl border border-border bg-surface p-5">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row">
                     <div className="min-w-0"><p className="text-xs font-semibold text-primary">{row.indicator.kode} · {row.unit?.nama ?? 'Unit tidak tersedia'}</p>
