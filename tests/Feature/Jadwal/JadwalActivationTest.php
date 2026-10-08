@@ -82,7 +82,8 @@ class JadwalActivationTest extends TestCase
         $this->assertSame(['jadwal_id' => $jadwal->id, 'indikator_id' => $manual->id, 'nomor_versi' => 1, 'menggantikan_id' => null,
             'alasan_koreksi' => null, 'rujukan_koreksi' => null, 'periode_mulai_id' => $first->id, 'unit_id' => $manual->unit_id,
             'nama' => 'Indikator fixture', 'definisi' => 'Definisi operasional fixture', 'satuan' => 'persen', 'presisi' => 2,
-            'desimal_tampilan' => 2, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => '76.250000000000', 'baseline' => null], $manualRow);
+            'desimal_tampilan' => 2, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => '76.250000000000', 'baseline' => null,
+            'komposisi_final' => false], $manualRow);
         $this->assertSame(['0.000000000000', '74.200000000000'], [$rows[$ratio->id]->target, $rows[$ratio->id]->baseline]);
         $this->assertSame(0, JadwalSnapshotKomponen::where('jadwal_snapshot_id', $rows[$manual->id]->id)->count());
         $children = DB::table('jadwal_snapshot_komponen')->where('jadwal_snapshot_id', $rows[$ratio->id]->id)->orderBy('urutan')->get(['komponen_id', 'kode', 'label', 'peran', 'bobot', 'urutan']);
