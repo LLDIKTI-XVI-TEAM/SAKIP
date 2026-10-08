@@ -678,6 +678,9 @@ kegiatan:update
 **Workflow:** §2  
 **Data Model/Entitas:** `sasaran`, `indikator`
 
+> **Catatan perubahan 2026-10-08 — kode berurutan otomatis & perbaikan UX form.** `kode` Sasaran (`SS-<nomor>`) dan Indikator (`IK-<nomor>`) kini dibangkitkan **server-side** dari deret global (kode tertinggi yang cocok pola + 1) di dalam transaksi yang diserialisasi advisory lock, dengan unique index sebagai lapisan kedua. `urutan` tampil menjadi **server-managed** (cermin nomor kode, urutan tampil lama → baru) dan kolom `urutan` ditambahkan pada `indikator`. Field `kode`/`urutan` **ditolak** bila dikirim klien dan kode tidak dapat diubah lewat edit; kode legacy di luar pola (mis. nomor IKU resmi) tidak menggeser deret.
+> **Bukti otomatis (bukan UAT):** `tests/Feature/Perencanaan/SasaranIndikatorTest.php` (`test_kode_sasaran_dibangkitkan_berurutan_secara_global_lintas_renstra`, `test_kode_indikator_dibangkitkan_berurutan_dan_kode_legacy_diabaikan`, `test_index_mengurutkan_sasaran_dan_indikator_dari_lama_ke_baru`, `test_kode_dan_urutan_dari_klien_ditolak_validasi`, `test_kode_unik_ditegakkan_lapisan_database`), `tests/Unit/Perencanaan/KodeUrutServiceTest.php`, `tests/Integration/Perencanaan/KodeUrutConcurrencyTest.php`, `tests/Frontend/KodeOtomatisModal.test.tsx`; Data Model §2.11, §2.12, §5 diselaraskan.
+
 #### User Story
 
 > **Sebagai** Tim Perencanaan,  
@@ -695,7 +698,7 @@ kegiatan:update
 - [ ] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
 - [ ] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
 - [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
-- [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
+- [x] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien. *(bukti otomatis 2026-10-08: `test_kode_dan_urutan_dari_klien_ditolak_validasi`, `test_3_indikator_tanpa_unit_id_ditolak_validasi`, `test_7_unauthorized_direct_request_ditolak_403`)*
 
 #### Implementation Tasks
 
@@ -722,7 +725,7 @@ kegiatan:update
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien. *(terpenuhi 2026-10-08; lihat AC-4)*
 
 #### Definition of Done
 

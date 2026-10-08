@@ -7,6 +7,7 @@ use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Perencanaan\KodeUrutService;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,10 +15,19 @@ use Illuminate\Validation\ValidationException;
 
 class StoreSasaran
 {
-    public function __construct(private readonly AuditLogger $auditLogger, private readonly ResolveLockedActor $lockedActor) {}
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+        private readonly ResolveLockedActor $lockedActor,
+        private readonly KodeUrutService $kodeUrut,
+    ) {}
 
     /**
      * Membuat satu Sasaran di bawah Renstra terpilih beserta audit pembuatannya.
+     *
+     * Kode sasaran dibangkitkan server-side (`SS-<nomor>`) dari deret kode
+     * global, dihitung di dalam transaksi di bawah advisory lock agar dua
+     * pembuatan bersamaan tidak menghasilkan kode yang sama. Indeks unik
+     * `kode` menjadi lapisan kedua bila serialisasi gagal.
      *
      * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
      * state terkini (anti-TOCTOU): pencabutan peran/grant/deny atau
@@ -53,7 +63,16 @@ class StoreSasaran
 
             $dasarIzin = $currentDecision->toAuditBasis();
 
-            // 3. Kunci Renstra induk dan cek ulang keberadaan di dalam transaksi
+            // 3. Serialisasi deret kode global lalu hitung kode & nomor urut
+            // berikutnya. Advisory lock diambil sebelum kunci baris Renstra
+            // agar urutan kunci antar transaksi konsisten (bebas deadlock).
+            $this->kodeUrut->kunci('sasaran');
+            $berikutnya = $this->kodeUrut->berikutnya(
+                KodeUrutService::PREFIX_SASARAN,
+                SasaranStrategis::query()->pluck('kode'),
+            );
+
+            // 4. Kunci Renstra induk dan cek ulang keberadaan di dalam transaksi
             // (anti-TOCTOU hapus konkuren: validasi FormRequest pra-transaksi
             // tidak cukup; hapus setelah validasi lolos → FK/500 tanpa cek ulang).
             /** @var Renstra|null $renstra */
@@ -66,9 +85,9 @@ class StoreSasaran
 
             $created = SasaranStrategis::create([
                 'renstra_id' => $validated['renstra_id'],
-                'kode' => trim($validated['kode']),
+                'kode' => $berikutnya['kode'],
                 'deskripsi' => trim($validated['deskripsi']),
-                'urutan' => $validated['urutan'] ?? 0,
+                'urutan' => $berikutnya['nomor'],
             ]);
 
             $this->auditLogger->catat(

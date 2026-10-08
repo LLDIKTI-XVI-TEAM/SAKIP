@@ -13,6 +13,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Authorization\RoleCatalog;
 use App\Services\Kinerja\KomponenMutationService;
+use App\Services\Perencanaan\KodeUrutService;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,10 +26,17 @@ class StoreIndikator
         private readonly PermissionResolver $resolver,
         private readonly ResolveLockedActor $lockedActor,
         private readonly KomponenMutationService $komponen,
+        private readonly KodeUrutService $kodeUrut,
     ) {}
 
     /**
      * Membuat satu Indikator beserta audit pembuatannya.
+     *
+     * Kode indikator dibangkitkan server-side (`IK-<nomor>`) dari deret kode
+     * global, dihitung di dalam transaksi di bawah advisory lock agar dua
+     * pembuatan bersamaan tidak menghasilkan kode yang sama; indeks unik
+     * `kode` menjadi lapisan kedua. Kode legacy di luar pola (mis. `IKU-3`
+     * yang merujuk nomor IKU resmi) tidak menggeser deret.
      *
      * Keputusan izin dievaluasi ulang di dalam transaksi terkunci memakai
      * state terkini (-TOCTOU): pencabutan peran/grant/deny atau penonaktifan
@@ -98,7 +106,17 @@ class StoreIndikator
                     }
                 }
 
-                // 2c. Urutan kunci global: Regulasi dikunci SEBELUM Unit/Sasaran
+                // 2c. Serialisasi deret kode global lalu hitung kode & nomor
+                // urut berikutnya. Advisory lock diambil sebelum kunci baris
+                // (Regulasi/Unit/Sasaran) agar urutan kunci antar transaksi
+                // konsisten dan bebas deadlock.
+                $this->kodeUrut->kunci('indikator');
+                $berikutnya = $this->kodeUrut->berikutnya(
+                    KodeUrutService::PREFIX_INDIKATOR,
+                    IndikatorKinerja::query()->pluck('kode'),
+                );
+
+                // 2d. Urutan kunci global: Regulasi dikunci SEBELUM Unit/Sasaran
                 // bila regulasi_id tujuan non-null (null = lewati, tanpa kunci).
                 // Kunci bersama diambil di sini agar jalur tulis indikator dan
                 // jalur hapus regulasi selalu memperoleh baris Regulasi dahulu;
@@ -188,7 +206,8 @@ class StoreIndikator
                 $created = IndikatorKinerja::create([
                     'sasaran_strategis_id' => $validated['sasaran_strategis_id'],
                     'regulasi_id' => $effectiveRegulasiId,
-                    'kode' => trim($validated['kode']),
+                    'kode' => $berikutnya['kode'],
+                    'urutan' => $berikutnya['nomor'],
                     'nama' => trim($validated['nama']),
                     'definisi_operasional' => isset($validated['definisi_operasional']) ? trim($validated['definisi_operasional']) : null,
                     'satuan' => trim($validated['satuan']),

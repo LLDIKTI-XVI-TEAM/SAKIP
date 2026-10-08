@@ -129,7 +129,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
 
         $this->actingAs($this->perencanaan)
             ->post('/perencanaan/indikator', array_merge($indikatorPost->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']), [
-                'kode' => $indikatorPost->kode.'-BARU', 'komponen' => [$itemPost],
+                'komponen' => [$itemPost],
             ]))
             ->assertSessionHasErrors([$keyPost]);
         $pesanPost = $this->pesanError($keyPost);
@@ -250,7 +250,7 @@ class KomponenSyntaxUnifiedTest extends TestCase
 
         $this->actingAs($this->perencanaan)
             ->post('/perencanaan/indikator', array_merge($indikatorPost->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'arah', 'tipe_perhitungan']), [
-                'kode' => $indikatorPost->kode.'-BARU', 'komponen' => [$itemPost],
+                'komponen' => [$itemPost],
             ]))
             ->assertSessionHasErrors(['komponen.0.bobot']);
         $pesanPost = $this->pesanError('komponen.0.bobot');

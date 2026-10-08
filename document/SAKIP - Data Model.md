@@ -755,9 +755,10 @@ Tujuan strategis di bawah Renstra.
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `renstra_id` | uuid | FK → renstra.id | |
+| `kode` | string(50) | not null, **unique** | Kode berurutan yang dibangkitkan **server-side** dengan format `SS-<nomor>` (padding minimal dua digit, melebar otomatis di atas 99). Deret bersifat **global lintas Renstra**: nomor = kode tertinggi yang cocok pola + 1, dihitung di dalam transaksi terkunci (advisory lock) dengan unique index sebagai lapisan pertahanan kedua. Kode tidak dapat diubah lewat edit |
 | `nama` | string | not null | |
 | `keterangan` | text | nullable | |
-| `urutan` | int | not null | Menentukan urutan tampil di UI/laporan |
+| `urutan` | int | not null | Menentukan urutan tampil di UI/laporan. **Server-managed**: diisi otomatis sama dengan nomor pada `kode` (bukan input pengguna) sehingga urutan tampil selalu lama → baru (terbaru di akhir) |
 
 ---
 
@@ -769,6 +770,8 @@ Unit ukur kinerja konkret.
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `sasaran_id` | uuid | FK → sasaran.id | |
+| `kode` | string(50) | not null, **unique** | Kode berurutan yang dibangkitkan **server-side** dengan format `IK-<nomor>` (padding minimal dua digit). Deret global; kode legacy di luar pola (mis. nomor IKU resmi dari Kepmen) **tidak** dihitung sebagai bagian deret. Nomor = kode tertinggi yang cocok pola + 1 di dalam transaksi terkunci; kode tidak dapat diubah lewat edit |
+| `urutan` | int | not null, default 0 | Cermin nomor pada `kode` untuk pengurutan tampil indikator (lama → baru); **server-managed**, bukan input pengguna |
 | `unit_id` | uuid | FK → unit.id, **NOT NULL** | Setiap indikator wajib dimiliki tepat satu unit |
 | `regulasi_id` | uuid | FK → regulasi.id, **nullable** | Rujukan dasar aturan per indikator kinerja (mis. produk hukum yang menetapkan IKU tersebut), agar dasar hukum dapat ditelusuri per indikator tanpa mengunggah dokumen yang sama berulang (lihat §2.33) |
 | `nama` | string | not null | |
@@ -1570,6 +1573,8 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `user_permission_granted` | unique(`user_id`, `permission_id`, `unit_id`) — implementasi index memakai `COALESCE(unit_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
 | `user_permission_denials` | unique(`user_id`, `permission_id`, `unit_id`) — pola `COALESCE` yang sama dengan `user_permission_granted` |
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
+| `sasaran` | unique(`kode`) — kode berurutan `SS-<nomor>` dibangkitkan server-side, deret global lintas Renstra (§2.11); kolom `urutan` adalah cermin nomor kode |
+| `indikator` | unique(`kode`) — kode berurutan `IK-<nomor>` dibangkitkan server-side, deret global, kode legacy di luar pola tidak dihitung (§2.12); kolom `urutan` adalah cermin nomor kode |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13) |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |

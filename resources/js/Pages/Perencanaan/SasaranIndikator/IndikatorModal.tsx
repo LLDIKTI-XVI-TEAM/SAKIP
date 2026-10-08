@@ -59,7 +59,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
     // Setiap pembukaan dimount ulang setelah pembacaan editor koheren.
     const { data, setData, post, put, processing, errors, transform } = useForm({
         sasaran_strategis_id: indikator?.sasaran_strategis_id ?? defaultSasaranId ?? sasarans[0]?.id ?? '',
-        kode: indikator?.kode ?? '',
         nama: indikator?.nama ?? '',
         definisi_operasional: indikator?.definisi_operasional ?? '',
         satuan: indikator?.satuan ?? '%',
@@ -169,15 +168,24 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <Input
-                            id="indikator_kode"
-                            label="Kode IKU"
-                            placeholder="Contoh: IKU-01"
-                            value={data.kode}
-                            onChange={(e) => setData('kode', e.target.value)}
-                            error={errors.kode}
-                            required
-                        />
+                        {isEdit && indikator ? (
+                            <Input
+                                id="indikator_kode"
+                                label="Kode Indikator"
+                                value={indikator.kode}
+                                disabled
+                                readOnly
+                                helperText="Dibangkitkan otomatis oleh sistem."
+                            />
+                        ) : (
+                            <div className="rounded-lg border border-border bg-soft p-3">
+                                <p className="text-xs text-muted">
+                                    Kode dibuat otomatis oleh sistem secara berurutan dengan format{' '}
+                                    <span className="font-mono font-medium text-ink">IK-01</span>,{' '}
+                                    <span className="font-mono font-medium text-ink">IK-02</span>, dan seterusnya.
+                                </p>
+                            </div>
+                        )}
                     </div>
                     <div className="md:col-span-2">
                         <Input

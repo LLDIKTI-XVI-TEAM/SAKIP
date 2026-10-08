@@ -304,9 +304,6 @@ export default function SasaranIndikatorIndex({
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-primary text-white">
                                                 {sasaran.kode}
                                             </span>
-                                            <span className="text-xs font-medium text-muted">
-                                                Urutan #{sasaran.urutan}
-                                            </span>
                                             <Badge variant="primary" size="sm">
                                                 {sasaran.indikator_kinerjas.length} Indikator
                                             </Badge>

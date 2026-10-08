@@ -14,15 +14,18 @@ class StoreSasaranRequest extends FormRequest
     }
 
     /**
+     * `kode` dan `urutan` dibangkitkan server-side dari deret kode otomatis,
+     * sehingga ditolak bila dikirim klien (fail-loud, bukan diabaikan diam-diam).
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
             'renstra_id' => ['required', 'uuid', 'exists:renstras,id'],
-            'kode' => ['required', 'string', 'max:50'],
+            'kode' => ['prohibited'],
             'deskripsi' => ['required', 'string', 'max:2000'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
+            'urutan' => ['prohibited'],
         ];
     }
 
@@ -34,8 +37,9 @@ class StoreSasaranRequest extends FormRequest
         return [
             'renstra_id.required' => 'Renstra wajib dipilih.',
             'renstra_id.exists' => 'Renstra yang dipilih tidak valid.',
-            'kode.required' => 'Kode sasaran wajib diisi.',
+            'kode.prohibited' => 'Kode sasaran dibangkitkan otomatis oleh sistem dan tidak boleh dikirim dari klien.',
             'deskripsi.required' => 'Deskripsi sasaran wajib diisi.',
+            'urutan.prohibited' => 'Urutan sasaran ditentukan otomatis oleh sistem dan tidak boleh dikirim dari klien.',
         ];
     }
 }

@@ -17,14 +17,17 @@ class UpdateSasaranRequest extends FormRequest
     }
 
     /**
+     * `kode` dan `urutan` server-managed (deret kode otomatis) sehingga tidak
+     * dapat diubah lewat edit; ditolak bila dikirim klien.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
-            'kode' => ['required', 'string', 'max:50'],
+            'kode' => ['prohibited'],
             'deskripsi' => ['required', 'string', 'max:2000'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
+            'urutan' => ['prohibited'],
             'expected_updated_at' => ['required', 'date'],
         ];
     }
@@ -35,8 +38,9 @@ class UpdateSasaranRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'kode.required' => 'Kode sasaran wajib diisi.',
+            'kode.prohibited' => 'Kode sasaran dibangkitkan otomatis oleh sistem dan tidak dapat diubah.',
             'deskripsi.required' => 'Deskripsi sasaran wajib diisi.',
+            'urutan.prohibited' => 'Urutan sasaran ditentukan otomatis oleh sistem dan tidak dapat diubah.',
             'expected_updated_at.required' => 'Timestamp versi wajib disertakan. Muat ulang halaman untuk mendapatkan data terkini.',
             'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];

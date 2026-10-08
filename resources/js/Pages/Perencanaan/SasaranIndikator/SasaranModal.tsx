@@ -25,9 +25,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         renstra_id: renstraId,
-        kode: '',
         deskripsi: '',
-        urutan: 1,
         expected_updated_at: '' as string,
     });
 
@@ -45,17 +43,13 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                 if (sasaran) {
                     setData({
                         renstra_id: sasaran.renstra_id,
-                        kode: sasaran.kode,
                         deskripsi: sasaran.deskripsi,
-                        urutan: sasaran.urutan,
                         expected_updated_at: sasaran.updated_at ?? '',
                     });
                 } else {
                     setData({
                         renstra_id: renstraId,
-                        kode: '',
                         deskripsi: '',
-                        urutan: 1,
                         expected_updated_at: '',
                     });
                 }
@@ -106,7 +100,7 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                     <Button
                         type="submit"
                         variant="primary"
-                        onClick={handleSubmit}
+                        form="sasaran-editor-form"
                         disabled={processing}
                     >
                         {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Sasaran'}
@@ -114,36 +108,29 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                 </div>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id="sasaran-editor-form" onSubmit={handleSubmit} className="space-y-4">
                 {((errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at) && (
                     <p role="alert" className="text-sm font-medium text-danger">
                         {(errors as Record<string, string | undefined>).konflik ?? errors.expected_updated_at}
                     </p>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2">
+                <div className="rounded-lg border border-border bg-soft p-3">
+                    {isEdit && sasaran ? (
                         <Input
                             id="sasaran_kode"
                             label="Kode Sasaran"
-                            placeholder="Contoh: SS-01"
-                            value={data.kode}
-                            onChange={(e) => setData('kode', e.target.value)}
-                            error={errors.kode}
-                            required
+                            value={sasaran.kode}
+                            disabled
+                            readOnly
+                            helperText="Kode dibangkitkan otomatis oleh sistem dan tidak dapat diubah."
                         />
-                    </div>
-                    <div>
-                        <Input
-                            id="sasaran_urutan"
-                            label="Urutan Tampil"
-                            type="number"
-                            min={1}
-                            value={data.urutan}
-                            onChange={(e) => setData('urutan', parseInt(e.target.value, 10) || 1)}
-                            error={errors.urutan}
-                            required
-                        />
-                    </div>
+                    ) : (
+                        <p className="text-sm text-muted">
+                            Kode sasaran dibuat otomatis oleh sistem secara berurutan dengan format{' '}
+                            <span className="font-mono font-medium text-ink">SS-01</span>,{' '}
+                            <span className="font-mono font-medium text-ink">SS-02</span>, dan seterusnya — mengikuti kode tertinggi yang sudah ada.
+                        </p>
+                    )}
                 </div>
 
                 <Textarea
