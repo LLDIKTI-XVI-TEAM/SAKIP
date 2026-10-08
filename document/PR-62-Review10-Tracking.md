@@ -114,6 +114,31 @@ Update checkbox + Bukti di dokumen ini. JANGAN commit.
 
 **Verifikasi tindak lanjut** (PG disposable port 5458; dev `sakip_db` tidak disentuh): `KodeOtomatisMigrationTest` 5/5 (18 assertions); Perencanaan + Jadwal + RencanaAksi **245/245 (2120 assertions)**; `migrate:fresh`, `rollback --step=1`, dan `migrate` bersih; `pint` PASS (475 file); `phpstan` 0 error.
 
+## Tindak lanjut kedua — tiga temuan Codex (`2026-10-08T11:58:02Z` pada `38b5efd2`)
+
+**Status: SELESAI (2026-10-08).** Review ketiga atas PR ini; ketiga temuan terverifikasi benar dan menyangkut migrasi tindak lanjut pertama.
+
+### F4 · P1 · `000003:41` — siapkan migrasi korektif untuk database existing
+
+- **Temuan:** database yang sudah menjalankan `7600aef5`/`0053765` telah mencatat `000003`, sehingga versi berserialisasi (transaksi + advisory lock) tidak akan pernah dieksekusi di sana. Snapshot terbit yang sempat lolos dari eksekusi lama tetap `false`.
+- **Perbaikan:** migrasi BARU `2026_10_08_000004_finalisasi_snapshot_terbit_korektif` menjalankan backfill berserialisasi yang sama dengan timestamp baru; idempoten karena hanya menyentuh snapshot yang masih `false`.
+- **Bukti:** `test_migrasi_korektif_membekukan_snapshot_terbit_yang_tertinggal`.
+
+### F5 · P1 · `000003:46` — cegah aktivasi worker lama setelah lock dilepas
+
+- **Temuan:** advisory lock hanya melindungi aktivasi yang sudah in-flight. Pada rolling deploy, worker versi lama dapat menerbitkan snapshot `false` **setelah** migrasi selesai; pemindaian satu kali tidak melihatnya lagi dan replay aktivasi menjadi no-op.
+- **Perbaikan:** migrasi BARU `2026_10_08_000005_trigger_finalisasi_snapshot_saat_jadwal_aktif` — trigger `AFTER UPDATE ON jadwal_tahunan` yang memfinalkan seluruh snapshot jadwal tersebut pada setiap transisi status ke `aktif` (aktivasi pertama maupun `jadwal:buka_kembali`). Karena trigger hidup di database, aktivasi dari **versi kode apa pun** ikut membekukan komposisinya — bukan bergantung pada kode aplikasi yang sedang berjalan. Aplikasi tetap memfinalkan secara eksplisit agar audit mencatat status final.
+- **Catatan operasional:** "drain worker lama sebelum migrasi" tetap berlaku sebagai lapisan kedua untuk jendela sebelum migrasi ini terpasang.
+- **Bukti:** `test_trigger_membekukan_snapshot_saat_jadwal_bertransisi_ke_aktif` (termasuk penolakan sisipan komponen `23514` setelah transisi).
+
+### F6 · P2 · `000002:45` — pulihkan urutan lama saat rollback
+
+- **Temuan:** `down()` hanya melepas indeks unik; `urutan` yang sudah ditimpa backfill tidak kembali, sementara aplikasi lama mengurutkan tampilan berdasarkan kolom itu.
+- **Perbaikan:** nilai `urutan` lama disimpan ke tabel backup `_backup_urutan_kode_otomatis` **sebelum** backfill; `down()` memulihkan dari tabel itu lalu membuangnya. Baris yang dibuat setelah migrasi tidak tersentuh karena tidak tercatat di backup.
+- **Bukti:** `test_precheck_lolos_backfill_menyelaraskan_urutan_dan_rollback_memulihkannya` (backfill `SS-05` 99 → 5, lalu `down()` memulihkan ke 99, tabel backup hilang, indeks terlepas).
+
+**Verifikasi tindak lanjut kedua** (PG disposable 5459; dev `sakip_db` tidak disentuh): total **645 test hijau** — 7 test migrasi/trigger (28 assertions), Jadwal 58/58, Perencanaan + RencanaAksi 189/189, IndikatorKomponen + TargetTahunan 181/181, pengukuran & Integration (60 + 54 + 37 + 59). `migrate:fresh` bersih; **rollback 4 langkah + migrate bersih** (trigger hilang lalu terpasang kembali, diverifikasi lewat `pg_trigger`); `pint` PASS (478 file); `phpstan` 0 error. Satu kegagalan Unit `KeycloakTokenValidationTest` bersifat **pre-existing lingkungan** (`openssl_pkey_new()` gagal di PHP Windows lokal) dan tidak terkait perubahan ini.
+
 ## Di luar lingkup
 
 - ISS-03.03 (koreksi snapshot terkendali & versioning) — hanya constraint D5 yang dicatat.

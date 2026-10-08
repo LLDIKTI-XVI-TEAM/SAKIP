@@ -65,7 +65,7 @@ class KodeOtomatisMigrationTest extends TestCase
         $this->assertSame([42, 43], SasaranStrategis::where('kode', 'SS-77')->orderBy('urutan')->pluck('urutan')->all());
     }
 
-    public function test_precheck_lolos_backfill_menyelaraskan_urutan_dan_indeks_dipasang(): void
+    public function test_precheck_lolos_backfill_menyelaraskan_urutan_dan_rollback_memulihkannya(): void
     {
         Schema::table('sasaran_strategis', function (Blueprint $table): void {
             $table->dropUnique('sasaran_strategis_kode_unik');
@@ -73,6 +73,7 @@ class KodeOtomatisMigrationTest extends TestCase
         Schema::table('indikator_kinerjas', function (Blueprint $table): void {
             $table->dropUnique('indikator_kinerjas_kode_unik');
         });
+        Schema::dropIfExists('_backup_urutan_kode_otomatis');
 
         $user = User::factory()->create(['status' => 'aktif']);
         $renstra = Renstra::create([
@@ -85,7 +86,7 @@ class KodeOtomatisMigrationTest extends TestCase
         SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'SS-05', 'deskripsi' => 'Sasaran kelima', 'urutan' => 99]);
         SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'SS-LAMA', 'deskripsi' => 'Sasaran legacy', 'urutan' => 7]);
 
-        /** @var object{up: callable} $migrasi */
+        /** @var object{up: callable, down: callable} $migrasi */
         $migrasi = require database_path('migrations/2026_10_08_000002_unique_kode_sasaran_indikator.php');
         $migrasi->up();
 
@@ -94,6 +95,14 @@ class KodeOtomatisMigrationTest extends TestCase
 
         $indeks = DB::table('pg_indexes')->whereIn('indexname', ['sasaran_strategis_kode_unik', 'indikator_kinerjas_kode_unik'])->pluck('indexname');
         $this->assertEqualsCanonicalizing(['sasaran_strategis_kode_unik', 'indikator_kinerjas_kode_unik'], $indeks->all());
+
+        // Rollback memulihkan urutan lama, bukan meninggalkan nilai hasil backfill (F6 Review10).
+        $migrasi->down();
+
+        $this->assertSame(99, SasaranStrategis::where('kode', 'SS-05')->value('urutan'));
+        $this->assertSame(7, SasaranStrategis::where('kode', 'SS-LAMA')->value('urutan'));
+        $this->assertFalse(Schema::hasTable('_backup_urutan_kode_otomatis'));
+        $this->assertSame(0, DB::table('pg_indexes')->whereIn('indexname', ['sasaran_strategis_kode_unik', 'indikator_kinerjas_kode_unik'])->count());
     }
 
     public function test_migrasi_kolom_tidak_mengubah_data(): void
