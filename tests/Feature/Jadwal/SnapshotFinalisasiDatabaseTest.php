@@ -7,6 +7,7 @@ use App\Models\JadwalSnapshotKomponen;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
@@ -34,16 +35,30 @@ class SnapshotFinalisasiDatabaseTest extends TestCase
         $this->assertSisipanKomponenDitolak();
     }
 
-    public function test_migrasi_korektif_membekukan_snapshot_terbit_yang_tertinggal(): void
+    /**
+     * `000006` mengulang backfill sesudah trigger terpasang untuk snapshot yang
+     * diterbitkan worker lama di antara `000004` dan `000005`.
+     */
+    #[DataProvider('migrasiBackfill')]
+    public function test_migrasi_backfill_membekukan_snapshot_terbit_yang_tertinggal(string $berkas): void
     {
         $this->assertFalse((bool) $this->context->fresh()->komposisi_final);
 
         /** @var object{up: callable} $migrasi */
-        $migrasi = require database_path('migrations/2026_10_08_000004_finalisasi_snapshot_terbit_korektif.php');
+        $migrasi = require database_path("migrations/{$berkas}");
         $migrasi->up();
 
         $this->assertTrue((bool) $this->context->fresh()->komposisi_final);
         $this->assertSisipanKomponenDitolak();
+    }
+
+    /** @return array<string, array{string}> */
+    public static function migrasiBackfill(): array
+    {
+        return [
+            'korektif 000004' => ['2026_10_08_000004_finalisasi_snapshot_terbit_korektif.php'],
+            'sesudah trigger 000006' => ['2026_10_08_000006_finalisasi_snapshot_setelah_trigger.php'],
+        ];
     }
 
     /** Komposisi yang sudah terbit tidak dapat disisipi komponen (guard Review9 W1). */

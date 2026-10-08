@@ -16,7 +16,6 @@ use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -38,8 +37,8 @@ class EnsureDraftRencanaAksi
      * dengan `SimpanTargetPeriode`): baris ACL pengguna pengunci, calon
      * header rencana aksi (berdasarkan pasangan indikator × tahun, mungkin
      * belum ada sehingga mengunci nihil tetapi tetap menjaga urutan
-     * akuisisi), indikator, jadwal tahunan, penugasan PIC efektif, snapshot
-     * beku, lalu cek-idempoten header. Tanpa retry: antrean kunci
+     * akuisisi), indikator, jadwal tahunan, snapshot beku, lalu
+     * cek-idempoten header. Tanpa retry: antrean kunci
      * menserialkan transaksi bersamaan, bukan 40P01.
      *
      * Unit disalin dari indikator terkunci, jadwal diambil dari jadwal aktif
@@ -105,12 +104,9 @@ class EnsureDraftRencanaAksi
                 }
 
                 $hariIni = today(config('app.business_timezone'))->toDateString();
-                $pic = PenugasanIndikator::where('indikator_id', $indikator->id)
-                    ->whereDate('tanggal_mulai_berlaku', '<=', $hariIni)
-                    ->orderByDesc('tanggal_mulai_berlaku')
-                    ->orderByDesc('created_at')
-                    ->lockForUpdate()
-                    ->first();
+                // Resolver PJ kanonis; writer PJ juga mengunci indikator FOR UPDATE,
+                // sehingga kunci indikator di atas sudah menyerialkan pergantian PJ.
+                $pic = PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->first();
                 if (! $pic instanceof PenugasanIndikator) {
                     throw ValidationException::withMessages(['indikator_id' => 'Penugasan PIC efektif belum tersedia untuk indikator ini.']);
                 }
@@ -126,33 +122,24 @@ class EnsureDraftRencanaAksi
                     return $existing;
                 }
 
-                try {
-                    $created = RencanaAksi::create([
-                        'indikator_id' => $indikator->id,
-                        'tahun' => $tahun,
-                        'unit_id' => $unitId,
-                        'jadwal_tahunan_id' => $jadwal->id,
-                        // F2/F3 (Review6 T2): jepit konteks awal draf —
-                        // null bila jadwal belum pernah aktif (tanpa snapshot).
-                        'snapshot_draf_id' => $snapshotDraf?->id,
-                        'penanggung_jawab_id' => $pic->user_id,
-                        'uraian' => null,
-                        'status_alur' => RencanaAksi::STATUS_DRAFT,
-                        'versi' => 1,
-                        'alasan_revisi' => null,
-                        'alasan_deviasi_pk' => null,
-                        'created_by' => $pengunci->id,
-                    ]);
-                } catch (QueryException $exception) {
-                    if ($exception->getCode() === '23505') {
-                        $lomba = RencanaAksi::where('indikator_id', $indikator->id)->where('tahun', $tahun)->first();
-                        if ($lomba instanceof RencanaAksi) {
-                            return $lomba;
-                        }
-                    }
-
-                    throw $exception;
-                }
+                // Kunci indikator FOR UPDATE memblokir INSERT header lain (FK butuh
+                // FOR KEY SHARE), jadi 23505 di sini berarti bug: gagal tertutup.
+                $created = RencanaAksi::create([
+                    'indikator_id' => $indikator->id,
+                    'tahun' => $tahun,
+                    'unit_id' => $unitId,
+                    'jadwal_tahunan_id' => $jadwal->id,
+                    // Jepit konteks awal draf; null bila jadwal belum pernah
+                    // aktif (tanpa snapshot).
+                    'snapshot_draf_id' => $snapshotDraf?->id,
+                    'penanggung_jawab_id' => $pic->user_id,
+                    'uraian' => null,
+                    'status_alur' => RencanaAksi::STATUS_DRAFT,
+                    'versi' => 1,
+                    'alasan_revisi' => null,
+                    'alasan_deviasi_pk' => null,
+                    'created_by' => $pengunci->id,
+                ]);
 
                 $this->audit->catat(
                     actor: $pengunci,

@@ -381,11 +381,7 @@ class SimpanTargetPeriode
             return;
         }
 
-        $pic = PenugasanIndikator::where('indikator_id', $indikator->id)
-            ->whereDate('tanggal_mulai_berlaku', '<=', $hariIni)
-            ->orderByDesc('tanggal_mulai_berlaku')
-            ->orderByDesc('created_at')
-            ->first();
+        $pic = PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->first();
         if (! $pic instanceof PenugasanIndikator || (string) $pic->user_id !== (string) $pengunci->id) {
             throw ValidationException::withMessages(['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
         }
@@ -715,6 +711,12 @@ class SimpanTargetPeriode
      * atau komponen di luar himpunan efektif). Periode efektif yang tak
      * terkirim (koreksi parsial 1-dari-N) bukan tak-efektif sehingga
      * dipertahankan — hanya dimensi tak berlaku yang dihapus.
+     *
+     * Penghapusan aman karena histori per-snapshot dijamin `rencana_aksi_versi`
+     * yang beku, bukan tabel draf ini; jumlah dan selisihnya teraudit lewat
+     * `rencana_aksi.ubah`. Alternatif mengikat tiap baris ke snapshot asal
+     * ditolak: setiap pembaca wajib memfilter pasangan cocok dan baris basi
+     * menumpuk selamanya.
      *
      * @param  Collection<int, string>  $periodeEfektif
      * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi

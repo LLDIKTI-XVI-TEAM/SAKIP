@@ -1,7 +1,7 @@
 import { Badge } from '@/Components/Badge';
 import { Input } from '@/Components/Input';
 import type { RencanaAksiKomponen, RencanaAksiPeriode } from './types';
-import { rencanaAksiStatusPerhitungan } from './types';
+import { kunciSel, rencanaAksiStatusPerhitungan } from './types';
 
 interface MatriksTargetProps {
     tipePerhitungan: string;
@@ -19,10 +19,6 @@ interface MatriksTargetProps {
     /** Pesan galat validasi per sel bila ada. */
     galatSel: (periodeId: string, komponenId: string | null) => string | undefined;
     formatNilai: (nilai: string | number, desimal: number) => string;
-}
-
-function kunci(periodeId: string, komponenId: string | null): string {
-    return `${periodeId}::${komponenId ?? 'manual'}`;
 }
 
 function labelSkor(nilai: string | null, status: string, formatNilai: (n: string | number, d: number) => string, desimal: number, satuan: string): string {
@@ -128,7 +124,7 @@ export default function MatriksTarget({
                                     <span className="mt-1 block text-xs font-normal text-muted">Urutan {baris.urutan}</span>
                                 </th>
                                 {selList.map((sel) => {
-                                    const key = kunci(baris.id, sel.komponen_id);
+                                    const key = kunciSel(baris.id, sel.komponen_id);
                                     const galat = galatSel(baris.id, sel.komponen_id);
                                     const inputId = `target-${baris.id}-${sel.komponen_id ?? 'manual'}`;
                                     const label = manual ? `Target ${baris.nama ?? ''} (${satuan})` : `${sel.kode} · ${sel.label} · ${baris.nama ?? ''}`;
