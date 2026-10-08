@@ -186,6 +186,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
             'lingkup_koreksi' => [
                 'jenis_objek' => ['rencana_aksi'],
                 'indikator_ids' => [$fixture['indikator']->id],
+                'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id],
             ],
         ]);
 

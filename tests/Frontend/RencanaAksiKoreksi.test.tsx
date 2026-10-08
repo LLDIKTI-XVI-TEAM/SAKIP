@@ -131,7 +131,7 @@ describe('F2 lingkup koreksi di UI', () => {
 
     it('tanpa koreksi aktif semua periode efektif dapat disunting', async () => {
         const user = userEvent.setup();
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: null })} />);
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] })} />);
 
         expect(screen.queryByText(/Sesi koreksi aktif/)).toBeNull();
         expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Target Triwulan II (poin)' }).disabled).toBe(false);

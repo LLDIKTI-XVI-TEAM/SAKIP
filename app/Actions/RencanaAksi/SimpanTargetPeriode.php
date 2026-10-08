@@ -406,9 +406,10 @@ class SimpanTargetPeriode
     /**
      * Sesi koreksi sah bila jendela waktu berjalan dan cakupan jenis objek
      * serta indikator cocok. Setiap periode_id dalam REQUEST wajib termasuk
-     * dalam lingkup_koreksi.periode_ids (bila kunci itu ada) — acuan validasi
-     * adalah periode yang diminta, bukan yang tersimpan, sehingga header
-     * tanpa target lama pun tetap divalidasi.
+     * dalam lingkup_koreksi.periode_ids — acuan validasi adalah periode yang
+     * diminta, bukan yang tersimpan, sehingga header tanpa target lama pun
+     * tetap divalidasi. Kunci yang tidak ada berarti tidak ada periode yang
+     * tercakup (gagal tertutup, sama dengan PengukuranKinerjaPolicy).
      *
      * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
      */
@@ -427,14 +428,12 @@ class SimpanTargetPeriode
         if (! in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true)) {
             return false;
         }
-        $cakupanPeriode = $lingkup['periode_ids'] ?? null;
-        if (is_array($cakupanPeriode)) {
-            $diizinkan = array_map(fn ($id): string => (string) $id, $cakupanPeriode);
-            foreach ($targets as $baris) {
-                $periodeId = (string) ($baris['periode_id'] ?? '');
-                if ($periodeId === '' || ! in_array($periodeId, $diizinkan, true)) {
-                    return false;
-                }
+        $cakupanPeriode = $lingkup['periode_ids'] ?? [];
+        $diizinkan = is_array($cakupanPeriode) ? array_map(fn ($id): string => (string) $id, $cakupanPeriode) : [];
+        foreach ($targets as $baris) {
+            $periodeId = (string) ($baris['periode_id'] ?? '');
+            if ($periodeId === '' || ! in_array($periodeId, $diizinkan, true)) {
+                return false;
             }
         }
 

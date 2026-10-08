@@ -55,8 +55,8 @@ export interface RencanaAksiDeviasiPk {
 export interface RencanaAksiKoreksi {
     /** True bila penutupan terlewati dan sesi koreksi sah (waktu + jenis_objek + indikator). Cermin gerbang tulis backend. */
     aktif: boolean;
-    /** Batasan eksplisit `lingkup_koreksi.periode_ids`; null = tanpa batasan per-periode. */
-    periode_ids: string[] | null;
+    /** `lingkup_koreksi.periode_ids`; kosong bila kunci tak ada = tidak ada periode tercakup (gagal tertutup). */
+    periode_ids: string[];
 }
 
 export interface RencanaAksiShow {
@@ -119,15 +119,9 @@ export function kunciSel(periodeId: string, komponenId: string | null): string {
     return `${periodeId}::${komponenId ?? 'manual'}`;
 }
 
-/** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif + batasan eksplisit, hanya yang tercakup. */
+/** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif, hanya yang tercakup. */
 export function dapatDisuntingPeriode(koreksi: RencanaAksiKoreksi | undefined | null, periodeId: string): boolean {
-    if (!koreksi?.aktif) {
-        return true;
-    }
-    if (koreksi.periode_ids === null) {
-        return true;
-    }
-    return koreksi.periode_ids.includes(periodeId);
+    return !koreksi?.aktif || koreksi.periode_ids.includes(periodeId);
 }
 
 /** Baris pratinjau server (`PreviewTargetPeriode`): tanpa persistensi, tanpa formula di React. */

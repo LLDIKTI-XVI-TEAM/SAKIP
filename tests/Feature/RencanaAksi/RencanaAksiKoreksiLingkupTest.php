@@ -96,6 +96,52 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         $this->assertDatabaseCount('rencana_aksi_target', 0);
     }
 
+    /**
+     * Lingkup tanpa kunci `periode_ids` tidak mencakup periode apa pun
+     * (gagal tertutup, sama dengan PengukuranKinerjaPolicy): header boleh
+     * dibuka, tetapi tidak ada target yang boleh dikoreksi.
+     */
+    public function test_lingkup_tanpa_periode_ids_menolak_semua_periode(): void
+    {
+        $fixture = $this->buatFixtureEmpatPeriode();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $fixture['jadwal']->update([
+            'status' => 'ditutup',
+            'penutupan' => '2026-03-05',
+            'koreksi_mulai' => '2026-03-01 00:00:00',
+            'koreksi_sampai' => '2026-03-31 23:59:59',
+            'lingkup_koreksi' => [
+                'jenis_objek' => ['rencana_aksi'],
+                'indikator_ids' => [$fixture['indikator']->id],
+            ],
+        ]);
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.koreksi.aktif', true)
+                ->where('rencanaAksi.koreksi.periode_ids', []));
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+            ],
+        ])->assertSessionHasErrors('jendela');
+
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->assertDatabaseCount('rencana_aksi_target', 0);
+    }
+
     public function test_tanpa_koreksi_payload_tidak_membatasi(): void
     {
         $fixture = $this->buatFixtureEmpatPeriode();

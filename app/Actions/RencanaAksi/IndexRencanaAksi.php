@@ -162,8 +162,8 @@ class IndexRencanaAksi
                     // hanya bila penutupan terlewati dan sesi koreksi sah
                     // (waktu + jenis_objek + indikator) — cermin gerbang
                     // tulis `SimpanTargetPeriode`; validasi fail-closed N1
-                    // tetap di backend. `periode_ids` null = tanpa batasan
-                    // per-periode (kunci tak ada); array = batasan eksplisit.
+                    // tetap di backend. `periode_ids` kosong bila kunci tak
+                    // ada: tidak ada periode tercakup (gagal tertutup).
                     'koreksi' => $koreksi,
                     'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
                     'can' => [
@@ -312,15 +312,15 @@ class IndexRencanaAksi
      * UI memakai ini untuk menonaktifkan periode di luar lingkup, backend
      * tetap menolak fail-closed bila klien nakal mengirimnya.
      *
-     * @return array{aktif: bool, periode_ids: list<string>|null}
+     * @return array{aktif: bool, periode_ids: list<string>}
      */
     private function statusKoreksi(JadwalTahunan $jadwal, IndikatorKinerja $indikator): array
     {
         $lingkup = $jadwal->lingkup_koreksi ?? [];
-        $periodeIds = $lingkup['periode_ids'] ?? null;
+        $periodeIds = $lingkup['periode_ids'] ?? [];
         $periodeIds = is_array($periodeIds)
             ? array_values(array_map(fn ($id): string => (string) $id, $periodeIds))
-            : null;
+            : [];
 
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $penutupan = $jadwal->penutupan?->toDateString();

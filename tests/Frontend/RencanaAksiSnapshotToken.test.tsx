@@ -97,7 +97,7 @@ const RENCANA_AKSI: RencanaAksiShowProps = {
         target_pk: '100.000000000000',
         periode_id: null,
     },
-    koreksi: { aktif: false, periode_ids: null },
+    koreksi: { aktif: false, periode_ids: [] },
     can: { view: true, update: true },
 };
 

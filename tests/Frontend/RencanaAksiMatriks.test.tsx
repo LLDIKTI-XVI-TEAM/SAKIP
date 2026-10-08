@@ -104,7 +104,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             target_pk: '100.000000000000',
             periode_id: PERIODE_2,
         },
-        koreksi: { aktif: false, periode_ids: null },
+        koreksi: { aktif: false, periode_ids: [] },
         can: { view: true, update: true },
         ...overrides,
     };

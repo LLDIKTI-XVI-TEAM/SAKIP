@@ -27,7 +27,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     // koreksi ikut dalam key agar perubahan scope tanpa bump versi tetap
     // me-remount formulir (input luar lingkup tak dipertahankan).
     const koreksiKey = props.rencanaAksi.koreksi?.aktif
-        ? `koreksi:${(props.rencanaAksi.koreksi.periode_ids ?? []).slice().sort().join(',')}`
+        ? `koreksi:${props.rencanaAksi.koreksi.periode_ids.slice().sort().join(',')}`
         : 'tanpa-koreksi';
     return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
 }
@@ -54,7 +54,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     // eksplisit, hanya periode tercakup yang disunting/dikirim; baris lain
     // dinonaktifkan. Tanpa koreksi aktif semua efektif dapat disunting.
     // Validasi fail-closed N1 tetap di backend.
-    const koreksi = rencanaAksi.koreksi ?? { aktif: false, periode_ids: null };
+    const koreksi = rencanaAksi.koreksi ?? { aktif: false, periode_ids: [] };
     const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
     const periodeDapatDisunting = useMemo(
         () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
@@ -294,10 +294,8 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 )}
                 {koreksi.aktif && (
                     <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
-                        Sesi koreksi aktif: hanya
-                        {koreksi.periode_ids === null
-                            ? ' periode efektif yang dapat disunting.'
-                            : ` ${periodeDapatDisunting.length} dari ${periodeEfektif.length} periode dalam lingkup yang dapat disunting; baris lain dikunci dan tidak dikirim.`}
+                        Sesi koreksi aktif: hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode dalam lingkup yang dapat
+                        disunting; baris lain dikunci dan tidak dikirim.
                     </p>
                 )}
                 {terkunciSemua && (
