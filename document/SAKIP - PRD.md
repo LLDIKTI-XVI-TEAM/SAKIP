@@ -564,13 +564,13 @@ Kontrak dasar histori dan resolusi — Plan §4.3–4.4 / Issue #54: pergantian 
 
 Monitoring menilai seluruh tujuh permission scoped untuk unit indikator: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, dan `kegiatan:create/update`. Tampilkan izin tersedia dan kurang menurut PermissionResolver saat ini; explicit deny menang dan akun nonaktif fail-closed. Diagnosis tidak menggantikan pemeriksaan setiap aksi.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** behavior berikut berasal dari implementasi branch dan seluruhnya **PENDING STAKEHOLDER DECISION**, terpisah dari Q32 final:
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan; kombinasi indikator/tanggal mulai berlaku unik tanpa tie-break tambahan.
+- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, kombinasi indikator/tanggal mulai berlaku masih unik.
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali sesudah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi ditolak saat indikator `arsip`, Renstra `diarsipkan`, atau unit `nonaktif`; histori tetap tersimpan dan terbaca sesuai akses.
 
-Evidence, dampak, dan decision gate penggunaan operasional dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Kebijakan sementara ini belum menjadi keputusan produk final; enforcement existing dipertahankan hingga pemilik requirement memberi keputusan resmi.
+Rujukan keputusan: **Q34 §34.1** pada [Keputusan Penyelarasan](SAKIP%20-%20Keputusan%20Penyelarasan.md). Evidence dan dampak per aturan dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 Untuk initial setup 2026, Rencana Aksi yang sudah disusun Perencanaan harus dicatat sebagai **disahkan** sebelum pengajuan TW III. Workflow PIC operasional normal untuk RA baru dimulai dari siklus berikutnya (2027).
 

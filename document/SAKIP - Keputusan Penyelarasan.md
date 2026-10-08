@@ -716,6 +716,7 @@ Q34 meratifikasi aturan Penanggung Jawab (PJ) yang berstatus *pending stakeholde
 
 - Data Model §2.23–§2.24, ERD, dan §5 diselaraskan dengan 34.2.
 - `SAKIP - Architecture Decision Records.md`: ADR-0007/0008 menjadi `Accepted`.
+- Penanda *pending stakeholder decision* PJ-01–PJ-05 pada PRD §13, Data Model §2.19/§5, Workflow §22.1, User Stories US-04.01, dan User Issues ISS-04.01 diganti status Q34 §34.1; PJ-02 dicatat sebagai digantikan butir 1 dan dilacak #70.
 - Keputusan PJ tidak menjadi blocker khusus merge ISS-05.01 (PR #62) selama Rencana Aksi memakai resolver PJ kanonis modul Penanggung Jawab dan seluruh quality gate terpenuhi.
 
 ---

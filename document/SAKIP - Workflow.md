@@ -1678,13 +1678,13 @@ Halaman **read-only** digerbangi `pengguna:read`. Tidak ada form add/revoke `rol
 
 **Kontrak dasar histori/resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:**
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan dan satu indikator hanya memiliki satu assignment per tanggal, tanpa tie-break tambahan.
+- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, satu indikator masih hanya memiliki satu assignment per tanggal.
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali setelah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak dan diaudit; histori tetap terbaca sesuai akses.
 
-Kelima kebijakan tersebut masih **PENDING STAKEHOLDER DECISION** dan merekam behavior branch. Evidence, inferensi, dampak, dan decision gate penggunaan operasional berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Behavior existing dipertahankan sementara; tidak ada keputusan bisnis baru atau perubahan state transition dari klasifikasi ini.
+Rujukan keputusan: **Q34 §34.1** pada [Keputusan Penyelarasan](SAKIP%20-%20Keputusan%20Penyelarasan.md). Evidence dan dampak per aturan berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 ## 23. Catatan Penyelarasan Q32 — Klarifikasi Final
 
