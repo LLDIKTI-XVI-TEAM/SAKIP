@@ -125,6 +125,7 @@ class IndexSasaranIndikator
             'units' => $units,
             'regulasis' => $regulasis,
             'can' => [
+                'penanggung_jawab_update' => $this->resolver->resolve($user, 'penanggung_jawab:update')->allowed,
                 'sasaran_create' => $this->resolver->resolve($user, PermissionCodes::SASARAN_CREATE)->allowed,
                 'sasaran_update' => $this->resolver->resolve($user, PermissionCodes::SASARAN_UPDATE)->allowed,
                 'sasaran_delete' => $this->resolver->resolve($user, PermissionCodes::SASARAN_DELETE)->allowed,

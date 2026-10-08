@@ -53,6 +53,7 @@ class SasaranStrategis extends Model
         });
     }
 
+    /** @return BelongsTo<Renstra, $this> */
     public function renstra(): BelongsTo
     {
         return $this->belongsTo(Renstra::class, 'renstra_id');

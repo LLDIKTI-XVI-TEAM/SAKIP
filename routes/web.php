@@ -18,6 +18,7 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
 use App\Http\Controllers\Pengaturan\UpdatePengaturan;
@@ -73,6 +74,7 @@ use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use App\Http\Controllers\Verifikasi\VerifyPengukuran;
+use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -91,7 +93,17 @@ Route::post('/logout', ProcessLogout::class)->name('logout')->block();
 Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block();
 Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
 
+Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(function () {
+    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'store'])->whereUuid('indikator')->name('penanggung-jawab.store');
+    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab/pergantian', [PenanggungJawabController::class, 'change'])->whereUuid('indikator')->name('penanggung-jawab.change');
+});
+
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/penanggung-jawab', [PenanggungJawabController::class, 'index'])->name('penanggung-jawab.index');
+    Route::get('/penanggung-jawab/opsi/pengguna', [PenanggungJawabController::class, 'users'])->name('penanggung-jawab.users');
+    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'show'])->whereUuid('indikator')->name('penanggung-jawab.show');
+    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab/hak-kerja', [PenanggungJawabController::class, 'readiness'])->whereUuid('indikator')->name('penanggung-jawab.readiness');
+
     Route::get('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}/editor', [TargetTahunanController::class, 'editor'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.editor');
     Route::put('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}', [TargetTahunanController::class, 'update'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.update');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');

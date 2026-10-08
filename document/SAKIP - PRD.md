@@ -546,19 +546,31 @@ Koreksi setelah penutupan tetap memakai mekanisme buka-kembali beraudit. Mekanis
 
 Penanggung Jawab adalah **assignment historis**, bukan role. Entitas mencatat indikator, user, tanggal mulai berlaku, aktor penetap, dan alasan.
 
-Aturan final:
+Aturan final Q32:
 
 1. user target harus ada dan berstatus aktif;
 2. tidak ada syarat PIC operasional (bukan role) karena role tersebut tidak ada;
 3. Perencanaan dan Superadmin dapat menetapkan PJ sesuai permission efektif;
 4. assignment tidak memberikan permission;
-5. untuk melakukan pekerjaan unit, user tetap membutuhkan grant unit yang sesuai;
-6. calon PJ tanpa grant menimbulkan **warning**, bukan blokir;
+5. hak kerja pada unit indikator tetap dinilai oleh PermissionResolver dari role/grant yang sah dan explicit deny;
+6. calon PJ dengan izin kerja belum lengkap menimbulkan **warning**, bukan blokir;
 7. sistem menyediakan daftar **PJ aktif tanpa hak isi**;
 8. perubahan role user tidak mengakhiri assignment;
 9. revoke hak isi harus eksplisit, beralasan, dan teraudit.
 
-Penanggung jawab efektif pada tanggal T adalah assignment terakhir dengan `tanggal_mulai_berlaku <= T`. Histori lama tidak dihapus ketika terjadi pergantian.
+Penanggung jawab efektif pada tanggal T adalah assignment dengan `tanggal_mulai_berlaku` terbesar yang `<= T`. Histori lama tidak dihapus atau ditimpa ketika terjadi pergantian.
+
+Kontrak dasar histori dan resolusi — Plan §4.3–4.4 / Issue #54: pergantian wajib alasan dan menambah histori tanpa menimpa baris lama.
+
+Monitoring menilai seluruh tujuh permission scoped untuk unit indikator: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, dan `kegiatan:create/update`. Tampilkan izin tersedia dan kurang menurut PermissionResolver saat ini; explicit deny menang dan akun nonaktif fail-closed. Diagnosis tidak menggantikan pemeriksaan setiap aksi.
+
+**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** behavior berikut berasal dari implementasi branch dan seluruhnya **PENDING STAKEHOLDER DECISION**, terpisah dari Q32 final:
+
+- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan; kombinasi indikator/tanggal mulai berlaku unik tanpa tie-break tambahan.
+- **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali sesudah pergantian nyata, dan assignment mendatang existing dipertahankan.
+- **PJ-05:** mutasi ditolak saat indikator `arsip`, Renstra `diarsipkan`, atau unit `nonaktif`; histori tetap tersimpan dan terbaca sesuai akses.
+
+Evidence, dampak, dan decision gate penggunaan operasional dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Kebijakan sementara ini belum menjadi keputusan produk final; enforcement existing dipertahankan hingga pemilik requirement memberi keputusan resmi.
 
 Untuk initial setup 2026, Rencana Aksi yang sudah disusun Perencanaan harus dicatat sebagai **disahkan** sebelum pengajuan TW III. Workflow PIC operasional normal untuk RA baru dimulai dari siklus berikutnya (2027).
 

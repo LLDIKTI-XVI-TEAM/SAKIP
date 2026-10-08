@@ -406,9 +406,14 @@ class PhaseDAtomicDefinitionTest extends TestCase
 
     public function test_receipt_tersedia_di_flash_inertia_bukan_props_saja(): void
     {
+        // Simulasikan checkout CI tanpa build aset meskipun manifest lokal tersedia.
+        $this->app->usePublicPath(base_path('tests'));
         $payload = $this->payload();
         $response = $this->patch("/perencanaan/indikator/{$this->indikator->id}/formula", $payload)->assertSessionHasNoErrors();
-        $this->get($response->headers->get('Location'), ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia::getVersion()])
+        $this->get($response->headers->get('Location'), [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => Inertia::getVersion(),
+        ])
             ->assertOk()->assertJsonPath('flash.indikatorMutation.request_id', $payload['request_id'])
             ->assertJsonPath('flash.indikatorMutation.status', 'unchanged');
     }

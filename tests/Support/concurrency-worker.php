@@ -6,6 +6,9 @@ use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\PenanggungJawab\AssignPenanggungJawab;
+use App\Actions\PenanggungJawab\ChangePenanggungJawab;
+use App\Actions\PenanggungJawab\ReadPenanggungJawab;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
 use App\Actions\Perencanaan\StoreSasaran;
@@ -58,6 +61,9 @@ try {
             }
         }
         $result = match ($argv[1]) {
+            'pj-assign' => app(AssignPenanggungJawab::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data']) ? 'assigned' : 'failed',
+            'pj-read' => readPjFixture($assignment),
+            'pj-change' => app(ChangePenanggungJawab::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data']) ? 'assigned' : 'failed',
             'formula-update' => app(ChangeIndicatorFormula::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data'])['status'],
             'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
             'sasaran-create' => app(StoreSasaran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['data'])->kode,
@@ -84,7 +90,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -101,6 +107,7 @@ try {
         $result = 'ineligible';
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
+            'pj-assign' => $assignment['expected_error_field'] ?? 'expected_state',
             'assign-role' => 'expected_assignment',
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
@@ -249,4 +256,11 @@ function performGrantMutation(string $operation, array $assignment): string
         302 => $operation === 'grant-create' ? 'created' : 'revoked',
         default => throw new RuntimeException('Status mutasi grant tidak sesuai: '.$response->getStatusCode()),
     };
+}
+
+function readPjFixture(array $assignment): array
+{
+    $props = app(ReadPenanggungJawab::class)->handle(IndikatorKinerja::findOrFail($assignment['indikator_id']), ['tanggal_acuan' => '2026-03-15']);
+
+    return ['count' => count($props['history']->items()), 'pic_id' => $props['effective']['pic']['id'] ?? null, 'token' => $props['expected_state']];
 }

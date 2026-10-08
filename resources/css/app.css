@@ -110,3 +110,40 @@ body {
     }
 }
 
+
+/* Picker native mengikuti lebar filter Renstra, termasuk saat nama opsi panjang. */
+@supports (appearance: base-select) {
+    .renstra-filter,
+    .renstra-filter::picker(select) {
+        appearance: base-select;
+    }
+
+    .renstra-filter {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .renstra-filter::picker-icon {
+        display: none;
+    }
+
+    .renstra-filter::picker(select) {
+        @apply mt-2 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-md;
+        width: anchor-size(width);
+        min-width: 0;
+        max-width: calc(100vw - 2rem);
+    }
+
+    .renstra-filter option {
+        @apply gap-2 px-3 py-2 text-sm text-ink;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .renstra-filter option:checked,
+    .renstra-filter option:hover,
+    .renstra-filter option:focus-visible {
+        @apply bg-soft;
+    }
+}
