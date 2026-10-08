@@ -6,8 +6,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Lapisan pertahanan kedua untuk deret kode berurutan: unique index pada
+ * Penyiapan data + lapisan pertahanan kedua untuk deret kode berurutan:
+ * penyelarasan `urutan` dengan nomor kode, lalu unique index pada
  * `sasaran_strategis.kode` dan `indikator_kinerjas.kode`.
+ *
+ * Urutan langkah disengaja: **pre-check duplikat → backfill → unique index**.
+ * Pre-check berjalan sebelum langkah yang mengubah data, sehingga database
+ * dengan kode duplikat berhenti tanpa `urutan` yang sudah ditimpa — backfill
+ * bersifat tak dapat dibalik karena nilai lama tidak disimpan.
  *
  * Migrasi ini SENGAJA berhenti tanpa mengubah apa pun bila menemukan kode
  * duplikat — tidak menghapus, menggabungkan, atau memilih pemenang — karena
@@ -20,6 +26,9 @@ return new class extends Migration
     {
         $this->pastikanTidakAdaKodeDuplikat();
 
+        $this->backfillUrutan('sasaran_strategis', 'SS');
+        $this->backfillUrutan('indikator_kinerjas', 'IK');
+
         Schema::table('sasaran_strategis', function (Blueprint $table) {
             $table->unique('kode', 'sasaran_strategis_kode_unik');
         });
@@ -29,6 +38,10 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Catatan: backfill `urutan` tidak dibalik saat rollback karena nilai
+     * urutan lama tidak disimpan.
+     */
     public function down(): void
     {
         Schema::table('sasaran_strategis', function (Blueprint $table) {
@@ -38,6 +51,20 @@ return new class extends Migration
         Schema::table('indikator_kinerjas', function (Blueprint $table) {
             $table->dropUnique('indikator_kinerjas_kode_unik');
         });
+    }
+
+    /**
+     * Selaraskan `urutan` dengan nomor pada kode yang mengikuti pola
+     * `<prefix>-<digit>`. Kode legacy di luar pola (mis. `SS-RA-FIXTURE`,
+     * `IKU-3`) dibiarkan apa adanya dan tidak dihitung sebagai bagian deret.
+     */
+    private function backfillUrutan(string $tabel, string $prefix): void
+    {
+        DB::table($tabel)
+            ->where('kode', '~', '^'.$prefix.'-[0-9]+$')
+            ->update([
+                'urutan' => DB::raw("CAST(SUBSTRING(kode FROM '^".$prefix."-([0-9]+)$') AS INTEGER)"),
+            ]);
     }
 
     /**

@@ -96,6 +96,24 @@ Update checkbox + Bukti di dokumen ini. JANGAN commit.
 
 **Temuan sampingan yang ikut ditutup.** Saat verifikasi, `tests/Integration/Jadwal/JadwalActivationConcurrencyTest::test_indicator_inserted_during_enumeration_rolls_back_with_conflict` gagal karena mencari indikator berkode `'IKU-BARU'` — padahal sejak commit `953a6ed` kode indikator dibangkitkan server. Jadi test itu **sudah rusak sejak commit tersebut** dan tidak terdeteksi karena suite `tests/Integration/Jadwal` belum dijalankan saat itu. Diperbaiki: identitas diambil dari nilai kembalian `StoreIndikator`, dan `kode` dibuang dari payload fixture (`newIndicatorPayload()`).
 
+## Tindak lanjut — dua temuan Codex berikutnya (`2026-10-08T10:12:51Z`)
+
+**Status: SELESAI (2026-10-08).** Review berikutnya atas commit `7600aef5` (pra-rewrite; isi identik dengan `0053765`) memuat dua temuan inline. Keduanya terverifikasi benar dan sama-sama menyangkut migrasi pada perubahan ini.
+
+### F2 · P1 · `2026_10_08_000003_finalisasi_snapshot_terbit.php:28` — serialisasi backfill dengan aktivasi
+
+- **Temuan:** bila migrasi berjalan sementara worker versi lama masih dapat mengaktifkan jadwal, transaksi aktivasi yang belum commit tidak terlihat oleh `UPDATE` migrasi (maupun status `aktif`-nya). Snapshot terbit itu tetap `false`, replay aktivasi kemudian no-op, dan komposisinya tetap dapat disisipi komponen.
+- **Perbaikan:** `up()` menjalankan lock + backfill di dalam transaksi eksplisit dan mengambil **advisory lock eksklusif** bernama sama dengan jalur aktivasi (`Periode::lockConfiguration()` → `sakip:periode-konfigurasi`), sehingga migrasi menunggu aktivasi in-flight commit lebih dahulu.
+- **Bukti:** `test_lock_migrasi_berkonflik_dengan_lock_bersama_jalur_aktivasi` (dua koneksi: lock bersama dipegang → lock eksklusif migrasi tertahan lalu gagal `55P03` dalam batas `lock_timeout`) dan `test_urutan_langkah_migrasi_penyiapan_data_dan_lock_serialisasi` (lock diambil sebelum `UPDATE`; nama kunci sinkron dengan `Periode.php`).
+
+### F3 · P2 · `2026_10_08_000001_kode_otomatis_sasaran_indikator.php:27` — preflight duplikat sebelum backfill
+
+- **Temuan:** pada database berkode duplikat, `000001` sudah ter-commit dan menimpa `urutan` yang diatur pengguna, baru kemudian `000002` gagal memasang indeks unik. Karena `down()` tidak memulihkan nilai lama, rollout yang sengaja dihentikan tetap meninggalkan urutan yang berubah dan data aslinya hilang.
+- **Perbaikan:** backfill `urutan` **dipindah ke `000002`**, sehingga urutannya menjadi *pre-check duplikat → backfill → unique index*. `000001` kini murni menambah kolom — tetap dapat diterapkan lebih dahulu untuk membuka blokir tanpa menyentuh data.
+- **Bukti:** `test_precheck_duplikat_menghentikan_migrasi_sebelum_backfill_menimpa_urutan` (duplikat → `RuntimeException`, `urutan` manual 42/43 utuh), `test_migrasi_kolom_tidak_mengubah_data` (`000001` tanpa backfill/`update()`), `test_precheck_lolos_backfill_menyelaraskan_urutan_dan_indeks_dipasang` (`SS-05` 99 → 5, kode legacy `SS-LAMA` dibiarkan, kedua indeks kembali terpasang).
+
+**Verifikasi tindak lanjut** (PG disposable port 5458; dev `sakip_db` tidak disentuh): `KodeOtomatisMigrationTest` 5/5 (18 assertions); Perencanaan + Jadwal + RencanaAksi **245/245 (2120 assertions)**; `migrate:fresh`, `rollback --step=1`, dan `migrate` bersih; `pint` PASS (475 file); `phpstan` 0 error.
+
 ## Di luar lingkup
 
 - ISS-03.03 (koreksi snapshot terkendali & versioning) — hanya constraint D5 yang dicatat.
