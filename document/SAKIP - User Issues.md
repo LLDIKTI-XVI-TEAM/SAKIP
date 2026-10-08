@@ -1572,7 +1572,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
 - [ ] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
 - [ ] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
-- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
+- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi. *(Q34/ADR-0008: kewajiban alasan ditegakkan pada pengajuan ISS-05.03; ISS-05.01 hanya menampilkan peringatan deviasi dan menyimpan `alasan_deviasi_pk` pada draf.)*
 
 #### Implementation Tasks
 

@@ -243,6 +243,26 @@ class RencanaAksiAuthorizationTest extends TestCase
         $this->assertSame(1, $header->fresh()->versi);
     }
 
+    /**
+     * UUID indikator yang tidak ada harus 404 sebelum validasi payload, dengan
+     * maupun tanpa izin (cermin endpoint simpan/preview).
+     */
+    public function test_ensure_draft_uuid_indikator_asing_404_sebelum_validasi(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $tanpaIzin = $this->penggunaDenganPeran('pegawai');
+        $uuidAsing = (string) Str::uuid();
+
+        foreach ([$tanpaIzin, $fixture['pic']] as $aktor) {
+            $this->actingAs($aktor)->post('/rencana-aksi/ensure-draft', [
+                'indikator_id' => $uuidAsing,
+                'tahun' => 2026,
+            ])->assertNotFound();
+        }
+
+        $this->assertDatabaseCount('rencana_aksi', 0);
+    }
+
     public function test_perencanaan_global_lolos_tanpa_grant_unit(): void
     {
         $fixture = $this->buatFixtureManual();

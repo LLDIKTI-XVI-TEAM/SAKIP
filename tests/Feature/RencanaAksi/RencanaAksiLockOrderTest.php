@@ -17,6 +17,7 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
@@ -202,6 +203,42 @@ class RencanaAksiLockOrderTest extends TestCase
         // Hasil deterministik: tanpa mutasi/audit parsial dari sonde kunci.
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', (string) $headerId)->count());
+    }
+
+    /**
+     * Status unit dibaca dengan FOR SHARE sehingga penonaktifan unit yang
+     * belum commit menahan pembuatan draf, alih-alih membaca versi lama
+     * `aktif` lalu membuat header yang menunjuk unit nonaktif. UPDATE status
+     * mengambil FOR NO KEY UPDATE yang tidak berkonflik dengan cek FK INSERT
+     * (FOR KEY SHARE), jadi hanya kunci baca status yang dapat menahannya.
+     */
+    public function test_ensure_draft_menunggu_penonaktifan_unit_yang_belum_commit(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $pdo = $this->koneksiPengujian();
+        try {
+            $pdo->exec('BEGIN');
+            $pdo->prepare("UPDATE unit SET status = 'nonaktif' WHERE id = :id")->execute(['id' => $this->unit->id]);
+
+            DB::statement("SET lock_timeout = '2s'");
+            $this->withoutExceptionHandling();
+            try {
+                $this->actingAs($this->perencanaan)->post('/rencana-aksi/ensure-draft', [
+                    'indikator_id' => $fixture['indikator']->id,
+                    'tahun' => 2026,
+                ]);
+                $this->fail('Pembuatan draf seharusnya menunggu penonaktifan unit yang belum commit.');
+            } catch (QueryException $exception) {
+                $this->assertSame('55P03', $exception->errorInfo[0] ?? null);
+            }
+        } finally {
+            DB::statement('RESET lock_timeout');
+            $this->rollbackTenang($pdo);
+        }
+
+        $this->assertSame(0, RencanaAksi::where('indikator_id', $fixture['indikator']->id)->count());
     }
 
     /**

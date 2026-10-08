@@ -23,7 +23,10 @@ class EnsureDraftRencanaAksiRequest extends FormRequest
 
         $indikator = IndikatorKinerja::whereKey($indikatorId)->first();
         if (! $indikator instanceof IndikatorKinerja) {
-            return true;
+            // 404 sebelum validasi payload, dengan maupun tanpa izin, mengikuti
+            // SimpanTargetPeriodeRequest: indikator asing tidak lagi dibedakan
+            // lewat respons validasi 422.
+            abort(404);
         }
 
         return Gate::allows('create', [RencanaAksi::class, $indikator]);
@@ -35,7 +38,7 @@ class EnsureDraftRencanaAksiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'indikator_id' => ['required', 'uuid', 'exists:indikator_kinerjas,id'],
+            'indikator_id' => ['required', 'uuid'],
             'tahun' => ['required', 'integer', 'between:2000,2100'],
         ];
     }
@@ -48,7 +51,6 @@ class EnsureDraftRencanaAksiRequest extends FormRequest
         return [
             'required' => 'Kolom :attribute wajib diisi.',
             'uuid' => 'Identitas :attribute tidak sah.',
-            'exists' => 'Data :attribute tidak ditemukan.',
             'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
             'between' => 'Kolom :attribute berada di luar rentang tahun yang sah.',
         ];

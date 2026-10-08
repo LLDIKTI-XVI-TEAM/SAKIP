@@ -7,6 +7,7 @@ use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -14,6 +15,7 @@ use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -33,11 +35,12 @@ class EnsureDraftRencanaAksi
     /**
      * Membuat header draf secara idempoten untuk satu kombinasi indikator × tahun.
      *
-     * Urutan kunci deterministik di dalam transaksi (anti-deadlock, sama
-     * dengan `SimpanTargetPeriode`): baris ACL pengguna pengunci, calon
-     * header rencana aksi (berdasarkan pasangan indikator × tahun, mungkin
-     * belum ada sehingga mengunci nihil tetapi tetap menjaga urutan
-     * akuisisi), indikator, jadwal tahunan, snapshot beku, lalu
+     * Urutan kunci deterministik di dalam transaksi (anti-deadlock; header
+     * lalu indikator sama dengan `SimpanTargetPeriode`): baris ACL pengguna
+     * pengunci, calon header rencana aksi (berdasarkan pasangan indikator ×
+     * tahun, mungkin belum ada sehingga mengunci nihil tetapi tetap menjaga
+     * urutan akuisisi), indikator, unit (FOR SHARE, kompatibel dengan FOR
+     * SHARE unit di jalur simpan), jadwal tahunan, snapshot beku, lalu
      * cek-idempoten header. Tanpa retry: antrean kunci
      * menserialkan transaksi bersamaan, bukan 40P01.
      *
@@ -79,13 +82,16 @@ class EnsureDraftRencanaAksi
                 $this->arsipGuard->pastikanDapatDibuatkan($indikator, 'rencana_aksi');
 
                 $unitId = (string) $indikator->unit_id;
-                $keputusan = $this->resolver->decide($pengunci, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
-                $dasarIzin = $keputusan;
-                if (! $keputusan['allowed']) {
+                $keputusan = $this->resolver->resolve($pengunci, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
+                $dasarIzin = $keputusan->toAuditBasis();
+                if (! $keputusan->allowed) {
                     throw new AuthorizationException('Izin pembuatan rencana aksi tidak tersedia atau telah dicabut.');
                 }
 
-                if (! DB::table('unit')->where('id', $unitId)->where('status', 'aktif')->exists()) {
+                // FOR SHARE berkonflik dengan kunci writer status unit, sehingga
+                // penonaktifan yang sedang berjalan tidak lolos di antara baca dan INSERT.
+                $unit = Unit::whereKey($unitId)->sharedLock()->first();
+                if (! $unit instanceof Unit || $unit->status !== 'aktif') {
                     throw ValidationException::withMessages(['indikator_id' => 'Unit pemilik indikator berstatus nonaktif.']);
                 }
 
@@ -173,10 +179,8 @@ class EnsureDraftRencanaAksi
     /**
      * Menegakkan batas mutation create: penutupan tahun untuk semua jalur,
      * lalu PIC efektif + jendela RA khusus jalur unit-scoped.
-     *
-     * @param  array<string, mixed>  $keputusan
      */
-    private function pastikanDapatMembuat(User $pengunci, array $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, PenugasanIndikator $pic): void
+    private function pastikanDapatMembuat(User $pengunci, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, PenugasanIndikator $pic): void
     {
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $penutupan = $jadwal->penutupan?->toDateString();
@@ -184,7 +188,7 @@ class EnsureDraftRencanaAksi
             throw ValidationException::withMessages(['jendela' => 'Tahun jadwal telah ditutup; pembuatan memerlukan sesi koreksi resmi.']);
         }
 
-        if ($this->jalurPerencanaan($pengunci, $keputusan)) {
+        if ($this->jalurPerencanaan($keputusan)) {
             return;
         }
 
@@ -245,23 +249,13 @@ class EnsureDraftRencanaAksi
     }
 
     /**
-     * @param  array<string, mixed>  $keputusan
+     * Jalur global bila allow berasal dari peran, bukan hanya grant unit
+     * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
+     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
      */
-    private function jalurPerencanaan(User $pengunci, array $keputusan): bool
+    private function jalurPerencanaan(PermissionDecision $keputusan): bool
     {
-        if (! ($keputusan['allowed'] ?? false)) {
-            return false;
-        }
-        $roleIds = $keputusan['roles'] ?? [];
-
-        if ($roleIds === []) {
-            return false;
-        }
-
-        return $pengunci->roles()
-            ->whereIn('roles.id', (array) $roleIds)
-            ->whereIn('kode', ['perencanaan', 'superadmin'])
-            ->exists();
+        return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
     }
 
     private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool

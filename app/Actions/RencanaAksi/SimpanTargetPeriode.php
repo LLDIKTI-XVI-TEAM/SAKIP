@@ -22,6 +22,7 @@ use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
@@ -84,9 +85,9 @@ class SimpanTargetPeriode
                     throw ValidationException::withMessages(['unit_id' => 'Unit pemilik rencana aksi berstatus nonaktif.']);
                 }
 
-                $keputusan = $this->resolver->decide($pengunci, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
-                $dasarIzin = $keputusan;
-                if (! $keputusan['allowed']) {
+                $keputusan = $this->resolver->resolve($pengunci, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
+                $dasarIzin = $keputusan->toAuditBasis();
+                if (! $keputusan->allowed) {
                     throw new AuthorizationException('Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.');
                 }
 
@@ -366,10 +367,9 @@ class SimpanTargetPeriode
     }
 
     /**
-     * @param  array<string, mixed>  $keputusan
      * @param  list<array{periode_id: string, komponen_id: string|null, nilai: string|int|float|null, keterangan: string|null}>  $targets
      */
-    private function pastikanJendela(User $pengunci, array $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): void
+    private function pastikanJendela(User $pengunci, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $targets): void
     {
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $penutupan = $jadwal->penutupan?->toDateString();
@@ -377,7 +377,7 @@ class SimpanTargetPeriode
             throw ValidationException::withMessages(['jendela' => 'Tahun jadwal telah ditutup; penyimpanan memerlukan sesi koreksi resmi.']);
         }
 
-        if ($this->jalurPerencanaan($pengunci, $keputusan)) {
+        if ($this->jalurPerencanaan($keputusan)) {
             return;
         }
 
@@ -394,23 +394,13 @@ class SimpanTargetPeriode
     }
 
     /**
-     * @param  array<string, mixed>  $keputusan
+     * Jalur global bila allow berasal dari peran, bukan hanya grant unit
+     * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
+     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
      */
-    private function jalurPerencanaan(User $pengunci, array $keputusan): bool
+    private function jalurPerencanaan(PermissionDecision $keputusan): bool
     {
-        if (! ($keputusan['allowed'] ?? false)) {
-            return false;
-        }
-        $roleIds = $keputusan['roles'] ?? [];
-
-        if ($roleIds === []) {
-            return false;
-        }
-
-        return $pengunci->roles()
-            ->whereIn('roles.id', (array) $roleIds)
-            ->whereIn('kode', ['perencanaan', 'superadmin'])
-            ->exists();
+        return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
     }
 
     /**
