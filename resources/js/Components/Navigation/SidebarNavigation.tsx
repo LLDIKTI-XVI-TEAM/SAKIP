@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import type { SharedPageProps } from '@/types/auth';
 import {
     findActiveNavigation,
     getSidebarNavEntries,
+    normalizePath,
 } from '@/lib/navigation/sidebarNavigation';
 import { SidebarGroup } from '@/Components/Navigation/SidebarGroup';
 
@@ -22,6 +23,7 @@ export function SidebarNavigation({
 }: SidebarNavigationProps) {
     const entries = getSidebarNavEntries(can);
     const { activeItemId, activeGroupId } = findActiveNavigation(entries, url);
+    const currentPath = normalizePath(url);
 
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
         const initial = new Set<string>(defaultExpandedGroupIds);
@@ -30,18 +32,16 @@ export function SidebarNavigation({
         }
         return initial;
     });
+    const [expandedForPath, setExpandedForPath] = useState(currentPath);
 
-    // Otomatis membuka parent group bila pengguna berpindah ke rute anak di dalamnya
-    useEffect(() => {
-        if (activeGroupId) {
-            setExpandedGroups((prev) => {
-                if (prev.has(activeGroupId)) return prev;
-                const next = new Set(prev);
-                next.add(activeGroupId);
-                return next;
-            });
+    // Grup induk dibuka sekali setiap pathname berubah, termasuk antar-halaman dalam grup yang sama.
+    // Pathname dipakai sebagai pemicu agar penutupan manual bertahan pada rerender dan perubahan query.
+    if (expandedForPath !== currentPath) {
+        setExpandedForPath(currentPath);
+        if (activeGroupId && !expandedGroups.has(activeGroupId)) {
+            setExpandedGroups(new Set(expandedGroups).add(activeGroupId));
         }
-    }, [activeGroupId]);
+    }
 
     const toggleGroup = (groupId: string) => {
         setExpandedGroups((prev) => {

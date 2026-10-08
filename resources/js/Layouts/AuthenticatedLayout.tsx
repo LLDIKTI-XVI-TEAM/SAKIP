@@ -1,4 +1,4 @@
-import { LogoutActions } from '@/Components/Auth/LogoutActions';
+import { UserProfileDropdown } from '@/Components/Auth/UserProfileDropdown';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
@@ -10,7 +10,6 @@ import {
     X,
     Search,
     Bell,
-    User,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
@@ -88,8 +87,11 @@ export function AuthenticatedLayout({
         const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const menuButton = menuButtonRef.current;
         const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        // Link di submenu yang tertutup (atribut hidden) tidak dapat difokuskan sehingga tidak boleh menjadi batas trap.
+        const drawerControls = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
+            .filter((control) => !control.closest('[hidden]'));
         const focusFirstDrawerControl = () => {
-            drawerRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
+            drawerControls().at(0)?.focus();
         };
         const focusFrame = window.requestAnimationFrame(focusFirstDrawerControl);
         const trapFocus = (event: KeyboardEvent) => {
@@ -101,7 +103,7 @@ export function AuthenticatedLayout({
 
             if (event.key !== 'Tab') return;
 
-            const controls = Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+            const controls = drawerControls();
             const firstControl = controls.at(0);
             const lastControl = controls.at(-1);
 
@@ -160,17 +162,23 @@ export function AuthenticatedLayout({
                         <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
                     </div>
                 </div>
-                <button
-                    ref={menuButtonRef}
-                    type="button"
-                    aria-expanded={navigationOpen}
-                    aria-controls="application-navigation"
-                    aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
-                    onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
-                >
-                    {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                    {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
+                    {!isDesktopViewport && (
+                        <UserProfileDropdown user={auth?.user ?? null} placement="mobile" disabled={navigationOpen} />
+                    )}
+                    <button
+                        ref={menuButtonRef}
+                        type="button"
+                        aria-expanded={navigationOpen}
+                        aria-controls="application-navigation"
+                        aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+                        onClick={() => setNavigationOpen((isOpen) => !isOpen)}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
+                    >
+                        {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
+                    </button>
+                </div>
             </header>
 
             {/* Mobile Backdrop */}
@@ -234,25 +242,6 @@ export function AuthenticatedLayout({
                         onNavigate={() => setNavigationOpen(false)}
                     />
                 </div>
-
-                {/* Bottom User Profile Section (Pinned outside scrollable body) */}
-                <div className="border-t border-white/10 bg-primary p-4 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
-                            <User className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-bold text-white leading-tight">
-                                {auth?.user?.nama || 'Pengguna'}
-                            </p>
-                            <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
-                                {auth?.user?.role || 'Belum ada peran'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <LogoutActions sidebar />
-                </div>
             </aside>
 
             {/* Main Column */}
@@ -290,20 +279,7 @@ export function AuthenticatedLayout({
                             <Bell className="h-5 w-5" aria-hidden="true" />
                         </button>
 
-                        {/* User Profile Chip */}
-                        <div className="flex items-center gap-2.5 pl-2 border-l border-border">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-                                <User className="h-4 w-4" />
-                            </div>
-                            <div className="hidden xl:block text-left">
-                                <p className="text-xs font-bold text-primary leading-none truncate max-w-[140px]">
-                                    {auth.user?.nama || 'Pengguna'}
-                                </p>
-                                <p className="mt-1 text-[11px] text-muted leading-none capitalize">
-                                    {auth.user?.role || 'Belum ada peran'}
-                                </p>
-                            </div>
-                        </div>
+                        {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
                     </div>
                 </header>
 

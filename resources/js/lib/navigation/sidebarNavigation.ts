@@ -83,7 +83,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
             href: '/dashboard',
             icon: LayoutDashboard,
             canKey: 'dashboard',
-            matchPatterns: (path: string): boolean => path === '/dashboard' || path.startsWith('/dashboard/'),
         },
     },
     {
@@ -99,7 +98,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/regulasi',
                     icon: BookOpen,
                     canKey: 'regulasi',
-                    matchPatterns: (path: string): boolean => path === '/regulasi' || path.startsWith('/regulasi/'),
                 },
                 {
                     id: 'renstra',
@@ -107,7 +105,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/renstra',
                     icon: Layers,
                     canKey: 'renstra',
-                    matchPatterns: (path: string): boolean => path === '/renstra' || path.startsWith('/renstra/'),
                 },
                 {
                     id: 'sasaran-indikator',
@@ -115,14 +112,14 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/perencanaan/sasaran-indikator',
                     icon: Target,
                     canKey: 'sasaranIndikator',
+                    // Editor indikator dan halaman penanggung jawab berada di bawah menu ini;
+                    // /perencanaan/sasaran dan /perencanaan/indikator tanpa segmen anak hanya endpoint mutasi.
                     matchPatterns: (path: string): boolean =>
-                        path === '/perencanaan/sasaran-indikator' ||
-                        path.startsWith('/perencanaan/sasaran-indikator/') ||
+                        isWithinPath(path, '/perencanaan/sasaran-indikator') ||
+                        isWithinPath(path, '/penanggung-jawab') ||
                         path.startsWith('/perencanaan/sasaran/') ||
                         path.startsWith('/perencanaan/indikator/') ||
-                        path.startsWith('/indikator/') ||
-                        path === '/penanggung-jawab' ||
-                        path.startsWith('/penanggung-jawab/'),
+                        path.startsWith('/indikator/'),
                 },
                 {
                     id: 'perjanjian-kinerja',
@@ -130,8 +127,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/perjanjian-kinerja',
                     icon: FileText,
                     canKey: 'pk',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/perjanjian-kinerja' || path.startsWith('/perjanjian-kinerja/'),
                 },
             ],
         },
@@ -149,7 +144,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/periode',
                     icon: CalendarDays,
                     canKey: 'periode',
-                    matchPatterns: (path: string): boolean => path === '/periode' || path.startsWith('/periode/'),
                 },
                 {
                     id: 'jadwal',
@@ -157,7 +151,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/jadwal',
                     icon: CalendarRange,
                     canKey: 'jadwal',
-                    matchPatterns: (path: string): boolean => path === '/jadwal' || path.startsWith('/jadwal/'),
                 },
             ],
         },
@@ -175,7 +168,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/pengukuran',
                     icon: FileSpreadsheet,
                     canKey: 'pengukuran',
-                    matchPatterns: (path: string): boolean => path === '/pengukuran' || path.startsWith('/pengukuran/'),
                 },
                 {
                     id: 'verifikasi',
@@ -183,7 +175,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/verifikasi',
                     icon: CheckCircle2,
                     canKey: 'verifikasi',
-                    matchPatterns: (path: string): boolean => path === '/verifikasi' || path.startsWith('/verifikasi/'),
                 },
             ],
         },
@@ -201,7 +192,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/unit',
                     icon: Building2,
                     canKey: 'unit',
-                    matchPatterns: (path: string): boolean => path === '/unit' || path.startsWith('/unit/'),
                 },
                 {
                     id: 'jenis-berkas',
@@ -209,8 +199,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/jenis-berkas',
                     icon: FileText,
                     canKey: 'jenisBerkas',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/jenis-berkas' || path.startsWith('/jenis-berkas/'),
                 },
             ],
         },
@@ -228,8 +216,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/aktivasi',
                     icon: UserCheck,
                     canKey: 'aktivasi',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/akses/aktivasi' || path.startsWith('/akses/aktivasi/'),
                 },
                 {
                     id: 'peran',
@@ -237,8 +223,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/peran',
                     icon: UserPlus,
                     canKey: 'assignRole',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/akses/peran' || path.startsWith('/akses/peran/'),
                 },
                 {
                     id: 'izin-peran',
@@ -246,8 +230,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/izin-peran',
                     icon: KeyRound,
                     canKey: 'viewRolePermissions',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/akses/izin-peran' || path.startsWith('/akses/izin-peran/'),
                 },
                 {
                     id: 'grant',
@@ -255,7 +237,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/grant',
                     icon: ShieldCheck,
                     canKey: 'grant',
-                    matchPatterns: (path: string): boolean => path === '/akses/grant' || path.startsWith('/akses/grant/'),
                 },
                 {
                     id: 'deny',
@@ -263,7 +244,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/deny',
                     icon: Ban,
                     canKey: 'manageDeny',
-                    matchPatterns: (path: string): boolean => path === '/akses/deny' || path.startsWith('/akses/deny/'),
                 },
                 {
                     id: 'jelaskan-izin',
@@ -271,8 +251,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/akses/jelaskan-izin',
                     icon: Search,
                     canKey: 'viewEffectivePermissions',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/akses/jelaskan-izin' || path.startsWith('/akses/jelaskan-izin/'),
                 },
             ],
         },
@@ -290,10 +268,9 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/pengaturan',
                     icon: Settings,
                     canKey: 'pengaturan',
-                    // Menjamin /pengaturan/storage tidak mencocokkan Pengaturan
+                    // /pengaturan/storage beserta turunannya milik Kebijakan Storage, bukan Pengaturan.
                     matchPatterns: (path: string): boolean =>
-                        (path === '/pengaturan' || path.startsWith('/pengaturan/')) &&
-                        !path.startsWith('/pengaturan/storage'),
+                        isWithinPath(path, '/pengaturan') && !isWithinPath(path, '/pengaturan/storage'),
                 },
                 {
                     id: 'storage-policy',
@@ -301,8 +278,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/pengaturan/storage',
                     icon: HardDrive,
                     canKey: 'storagePolicy',
-                    matchPatterns: (path: string): boolean =>
-                        path === '/pengaturan/storage' || path.startsWith('/pengaturan/storage/'),
                 },
             ],
         },
@@ -323,8 +298,18 @@ export function normalizePath(url: string | null | undefined): string {
 }
 
 /**
+ * Mengecek apakah path sama dengan basePath atau berada di bawahnya dengan batas segmen,
+ * sehingga /renstra cocok dengan /renstra/{id} tetapi tidak dengan /renstra-lain.
+ * Kedua argumen diasumsikan sudah dinormalkan.
+ */
+export function isWithinPath(path: string, basePath: string): boolean {
+    return path === basePath || path.startsWith(`${basePath}/`);
+}
+
+/**
  * Mengecek apakah item navigasi sedang aktif untuk currentPath.
  * Menerima objek SidebarNavItem/NavItemConfig atau URL target string.
+ * Tanpa matchPatterns, item aktif pada href-nya dan seluruh rute turunannya.
  */
 export function isNavItemActive(
     itemOrHref: SidebarNavItem | NavItemConfig | string,
@@ -333,16 +318,14 @@ export function isNavItemActive(
     const normalizedCurrent = normalizePath(currentPath);
 
     if (typeof itemOrHref === 'string') {
-        const normalizedTarget = normalizePath(itemOrHref);
-        return normalizedCurrent === normalizedTarget || normalizedCurrent.startsWith(`${normalizedTarget}/`);
+        return isWithinPath(normalizedCurrent, normalizePath(itemOrHref));
     }
 
     if (itemOrHref.matchPatterns) {
         return itemOrHref.matchPatterns(normalizedCurrent);
     }
 
-    const normalizedTarget = normalizePath(itemOrHref.href);
-    return normalizedCurrent === normalizedTarget || normalizedCurrent.startsWith(`${normalizedTarget}/`);
+    return isWithinPath(normalizedCurrent, normalizePath(itemOrHref.href));
 }
 
 /**

@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import type { SharedPageProps } from '@/types/auth';
 import {
@@ -9,6 +10,11 @@ import {
     normalizePath,
     SIDEBAR_NAVIGATION_SCHEMA,
 } from '@/lib/navigation/sidebarNavigation';
+import { createViewportMock } from './viewportFixtures';
+
+const DESKTOP_WIDTH = 1440;
+const MOBILE_WIDTH = 390;
+const viewport = createViewportMock(DESKTOP_WIDTH);
 
 let mockUrl = '/dashboard';
 let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
@@ -68,21 +74,9 @@ vi.mock('@/hooks/useAuthRecovery', () => ({
     }),
 }));
 
-beforeAll(() => {
-    Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn().mockImplementation((query: string) => ({
-            matches: true,
-            media: query,
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-        })),
-    });
-});
+beforeAll(() => viewport.install());
+afterAll(() => viewport.restore());
+beforeEach(() => viewport.reset(DESKTOP_WIDTH));
 
 afterEach(() => {
     cleanup();
@@ -407,32 +401,298 @@ describe('Test E — No Role-Based Bypass', () => {
     });
 });
 
-describe('Test F — Mobile Navigation Drawer Integration', () => {
-    it('drawer mobile merender grouped sidebar dan mendukung expand/collapse serta link click', () => {
-        render(<AuthenticatedLayout><div>Konten Mobile</div></AuthenticatedLayout>);
+const renderLayout = () => render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+const getDrawer = () => document.getElementById('application-navigation') as HTMLElement;
+const getMainColumn = () => document.getElementById('main-content')?.parentElement as HTMLElement;
+const groupButton = (name: string) => screen.getByRole('button', { name });
+const expectDrawerClosed = (drawer: HTMLElement) => {
+    expect(drawer.getAttribute('aria-hidden')).toBe('true');
+    expect(drawer.hasAttribute('inert')).toBe(true);
+    expect(drawer.getAttribute('role')).toBeNull();
+    expect(drawer.getAttribute('aria-modal')).toBeNull();
+    expect(drawer.className).toContain('-translate-x-full');
+};
+const openMobileDrawer = async (user: ReturnType<typeof userEvent.setup>) => {
+    const trigger = screen.getByRole('button', { name: 'Buka navigasi' });
+    await user.click(trigger);
+    const drawer = getDrawer();
+    const closeButton = within(drawer).getByRole('button', { name: 'Tutup navigasi' });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
+    return { trigger, drawer, closeButton };
+};
 
-        // Buka mobile drawer via tombol hamburger
-        const openBtn = screen.getByRole('button', { name: 'Buka navigasi' });
-        fireEvent.click(openBtn);
+describe('M-01 — Sinkronisasi grup aktif saat pathname berubah', () => {
+    it('M01-A: navigasi antar-halaman dalam grup yang sama membuka kembali grup yang ditutup manual', () => {
+        mockUrl = '/renstra';
+        const { rerender } = renderLayout();
+        const parent = groupButton('Perencanaan Kinerja');
+        expect(parent.getAttribute('aria-expanded')).toBe('true');
 
-        // Cari aside drawer mobile
-        const drawer = document.getElementById('application-navigation');
-        expect(drawer).toBeTruthy();
-        expect(drawer?.className).toContain('translate-x-0');
+        fireEvent.click(parent);
+        expect(parent.getAttribute('aria-expanded')).toBe('false');
 
-        // Dalam drawer, navigasi mobile merender grup
-        const mobileNav = within(drawer!).getByRole('navigation', { name: 'Navigasi utama' });
-        const perencanaanBtn = within(mobileNav).getByRole('button', { name: 'Perencanaan Kinerja' });
-        expect(perencanaanBtn).toBeTruthy();
+        mockUrl = '/perjanjian-kinerja';
+        rerender(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
 
-        // Expand di dalam mobile drawer
-        fireEvent.click(perencanaanBtn);
-        const childLink = within(mobileNav).getByRole('link', { name: 'Dasar Aturan' });
-        expect(childLink).toBeTruthy();
+        // Instance yang sama (tidak di-unmount) tetap menerima perubahan pathname.
+        expect(groupButton('Perencanaan Kinerja')).toBe(parent);
+        expect(parent.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('link', { name: 'Perjanjian Kinerja' }).getAttribute('aria-current')).toBe('page');
+        expect(screen.getByRole('link', { name: 'Master Renstra' }).getAttribute('aria-current')).toBeNull();
+    });
 
-        // Klik link anak harus memicu navigasi dan menutup drawer (translate-x-full)
-        fireEvent.click(childLink);
-        expect(drawer?.className).toContain('-translate-x-full');
+    it('M01-B: penutupan manual bertahan pada rerender tanpa perubahan pathname', () => {
+        mockUrl = '/renstra';
+        const { rerender } = renderLayout();
+        const parent = groupButton('Perencanaan Kinerja');
+
+        fireEvent.click(parent);
+        rerender(<AuthenticatedLayout><div>Konten baru</div></AuthenticatedLayout>);
+        rerender(<AuthenticatedLayout><div>Konten baru lagi</div></AuthenticatedLayout>);
+
+        expect(parent.getAttribute('aria-expanded')).toBe('false');
+        expect(document.getElementById(parent.getAttribute('aria-controls')!)?.hasAttribute('hidden')).toBe(true);
+    });
+
+    it('M01-C: pindah ke grup lain membuka grup baru dan tetap mendukung multi-expand', () => {
+        mockUrl = '/renstra';
+        const { rerender } = renderLayout();
+
+        mockUrl = '/jadwal';
+        rerender(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+
+        expect(groupButton('Siklus & Periode').getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('link', { name: 'Jadwal Tahunan' }).getAttribute('aria-current')).toBe('page');
+        // Grup sebelumnya tidak dipaksa tertutup (bukan accordion).
+        expect(groupButton('Perencanaan Kinerja').getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('link', { name: 'Master Renstra' }).getAttribute('aria-current')).toBeNull();
+    });
+
+    it('M01-D: perubahan query string saja tidak membuka kembali grup yang ditutup manual', () => {
+        mockUrl = '/renstra?tab=aktif';
+        const { rerender } = renderLayout();
+        const parent = groupButton('Perencanaan Kinerja');
+
+        fireEvent.click(parent);
+        mockUrl = '/renstra?tab=arsip';
+        rerender(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+
+        expect(parent.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('M01-E: urutan maju/mundur riwayat menjaga grup dan item aktif tetap sinkron', () => {
+        mockUrl = '/renstra';
+        const { rerender, unmount } = renderLayout();
+        const parent = groupButton('Perencanaan Kinerja');
+
+        mockUrl = '/perjanjian-kinerja';
+        rerender(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        fireEvent.click(parent);
+
+        // Back ke /renstra dengan instance yang sama (mis. kunjungan preserveState).
+        mockUrl = '/renstra';
+        rerender(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        expect(parent.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('link', { name: 'Master Renstra' }).getAttribute('aria-current')).toBe('page');
+        expect(screen.getByRole('link', { name: 'Perjanjian Kinerja' }).getAttribute('aria-current')).toBeNull();
+
+        // Popstate Inertia memasang ulang halaman; state awal tetap mengikuti URL baru.
+        unmount();
+        mockUrl = '/jadwal';
+        renderLayout();
+        expect(groupButton('Siklus & Periode').getAttribute('aria-expanded')).toBe('true');
+        expect(groupButton('Perencanaan Kinerja').getAttribute('aria-expanded')).toBe('false');
+        expect(screen.getByRole('link', { name: 'Jadwal Tahunan' }).getAttribute('aria-current')).toBe('page');
+    });
+});
+
+describe('M-02 — Drawer navigasi pada viewport mobile', () => {
+    beforeEach(() => viewport.reset(MOBILE_WIDTH));
+
+    it('M02-A: drawer awalnya tertutup lalu terbuka sebagai dialog modal yang menonaktifkan konten utama', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const drawer = getDrawer();
+        expectDrawerClosed(drawer);
+        expect(getMainColumn().hasAttribute('inert')).toBe(false);
+        expect(screen.getByRole('main')).toBeTruthy();
+
+        const { trigger } = await openMobileDrawer(user);
+
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        expect(drawer.getAttribute('role')).toBe('dialog');
+        expect(drawer.getAttribute('aria-modal')).toBe('true');
+        expect(drawer.getAttribute('aria-hidden')).toBeNull();
+        expect(drawer.hasAttribute('inert')).toBe(false);
+        expect(screen.getByRole('dialog', { name: 'Navigasi utama' })).toBe(drawer);
+        expect(getMainColumn().getAttribute('aria-hidden')).toBe('true');
+        expect(getMainColumn().hasAttribute('inert')).toBe(true);
+        expect(screen.queryByRole('main')).toBeNull();
+    });
+
+    it('M02-B: tombol tutup di drawer menutup drawer dan mengembalikan fokus ke tombol pembuka', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { trigger, drawer, closeButton } = await openMobileDrawer(user);
+
+        await user.click(closeButton);
+
+        expectDrawerClosed(drawer);
+        expect(document.activeElement).toBe(trigger);
+        expect(trigger.getAttribute('aria-label')).toBe('Buka navigasi');
+    });
+
+    it('M02-C: Escape menutup drawer dan memulihkan fokus', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { trigger, drawer } = await openMobileDrawer(user);
+
+        await user.keyboard('{Escape}');
+
+        expectDrawerClosed(drawer);
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('M02-D: klik backdrop menutup drawer', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { drawer } = await openMobileDrawer(user);
+        const backdrop = drawer.previousElementSibling as HTMLElement;
+        expect(backdrop.getAttribute('aria-hidden')).toBe('true');
+
+        await user.click(backdrop);
+
+        expectDrawerClosed(drawer);
+    });
+
+    it('M02-E: Tab dan Shift+Tab berputar di dalam kontrol drawer yang terlihat', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { drawer, closeButton } = await openMobileDrawer(user);
+        const lastVisibleControl = within(drawer).getByRole('button', { name: 'Pengaturan Sistem' });
+
+        await user.tab({ shift: true });
+        expect(document.activeElement).toBe(lastVisibleControl);
+        // Link pada submenu tertutup tidak boleh menjadi tujuan fokus.
+        expect((document.activeElement as HTMLElement).closest('[hidden]')).toBeNull();
+
+        await user.tab();
+        expect(document.activeElement).toBe(closeButton);
+
+        await user.tab();
+        expect(document.activeElement).toBe(within(drawer).getByRole('link', { name: 'Dashboard' }));
+        expect(drawer.contains(document.activeElement)).toBe(true);
+    });
+
+    it('M02-F: expand grup di drawer lalu memilih submenu menutup drawer', async () => {
+        const user = userEvent.setup();
+        renderLayout();
+        const { drawer } = await openMobileDrawer(user);
+        const parent = within(drawer).getByRole('button', { name: 'Perencanaan Kinerja' });
+
+        await user.click(parent);
+        expect(parent.getAttribute('aria-expanded')).toBe('true');
+        const submenu = document.getElementById(parent.getAttribute('aria-controls')!) as HTMLElement;
+        const childLink = within(submenu).getByRole('link', { name: 'Dasar Aturan' });
+
+        await user.click(childLink);
+
+        expectDrawerClosed(drawer);
+    });
+
+    it('M02-G: viewport desktop tetap memakai sidebar statis non-modal', async () => {
+        viewport.reset(DESKTOP_WIDTH);
+        renderLayout();
+        const drawer = getDrawer();
+
+        expect(drawer.getAttribute('role')).toBeNull();
+        expect(drawer.getAttribute('aria-modal')).toBeNull();
+        expect(drawer.getAttribute('aria-hidden')).toBeNull();
+        expect(drawer.hasAttribute('inert')).toBe(false);
+        expect(getMainColumn().hasAttribute('inert')).toBe(false);
+        expect(within(drawer).getByRole('navigation', { name: 'Navigasi utama' })).toBeTruthy();
+    });
+
+    it('perubahan viewport mobile ke desktop melepas mode modal dan listener dibersihkan saat unmount', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderLayout();
+        const { drawer } = await openMobileDrawer(user);
+
+        viewport.setWidth(DESKTOP_WIDTH);
+        expect(drawer.getAttribute('role')).toBeNull();
+        expect(drawer.getAttribute('aria-modal')).toBeNull();
+        expect(getMainColumn().hasAttribute('inert')).toBe(false);
+
+        unmount();
+        expect(viewport.listenerCount()).toBe(0);
+    });
+});
+
+describe('Q-02 — Pencocokan rute default dan khusus', () => {
+    const activeItem = (url: string) => findActiveNavigation(getSidebarNavEntries(mockCan), url).activeItemId;
+    const allItems = SIDEBAR_NAVIGATION_SCHEMA.flatMap((entry) => entry.type === 'item' ? [entry.item] : entry.group.children);
+
+    it('setiap menu aktif pada href-nya dan rute turunannya', () => {
+        allItems.forEach((item) => {
+            expect(activeItem(item.href)).toBe(item.id);
+            expect(activeItem(`${item.href}/detail-uji`)).toBe(item.id);
+        });
+    });
+
+    it.each([
+        ['/renstra', 'renstra'],
+        ['/renstra/a9c1e784-1111-2222-3333-444455556666/edit', 'renstra'],
+        ['/renstra-lain', null],
+        ['/renstra/?tab=arsip#bagian', 'renstra'],
+        ['/pengaturan', 'pengaturan'],
+        ['/pengaturan/', 'pengaturan'],
+        ['/pengaturan/storage', 'storage-policy'],
+        ['/pengaturan/storage/', 'storage-policy'],
+        ['/pengaturan/storage/riwayat', 'storage-policy'],
+        ['/pengaturan/storage?tab=format', 'storage-policy'],
+        ['/pengaturan/storage-lain', 'pengaturan'],
+        ['/perencanaan/indikator/ind-1234/editor', 'sasaran-indikator'],
+        ['/perencanaan/indikator/ind-1234/target-tahunan/2026/editor', 'sasaran-indikator'],
+        ['/indikator/ind-1234/komponen', 'sasaran-indikator'],
+        ['/penanggung-jawab', 'sasaran-indikator'],
+        ['/penanggung-jawab-lain', null],
+        ['/perencanaan/indikator', null],
+        ['/akses/grant-lain', null],
+        ['/dashboard?periode=2', 'dashboard'],
+    ])('%s → %s', (url, expected) => {
+        expect(activeItem(url)).toBe(expected);
+    });
+
+    it('tidak ada URL yang membuat dua menu sekaligus aktif', () => {
+        const urls = [
+            ...allItems.flatMap((item) => [item.href, `${item.href}/`, `${item.href}/x/y`, `${item.href}?q=1`]),
+            '/pengaturan/storage-lain',
+            '/perencanaan/indikator/ind-1/penanggung-jawab',
+        ];
+        urls.forEach((url) => {
+            const matches = allItems.filter((item) => isNavItemActive(item, url));
+            expect(matches.length, url).toBeLessThanOrEqual(1);
+        });
+    });
+});
+
+describe('UI-01-A — Sidebar tanpa profil dan aksi logout', () => {
+    it('sidebar hanya memuat brand dan navigasi tanpa identitas pengguna atau tombol keluar', () => {
+        renderLayout();
+        const drawer = getDrawer();
+
+        expect(within(drawer).getByText('SAKIP LLDIKTI XVI')).toBeTruthy();
+        expect(within(drawer).getByRole('navigation', { name: 'Navigasi utama' })).toBeTruthy();
+        expect(within(drawer).getByRole('link', { name: 'Dashboard' })).toBeTruthy();
+        expect(within(drawer).getAllByRole('button').map((button) => button.textContent)).toEqual(expect.arrayContaining([
+            'Perencanaan Kinerja', 'Siklus & Periode', 'Pelaksanaan & Evaluasi', 'Master Data & Referensi', 'Manajemen Akses', 'Pengaturan Sistem',
+        ]));
+
+        expect(drawer.textContent).not.toContain('Auditor QA');
+        expect(drawer.textContent).not.toMatch(/superadmin/i);
+        expect(drawer.textContent).not.toContain('Keluar dari SAKIP');
+        expect(drawer.textContent).not.toContain('Keluar dari layanan terhubung');
+        expect(within(drawer).queryByRole('button', { name: /Keluar|Menu akun/, hidden: true })).toBeNull();
     });
 });
 
