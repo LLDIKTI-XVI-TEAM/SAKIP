@@ -84,6 +84,35 @@ export interface JadwalDetail {
 
 export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
-    can: { create: boolean; update: boolean };
+    can: { create: boolean; update: boolean; activate: boolean };
     read_only_reason: string | null;
+}
+
+/** Pratinjau server yang advisory; hanya agregat, tanpa nama/nilai indikator atau identitas lampiran. */
+export interface JadwalActivationReadiness {
+    jadwal_id: string;
+    checked_revisi: number;
+    checked_at: string;
+    allowed: boolean;
+    blockers: { code: string; message: string }[];
+    gates: { key: 'G1' | 'G2' | 'G3' | 'G4'; status: 'lolos' | 'gagal' | 'pengecualian'; message: string; count: number | null }[];
+    counts: {
+        indikator_berlaku: number;
+        target_belum_terisi: number;
+        snapshot_existing: number;
+        snapshot_baru: number;
+        komponen_baru: number;
+    };
+    periode_lampau_ids: string[];
+}
+
+/** Hasil mutasi yang dikirim lewat flash jadwal_aktivasi; hanya sah bila cocok dengan operasi dan objek request. */
+export interface JadwalActivationOutcome {
+    operation_id: string;
+    jadwal_id: string;
+    status: 'aktif';
+    activated_at: string;
+    revisi: number;
+    changed: boolean;
+    snapshot_created_count: number;
 }

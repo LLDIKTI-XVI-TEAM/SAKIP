@@ -51,6 +51,12 @@ class JadwalTahunan extends Model
         ];
     }
 
+    /** Aktivasi pertama sudah terjadi dan jadwal masih aktif; dasar replay no-op dan blocker sudah_aktif. */
+    public function isActivated(): bool
+    {
+        return $this->status === 'aktif' && $this->activated_at !== null;
+    }
+
     public function getIsTerkunciAttribute(): bool
     {
         return $this->status === 'aktif'

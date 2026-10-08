@@ -7,6 +7,7 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
+import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { OptionPicker } from '@/Components/Jadwal/OptionPicker';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
@@ -198,6 +199,19 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                         Referensi tetap ditampilkan. Ganti atau hapus periode nonaktif sebelum aktivasi; kewajiban dan
                         riwayat jadwal aktif/ditutup tetap dipertahankan.
                     </p>
+                </div>
+            )}
+            {jadwal && can.activate && (
+                <div className="mb-5">
+                    <ActivationPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        // Revisi kalender yang benar-benar tampil; props bisa lebih baru saat state dipertahankan sesudah POST gagal.
+                        revisi={form.data.revisi ?? jadwal.revisi}
+                        status={jadwal.status}
+                        dirtyCalendar={form.isDirty}
+                        periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
+                    />
                 </div>
             )}
             <form onSubmit={submit} noValidate className="space-y-5">

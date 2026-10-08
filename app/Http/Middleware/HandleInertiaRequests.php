@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\JadwalTahunan;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
@@ -38,6 +39,7 @@ class HandleInertiaRequests extends Middleware
                         'pengaturan' => $can['pengaturan'],
                         'pengaturan:update' => $can['pengaturan:update'],
                         'viewRolePermissions' => $can['viewRolePermissions'],
+                        'viewEffectivePermissions' => $can['viewEffectivePermissions'],
                         'jenisBerkas' => $can['jenisBerkas'],
                         'storagePolicy' => $can['storagePolicy'],
                         'storagePolicyUpdate' => $can['storagePolicyUpdate'],
@@ -74,6 +76,7 @@ class HandleInertiaRequests extends Middleware
             'unit' => false,
             'grant' => false,
             'viewRolePermissions' => false,
+            'viewEffectivePermissions' => false,
             'regulasi' => false,
             'regulasi:create' => false,
             'regulasi:read' => false,
@@ -127,6 +130,7 @@ class HandleInertiaRequests extends Middleware
             'unit' => $resolver->allows($user, 'unit:read'),
             'grant' => $resolver->allows($user, 'delegasi:update'),
             'viewRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
+            'viewEffectivePermissions' => $resolver->allows($user, 'pengguna:read'),
             'regulasi' => $regulasiRead,
             'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
             'regulasi:read' => $regulasiRead,
@@ -146,7 +150,7 @@ class HandleInertiaRequests extends Middleware
             'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
             'pk' => $user->can('viewAny', RenstraPk::class),
             'periode' => $resolver->allows($user, 'periode:create') || $resolver->allows($user, 'periode:update'),
-            'jadwal' => $resolver->allows($user, 'jadwal:create') || $resolver->allows($user, 'jadwal:update'),
+            'jadwal' => $user->can('viewAny', JadwalTahunan::class),
             'pk:create' => $resolver->allows($user, 'pk:create'),
             'pk:update' => $resolver->allows($user, 'pk:update'),
         ];

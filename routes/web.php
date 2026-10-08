@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Access\DenyManagement;
+use App\Http\Controllers\Access\EffectivePermissionExplorer;
 use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
 use App\Http\Controllers\Akses\IndexGrant;
@@ -99,12 +100,17 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
     Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
     Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
+    Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
+    Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
     Route::put('/periode/{periode}', [PeriodeController::class, 'update'])->whereUuid('periode')->name('periode.update');
     Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
     Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
+    Route::get('/akses/jelaskan-izin', [EffectivePermissionExplorer::class, 'index'])->name('effective-permission.index');
+    Route::get('/akses/jelaskan-izin/opsi/pengguna', [EffectivePermissionExplorer::class, 'users'])->name('effective-permission.users');
+    Route::get('/akses/jelaskan-izin/opsi/unit', [EffectivePermissionExplorer::class, 'units'])->name('effective-permission.units');
     Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
     Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
     Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');
