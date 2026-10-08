@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 
@@ -78,7 +78,12 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
                 <div>Konten</div>
             </AuthenticatedLayout>
         );
+        // Buka grup Manajemen Akses untuk memeriksa submenu Izin Unit (Grant)
+        const groupButton = screen.getByRole('button', { name: 'Manajemen Akses' });
+        expect(groupButton).toBeTruthy();
+        fireEvent.click(groupButton);
         expect(screen.getByRole('link', { name: 'Izin Unit (Grant)' }).getAttribute('href')).toBe('/akses/grant');
+
         mockCan = { dashboard: true, grant: false };
         rerender(
             <AuthenticatedLayout>
@@ -86,6 +91,7 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
             </AuthenticatedLayout>
         );
         expect(screen.queryByRole('link', { name: 'Izin Unit (Grant)' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Manajemen Akses' })).toBeNull();
     });
 
     it('merender jejak navigasi Dashboard > Pengaturan tanpa menambah SAKIP', () => {
