@@ -1668,14 +1668,23 @@ Halaman **read-only** digerbangi `pengguna:read`. Tidak ada form add/revoke `rol
 
 ### 22.1 Penanggung Jawab vs Hak Isi
 
+**Kontrak final Q32:**
+
 - PJ dapat menunjuk user aktif dengan role apa pun.
 - Assignment PJ tidak memberi permission.
 - Jika PJ belum punya hak isi, tampilkan warning dan masukkan ke daftar “PJ aktif tanpa hak isi”.
 - Perubahan role tidak mengakhiri assignment PJ.
-- Tanggal efektif lampau/mendatang diperbolehkan, tetapi satu indikator hanya memiliki satu assignment pada tanggal yang sama. Resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
-- Pergantian menambah histori dan wajib alasan; assignment baru dengan user yang sudah efektif pada tanggal tersebut ditolak sebagai no-op. PJ lama dapat kembali setelah pergantian nyata ke user lain. Histori mendatang yang sudah ada tetap dipertahankan.
-- Server menolak mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif dan mencatat penolakan sesuai kontrak audit; histori tetap dapat dibaca sesuai akses.
 - Monitoring memakai tujuh izin scoped pada unit indikator (`pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`), menampilkan izin tersedia/kurang memakai ACL saat ini. Assignment tidak memberi izin, explicit deny menang, akun nonaktif fail-closed; diagnosis bukan pengganti resolver saat aksi.
+
+**Kontrak dasar histori/resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
+
+**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:**
+
+- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan dan satu indikator hanya memiliki satu assignment per tanggal, tanpa tie-break tambahan.
+- **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali setelah pergantian nyata, dan assignment mendatang existing dipertahankan.
+- **PJ-05:** mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak dan diaudit; histori tetap terbaca sesuai akses.
+
+Kelima kebijakan tersebut masih **PENDING STAKEHOLDER DECISION** dan merekam behavior branch. Evidence, inferensi, dampak, dan decision gate penggunaan operasional berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Behavior existing dipertahankan sementara; tidak ada keputusan bisnis baru atau perubahan state transition dari klasifikasi ini.
 
 ## 23. Catatan Penyelarasan Q32 — Klarifikasi Final
 
