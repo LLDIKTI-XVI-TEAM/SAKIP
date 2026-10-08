@@ -869,6 +869,25 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
     }
 
+    public function test_pj_two_same_date_changes_from_one_state_have_one_winner(): void
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $actor->id,
+            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $actor->id, 'created_at' => now()]);
+        $token = $indicator->fresh()->assignmentStateToken();
+        $payloads = array_map(fn () => ['actor_id' => $actor->id, 'indikator_id' => $indicator->id, 'data' => [
+            'user_id' => User::factory()->create(['status' => 'aktif'])->id, 'tanggal_mulai_berlaku' => '2026-01-01',
+            'expected_state' => $token, 'alasan' => 'Pergantian hari yang sama',
+        ]], [1, 2]);
+        $results = $this->race('pj-change', $indicator->id, '', $payloads,
+            prepare: fn () => IndikatorKinerja::whereKey($indicator->id)->lockForUpdate()->firstOrFail());
+        $this->assertEqualsCanonicalizing(['assigned', 'conflict'], $results);
+        $this->assertDatabaseCount('penanggung_jawab', 2);
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ganti')->count());
+        $this->assertSame('Penugasan atau konteks indikator telah berubah. Muat data terbaru dan tinjau ulang formulir sebelum menyimpan.',
+            AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->sole()->alasan);
+    }
+
     public function test_pj_reader_waits_for_append_and_returns_matching_token_and_history(): void
     {
         [$actor, $indicator] = $this->formulaFixture();
@@ -915,7 +934,9 @@ class MutationConcurrencyTest extends TestCase
         return [['actor', 'authorization'], ['target', 'user_id'], ['lifecycle', 'indikator'], ['unit', 'expected_state'], ['backdate', 'expected_state']];
     }
 
-    public function test_pj_change_waits_until_submission_provenance_is_frozen(): void
+    /** Tanggal sama dengan penugasan awal memastikan tie-break urutan tidak menyentuh provenance beku. */
+    #[DataProvider('pjChangeDates')]
+    public function test_pj_change_waits_until_submission_provenance_is_frozen(string $date): void
     {
         [$operator, $indicator] = $this->formulaFixture();
         $indicator->update(['tipe_perhitungan' => 'manual']);
@@ -925,7 +946,7 @@ class MutationConcurrencyTest extends TestCase
         $permission = Permission::where('kode', 'pengukuran:update')->sole();
         DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $pic->id, 'permission_id' => $permission->id,
             'unit_id' => $indicator->unit_id, 'alasan' => 'Fixture', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
-        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id,
+        $initial = PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id,
             'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $operator->id, 'created_at' => now()]);
         $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
         $renstra = $indicator->sasaranStrategis->renstra;
@@ -948,7 +969,7 @@ class MutationConcurrencyTest extends TestCase
         $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'periode_id' => $period->id,
             'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
         $payload = ['actor_id' => $operator->id, 'indikator_id' => $indicator->id, 'data' => [
-            'user_id' => $target->id, 'tanggal_mulai_berlaku' => '2026-02-01', 'expected_state' => $indicator->assignmentStateToken(), 'alasan' => 'Pergantian setelah pengajuan',
+            'user_id' => $target->id, 'tanggal_mulai_berlaku' => $date, 'expected_state' => $indicator->assignmentStateToken(), 'alasan' => 'Pergantian setelah pengajuan',
         ]];
         $results = $this->race('pj-change', $indicator->id, '', [$payload],
             prepare: fn () => app(ChangePengukuran::class)->handle($pic, $measurement->id, 'ajukan', ['versi' => 1, 'nilai' => 70]));
@@ -956,8 +977,14 @@ class MutationConcurrencyTest extends TestCase
         $version = $measurement->fresh()->latestVersion;
         $this->assertSame($pic->id, $version->diajukan_by);
         $this->assertSame($pic->id, $version->dasar_izin_pengajuan['pic_id']);
+        $this->assertSame($initial->id, $version->dasar_izin_pengajuan['penugasan_id']);
         $this->assertSame($pic->id, $version->snapshot['pic']['id']);
         $this->assertSame($target->id, $measurement->fresh()->effectivePic()->user_id);
+    }
+
+    public static function pjChangeDates(): array
+    {
+        return ['tanggal berbeda' => ['2026-02-01'], 'tanggal sama' => ['2026-01-01']];
     }
 
     private function formulaFixture(): array

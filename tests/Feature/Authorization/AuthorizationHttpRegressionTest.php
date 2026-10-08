@@ -161,6 +161,25 @@ class AuthorizationHttpRegressionTest extends TestCase
         $this->assertSame($before, $otherMeasurement->fresh()->only(['nilai', 'versi']));
     }
 
+    public function test_same_date_pic_replacement_moves_measurement_rights_to_latest_assignment(): void
+    {
+        [$old, $new] = [$this->userWithRole('pegawai'), $this->userWithRole('pegawai')];
+        foreach ([$old, $new] as $user) {
+            $this->grant($user, 'pengukuran:update');
+        }
+        // Tanggal dan created_at sama dengan fixture; hanya urutan penugasan yang membedakan.
+        $assign = fn (User $user) => PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $user->id,
+            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $assign($old);
+        $this->actingAs($old)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft', 'nilai' => 10])->assertSessionHasNoErrors();
+        $assign($new);
+        $this->assertSame($new->id, $this->pengukuran->fresh()->effectivePic()->user_id);
+        $this->actingAs($old)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 2, 'action' => 'draft', 'nilai' => 11])
+            ->assertSessionHasErrors(['versi' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
+        $this->actingAs($new)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 2, 'action' => 'draft', 'nilai' => 12])->assertSessionHasNoErrors();
+        $this->assertSame(12.0, (float) $this->pengukuran->fresh()->nilai);
+    }
+
     public function test_unknown_permission_fails_closed_through_http(): void
     {
         $user = User::factory()->create(['status' => 'aktif']);

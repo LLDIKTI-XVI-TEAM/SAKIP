@@ -137,7 +137,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
             {blocked_reason && <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-ink">{blocked_reason} Histori penugasan tetap dapat dibaca.</p>}
             {can.assign && <section className="rounded-xl border border-border bg-surface p-5">
                 <h2 className="text-base font-semibold text-ink">{has_history ? 'Ganti penanggung jawab' : 'Tetapkan penanggung jawab'}</h2>
-                <p className="mt-2 text-sm leading-6 text-muted">Pilih pengguna aktif dan tanggal mulai berlaku. Penugasan tidak otomatis memberikan izin kerja. Tanggal lampau dan mendatang diperbolehkan; satu penugasan untuk setiap tanggal.</p>
+                <p className="mt-2 text-sm leading-6 text-muted">Pilih pengguna aktif dan tanggal mulai berlaku. Penugasan tidak otomatis memberikan izin kerja. Tanggal lampau dan mendatang diperbolehkan; pada tanggal yang sama, penugasan terakhir menjadi PJ efektif.</p>
                 <form className="mt-5 space-y-4" onSubmit={(event) => { event.preventDefault(); if (has_history) setModal(true); else submit(); }}>
                     <div className="grid gap-4 md:grid-cols-2">
                         <GrantUserAutocomplete id="pj-user" label="Penanggung jawab" endpoint="/penanggung-jawab/opsi/pengguna"
