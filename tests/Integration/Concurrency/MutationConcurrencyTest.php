@@ -90,7 +90,7 @@ class MutationConcurrencyTest extends TestCase
         $results = $this->race('bootstrap', $user->id, 'sakip:initial-bootstrap');
         $this->assertEqualsCanonicalizing([true, false], $results);
         $this->assertDatabaseCount('auth_bootstraps', 1);
-        $this->assertDatabaseCount('role_permissions', 167);
+        $this->assertDatabaseCount('role_permissions', 165);
         $this->assertDatabaseCount('user_roles', 1);
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
@@ -225,7 +225,7 @@ class MutationConcurrencyTest extends TestCase
         $results = $this->race('sync-presets', '', 'sakip:initial-bootstrap');
         $this->assertEqualsCanonicalizing([81, 0], $results);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'roles.tambah')->count());
-        $this->assertDatabaseCount('role_permissions', 167);
+        $this->assertDatabaseCount('role_permissions', 165);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
         $this->assertSame(71, DB::table('audit_log')->where('tindakan', 'permissions.ubah')->count());
     }

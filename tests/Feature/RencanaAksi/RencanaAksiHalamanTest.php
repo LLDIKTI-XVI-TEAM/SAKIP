@@ -150,10 +150,10 @@ class RencanaAksiHalamanTest extends TestCase
     {
         $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic');
 
-        // Admin read-only boleh lihat detail, tetapi can.ratify false.
+        // Admin tidak memegang read substantif (Q14) → ditolak pada antrean dan detail.
         $admin = $this->userWithRole('admin');
-        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
-            ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', false)->where('rencanaAksi.can.evidence', false));
+        $this->actingAs($admin)->get('/rencana-aksi')->assertForbidden();
+        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id)->assertForbidden();
 
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
             'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
@@ -176,11 +176,11 @@ class RencanaAksiHalamanTest extends TestCase
             ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', true)->where('rencanaAksi.indikator.kode', $raSah->fresh()->indikator->kode));
     }
 
-    public function test_read_only_admin_pimpinan_pegawai_lihat_tetapi_sahkan_403(): void
+    public function test_read_only_pimpinan_pegawai_lihat_tetapi_sahkan_403(): void
     {
         $ra = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
 
-        foreach (['admin', 'pimpinan', 'pegawai'] as $kode) {
+        foreach (['pimpinan', 'pegawai'] as $kode) {
             $user = $this->userWithRole($kode);
             $this->actingAs($user)->get('/rencana-aksi')->assertOk();
             $this->actingAs($user)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
