@@ -156,6 +156,11 @@ export function GrantUserAutocomplete({
         };
     }, [searchTerm, debounceMs, endpoint, page]);
 
+    // Opsi keyboard aktif tetap terlihat dalam daftar yang dapat digulir.
+    useEffect(() => {
+        if (highlightedIndex >= 0) wrapperRef.current?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' });
+    }, [highlightedIndex]);
+
     const handleSelectUser = useCallback((user: UserOption) => {
         setSelectedUser(user);
         setPage(1); setHasMore(false); setSearchTerm('');
@@ -273,6 +278,7 @@ export function GrantUserAutocomplete({
                             role="combobox"
                             aria-expanded={isOpen}
                             aria-autocomplete="list"
+                            aria-required={required}
                             aria-controls={`${id}-suggestions`}
                             aria-activedescendant={shouldShowDropdown && !isLoading && !failure && highlightedIndex >= 0 ? `${id}-option-${highlightedIndex}` : undefined}
                             maxLength={100}
@@ -341,6 +347,7 @@ export function GrantUserAutocomplete({
                                         key={user.id}
                                         type="button"
                                         role="option"
+                                        tabIndex={-1}
                                         id={`${id}-option-${index}`}
                                         aria-selected={highlightedIndex === index}
                                         onClick={() => handleSelectUser(user)}

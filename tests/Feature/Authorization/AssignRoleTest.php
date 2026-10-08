@@ -109,7 +109,7 @@ class AssignRoleTest extends TestCase
             'replaced' => [[[true, '2026-09-01', '2026-09-01 09:00:00'], [false, '2026-09-20', '2026-09-20 09:00:00']], false],
             'future only' => [[[true, '2026-09-30', '2026-09-01 09:00:00']], false],
             'future replacement' => [[[true, '2026-09-01', '2026-09-01 09:00:00'], [false, '2026-09-30', '2026-09-20 09:00:00']], true],
-            'created tie breaker' => [[[true, '2026-09-01', '2026-09-01 09:00:00'], [false, '2026-09-01', '2026-09-01 10:00:00']], false],
+            'effective date beats insert time' => [[[true, '2026-09-20', '2026-09-01 09:00:00'], [false, '2026-09-01', '2026-09-20 10:00:00']], true],
             'WITA today' => [[[true, '2026-09-29', '2026-09-28 09:00:00']], true],
         ];
     }

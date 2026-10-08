@@ -1,5 +1,4 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
 import { Button } from '@/Components/Button';
 
 interface TambahMenuProps {
@@ -64,7 +63,7 @@ export function TambahMenu({
     };
 
     return (
-        <div ref={containerRef} className="relative">
+        <div ref={containerRef} className="relative w-full lg:w-40">
             <Button
                 variant="primary"
                 type="button"
@@ -73,14 +72,9 @@ export function TambahMenu({
                 aria-expanded={open}
                 aria-controls={menuId}
                 onClick={() => setOpen((prev) => !prev)}
-                className="gap-2"
+                className="w-full"
             >
-                <Plus className="h-4 w-4" aria-hidden="true" />
                 Tambah
-                <ChevronDown
-                    className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
-                    aria-hidden="true"
-                />
             </Button>
 
             {open && (
@@ -88,16 +82,15 @@ export function TambahMenu({
                     id={menuId}
                     role="menu"
                     aria-labelledby={buttonId}
-                    className="absolute right-0 z-30 mt-2 w-48 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-md"
+                    className="absolute right-0 z-30 mt-2 w-full overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-md"
                 >
                     {showSasaran && (
                         <button
                             type="button"
                             role="menuitem"
                             onClick={handleSelect(onAddSasaran)}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-soft focus:bg-soft focus:outline-none"
+                            className="w-full px-3 py-2 text-left text-sm font-medium text-ink hover:bg-soft focus:bg-soft focus:outline-none"
                         >
-                            <Plus className="h-4 w-4 text-muted" aria-hidden="true" />
                             Tambah Sasaran
                         </button>
                     )}
@@ -106,9 +99,8 @@ export function TambahMenu({
                             type="button"
                             role="menuitem"
                             onClick={handleSelect(onAddIndikator)}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-soft focus:bg-soft focus:outline-none"
+                            className="w-full px-3 py-2 text-left text-sm font-medium text-ink hover:bg-soft focus:bg-soft focus:outline-none"
                         >
-                            <Plus className="h-4 w-4 text-muted" aria-hidden="true" />
                             Tambah Indikator
                         </button>
                     )}

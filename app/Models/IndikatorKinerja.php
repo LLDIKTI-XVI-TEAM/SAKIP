@@ -148,4 +148,31 @@ class IndikatorKinerja extends Model
     {
         return $this->hasMany(PenugasanIndikator::class, 'indikator_id');
     }
+
+    /** Setiap append, termasuk backdate, harus mengubah token form. */
+    public function assignmentStateToken(): string
+    {
+        return hash('sha256', implode('|', [
+            $this->id, $this->unit_id, $this->status,
+            $this->updated_at?->format('Y-m-d H:i:s.u') ?? '',
+            $this->penugasanIndikators()->count(),
+        ]));
+    }
+
+    /** Guard operasional; histori tetap dapat dibaca ketika konteks diblokir. */
+    public function assignmentBlockReason(): ?string
+    {
+        if ($this->isArsip()) {
+            return 'Indikator telah diarsipkan.';
+        }
+        $renstra = $this->sasaranStrategis?->renstra;
+        if (! $renstra || $renstra->status === Renstra::STATUS_DIARSIPKAN) {
+            return 'Renstra induk tidak tersedia atau telah diarsipkan.';
+        }
+        if (! $this->unit || $this->unit->status !== 'aktif') {
+            return 'Unit indikator tidak tersedia atau nonaktif.';
+        }
+
+        return null;
+    }
 }

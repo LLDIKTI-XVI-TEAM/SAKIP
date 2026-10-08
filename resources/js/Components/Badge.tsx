@@ -60,7 +60,7 @@ export const Badge: React.FC<BadgeProps> = ({
             dotColor: 'bg-secondary',
         },
         success: {
-            style: 'bg-success/10 text-success border-success/20',
+            style: 'bg-success/10 text-success-dark border-success/20',
             dotColor: 'bg-success',
         },
         warning: {

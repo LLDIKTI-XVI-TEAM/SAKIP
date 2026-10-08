@@ -45,7 +45,7 @@ final class PermissionCatalog
         'kegiatan:update',
     ];
 
-    public const SENSITIVE = ['pengukuran:sahkan', 'pengukuran:buka_kembali', 'pengukuran:verifikasi', 'rencana_aksi:verifikasi', 'rencana_aksi:sahkan', 'rencana_aksi:buka_kembali', 'jadwal:aktivasi', 'jadwal:tutup', 'jadwal:buka_kembali', 'status_capaian:update', 'rekomendasi:tetapkan', 'komponen:update', 'komponen:delete', 'jenis_berkas:update', 'jenis_berkas:delete', 'regulasi:update', 'regulasi:delete', 'akses:update', 'pengaturan:update', 'berkas:delete', 'kegiatan:delete', 'unit:delete'];
+    public const SENSITIVE = ['penanggung_jawab:update', 'pengukuran:sahkan', 'pengukuran:buka_kembali', 'pengukuran:verifikasi', 'rencana_aksi:verifikasi', 'rencana_aksi:sahkan', 'rencana_aksi:buka_kembali', 'jadwal:aktivasi', 'jadwal:tutup', 'jadwal:buka_kembali', 'status_capaian:update', 'rekomendasi:tetapkan', 'komponen:update', 'komponen:delete', 'jenis_berkas:update', 'jenis_berkas:delete', 'regulasi:update', 'regulasi:delete', 'akses:update', 'pengaturan:update', 'berkas:delete', 'kegiatan:delete', 'unit:delete'];
 
     public const DESCRIPTION_OVERRIDES = [
         'akses:update' => 'Menetapkan peran pengguna dan mengelola pembatasan izin eksplisit.',

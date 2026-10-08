@@ -585,7 +585,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-04.01 · Penetapan, Pergantian, dan Resolusi PIC Efektif
 
-> **Q32:** PJ dapat menunjuk user aktif mana pun. Assignment tidak memberi permission; calon PJ tanpa grant hanya diberi warning dan masuk daftar “PJ aktif tanpa hak isi”.
+> **Q32:** PJ dapat menunjuk user aktif mana pun. Assignment tidak memberi permission; calon PJ dengan izin kerja belum lengkap diberi warning dan masuk daftar “PJ aktif tanpa hak isi”.
 
 | Field | Detail |
 |---|---|
@@ -603,20 +603,30 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
-- [ ] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
+- [x] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
+- [x] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
 - [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
 - [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
-- [ ] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
-- [ ] **AC-6 (Q31-OPEN):** Given belum ada keputusan final eligibility role terhadap `penanggung_jawab`, When implementasi assignment dibangun, Then tidak boleh ada constraint hardcoded yang hanya menerima PIC operasional (bukan role); validasi tersebut baru menjadi final setelah keputusan bisnis diterbitkan.
+- [x] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
+- [x] **AC-6 (Q32):** Given target user aktif dengan role apa pun atau belum memiliki role, When ditetapkan sebagai PJ, Then assignment diperbolehkan tanpa memberi permission; kesiapan tujuh izin kerja dinilai terpisah melalui PermissionResolver.
 
 
-**Business Rules / Catatan Q31**
+> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 ditelusuri terpisah pada matriks provenance ISS-04.01; AC-3/AC-4 integrasi Modul 11 tetap terbuka.
+
+**Kontrak Final Q32**
 
 - `penanggung_jawab` tetap menjadi sumber histori assignment indikator.
-- Role `pic` dan assignment `penanggung_jawab` adalah dua data yang berbeda.
-- Belum boleh diasumsikan bahwa `penanggung_jawab.user_id` wajib PIC operasional (bukan role).
-- Bila keputusan eligibility nanti ditetapkan, story ini wajib direvisi bersamaan dengan Data Model, Workflow, Plan, User Issues, dan test.
+- Peran pengguna dan assignment `penanggung_jawab` merupakan dua data yang berbeda; tidak ada syarat role PIC.
+- Monitoring menampilkan izin tersedia dan kurang untuk semua tujuh permission scoped pada unit indikator menurut ACL saat ini. Explicit deny menang dan user nonaktif fail-closed. Diagnosis tidak menjadi gate pengganti resolver saat aksi dilakukan.
+- Bukti reuse Rencana Aksi pada AC-3/AC-4 dan Plan 4.4 tetap bergantung pada implementasi Modul 11.
+
+**Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
+
+**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** PJ-01 (tanggal mutasi lampau/mendatang), PJ-02 (unique indikator/tanggal tanpa tie-break), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) merupakan behavior branch yang masih **PENDING STAKEHOLDER DECISION**. Detail evidence, inferensi, dampak, dan decision gate penggunaan operasional berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Kebijakan ini belum menjadi keputusan produk final; behavior existing dipertahankan sementara.
+
+**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) tetap **OPEN — PENDING STAKEHOLDER DECISION**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. Aturan tambahan tersebut merekam behavior implementasi branch, belum merupakan keputusan stakeholder yang terkonfirmasi. AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
+
+**Tindak lanjut review M-02/M-03:** audit penolakan aktor nonaktif dan continuation monitoring dengan batas kandidat telah diperbaiki serta diverifikasi lokal. Cakupan PJ efektif yang akunnya nonaktif (D-01) tetap **PENDING REQUIREMENT CLARIFICATION** dengan filter existing dipertahankan sementara; status dan pilihan keputusan berada pada bagian traceability ISS-04.01 di User Issues. Tidak ada perubahan AC atau keputusan bisnis dari tindak lanjut teknis ini.
 
 ---
 

@@ -74,6 +74,7 @@ export interface SasaranIndikatorCapabilities {
     sasaran_create: boolean;
     sasaran_update: boolean;
     sasaran_delete: boolean;
+    penanggung_jawab_update?: boolean;
     indikator_create: boolean;
     indikator_read: boolean;
     indikator_update: boolean;
