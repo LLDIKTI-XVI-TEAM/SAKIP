@@ -685,9 +685,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [x] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: PR #76 membuktikan penghapusan bukti non-destruktif — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
 
-> **Status implementasi — PR #76 (ISS-05.02):** centang menunjukkan bukti implementasi dan test lokal (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`); bukan persetujuan UAT, deployment, maupun CI exact-HEAD yang masih menunggu push.
+> **Status implementasi — PR #76 (ISS-05.02):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT maupun deployment.
 
 ### US-05.03 · Pengajuan Rencana Aksi & Pembekuan Versi
 

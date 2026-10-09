@@ -1638,13 +1638,17 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-> **Status implementasi — PR #76:** centang menunjukkan bukti implementasi dan test lokal pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`), Pint, PHPStan, typecheck, dan build produksi; bukan persetujuan UAT/deployment, dan CI exact-HEAD masih menunggu push. Hak mutasi bukti diturunkan dari `rencana_aksi:update` pada unit header (Q32.3: `berkas:*` hanya gerbang deny/fail-closed), hanya pada status `draft`/`dikembalikan`, dan memakai evaluator bersama `EvaluateEvidence` (Plan 13.4). Browser smoke desktop/mobile belum dilakukan.
+> **Status implementasi — PR #76:** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT/deployment. Hak mutasi bukti diturunkan dari `rencana_aksi:update` pada unit header (Q32.3: `berkas:*` hanya gerbang deny/fail-closed) dan dijawab 403; unit nonaktif, indikator arsip, status di luar `draft`/`dikembalikan`, serta jendela PIC adalah validasi bisnis 422 (Data Model §3.2 langkah 6). Evaluator kelengkapan memakai `EvaluateEvidence` bersama (Plan 13.4). Browser smoke desktop/mobile belum dilakukan.
+>
+> **Keputusan terbuka (D1):** pembatasan mutasi bukti pada `draft`/`dikembalikan` lebih ketat daripada PRD §18.8 dan Workflow §10.3/§10.6a (hapus diizinkan sampai `disahkan`); perlu ratifikasi tim sebagai addendum Keputusan Penyelarasan sebelum dokumen tersebut diselaraskan.
+>
+> **Handoff ISS-05.03:** `DownloadBuktiRencanaAksi` saat ini hanya melayani bukti yang masih berlaku (`current`). Setelah pembekuan versi ada, unduhan bukti yang dirujuk versi beku tetapi sudah dihapus perlu membaca metadata dari snapshot versi, mengikuti pola `DownloadBuktiPengukuran`.
 
 - [x] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
 - [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [x] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: penghapusan bukti non-destruktif terbukti — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
 
 #### Implementation Tasks
 
@@ -1672,14 +1676,14 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: `test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` menjadi regresi soft delete dan retensi file; bukti pembekuan versi menunggu ISS-05.03.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(Lulus lokal; menunggu CI exact-HEAD.)*
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(Menunggu ratifikasi D1.)*
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
