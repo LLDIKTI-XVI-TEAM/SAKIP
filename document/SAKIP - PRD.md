@@ -494,7 +494,7 @@ Keempat gerbang ini dievaluasi di service layer sebagai validasi utama. Sebagai 
 
 ### 12.5 Snapshot Saat Aktivasi (Fase Awal — Fondasi MVP)
 
-Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi, bukan trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
+Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi; imutabilitasnya dijaga trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
 
 - Referensi ke indikator master (`indikator_id`) untuk ketertelusuran.
 - `unit_id`, `nama`, `definisi`, `satuan`, `presisi`, `desimal_tampilan`, `arah`, `tipe_perhitungan`, `baseline` — salinan beku dari kondisi master saat itu.
@@ -505,7 +505,7 @@ Untuk indikator bertipe `tipe_perhitungan` selain `manual`, sistem juga membuat 
 Aturan pembentukan snapshot:
 
 - **Idempoten** — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`, sistem hanya membuat baris `jadwal_snapshot` (dan `jadwal_snapshot_komponen` anaknya) untuk pasangan (`jadwal_id`, `indikator_id`) yang **belum ada**. Baris lama tidak pernah ditimpa.
-- **Abadi setelah dirujuk** — begitu suatu baris snapshot dirujuk oleh pengukuran pertamanya, baris itu (beserta baris komponennya) tidak dapat lagi diubah. Sebelum dirujuk pengukuran mana pun, baris snapshot boleh dikoreksi hanya selama jadwal berstatus `aktif` (mis. setelah `jadwal:buka_kembali`), dan koreksi itu wajib teraudit. Tidak ada restatement data historis dalam bentuk apa pun.
+- **Beku sejak terbit (Q35 §35.1)** — begitu jadwal bertransisi ke `aktif`, baris snapshot (beserta baris komponennya) tidak dapat lagi diubah, baik sudah maupun belum dirujuk pengukuran atau rencana aksi. Koreksi konteks selalu dibuat sebagai versi snapshot baru (`nomor_versi` + 1, `menggantikan_id`, alasan, dan rujukan resmi) yang teraudit; versi lama tetap utuh. Tidak ada restatement data historis dalam bentuk apa pun.
 - Baris `audit_log` untuk pembuatan snapshot memakai `actor_id` = pengguna Perencanaan yang menjalankan aksi aktivasi — jejaknya menempel pada aksi manusia yang memicunya, bukan pada proses sistem anonim.
 
 Setiap `pengukuran` merujuk ke `jadwal_snapshot_id`, bukan langsung ke `indikator_id` master, untuk keperluan tampilan (nama, satuan, target pembanding, arah, cara hitung). Keputusan ini masuk sebagai fondasi MVP sejak Fase Awal, bukan fitur yang ditunda — tanpa snapshot, perubahan pada master indikator maupun definisi komponennya di masa depan akan mendistorsi tampilan capaian tahun-tahun yang sudah disahkan.

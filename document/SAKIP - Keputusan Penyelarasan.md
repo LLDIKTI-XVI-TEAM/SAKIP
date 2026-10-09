@@ -4,7 +4,8 @@ Tanggal baseline awal: **18 September 2026**
 Pembaruan terakhir: **9 Oktober 2026**  
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
-Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`
+Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`  
+Basis commit sebelum pembaruan Q35: `405fac1e16b768046879b7e6a418fa6d14d9af77`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -28,6 +29,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Keputusan 6 Oktober 2026 (Q33)** menegaskan domain nilai untuk baseline dan target tahunan PK: keduanya boleh `null` secara independen; jika diisi harus berupa desimal finite dan nonnegatif (`>= 0`); nilai `0` adalah nilai sah dan tidak sama dengan `null`; serta tidak ada batas universal maksimum `100`. Q33 hanya berlaku pada baseline dan target tahunan PK dan tidak otomatis berlaku pada realisasi, nilai komponen, atau target periode Rencana Aksi.
 
 **Keputusan 9 Oktober 2026 (Q34)** meratifikasi aturan Penanggung Jawab indikator — termasuk pergantian PJ pada tanggal yang sama dengan satu PJ efektif deterministik — serta ADR-0007 (`komponen_id = NULL` untuk target manual Rencana Aksi) dan ADR-0008 (`alasan_deviasi_pk`, wajib saat pengajuan, bukan saat simpan draf).
+
+**Keputusan 9 Oktober 2026 (Q35)** menetapkan bahwa snapshot jadwal yang sudah terbit tidak pernah diubah in-place (koreksi selalu lewat versi baru), bahwa `lingkup_koreksi` tanpa `periode_ids` berarti tidak ada periode tercakup (gagal tertutup) untuk Rencana Aksi dan Pengukuran, dan bahwa satu jadwal tahunan memuat paling banyak 12 periode.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -718,6 +721,42 @@ Q34 meratifikasi aturan Penanggung Jawab (PJ) yang berstatus *pending stakeholde
 - `SAKIP - Architecture Decision Records.md`: ADR-0007/0008 menjadi `Accepted`.
 - Penanda *pending stakeholder decision* PJ-01–PJ-05 pada PRD §13, Data Model §2.19/§5, Workflow §22.1, User Stories US-04.01, dan User Issues ISS-04.01 diganti status Q34 §34.1; PJ-02 dicatat sebagai digantikan butir 1 dan dilacak #70.
 - Keputusan PJ tidak menjadi blocker khusus merge ISS-05.01 (PR #62) selama Rencana Aksi memakai resolver PJ kanonis modul Penanggung Jawab dan seluruh quality gate terpenuhi.
+
+---
+
+# Keputusan Q35 — Koreksi Snapshot, Lingkup Koreksi, dan Batas Periode Jadwal
+
+**Keputusan PM (Dion), 9 Oktober 2026, melalui [komentar PR #62](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/62#issuecomment-6077136548)** atas usulan tindak lanjut review PR #62.
+
+Q35 menutup tiga kontrak yang ditemukan saat review ISS-05.01: aturan dokumen masih mengizinkan koreksi snapshot in-place sebelum snapshot dirujuk, makna `lingkup_koreksi` tanpa daftar periode belum ditetapkan, dan jumlah periode per jadwal belum dibatasi.
+
+## 35.1 Koreksi Snapshot Selalu Lewat Versi Baru
+
+1. Snapshot jadwal (`jadwal_snapshot` beserta `jadwal_snapshot_komponen`) yang sudah terbit, yaitu dibentuk saat jadwal bertransisi ke `aktif`, tidak diubah in-place, baik sudah maupun belum dirujuk Rencana Aksi atau Pengukuran.
+2. Koreksi konteks dilakukan dengan menyisipkan baris versi baru (`nomor_versi` + 1, `menggantikan_id` ke versi sebelumnya, `alasan_koreksi`, `rujukan_koreksi`). Versi lama tetap utuh untuk histori dan rujukan yang sudah ada.
+3. Aturan lama "snapshot boleh dikoreksi selama belum dirujuk dan jadwal `aktif`" dicabut.
+
+**Status implementasi (PR #62):** guard database `guard_referenced_schedule_snapshot` menolak UPDATE kolom konteks dan DELETE pada `jadwal_snapshot`; UPDATE yang diterima hanya no-op atau transisi `komposisi_final` `false → true`. UPDATE/DELETE `jadwal_snapshot_komponen` selalu ditolak, dan INSERT komponen ditolak bila induknya sudah final atau sudah dirujuk. Trigger `finalisasi_snapshot_saat_jadwal_aktif` memfinalkan seluruh snapshot jadwal setiap kali status jadwal berubah ke `aktif`. Alur koreksi berversi bagi pengguna dibangun pada ISS-03.03.
+
+## 35.2 Lingkup Koreksi Gagal Tertutup
+
+1. `jadwal_tahunan.lingkup_koreksi` tanpa `periode_ids` berarti **tidak ada periode yang tercakup**; tidak ada pengartian "semua periode".
+2. Berlaku untuk Rencana Aksi dan Pengukuran.
+
+**Status implementasi:** Pengukuran (`PengukuranKinerjaPolicy`, sudah di `development`) dan Rencana Aksi (`JendelaTulisRencanaAksi`, PR #62) memperlakukan `periode_ids` yang tidak ada sebagai daftar kosong. Penetapan lingkup koreksi tetap milik ISS-14.02.
+
+## 35.3 Batas Periode per Jadwal
+
+1. Satu jadwal tahunan memuat paling banyak **12 periode**.
+
+**Status implementasi (PR #62):** `StoreJadwalRequest` memvalidasi `periode` `max:12` (`RencanaAksiMatrixLimitTest`: 13 periode ditolak, 12 diterima). Batas ini juga menjadi dasar ukuran matriks Rencana Aksi (50 komponen × 12 periode = 600 sel).
+
+## 35.4 Dampak dan Traceability
+
+- Data Model §2.17 (kolom versi, `komposisi_final`, constraint, dan perilaku), §2.18 (komponen beku sejak induk final), §2.23 (`snapshot_draf_id`), ERD, dan prinsip desain §7 butir 2 diselaraskan.
+- PRD §12.5, Workflow §5, dan Plan 3.8 mengganti aturan "abadi setelah dirujuk / koreksi sebelum dirujuk" dengan 35.1.
+- User Issues dan User Stories: ISS-02.09/US-02.09 AC-3, ISS-03.03/US-03.03 AC-1–AC-2 beserta task terkait, task imutabilitas ISS-03.04, ISS-03.01/US-03.01 AC-6 (35.3), dan catatan 35.2 pada ISS-14.02.
+- Keputusan ini tidak membutuhkan perubahan kode di luar yang sudah ada pada PR #62.
 
 ---
 
