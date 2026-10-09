@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -59,6 +59,21 @@ describe('Daftar Rencana Aksi', () => {
 
         expect(router.post).toHaveBeenCalledTimes(1);
         expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ensure-draft', { indikator_id: 'ind-1', tahun: 2026 }]);
+    });
+
+    it('throttle saat Buat menampilkan pesan singkat di baris tanpa modal', async () => {
+        const user = userEvent.setup();
+        render(<RencanaAksiIndex daftar={[milikSaya]} pagination={satuHalaman} />);
+
+        await user.click(screen.getByRole('button', { name: 'Buat Rencana Aksi IKU-3 2026' }));
+        const opsi = vi.mocked(router.post).mock.calls[0][2] as { onHttpException: (response: { status: number }) => boolean | void };
+        let hasil: boolean | void = undefined;
+        act(() => {
+            hasil = opsi.onHttpException({ status: 429 });
+        });
+
+        expect(hasil).toBe(false);
+        expect(screen.getByRole('alert').textContent).toBe('Terlalu sering. Coba lagi sebentar.');
     });
 
     it('daftar kosong cukup satu kalimat tanpa aksi', () => {

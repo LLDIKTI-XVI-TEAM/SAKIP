@@ -17,6 +17,12 @@ interface ShowProps {
     rencanaAksi: RencanaAksiShow;
 }
 
+/** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
+function tanpaNolBelakang(nilai: string | number): string {
+    const teks = String(nilai);
+    return teks.includes('.') ? teks.replace(/\.?0+$/, '') : teks;
+}
+
 export default function RencanaAksiShow(props: ShowProps) {
     // Sertakan versi dalam key agar useForm remount saat Inertia
     // mengembalikan props versi baru pasca-simpan; tanpa ini expected_versi
@@ -40,6 +46,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     const satuan = rencanaAksi.indikator.satuan;
     const errorSummary = useRef<HTMLUListElement>(null);
     const [requestError, setRequestError] = useState('');
+    // Throttle menolak sebelum diproses, jadi hasilnya pasti tidak tersimpan:
+    // cukup diberi tahu dan boleh langsung mencoba lagi.
+    const [terlaluSering, setTerlaluSering] = useState(false);
 
     const periodeEfektif = useMemo(
         () => [...rencanaAksi.periode].sort((a, b) => a.urutan - b.urutan).filter((baris) => baris.efektif),
@@ -70,7 +79,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
             if (manual) {
                 const sel = baris.nilai.find((cell) => cell.komponen_id === null) ?? baris.nilai[0];
                 const key = kunciSel(baris.id, null);
-                nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
+                nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : tanpaNolBelakang(sel.nilai);
                 keterangan[key] = sel?.keterangan ?? null;
                 // Periode di luar lingkup koreksi tidak dikirim agar
                 // koreksi parsial (mis. 1 dari 4) tersimpan via UI.
@@ -81,7 +90,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 for (const item of komponenTerurut) {
                     const sel = baris.nilai.find((cell) => cell.komponen_id === item.komponen_id);
                     const key = kunciSel(baris.id, item.komponen_id);
-                    nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
+                    nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : tanpaNolBelakang(sel.nilai);
                     keterangan[key] = sel?.keterangan ?? null;
                     if (!terkunci) {
                         order.push({ periode_id: baris.id, komponen_id: item.komponen_id, key });
@@ -161,6 +170,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
             return;
         }
         setRequestError('');
+        setTerlaluSering(false);
         const targets = urutanKirim.map((item) => ({
             periode_id: item.periode_id,
             komponen_id: item.komponen_id,
@@ -188,7 +198,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 return false;
             },
             onHttpException: (response) => {
-                if (response.status === 403) {
+                if (response.status === 429) {
+                    setTerlaluSering(true);
+                } else if (response.status === 403) {
                     setRequestError('Izin penyimpanan ditolak. Periksa akses sebelum mencoba kembali.');
                 } else {
                     setRequestError('Hasil penyimpanan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
@@ -312,7 +324,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                     Skor {deviasi.skor_periode_terakhir !== null ? `${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan}` : '—'}
                                     {' vs '}
                                     target PK {deviasi.target_pk !== null ? `${formatNilai(deviasi.target_pk, desimal)} ${satuan}` : '—'}.
-                                    Alasan deviasi diperlukan dan disimpan pada kolom alasan (D5); peringatan ini tidak memblokir penyimpanan.
+                                    Alasan deviasi diperlukan dan disimpan pada kolom alasan; peringatan ini tidak memblokir penyimpanan.
                                 </p>
                                 {!deviasi.alasan_terisi && (
                                     <p className="mt-2">Alasan belum terisi; lengkapi kolom alasan deviasi sebelum pengajuan.</p>
@@ -347,6 +359,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                     )}
                     {requestError !== '' && (
                         <p role="alert" className="text-sm text-danger">{requestError}</p>
+                    )}
+                    {terlaluSering && (
+                        <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
                     )}
 
                     <Card>
@@ -446,7 +461,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                             />
                             <Textarea
                                 name="alasan_deviasi_pk"
-                                label="Alasan deviasi terhadap target PK (D5)"
+                                label="Alasan deviasi terhadap target PK"
                                 value={data.alasan_deviasi_pk}
                                 onChange={(event) => {
                                     setData('alasan_deviasi_pk', event.target.value);
