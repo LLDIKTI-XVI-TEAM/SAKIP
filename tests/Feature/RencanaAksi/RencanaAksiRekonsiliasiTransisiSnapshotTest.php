@@ -27,32 +27,28 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review7 U1 (F1 rekonsiliasi jangan hapus input baru + F2 bekukan sejak dibaca).
+ * Regresi rekonsiliasi transisi snapshot dan pembekuan snapshot yang dijepit draf.
  *
- * Keputusan F1: kecualikan dimensi eksplisit terkirim bernilai dalam konteks
- * terbaru (BUKAN purge-sebelum-upsert). Alasan: purge-sebelum menyimpan input
- * baru tetapi meninggalkan baris kosong (null) untuk kiriman yang dikosongkan
- * sehingga menyimpang dari kontrak T2 (baris basi terkirim-kosong dibuang bagai
- * tak ada); pengecualian hanya untuk kiriman bernilai (nilai/keterangan
- * non-null) yang efektif-kini — kiriman kosong tetap dibersihkan, koreksi
- * parsial yang tak terkirim dipertahankan karena tak ada di himpunan basi
- * (hanya basi∩efektif-kini yang dihapus), kiriman basi yang sengaja tak
- * efektif-kini tetap milik `bersihkanDimensiTakEfektif`.
+ * Keputusan rekonsiliasi: rekonsiliasi saat snapshot berubah (bukan hanya pasca-POST),
+ * bukan ikat target pada snapshot asal. Alasan: kolom
+ * snapshot-asal per baris sudah ditolak (menduplikasi kontrak versi beku, menumpuk baris
+ * basi, tiap pembaca yang lupa filter = kebocoran lintas-konteks) — lubang
+ * yang tersisa hanyalah jendela tanpa-simpan (v1 → v2 tanpa save → v3),
+ * yang ditutup dengan jepit header + telusur versi antara: baris basi
+ * disaring di baca (tanpa efek samping) dan dibuang teraudit di tulis.
  *
- * Keputusan F2: immutable-sejak-terbit (BUKAN pin-on-read). Alasan: pin-on-read
- * memajukan jepit tanpa membersihkan sehingga bacaan kedua membangkitkan
- * nilai basi (jepit==terbaru → jejak hilang → 100 tampil lagi) dan simpanan
- * parsial berikutnya ikut membangkitkan periode tak terkirim; membersihkan
- * saat baca mengubah GET menjadi destruktif tanpa audit. Immutable menutup
- * jendela mutabel v2 tanpa tulis-di-jalur-baca sehingga token ID+versi selalu
- * mewakili konteks beku yang ditampilkan; koreksi sah tetap via sisipan
- * berversi.
+ * Keputusan jepit: simpan rujukan snapshot di draf (kolom non-FK audit-safe
+ * `snapshot_draf_id`, tanpa mengembalikan FK otorisasi) agar
+ * trigger menolak mutasi langsung + token 409 mendeteksi versi baru.
+ * Trigger immutable global ditolak: memblokir koreksi-sisipan yang sah
+ * (komponen pelengkap versi baru) dan koreksi pra-draf, serta menyimpang
+ * dari filosofi beku-berbasis-rujukan repo.
  */
-class RencanaAksiReview7U1Test extends TestCase
+class RencanaAksiRekonsiliasiTransisiSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_f1_input_baru_untuk_dimensi_pulih_tersimpan_dan_parsial_dipertahankan(): void
+    public function test_transisi_lewat_tanpa_simpan_tak_membangkitkan_nilai_basi(): void
     {
         $fixture = $this->buatFixturePenjumlahan();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -62,6 +58,8 @@ class RencanaAksiReview7U1Test extends TestCase
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->assertSame($fixture['snapshot']->id, $header->snapshot_draf_id);
+        $this->assertSame($fixture['snapshot']->id, AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->sole()->nilai_baru['snapshot_draf_id']);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
@@ -70,58 +68,57 @@ class RencanaAksiReview7U1Test extends TestCase
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 50, 'keterangan' => null],
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => 100, 'keterangan' => null],
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 30, 'keterangan' => null],
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => 40, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
-        $header->refresh();
-        $this->assertSame(2, $header->versi);
 
         // v2 menghilangkan B TANPA penyimpanan, lalu v3 mengembalikannya.
         $v2 = $this->terbitkanSnapshotTanpaB($fixture);
         $v3 = $this->terbitkanSnapshotLengkap($fixture, 3, $v2->id);
 
-        // Simpan parsial LANGSUNG di bawah v3 tanpa baca dulu (jepit masih v1):
-        // periode1 diisi baru (A=55, B=200 pulih), periode2 tak terkirim.
+        // Baca di bawah v3: B tampil kosong (bukan 100 basi), A yang
+        // efektif terus-menerus dipertahankan (tanpa kehilangan data).
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.expected_snapshot_id', $v3->id)
+                ->where('rencanaAksi.expected_snapshot_versi', 3)
+                ->where('rencanaAksi.periode.0.nilai.0.komponen_id', $fixture['komponenA']->id)
+                ->where('rencanaAksi.periode.0.nilai.0.nilai', '50.000000000000')
+                ->where('rencanaAksi.periode.0.nilai.1.komponen_id', $fixture['komponenB']->id)
+                ->where('rencanaAksi.periode.0.nilai.1.nilai', null));
+
+        // Simpan tanpa menyentuh B: B basi ikut terbuang (bukan tersimpan
+        // ulang dari request), A diperbarui, jepit maju ke v3, teraudit.
+        $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 2,
+            'expected_versi' => $header->versi,
             'expected_snapshot_id' => $v3->id,
             'expected_snapshot_versi' => 3,
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 55, 'keterangan' => null],
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => 200, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => null, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
 
-        $header->refresh();
-        $this->assertSame(3, $header->versi);
-        $this->assertSame($v3->id, $header->snapshot_draf_id);
-
-        // F1: input baru untuk dimensi pulih tersimpan utuh (bukan terpurge).
+        $this->assertDatabaseMissing('rencana_aksi_target', [
+            'rencana_aksi_id' => $header->id,
+            'periode_id' => $fixture['periode1']->id,
+            'komponen_id' => $fixture['komponenB']->id,
+        ]);
         $this->assertSame('55.000000000000', RencanaAksiTarget::where('rencana_aksi_id', $header->id)
             ->where('periode_id', $fixture['periode1']->id)
             ->where('komponen_id', $fixture['komponenA']->id)->sole()->getRawOriginal('nilai'));
-        $this->assertSame('200.000000000000', RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->where('periode_id', $fixture['periode1']->id)
-            ->where('komponen_id', $fixture['komponenB']->id)->sole()->getRawOriginal('nilai'));
+        $this->assertSame($v3->id, $header->fresh()->snapshot_draf_id);
 
-        // Koreksi parsial: A periode2 tak terkirim (efektif, tak basi) dipertahankan.
-        $this->assertSame('30.000000000000', RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->where('periode_id', $fixture['periode2']->id)
-            ->where('komponen_id', $fixture['komponenA']->id)->sole()->getRawOriginal('nilai'));
-
-        // Basi transisi periode2 (B=40, tak efektif di v2) ikut terbuang agar
-        // tak bangkit sebagai 40 pasca-jepit maju ke v3.
-        $this->assertDatabaseMissing('rencana_aksi_target', [
-            'rencana_aksi_id' => $header->id,
-            'periode_id' => $fixture['periode2']->id,
-            'komponen_id' => $fixture['komponenB']->id,
-        ]);
-
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->exists());
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Rekonsiliasi transisi%')->first();
+        $this->assertNotNull($audit);
+        $this->assertStringContainsString('Rekonsiliasi transisi snapshot v1->v3: 1 baris basi dibersihkan.', (string) $audit->alasan);
+        // Perpindahan jepit snapshot ikut terekam agar konteks formula tiap simpan dapat dibuktikan.
+        $this->assertSame($fixture['snapshot']->id, $audit->nilai_lama['snapshot_draf_id']);
+        $this->assertSame($v3->id, $audit->nilai_baru['snapshot_draf_id']);
     }
 
-    public function test_f2_snapshot_tampil_beku_sejak_terbit(): void
+    public function test_snapshot_terbit_yang_dipakai_draf_beku_di_db_tapi_koreksi_sisipan_terbuka(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -131,7 +128,6 @@ class RencanaAksiReview7U1Test extends TestCase
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-        $this->assertSame($fixture['snapshot']->id, $header->snapshot_draf_id);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
@@ -143,13 +139,35 @@ class RencanaAksiReview7U1Test extends TestCase
             ],
         ])->assertSessionHasNoErrors();
 
+        // Mutasi langsung snapshot yang dijepit draf ditolak trigger.
+        // Savepoint bersarang memulihkan transaksi uji pasca-abort PG.
+        try {
+            DB::transaction(function () use ($fixture): void {
+                $fixture['snapshot']->update(['target' => 777]);
+            });
+            $this->fail('Mutasi langsung snapshot yang dipakai draf harus ditolak trigger.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->getCode());
+        }
+        $this->assertSame('100.000000000000', $fixture['snapshot']->fresh()->getRawOriginal('target'));
+
+        try {
+            DB::transaction(function () use ($fixture): void {
+                $fixture['snapshot']->delete();
+            });
+            $this->fail('Hapus snapshot yang dipakai draf harus ditolak trigger.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->getCode());
+        }
+
+        // Koreksi berversi (sisipan v2 + komponennya) tetap terbuka.
         $v2 = JadwalSnapshot::create([
             'jadwal_id' => $fixture['jadwal']->id,
             'indikator_id' => $fixture['indikator']->id,
             'nomor_versi' => 2,
             'menggantikan_id' => $fixture['snapshot']->id,
-            'alasan_koreksi' => 'Koreksi resmi target PK U1.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R7U1-001',
+            'alasan_koreksi' => 'Koreksi resmi target PK T2.',
+            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-001',
             'periode_mulai_id' => $fixture['periode1']->id,
             'unit_id' => $fixture['unit']->id,
             'nama' => $fixture['indikator']->nama,
@@ -161,48 +179,36 @@ class RencanaAksiReview7U1Test extends TestCase
             'tipe_perhitungan' => 'manual',
             'target' => 150,
         ]);
+        $this->assertNotNull($v2->id);
 
-        // Jepit masih v1 sebelum dibaca; v2 beku sejak terbit (immutable,
-        // bukan karena dijepit) — mutasi langsung sudah ditolak walau belum
-        // ditampilkan.
-        $this->assertSame($fixture['snapshot']->id, $header->fresh()->snapshot_draf_id);
-        try {
-            DB::transaction(function () use ($v2): void {
-                $v2->update(['target' => 666]);
-            });
-            $this->fail('Mutasi snapshot terbit harus ditolak walau belum dijepit.');
-        } catch (QueryException $exception) {
-            $this->assertSame('23514', $exception->getCode());
-        }
-
-        // Baca menampilkan v2 (token v2 mewakili konteks beku yang
-        // ditampilkan) tanpa menaikkan versi header; jepit tetap v1 sampai
-        // save berikutnya (rekonsiliasi transisi tetap utuh, tanpa
-        // kebangkitan basi antar-baca).
-        $versiSebelum = $header->fresh()->versi;
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('rencanaAksi.expected_snapshot_id', $v2->id)
-                ->where('rencanaAksi.expected_snapshot_versi', 2));
-
+        // Simpan di bawah v2 maju — jepit mengikuti, nilai lama utuh.
         $header->refresh();
-        $this->assertSame($fixture['snapshot']->id, $header->snapshot_draf_id);
-        $this->assertSame($versiSebelum, $header->versi);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($v2->id, $header->fresh()->snapshot_draf_id);
 
-        // Mutasi langsung v2 yang tampil ditolak trigger (beku sejak dibaca).
+        // Beku mengikuti jepit: v2 yang kini dipakai pun tak bisa dimutasi.
         try {
             DB::transaction(function () use ($v2): void {
-                $v2->update(['target' => 777]);
+                $v2->update(['target' => 888]);
             });
-            $this->fail('Mutasi langsung snapshot yang tampil harus ditolak trigger pasca-pin-on-read.');
+            $this->fail('Mutasi snapshot v2 yang kini dipakai draf harus ditolak trigger.');
         } catch (QueryException $exception) {
             $this->assertSame('23514', $exception->getCode());
         }
-        $this->assertSame('150.000000000000', $v2->fresh()->getRawOriginal('target'));
     }
 
     /**
+     * Snapshot koreksi v2 penjumlahan yang menghapus komponen B (satu
+     * penjumlah tersisa tetap sah untuk kalkulator).
+     *
      * @param  array<string, mixed>  $fixture
      */
     private function terbitkanSnapshotTanpaB(array $fixture): JadwalSnapshot
@@ -213,7 +219,7 @@ class RencanaAksiReview7U1Test extends TestCase
             'nomor_versi' => 2,
             'menggantikan_id' => $fixture['snapshot']->id,
             'alasan_koreksi' => 'Koreksi resmi hapus komponen B.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R7U1-002',
+            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-002',
             'periode_mulai_id' => $fixture['periode1']->id,
             'unit_id' => $fixture['unit']->id,
             'nama' => $fixture['indikator']->nama,
@@ -239,6 +245,9 @@ class RencanaAksiReview7U1Test extends TestCase
     }
 
     /**
+     * Snapshot koreksi v3 yang mengembalikan kedua komponen TANPA
+     * penyimpanan di bawah v2 (jendela tanpa-simpan).
+     *
      * @param  array<string, mixed>  $fixture
      */
     private function terbitkanSnapshotLengkap(array $fixture, int $nomorVersi, string $menggantikanId): JadwalSnapshot
@@ -249,7 +258,7 @@ class RencanaAksiReview7U1Test extends TestCase
             'nomor_versi' => $nomorVersi,
             'menggantikan_id' => $menggantikanId,
             'alasan_koreksi' => 'Koreksi resmi kembalikan komponen B.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R7U1-003',
+            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-003',
             'periode_mulai_id' => $fixture['periode1']->id,
             'unit_id' => $fixture['unit']->id,
             'nama' => $fixture['indikator']->nama,
@@ -277,6 +286,9 @@ class RencanaAksiReview7U1Test extends TestCase
     }
 
     /**
+     * Fixture penjumlahan dua penjumlah (A+B) agar koreksi penghapusan
+     * satu komponen tetap sah untuk kalkulator.
+     *
      * @return array<string, mixed>
      */
     private function buatFixturePenjumlahan(): array
@@ -284,18 +296,18 @@ class RencanaAksiReview7U1Test extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji R7U1 Jumlah', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji R6T2 Jumlah', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-R7U1J', 'nama' => 'Renstra Uji R7U1 Jumlah', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R7U1J', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R6T2J', 'nama' => 'Renstra Uji R6T2 Jumlah', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R6T2J', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Jumlah Uji R7U1',
+            'nama' => 'Indikator Jumlah Uji R6T2',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'penjumlahan',
             'arah' => 'naik_baik',
@@ -393,18 +405,18 @@ class RencanaAksiReview7U1Test extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji R7U1 Manual', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji R6T2 Manual', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-R7U1M', 'nama' => 'Renstra Uji R7U1 Manual', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R7U1M', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R6T2M', 'nama' => 'Renstra Uji R6T2 Manual', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R6T2M', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Manual Uji R7U1',
+            'nama' => 'Indikator Manual Uji R6T2',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'manual',
             'arah' => 'naik_baik',

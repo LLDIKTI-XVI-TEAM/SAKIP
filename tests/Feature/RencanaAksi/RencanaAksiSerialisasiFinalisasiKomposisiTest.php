@@ -28,7 +28,7 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Regresi Review9 W1 (F1 serialisasi INSERT vs finalisasi komposisi).
+ * Regresi serialisasi INSERT komponen vs finalisasi komposisi snapshot.
  *
  * Guard INSERT lama membaca induk via SELECT biasa tanpa kunci sehingga
  * finalisasi konkuren (false→true) vs INSERT dapat lolos bersama: B membaca
@@ -38,7 +38,7 @@ use Tests\TestCase;
  * setelah terbit. Koreksi berversi (snapshot baru + komponen selagi belum
  * final) tetap terbuka.
  */
-class RencanaAksiReview9W1Test extends TestCase
+class RencanaAksiSerialisasiFinalisasiKomposisiTest extends TestCase
 {
     use DatabaseMigrations;
 

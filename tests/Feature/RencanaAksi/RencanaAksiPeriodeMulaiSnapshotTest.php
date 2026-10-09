@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review6 T3 (F4 periode-mulai snapshot didahulukan).
+ * Regresi periode-mulai snapshot didahulukan atas tahun master.
  *
  * Bila snapshot ada, `periode_mulai_id` snapshot adalah satu-satunya
  * sumber efektivitas — tahun master live diabaikan. Koreksi master ke
@@ -33,7 +33,7 @@ use Tests\TestCase;
  * rekonsiliasi (`RekonsiliasiTargetDraf`, tanpa gerbang tahun karena
  * selalu bersnapshot).
  */
-class RencanaAksiReview6T3Test extends TestCase
+class RencanaAksiPeriodeMulaiSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 

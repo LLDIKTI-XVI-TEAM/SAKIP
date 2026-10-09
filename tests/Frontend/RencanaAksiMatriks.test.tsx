@@ -113,7 +113,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
 beforeEach(() => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
     vi.spyOn(router, 'get').mockImplementation(() => undefined);
-    // F5: pratinjau debounced tak boleh menyentuh jaringan di uji matriks lama.
+    // Pratinjau debounced tak boleh menyentuh jaringan di uji matriks lama.
     vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify({ periode: [], deviasi_pk: { dapat_dinilai: false, ada: false, alasan_diperlukan: false, alasan_terisi: false, skor_periode_terakhir: null, target_pk: null, periode_id: null } }), headers: {} });
 });
 afterEach(() => {
@@ -122,7 +122,7 @@ afterEach(() => {
 });
 
 describe('Rencana aksi matriks target', () => {
-    it('11.2 reaktif dari payload server tanpa hitung ulang di React', async () => {
+    it('reaktif dari payload server tanpa hitung ulang di React', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
 
@@ -147,7 +147,7 @@ describe('Rencana aksi matriks target', () => {
         expect(vi.mocked(router.post).mock.calls[0][0]).toBe('/rencana-aksi/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/target');
     });
 
-    it('11.5 peringatan turun tampil tanpa memblokir penyimpanan', async () => {
+    it('peringatan turun tampil tanpa memblokir penyimpanan', async () => {
         const user = userEvent.setup();
         const payload = buatPayload({
             periode: [
@@ -300,7 +300,7 @@ describe('Rencana aksi matriks target', () => {
         );
     });
 
-    it('T6 simpan berurutan tanpa reload memakai token versi terbaru', async () => {
+    it('simpan berurutan tanpa reload memakai token versi terbaru', async () => {
         const user = userEvent.setup();
         const awal = buatPayload();
         const { rerender } = render(<RencanaAksiShow rencanaAksi={awal} />);

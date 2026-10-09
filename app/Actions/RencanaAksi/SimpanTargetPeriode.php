@@ -55,7 +55,7 @@ class SimpanTargetPeriode
      * ulang memakai state terkunci, jendela PIC/Perencanaan diperiksa memakai
      * tanggal Asia/Makassar, nilai turunan dihitung server tanpa disimpan,
      * dan versi bertambah satu dengan penolakan stale memakai status 409
-     * (F4: token `expected_snapshot_id`/`expected_snapshot_versi` ikut
+     * (token `expected_snapshot_id`/`expected_snapshot_versi` ikut
      * ditolak 409 bila snapshot terbaru berubah sejak payload dibaca).
      *
      * @param  array<string, mixed>  $data
@@ -111,7 +111,7 @@ class SimpanTargetPeriode
                     throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
                 }
 
-                // F1: guard keselarasan unit jalur update (lanjutan T9/N1 yang
+                // Guard keselarasan unit jalur update (lanjutan guard unit yang
                 // hanya di create). Auth dievaluasi terhadap header.unit_id,
                 // sementara konteks efektif berasal dari snapshot terbaru —
                 // bila keduanya berbeda, tolak fail-closed agar RA tidak lolos
@@ -123,7 +123,7 @@ class SimpanTargetPeriode
                     }
                 }
 
-                // F1 (Review4 Q1) + F4: token konkurensi snapshot (eksplisit,
+                // Token konkurensi snapshot (eksplisit,
                 // tanpa bump semu versi header) WAJIB pada setiap penyimpanan.
                 // Snapshot koreksi baru yang terbit antara baca-simpan mengubah
                 // konteks diam-diam (tipe/bobot/presisi/periode-mulai)
@@ -157,12 +157,12 @@ class SimpanTargetPeriode
                 }
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
-                // F2 (Review6 T2) + F1 (Review7 U1): rekonsiliasi transisi —
+                // Rekonsiliasi transisi:
                 // baris yang tak efektif pada satu pun versi antara
                 // jepit→terbaru (mis. v1 → v2 tanpa simpan → v3) ditandai
                 // basi. Dihapus setelah upsert berdasarkan kunci dimensi,
                 // KECUALI dimensi yang eksplisit dikirim bernilai dalam
-                // konteks terbaru (keputusan U1: kecualikan-kiriman, bukan
+                // konteks terbaru (keputusan kecualikan-kiriman, bukan
                 // purge-sebelum-upsert — agar nilai baru 200 untuk dimensi
                 // yang pulih di v3 tidak ikut terhapus, sementara kiriman
                 // kosong (null+null) tetap dibersihkan bagai tak ada dan
@@ -175,7 +175,7 @@ class SimpanTargetPeriode
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
-                    // F2/F3: majukan jepit ke snapshot terbaru yang dipakai
+                    // Majukan jepit ke snapshot terbaru yang dipakai
                     // simpan ini (null bila konteks tanpa snapshot).
                     'snapshot_draf_id' => $aktualId,
                 ]);
@@ -194,10 +194,10 @@ class SimpanTargetPeriode
                 }
 
                 // Hanya sel yang efektif KEMBALI di bawah konteks terbaru
-                // yang dibuang di sini (kandidat bangkit F2); sel yang tak
+                // yang dibuang di sini (kandidat bangkit); sel yang tak
                 // efektif di bawah konteks terbaru tetap milik
-                // `bersihkanDimensiTakEfektif` (kontrak Review5 S2 utuh).
-                // F1 (Review7 U1): kecualikan dimensi terkirim bernilai —
+                // `bersihkanDimensiTakEfektif` (kontrak pembersihan dimensi tetap utuh).
+                // Kecualikan dimensi terkirim bernilai:
                 // jangan hapus input baru untuk dimensi yang pulih di v3.
                 $kunciPurge = array_values(array_diff(
                     $this->kunciBasiEfektifKini($jejak['kunci'], $tipe, $definisi, $periodeEfektif),
@@ -205,7 +205,7 @@ class SimpanTargetPeriode
                 ));
                 $barisBasi = $this->buangKunciBasi($header->id, $kunciPurge);
 
-                // F3 (Review5 S2, opsi a): singkirkan baris draf yang tak
+                // Singkirkan baris draf yang tak
                 // lagi efektif di bawah konteks snapshot terbaru (komponen
                 // dihapus, tipe manual↔nonmanual, periode pra-berlaku).
                 // Upsert hanya menyentuh sel terkirim sehingga baris lama
@@ -318,7 +318,7 @@ class SimpanTargetPeriode
     /**
      * Himpunan periode efektif memakai jendela jadwal minus periode pra-berlaku.
      *
-     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
+     * Bila snapshot ada, `periode_mulai_id` snapshot
      * adalah satu-satunya sumber efektivitas — tahun master diabaikan
      * agar koreksi master ke atas pasca-aktivasi tak membuat semua
      * periode tak efektif. Tahun master hanya untuk konteks tanpa
@@ -385,7 +385,7 @@ class SimpanTargetPeriode
             throw ValidationException::withMessages(['targets' => 'Daftar target wajib diisi.']);
         }
 
-        // F3 (Review4 Q2): validasi periode set-based — satu query untuk
+        // Validasi periode set-based: satu query untuk
         // seluruh ID unik, bukan `exists()` per-sel (s/d 600 query) yang
         // menahan lock transaksi lebih lama dari perlu.
         $periodeIds = collect($targets)->pluck('periode_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
@@ -482,7 +482,7 @@ class SimpanTargetPeriode
      *
      * Dijalankan SETELAH upsert agar kiriman basi yang dikosongkan
      * (null+null dari baca basi maupun klien nakal) ikut terbuang, bukan
-     * malah menghidupkan kembali nilai lama. F1 (Review7 U1): dimensi yang
+     * malah menghidupkan kembali nilai lama. Dimensi yang
      * eksplisit dikirim bernilai (nilai/keterangan non-null) dalam konteks
      * terbaru sudah dikeluarkan dari `$kunci` oleh pemanggil sehingga input
      * baru untuk dimensi yang pulih di v3 tidak ikut terhapus. Selisihnya
@@ -550,11 +550,10 @@ class SimpanTargetPeriode
     }
 
     /**
-     * Kunci dimensi terkirim bernilai yang efektif di bawah konteks terbaru
-     * (F1 Review7 U1).
+     * Kunci dimensi terkirim bernilai yang efektif di bawah konteks terbaru.
      *
      * Bernilai = `nilai` non-null ATAU `keterangan` non-null (baris kosong
-     * ganda-null tetap boleh dibersihkan bagai tak ada, cermin T2). Efektif
+     * ganda-null tetap boleh dibersihkan bagai tak ada). Efektif
      * = periode anggota himpunan efektif + komponen cocok tipe/definisi
      * terbaru, sehingga kiriman basi yang sengaja tak efektif-kini tidak
      * dikecualikan (tetap milik `bersihkanDimensiTakEfektif`) dan koreksi

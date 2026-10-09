@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Konsistensi baca T7: payload `expected_versi` + target berasal dari satu
+ * Konsistensi baca: payload `expected_versi` + target berasal dari satu
  * transaksi baca yang sama (header dimuat ulang + versi diverifikasi), bukan
  * dari model pra-transaksi milik controller.
  */

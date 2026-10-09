@@ -25,16 +25,16 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review4 Q2 (F2 preview terikat token + F3 validasi set-based).
+ * Regresi pratinjau terikat token snapshot dan validasi periode set-based.
  *
- * F2: `POST /rencana-aksi/{id}/preview` menerima + membandingkan token
+ * `POST /rencana-aksi/{id}/preview` menerima + membandingkan token
  * snapshot halaman; konteks usang ditolak 409 (bukan menampilkan snapshot
  * terbaru diam-diam). Konsisten dengan jalur simpan.
  *
- * F3: validasi periode set-based — satu query untuk seluruh ID unik, bukan
+ * Validasi periode set-based: satu query untuk seluruh ID unik, bukan
  * `exists()` per-sel, agar lock transaksi tak tertahan s/d 600 query.
  */
-class RencanaAksiReview4Q2Test extends TestCase
+class RencanaAksiPreviewTokenSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -243,7 +243,7 @@ class RencanaAksiReview4Q2Test extends TestCase
             'targets' => $targets,
         ];
 
-        // F3: hitung query `periode` pada Action langsung (tanpa FormRequest
+        // Hitung query `periode` pada Action langsung (tanpa FormRequest
         // `exists` yang berjalan di luar lock). Set-based = satu whereIn +
         // lookup periode_mulai + eager jendela; per-sel lama = 12 exists.
         DB::enableQueryLog();

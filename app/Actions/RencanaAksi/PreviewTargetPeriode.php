@@ -29,7 +29,7 @@ class PreviewTargetPeriode
     ) {}
 
     /**
-     * Pratinjau skor turunan tanpa persistensi (F5).
+     * Pratinjau skor turunan tanpa persistensi.
      *
      * Memakai `CalculatePengukuran` yang sama dengan jalur baca/tulis
      * sehingga React tidak menghitung formula sendiri. Nilai request
@@ -37,7 +37,7 @@ class PreviewTargetPeriode
      * (`periode_id::komponen_id`, `manual` untuk indikator manual);
      * periode efektif yang tak dikirim memakai nilai tersimpan, sehingga
      * koreksi parsial (mis. 1 dari 4) tetap menghasilkan skor,
-     * peringatan turun (11.5), dan deviasi PK (11.6) yang konsisten.
+     * peringatan turun, dan deviasi PK yang konsisten.
      * Tidak menaikkan versi, tidak menulis baris target, tidak mencatat
      * audit — murni baca konsisten via `sharedLock`.
      *
@@ -46,7 +46,7 @@ class PreviewTargetPeriode
      * menegakkan kelengkapan per-periode: sel yang belum diisi
      * menghasilkan `belum_diisi`, bukan 422. Gerbang jendela/koreksi
      * sengaja tidak ditegakkan di sini — itu kewenangan jalur simpan
-     * fail-closed N1.
+     * fail-closed.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -62,7 +62,7 @@ class PreviewTargetPeriode
             $segel = RencanaAksi::whereKey($pra->getKey())->sharedLock()->firstOrFail();
             $segel->loadMissing(['indikator', 'jadwalTahunan']);
 
-            // F1 (Review5 S1): pratinjau terikat versi header — cermin guard
+            // Pratinjau terikat versi header — cermin guard
             // tulis `SimpanTargetPeriode`. Token halaman dibandingkan dengan
             // header terkunci SEBELUM hitung; usang ditolak 409 agar skor/
             // deviasi campuran (input form + target v2 tak terlihat) tak
@@ -79,7 +79,7 @@ class PreviewTargetPeriode
 
             $snapshot = $this->snapshotEfektif($jadwal, $indikator);
 
-            // F4 (Review4 Q1): guard keselarasan unit jalur pratinjau — cermin
+            // Guard keselarasan unit jalur pratinjau — cermin
             // guard tulis `SimpanTargetPeriode` dan baca `IndexRencanaAksi`.
             // Ditolak fail-closed SEBELUM payload dibangun agar tak ada
             // konteks lintas-unit yang terekspos (skor/deviasi beku maupun
@@ -91,7 +91,7 @@ class PreviewTargetPeriode
                 }
             }
 
-            // F2 (Review4 Q2): pratinjau terikat token — cermin guard tulis
+            // Pratinjau terikat token — cermin guard tulis
             // `SimpanTargetPeriode`. Token halaman dibandingkan dengan snapshot
             // terbaru; usang (termasuk null eksplisit saat snapshot ada)
             // ditolak 409 agar yang ditampilkan = yang dipakai simpan.
@@ -115,7 +115,7 @@ class PreviewTargetPeriode
 
             $tersimpan = $this->petaTarget($segel);
 
-            // F2 (Review6 T2): cermin baca Index — nilai basi transisi tak
+            // Cermin baca Index — nilai basi transisi tak
             // dilapiskan ke skor pratinjau. Tanpa efek samping.
             $tersimpan = $this->rekonsiliasi->saringPetaBasi($tersimpan, $this->rekonsiliasi->rekonsiliasi($segel, $snapshot)['kunci']);
 
@@ -214,7 +214,7 @@ class PreviewTargetPeriode
     }
 
     /**
-     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
+     * Bila snapshot ada, `periode_mulai_id` snapshot
      * adalah satu-satunya sumber efektivitas — tahun master diabaikan
      * agar koreksi master ke atas pasca-aktivasi tak membuat semua
      * periode tak efektif. Tahun master hanya untuk konteks tanpa
@@ -299,7 +299,7 @@ class PreviewTargetPeriode
 
         $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
-        // F3 (Review4 Q2): validasi periode set-based — satu query untuk
+        // Validasi periode set-based: satu query untuk
         // seluruh ID unik agar `sharedLock` pratinjau tak tertahan oleh
         // `exists()` per-sel (s/d 600 query).
         $periodeIds = collect($targets)->pluck('periode_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
@@ -484,7 +484,7 @@ class PreviewTargetPeriode
     }
 
     /**
-     * Deviasi 11.6 atas skor pratinjau: cermin `IndexRencanaAksi::deviasiPk`
+     * Deviasi atas skor pratinjau: cermin `IndexRencanaAksi::deviasiPk`
      * tetapi `alasan_terisi` memakai alasan dari request bila dikirim
      * (lapisan form reaktif), sonst nilai tersimpan. `$periode` sudah
      * terurut jendela sehingga periode efektif terakhir = elemen efektif

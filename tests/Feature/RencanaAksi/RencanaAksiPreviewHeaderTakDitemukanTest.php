@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review6 T1 (F1 header tak ditemukan di preview).
+ * Regresi pratinjau atas header yang tak ditemukan.
  *
  * `PreviewTargetPeriodeRequest::authorize()` menolak 404 bila header tak
  * ditemukan SEBELUM validasi `exists` — cermin `UpdateUnitRequest`
@@ -30,7 +30,7 @@ use Tests\TestCase;
  * memberi 422 sedangkan payload valid memberi 404 (oracle 422-vs-404
  * keberadaan UUID lintas unit).
  */
-class RencanaAksiReview6T1Test extends TestCase
+class RencanaAksiPreviewHeaderTakDitemukanTest extends TestCase
 {
     use RefreshDatabase;
 

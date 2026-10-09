@@ -18,17 +18,17 @@ class RekonsiliasiTargetDraf
      * Baris tersimpan dianggap basi bila dimensinya (periode_id +
      * komponen_id) tidak efektif pada SATU PUN versi antara — termasuk
      * versi yang dilewati tanpa penyimpanan (v1 → v2 tanpa save → v3).
-     * Pembersihan pasca-POST saja (Review5 S2) tak menjangkau jendela
-     * tanpa-simpan itu; di sinilah nilai lama bangkit kembali (F2).
+     * Pembersihan pasca-POST saja tak menjangkau jendela
+     * tanpa-simpan itu; di sinilah nilai lama bangkit kembali.
      *
-     * Jepit (`rencana_aksi.snapshot_draf_id`, revisi D7 sempit non-FK)
+     * Jepit (`rencana_aksi.snapshot_draf_id`, non-FK)
      * menandai "terakhir direkonsiliasi di bawah snapshot X". NULL
      * dibaca fail-closed sebagai "telusuri seluruh versi sejak awal"
      * bila snapshot ada (draf lawas/pembuatan langsung), dan diabaikan
      * bila konteks memang tanpa snapshot.
      *
      * Predikat efektif per versi cermin `SimpanTargetPeriode` (tipe,
-     * himpunan komponen, periode-mulai snapshot). F4 (Review6 T3): tahun
+     * himpunan komponen, periode-mulai snapshot). Tahun
      * master live sengaja diabaikan di sini — bila snapshot ada,
      * `periode_mulai_id` snapshot adalah satu-satunya sumber
      * efektivitas; tahun master hanya untuk konteks tanpa snapshot
@@ -143,7 +143,7 @@ class RekonsiliasiTargetDraf
     }
 
     /**
-     * F4 (Review6 T3): tanpa cek tahun master — konteks ini selalu
+     * Tanpa cek tahun master — konteks ini selalu
      * bersnapshot sehingga `periode_mulai_id` versi adalah sumbernya.
      *
      * @param  array{periode: list<string>, tipe: string, komponen: list<string>}  $lihat
@@ -163,7 +163,7 @@ class RekonsiliasiTargetDraf
 
     /**
      * Himpunan periode efektif satu versi: jendela jadwal minus periode
-     * pra-berlaku (cermin D3 jalur tulis).
+     * pra-berlaku (cermin jalur tulis).
      *
      * @param  Collection<int, PeriodeJadwal>  $jendela
      * @return list<string>

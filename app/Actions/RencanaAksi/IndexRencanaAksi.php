@@ -35,7 +35,7 @@ class IndexRencanaAksi
     /**
      * Menyusun satu payload baca untuk matriks target per periode per komponen.
      *
-     * Transaksi baca konsisten (T7): header dimuat ulang di dalam transaksi
+     * Transaksi baca konsisten: header dimuat ulang di dalam transaksi
      * dengan `sharedLock` (akuisisi header-dahulu, sama dengan jalur tulis
      * sehingga pembaca antre — bukan deadlock), seluruh query turunan dibaca
      * di dalam transaksi yang sama, lalu versi header diverifikasi ulang
@@ -46,19 +46,19 @@ class IndexRencanaAksi
      * tulis-di-tengah-baca menghasilkan payload konsisten tanpa konflik 409
      * palsu.
      *
-     * F4: payload juga membawa token konkurensi snapshot
+     * Payload juga membawa token konkurensi snapshot
      * (`expected_snapshot_id` + `expected_snapshot_versi` dari
      * `jadwal_snapshot.id`/`nomor_versi` terbaru, null bila tanpa snapshot)
      * agar React mengembalikannya saat simpan; jalur tulis menolak 409 bila
      * snapshot terbaru berubah sejak payload dibaca.
      *
-     * Himpunan komponen efektif (D2) dan periode efektif (D3) memakai aturan
+     * Himpunan komponen efektif dan periode efektif memakai aturan
      * yang sama dengan jalur tulis `SimpanTargetPeriode`, tetapi tanpa kunci
      * baris karena jalur ini read-only. Estimasi skor dihitung server via
      * `CalculatePengukuran` agar React tidak menghitung skor turunan sendiri.
-     * Peringatan turun antar-periode (11.5/PRD §14.4) dan deviasi periode
-     * terakhir vs target PK (11.6/PRD §14.5) adalah data, bukan blokir —
-     * penegakan alasan deviasi milik gerbang pengajuan 11.3 (ISS-05.03).
+     * Peringatan turun antar-periode (PRD §14.4) dan deviasi periode
+     * terakhir vs target PK (PRD §14.5) adalah data, bukan blokir —
+     * penegakan alasan deviasi milik gerbang pengajuan.
      *
      * @return array<string, mixed>
      */
@@ -81,8 +81,8 @@ class IndexRencanaAksi
 
                 $snapshot = $this->snapshotEfektif($jadwal, $indikator);
 
-                // F4 (Review4 Q1): guard keselarasan unit jalur baca — cermin
-                // guard tulis `SimpanTargetPeriode` (lanjutan T9/N1/P1-F1).
+                // Guard keselarasan unit jalur baca — cermin
+                // guard tulis `SimpanTargetPeriode`.
                 // Auth baca dievaluasi terhadap header.unit_id, sementara
                 // konteks efektif berasal dari snapshot terbaru; bila snapshot
                 // milik unit B untuk header milik unit A (indikator pindah
@@ -105,7 +105,7 @@ class IndexRencanaAksi
 
                 $baris = $this->petaTarget($segel);
 
-                // F2 (Review6 T2): baris basi transisi (tak efektif pada
+                // Baris basi transisi (tak efektif pada
                 // satu pun versi antara jepit→terbaru) disaring bagai tak
                 // ada — sel tampil kosong. Tanpa efek samping: penghapusan
                 // + audit milik jalur tulis berikutnya.
@@ -117,7 +117,7 @@ class IndexRencanaAksi
                 $unitId = (string) $segel->unit_id;
                 $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
 
-                // T10: metadata indikator (nama, satuan, arah, tipe,
+                // Metadata indikator (nama, satuan, arah, tipe,
                 // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
                 // untuk konteks RA ini, bukan master berjalan. Kode, status,
                 // dan tahun_mulai_berlaku tetap milik master (tak dibekukan).
@@ -137,7 +137,7 @@ class IndexRencanaAksi
                     'status_alur' => $segel->status_alur,
                     'versi' => $versiAwal,
                     'expected_versi' => $versiAwal,
-                    // F4: token konkurensi snapshot (identitas + nomor versi
+                    // Token konkurensi snapshot (identitas + nomor versi
                     // beku terbaru). React mengembalikan keduanya apa adanya;
                     // tanpa logika formula di klien.
                     'expected_snapshot_id' => $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null,
@@ -159,7 +159,7 @@ class IndexRencanaAksi
                     'baseline' => $snapshot?->baseline,
                     'komponen' => $definisi->all(),
                     'periode' => $periode,
-                    // F2: lingkup koreksi untuk UI; lihat statusKoreksi.
+                    // Lingkup koreksi untuk UI; lihat statusKoreksi.
                     'koreksi' => $koreksi,
                     'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
                     // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
@@ -274,9 +274,9 @@ class IndexRencanaAksi
 
     /**
      * Himpunan periode efektif memakai jendela jadwal minus periode
-     * pra-berlaku (cermin D3 jalur tulis: Tidak berlaku, bukan nol/null).
+     * pra-berlaku (cermin jalur tulis: Tidak berlaku, bukan nol/null).
      *
-     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
+     * Bila snapshot ada, `periode_mulai_id` snapshot
      * adalah satu-satunya sumber efektivitas — tahun master diabaikan
      * agar koreksi master ke atas pasca-aktivasi tak membuat semua
      * periode tak efektif. Tahun master hanya untuk konteks tanpa
@@ -309,7 +309,7 @@ class IndexRencanaAksi
     }
 
     /**
-     * Status sesi koreksi untuk UI (F2): `aktif` true hanya bila penutupan
+     * Status sesi koreksi untuk UI: `aktif` true hanya bila penutupan
      * terlewati (zona bisnis) dan sesi koreksi sah menurut
      * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan gerbang
      * tulis. UI memakai ini untuk menonaktifkan periode di luar lingkup;
@@ -481,7 +481,7 @@ class IndexRencanaAksi
     }
 
     /**
-     * Peringatan kumulatif 11.5: nilai komponen lebih kecil dari periode
+     * Peringatan kumulatif: nilai komponen lebih kecil dari periode
      * efektif sebelumnya pada komponen yang sama. Hanya bila kedua nilai
      * terisi angka (`null` = belum diisi, bukan nol) — tanpa memblokir.
      *
@@ -506,9 +506,9 @@ class IndexRencanaAksi
     }
 
     /**
-     * Deviasi 11.6: skor turunan periode efektif terakhir vs target PK
-     * (salinan beku `jadwal_snapshot.target`, konsisten AC-6 ISS "target PK
-     * snapshot") dengan toleransi `presisi`. Bila tak dapat dinilai
+     * Deviasi: skor turunan periode efektif terakhir vs target PK
+     * (salinan beku `jadwal_snapshot.target`, yaitu target PK snapshot)
+     * dengan toleransi `presisi`. Bila tak dapat dinilai
      * (skor/target tak tersedia), alasan tidak diperlukan.
      *
      * @param  list<array<string, mixed>>  $periode

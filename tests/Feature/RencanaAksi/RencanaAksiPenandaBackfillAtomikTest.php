@@ -23,9 +23,9 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review9 W2 (F2 penanda backfill atomik).
+ * Regresi penanda backfill jepit draf yang atomik.
  *
- * Temuan: up() backfill U2 memilih ID penanda via `SELECT` di statement
+ * Temuan: up() backfill jepit draf memilih ID penanda via `SELECT` di statement
  * terpisah SEBELUM `UPDATE`, sehingga write aplikasi yang commit di antara
  * keduanya ikut tertanda tanpa dibackfill. Kasus destruktifnya adalah pin
  * sah yang kebetulan sama nilainya dengan peta backup: sudah masuk penanda
@@ -41,13 +41,13 @@ use Tests\TestCase;
  * Batas bukti: orkestrasi dua-koneksi benar-benar paralel (write commit
  * tepat di antara dua statement lama) tak feasible dalam satu proses uji;
  * yang dibuktikan adalah (1) berkas migrasi hanya berisi satu statement
- * data CTE atomik (pola seperti guard-FOR-UPDATE di Review9W1Test), dan
+ * data CTE atomik (pola seperti guard FOR UPDATE di RencanaAksiSerialisasiFinalisasiKomposisiTest), dan
  * (2) perilaku ujungnya: pin sah yang terisi sebelum up() — baik bernilai
  * beda maupun kebetulan sama dengan peta — tak pernah masuk penanda dan
  * selamat dari down(), sementara baris yang benar-benar dibackfill tetap
  * ditandai dan rollback-nya jujur.
  */
-class RencanaAksiReview9W2Test extends TestCase
+class RencanaAksiPenandaBackfillAtomikTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -79,7 +79,7 @@ class RencanaAksiReview9W2Test extends TestCase
         $this->assertStringNotContainsString(
             'SELECT ra.id',
             $isi,
-            'Tak boleh ada lagi SELECT penanda terpisah dari tabel rencana_aksi (jendela race F2).'
+            'Tak boleh ada lagi SELECT penanda terpisah dari tabel rencana_aksi (jendela race).'
         );
         $up = (string) strstr((string) strstr($isi, 'public function up()'), 'public function down()', true);
         $this->assertSame(
@@ -114,7 +114,7 @@ class RencanaAksiReview9W2Test extends TestCase
         $korbanBeda = $this->buatBarisNullDenganPeta($fixture, 2025, $fixture['snapshot']->id);
         DB::table('rencana_aksi')->where('id', $korbanBeda->id)->update(['snapshot_draf_id' => $v2->id]);
 
-        // Simulasi kasus destruktif F2: pin sah yang kebetulan SAMA persis
+        // Simulasi kasus destruktif: pin sah yang kebetulan SAMA persis
         // dengan peta backup. Dengan dua statement lama, baris ini sudah
         // masuk penanda saat masih NULL sehingga down() me-NULL-kannya.
         $korbanSama = $this->buatBarisNullDenganPeta($fixture, 2024, $fixture['snapshot']->id);

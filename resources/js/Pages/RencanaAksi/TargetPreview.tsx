@@ -11,9 +11,9 @@ interface TargetPreviewProps {
     desimalTampilan: number;
     komponen: RencanaAksiKomponen[];
     namaPeriode: (periodeId: string) => string;
-    /** F1: versi header halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
+    /** Versi header halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
     expectedVersi: number;
-    /** F2: token snapshot halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
+    /** Token snapshot halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
     expectedSnapshotId: string | null;
     expectedSnapshotVersi: number | null;
     disabled?: boolean;
@@ -22,14 +22,14 @@ interface TargetPreviewProps {
 type PreviewState = { payload: string; result?: RencanaAksiPreview; error?: string };
 
 /**
- * Pratinjau target server-side tanpa persistensi (F5 + F2).
+ * Pratinjau target server-side tanpa persistensi.
  *
  * Mengikuti pola `CalculationPreview` pengukuran: debounce 300ms,
  * `POST /rencana-aksi/{id}/preview` memakai `CalculatePengukuran` yang
  * sama di server, respons lama dibatalkan/diabaikan, tanpa formula di
  * React. Skor/peringatan/deviasi reaktif terhadap input yang diedit;
  * hasil tersimpan tetap ditampilkan terpisah di halaman.
- * F1+F2: versi header + token snapshot halaman ikut dikirim; konteks usang
+ * Versi header + token snapshot halaman ikut dikirim; konteks usang
  * ditolak 409 agar yang ditampilkan = yang dipakai simpan.
  */
 export default function TargetPreview({

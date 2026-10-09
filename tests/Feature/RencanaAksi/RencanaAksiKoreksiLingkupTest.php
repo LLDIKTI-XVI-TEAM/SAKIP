@@ -23,11 +23,11 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi P3 F2: lingkup koreksi di UI.
+ * Regresi lingkup koreksi di UI.
  *
  * Backend mengekspos `lingkup_koreksi.periode_ids` via `koreksi` pada
  * payload baca; FE menonaktifkan + tidak mengirim periode luar lingkup
- * (validasi fail-closed N1 tetap di backend). Koreksi parsial 1 dari 4
+ * (validasi fail-closed tetap di backend). Koreksi parsial 1 dari 4
  * periode harus tersimpan via bentuk UI (hanya periode tercakup dikirim).
  */
 class RencanaAksiKoreksiLingkupTest extends TestCase
@@ -47,7 +47,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
 
         $this->tutupJadwalDenganKoreksiSatuPeriode($fixture);
 
-        // F2: payload baca mengekspos lingkup koreksi.
+        // Payload baca mengekspos lingkup koreksi.
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
@@ -55,7 +55,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
                 ->where('rencanaAksi.koreksi.periode_ids', [$fixture['periode1']->id])
                 ->where('rencanaAksi.can.update', true));
 
-        // F2: bentuk UI koreksi parsial — hanya periode tercakup dikirim.
+        // Bentuk UI koreksi parsial — hanya periode tercakup dikirim.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
@@ -83,7 +83,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
 
         $this->tutupJadwalDenganKoreksiSatuPeriode($fixture);
 
-        // Periode luar lingkup tetap ditolak backend (N1 fail-closed).
+        // Periode luar lingkup tetap ditolak backend (fail-closed).
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,

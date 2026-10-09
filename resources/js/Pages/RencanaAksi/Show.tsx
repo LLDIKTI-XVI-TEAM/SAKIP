@@ -18,12 +18,12 @@ interface ShowProps {
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
-    // T6: sertakan versi dalam key agar useForm remount saat Inertia
+    // Sertakan versi dalam key agar useForm remount saat Inertia
     // mengembalikan props versi baru pasca-simpan; tanpa ini expected_versi
     // tetap usang dan simpan ke-2 tanpa reload kena 409 palsu. Versi sama
-    // (mis. validasi gagal) mempertahankan draf. F4: token snapshot ikut
+    // (mis. validasi gagal) mempertahankan draf. Token snapshot ikut
     // dalam key agar token usang tak dipertahankan bila props disegarkan
-    // dengan snapshot koreksi baru pada versi header yang sama. F2: lingkup
+    // dengan snapshot koreksi baru pada versi header yang sama. Lingkup
     // koreksi ikut dalam key agar perubahan scope tanpa bump versi tetap
     // me-remount formulir (input luar lingkup tak dipertahankan).
     const koreksiKey = props.rencanaAksi.koreksi.aktif
@@ -50,9 +50,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
         [rencanaAksi.komponen],
     );
 
-    // F2: saat koreksi aktif hanya periode dalam `periode_ids` yang
+    // Saat koreksi aktif hanya periode dalam `periode_ids` yang
     // disunting/dikirim (kosong = tidak ada); tanpa koreksi semua periode
-    // efektif boleh. Validasi fail-closed N1 tetap di backend.
+    // efektif boleh. Validasi fail-closed tetap di backend.
     const koreksi = rencanaAksi.koreksi;
     const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
     const periodeDapatDisunting = useMemo(
@@ -72,7 +72,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 const key = kunciSel(baris.id, null);
                 nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
                 keterangan[key] = sel?.keterangan ?? null;
-                // F2: periode di luar lingkup koreksi tidak dikirim agar
+                // Periode di luar lingkup koreksi tidak dikirim agar
                 // koreksi parsial (mis. 1 dari 4) tersimpan via UI.
                 if (!terkunci) {
                     order.push({ periode_id: baris.id, komponen_id: null, key });
@@ -95,7 +95,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
 
     const { data, setData, transform, post, processing, errors } = useForm({
         expected_versi: rencanaAksi.expected_versi,
-        // F4: token konkurensi snapshot dikembalikan apa adanya (tanpa
+        // Token konkurensi snapshot dikembalikan apa adanya (tanpa
         // logika formula di React); server menolak 409 bila snapshot
         // terbaru berubah sejak payload dibaca.
         expected_snapshot_id: rencanaAksi.expected_snapshot_id,
@@ -110,7 +110,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     const canUpdate = rencanaAksi.can.update;
     const formDisabled = !canUpdate || processing;
     const kosong = periodeEfektif.length === 0 || (!manual && komponenTerurut.length === 0);
-    // F2: koreksi aktif dengan lingkup menyisakan sebagian periode — hanya
+    // Koreksi aktif dengan lingkup menyisakan sebagian periode — hanya
     // yang tercakup yang dikirim; bila tak ada yang tercakup, simpan
     // dinonaktifkan (backend menolak targets kosong).
     const terkunciSemua = !kosong && periodeDapatDisunting.length === 0;
@@ -204,11 +204,11 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
 
     const deviasi = rencanaAksi.deviasi_pk;
 
-    // F5: pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
+    // Pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
     // React). Dibangun dari nilai formulir saat ini untuk periode yang
     // dikirim (di luar lingkup koreksi tak ikut), dipanggil debounce oleh
     // `TargetPreview` mengikuti pola `CalculationPreview` pengukuran.
-    // F1+F2: versi header + token snapshot halaman ikut dikirim ke preview
+    // Versi header + token snapshot halaman ikut dikirim ke preview
     // agar konteks usang ditolak 409 — yang ditampilkan = yang dipakai
     // simpan.
     const targetsPreview = useMemo(

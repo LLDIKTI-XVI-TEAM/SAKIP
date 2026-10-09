@@ -230,8 +230,8 @@ class JadwalActivationTest extends TestCase
         [$parentSebelum, $anakSebelum] = $this->tanpaFlagFinalisasi($before);
         [$parentSesudah, $anakSesudah] = $this->tanpaFlagFinalisasi([$parents, $children]);
         // Baris existing tidak diganti: seluruh kolom konten identik. Satu-satunya perubahan
-        // yang dizinkan adalah flag finalisasi karena aktivasi membekukan komposisi terbit
-        // (Review10 D2), sehingga snapshot lama tidak lagi dapat disisipi komponen.
+        // yang dizinkan adalah flag finalisasi karena aktivasi membekukan komposisi terbit,
+        // sehingga snapshot lama tidak lagi dapat disisipi komponen.
         foreach ([...$parentSebelum, ...$anakSebelum] as $row) {
             $this->assertContains($row, [...$parentSesudah, ...$anakSesudah]);
         }
@@ -252,7 +252,7 @@ class JadwalActivationTest extends TestCase
         $this->actingAs($this->activator())->activate($this->activationPayload())->assertSessionHasNoErrors()
             ->assertSessionHas('inertia.flash_data.jadwal_aktivasi', fn (array $outcome): bool => $outcome['changed'] === true && $outcome['snapshot_created_count'] === 0);
         $this->assertSame($this->tanpaFlagFinalisasi($before), $this->tanpaFlagFinalisasi($this->snapshotFingerprint()));
-        // Snapshot existing tidak dibuat ulang, tetapi aktivasi tetap membekukannya (Review10 D2).
+        // Snapshot existing tidak dibuat ulang, tetapi aktivasi tetap membekukannya.
         $this->assertTrue((bool) JadwalSnapshot::sole()->komposisi_final);
         $this->assertSame(1, $this->audits('jadwal.aktivasi'));
         $this->assertSame(0, $this->audits('jadwal_snapshot.buat'));
@@ -267,13 +267,13 @@ class JadwalActivationTest extends TestCase
 
         $this->actingAs($this->activator())->activate($this->activationPayload())->assertSessionHasNoErrors();
 
-        // Seluruh snapshot hasil aktivasi terbit dalam keadaan sudah final (Review10 D1).
+        // Seluruh snapshot hasil aktivasi terbit dalam keadaan sudah final.
         $this->assertSame(0, JadwalSnapshot::where('komposisi_final', false)->count());
         $this->assertTrue(JadwalSnapshot::where('indikator_id', $ratio->id)->sole()->komposisi_final);
         $this->assertTrue(JadwalSnapshot::where('indikator_id', $manual->id)->sole()->komposisi_final);
         $this->assertSame(2, AuditLog::where('tindakan', 'jadwal_snapshot.buat')->where('nilai_baru->komposisi_final', true)->count());
 
-        // Komposisi terbit benar-benar beku: komponen tambahan ditolak guard (Review9 W1),
+        // Komposisi terbit benar-benar beku: komponen tambahan ditolak guard insert komponen,
         // sehingga rumus yang dilihat pembaca RA tidak dapat berubah tanpa versi baru.
         // Percobaan dibungkus savepoint agar transaksi RefreshDatabase tidak ter-abort
         // setelah penolakan trigger, sehingga jumlah komponen tetap dapat diverifikasi.

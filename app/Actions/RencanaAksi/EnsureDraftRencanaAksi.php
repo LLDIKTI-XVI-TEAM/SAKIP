@@ -70,7 +70,7 @@ class EnsureDraftRencanaAksi
                     throw new AuthorizationException('Akun pengguna tidak aktif.');
                 }
 
-                // T5: kunci calon header lebih dulu (mungkin nihil) agar urutan
+                // Kunci calon header lebih dulu (mungkin nihil) agar urutan
                 // akuisisi RencanaAksi → Indikator → Jadwal sama dengan
                 // SimpanTargetPeriode (header → indikator → jadwal). Tanpa ini,
                 // Ensure (Indikator → Header) vs Simpan (Header → Indikator)
@@ -191,7 +191,7 @@ class EnsureDraftRencanaAksi
      * `rencana_aksi.unit_id` cocok dengan unit snapshot pengukuran.
      *
      * Mengembalikan snapshot terbaru (null bila jadwal belum pernah aktif)
-     * agar pemanggil dapat menjepit konteks awal draf (F2/F3 Review6 T2).
+     * agar pemanggil dapat menjepit konteks awal draf.
      */
     private function pastikanSnapshotTersedia(JadwalTahunan $jadwal, IndikatorKinerja $indikator): ?JadwalSnapshot
     {

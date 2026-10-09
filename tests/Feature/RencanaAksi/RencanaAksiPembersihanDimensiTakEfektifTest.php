@@ -20,35 +20,24 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review6 T2 (F2 rekonsiliasi transisi + F3 bekukan snapshot draf).
+ * Regresi pembersihan dimensi yang tak berlaku pada snapshot baru.
  *
- * Keputusan F2: rekonsiliasi saat snapshot berubah (bukan hanya pasca-POST),
- * bukan ikat target pada snapshot asal. Alasan: Review5 S2 menolak kolom
- * snapshot-asal per baris (menduplikasi kontrak versi beku, menumpuk baris
- * basi, tiap pembaca yang lupa filter = kebocoran lintas-konteks) — lubang
- * yang tersisa hanyalah jendela tanpa-simpan (v1 → v2 tanpa save → v3),
- * yang ditutup dengan jepit header + telusur versi antara: baris basi
- * disaring di baca (tanpa efek samping) dan dibuang teraudit di tulis.
- *
- * Keputusan F3: simpan rujukan snapshot di draf (kolom non-FK audit-safe
- * `snapshot_draf_id`, revisi D7 sempit tanpa kembalikan FK otorisasi) agar
- * trigger menolak mutasi langsung + token 409 mendeteksi versi baru.
- * Trigger immutable global ditolak: memblokir koreksi-sisipan yang sah
- * (komponen pelengkap versi baru) dan koreksi pra-draf, serta menyimpang
- * dari filosofi beku-berbasis-rujukan repo.
+ * Keputusan: opsi (a) — hapus eksplisit baris draf tak efektif saat konteks
+ * baru diterima, teraudit via `rencana_aksi.ubah` (selisih
+ * nilai_lama/nilai_baru + jumlah pada alasan). Alasan pemilihan ada di
+ * docblock `SimpanTargetPeriode::bersihkanDimensiTakEfektif()`.
  */
-class RencanaAksiReview6T2Test extends TestCase
+class RencanaAksiPembersihanDimensiTakEfektifTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_transisi_lewat_tanpa_simpan_tak_membangkitkan_nilai_basi(): void
+    public function test_koreksi_tanpa_komponen_x_membersihkan_baris_basi_dan_teraudit(): void
     {
         $fixture = $this->buatFixturePenjumlahan();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -58,8 +47,6 @@ class RencanaAksiReview6T2Test extends TestCase
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-        $this->assertSame($fixture['snapshot']->id, $header->snapshot_draf_id);
-        $this->assertSame($fixture['snapshot']->id, AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->sole()->nilai_baru['snapshot_draf_id']);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
@@ -70,33 +57,17 @@ class RencanaAksiReview6T2Test extends TestCase
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => 100, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
+        $this->assertSame(2, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
 
-        // v2 menghilangkan B TANPA penyimpanan, lalu v3 mengembalikannya.
-        $v2 = $this->terbitkanSnapshotTanpaB($fixture);
-        $v3 = $this->terbitkanSnapshotLengkap($fixture, 3, $v2->id);
+        $v2 = $this->terbitkanSnapshotTanpaPenyebut($fixture);
 
-        // Baca di bawah v3: B tampil kosong (bukan 100 basi), A yang
-        // efektif terus-menerus dipertahankan (tanpa kehilangan data).
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('rencanaAksi.expected_snapshot_id', $v3->id)
-                ->where('rencanaAksi.expected_snapshot_versi', 3)
-                ->where('rencanaAksi.periode.0.nilai.0.komponen_id', $fixture['komponenA']->id)
-                ->where('rencanaAksi.periode.0.nilai.0.nilai', '50.000000000000')
-                ->where('rencanaAksi.periode.0.nilai.1.komponen_id', $fixture['komponenB']->id)
-                ->where('rencanaAksi.periode.0.nilai.1.nilai', null));
-
-        // Simpan tanpa menyentuh B: B basi ikut terbuang (bukan tersimpan
-        // ulang dari request), A diperbarui, jepit maju ke v3, teraudit.
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
-            'expected_snapshot_id' => $v3->id,
-            'expected_snapshot_versi' => 3,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
             'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 55, 'keterangan' => null],
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => null, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 60, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
 
@@ -105,22 +76,35 @@ class RencanaAksiReview6T2Test extends TestCase
             'periode_id' => $fixture['periode1']->id,
             'komponen_id' => $fixture['komponenB']->id,
         ]);
-        $this->assertSame('55.000000000000', RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->where('periode_id', $fixture['periode1']->id)
-            ->where('komponen_id', $fixture['komponenA']->id)->sole()->getRawOriginal('nilai'));
-        $this->assertSame($v3->id, $header->fresh()->snapshot_draf_id);
+        $this->assertSame(1, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertSame('60.000000000000', RencanaAksiTarget::where('rencana_aksi_id', $header->id)->sole()->getRawOriginal('nilai'));
 
-        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Rekonsiliasi transisi%')->first();
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Membersihkan%')->first();
         $this->assertNotNull($audit);
-        $this->assertStringContainsString('Rekonsiliasi transisi snapshot v1->v3: 1 baris basi dibersihkan.', (string) $audit->alasan);
-        // Perpindahan jepit snapshot ikut terekam agar konteks formula tiap simpan dapat dibuktikan.
-        $this->assertSame($fixture['snapshot']->id, $audit->nilai_lama['snapshot_draf_id']);
-        $this->assertSame($v3->id, $audit->nilai_baru['snapshot_draf_id']);
+        $this->assertStringContainsString('Membersihkan 1 baris dimensi tak efektif', (string) $audit->alasan);
+        $komponenLama = collect($audit->nilai_lama['targets'] ?? [])->pluck('komponen_id')->all();
+        $komponenBaru = collect($audit->nilai_baru['targets'] ?? [])->pluck('komponen_id')->all();
+        $this->assertContains((string) $fixture['komponenB']->id, $komponenLama);
+        $this->assertNotContains((string) $fixture['komponenB']->id, $komponenBaru);
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('rencanaAksi.komponen', 1)
+                ->where('rencanaAksi.komponen.0.komponen_id', $fixture['komponenA']->id)
+                ->has('rencanaAksi.periode.0.nilai', 1));
+
+        $v3 = $this->terbitkanSnapshotLengkap($fixture, 3, $v2->id);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.expected_snapshot_id', $v3->id)
+                ->where('rencanaAksi.periode.0.nilai.1.nilai', null));
     }
 
-    public function test_snapshot_terbit_yang_dipakai_draf_beku_di_db_tapi_koreksi_sisipan_terbuka(): void
+    public function test_koreksi_geser_periode_mulai_membersihkan_periode_basi(): void
     {
-        $fixture = $this->buatFixtureManual();
+        $fixture = $this->buatFixtureRasio();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
@@ -134,84 +118,94 @@ class RencanaAksiReview6T2Test extends TestCase
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 50, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
 
-        // Mutasi langsung snapshot yang dijepit draf ditolak trigger.
-        // Savepoint bersarang memulihkan transaksi uji pasca-abort PG.
-        try {
-            DB::transaction(function () use ($fixture): void {
-                $fixture['snapshot']->update(['target' => 777]);
-            });
-            $this->fail('Mutasi langsung snapshot yang dipakai draf harus ditolak trigger.');
-        } catch (QueryException $exception) {
-            $this->assertSame('23514', $exception->getCode());
-        }
-        $this->assertSame('100.000000000000', $fixture['snapshot']->fresh()->getRawOriginal('target'));
+        $v2 = $this->terbitkanSnapshotGeserMulai($fixture);
 
-        try {
-            DB::transaction(function () use ($fixture): void {
-                $fixture['snapshot']->delete();
-            });
-            $this->fail('Hapus snapshot yang dipakai draf harus ditolak trigger.');
-        } catch (QueryException $exception) {
-            $this->assertSame('23514', $exception->getCode());
-        }
-
-        // Koreksi berversi (sisipan v2 + komponennya) tetap terbuka.
-        $v2 = JadwalSnapshot::create([
-            'jadwal_id' => $fixture['jadwal']->id,
-            'indikator_id' => $fixture['indikator']->id,
-            'nomor_versi' => 2,
-            'menggantikan_id' => $fixture['snapshot']->id,
-            'alasan_koreksi' => 'Koreksi resmi target PK T2.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-001',
-            'periode_mulai_id' => $fixture['periode1']->id,
-            'unit_id' => $fixture['unit']->id,
-            'nama' => $fixture['indikator']->nama,
-            'definisi' => 'Definisi beku v2.',
-            'satuan' => 'poin',
-            'presisi' => 2,
-            'desimal_tampilan' => 2,
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
-            'target' => 150,
-        ]);
-        $this->assertNotNull($v2->id);
-
-        // Simpan di bawah v2 maju — jepit mengikuti, nilai lama utuh.
         $header->refresh();
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $header->versi,
             'expected_snapshot_id' => $v2->id,
             'expected_snapshot_versi' => 2,
             'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
+                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 40, 'keterangan' => null],
+                ['periode_id' => $fixture['periode2']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 80, 'keterangan' => null],
             ],
         ])->assertSessionHasNoErrors();
-        $this->assertSame($v2->id, $header->fresh()->snapshot_draf_id);
 
-        // Beku mengikuti jepit: v2 yang kini dipakai pun tak bisa dimutasi.
-        try {
-            DB::transaction(function () use ($v2): void {
-                $v2->update(['target' => 888]);
-            });
-            $this->fail('Mutasi snapshot v2 yang kini dipakai draf harus ditolak trigger.');
-        } catch (QueryException $exception) {
-            $this->assertSame('23514', $exception->getCode());
-        }
+        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode1']->id)->count());
+        $this->assertSame(2, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode2']->id)->count());
+
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Membersihkan%')->first();
+        $this->assertNotNull($audit);
+        $this->assertStringContainsString('Membersihkan 2 baris dimensi tak efektif', (string) $audit->alasan);
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.periode.0.id', $fixture['periode1']->id)
+                ->where('rencanaAksi.periode.0.efektif', false)
+                ->where('rencanaAksi.periode.1.id', $fixture['periode2']->id)
+                ->where('rencanaAksi.periode.1.efektif', true));
+    }
+
+    public function test_koreksi_ubah_tipe_ke_manual_membersihkan_baris_berkomponen(): void
+    {
+        $fixture = $this->buatFixtureRasio();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => 50, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 100, 'keterangan' => null],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $v2 = $this->terbitkanSnapshotManual($fixture);
+
+        $header->refresh();
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $header->versi,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 70, 'keterangan' => null],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->whereNotNull('komponen_id')->count());
+        $this->assertSame(1, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->whereNull('komponen_id')->count());
+
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Membersihkan%')->first();
+        $this->assertNotNull($audit);
+        $this->assertStringContainsString('Membersihkan 2 baris dimensi tak efektif', (string) $audit->alasan);
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('rencanaAksi.tipe_perhitungan', 'manual')
+                ->has('rencanaAksi.periode.0.nilai', 1));
     }
 
     /**
-     * Snapshot koreksi v2 penjumlahan yang menghapus komponen B (satu
-     * penjumlah tersisa tetap sah untuk kalkulator).
+     * Snapshot koreksi v2 tipe penjumlahan yang menghapus komponen B
+     * (satu penjumlah tersisa tetap sah untuk kalkulator).
      *
      * @param  array<string, mixed>  $fixture
      */
-    private function terbitkanSnapshotTanpaB(array $fixture): JadwalSnapshot
+    private function terbitkanSnapshotTanpaPenyebut(array $fixture): JadwalSnapshot
     {
         $v2 = JadwalSnapshot::create([
             'jadwal_id' => $fixture['jadwal']->id,
@@ -219,7 +213,7 @@ class RencanaAksiReview6T2Test extends TestCase
             'nomor_versi' => 2,
             'menggantikan_id' => $fixture['snapshot']->id,
             'alasan_koreksi' => 'Koreksi resmi hapus komponen B.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-002',
+            'rujukan_koreksi' => 'SK-KOREKSI-R5S2-001',
             'periode_mulai_id' => $fixture['periode1']->id,
             'unit_id' => $fixture['unit']->id,
             'nama' => $fixture['indikator']->nama,
@@ -245,8 +239,9 @@ class RencanaAksiReview6T2Test extends TestCase
     }
 
     /**
-     * Snapshot koreksi v3 yang mengembalikan kedua komponen TANPA
-     * penyimpanan di bawah v2 (jendela tanpa-simpan F2).
+     * Snapshot koreksi v3 yang mengembalikan kedua komponen (simulasi
+     * konteks berbalik: nilai basi B harus tetap hilang, bukan muncul
+     * kembali tanpa input user).
      *
      * @param  array<string, mixed>  $fixture
      */
@@ -258,7 +253,7 @@ class RencanaAksiReview6T2Test extends TestCase
             'nomor_versi' => $nomorVersi,
             'menggantikan_id' => $menggantikanId,
             'alasan_koreksi' => 'Koreksi resmi kembalikan komponen B.',
-            'rujukan_koreksi' => 'SK-KOREKSI-R6T2-003',
+            'rujukan_koreksi' => 'SK-KOREKSI-R5S2-002',
             'periode_mulai_id' => $fixture['periode1']->id,
             'unit_id' => $fixture['unit']->id,
             'nama' => $fixture['indikator']->nama,
@@ -286,8 +281,71 @@ class RencanaAksiReview6T2Test extends TestCase
     }
 
     /**
+     * @param  array<string, mixed>  $fixture
+     */
+    private function terbitkanSnapshotGeserMulai(array $fixture): JadwalSnapshot
+    {
+        $v2 = JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi resmi geser periode mulai.',
+            'rujukan_koreksi' => 'SK-KOREKSI-R5S2-003',
+            'periode_mulai_id' => $fixture['periode2']->id,
+            'unit_id' => $fixture['unit']->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2 geser mulai.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'rasio_persen',
+            'target' => 100,
+        ]);
+        foreach ([$fixture['pembilang'], $fixture['penyebut']] as $index => $komponen) {
+            JadwalSnapshotKomponen::create([
+                'jadwal_snapshot_id' => $v2->id,
+                'komponen_id' => $komponen->id,
+                'kode' => $komponen->kode,
+                'label' => $komponen->label,
+                'peran' => $komponen->peran,
+                'bobot' => 1,
+                'urutan' => $index + 1,
+            ]);
+        }
+
+        return $v2;
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     */
+    private function terbitkanSnapshotManual(array $fixture): JadwalSnapshot
+    {
+        return JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi resmi ubah tipe ke manual.',
+            'rujukan_koreksi' => 'SK-KOREKSI-R5S2-004',
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $fixture['unit']->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2 manual.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
+    }
+
+    /**
      * Fixture penjumlahan dua penjumlah (A+B) agar koreksi penghapusan
-     * satu komponen tetap sah untuk kalkulator.
+     * satu komponen tetap sah untuk kalkulator (rasio butuh penyebut).
      *
      * @return array<string, mixed>
      */
@@ -296,18 +354,17 @@ class RencanaAksiReview6T2Test extends TestCase
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji R6T2 Jumlah', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji R5S2 Jumlah', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
-        $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-R6T2J', 'nama' => 'Renstra Uji R6T2 Jumlah', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R6T2J', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R5S2J', 'nama' => 'Renstra Uji R5S2 Jumlah', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R5S2J', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Jumlah Uji R6T2',
+            'nama' => 'Indikator Jumlah Uji R5S2',
             'satuan' => 'poin',
             'tipe_perhitungan' => 'penjumlahan',
             'arah' => 'naik_baik',
@@ -400,25 +457,24 @@ class RencanaAksiReview6T2Test extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function buatFixtureManual(): array
+    private function buatFixtureRasio(): array
     {
         $this->seed(AccessCatalogSeeder::class);
         $perencanaan = $this->penggunaDenganPeran('perencanaan');
         $pic = $this->penggunaDenganPeran('pegawai');
-        $unit = Unit::create(['nama' => 'Unit Uji R6T2 Manual', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        $unit = Unit::create(['nama' => 'Unit Uji R5S2 F3', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
         $this->grant($pic, 'rencana_aksi:create', $unit->id, $perencanaan);
         $this->grant($pic, 'rencana_aksi:update', $unit->id, $perencanaan);
-        $this->grant($pic, 'rencana_aksi:read', $unit->id, $perencanaan);
 
-        $renstra = Renstra::create(['kode' => 'R-UJI-R6T2M', 'nama' => 'Renstra Uji R6T2 Manual', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R6T2M', 'deskripsi' => 'Sasaran uji']);
+        $renstra = Renstra::create(['kode' => 'R-UJI-R5S2', 'nama' => 'Renstra Uji R5S2', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $perencanaan->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-UJI-R5S2', 'deskripsi' => 'Sasaran uji']);
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $sasaran->id,
             'unit_id' => $unit->id,
             'kode' => 'I-UJI-'.Str::random(4),
-            'nama' => 'Indikator Manual Uji R6T2',
+            'nama' => 'Indikator Uji R5S2',
             'satuan' => 'poin',
-            'tipe_perhitungan' => 'manual',
+            'tipe_perhitungan' => 'rasio_persen',
             'arah' => 'naik_baik',
             'presisi' => 2,
             'desimal_tampilan' => 2,
@@ -461,9 +517,40 @@ class RencanaAksiReview6T2Test extends TestCase
             'presisi' => 2,
             'desimal_tampilan' => 2,
             'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
+            'tipe_perhitungan' => 'rasio_persen',
             'target' => 100,
         ]);
+        $pembilang = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 'n',
+            'label' => 'Pembilang',
+            'peran' => 'pembilang',
+            'bobot' => 1,
+            'urutan' => 1,
+            'aktif' => true,
+            'created_by' => $perencanaan->id,
+        ]);
+        $penyebut = IndikatorKomponen::create([
+            'indikator_id' => $indikator->id,
+            'kode' => 't',
+            'label' => 'Penyebut',
+            'peran' => 'penyebut',
+            'bobot' => 1,
+            'urutan' => 2,
+            'aktif' => true,
+            'created_by' => $perencanaan->id,
+        ]);
+        foreach ([$pembilang, $penyebut] as $index => $komponen) {
+            JadwalSnapshotKomponen::create([
+                'jadwal_snapshot_id' => $snapshot->id,
+                'komponen_id' => $komponen->id,
+                'kode' => $komponen->kode,
+                'label' => $komponen->label,
+                'peran' => $komponen->peran,
+                'bobot' => 1,
+                'urutan' => $index + 1,
+            ]);
+        }
         PenugasanIndikator::create([
             'indikator_id' => $indikator->id,
             'user_id' => $pic->id,
@@ -472,7 +559,7 @@ class RencanaAksiReview6T2Test extends TestCase
             'created_at' => now(),
         ]);
 
-        return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal', 'snapshot');
+        return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal', 'snapshot', 'pembilang', 'penyebut');
     }
 
     private function penggunaDenganPeran(string $kode): User

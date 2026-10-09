@@ -27,7 +27,7 @@ class StoreJadwalRequest extends PeriodeJadwalMutationRequest
             'rencana_aksi_mulai' => ['required', 'date_format:Y-m-d'],
             'rencana_aksi_selesai' => ['required', 'date_format:Y-m-d'],
             'penutupan' => ['required', 'date_format:Y-m-d'],
-            // F3-rework: kunci jumlah periode di sumbernya (maksimal 12 periode
+            // Kunci jumlah periode di sumbernya (maksimal 12 periode
             // kalender) agar batas `targets` max:600 (= 50 komponen × 12 periode)
             // selalu cukup; 13×50=650 tidak lagi dapat terbentuk dari UI.
             'periode' => ['required', 'array', 'list', 'min:1', 'max:12'],

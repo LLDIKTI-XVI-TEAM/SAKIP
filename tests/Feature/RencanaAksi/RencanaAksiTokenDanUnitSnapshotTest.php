@@ -26,18 +26,18 @@ use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * Regresi Review4 Q1 (F1 token wajib + F4 guard unit baca/pratinjau).
+ * Regresi token snapshot wajib pada simpan dan guard unit baca/pratinjau.
  *
- * F1: `expected_snapshot_id`/`expected_snapshot_versi` wajib dikirim pada
+ * `expected_snapshot_id`/`expected_snapshot_versi` wajib dikirim pada
  * setiap penyimpanan (`present`); null hanya sah bila konteks memang tanpa
  * snapshot. Jalur bypass klien-lama-tanpa-token dihapus — Action selalu
  * membandingkan token dengan snapshot terbaru terkunci.
  *
- * F4: `IndexRencanaAksi` + `PreviewTargetPeriode` menolak fail-closed bila
+ * `IndexRencanaAksi` + `PreviewTargetPeriode` menolak fail-closed bila
  * snapshot terbaru milik unit B untuk header milik unit A, sebelum payload
  * dibangun dan tanpa mengekspos konteks lintas-unit.
  */
-class RencanaAksiReview4Q1Test extends TestCase
+class RencanaAksiTokenDanUnitSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -144,7 +144,7 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // F3 (Review6 T2): koreksi pindah unit diterbitkan sebagai versi
+        // Koreksi pindah unit diterbitkan sebagai versi
         // baru — mutasi langsung snapshot yang dijepit draf kini ditolak
         // trigger 23514, sehingga skenario ini memakai pola berversi.
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
@@ -190,7 +190,7 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // F3 (Review6 T2): sama seperti di atas — koreksi pindah unit
+        // Sama seperti di atas — koreksi pindah unit
         // sebagai versi baru; token pratinjau memakai v2 agar kegagalan
         // yang diuji murni guard unit (bukan 409 token usang).
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Preview Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);

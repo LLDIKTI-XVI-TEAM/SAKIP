@@ -24,18 +24,18 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review5 S1 (F1 ikat versi header + F2 izin baca).
+ * Regresi pratinjau terikat versi header dan mensyaratkan izin baca.
  *
- * F1: `POST /rencana-aksi/{id}/preview` menerima + memvalidasi
+ * `POST /rencana-aksi/{id}/preview` menerima + memvalidasi
  * `expected_versi` terhadap header terkunci sebelum hitung; usang → 409
  * (tanpa persistensi/audit). Mencegah skor/deviasi campuran (input form +
  * target v2 tak terlihat).
  *
- * F2: `PreviewTargetPeriodeRequest::authorize()` mensyaratkan izin view DAN
+ * `PreviewTargetPeriodeRequest::authorize()` mensyaratkan izin view DAN
  * update bersama (sebelum validasi `exists`), agar tanpa `read` (atau kena
  * deny) selalu 403 — bukan 422 yang membocorkan keberadaan UUID lintas unit.
  */
-class RencanaAksiReview5S1Test extends TestCase
+class RencanaAksiPreviewVersiDanIzinTest extends TestCase
 {
     use RefreshDatabase;
 

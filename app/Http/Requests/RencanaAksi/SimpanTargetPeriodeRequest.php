@@ -21,8 +21,8 @@ class SimpanTargetPeriodeRequest extends FormRequest
 
         $header = RencanaAksi::whereKey($id)->first();
         if (! $header instanceof RencanaAksi) {
-            // F2 (Review8 V1): header tak ditemukan → 404 SEBELUM validasi
-            // `exists`, cermin `PreviewTargetPeriodeRequest` (T1/Review6).
+            // Header tak ditemukan → 404 SEBELUM validasi
+            // `exists`, cermin `PreviewTargetPeriodeRequest`.
             // Tanpa ini UUID asing + payload tak valid memberi 422 sedangkan
             // payload valid memberi 404 (oracle 422-vs-404), dan tanpa-izin
             // memberi oracle 403-vs-404. Lookup mendahului Gate agar urutan
@@ -41,7 +41,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
     {
         return [
             'expected_versi' => ['required', 'integer', 'min:1'],
-            // F1 (Review4 Q1): token konkurensi snapshot dari IndexRencanaAksi
+            // Token konkurensi snapshot dari IndexRencanaAksi
             // (identitas + nomor versi beku) WAJIB dikirim (`present`) pada
             // setiap penyimpanan; nilai null hanya sah bila konteks memang
             // tanpa snapshot (jadwal belum pernah aktif). Jalur bypass
@@ -52,10 +52,10 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
             'uraian' => ['nullable', 'string', 'max:10000'],
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
-            // T12: batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
+            // Batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
             // × 12 periode bulanan = 600 sel. Angka 100 lama menolak matriks
             // sah (mis. 10×11=110) yang dikirim utuh oleh halaman.
-            // F3-rework: 12 periode dikunci di StoreJadwalRequest (`periode`
+            // 12 periode dikunci di StoreJadwalRequest (`periode`
             // max:12) sehingga 600 selalu cukup dari konfigurasi yang sah.
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
@@ -65,7 +65,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
             // tiap simpan) dibatasi oleh batas total matriks tersimpan di
             // SimpanTargetPeriode.
             'targets.*.keterangan' => ['nullable', 'string', 'max:1000'],
-            // F2/F3 (Review6 T2): jepit konteks ditulis server saja
+            // Jepit konteks ditulis server saja
             // (EnsureDraft saat buat, Simpan tiap simpan) — klien dilarang
             // mengirimnya agar tak dapat memalsukan rekonsiliasi/trigger.
             'snapshot_draf_id' => ['prohibited'],
