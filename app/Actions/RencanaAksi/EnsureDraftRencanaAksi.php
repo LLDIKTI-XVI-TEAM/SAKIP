@@ -117,7 +117,7 @@ class EnsureDraftRencanaAksi
                     throw ValidationException::withMessages(['indikator_id' => 'Penugasan PIC efektif belum tersedia untuk indikator ini.']);
                 }
 
-                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, null, 'pembuatan');
+                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pembuatan');
                 if ($alasan !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasan]);
                 }

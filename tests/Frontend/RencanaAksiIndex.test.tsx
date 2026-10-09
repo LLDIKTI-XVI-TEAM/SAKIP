@@ -13,7 +13,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 
-const satuHalaman = { current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null };
+const satuHalaman = { current_page: 1, last_page: 1, total: 3, prev_page_url: null, next_page_url: null };
 const milikSaya: BarisRencanaAksi = {
     indikator_id: 'ind-1',
     kode: 'IKU-3',
@@ -23,7 +23,7 @@ const milikSaya: BarisRencanaAksi = {
     pj_nama: 'Budi',
     milik_saya: true,
     rencana_aksi: null,
-    can: { buat: true, buka: false },
+    can: { buat: true },
 };
 
 beforeEach(() => {
@@ -41,8 +41,8 @@ describe('Daftar Rencana Aksi', () => {
             <RencanaAksiIndex
                 daftar={[
                     milikSaya,
-                    { ...milikSaya, indikator_id: 'ind-2', kode: 'IKU-5', milik_saya: false, rencana_aksi: { id: 'ra-2', status_alur: 'draft' }, can: { buat: false, buka: true } },
-                    { ...milikSaya, indikator_id: 'ind-3', kode: 'IKU-7', milik_saya: false, can: { buat: false, buka: false } },
+                    { ...milikSaya, indikator_id: 'ind-2', kode: 'IKU-5', milik_saya: false, rencana_aksi: { id: 'ra-2', status_alur: 'draft' }, can: { buat: false } },
+                    { ...milikSaya, indikator_id: 'ind-3', kode: 'IKU-7', milik_saya: false, can: { buat: false } },
                 ]}
                 pagination={satuHalaman}
             />,
@@ -52,8 +52,7 @@ describe('Daftar Rencana Aksi', () => {
         const tombolBuat = screen.getByRole('button', { name: 'Buat Rencana Aksi IKU-3 2026' });
         const tautanBuka = screen.getByRole('link', { name: 'Buka Rencana Aksi IKU-5 2026' });
         expect(tautanBuka.getAttribute('href')).toBe('/rencana-aksi/ra-2');
-        // Penanda "Anda" hanya pada baris milik sendiri (dirender untuk tata letak desktop dan mobile).
-        expect(within(tombolBuat.closest('tr') as HTMLElement).queryAllByText('Anda').length).toBeGreaterThan(0);
+        expect(within(tombolBuat.closest('tr') as HTMLElement).getByText('Anda')).toBeTruthy();
         expect(within(tautanBuka.closest('tr') as HTMLElement).queryByText('Anda')).toBeNull();
 
         await user.click(tombolBuat);

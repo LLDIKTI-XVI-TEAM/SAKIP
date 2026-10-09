@@ -26,7 +26,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     // dengan snapshot koreksi baru pada versi header yang sama. F2: lingkup
     // koreksi ikut dalam key agar perubahan scope tanpa bump versi tetap
     // me-remount formulir (input luar lingkup tak dipertahankan).
-    const koreksiKey = props.rencanaAksi.koreksi?.aktif
+    const koreksiKey = props.rencanaAksi.koreksi.aktif
         ? `koreksi:${props.rencanaAksi.koreksi.periode_ids.slice().sort().join(',')}`
         : 'tanpa-koreksi';
     return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
@@ -50,11 +50,10 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
         [rencanaAksi.komponen],
     );
 
-    // F2: lingkup koreksi dari server. Bila koreksi aktif + batasan
-    // eksplisit, hanya periode tercakup yang disunting/dikirim; baris lain
-    // dinonaktifkan. Tanpa koreksi aktif semua efektif dapat disunting.
-    // Validasi fail-closed N1 tetap di backend.
-    const koreksi = rencanaAksi.koreksi ?? { aktif: false, periode_ids: [] };
+    // F2: saat koreksi aktif hanya periode dalam `periode_ids` yang
+    // disunting/dikirim (kosong = tidak ada); tanpa koreksi semua periode
+    // efektif boleh. Validasi fail-closed N1 tetap di backend.
+    const koreksi = rencanaAksi.koreksi;
     const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
     const periodeDapatDisunting = useMemo(
         () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
@@ -287,7 +286,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                     </CardContent>
                 </Card>
 
-                {!canUpdate && (
+                {!canUpdate && !terkunciSemua && (
                     <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
                         Formulir hanya dapat dibaca sesuai status dan izin akses Anda.
                     </p>
@@ -361,17 +360,20 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                         ? 'Tidak ada periode efektif untuk indikator ini pada tahun berjalan.'
                                         : 'Definisi komponen efektif belum tersedia untuk indikator nonmanual.'}
                                 </p>
-                            ) : terkunciSemua ? (
-                                <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
-                                    Tidak ada periode yang dapat dikoreksi.
-                                </p>
                             ) : (
                                 <>
-                                    <p className="text-sm text-muted">
-                                        Isi setiap sel periode yang berlaku. Kolom skor menampilkan hasil tersimpan dari server dan tidak dihitung ulang di peramban.
-                                        {koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
-                                        {kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
-                                    </p>
+                                    {/* Saat semua periode terkunci, nilai tersimpan tetap terbaca; hanya petunjuk isian yang diganti. */}
+                                    {terkunciSemua ? (
+                                        <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
+                                            Tidak ada periode yang dapat dikoreksi.
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-muted">
+                                            Isi setiap sel periode yang berlaku. Kolom skor menampilkan hasil tersimpan dari server dan tidak dihitung ulang di peramban.
+                                            {koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
+                                            {kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
+                                        </p>
+                                    )}
                                     <MatriksTarget
                                         tipePerhitungan={rencanaAksi.tipe_perhitungan}
                                         komponen={komponenTerurut}

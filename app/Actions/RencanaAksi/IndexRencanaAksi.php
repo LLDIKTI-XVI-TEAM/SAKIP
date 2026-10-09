@@ -159,23 +159,22 @@ class IndexRencanaAksi
                     'baseline' => $snapshot?->baseline,
                     'komponen' => $definisi->all(),
                     'periode' => $periode,
-                    // F2: ekspos lingkup koreksi agar UI menonaktifkan +
-                    // tidak mengirim periode di luar lingkup. `aktif` true
-                    // hanya bila penutupan terlewati dan sesi koreksi sah
-                    // (waktu + jenis_objek + indikator) — cermin gerbang
-                    // tulis `SimpanTargetPeriode`; validasi fail-closed N1
-                    // tetap di backend. `periode_ids` kosong bila kunci tak
-                    // ada: tidak ada periode tercakup (gagal tertutup).
+                    // F2: lingkup koreksi untuk UI; lihat statusKoreksi.
                     'koreksi' => $koreksi,
                     'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
                     // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
-                    // (izin, status draf, jendela tulis) agar formulir tidak
-                    // dibuka untuk penyimpanan yang pasti ditolak.
+                    // (izin, unit aktif, indikator bukan arsip, status draf,
+                    // lingkup koreksi yang mencakup periode efektif, jendela
+                    // tulis) agar formulir tidak dibuka untuk penyimpanan yang
+                    // pasti ditolak.
                     'can' => [
                         'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
                         'update' => $keputusanUbah->allowed
+                            && $segel->unit?->status === 'aktif'
+                            && ! $indikator->isArsip()
                             && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
-                            && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, null, 'penyimpanan') === null,
+                            && (! $koreksi['aktif'] || array_intersect($efektifIds->all(), $koreksi['periode_ids']) !== [])
+                            && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan') === null,
                     ],
                 ];
 
@@ -320,11 +319,8 @@ class IndexRencanaAksi
      */
     private function statusKoreksi(JadwalTahunan $jadwal, IndikatorKinerja $indikator): array
     {
-        $hariIni = today(config('app.business_timezone'))->toDateString();
-        $penutupan = $jadwal->penutupan?->toDateString();
-
         return [
-            'aktif' => is_string($penutupan) && $hariIni > $penutupan && $this->jendela->sesiKoreksiAktif($indikator, $jadwal),
+            'aktif' => $this->jendela->tahunDitutup($jadwal) && $this->jendela->sesiKoreksiAktif($indikator, $jadwal),
             'periode_ids' => $this->jendela->periodeLingkupKoreksi($jadwal),
         ];
     }

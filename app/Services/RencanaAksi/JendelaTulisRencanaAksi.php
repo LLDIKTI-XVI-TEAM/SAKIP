@@ -15,29 +15,28 @@ use Carbon\CarbonInterface;
  * sampai `rencana_aksi_selesai` pada tanggal Asia/Makassar.
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
- * `SimpanTargetPeriode`) dan capability baca (`IndexRencanaAksi`) memakai
- * satu sumber aturan, sehingga UI tidak menawarkan aksi yang pasti ditolak.
- * Service ini hanya menilai; izin dasar (`PermissionDecision`) diputuskan
- * pemanggil lewat resolver, sedangkan transaksi, kunci baris, pelemparan
- * error, dan audit tetap milik Action. Pemanggil tulis wajib meneruskan
- * indikator dan jadwal yang sudah dikunci agar keputusan memakai state
- * terkini. PIC efektif dibaca tanpa kunci karena writer PJ juga mengunci
- * indikator, yang sudah dikunci pemanggil tulis.
+ * `SimpanTargetPeriode`) dan capability baca (`IndexRencanaAksi`,
+ * `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
+ * menawarkan aksi yang pasti ditolak. Service ini hanya menilai; izin dasar
+ * (`PermissionDecision`) diputuskan pemanggil lewat resolver, sedangkan
+ * transaksi, kunci baris, pelemparan error, dan audit tetap milik Action.
+ * Pemanggil tulis wajib meneruskan indikator dan jadwal yang sudah dikunci
+ * agar keputusan memakai state terkini. PIC efektif dibaca tanpa kunci
+ * karena writer PJ juga mengunci indikator, yang sudah dikunci pemanggil
+ * tulis.
  */
 class JendelaTulisRencanaAksi
 {
     /**
      * Alasan penolakan tulis dalam Bahasa Indonesia, atau null bila boleh.
      *
-     * @param  list<string>|null  $periodeIds  Periode yang hendak ditulis; null untuk pembuatan
-     *                                         header atau capability yang tidak berdimensi periode.
      * @param  'pembuatan'|'penyimpanan'  $tindakan
+     * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
+     *                                    header atau capability tanpa dimensi periode.
      */
-    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?array $periodeIds, string $tindakan): ?string
+    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = []): ?string
     {
-        $hariIni = today(config('app.business_timezone'))->toDateString();
-        $penutupan = $jadwal->penutupan?->toDateString();
-        if (is_string($penutupan) && $hariIni > $penutupan && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds)) {
+        if ($this->tahunDitutup($jadwal) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds)) {
             return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
         }
 
@@ -45,6 +44,7 @@ class JendelaTulisRencanaAksi
             return null;
         }
 
+        $hariIni = today(config('app.business_timezone'))->toDateString();
         $pic = PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->first();
         if (! $pic instanceof PenugasanIndikator || (string) $pic->user_id !== (string) $aktor->id) {
             return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
@@ -57,6 +57,16 @@ class JendelaTulisRencanaAksi
         }
 
         return null;
+    }
+
+    /**
+     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis hari ini.
+     */
+    public function tahunDitutup(JadwalTahunan $jadwal): bool
+    {
+        $penutupan = $jadwal->penutupan?->toDateString();
+
+        return is_string($penutupan) && today(config('app.business_timezone'))->toDateString() > $penutupan;
     }
 
     /**
@@ -86,7 +96,7 @@ class JendelaTulisRencanaAksi
      */
     public function periodeLingkupKoreksi(JadwalTahunan $jadwal): array
     {
-        $periodeIds = ($jadwal->lingkup_koreksi ?? [])['periode_ids'] ?? [];
+        $periodeIds = $jadwal->lingkup_koreksi['periode_ids'] ?? [];
 
         return is_array($periodeIds) ? array_values(array_map(fn ($id): string => (string) $id, $periodeIds)) : [];
     }
@@ -106,14 +116,11 @@ class JendelaTulisRencanaAksi
      * acuannya periode yang diminta, bukan yang tersimpan, sehingga header
      * tanpa target lama pun tetap divalidasi.
      *
-     * @param  list<string>|null  $periodeIds
+     * @param  list<string>  $periodeIds
      */
-    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?array $periodeIds): bool
+    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds): bool
     {
-        if (! $this->sesiKoreksiAktif($indikator, $jadwal)) {
-            return false;
-        }
-
-        return array_diff($periodeIds ?? [], $this->periodeLingkupKoreksi($jadwal)) === [];
+        return $this->sesiKoreksiAktif($indikator, $jadwal)
+            && array_diff($periodeIds, $this->periodeLingkupKoreksi($jadwal)) === [];
     }
 }

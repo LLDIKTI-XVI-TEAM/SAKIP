@@ -27,10 +27,13 @@ class DaftarRencanaAksi
      * dibekukan saat aktivasi yang dapat dibuatkan rencana aksi. Unit yang
      * di-deny untuk `rencana_aksi:read` disaring di database (deny menang;
      * izin baca global sudah diperiksa controller). Indikator yang PJ
-     * efektifnya pengguna ini tampil paling atas. Aksi "buat" memakai izin
-     * unit dan `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan
+     * efektifnya pengguna ini tampil paling atas. Aksi "buat" mensyaratkan
+     * indikator bukan arsip, unit aktif, PJ efektif, izin unit, dan
+     * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan
      * `EnsureDraftRencanaAksi`, sehingga tombol tidak ditawarkan untuk
-     * pembuatan yang pasti ditolak.
+     * pembuatan yang pasti ditolak (dan diaudit sebagai penolakan). Batas yang
+     * disadari: unit snapshot yang tidak selaras dengan unit master (indikator
+     * pindah unit pascaaktivasi) tetap baru ditolak saat Ensure.
      *
      * @return array{daftar: list<array<string, mixed>>, pagination: array<string, mixed>}
      */
@@ -57,7 +60,7 @@ class DaftarRencanaAksi
             ->orderBy('j.tahun')
             ->orderBy('indikator_kinerjas.kode')
             ->orderBy('indikator_kinerjas.id')
-            ->with('unit:id,nama')
+            ->with('unit:id,nama,status')
             ->paginate(20)
             ->withQueryString();
 
@@ -66,11 +69,11 @@ class DaftarRencanaAksi
         $daftar = $halaman->getCollection()->map(function (IndikatorKinerja $baris) use ($actor, $jadwalAktif, &$izinBuat): array {
             $adaHeader = $baris->getAttribute('rencana_aksi_id') !== null;
             $buat = false;
-            if (! $adaHeader && ! $baris->isArsip()) {
+            if (! $adaHeader && ! $baris->isArsip() && $baris->unit?->status === 'aktif' && $baris->getAttribute('pj_user_id') !== null) {
                 $unitId = (string) $baris->unit_id;
                 $keputusan = $izinBuat[$unitId] ??= $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
                 $buat = $keputusan->allowed
-                    && $this->jendela->alasanTolak($actor, $keputusan, $baris, $jadwalAktif[$baris->getAttribute('jadwal_id')], null, 'pembuatan') === null;
+                    && $this->jendela->alasanTolak($actor, $keputusan, $baris, $jadwalAktif[$baris->getAttribute('jadwal_id')], 'pembuatan') === null;
             }
 
             return [
@@ -82,13 +85,13 @@ class DaftarRencanaAksi
                 'pj_nama' => $baris->getAttribute('pj_nama'),
                 'milik_saya' => (string) $baris->getAttribute('pj_user_id') === (string) $actor->id,
                 'rencana_aksi' => $adaHeader ? ['id' => $baris->getAttribute('rencana_aksi_id'), 'status_alur' => $baris->getAttribute('status_alur')] : null,
-                'can' => ['buat' => $buat, 'buka' => $adaHeader],
+                'can' => ['buat' => $buat],
             ];
         })->values()->all();
 
         return [
             'daftar' => $daftar,
-            'pagination' => ['current_page' => $halaman->currentPage(), 'last_page' => $halaman->lastPage(), 'prev_page_url' => $halaman->previousPageUrl(), 'next_page_url' => $halaman->nextPageUrl()],
+            'pagination' => ['current_page' => $halaman->currentPage(), 'last_page' => $halaman->lastPage(), 'total' => $halaman->total(), 'prev_page_url' => $halaman->previousPageUrl(), 'next_page_url' => $halaman->nextPageUrl()],
         ];
     }
 }

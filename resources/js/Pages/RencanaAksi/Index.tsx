@@ -4,6 +4,8 @@ import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import Pagination from '@/Pages/Pengukuran/Pagination';
+import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
 
 export interface BarisRencanaAksi {
     indikator_id: string;
@@ -14,13 +16,13 @@ export interface BarisRencanaAksi {
     pj_nama: string | null;
     milik_saya: boolean;
     rencana_aksi: { id: string; status_alur: string } | null;
-    /** Capability server: `buat` sudah memuat izin unit, PJ efektif, dan jendela. */
-    can: { buat: boolean; buka: boolean };
+    /** Capability server: `buat` sudah memuat PJ efektif, izin unit, dan jendela. */
+    can: { buat: boolean };
 }
 
 interface RencanaAksiIndexProps {
     daftar: BarisRencanaAksi[];
-    pagination: { current_page: number; last_page: number; prev_page_url: string | null; next_page_url: string | null };
+    pagination: PengukuranPagination;
 }
 
 /** Satu form per baris agar status proses dan pesan gagal tidak bercampur antarbaris. */
@@ -81,7 +83,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                             {baris.kode}
                                             <span className="font-normal text-muted md:hidden"> · {baris.tahun}</span>
                                             {baris.milik_saya && (
-                                                <Badge variant="primary" size="sm" className="ml-2 md:hidden">
+                                                <Badge variant="primary" size="sm" className="ml-2">
                                                     Anda
                                                 </Badge>
                                             )}
@@ -90,16 +92,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">{baris.unit_nama ?? '—'}</TableCell>
                                     <TableCell className="hidden md:table-cell">{baris.tahun}</TableCell>
-                                    <TableCell className="hidden md:table-cell">
-                                        <span className="inline-flex items-center gap-2">
-                                            {baris.pj_nama ?? '—'}
-                                            {baris.milik_saya && (
-                                                <Badge variant="primary" size="sm">
-                                                    Anda
-                                                </Badge>
-                                            )}
-                                        </span>
-                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.pj_nama ?? '—'}</TableCell>
                                     <TableCell>
                                         {baris.rencana_aksi ? (
                                             <Badge status={baris.rencana_aksi.status_alur} size="sm" />
@@ -110,7 +103,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                     <TableCell className="text-right">
                                         {baris.can.buat ? (
                                             <TombolBuat baris={baris} />
-                                        ) : baris.can.buka && baris.rencana_aksi ? (
+                                        ) : baris.rencana_aksi ? (
                                             <Link
                                                 href={`/rencana-aksi/${baris.rencana_aksi.id}`}
                                                 aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
@@ -128,27 +121,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                     </TableBody>
                 </Table>
 
-                {pagination.last_page > 1 && (
-                    <nav aria-label="Halaman rencana aksi" className="flex items-center justify-between gap-3 border-t border-border p-4 text-sm">
-                        {pagination.prev_page_url ? (
-                            <Link href={pagination.prev_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">
-                                Sebelumnya
-                            </Link>
-                        ) : (
-                            <span className="text-muted">Sebelumnya</span>
-                        )}
-                        <span className="text-ink">
-                            Halaman {pagination.current_page} dari {pagination.last_page}
-                        </span>
-                        {pagination.next_page_url ? (
-                            <Link href={pagination.next_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">
-                                Berikutnya
-                            </Link>
-                        ) : (
-                            <span className="text-muted">Berikutnya</span>
-                        )}
-                    </nav>
-                )}
+                <Pagination pagination={pagination} label="rencana aksi" />
             </Card>
         </AuthenticatedLayout>
     );

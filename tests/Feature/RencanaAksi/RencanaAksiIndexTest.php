@@ -296,7 +296,6 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('daftar.0.milik_saya', true)
                 ->where('daftar.0.rencana_aksi', null)
                 ->where('daftar.0.can.buat', true)
-                ->where('daftar.0.can.buka', false)
                 ->where('daftar.1.indikator_id', $lain->id)
                 ->where('daftar.1.milik_saya', false)
                 ->where('daftar.1.can.buat', false));
@@ -311,25 +310,47 @@ class RencanaAksiIndexTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('daftar.0.rencana_aksi.id', $header->id)
                 ->where('daftar.0.rencana_aksi.status_alur', 'draft')
-                ->where('daftar.0.can.buat', false)
-                ->where('daftar.0.can.buka', true));
+                ->where('daftar.0.can.buat', false));
     }
 
+    /**
+     * Di luar jendela hanya jalur Perencanaan yang ditawari "Buat", dan
+     * indikator tanpa PJ efektif tidak ditawari sama sekali karena
+     * EnsureDraftRencanaAksi pasti menolaknya.
+     */
     public function test_daftar_di_luar_jendela_hanya_perencanaan_yang_ditawari_buat(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
+        $tanpaPj = $this->tambahIndikatorTerjadwal($fixture, 'A-TANPA-PJ', denganPj: false);
 
         $this->actingAs($fixture['pic'])->get('/rencana-aksi')
-            ->assertInertia(fn ($page) => $page->where('daftar.0.can.buat', false));
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.buat', false));
         $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
-            ->assertInertia(fn ($page) => $page->where('daftar.0.can.buat', true));
+            ->assertInertia(fn ($page) => $page
+                ->where('daftar.0.indikator_id', $tanpaPj->id)
+                ->where('daftar.0.pj_nama', null)
+                ->where('daftar.0.can.buat', false)
+                ->where('daftar.1.indikator_id', $fixture['indikator']->id)
+                ->where('daftar.1.can.buat', true));
     }
 
+    /**
+     * Deny `rencana_aksi:read` pada satu unit hanya menyembunyikan baris unit
+     * itu. Baris yang sudah punya header disaring memakai unit header, bukan
+     * unit master indikator yang mungkin sudah pindah.
+     */
     public function test_daftar_menyaring_unit_yang_ditolak_dan_menolak_tanpa_izin_baca(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $unitLain = Unit::create(['nama' => 'Unit Lain RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $lain = $this->tambahIndikatorTerjadwal($fixture, 'A-UNIT-LAIN', unitId: $unitLain->id);
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $fixture['indikator']->update(['unit_id' => $unitLain->id]);
         DB::table('user_permission_denied')->insert([
             'id' => (string) Str::uuid(),
             'user_id' => $fixture['pic']->id,
@@ -342,8 +363,36 @@ class RencanaAksiIndexTest extends TestCase
 
         $this->actingAs($fixture['pic'])->get('/rencana-aksi')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('daftar', 0));
+            ->assertInertia(fn ($page) => $page->has('daftar', 1)->where('daftar.0.indikator_id', $lain->id));
         $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi')->assertForbidden();
+    }
+
+    /**
+     * Gerbang tulis juga menolak unit nonaktif dan indikator arsip, sehingga
+     * capability tidak boleh menawarkan aksi yang pasti ditolak (dan diaudit
+     * sebagai penolakan).
+     */
+    public function test_capability_tidak_menawarkan_aksi_saat_unit_nonaktif_atau_indikator_arsip(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $baru = $this->tambahIndikatorTerjadwal($fixture, 'A-BARU');
+
+        Unit::whereKey($fixture['unit']->id)->update(['status' => 'nonaktif']);
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.buat', false));
+
+        Unit::whereKey($fixture['unit']->id)->update(['status' => 'aktif']);
+        $fixture['indikator']->update(['status' => 'arsip']);
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
     }
 
     /**
@@ -493,15 +542,17 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
-     * Indikator kedua pada jadwal fixture yang sama, dengan PJ pengguna lain.
+     * Indikator kedua pada jadwal fixture yang sama, dengan PJ pengguna lain
+     * (atau tanpa PJ bila `$denganPj` false).
      *
      * @param  array<string, mixed>  $fixture
      */
-    private function tambahIndikatorTerjadwal(array $fixture, string $kode): IndikatorKinerja
+    private function tambahIndikatorTerjadwal(array $fixture, string $kode, bool $denganPj = true, ?string $unitId = null): IndikatorKinerja
     {
+        $unitId ??= $fixture['unit']->id;
         $indikator = IndikatorKinerja::create([
             'sasaran_strategis_id' => $fixture['sasaran']->id,
-            'unit_id' => $fixture['unit']->id,
+            'unit_id' => $unitId,
             'kode' => $kode,
             'nama' => 'Indikator Lain',
             'satuan' => 'poin',
@@ -518,7 +569,7 @@ class RencanaAksiIndexTest extends TestCase
             'jadwal_id' => $fixture['jadwal']->id,
             'indikator_id' => $indikator->id,
             'periode_mulai_id' => $fixture['periode1']->id,
-            'unit_id' => $fixture['unit']->id,
+            'unit_id' => $unitId,
             'nama' => $indikator->nama,
             'definisi' => 'Definisi beku.',
             'satuan' => 'poin',
@@ -528,13 +579,15 @@ class RencanaAksiIndexTest extends TestCase
             'tipe_perhitungan' => 'manual',
             'target' => 50,
         ]);
-        PenugasanIndikator::create([
-            'indikator_id' => $indikator->id,
-            'user_id' => $this->penggunaDenganPeran('pegawai')->id,
-            'tanggal_mulai_berlaku' => '2026-01-01',
-            'ditetapkan_oleh' => $fixture['perencanaan']->id,
-            'created_at' => now(),
-        ]);
+        if ($denganPj) {
+            PenugasanIndikator::create([
+                'indikator_id' => $indikator->id,
+                'user_id' => $this->penggunaDenganPeran('pegawai')->id,
+                'tanggal_mulai_berlaku' => '2026-01-01',
+                'ditetapkan_oleh' => $fixture['perencanaan']->id,
+                'created_at' => now(),
+            ]);
+        }
 
         return $indikator;
     }

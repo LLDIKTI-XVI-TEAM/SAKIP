@@ -120,8 +120,8 @@ export function kunciSel(periodeId: string, komponenId: string | null): string {
 }
 
 /** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif, hanya yang tercakup. */
-export function dapatDisuntingPeriode(koreksi: RencanaAksiKoreksi | undefined | null, periodeId: string): boolean {
-    return !koreksi?.aktif || koreksi.periode_ids.includes(periodeId);
+export function dapatDisuntingPeriode(koreksi: RencanaAksiKoreksi, periodeId: string): boolean {
+    return !koreksi.aktif || koreksi.periode_ids.includes(periodeId);
 }
 
 /** Baris pratinjau server (`PreviewTargetPeriode`): tanpa persistensi, tanpa formula di React. */

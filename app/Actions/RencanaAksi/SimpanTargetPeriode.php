@@ -151,7 +151,7 @@ class SimpanTargetPeriode
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
-                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, array_column($targets, 'periode_id'), 'penyimpanan');
+                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'penyimpanan', array_column($targets, 'periode_id'));
                 if ($alasan !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasan]);
                 }

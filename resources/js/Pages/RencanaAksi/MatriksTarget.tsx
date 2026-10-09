@@ -162,7 +162,8 @@ export default function MatriksTarget({
                                     ) : (
                                         <Badge variant="success" size="sm">Terhitung</Badge>
                                     )}
-                                    {terkunciKoreksi && (
+                                    {/* Catatan per baris hanya membedakan baris saat sebagian matriks dapat disunting. */}
+                                    {terkunciKoreksi && !disabled && (
                                         <p className="mt-2 text-xs font-medium text-muted" data-testid={`koreksi-terkunci-${baris.id}`}>
                                             Di luar lingkup koreksi; tidak disunting dan tidak dikirim.
                                         </p>

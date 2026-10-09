@@ -52,7 +52,8 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('rencanaAksi.koreksi.aktif', true)
-                ->where('rencanaAksi.koreksi.periode_ids', [$fixture['periode1']->id]));
+                ->where('rencanaAksi.koreksi.periode_ids', [$fixture['periode1']->id])
+                ->where('rencanaAksi.can.update', true));
 
         // F2: bentuk UI koreksi parsial — hanya periode tercakup dikirim.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
@@ -127,7 +128,8 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('rencanaAksi.koreksi.aktif', true)
-                ->where('rencanaAksi.koreksi.periode_ids', []));
+                ->where('rencanaAksi.koreksi.periode_ids', [])
+                ->where('rencanaAksi.can.update', false));
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
