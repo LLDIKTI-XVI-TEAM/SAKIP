@@ -3,12 +3,12 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/PenanggungJawab/Index';
 
-const transport = vi.hoisted(() => ({ get: vi.fn() }));
+const transport = vi.hoisted(() => ({ get: vi.fn(), bacaIndikator: true }));
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ href, children, className }: { href: string; children: ReactNode; className?: string }) => <a href={href} className={className}>{children}</a>,
     router: { get: transport.get },
-    usePage: () => ({ props: { pengaturan: {} } }),
+    usePage: () => ({ props: { pengaturan: {}, auth: { can: { sasaranIndikator: transport.bacaIndikator } } } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
@@ -16,7 +16,7 @@ const props: ComponentProps<typeof Index> = {
     assignments: { data: [], next_page_url: '/penanggung-jawab?after=last-id&after_scope=scope' },
     filters: { q: '', tanggal_acuan: '2026-03-15', unit_id: 'unit-a' },
 };
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); transport.bacaIndikator = true; });
 
 describe('Continuation monitoring PJ', () => {
     it('menjelaskan scan belum selesai dan menyediakan tautan pada halaman kosong', () => {
@@ -64,4 +64,10 @@ it('menyediakan navigasi kembali dan menampilkan tanggal berlaku sesuai format t
     expect(screen.getByText(/Berlaku 01 Februari 2026/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Lihat penugasan' }).getAttribute('href')).toBe('/perencanaan/indikator/ind-1/penanggung-jawab');
     expect(screen.queryByText('Hapus filter unit')).toBeNull();
+});
+
+it('tanpa indikator:read tidak menautkan kembali ke Sasaran & Indikator', () => {
+    transport.bacaIndikator = false;
+    render(<Index assignments={{ data: [], next_page_url: null }} filters={{ q: '', tanggal_acuan: '2026-03-15', unit_id: null }} />);
+    expect(screen.queryByRole('link', { name: 'Kembali ke Sasaran & Indikator' })).toBeNull();
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, Edit3, RefreshCw } from 'lucide-react';
 import { HttpResponseError } from '@inertiajs/core';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -14,6 +14,7 @@ import { tipePerhitunganLabel } from '@/lib/indikator';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { FormulaModal } from '@/Pages/Perencanaan/SasaranIndikator/FormulaModal';
+import type { SharedPageProps } from '@/types/auth';
 import { DefinitionPreview } from './DefinitionPreview';
 import { loadDefinition, type DefinitionEditor } from './definition';
 
@@ -29,6 +30,8 @@ export default function KomponenIndex({ editor }: { editor: DefinitionEditor }) 
     const [editing, setEditing] = useState<{ editor: DefinitionEditor; addRow: boolean; componentId?: string } | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const { recovery, handleHttpException } = useAuthRecovery();
+    // Halaman ini cukup komponen:read (dimiliki Admin/Pimpinan/Pegawai); daftar & detail indikator butuh indikator:read.
+    const bolehBacaIndikator = usePage<SharedPageProps>().props.auth.can.sasaranIndikator === true;
 
     useEffect(() => {
         const controller = new AbortController();
@@ -65,19 +68,21 @@ export default function KomponenIndex({ editor }: { editor: DefinitionEditor }) 
             title="Komponen Indikator"
             breadcrumbs={[
                 { label: 'Perencanaan' },
-                { label: 'Sasaran & Indikator', href: '/perencanaan/sasaran-indikator' },
-                { label: current.indikator.kode, href: detailHref },
+                { label: 'Sasaran & Indikator', href: bolehBacaIndikator ? '/perencanaan/sasaran-indikator' : undefined },
+                { label: current.indikator.kode, href: bolehBacaIndikator ? detailHref : undefined },
                 { label: 'Komponen' },
             ]}
         >
             <Head title={`Komponen — ${current.indikator.kode}`} />
             <div className="mx-auto max-w-5xl space-y-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Kembali ke detail indikator
-                    </Link>
-                    <div className="flex flex-wrap items-center gap-2">
+                    {bolehBacaIndikator && (
+                        <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                            Kembali ke detail indikator
+                        </Link>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                         <Button variant="outline" size="sm" className="gap-1.5" disabled={Boolean(editing) || Boolean(recovery)} onClick={() => setReload((value) => value + 1)}>
                             <RefreshCw className="h-4 w-4" aria-hidden="true" />
                             Muat ulang data

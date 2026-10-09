@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { ArrowLeft } from 'lucide-react';
 import { Input } from '@/Components/Input';
@@ -12,6 +12,7 @@ import { GrantUserAutocomplete } from '@/Components/Access/GrantUserAutocomplete
 import { WorkReadinessList } from '@/Components/Access/WorkReadinessList';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import type { SharedPageProps } from '@/types/auth';
 import type { AssignmentDetailProps, WorkReadiness } from '@/types/penanggung-jawab';
 
 function validReadiness(value: unknown): value is WorkReadiness & { user_id: string; unit_id: string } {
@@ -32,6 +33,8 @@ export default function Show(props: AssignmentDetailProps) {
 }
 function AssignmentDetail({ indicator, unit, renstra, effective, readiness, history, has_history, expected_state, tanggal_acuan, today, blocked_reason, can }: AssignmentDetailProps) {
     const formatTanggal = useFormatTanggal();
+    // Halaman ini cukup penanggung_jawab:update; daftar & detail indikator butuh indikator:read (bisa dicabut eksplisit).
+    const bolehBacaIndikator = usePage<SharedPageProps>().props.auth.can.sasaranIndikator === true;
     const base = `/perencanaan/indikator/${indicator.id}/penanggung-jawab`;
     const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, alasan: '', expected_state });
     const [reference, setReference] = useState(tanggal_acuan);
@@ -117,18 +120,18 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
     const pagerLink = 'inline-flex h-9 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
     return <AuthenticatedLayout title="Penanggung Jawab Indikator" breadcrumbs={[
         { label: 'Perencanaan' },
-        { label: 'Sasaran & Indikator', href: daftarHref },
-        { label: indicator.kode, href: detailHref },
+        { label: 'Sasaran & Indikator', href: bolehBacaIndikator ? daftarHref : undefined },
+        { label: indicator.kode, href: bolehBacaIndikator ? detailHref : undefined },
         { label: 'Penanggung Jawab' },
     ]}>
         <Head title={`Penanggung Jawab · ${indicator.kode}`} />
         <div className="mx-auto max-w-5xl space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                {bolehBacaIndikator && <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     Kembali ke detail indikator
-                </Link>
-                <Link href="/penanggung-jawab" className={pagerLink}>Monitoring izin kerja</Link>
+                </Link>}
+                <Link href="/penanggung-jawab" className={`sm:ml-auto ${pagerLink}`}>Monitoring izin kerja</Link>
             </div>
 
             <Card>

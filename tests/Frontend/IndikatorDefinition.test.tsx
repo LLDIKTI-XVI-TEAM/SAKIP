@@ -6,9 +6,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import KomponenIndex from '@/Pages/Indikator/Komponen/Index';
 import { COMPONENTS, definition, REVISION } from './indikatorFixtures';
 
-vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null, usePage: () => ({ props: { pengaturan: {} } }) }));
+const akses = vi.hoisted(() => ({ bacaIndikator: true }));
+vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null, usePage: () => ({ props: { pengaturan: {}, auth: { can: { sasaranIndikator: akses.bacaIndikator } } } }) }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); akses.bacaIndikator = true; });
 const exact = '123456789.123456789012';
 const editor = definition({ komponen: [{ ...COMPONENTS[0], bobot: exact }, COMPONENTS[1]] });
 
@@ -53,4 +54,11 @@ it('halaman komponen kembali ke detail indikator, memakai badge status, dan simu
     await user.click(simulasi);
     expect(screen.getByRole('button', { name: 'Tutup Simulasi' }).getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('Menggunakan definisi tersimpan. Nilai simulasi tidak disimpan.')).toBeTruthy();
+});
+
+it('halaman komponen tanpa indikator:read tidak menautkan ke detail indikator', () => {
+    akses.bacaIndikator = false;
+    render(<KomponenIndex editor={definition()} />);
+    expect(screen.queryByRole('link', { name: 'Kembali ke detail indikator' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
 });

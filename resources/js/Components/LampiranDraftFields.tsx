@@ -97,6 +97,7 @@ export function LampiranDraftFields({
                     {items.map((item, index) => {
                         const prefix = `lampiran.${index}`;
                         const fileError = errors[`${prefix}.file`] ?? errors[prefix];
+                        const fileErrorId = `${headingId}-file-${index}-error`;
 
                         return (
                             <div key={item.clientId} className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5">
@@ -146,11 +147,12 @@ export function LampiranDraftFields({
                                                 accept={accept}
                                                 aria-label={`File lampiran ${index + 1}`}
                                                 aria-invalid={fileError ? true : undefined}
+                                                aria-describedby={fileError ? fileErrorId : undefined}
                                                 onChange={(event) => updateLampiran(index, 'file', event.target.files?.[0] ?? null)}
                                                 disabled={disabled || fileDisabled}
                                                 className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20 focus:outline-none"
                                             />
-                                            {fileError && <p className="mt-1 text-xs text-danger">{fileError}</p>}
+                                            {fileError && <p id={fileErrorId} role="alert" className="mt-1 text-xs text-danger">{fileError}</p>}
                                         </div>
                                     )}
 

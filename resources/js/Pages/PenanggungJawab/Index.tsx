@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Search, UserCheck } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Input } from '@/Components/Input';
@@ -8,6 +8,7 @@ import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
 import { WorkReadinessList } from '@/Components/Access/WorkReadinessList';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import type { SharedPageProps } from '@/types/auth';
 import type { IndicatorSummary, UnitSummary, WorkReadiness } from '@/types/penanggung-jawab';
 
 interface Props {
@@ -23,17 +24,19 @@ export default function Index({ assignments, filters }: Props) {
     const [query, setQuery] = useState(filters.q);
     const [date, setDate] = useState(filters.tanggal_acuan);
     const [loading, setLoading] = useState(false);
+    // Monitoring cukup penanggung_jawab:update; daftar Sasaran & Indikator butuh indikator:read.
+    const bolehBacaIndikator = usePage<SharedPageProps>().props.auth.can.sasaranIndikator === true;
     return <AuthenticatedLayout title="Monitoring Penanggung Jawab" breadcrumbs={[
         { label: 'Perencanaan' },
-        { label: 'Sasaran & Indikator', href: '/perencanaan/sasaran-indikator' },
+        { label: 'Sasaran & Indikator', href: bolehBacaIndikator ? '/perencanaan/sasaran-indikator' : undefined },
         { label: 'Monitoring Penanggung Jawab' },
     ]}>
         <Head title="Monitoring Penanggung Jawab" />
         <div className="space-y-5">
-            <Link href="/perencanaan/sasaran-indikator" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+            {bolehBacaIndikator && <Link href="/perencanaan/sasaran-indikator" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Kembali ke Sasaran & Indikator
-            </Link>
+            </Link>}
 
             <Card className="p-4">
                 <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end" onSubmit={(event) => {

@@ -31,13 +31,13 @@ it('pagination disembunyikan pada satu halaman dan menampilkan label teks tanpa 
     expect(screen.getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/regulasi?page=2');
 });
 
-function LampiranHarness({ fileDisabled = false, blockedMessage }: { fileDisabled?: boolean; blockedMessage?: string }) {
+function LampiranHarness({ fileDisabled = false, blockedMessage, errors = { lampiran: 'Maksimal lima lampiran.' } }: { fileDisabled?: boolean; blockedMessage?: string; errors?: Record<string, string> }) {
     const [items, setItems] = useState<LampiranDraft[]>([]);
 
     return (
         <LampiranDraftFields
             items={items}
-            errors={{ lampiran: 'Maksimal lima lampiran.' }}
+            errors={errors}
             onChange={(update) => setItems((previous) => update(previous))}
             title="Lampiran Dokumen"
             modeDescriptions={{ file: 'Deskripsi file', tautan: 'Deskripsi tautan', teks: 'Deskripsi teks' }}
@@ -69,6 +69,18 @@ it('editor lampiran menambah, berganti mode, menampilkan field ekstra non-file, 
 
     await user.click(screen.getByRole('button', { name: 'Hapus Lampiran' }));
     expect(screen.getByText('Belum ada lampiran')).toBeTruthy();
+});
+
+it('editor lampiran menghubungkan galat file dari server ke input file', async () => {
+    const user = userEvent.setup();
+    render(<LampiranHarness errors={{ 'lampiran.0.file': 'Ukuran file melebihi batas.' }} />);
+
+    await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+    const input = screen.getByLabelText('File lampiran 1');
+    const pesan = screen.getByRole('alert');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(pesan.textContent).toBe('Ukuran file melebihi batas.');
+    expect(input.getAttribute('aria-describedby')).toBe(pesan.id);
 });
 
 it('editor lampiran menutup penambahan saat diblokir', () => {

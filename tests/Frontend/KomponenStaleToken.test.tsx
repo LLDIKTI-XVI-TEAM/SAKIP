@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import KomponenIndex from '@/Pages/Indikator/Komponen/Index';
 import { COMPONENTS, definition, REVISION } from './indikatorFixtures';
 
-vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null }));
+vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null, usePage: () => ({ props: { pengaturan: {}, auth: { can: { sasaranIndikator: true } } } }) }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const KONFLIK = 'Data indikator kinerja telah diperbarui oleh pengguna lain. Silakan muat ulang halaman.';

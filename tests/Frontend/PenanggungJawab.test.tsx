@@ -6,11 +6,11 @@ import Show from '@/Pages/PenanggungJawab/Show';
 import type { AssignmentDetailProps } from '@/types/penanggung-jawab';
 import type { Page, VisitOptions } from '@inertiajs/core';
 
-const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string> }));
+const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string>, bacaIndikator: true }));
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()), Head: () => null,
     router: { reload: transport.reload, get: transport.get },
-    usePage: () => ({ props: { pengaturan: transport.pengaturan } }),
+    usePage: () => ({ props: { pengaturan: transport.pengaturan, auth: { can: { sasaranIndikator: transport.bacaIndikator } } } }),
     useForm: (initial: { user_id: string; tanggal_mulai_berlaku: string; alasan: string; expected_state: string }) => {
         const [data, setData] = useState(initial);
         return { data, processing: false, errors: {}, clearErrors: vi.fn(),
@@ -33,7 +33,7 @@ const props: AssignmentDetailProps = {
     has_history: true, expected_state: 'old-token', tanggal_acuan: '2026-03-15', today: '2026-03-15', blocked_reason: null,
     can: { assign: true }, saved_assignment_id: null,
 };
-beforeEach(() => { transport.pengaturan = {}; });
+beforeEach(() => { transport.pengaturan = {}; transport.bacaIndikator = true; });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 function draft() {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
@@ -113,4 +113,11 @@ it('navigasi kembali ke detail indikator dan menandai PJ efektif yang akunnya no
     expect(screen.getByRole('link', { name: 'Kembali ke detail indikator' }).getAttribute('href')).toBe('/perencanaan/indikator/indicator-a');
     expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
     expect(screen.getByText('PJ Lama').textContent).toContain('Nonaktif');
+});
+
+it('tanpa indikator:read tidak menautkan ke detail indikator yang akan ditolak 403', () => {
+    transport.bacaIndikator = false;
+    render(<Show {...props} />);
+    expect(screen.queryByRole('link', { name: 'Kembali ke detail indikator' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
 });
