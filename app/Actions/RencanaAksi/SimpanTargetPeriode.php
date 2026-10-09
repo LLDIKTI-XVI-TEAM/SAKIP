@@ -162,7 +162,7 @@ class SimpanTargetPeriode
                 $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
 
                 // Satu baca terkunci matriks tersimpan menjadi dasar audit
-                // "sebelum" sekaligus baris yang diperbarui per sel. Header
+                // "sebelum" dan mengunci baris yang akan di-upsert. Header
                 // FOR UPDATE menyerialkan simpan, jadi sel yang belum ada aman
                 // dibuat baru (index unik tetap menjaga duplikasi).
                 $terkunci = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
@@ -180,13 +180,25 @@ class SimpanTargetPeriode
                 $header->versi++;
                 $header->save();
 
-                $tersimpan = $terkunci->keyBy(fn (RencanaAksiTarget $row): string => $this->rekonsiliasi->kunciDimensi($row->periode_id, $row->komponen_id));
-                foreach ($targets as $baris) {
-                    ($tersimpan->get($this->rekonsiliasi->kunciDimensi($baris['periode_id'], $baris['komponen_id']))
-                        ?? new RencanaAksiTarget(['rencana_aksi_id' => $header->id, 'periode_id' => $baris['periode_id'], 'komponen_id' => $baris['komponen_id']]))
-                        ->fill(['nilai' => $baris['nilai'], 'keterangan' => $baris['keterangan'], 'updated_by' => $pengunci->id, 'updated_at' => now()])
-                        ->save();
-                }
+                // Satu statement untuk seluruh sel terkirim. Index unik
+                // `NULLS NOT DISTINCT` menjadi arbiter konflik sehingga baris
+                // manual (komponen NULL) juga diperbarui di tempat; pasangan
+                // ganda sudah ditolak pastikanTargetsSah, jadi ON CONFLICT
+                // tidak pernah mengenai baris yang sama dua kali.
+                $waktu = now();
+                RencanaAksiTarget::upsert(
+                    array_map(fn (array $baris): array => [
+                        'rencana_aksi_id' => $header->id,
+                        'periode_id' => $baris['periode_id'],
+                        'komponen_id' => $baris['komponen_id'],
+                        'nilai' => $baris['nilai'],
+                        'keterangan' => $baris['keterangan'],
+                        'updated_by' => $pengunci->id,
+                        'updated_at' => $waktu,
+                    ], $targets),
+                    ['rencana_aksi_id', 'periode_id', 'komponen_id'],
+                    ['nilai', 'keterangan', 'updated_by', 'updated_at'],
+                );
 
                 // Hanya sel yang efektif KEMBALI di bawah konteks terbaru
                 // yang dibuang di sini (kandidat bangkit); sel yang tak
