@@ -111,7 +111,8 @@ it('daftar membuka editor dari aggregate server, bukan child/token dalam listing
     const request = vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify(definition({ revision: 'server-revision' })), headers: {} });
     const patch = vi.spyOn(router, 'patch').mockImplementation(() => undefined);
     render(<Index renstras={[]} selectedRenstraId="ren-1" sasarans={[{ id: 'sas-1', renstra_id: 'ren-1', kode: 'SS-01', deskripsi: 'Sasaran', urutan: 1, indikator_kinerjas: [indicator({ updated_at: 'list-old' })] }]} units={[]} regulasis={[]} can={{ sasaran_create: false, sasaran_update: false, sasaran_delete: false, indikator_create: false, indikator_read: true, indikator_update: true, indikator_delete: false, komponen_read: true, komponen_update: true }} />);
-    await user.click(screen.getByRole('button', { name: 'Atur formula indikator IKU-01' }));
+    await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Atur formula indikator IKU-01' }));
     await screen.findByLabelText('Cara menghitung target'); await submit(user);
     expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: '/perencanaan/indikator/ind-1/editor' }));
     expect(patch.mock.calls[0]?.[1]).toHaveProperty('expected_updated_at', 'server-revision');

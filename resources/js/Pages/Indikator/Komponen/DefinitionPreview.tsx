@@ -72,8 +72,7 @@ export function DefinitionPreview({ editor, paused }: { editor: DefinitionEditor
                     : `${formatNilai(result.nilai, editor.indikator.desimal_tampilan)} ${editor.indikator.satuan} · ${statusPerhitungan[result.status_perhitungan]}`);
 
     return (
-        <section className="space-y-4 rounded-xl border border-border bg-surface p-5" aria-label="Simulasi perhitungan">
-            <h2 className="font-semibold text-ink">Simulasi Perhitungan</h2>
+        <div className="space-y-4">
             <p className="text-sm text-muted">Menggunakan definisi tersimpan. Nilai simulasi tidak disimpan.</p>
             <AuthRecoveryNotice recovery={recovery} pending={false} />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -85,7 +84,7 @@ export function DefinitionPreview({ editor, paused }: { editor: DefinitionEditor
                     />
                 ))}
             </div>
-            <div role="status" aria-live="polite" className="rounded-lg bg-soft p-4 text-sm">{message}</div>
-        </section>
+            <div role="status" aria-live="polite" className="rounded-lg bg-soft p-4 text-sm text-ink">{message}</div>
+        </div>
     );
 }

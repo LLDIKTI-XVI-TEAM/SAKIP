@@ -113,7 +113,7 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
                         isLoading={processing}
                         disabled={processing || unitTujuan.length === 0}
                     >
-                        {processing ? 'Memindahkan...' : 'Pindahkan Unit'}
+                        Pindahkan Unit
                     </Button>
                 </div>
             }

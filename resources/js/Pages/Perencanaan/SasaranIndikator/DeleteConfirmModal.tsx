@@ -25,8 +25,8 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
     const isSasaran = target.type === 'sasaran';
     const title = isSasaran
-        ? `Hapus Sasaran Strategis [${(target.item as SasaranStrategisItem).kode}]?`
-        : `Arsipkan Indikator [${(target.item as IndikatorKinerjaItem).kode}]?`;
+        ? `Hapus Sasaran Strategis ${(target.item as SasaranStrategisItem).kode}?`
+        : `Arsipkan Indikator ${(target.item as IndikatorKinerjaItem).kode}?`;
 
     const description = isSasaran
         ? `Tindakan ini akan menghapus sasaran strategis "${(target.item as SasaranStrategisItem).kode}". Perhatian: Sasaran yang memiliki indikator kinerja tidak dapat dihapus sebelum indikatornya dipindahkan atau dihapus.`
@@ -34,7 +34,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
     const handleConfirm = () => {
         if (data.alasan.trim().length < 10) {
-            setReasonError('Alasan pengarsipan minimal 10 karakter.');
+            setReasonError(`Alasan ${isSasaran ? 'penghapusan' : 'pengarsipan'} minimal 10 karakter.`);
             return;
         }
 

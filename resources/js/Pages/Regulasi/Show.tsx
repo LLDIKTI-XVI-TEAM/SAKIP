@@ -1,74 +1,22 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Download, ExternalLink, FileText } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { jenisRegulasiLabel } from '@/lib/regulasi';
+import { tautanAman } from '@/lib/url';
+import { Badge } from '@/Components/Badge';
+import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { BerkasRegulasi, RegulasiDetail, RegulasiJenis } from '@/types/regulasi';
+import type { RegulasiDetail } from '@/types/regulasi';
 
 interface ShowRegulasiProps {
     regulasi: RegulasiDetail;
 }
 
-const jenisLabel: Record<RegulasiJenis, string> = {
-    kepmen: 'Keputusan Menteri',
-    permen: 'Peraturan Menteri',
-    perpres: 'Peraturan Presiden',
-    keputusan_lainnya: 'Keputusan lainnya',
-};
-
-function formatBytes(value: number | null): string {
-    if (value === null) return '';
-    if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-
-    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function Attachment({ attachment }: { attachment: BerkasRegulasi }) {
-    const title = attachment.mode === 'file'
-        ? attachment.nama_asli ?? 'Dokumen tanpa nama'
-        : attachment.mode === 'tautan'
-            ? 'Tautan dokumen sumber'
-            : 'Keterangan dokumen';
-
-    return (
-        <li className="rounded-lg border border-border bg-page px-4 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                        <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                        {title}
-                    </p>
-                    {attachment.mode === 'file' && (
-                        <p className="mt-1 text-xs text-muted">{attachment.mime} · {formatBytes(attachment.ukuran_bytes)}</p>
-                    )}
-                    {attachment.mode === 'teks' && (
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink">{attachment.isi_teks}</p>
-                    )}
-                </div>
-
-                <div className="shrink-0">
-                    {attachment.mode === 'file' && attachment.download_url && (
-                        <a href={attachment.download_url} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-                            <Download className="h-4 w-4" aria-hidden="true" />
-                            Unduh file
-                        </a>
-                    )}
-                    {attachment.mode === 'tautan' && attachment.tautan && (
-                        <a href={attachment.tautan} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                            Buka tautan
-                        </a>
-                    )}
-                </div>
-            </div>
-        </li>
-    );
-}
-
 export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
     const formatTanggal = useFormatTanggal();
+    const sumberResmi = tautanAman(regulasi.tautan_sumber);
 
     return (
         <AuthenticatedLayout
@@ -87,11 +35,11 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                     <CardHeader className="items-start gap-4">
                         <div>
                             <CardTitle>{regulasi.nomor}/{regulasi.tahun}</CardTitle>
-                            <p className="mt-1 text-sm leading-6 text-muted">{jenisLabel[regulasi.jenis]}</p>
+                            <p className="mt-1 text-sm leading-6 text-muted">{jenisRegulasiLabel[regulasi.jenis]}</p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${regulasi.aktif ? 'bg-success/10 text-success' : 'bg-soft text-muted'}`}>
+                        <Badge variant={regulasi.aktif ? 'success' : 'muted'} dot className="shrink-0">
                             {regulasi.aktif ? 'Aktif' : 'Nonaktif'}
-                        </span>
+                        </Badge>
                     </CardHeader>
                     <CardContent>
                         <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
@@ -106,8 +54,8 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                             <div>
                                 <dt className="text-xs font-semibold text-muted">Sumber resmi</dt>
                                 <dd className="mt-1">
-                                    {regulasi.tautan_sumber ? (
-                                        <a href={regulasi.tautan_sumber} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                                    {sumberResmi ? (
+                                        <a href={sumberResmi} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
                                             Buka sumber resmi <ExternalLink className="h-4 w-4" aria-hidden="true" />
                                         </a>
                                     ) : (
@@ -130,7 +78,7 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                     <CardContent>
                         {regulasi.berkas.length > 0 ? (
                             <ul className="space-y-3">
-                                {regulasi.berkas.map((attachment) => <Attachment key={attachment.id} attachment={attachment} />)}
+                                {regulasi.berkas.map((berkas) => <BerkasLampiranItem key={berkas.id} berkas={berkas} />)}
                             </ul>
                         ) : (
                             <p className="text-sm leading-6 text-muted">Belum ada lampiran dokumen pada regulasi ini.</p>

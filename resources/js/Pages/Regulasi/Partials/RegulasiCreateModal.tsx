@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useForm } from '@inertiajs/react';
-import { FileText } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
@@ -95,15 +94,7 @@ export const RegulasiCreateModal: React.FC<RegulasiCreateModalProps> = ({
             showCloseButton={!form.processing}
             size="3xl"
             bodyClassName="p-4 sm:p-6"
-            title={
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary">
-                        <FileText className="h-4 w-4" />
-                    </div>
-                    <span>Tambah Dasar Aturan</span>
-                </div>
-            }
-            description="Tambahkan dasar hukum atau regulasi yang menjadi rujukan dalam penyusunan SAKIP."
+            title="Tambah Dasar Aturan"
         >
             <form onSubmit={submit} noValidate className="space-y-6">
                 <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />

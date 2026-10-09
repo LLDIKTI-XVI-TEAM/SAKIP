@@ -5,6 +5,7 @@ import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { Switch } from '@/Components/Switch';
+import { formatRegulasiRingkas } from '@/lib/regulasi';
 import { Button } from '@/Components/Button';
 import type {
     SasaranIndikatorCapabilities,
@@ -31,6 +32,8 @@ interface IndikatorModalProps {
     indikator: IndikatorKinerjaItem | null;
     editor: DefinitionEditor | null;
     can: SasaranIndikatorCapabilities;
+    /** Bila diisi, server mengarahkan kembali ke halaman detail indikator setelah simpan. */
+    kembaliKe?: 'detail';
 }
 
 export const IndikatorModal: React.FC<IndikatorModalProps> = ({
@@ -40,7 +43,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
     defaultSasaranId,
     units,
     regulasis,
-    indikator: initialIndikator, editor, can,
+    indikator: initialIndikator, editor, can, kembaliKe,
 }) => {
     const [indikator] = useState(initialIndikator);
     const isEdit = Boolean(indikator);
@@ -95,7 +98,8 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         const includeDefinition = definitionReadable && (changed.length > 0 || deleted.length > 0 || (!isEdit && data.tipe_perhitungan !== 'manual'));
         transform((formData) => ({ ...formData, ...(isEdit && indikator ? { unit_id: indikator.unit_id } : {}),
             regulasi_id: formData.regulasi_id || null, definisi_operasional: formData.definisi_operasional || null,
-            ...(includeDefinition ? { komponen: changed.map(rowPayload), hapus_komponen_ids: deleted } : {}), request_id: requestId }));
+            ...(includeDefinition ? { komponen: changed.map(rowPayload), hapus_komponen_ids: deleted } : {}),
+            ...(isEdit && kembaliKe ? { kembali: kembaliKe } : {}), request_id: requestId }));
         const path = isEdit && indikator ? `/perencanaan/indikator/${indikator.id}` : '/perencanaan/indikator';
         submitting.current = true;
         const options = {
@@ -137,18 +141,24 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         type="submit"
                         variant="primary"
                         form="indikator-editor-form"
-                        disabled={processing || feedback.blocked || (isEdit && !baseline?.pagination.complete)}
+                        isLoading={processing}
+                        disabled={feedback.blocked || (isEdit && !baseline?.pagination.complete)}
                     >
-                        {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Indikator'}
+                        {isEdit ? 'Simpan Perubahan' : 'Tambah Indikator'}
                     </Button>
                 </div>
             }
         >
             <form id="indikator-editor-form" onSubmit={handleSubmit} className="space-y-4">
                 <AuthRecoveryNotice recovery={feedback.recovery} pending={processing} />
-                {feedback.failure && <div role="alert"><p>{feedback.failure}</p><Link href="/perencanaan/sasaran-indikator" preserveState={false} className="text-primary underline">Buang draft dan muat ulang data</Link></div>}
-                {feedback.notice && <p role="status">{feedback.notice}</p>}
-                {(Object.keys(errors).length > 0 || limitError) && <div ref={errorSummary} tabIndex={-1} role="alert" className="text-sm text-danger"><p>{limitError || 'Penyimpanan ditolak. Periksa isian berikut.'}</p><ul>{Object.entries(errors).map(([key, message]) => <li key={key}>{message}</li>)}</ul></div>}
+                {feedback.failure && (
+                    <div role="alert" className="space-y-2 rounded-lg bg-soft p-3 text-sm">
+                        <p>{feedback.failure}</p>
+                        <Link href={kembaliKe === 'detail' && indikator ? `/perencanaan/indikator/${indikator.id}` : '/perencanaan/sasaran-indikator'} preserveState={false} className="font-medium text-primary underline">Buang draft dan muat ulang data</Link>
+                    </div>
+                )}
+                {feedback.notice && <p role="status" className="text-sm text-ink">{feedback.notice}</p>}
+                {(Object.keys(errors).length > 0 || limitError) && <div ref={errorSummary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 p-3 text-sm text-danger"><p>{limitError || 'Penyimpanan ditolak. Periksa isian berikut.'}</p><ul>{Object.entries(errors).map(([key, message]) => <li key={key}>{message}</li>)}</ul></div>}
                 <fieldset disabled={processing || feedback.blocked} className="space-y-4">
                 <div>
                     <Select
@@ -304,7 +314,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                         <option value="">-- Tanpa Regulasi Rujukan --</option>
                         {regulasis.map((r) => (
                             <option key={r.id} value={r.id}>
-                                {r.jenis.toUpperCase()} No. {r.nomor}/{r.tahun} - {r.tentang.length > 60 ? `${r.tentang.substring(0, 60)}...` : r.tentang}
+                                {formatRegulasiRingkas(r)} — {r.tentang.length > 60 ? `${r.tentang.substring(0, 60)}...` : r.tentang}
                             </option>
                         ))}
                     </Select>
@@ -336,7 +346,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     <Button type="button" variant="outline" aria-expanded={definitionOpen} onClick={() => setDefinitionOpen((value) => !value)}>Komponen Formula</Button>
                     {definitionOpen && <DefinitionFields prefix="indikator" rows={rows} deleted={deleted} tipe={data.tipe_perhitungan} can={definitionCan} disabled={processing || feedback.blocked} onRows={setRows} onDeleted={setDeleted} errors={nestedErrors} />}
                 </section>}
-                <Textarea id="indikator-alasan" label="Alasan perubahan" value={data.alasan} onChange={(event) => setData('alasan', event.target.value)} error={errors.alasan} helperText="Wajib saat mengubah tipe atau memperbarui/menghapus komponen; minimal 5 karakter." />
+                {isEdit && <Textarea id="indikator-alasan" label="Alasan perubahan" value={data.alasan} onChange={(event) => setData('alasan', event.target.value)} error={errors.alasan} helperText="Wajib saat mengubah tipe atau memperbarui/menghapus komponen; minimal 5 karakter." />}
                 </fieldset>
             </form>
         </Modal>
