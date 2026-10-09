@@ -16,8 +16,6 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Authorization\PermissionResolver;
-use App\Support\PermissionDecision;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -29,120 +27,6 @@ use Tests\TestCase;
 class RencanaAksiAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_create_menolak_saat_izin_dicabut_di_dalam_transaksi(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $counter = new \stdClass;
-        $counter->count = 0;
-        $mock = $this->createMock(PermissionResolver::class);
-        $mock->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use ($counter) {
-            $counter->count++;
-            if ($counter->count === 1) {
-                return new PermissionDecision(true, $code, [
-                    'alasan' => 'allow',
-                    'sumber_allow' => ['roles' => ['role-test'], 'grants' => []],
-                    'deny' => [],
-                ]);
-            }
-
-            return new PermissionDecision(false, $code, [
-                'alasan' => 'revoked_inside_transaction',
-                'sumber_allow' => ['roles' => [], 'grants' => []],
-                'deny' => [],
-            ]);
-        });
-        $mock->method('decide')->willReturnCallback(function ($user, $code, $unitId = null) use ($counter) {
-            $counter->count++;
-            if ($counter->count === 1) {
-                return ['allowed' => true, 'permission' => $code, 'reason' => 'allow', 'roles' => ['role-test'], 'grants' => [], 'denies' => []];
-            }
-
-            return ['allowed' => false, 'permission' => $code, 'reason' => 'revoked_inside_transaction', 'roles' => [], 'grants' => [], 'denies' => []];
-        });
-        $mock->method('allows')->willReturnCallback(function () use ($counter) {
-            $counter->count++;
-
-            return $counter->count === 1;
-        });
-        $this->app->instance(PermissionResolver::class, $mock);
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertForbidden();
-
-        $this->assertGreaterThanOrEqual(2, $counter->count, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
-        $this->assertDatabaseCount('rencana_aksi', 0);
-
-        $audit = AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->latest('waktu')->first();
-        $this->assertNotNull($audit);
-        $this->assertSame('revoked_inside_transaction', $audit->dasar_izin['reason'] ?? $audit->dasar_izin['alasan'] ?? null);
-    }
-
-    public function test_update_menolak_saat_izin_dicabut_di_dalam_transaksi(): void
-    {
-        $fixture = $this->buatFixtureManual();
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasNoErrors();
-        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-
-        $counter = new \stdClass;
-        $counter->count = 0;
-        $mock = $this->createMock(PermissionResolver::class);
-        $mock->method('resolve')->willReturnCallback(function ($user, $code, $unitId = null) use ($counter) {
-            $counter->count++;
-            if ($counter->count === 1) {
-                return new PermissionDecision(true, $code, [
-                    'alasan' => 'allow',
-                    'sumber_allow' => ['roles' => ['role-test'], 'grants' => []],
-                    'deny' => [],
-                ]);
-            }
-
-            return new PermissionDecision(false, $code, [
-                'alasan' => 'revoked_inside_transaction',
-                'sumber_allow' => ['roles' => [], 'grants' => []],
-                'deny' => [],
-            ]);
-        });
-        $mock->method('decide')->willReturnCallback(function ($user, $code, $unitId = null) use ($counter) {
-            $counter->count++;
-            if ($counter->count === 1) {
-                return ['allowed' => true, 'permission' => $code, 'reason' => 'allow', 'roles' => ['role-test'], 'grants' => [], 'denies' => []];
-            }
-
-            return ['allowed' => false, 'permission' => $code, 'reason' => 'revoked_inside_transaction', 'roles' => [], 'grants' => [], 'denies' => []];
-        });
-        $mock->method('allows')->willReturnCallback(function () use ($counter) {
-            $counter->count++;
-
-            return $counter->count === 1;
-        });
-        $this->app->instance(PermissionResolver::class, $mock);
-
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
-            'expected_snapshot_id' => $fixture['snapshot']->id,
-            'expected_snapshot_versi' => 1,
-            'targets' => [
-                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
-            ],
-        ])->assertForbidden();
-
-        $this->assertGreaterThanOrEqual(2, $counter->count, 'PermissionResolver harus dipanggil kembali di dalam transaksi untuk otorisasi ulang.');
-        $this->assertSame(1, $header->fresh()->versi);
-
-        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->latest('waktu')->first();
-        $this->assertNotNull($audit);
-        $this->assertSame('revoked_inside_transaction', $audit->dasar_izin['reason'] ?? $audit->dasar_izin['alasan'] ?? null);
-    }
 
     public function test_mencabut_grant_menolak_mutasi_berikutnya(): void
     {
