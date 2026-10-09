@@ -55,6 +55,15 @@ class PengukuranWorkflowTest extends TestCase
         $this->assertFalse($policy->usesPlanningPath($pegawai, $this->pengukuran));
     }
 
+    public function test_role_allow_with_unit_grant_stays_planning_path(): void
+    {
+        // Perilaku saat ini; berubah hanya bila keputusan D5 (jalur ganda) menetapkan lain.
+        $perencanaan = $this->userWithRole('perencanaan');
+        $this->grant($perencanaan, 'pengukuran:update');
+
+        $this->assertTrue(app(PengukuranKinerjaPolicy::class)->usesPlanningPath($perencanaan, $this->pengukuran));
+    }
+
     public function test_dashboard_does_not_publish_raw_evidence_or_average_heterogeneous_values(): void
     {
         $this->pengukuran->update(['status_alur' => 'diajukan', 'nilai' => 999, 'status_perhitungan' => 'terhitung']);
