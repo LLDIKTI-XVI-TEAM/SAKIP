@@ -23,7 +23,7 @@ const milikSaya: BarisRencanaAksi = {
     pj_nama: 'Budi',
     milik_saya: true,
     rencana_aksi: null,
-    can: { buat: true },
+    can: { create: true },
 };
 
 beforeEach(() => {
@@ -41,8 +41,8 @@ describe('Daftar Rencana Aksi', () => {
             <RencanaAksiIndex
                 daftar={[
                     milikSaya,
-                    { ...milikSaya, indikator_id: 'ind-2', kode: 'IKU-5', milik_saya: false, rencana_aksi: { id: 'ra-2', status_alur: 'draft' }, can: { buat: false } },
-                    { ...milikSaya, indikator_id: 'ind-3', kode: 'IKU-7', milik_saya: false, can: { buat: false } },
+                    { ...milikSaya, indikator_id: 'ind-2', kode: 'IKU-5', milik_saya: false, rencana_aksi: { id: 'ra-2', status_alur: 'draft' }, can: { create: false } },
+                    { ...milikSaya, indikator_id: 'ind-3', kode: 'IKU-7', milik_saya: false, can: { create: false } },
                 ]}
                 pagination={satuHalaman}
             />,

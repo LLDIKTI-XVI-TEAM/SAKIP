@@ -681,6 +681,6 @@ class SimpanTargetPeriode
             ->get(['periode_id', 'komponen_id', 'nilai', 'keterangan'])
             ->toArray();
 
-        return [...$header->only(['status_alur', 'versi', 'uraian', 'alasan_deviasi_pk']), 'targets' => $targets];
+        return [...$header->only(['status_alur', 'versi', 'snapshot_draf_id', 'uraian', 'alasan_deviasi_pk']), 'targets' => $targets];
     }
 }

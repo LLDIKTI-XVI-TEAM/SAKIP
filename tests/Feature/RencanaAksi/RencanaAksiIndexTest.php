@@ -295,10 +295,10 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('daftar.0.tahun', 2026)
                 ->where('daftar.0.milik_saya', true)
                 ->where('daftar.0.rencana_aksi', null)
-                ->where('daftar.0.can.buat', true)
+                ->where('daftar.0.can.create', true)
                 ->where('daftar.1.indikator_id', $lain->id)
                 ->where('daftar.1.milik_saya', false)
-                ->where('daftar.1.can.buat', false));
+                ->where('daftar.1.can.create', false));
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
@@ -310,7 +310,7 @@ class RencanaAksiIndexTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('daftar.0.rencana_aksi.id', $header->id)
                 ->where('daftar.0.rencana_aksi.status_alur', 'draft')
-                ->where('daftar.0.can.buat', false));
+                ->where('daftar.0.can.create', false));
     }
 
     /**
@@ -325,14 +325,14 @@ class RencanaAksiIndexTest extends TestCase
         $tanpaPj = $this->tambahIndikatorTerjadwal($fixture, 'A-TANPA-PJ', denganPj: false);
 
         $this->actingAs($fixture['pic'])->get('/rencana-aksi')
-            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.buat', false));
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.create', false));
         $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
             ->assertInertia(fn ($page) => $page
                 ->where('daftar.0.indikator_id', $tanpaPj->id)
                 ->where('daftar.0.pj_nama', null)
-                ->where('daftar.0.can.buat', false)
+                ->where('daftar.0.can.create', false)
                 ->where('daftar.1.indikator_id', $fixture['indikator']->id)
-                ->where('daftar.1.can.buat', true));
+                ->where('daftar.1.can.create', true));
     }
 
     /**
@@ -368,9 +368,10 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
-     * Gerbang tulis juga menolak unit nonaktif dan indikator arsip, sehingga
-     * capability tidak boleh menawarkan aksi yang pasti ditolak (dan diaudit
-     * sebagai penolakan).
+     * Gerbang tulis juga menolak unit nonaktif, indikator arsip, dan unit
+     * snapshot yang tidak selaras dengan unit master, sehingga capability
+     * tidak boleh menawarkan aksi yang pasti ditolak (dan diaudit sebagai
+     * penolakan).
      */
     public function test_capability_tidak_menawarkan_aksi_saat_unit_nonaktif_atau_indikator_arsip(): void
     {
@@ -387,12 +388,37 @@ class RencanaAksiIndexTest extends TestCase
         $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
             ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
         $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
-            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.buat', false));
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.create', false));
 
         Unit::whereKey($fixture['unit']->id)->update(['status' => 'aktif']);
         $fixture['indikator']->update(['status' => 'arsip']);
         $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
             ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.update', false));
+
+        // Indikator pindah unit setelah aktivasi: snapshot masih berunit lama
+        // sehingga EnsureDraftRencanaAksi menolak; tombol tidak ditawarkan.
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.create', true));
+        $unitLain = Unit::create(['nama' => 'Unit Tujuan RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $baru->update(['unit_id' => $unitLain->id]);
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.create', false));
+        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', ['indikator_id' => $baru->id, 'tahun' => 2026])
+            ->assertSessionHasErrors('snapshot');
+
+        // Snapshot koreksi v2 berunit baru: versi terbaru yang menentukan,
+        // dan indikator tetap satu baris walau punya dua versi snapshot.
+        $v1 = JadwalSnapshot::where('indikator_id', $baru->id)->sole();
+        JadwalSnapshot::create([
+            ...$v1->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
+            'nomor_versi' => 2,
+            'menggantikan_id' => $v1->id,
+            'alasan_koreksi' => 'Koreksi unit setelah pindah.',
+            'rujukan_koreksi' => 'SK-KOREKSI-UNIT-RA',
+            'unit_id' => $unitLain->id,
+        ]);
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->has('daftar', 2)->where('daftar.0.indikator_id', $baru->id)->where('daftar.0.can.create', true));
     }
 
     /**

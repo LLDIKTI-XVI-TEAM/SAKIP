@@ -66,7 +66,7 @@ class PreviewTargetPeriodeRequest extends FormRequest
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
-            'targets.*.keterangan' => ['nullable', 'string', 'max:10000'],
+            'targets.*.keterangan' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

@@ -71,6 +71,38 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->exists());
     }
 
+    /**
+     * Seluruh matriks masuk audit dua kali tiap simpan, jadi ukuran per
+     * permintaan (keterangan per sel) dan frekuensi tulis dibatasi agar
+     * `audit_log` yang append-only tidak dapat dibanjiri. Pratinjau tidak
+     * menulis audit dan dipanggil tiap ketikan, sehingga tidak ikut dibatasi.
+     */
+    public function test_tulis_membatasi_keterangan_dan_frekuensi_tanpa_membatasi_pratinjau(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $ensure = fn () => $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', ['indikator_id' => $fixture['indikator']->id, 'tahun' => 2026]);
+        $payload = fn (?string $keterangan) => [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => $keterangan]],
+        ];
+
+        $ensure()->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", $payload(str_repeat('x', 1001)))
+            ->assertSessionHasErrors('targets.0.keterangan');
+        $this->assertSame(1, $header->fresh()->versi);
+
+        for ($permintaan = 3; $permintaan <= 30; $permintaan++) {
+            $ensure()->assertSessionHasNoErrors();
+        }
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", $payload(null))->assertStatus(429);
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/preview", $payload(null))->assertOk();
+    }
+
     public function test_nonmanual_menyimpan_per_komponen_efektif_dan_nol_berbeda_dari_null(): void
     {
         $fixture = $this->buatFixtureRasio();

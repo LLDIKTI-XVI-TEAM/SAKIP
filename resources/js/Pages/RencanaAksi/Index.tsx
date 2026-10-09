@@ -16,8 +16,8 @@ export interface BarisRencanaAksi {
     pj_nama: string | null;
     milik_saya: boolean;
     rencana_aksi: { id: string; status_alur: string } | null;
-    /** Capability server: `buat` sudah memuat PJ efektif, izin unit, dan jendela. */
-    can: { buat: boolean };
+    /** Capability server: `create` sudah memuat PJ efektif, izin unit, unit snapshot, dan jendela. */
+    can: { create: boolean };
 }
 
 interface RencanaAksiIndexProps {
@@ -101,7 +101,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {baris.can.buat ? (
+                                        {baris.can.create ? (
                                             <TombolBuat baris={baris} />
                                         ) : baris.rencana_aksi ? (
                                             <Link

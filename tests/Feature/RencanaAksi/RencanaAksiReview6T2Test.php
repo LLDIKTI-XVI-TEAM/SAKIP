@@ -59,6 +59,7 @@ class RencanaAksiReview6T2Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
         $this->assertSame($fixture['snapshot']->id, $header->snapshot_draf_id);
+        $this->assertSame($fixture['snapshot']->id, AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->sole()->nilai_baru['snapshot_draf_id']);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
@@ -112,6 +113,9 @@ class RencanaAksiReview6T2Test extends TestCase
         $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->where('alasan', 'like', '%Rekonsiliasi transisi%')->first();
         $this->assertNotNull($audit);
         $this->assertStringContainsString('Rekonsiliasi transisi snapshot v1->v3: 1 baris basi dibersihkan.', (string) $audit->alasan);
+        // Perpindahan jepit snapshot ikut terekam agar konteks formula tiap simpan dapat dibuktikan.
+        $this->assertSame($fixture['snapshot']->id, $audit->nilai_lama['snapshot_draf_id']);
+        $this->assertSame($v3->id, $audit->nilai_baru['snapshot_draf_id']);
     }
 
     public function test_snapshot_terbit_yang_dipakai_draf_beku_di_db_tapi_koreksi_sisipan_terbuka(): void

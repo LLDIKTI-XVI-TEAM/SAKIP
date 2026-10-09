@@ -229,6 +229,6 @@ class EnsureDraftRencanaAksi
      */
     private function auditState(RencanaAksi $rencanaAksi): array
     {
-        return $rencanaAksi->only(['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'penanggung_jawab_id', 'status_alur', 'versi']);
+        return $rencanaAksi->only(['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'snapshot_draf_id', 'penanggung_jawab_id', 'status_alur', 'versi']);
     }
 }

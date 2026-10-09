@@ -61,7 +61,9 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
-            'targets.*.keterangan' => ['nullable', 'string', 'max:10000'],
+            // Seluruh matriks (hingga 600 sel) masuk audit lama+baru tiap
+            // simpan; batas per sel menjaga ukuran satu permintaan.
+            'targets.*.keterangan' => ['nullable', 'string', 'max:1000'],
             // F2/F3 (Review6 T2): jepit konteks ditulis server saja
             // (EnsureDraft saat buat, Simpan tiap simpan) — klien dilarang
             // mengirimnya agar tak dapat memalsukan rekonsiliasi/trigger.

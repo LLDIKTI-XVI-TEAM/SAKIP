@@ -31,9 +31,9 @@ class DaftarRencanaAksi
      * indikator bukan arsip, unit aktif, PJ efektif, izin unit, dan
      * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan
      * `EnsureDraftRencanaAksi`, sehingga tombol tidak ditawarkan untuk
-     * pembuatan yang pasti ditolak (dan diaudit sebagai penolakan). Batas yang
-     * disadari: unit snapshot yang tidak selaras dengan unit master (indikator
-     * pindah unit pascaaktivasi) tetap baru ditolak saat Ensure.
+     * pembuatan yang pasti ditolak (dan diaudit sebagai penolakan), termasuk
+     * indikator yang pindah unit setelah aktivasi: unit snapshot terbaru wajib
+     * sama dengan unit master, cermin `pastikanSnapshotTersedia`.
      *
      * @return array{daftar: list<array<string, mixed>>, pagination: array<string, mixed>}
      */
@@ -49,8 +49,9 @@ class DaftarRencanaAksi
             ->select('user_permission_denied.unit_id');
 
         $halaman = IndikatorKinerja::query()
-            ->select('indikator_kinerjas.*', 'snap.jadwal_id', 'j.tahun as tahun_jadwal', 'ra.id as rencana_aksi_id', 'ra.status_alur', 'pj.user_id as pj_user_id', 'pju.nama as pj_nama')
-            ->joinSub(JadwalSnapshot::query()->select('jadwal_id', 'indikator_id')->distinct()->whereIn('jadwal_id', $jadwalAktif->keys()), 'snap', 'snap.indikator_id', '=', 'indikator_kinerjas.id')
+            ->select('indikator_kinerjas.*', 'snap.jadwal_id', 'snap.unit_id as snap_unit_id', 'j.tahun as tahun_jadwal', 'ra.id as rencana_aksi_id', 'ra.status_alur', 'pj.user_id as pj_user_id', 'pju.nama as pj_nama')
+            // Satu baris per (jadwal, indikator): snapshot versi terbaru.
+            ->joinSub(JadwalSnapshot::query()->selectRaw('DISTINCT ON (jadwal_id, indikator_id) jadwal_id, indikator_id, unit_id')->whereIn('jadwal_id', $jadwalAktif->keys())->orderBy('jadwal_id')->orderBy('indikator_id')->orderByDesc('nomor_versi'), 'snap', 'snap.indikator_id', '=', 'indikator_kinerjas.id')
             ->join('jadwal_tahunan as j', 'j.id', '=', 'snap.jadwal_id')
             ->leftJoin('rencana_aksi as ra', fn ($join) => $join->on('ra.indikator_id', '=', 'indikator_kinerjas.id')->on('ra.tahun', '=', 'j.tahun'))
             ->leftJoinSub(PenugasanIndikator::effectiveOn($hariIni)->select('indikator_id', 'user_id'), 'pj', 'pj.indikator_id', '=', 'indikator_kinerjas.id')
@@ -69,7 +70,9 @@ class DaftarRencanaAksi
         $daftar = $halaman->getCollection()->map(function (IndikatorKinerja $baris) use ($actor, $jadwalAktif, &$izinBuat): array {
             $adaHeader = $baris->getAttribute('rencana_aksi_id') !== null;
             $buat = false;
-            if (! $adaHeader && ! $baris->isArsip() && $baris->unit?->status === 'aktif' && $baris->getAttribute('pj_user_id') !== null) {
+            $unitBeku = (string) $baris->getAttribute('snap_unit_id');
+            if (! $adaHeader && ! $baris->isArsip() && $baris->unit?->status === 'aktif' && $baris->getAttribute('pj_user_id') !== null
+                && ($unitBeku === '' || $unitBeku === (string) $baris->unit_id)) {
                 $unitId = (string) $baris->unit_id;
                 $keputusan = $izinBuat[$unitId] ??= $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
                 $buat = $keputusan->allowed
@@ -85,7 +88,7 @@ class DaftarRencanaAksi
                 'pj_nama' => $baris->getAttribute('pj_nama'),
                 'milik_saya' => (string) $baris->getAttribute('pj_user_id') === (string) $actor->id,
                 'rencana_aksi' => $adaHeader ? ['id' => $baris->getAttribute('rencana_aksi_id'), 'status_alur' => $baris->getAttribute('status_alur')] : null,
-                'can' => ['buat' => $buat],
+                'can' => ['create' => $buat],
             ];
         })->values()->all();
 

@@ -233,7 +233,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Rencana Aksi — penyusunan target per periode
     Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
     Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
-    Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
-    Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
+    // Tulis RA menambah audit append-only (matriks penuh); batasi per pengguna.
+    // Pratinjau tidak menulis audit dan dipanggil tiap ketikan, jadi dikecualikan.
+    Route::middleware('throttle:30,1,rencana-aksi-tulis')->group(function (): void {
+        Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
+        Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
+    });
     Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');
 });
