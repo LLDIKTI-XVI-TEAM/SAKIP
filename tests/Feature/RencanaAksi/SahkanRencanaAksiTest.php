@@ -231,6 +231,24 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertSame($this->perencana->id, $ra->latestVersion->disahkan_by);
     }
 
+    /** Security review 2026-10-09: deny unit-spesifik menang atas allow global saat sahkan. */
+    public function test_deny_unit_spesifik_menolak_pengesahan_walau_allow_global(): void
+    {
+        $this->ajukanVersi('pic', $this->picUser);
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:sahkan')->value('id'),
+            'unit_id' => $this->unit->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
+
+        $this->assertTrue(Gate::forUser($this->perencana)->inspect('sahkan', $this->ra->fresh())->denied());
+        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
+        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
+        $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
+        $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.ditolak')->where('objek_id', $this->ra->id)->firstOrFail();
+        $basisIzin = json_decode((string) $audit->dasar_izin, true);
+        $this->assertSame(PermissionCodes::RENCANA_AKSI_SAHKAN, $basisIzin['permission']);
+        $this->assertSame('ditolak', $basisIzin['keputusan']);
+    }
+
     private function userWithRole(string $kode): User
     {
         $user = User::factory()->create(['status' => 'aktif']);

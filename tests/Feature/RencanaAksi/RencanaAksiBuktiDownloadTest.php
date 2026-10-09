@@ -176,6 +176,35 @@ class RencanaAksiBuktiDownloadTest extends TestCase
         $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/bukti/'.$buktiId)->assertForbidden();
     }
 
+    /** Review 2026-10-09: bukti versi superseded non-resmi ditutup; versi resmi tetap dapat diunduh. */
+    public function test_unduh_bukti_versi_superseded_non_resmi_ditolak_tetapi_versi_resmi_boleh(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('rencana-aksi/draf-lama.pdf', 'Bukti v1 non-resmi');
+
+        // Kasus 1: v1 mengandung file A, v2 terbaru tidak lagi → URL lama ditutup (404).
+        $lamaId = (string) Str::uuid();
+        $ra = $this->buatRencanaAksi('diverifikasi', [$this->buktiFileBeku($lamaId, 'rencana-aksi/draf-lama.pdf')]);
+        $v1 = RencanaAksiVersi::where('rencana_aksi_id', $ra->id)->firstOrFail();
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $v1->jadwal_snapshot_id, 'nomor' => 2,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi kedua beku.']]);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/bukti/'.$lamaId)->assertNotFound();
+
+        // Kasus 2: v1 resmi (disahkan) tetap tersedia walau sudah ada versi lebih baru.
+        Storage::disk('local')->put('rencana-aksi/resmi.pdf', 'Bukti resmi v1');
+        $resmiId = (string) Str::uuid();
+        $ra2 = $this->buatRencanaAksi('diverifikasi', [$this->buktiFileBeku($resmiId, 'rencana-aksi/resmi.pdf')]);
+        $v1b = RencanaAksiVersi::where('rencana_aksi_id', $ra2->id)->firstOrFail();
+        $v1b->update(['disahkan_by' => $this->perencana->id, 'disahkan_at' => now()]);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $ra2->id, 'jadwal_snapshot_id' => $v1b->jadwal_snapshot_id, 'nomor' => 2,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi kedua beku.']]);
+
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra2->id.'/bukti/'.$resmiId)->assertOk()->assertStreamedContent('Bukti resmi v1');
+    }
+
     private function userWithRole(string $kode): User
     {
         $user = User::factory()->create(['status' => 'aktif']);

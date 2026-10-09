@@ -28,8 +28,12 @@ class AntreanRencanaAksi
         $status = $status === 'disahkan' ? 'disahkan' : 'antrean';
         $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion'])
             ->whereIn('status_alur', $status === 'disahkan' ? ['disahkan'] : ['diajukan', 'diverifikasi'])
-            // Record dengan unit header ≠ unit snapshot versi tidak konsisten dan ditolak saat dibuka.
-            ->whereHas('latestVersion', fn (EloquentBuilder $query) => $query->whereHas('jadwalSnapshot', fn (EloquentBuilder $snapshot) => $snapshot->whereColumn('jadwal_snapshot.unit_id', 'rencana_aksi.unit_id')))
+            // Record dengan unit header ≠ unit snapshot versi TERBARU tidak konsisten dan ditolak
+            // saat dibuka. Korelasi ke nomor maksimum wajib: whereHas pada hasOne ber-orderBy
+            // tidak membatasi subquery existence ke versi terbaru (temuan review 2026-10-09).
+            ->whereHas('latestVersion', fn (EloquentBuilder $query) => $query
+                ->whereHas('jadwalSnapshot', fn (EloquentBuilder $snapshot) => $snapshot->whereColumn('jadwal_snapshot.unit_id', 'rencana_aksi.unit_id'))
+                ->whereRaw('rencana_aksi_versi.nomor = (select max(v.nomor) from rencana_aksi_versi as v where v.rencana_aksi_id = rencana_aksi.id)'))
             ->whereNotIn('unit_id', $this->deniedUnits($actor->id, PermissionCodes::RENCANA_AKSI_READ))
             // Antrean mengikuti waktu pengajuan versi terbaru; kolom updated_at header tidak dipelihara.
             ->orderByDesc(

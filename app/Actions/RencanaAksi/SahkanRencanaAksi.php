@@ -9,6 +9,7 @@ use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -19,7 +20,7 @@ use Throwable;
 
 class SahkanRencanaAksi
 {
-    public function __construct(private ResolveLockedActor $lockedActor, private WriteAuditLog $audit, private RencanaAksiPolicy $policy) {}
+    public function __construct(private ResolveLockedActor $lockedActor, private PermissionResolver $resolver, private WriteAuditLog $audit, private RencanaAksiPolicy $policy) {}
 
     /** Pengesahan diverifikasi→disahkan; versi beku dan audit diserialkan pada header yang sama. */
     public function handle(User $actor, string $id, array $data): RencanaAksi
@@ -30,11 +31,19 @@ class SahkanRencanaAksi
             return DB::transaction(function () use ($actor, $id, $data, &$decision) {
                 // m1: permission sahkan bersifat global — kunci baris aktor + ACL kanonis
                 // lalu resolusi ulang di dalam transaksi (menutup jendela rilis preset).
-                $decision = $this->lockedActor->handle($actor, PermissionCodes::RENCANA_AKSI_SAHKAN)['keputusan'];
+                $locked = $this->lockedActor->handle($actor, PermissionCodes::RENCANA_AKSI_SAHKAN);
+                $decision = $locked['keputusan'];
                 if (! $decision->allowed) {
                     throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
                 }
                 $ra = RencanaAksi::lockForUpdate()->findOrFail($id);
+                // Deny unit-spesifik tetap dihormati walau permission global: resolusi scoped
+                // memakai aktor yang sudah terkunci dan hasilnya menjadi dasar gate sekaligus
+                // basis audit (temuan security review 2026-10-09).
+                $decision = $this->resolver->resolve($locked['aktor'] ?? $actor, PermissionCodes::RENCANA_AKSI_SAHKAN, $ra->targetUnitId());
+                if (! $decision->allowed) {
+                    throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
+                }
                 // Konteks beku = snapshot versi pengajuan terbaru (header tidak lagi
                 // menyimpan rujukan snapshot — D7). t2: snapshot (immutable) dan jadwal
                 // hanya dibaca di transaksi ini — FOR SHARE cukup; urutan kunci tetap

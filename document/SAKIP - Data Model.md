@@ -1535,7 +1535,7 @@ Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada s
 | `target_periode` | array | Per periode: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, komponen[]}`; `komponen[]` berisi `{komponen_id, kode, label, nilai}` (array kosong = tanpa komponen) |
 | `bukti_dukungs` | array | Metadata bukti dukung versi ini: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`. `mode = file` menyimpan `path` berkas privat; unduhan memakai metadata beku ini, bukan relasi live |
 
-Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya.
+Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti dibatasi pada versi yang sedang direviu (nomor terbesar) atau versi resmi yang telah disahkan; versi superseded non-resmi tidak dapat dijangkau lewat URL lama.
 
 ---
 

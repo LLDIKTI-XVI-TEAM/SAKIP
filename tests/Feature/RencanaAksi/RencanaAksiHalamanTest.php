@@ -482,6 +482,27 @@ class RencanaAksiHalamanTest extends TestCase
             ->orderByDesc('nomor_versi')->firstOrFail();
     }
 
+    /** Review 2026-10-09: filter antrean harus melihat versi bernomor TERBESAR, bukan versi mana pun. */
+    public function test_antrean_menyaring_record_dengan_versi_terbaru_tidak_selaras(): void
+    {
+        $unitLain = Unit::create(['nama' => 'Unit Versi Baru', 'created_by' => $this->perencana->id]);
+        $normal = $this->buatRencanaAksi('diverifikasi', null, 'pic');
+        $multiversi = $this->buatRencanaAksi('diverifikasi', null, 'pic');
+        // v2 (nomor terbesar) merujuk snapshot unit berbeda; v1 tetap cocok dengan header.
+        $otherSnapshot = JadwalSnapshot::create(['jadwal_id' => $this->jadwal->id, 'indikator_id' => $multiversi->indikator_id,
+            'periode_mulai_id' => $this->periode->id, 'unit_id' => $unitLain->id, 'nama' => 'Indikator multi-versi',
+            'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70, 'nomor_versi' => 2]);
+        RencanaAksiVersi::create(['rencana_aksi_id' => $multiversi->id, 'jadwal_snapshot_id' => $otherSnapshot->id, 'nomor' => 2,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi kedua beku.']]);
+
+        // Baris multi-versi disaring fail-closed dan detailnya ikut ditolak.
+        $this->actingAs($this->perencana)->get('/rencana-aksi?status=antrean')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pagination.total', 1)->where('rencanaAksis.0.id', $normal->id)->missing('rencanaAksis.1'));
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$multiversi->id.'/reviu')->assertForbidden();
+    }
+
     private function userWithRole(string $kode): User
     {
         $user = User::factory()->create(['status' => 'aktif']);
