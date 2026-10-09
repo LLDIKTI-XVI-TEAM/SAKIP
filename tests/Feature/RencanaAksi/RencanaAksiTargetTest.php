@@ -183,6 +183,68 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertSame($satuSel, $selectTarget());
     }
 
+    /**
+     * Bentuk audit simpan dikunci persis: header terpilih + seluruh matriks
+     * terurut periode lalu komponen, dengan tipe nilai yang sama, baik untuk
+     * keadaan sebelum maupun sesudah simpan.
+     */
+    public function test_audit_simpan_mencatat_matriks_sebelum_dan_sesudah_dengan_bentuk_tetap(): void
+    {
+        $fixture = $this->buatFixtureRasio();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $sel = fn (string $periode, string $komponen, ?int $nilai, ?string $keterangan = null): array => ['periode_id' => $fixture[$periode]->id, 'komponen_id' => $fixture[$komponen]->id, 'nilai' => $nilai, 'keterangan' => $keterangan];
+        $kirim = fn (array $data) => $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            ...$data,
+        ])->assertSessionHasNoErrors();
+
+        $kirim(['expected_versi' => 1, 'targets' => [
+            $sel('periode1', 'pembilang', 1), $sel('periode1', 'penyebut', 4),
+            $sel('periode2', 'pembilang', 2), $sel('periode2', 'penyebut', 4),
+        ]]);
+        $kirim(['expected_versi' => 2, 'uraian' => 'Uraian kedua', 'targets' => [
+            $sel('periode2', 'pembilang', 3, 'naik'), $sel('periode2', 'penyebut', null),
+        ]]);
+
+        // Urutan kunci objek mengikuti normalisasi `jsonb` (panjang kunci lalu
+        // byte); urutan baris matriks berasal dari aplikasi dan wajib tetap.
+        $matriks = fn (array $nilai): array => collect($nilai)
+            ->map(fn (array $baris): array => ['nilai' => $baris[2], 'keterangan' => $baris[3] ?? null, 'periode_id' => $fixture[$baris[0]]->id, 'komponen_id' => $fixture[$baris[1]]->id])
+            ->sortBy(fn (array $baris): string => $baris['periode_id'].'|'.$baris['komponen_id'])
+            ->values()
+            ->all();
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->orderByDesc('waktu')->orderByDesc('id')->first();
+
+        $this->assertSame([
+            'versi' => 2,
+            'uraian' => null,
+            'targets' => $matriks([
+                ['periode1', 'pembilang', '1.000000000000'], ['periode1', 'penyebut', '4.000000000000'],
+                ['periode2', 'pembilang', '2.000000000000'], ['periode2', 'penyebut', '4.000000000000'],
+            ]),
+            'status_alur' => 'draft',
+            'snapshot_draf_id' => $fixture['snapshot']->id,
+            'alasan_deviasi_pk' => null,
+        ], $audit->nilai_lama);
+        $this->assertSame([
+            'versi' => 3,
+            'uraian' => 'Uraian kedua',
+            'targets' => $matriks([
+                ['periode1', 'pembilang', '1.000000000000'], ['periode1', 'penyebut', '4.000000000000'],
+                ['periode2', 'pembilang', '3.000000000000', 'naik'], ['periode2', 'penyebut', null],
+            ]),
+            'status_alur' => 'draft',
+            'snapshot_draf_id' => $fixture['snapshot']->id,
+            'alasan_deviasi_pk' => null,
+        ], $audit->nilai_baru);
+    }
+
     public function test_nonmanual_menyimpan_per_komponen_efektif_dan_nol_berbeda_dari_null(): void
     {
         $fixture = $this->buatFixtureRasio();

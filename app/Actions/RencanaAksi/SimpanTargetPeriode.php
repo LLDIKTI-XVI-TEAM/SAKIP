@@ -161,7 +161,16 @@ class SimpanTargetPeriode
                 // efektif-kini tetap milik `bersihkanDimensiTakEfektif`.
                 $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
 
-                $sebelum = $this->auditState($header);
+                // Satu baca terkunci matriks tersimpan menjadi dasar audit
+                // "sebelum" sekaligus baris yang diperbarui per sel. Header
+                // FOR UPDATE menyerialkan simpan, jadi sel yang belum ada aman
+                // dibuat baru (index unik tetap menjaga duplikasi).
+                $terkunci = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
+                    ->orderBy('periode_id')
+                    ->orderBy('komponen_id')
+                    ->lockForUpdate()
+                    ->get();
+                $sebelum = $this->auditState($header, $terkunci);
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
@@ -171,10 +180,7 @@ class SimpanTargetPeriode
                 $header->versi++;
                 $header->save();
 
-                // Header FOR UPDATE menyerialkan simpan, jadi sel yang belum ada
-                // di sini aman dibuat baru (index unik tetap menjaga duplikasi).
-                $tersimpan = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->lockForUpdate()->get()
-                    ->keyBy(fn (RencanaAksiTarget $row): string => $this->rekonsiliasi->kunciDimensi($row->periode_id, $row->komponen_id));
+                $tersimpan = $terkunci->keyBy(fn (RencanaAksiTarget $row): string => $this->rekonsiliasi->kunciDimensi($row->periode_id, $row->komponen_id));
                 foreach ($targets as $baris) {
                     ($tersimpan->get($this->rekonsiliasi->kunciDimensi($baris['periode_id'], $baris['komponen_id']))
                         ?? new RencanaAksiTarget(['rencana_aksi_id' => $header->id, 'periode_id' => $baris['periode_id'], 'komponen_id' => $baris['komponen_id']]))
@@ -204,7 +210,7 @@ class SimpanTargetPeriode
                 // nilai_lama/nilai_baru + jumlah pada alasan.
                 $barisDisingkirkan = $this->bersihkanDimensiTakEfektif($header->id, $tipe, $definisi, $periodeEfektif);
 
-                $sesudah = $this->auditState($header->fresh());
+                $sesudah = $this->auditState($header);
                 // Batas total pada matriks tersimpan hasil gabungan simpan
                 // parsial, bukan payload; lewat batas berarti rollback.
                 if (collect($sesudah['targets'])->sum(fn (array $baris): int => mb_strlen((string) $baris['keterangan'])) > 10000) {
@@ -228,7 +234,7 @@ class SimpanTargetPeriode
                     dasarIzin: $dasarIzin,
                 );
 
-                return $header->fresh();
+                return $header;
             });
         } catch (Throwable $exception) {
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException)
@@ -547,16 +553,21 @@ class SimpanTargetPeriode
     }
 
     /**
+     * Header terpilih + seluruh matriks terurut periode lalu komponen.
+     *
+     * @param  Collection<int, RencanaAksiTarget>|null  $targets  Matriks yang sudah dibaca terurut; null untuk membaca ulang.
      * @return array<string, mixed>
      */
-    private function auditState(RencanaAksi $header): array
+    private function auditState(RencanaAksi $header, ?Collection $targets = null): array
     {
-        $targets = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
+        $targets ??= RencanaAksiTarget::where('rencana_aksi_id', $header->id)
             ->orderBy('periode_id')
             ->orderBy('komponen_id')
-            ->get(['periode_id', 'komponen_id', 'nilai', 'keterangan'])
-            ->toArray();
+            ->get(['periode_id', 'komponen_id', 'nilai', 'keterangan']);
 
-        return [...$header->only(['status_alur', 'versi', 'snapshot_draf_id', 'uraian', 'alasan_deviasi_pk']), 'targets' => $targets];
+        return [
+            ...$header->only(['status_alur', 'versi', 'snapshot_draf_id', 'uraian', 'alasan_deviasi_pk']),
+            'targets' => $targets->map(fn (RencanaAksiTarget $row): array => $row->only(['periode_id', 'komponen_id', 'nilai', 'keterangan']))->all(),
+        ];
     }
 }
