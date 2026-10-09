@@ -1,34 +1,18 @@
-import { LogoutActions } from '@/Components/Auth/LogoutActions';
+import { UserProfileDropdown } from '@/Components/Auth/UserProfileDropdown';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
-    LayoutDashboard,
-    FileSpreadsheet,
-    CheckCircle2,
     ChevronRight,
     CheckCircle,
     AlertCircle,
     Info,
-    UserCheck,
-    UserPlus,
     Menu,
     X,
-    Building2,
-    ShieldCheck,
-    BookOpen,
-    FileText,
     Search,
     Bell,
-    User,
-    Home,
-    Settings,
-    HardDrive,
-    Target,
-    Layers,
-    CalendarDays,
-    ClipboardList,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
+import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -61,6 +45,8 @@ export function AuthenticatedLayout({
         ? (rawLogo && rawLogo.trim() !== '' ? rawLogo : null)
         : '/img/dikti16-favicon-blue-150x150.png';
     const [navigationOpen, setNavigationOpen] = useState(false);
+    // Drawer tidak dibuka selama logout berjalan agar profil tidak menjadi inert dan hasilnya tetap terbaca.
+    const [logoutPending, setLogoutPending] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 768px)').matches);
@@ -103,8 +89,11 @@ export function AuthenticatedLayout({
         const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const menuButton = menuButtonRef.current;
         const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        // Link di submenu yang tertutup (atribut hidden) tidak dapat difokuskan sehingga tidak boleh menjadi batas trap.
+        const drawerControls = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
+            .filter((control) => !control.closest('[hidden]'));
         const focusFirstDrawerControl = () => {
-            drawerRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
+            drawerControls().at(0)?.focus();
         };
         const focusFrame = window.requestAnimationFrame(focusFirstDrawerControl);
         const trapFocus = (event: KeyboardEvent) => {
@@ -116,7 +105,7 @@ export function AuthenticatedLayout({
 
             if (event.key !== 'Tab') return;
 
-            const controls = Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+            const controls = drawerControls();
             const firstControl = controls.at(0);
             const lastControl = controls.at(-1);
 
@@ -148,29 +137,6 @@ export function AuthenticatedLayout({
         };
     }, [isMobileDrawerOpen]);
 
-    const navigation = [
-        { href: '/dashboard', label: 'Dashboard', icon: Home, visible: auth.can.dashboard },
-        { href: '/perencanaan/sasaran-indikator', label: 'Sasaran & Indikator', icon: Target, visible: auth.can.sasaranIndikator ?? false },
-        { href: '/rencana-aksi', label: 'Rencana Aksi', icon: ClipboardList, visible: auth.can.rencanaAksi ?? false },
-        { href: '/pengukuran', label: 'Pengukuran Kinerja', icon: FileSpreadsheet, visible: auth.can.pengukuran },
-        { href: '/verifikasi', label: 'Verifikasi & Pengesahan', icon: CheckCircle2, visible: auth.can.verifikasi },
-        { href: '/perjanjian-kinerja', label: 'Perjanjian Kinerja', icon: FileText, visible: auth?.can?.pk ?? false },
-        { href: '/regulasi', label: 'Dasar Aturan', icon: BookOpen, visible: auth.can.regulasi },
-        { href: '/renstra', label: 'Master Renstra', icon: Layers, visible: auth.can.renstra ?? false },
-        { href: '/jadwal', label: 'Jadwal Tahunan', icon: CalendarDays, visible: auth.can.jadwal ?? false },
-        { href: '/periode', label: 'Master Periode', icon: CalendarDays, visible: auth.can.periode ?? false },
-        { href: '/jenis-berkas', label: 'Persyaratan Berkas', icon: FileText, visible: auth.can.jenisBerkas ?? false },
-        { href: '/pengaturan/storage', label: 'Kebijakan Storage', icon: HardDrive, visible: auth.can.storagePolicy ?? false },
-        { href: '/unit', label: 'Master Unit', icon: Building2, visible: auth.can.unit ?? false },
-        { href: '/akses/grant', label: 'Izin Unit (Grant)', icon: ShieldCheck, visible: auth.can.grant ?? false },
-        { href: '/akses/aktivasi', label: 'Aktivasi Pengguna', icon: UserCheck, visible: auth.can.aktivasi },
-        { href: '/akses/peran', label: 'Penetapan Peran', icon: UserPlus, visible: auth.can.assignRole },
-        { href: '/akses/deny', label: 'Pembatasan Izin', icon: UserCheck, visible: auth.can.manageDeny },
-        { href: '/akses/izin-peran', label: 'Peran & Izin', icon: UserCheck, visible: auth.can.viewRolePermissions },
-        { href: '/akses/jelaskan-izin', label: 'Izin Pengguna', icon: UserCheck, visible: auth.can.viewEffectivePermissions ?? false },
-        { href: '/pengaturan', label: 'Pengaturan', icon: Settings, visible: auth.can.pengaturan },
-    ];
-
     return (
         <div className="min-h-screen bg-page font-sans text-ink flex flex-col md:flex-row">
             {/* Skip to Content for Accessibility */}
@@ -198,17 +164,29 @@ export function AuthenticatedLayout({
                         <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
                     </div>
                 </div>
-                <button
-                    ref={menuButtonRef}
-                    type="button"
-                    aria-expanded={navigationOpen}
-                    aria-controls="application-navigation"
-                    aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
-                    onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40"
-                >
-                    {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                    {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
+                    {!isDesktopViewport && (
+                        <UserProfileDropdown
+                            user={auth?.user ?? null}
+                            placement="mobile"
+                            disabled={navigationOpen}
+                            onLogoutPendingChange={setLogoutPending}
+                        />
+                    )}
+                    <button
+                        ref={menuButtonRef}
+                        type="button"
+                        aria-expanded={navigationOpen}
+                        aria-controls="application-navigation"
+                        aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+                        disabled={logoutPending}
+                        onClick={() => setNavigationOpen((isOpen) => !isOpen)}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
+                    </button>
+                </div>
             </header>
 
             {/* Mobile Backdrop */}
@@ -264,57 +242,13 @@ export function AuthenticatedLayout({
                     </button>
                 </div>
 
-                {/* Scrollable Sidebar Body: Navigation & Profile */}
-                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between sidebar-scroll">
-                    <div className="px-3 py-3">
-                        <nav aria-label="Navigasi utama" className="space-y-1.5">
-                            {navigation.filter((item) => item.visible).map(({ href, label, icon: Icon }) => {
-                                const currentPath = url.split('?')[0];
-                                const active = href === '/pengaturan'
-                                    ? currentPath === '/pengaturan'
-                                    : currentPath === href || currentPath.startsWith(`${href}/`);
-                                return (
-                                    <Link
-                                        key={href}
-                                        href={href}
-                                        title={label}
-                                        aria-current={active ? 'page' : undefined}
-                                        onClick={() => setNavigationOpen(false)}
-                                        className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
-                                            active
-                                                ? 'bg-surface/15 text-white font-semibold shadow-xs'
-                                                : 'text-white/75 hover:bg-surface/10 hover:text-white'
-                                        }`}
-                                    >
-                                        <Icon
-                                            aria-hidden="true"
-                                            className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? 'text-white' : 'text-white/75 group-hover:text-white'}`}
-                                        />
-                                        <span className="truncate">{label}</span>
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    </div>
-
-                    {/* Bottom User Profile Section */}
-                    <div className="mt-auto border-t border-white/10 bg-primary p-4 shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/15 text-white">
-                                <User className="h-5 w-5" aria-hidden="true" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-bold text-white leading-tight">
-                                    {auth.user?.nama || 'Pengguna'}
-                                </p>
-                                <p className="mt-0.5 truncate text-[11px] text-white/75 capitalize leading-tight">
-                                    {auth.user?.role || 'Belum ada peran'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <LogoutActions sidebar />
-                    </div>
+                {/* Scrollable Navigation Body */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 sidebar-scroll">
+                    <SidebarNavigation
+                        can={auth?.can}
+                        url={url}
+                        onNavigate={() => setNavigationOpen(false)}
+                    />
                 </div>
             </aside>
 
@@ -353,20 +287,7 @@ export function AuthenticatedLayout({
                             <Bell className="h-5 w-5" aria-hidden="true" />
                         </button>
 
-                        {/* User Profile Chip */}
-                        <div className="flex items-center gap-2.5 pl-2 border-l border-border">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-                                <User className="h-4 w-4" />
-                            </div>
-                            <div className="hidden xl:block text-left">
-                                <p className="text-xs font-bold text-primary leading-none truncate max-w-[140px]">
-                                    {auth.user?.nama || 'Pengguna'}
-                                </p>
-                                <p className="mt-1 text-[11px] text-muted leading-none capitalize">
-                                    {auth.user?.role || 'Belum ada peran'}
-                                </p>
-                            </div>
-                        </div>
+                        {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
                     </div>
                 </header>
 

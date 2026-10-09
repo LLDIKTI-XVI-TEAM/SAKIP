@@ -1,14 +1,23 @@
 import { router } from '@inertiajs/react';
+import { LogOut, ShieldOff } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/Components/Button';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 
-export function LogoutActions({ sidebar = false, showLocal = true }: {
-    sidebar?: boolean;
+/**
+ * Dua aksi keluar SAKIP: sesi lokal dan sesi SSO bersama (dengan konfirmasi).
+ * `appearance="menu"` hanya mengubah tampilan untuk panel profil; alur request,
+ * recovery, dan penahan pengiriman ganda tetap sama untuk seluruh pemanggil.
+ * `onPendingChange` memberi tahu pembungkus selama request keluar berjalan agar hasilnya tidak tersembunyi.
+ */
+export function LogoutActions({ appearance = 'default', showLocal = true, onPendingChange }: {
+    appearance?: 'default' | 'menu';
     showLocal?: boolean;
+    onPendingChange?: (pending: boolean) => void;
 }) {
+    const menu = appearance === 'menu';
     const recovery = useAuthRecovery();
     const [intent, setIntent] = useState<'/logout' | '/logout/sso' | null>(null);
     const [error, setError] = useState('');
@@ -35,6 +44,7 @@ export function LogoutActions({ sidebar = false, showLocal = true }: {
         busy.current = true;
         setConfirmSso(false);
         setIntent(path);
+        onPendingChange?.(true);
         const uncertain = () => {
             setError('Keluar belum terkonfirmasi. Periksa sesi dengan memuat ulang halaman.');
         };
@@ -44,6 +54,7 @@ export function LogoutActions({ sidebar = false, showLocal = true }: {
             onFinish: () => {
                 busy.current = false;
                 setIntent(null);
+                onPendingChange?.(false);
             },
             onHttpException: (response) => {
                 setIntent(null);
@@ -57,7 +68,7 @@ export function LogoutActions({ sidebar = false, showLocal = true }: {
     };
 
     return (
-        <div className="mt-4 space-y-3" aria-busy={Boolean(intent)}>
+        <div className={menu ? 'space-y-1' : 'mt-4 space-y-3'} aria-busy={Boolean(intent)}>
             {recovery.recovery && (
                 <div className="flow-root rounded-lg bg-surface px-3 text-ink">
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={Boolean(intent)} logout />
@@ -67,19 +78,31 @@ export function LogoutActions({ sidebar = false, showLocal = true }: {
             {showLocal && (
                 <Button
                     type="button"
-                    className={sidebar ? 'w-full bg-surface text-primary hover:bg-soft' : undefined}
+                    variant={menu ? 'ghost' : 'primary'}
+                    size={menu ? 'sm' : 'md'}
+                    className={
+                        menu
+                            ? 'w-full justify-start gap-2.5 px-3 py-2 text-sm font-medium text-ink hover:bg-soft rounded-lg h-auto transition-colors'
+                            : undefined
+                    }
                     isLoading={intent === '/logout'}
                     disabled={disabled}
                     onClick={() => leave('/logout')}
                 >
+                    {menu && intent !== '/logout' && <LogOut aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />}
                     Keluar dari SAKIP
                 </Button>
             )}
-            <div className={sidebar ? 'border-t border-white/20 pt-3' : 'border-t border-border pt-3'}>
+            <div className={menu ? 'border-t border-border/80 my-1 pt-1' : 'border-t border-border pt-3'}>
                 <Button
                     type="button"
-                    variant="outline"
-                    className={sidebar ? 'w-full border-white/40 bg-transparent text-white hover:bg-white/10 focus:ring-white' : undefined}
+                    variant={menu ? 'ghost' : 'outline'}
+                    size={menu ? 'sm' : 'md'}
+                    className={
+                        menu
+                            ? 'w-full justify-start gap-2.5 px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10 hover:text-danger rounded-lg h-auto transition-colors'
+                            : undefined
+                    }
                     aria-haspopup="dialog"
                     isLoading={intent === '/logout/sso'}
                     disabled={disabled}
@@ -88,6 +111,7 @@ export function LogoutActions({ sidebar = false, showLocal = true }: {
                         setConfirmSso(true);
                     }}
                 >
+                    {menu && intent !== '/logout/sso' && <ShieldOff aria-hidden="true" className="h-4 w-4 shrink-0 text-danger/80" />}
                     Keluar dari layanan terhubung
                 </Button>
             </div>
