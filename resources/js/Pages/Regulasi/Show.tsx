@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { jenisRegulasiLabel } from '@/lib/regulasi';
+import { tautanAman } from '@/lib/url';
 import { Badge } from '@/Components/Badge';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
@@ -15,6 +16,7 @@ interface ShowRegulasiProps {
 
 export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
     const formatTanggal = useFormatTanggal();
+    const sumberResmi = tautanAman(regulasi.tautan_sumber);
 
     return (
         <AuthenticatedLayout
@@ -52,8 +54,8 @@ export default function ShowRegulasi({ regulasi }: ShowRegulasiProps) {
                             <div>
                                 <dt className="text-xs font-semibold text-muted">Sumber resmi</dt>
                                 <dd className="mt-1">
-                                    {regulasi.tautan_sumber ? (
-                                        <a href={regulasi.tautan_sumber} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                                    {sumberResmi ? (
+                                        <a href={sumberResmi} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
                                             Buka sumber resmi <ExternalLink className="h-4 w-4" aria-hidden="true" />
                                         </a>
                                     ) : (

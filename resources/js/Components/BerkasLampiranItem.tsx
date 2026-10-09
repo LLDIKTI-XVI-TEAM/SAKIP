@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react';
 import { Download, ExternalLink, FileText, Link2, Quote } from 'lucide-react';
+import { tautanAman } from '@/lib/url';
 
 export interface BerkasLampiran {
     mode: 'file' | 'tautan' | 'teks';
@@ -27,6 +28,7 @@ export function BerkasLampiranItem({ berkas, action, meta }: { berkas: BerkasLam
     const title = berkas.nama_asli
         ?? (berkas.mode === 'file' ? 'Dokumen tanpa nama' : berkas.mode === 'tautan' ? 'Tautan dokumen' : 'Keterangan dokumen');
     const fileMeta = [berkas.mime, formatBytes(berkas.ukuran_bytes)].filter(Boolean).join(' · ');
+    const href = berkas.mode === 'tautan' ? tautanAman(berkas.tautan) : null;
 
     return (
         <li className="rounded-lg border border-border bg-page px-4 py-3">
@@ -51,8 +53,8 @@ export function BerkasLampiranItem({ berkas, action, meta }: { berkas: BerkasLam
                             Unduh file
                         </a>
                     )}
-                    {berkas.mode === 'tautan' && berkas.tautan && (
-                        <a href={berkas.tautan} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                    {href && (
+                        <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
                             <ExternalLink className="h-4 w-4" aria-hidden="true" />
                             Buka tautan
                         </a>

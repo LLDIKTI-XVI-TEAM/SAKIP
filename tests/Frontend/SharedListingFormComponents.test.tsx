@@ -3,6 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ActionMenu } from '@/Components/ActionMenu';
+import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
+import { tautanAman } from '@/lib/url';
 import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import { Pagination } from '@/Components/Pagination';
 import type { LampiranDraft } from '@/types/perjanjian-kinerja';
@@ -115,4 +117,21 @@ it('menu aksi: tidak tampil tanpa item, navigasi keyboard, Escape mengembalikan 
     expect(arsip).toHaveBeenCalledTimes(1);
     expect(ubah).not.toHaveBeenCalled();
     expect(screen.queryByRole('menu')).toBeNull();
+});
+
+it('tautan eksternal hanya http/https: skema berbahaya tidak menjadi link', () => {
+    expect(tautanAman('https://jdih.example.go.id/dok')).toBe('https://jdih.example.go.id/dok');
+    expect(tautanAman('http://contoh.go.id')).toBe('http://contoh.go.id/');
+    expect(tautanAman('javascript:alert(1)')).toBeNull();
+    expect(tautanAman('data:text/html,<b>x</b>')).toBeNull();
+    expect(tautanAman('bukan url')).toBeNull();
+    expect(tautanAman(null)).toBeNull();
+
+    const base = { nama_asli: null, mime: null, ukuran_bytes: null, isi_teks: null, download_url: null } as const;
+    const { rerender } = render(<ul><BerkasLampiranItem berkas={{ ...base, mode: 'tautan', tautan: 'javascript:alert(1)' }} /></ul>);
+    expect(screen.queryByRole('link', { name: 'Buka tautan' })).toBeNull();
+    expect(screen.getByText('javascript:alert(1)')).toBeTruthy();
+
+    rerender(<ul><BerkasLampiranItem berkas={{ ...base, mode: 'tautan', tautan: 'https://contoh.go.id/pk' }} /></ul>);
+    expect(screen.getByRole('link', { name: 'Buka tautan' }).getAttribute('href')).toBe('https://contoh.go.id/pk');
 });

@@ -6,6 +6,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { jenisRegulasiLabel } from '@/lib/regulasi';
+import { tautanAman } from '@/lib/url';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -170,8 +171,8 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                             </TableCell>
                                             <TableCell className="max-w-xl">
                                                 <p className="line-clamp-2 text-sm leading-6 text-ink">{item.tentang}</p>
-                                                {item.tautan_sumber && (
-                                                    <a href={item.tautan_sumber} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                                {tautanAman(item.tautan_sumber) && (
+                                                    <a href={tautanAman(item.tautan_sumber) ?? undefined} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
                                                         Sumber resmi <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                                                     </a>
                                                 )}
