@@ -36,7 +36,10 @@ class JendelaTulisRencanaAksi
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
-     *                                  null berarti dibaca di sini.
+     *                                  null berarti dibaca di sini. Hanya capability baca
+     *                                  (`DaftarRencanaAksi`) yang boleh mengisinya; gerbang
+     *                                  tulis wajib membiarkannya null agar PIC dibaca
+     *                                  setelah indikator dikunci, bukan dipercaya dari pemanggil.
      */
     public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null): ?string
     {
