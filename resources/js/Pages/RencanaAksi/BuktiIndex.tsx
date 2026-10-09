@@ -1,0 +1,45 @@
+import React from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
+import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { BuktiRencanaAksiPanel } from '@/Components/RencanaAksi/BuktiRencanaAksiPanel';
+import type { BuktiRencanaAksiPageProps } from '@/types/rencana-aksi';
+
+export default function BuktiIndex(props: BuktiRencanaAksiPageProps) {
+    const { rencanaAksi } = props;
+
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.assign('/rencana-aksi');
+        }
+    };
+
+    return (
+        <AuthenticatedLayout
+            title="Pemenuhan Bukti Dukung"
+            breadcrumbs={[
+                { label: 'Rencana Aksi', href: '/rencana-aksi' },
+                { label: rencanaAksi.indikator?.kode || 'Bukti Dukung' },
+            ]}
+        >
+            <Head title={`Bukti Dukung Rencana Aksi - ${rencanaAksi.indikator?.kode || 'RA'}`} />
+
+            <div className="max-w-6xl mx-auto space-y-6">
+                <div>
+                    <button
+                        type="button"
+                        onClick={handleBack}
+                        className="inline-flex items-center gap-2 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                    >
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        <span>Kembali ke Rencana Aksi</span>
+                    </button>
+                </div>
+
+                <BuktiRencanaAksiPanel {...props} />
+            </div>
+        </AuthenticatedLayout>
+    );
+}

@@ -41,6 +41,8 @@ use App\Http\Controllers\Perencanaan\UpdateIndikator;
 use App\Http\Controllers\Perencanaan\UpdateSasaran;
 use App\Http\Controllers\Periode\PeriodeController;
 use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
+use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksiController;
+use App\Http\Controllers\RencanaAksi\RencanaAksiEvidenceController;
 use App\Http\Controllers\Regulasi\CreateRegulasi;
 use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
 use App\Http\Controllers\Regulasi\DestroyRegulasi;
@@ -157,6 +159,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/renstra/{renstra}/berkas/{berkas}', DestroyBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.destroy');
     Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
     Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
+
+    // Rencana Aksi - Pemenuhan Bukti Dukung (ISS-05.02)
+    Route::get('/rencana-aksi/{rencana_aksi}/bukti', [RencanaAksiEvidenceController::class, 'index'])->whereUuid('rencana_aksi')->name('rencana-aksi.bukti.index');
+    Route::post('/rencana-aksi/{rencana_aksi}/bukti', [RencanaAksiEvidenceController::class, 'store'])->whereUuid('rencana_aksi')->name('rencana-aksi.bukti.store');
+    Route::delete('/rencana-aksi/{rencana_aksi}/bukti/{bukti}', [RencanaAksiEvidenceController::class, 'destroy'])->whereUuid('rencana_aksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
+    Route::get('/rencana-aksi/{rencana_aksi}/bukti/{bukti}/unduh', [DownloadBuktiRencanaAksiController::class, '__invoke'])->whereUuid('rencana_aksi')->whereUuid('bukti')->name('rencana-aksi.bukti.download');
 
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');

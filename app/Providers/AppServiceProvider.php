@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Models\Regulasi;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RegulasiPolicy;
+use App\Policies\RencanaAksiPolicy;
 use App\Policies\RenstraPkPolicy;
 use App\Policies\RenstraPolicy;
 use App\Policies\UnitPolicy;
@@ -35,12 +37,14 @@ class AppServiceProvider extends ServiceProvider
     {
         Relation::morphMap([
             'renstra_pk' => RenstraPk::class,
+            'rencana_aksi' => RencanaAksi::class,
         ]);
 
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(Regulasi::class, RegulasiPolicy::class);
         Gate::policy(Renstra::class, RenstraPolicy::class);
         Gate::policy(RenstraPk::class, RenstraPkPolicy::class);
+        Gate::policy(RencanaAksi::class, RencanaAksiPolicy::class);
 
         foreach (PermissionCatalog::codes() as $code) {
             Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {
