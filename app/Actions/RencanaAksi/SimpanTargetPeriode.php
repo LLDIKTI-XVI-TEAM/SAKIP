@@ -210,6 +210,11 @@ class SimpanTargetPeriode
                 $barisDisingkirkan = $this->bersihkanDimensiTakEfektif($header->id, $tipe, $definisi, $periodeEfektif);
 
                 $sesudah = $this->auditState($header->fresh());
+                // Batas total pada matriks tersimpan hasil gabungan simpan
+                // parsial, bukan payload; lewat batas berarti rollback.
+                if (collect($sesudah['targets'])->sum(fn (array $baris): int => mb_strlen((string) $baris['keterangan'])) > 10000) {
+                    throw ValidationException::withMessages(['targets' => 'Total keterangan seluruh target melebihi 10.000 karakter.']);
+                }
                 $alasanSimpan = 'Menyimpan target rencana aksi per periode.';
                 if ($barisBasi > 0) {
                     $alasanSimpan .= " Rekonsiliasi transisi snapshot v{$jejak['pin_nomor']}->v{$jejak['aktual_nomor']}: {$barisBasi} baris basi dibersihkan.";

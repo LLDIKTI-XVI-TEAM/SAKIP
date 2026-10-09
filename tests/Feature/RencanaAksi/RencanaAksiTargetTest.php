@@ -104,12 +104,11 @@ class RencanaAksiTargetTest extends TestCase
     }
 
     /**
-     * Batas per sel masih meloloskan banyak sel yang masing-masing tepat di
-     * batas, sedangkan seluruh matriks masuk audit dua kali; jumlah seluruh
-     * keterangan satu simpan dibatasi 10.000 karakter. Pesan diperiksa
-     * spesifik karena sel duplikat juga ditolak Action pada key `targets`.
+     * Simpan parsial menimpa sebagian sel dan mempertahankan sisanya, jadi
+     * batas total berlaku pada matriks tersimpan hasil penggabungan, bukan
+     * hanya payload. Ditolak berarti rollback utuh.
      */
-    public function test_simpan_membatasi_total_keterangan_seluruh_matriks(): void
+    public function test_batas_total_keterangan_berlaku_pada_matriks_tersimpan(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -118,21 +117,27 @@ class RencanaAksiTargetTest extends TestCase
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
-        $kirim = fn (array $targets) => $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 1,
+        $kirim = fn (array $targets, int $versi) => $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $versi,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => $targets,
         ]);
-        $sel = fn (string $periodeId) => ['periode_id' => $periodeId, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => str_repeat('x', 1000)];
-        $pesan = 'Total keterangan seluruh target melebihi 10.000 karakter.';
+        $sel = fn (string $periodeId, ?string $keterangan) => ['periode_id' => $periodeId, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => $keterangan];
+        $kirim([$sel($fixture['periode1']->id, null), $sel($fixture['periode2']->id, null)], 1)->assertSessionHasNoErrors();
+        // Mewakili akumulasi simpan parsial sebelumnya pada matriks besar
+        // (fixture hanya dua periode, sedangkan batas per sel 1.000).
+        RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode2']->id)->update(['keterangan' => str_repeat('y', 9500)]);
 
-        $kirim(array_fill(0, 11, $sel($fixture['periode1']->id)))->assertSessionHasErrors(['targets' => $pesan]);
-        $kirim(array_fill(0, 10, $sel($fixture['periode1']->id)))->assertSessionDoesntHaveErrors(['targets' => $pesan]);
-        $this->assertSame(1, $header->fresh()->versi);
-
-        $kirim([$sel($fixture['periode1']->id), $sel($fixture['periode2']->id)])->assertSessionHasNoErrors();
+        $kirim([$sel($fixture['periode1']->id, str_repeat('x', 1000))], 2)
+            ->assertSessionHasErrors(['targets' => 'Total keterangan seluruh target melebihi 10.000 karakter.']);
         $this->assertSame(2, $header->fresh()->versi);
+        $this->assertNull(RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode1']->id)->sole()->keterangan);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->count());
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
+
+        $kirim([$sel($fixture['periode1']->id, str_repeat('x', 500))], 2)->assertSessionHasNoErrors();
+        $this->assertSame(3, $header->fresh()->versi);
     }
 
     public function test_nonmanual_menyimpan_per_komponen_efektif_dan_nol_berbeda_dari_null(): void
