@@ -253,6 +253,7 @@ export function BuktiRencanaAksiPanel({
                                 <div
                                     key={req.id}
                                     className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-soft/20 transition-colors"
+                                    break;
                                 >
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
