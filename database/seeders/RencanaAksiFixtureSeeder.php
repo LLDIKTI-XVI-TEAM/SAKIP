@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
+use App\Models\JenisBerkas;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\RencanaAksi;
@@ -155,6 +156,23 @@ class RencanaAksiFixtureSeeder extends Seeder
                     'updated_at' => now(),
                 ]);
         }
+
+        // Persyaratan bukti dukung tahap rencana aksi untuk fixture/demo
+        JenisBerkas::where('tahap', 'rencana_aksi')->where('nama', 'Dokumen Kerangka Acuan Kerja (KAK)')->first()
+            ?? JenisBerkas::create([
+                'nama' => 'Dokumen Kerangka Acuan Kerja (KAK)',
+                'keterangan' => 'KAK yang memuat rincian aktivitas dan anggaran pelaksanaan.',
+                'tahap' => 'rencana_aksi',
+                'indikator_id' => null,
+                'wajib' => true,
+                'semua_mode_wajib' => false,
+                'izinkan_file' => true,
+                'izinkan_tautan' => true,
+                'izinkan_teks' => true,
+                'aktif' => true,
+                'urutan' => 1,
+                'created_by' => $creator->id,
+            ]);
     }
 
     /**

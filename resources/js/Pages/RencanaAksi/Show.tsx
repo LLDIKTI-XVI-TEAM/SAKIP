@@ -235,7 +235,13 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         Kembali ke daftar
                     </Link>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href={`/rencana-aksi/${rencanaAksi.id}/bukti`}
+                            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        >
+                            Bukti Dukung
+                        </Link>
                         <Badge status={rencanaAksi.status_alur} />
                         <span className="text-xs text-muted">Versi {rencanaAksi.versi}</span>
                     </div>

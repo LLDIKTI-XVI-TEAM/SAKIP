@@ -7,6 +7,7 @@ import type { BuktiRencanaAksiPageProps } from '@/types/rencana-aksi';
 const mockPost = vi.fn();
 const mockReset = vi.fn();
 const mockClearErrors = vi.fn();
+const mockDelete = vi.fn();
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
@@ -30,7 +31,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
             clearErrors: mockClearErrors,
         }),
         router: {
-            delete: vi.fn(),
+            delete: mockDelete,
         },
     };
 });
@@ -177,29 +178,29 @@ describe('BuktiRencanaAksiPanel Component', () => {
     it('merender ringkasan indikator dan status kelengkapan', () => {
         render(<BuktiRencanaAksiPanel {...mockProps} />);
 
-        expect(screen.getByText(/IKU-01 - Persentase Layanan Tepat Waktu/i)).toBeInTheDocument();
-        expect(screen.getByText(/Bagian Tata Usaha/i)).toBeInTheDocument();
-        expect(screen.getByText(/Belum Lengkap \(1\/2\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/IKU-01 [·-] Persentase Layanan Tepat Waktu/i)).toBeTruthy();
+        expect(screen.getByText(/Bagian Tata Usaha/i)).toBeTruthy();
+        expect(screen.getByText(/Belum Lengkap \(1\/2\)/i)).toBeTruthy();
     });
 
     it('merender daftar persyaratan dan status pemenuhan masing-masing', () => {
         render(<BuktiRencanaAksiPanel {...mockProps} />);
 
-        expect(screen.getByText('Dokumen Kerangka Acuan Kerja')).toBeInTheDocument();
-        expect(screen.getByText('Surat Keputusan Tim Pelaksana')).toBeInTheDocument();
-        expect(screen.getByText('Semua Mode Wajib')).toBeInTheDocument();
+        expect(screen.getByText('Dokumen Kerangka Acuan Kerja')).toBeTruthy();
+        expect(screen.getByText('Surat Keputusan Tim Pelaksana')).toBeTruthy();
+        expect(screen.getByText('Semua Mode Wajib')).toBeTruthy();
 
         // Ada badge Terpenuhi untuk KAK dan Kurang untuk SK Tim
-        expect(screen.getByText('Terpenuhi')).toBeInTheDocument();
-        expect(screen.getByText('Kurang')).toBeInTheDocument();
+        expect(screen.getByText('Terpenuhi')).toBeTruthy();
+        expect(screen.getByText('Kurang')).toBeTruthy();
     });
 
     it('merender bukti fisik terunggah dengan tombol unduh', () => {
         render(<BuktiRencanaAksiPanel {...mockProps} />);
 
-        expect(screen.getByText('kak-final.pdf')).toBeInTheDocument();
-        expect(screen.getByText('(1 MB)')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Unduh/i })).toBeInTheDocument();
+        expect(screen.getByText('kak-final.pdf')).toBeTruthy();
+        expect(screen.getByText('(1 MB)')).toBeTruthy();
+        expect(screen.getByRole('link', { name: /Unduh/i })).toBeTruthy();
     });
 
     it('membuka modal tambah bukti saat tombol Tambah Bukti diklik', async () => {
@@ -209,7 +210,7 @@ describe('BuktiRencanaAksiPanel Component', () => {
         const btnTambah = screen.getByRole('button', { name: /Tambah Bukti/i });
         await user.click(btnTambah);
 
-        expect(screen.getByText('Tambah Bukti Dukung Rencana Aksi')).toBeInTheDocument();
+        expect(screen.getByText('Tambah Bukti Dukung Rencana Aksi')).toBeTruthy();
     });
 
     it('menyembunyikan tombol mutasi jika rencana aksi berstatus disahkan', () => {
@@ -224,8 +225,76 @@ describe('BuktiRencanaAksiPanel Component', () => {
 
         render(<BuktiRencanaAksiPanel {...disahkanProps} />);
 
-        expect(screen.queryByRole('button', { name: /Tambah Bukti/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Penuhi/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Hapus Bukti/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Tambah Bukti/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Penuhi/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Hapus Bukti/i })).toBeNull();
+    });
+
+    it('membuka modal konfirmasi hapus dan memanggil router.delete saat alasan diisi', async () => {
+        const user = userEvent.setup();
+        render(<BuktiRencanaAksiPanel {...mockProps} />);
+
+        const btnHapus = screen.getByRole('button', { name: /Hapus Bukti/i });
+        await user.click(btnHapus);
+
+        expect(screen.getByText('Hapus Bukti Dukung')).toBeTruthy();
+        const reasonInput = screen.getByLabelText(/Alasan perubahan/i);
+        await user.type(reasonInput, 'Bukti sudah kedaluwarsa');
+
+        const btnConfirm = screen.getByRole('button', { name: 'Hapus Bukti' });
+        await user.click(btnConfirm);
+
+        expect(mockDelete).toHaveBeenCalledWith(
+            expect.stringContaining('/rencana-aksi/ra-uuid-1/bukti/bukti-uuid-1'),
+            expect.objectContaining({
+                data: { alasan: 'Bukti sudah kedaluwarsa' },
+            })
+        );
+    });
+
+    it('merender bukti dengan mode tautan dan teks', () => {
+        const multipleBuktiProps: BuktiRencanaAksiPageProps = {
+            ...mockProps,
+            daftarBukti: [
+                ...mockProps.daftarBukti,
+                {
+                    id: 'bukti-uuid-2',
+                    jenis_berkas_id: 'jb-uuid-1',
+                    nama_persyaratan: 'Dokumen Kerangka Acuan Kerja',
+                    mode: 'tautan',
+                    nama_asli: null,
+                    mime: null,
+                    ukuran_bytes: null,
+                    tautan: 'https://lldikti16.kemdikbud.go.id/kak-link',
+                    isi_teks: null,
+                    menggantikan_id: null,
+                    alasan_koreksi: null,
+                    uploaded_by: 'user-uuid-1',
+                    pengunggah_nama: 'Adriel Walintukan',
+                    created_at: '2026-03-10T11:00:00Z',
+                },
+                {
+                    id: 'bukti-uuid-3',
+                    jenis_berkas_id: 'jb-uuid-2',
+                    nama_persyaratan: 'Surat Keputusan Tim Pelaksana',
+                    mode: 'teks',
+                    nama_asli: null,
+                    mime: null,
+                    ukuran_bytes: null,
+                    tautan: null,
+                    isi_teks: 'Uraian SK Tim Pelaksana periode 2026.',
+                    menggantikan_id: null,
+                    alasan_koreksi: null,
+                    uploaded_by: 'user-uuid-1',
+                    pengunggah_nama: 'Adriel Walintukan',
+                    created_at: '2026-03-10T12:00:00Z',
+                },
+            ],
+        };
+
+        render(<BuktiRencanaAksiPanel {...multipleBuktiProps} />);
+
+        expect(screen.getByText('https://lldikti16.kemdikbud.go.id/kak-link')).toBeTruthy();
+        expect(screen.getByText('Uraian SK Tim Pelaksana periode 2026.')).toBeTruthy();
     });
 });
