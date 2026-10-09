@@ -8,6 +8,7 @@ vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ href, children, className }: { href: string; children: ReactNode; className?: string }) => <a href={href} className={className}>{children}</a>,
     router: { get: transport.get },
+    usePage: () => ({ props: { pengaturan: {} } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
@@ -52,4 +53,15 @@ describe('Continuation monitoring PJ', () => {
         act(() => options.onFinish());
         expect(button.disabled).toBe(false);
     });
+});
+
+it('menyediakan navigasi kembali dan menampilkan tanggal berlaku sesuai format tampilan', () => {
+    const row = { indicator: { id: 'ind-1', kode: 'IKU-01', nama: 'Indikator QA', status: 'aktif' }, unit: { id: 'unit-a', nama: 'Unit QA', status: 'aktif' },
+        pic: { id: 'user-a', nama: 'Siti Aminah' }, tanggal_mulai_berlaku: '2026-02-01', blocked_reason: null,
+        readiness: { complete: false, available: [], missing: ['pengukuran:create'], permissions: [{ permission: 'pengukuran:create', label: 'Buat pengukuran', allowed: false, reason: 'no_allow' }] } };
+    render(<Index assignments={{ data: [row], next_page_url: null }} filters={{ q: '', tanggal_acuan: '2026-03-15', unit_id: null }} />);
+    expect(screen.getByRole('link', { name: 'Kembali ke Sasaran & Indikator' }).getAttribute('href')).toBe('/perencanaan/sasaran-indikator');
+    expect(screen.getByText(/Berlaku 01 Februari 2026/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Lihat penugasan' }).getAttribute('href')).toBe('/perencanaan/indikator/ind-1/penanggung-jawab');
+    expect(screen.queryByText('Hapus filter unit')).toBeNull();
 });

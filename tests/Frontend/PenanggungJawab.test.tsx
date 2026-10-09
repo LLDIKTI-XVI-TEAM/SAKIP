@@ -86,14 +86,14 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
     }
 
     it.each([
-        ['Asia/Makassar', 'd F Y', '02 Februari 2026 00:30'],
-        ['Asia/Jakarta', 'd/m/Y', '01/02/2026 23:30'],
-        ['UTC', 'Y-m-d', '2026-02-01 16:30'],
-    ])('memakai zona %s dan format %s untuk timestamp histori', (zone, format, expected) => {
+        ['Asia/Makassar', 'd F Y', '02 Februari 2026 00:30', '01 Februari 2026'],
+        ['Asia/Jakarta', 'd/m/Y', '01/02/2026 23:30', '01/02/2026'],
+        ['UTC', 'Y-m-d', '2026-02-01 16:30', '2026-02-01'],
+    ])('memakai zona %s dan format %s untuk timestamp histori', (zone, format, expected, mulai) => {
         transport.pengaturan = { 'tampilan.zona_waktu': zone, 'tampilan.format_tanggal': format };
         render(<Show {...historyProps('2026-02-01T16:30:00Z')} />);
         expect(screen.getByText(`Dicatat ${expected}`)).toBeTruthy();
-        expect(screen.getByText('Mulai berlaku 2026-02-01', { exact: false })).toBeTruthy();
+        expect(screen.getByText(`Mulai berlaku ${mulai}`, { exact: false })).toBeTruthy();
         expect((screen.getByLabelText(/Tanggal mulai berlaku/) as HTMLInputElement).value).toBe(props.today);
         fireEvent.change(screen.getByLabelText(/PJ efektif pada tanggal/), { target: { value: '2026-02-01' } });
         fireEvent.click(screen.getByRole('button', { name: 'Tampilkan' }));
@@ -104,4 +104,13 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
         render(<Show {...historyProps(createdAt)} />);
         expect(screen.getByText('Dicatat Tidak tersedia')).toBeTruthy();
     });
+});
+
+it('navigasi kembali ke detail indikator dan menandai PJ efektif yang akunnya nonaktif', () => {
+    const assignment = { id: 'assignment-b', tanggal_mulai_berlaku: '2026-02-01', pic: { id: 'user-b', nama: 'PJ Lama', status: 'nonaktif' },
+        ditetapkan_oleh: null, alasan: null, created_at: null, state: 'Efektif' };
+    render(<Show {...props} effective={assignment} />);
+    expect(screen.getByRole('link', { name: 'Kembali ke detail indikator' }).getAttribute('href')).toBe('/perencanaan/indikator/indicator-a');
+    expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
+    expect(screen.getByText('PJ Lama').textContent).toContain('Nonaktif');
 });
