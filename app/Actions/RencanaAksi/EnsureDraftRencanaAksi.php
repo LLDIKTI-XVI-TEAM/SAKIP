@@ -171,6 +171,7 @@ class EnsureDraftRencanaAksi
                     tindakan: 'rencana_aksi.buat_ditolak',
                     objekTipe: 'rencana_aksi',
                     objekId: (string) Str::uuid(),
+                    nilaiBaru: ['indikator_id' => $indikatorId, 'tahun' => $tahun],
                     alasan: AlasanAudit::sanitasi($exception->getMessage(), 'Pembuatan draf rencana aksi ditolak.'),
                     dasarIzin: is_array($dasarIzin) ? $dasarIzin : null,
                 );

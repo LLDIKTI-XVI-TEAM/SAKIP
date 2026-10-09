@@ -3,11 +3,18 @@
 namespace App\Http\Requests\RencanaAksi;
 
 use App\Models\RencanaAksi;
+use App\Models\User;
+use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AlasanAudit;
+use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
 class SimpanTargetPeriodeRequest extends FormRequest
 {
+    private ?RencanaAksi $header = null;
+
     public function authorize(): bool
     {
         if ($this->user() === null) {
@@ -30,8 +37,34 @@ class SimpanTargetPeriodeRequest extends FormRequest
             // dengan-izin atas UUID asing wajib 404 (bukan 403).
             abort(404);
         }
+        $this->header = $header;
 
         return Gate::allows('update', $header);
+    }
+
+    /**
+     * Percobaan simpan yang ditolak otorisasi dicatat di sini, bukan di
+     * Policy, agar pratinjau yang juga memakai Gate `update` tidak tercatat
+     * sebagai percobaan simpan. Izin dihitung ulang hanya untuk dasar audit;
+     * respons tetap 403. Penolakan di dalam transaksi `SimpanTargetPeriode`
+     * diaudit Action itu sendiri, sehingga setiap jalur tercatat tepat sekali.
+     */
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user();
+        if ($user instanceof User && $this->header instanceof RencanaAksi) {
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'rencana_aksi.ubah_ditolak',
+                objekTipe: 'rencana_aksi',
+                objekId: (string) $this->header->id,
+                nilaiLama: $this->header->withoutRelations()->toArray(),
+                alasan: AlasanAudit::sanitasi(null, 'Percobaan penyimpanan target rencana aksi ditolak oleh sistem otorisasi.'),
+                dasarIzin: app(PermissionResolver::class)->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $this->header->unit_id)->toAuditBasis(),
+            );
+        }
+
+        parent::failedAuthorization();
     }
 
     /**

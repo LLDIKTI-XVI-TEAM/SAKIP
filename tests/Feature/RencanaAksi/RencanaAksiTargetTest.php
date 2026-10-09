@@ -23,6 +23,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class RencanaAksiTargetTest extends TestCase
@@ -468,17 +469,43 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_indikator_arsip_ditolak(): void
+    /**
+     * Penolakan pembuatan untuk indikator arsip tetap teraudit, baik saat
+     * ditolak guard arsip di Action maupun saat ditolak otorisasi di request.
+     */
+    #[DataProvider('jalurTolakIndikatorArsip')]
+    public function test_create_indikator_arsip_ditolak_tetap_diaudit(bool $berizin): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $fixture['indikator']->update(['status' => 'arsip']);
+        $aktor = $berizin ? $fixture['pic'] : $this->penggunaDenganPeran('pegawai');
 
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+        $respons = $this->actingAs($aktor)->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
-        ])->assertSessionHasErrors('indikator_id');
+        ]);
+
+        $berizin ? $respons->assertSessionHasErrors('indikator_id') : $respons->assertForbidden();
         $this->assertDatabaseCount('rencana_aksi', 0);
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->sole();
+        $this->assertSame((string) $aktor->id, (string) $audit->actor_id);
+        // Urutan kunci mengikuti normalisasi `jsonb` (panjang kunci lalu byte).
+        $this->assertSame(['tahun' => 2026, 'indikator_id' => $fixture['indikator']->id], $audit->nilai_baru);
+        if ($berizin) {
+            $this->assertStringContainsString('diarsipkan', (string) $audit->alasan);
+        }
+    }
+
+    /**
+     * @return array<string, array{0: bool}>
+     */
+    public static function jalurTolakIndikatorArsip(): array
+    {
+        return [
+            'ditolak guard arsip di Action' => [true],
+            'ditolak otorisasi di request' => [false],
+        ];
     }
 
     /**
