@@ -5,13 +5,17 @@ import React, { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Edit3, ExternalLink, Eye, FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { jenisRegulasiLabel } from '@/lib/regulasi';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
+import { Pagination } from '@/Components/Pagination';
 import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { RegulasiCreateModal } from '@/Pages/Regulasi/Partials/RegulasiCreateModal';
-import type { Paginated, RegulasiJenis, RegulasiSummary } from '@/types/regulasi';
+import type { Paginated, RegulasiSummary } from '@/types/regulasi';
 
 interface RegulasiIndexProps {
     regulasi: Paginated<RegulasiSummary>;
@@ -20,21 +24,6 @@ interface RegulasiIndexProps {
         status: 'aktif' | 'nonaktif' | null;
     };
     can: Record<string, boolean>;
-}
-
-const jenisLabel: Record<RegulasiJenis, string> = {
-    kepmen: 'Keputusan Menteri',
-    permen: 'Peraturan Menteri',
-    perpres: 'Peraturan Presiden',
-    keputusan_lainnya: 'Keputusan lainnya',
-};
-
-function cleanPaginationLabel(label: string): string {
-    return label
-        .replace('&laquo;', '‹')
-        .replace('&raquo;', '›')
-        .replace('Previous', 'Sebelumnya')
-        .replace('Next', 'Berikutnya');
 }
 
 export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexProps) {
@@ -102,31 +91,25 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
         ?? (deleteForm.errors as Record<string, string | undefined>).regulasi;
 
     return (
-        <AuthenticatedLayout title="Dasar Aturan" breadcrumbs={[{ label: 'Dasar Aturan' }]}>
+        <AuthenticatedLayout
+            title="Dasar Aturan"
+            breadcrumbs={[{ label: 'Dasar Aturan' }]}
+            headerActions={can['regulasi:create'] && (
+                <Button
+                    type="button"
+                    onClick={() => setCreateOpen(true)}
+                    variant="primary"
+                    size="sm"
+                    className="gap-1.5"
+                >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Tambah dasar aturan
+                </Button>
+            )}
+        >
             <Head title="Dasar Aturan" />
 
             <div className="space-y-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="max-w-3xl">
-                        <h2 className="text-sm font-semibold text-ink">Katalog regulasi dan dokumen sumber</h2>
-                        <p className="mt-0.5 text-xs text-muted">
-                            Kelola dasar hukum yang dapat dirujuk oleh Renstra dan Indikator. File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log.
-                        </p>
-                    </div>
-                    {can['regulasi:create'] && (
-                        <Button
-                            type="button"
-                            onClick={() => setCreateOpen(true)}
-                            variant="primary"
-                            size="sm"
-                            className="gap-1.5"
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            Tambah dasar aturan
-                        </Button>
-                    )}
-                </div>
-
                 <Card className="overflow-visible">
                     <form onSubmit={applyFilters} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
                         <Input
@@ -159,75 +142,67 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                 Ubah kata pencarian atau tambahkan regulasi pertama agar Renstra dan Indikator memiliki rujukan hukum terstruktur.
                             </p>
                             {can['regulasi:create'] && (
-                                <button
-                                    type="button"
-                                    onClick={() => setCreateOpen(true)}
-                                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer"
-                                >
+                                <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)} className="mt-4 gap-1.5">
                                     <Plus className="h-4 w-4" aria-hidden="true" /> Tambah dasar aturan
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </Card>
                 ) : (
                     <>
                         <Card className="hidden md:block">
-                            <div className="overflow-x-auto">
-                                <table className="w-full min-w-[780px] text-left text-sm">
-                                    <thead className="border-b border-border bg-page text-xs font-semibold text-ink">
-                                        <tr>
-                                            <th className="px-5 py-3.5">Regulasi</th>
-                                            <th className="px-5 py-3.5">Tentang</th>
-                                            <th className="px-5 py-3.5">Lampiran</th>
-                                            <th className="px-5 py-3.5">Status</th>
-                                            <th className="px-5 py-3.5 text-right">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {regulasi.data.map((item) => (
-                                            <tr key={item.id} className="align-top transition-colors hover:bg-page">
-                                                <td className="px-5 py-4">
-                                                    <p className="font-semibold text-ink">{item.nomor}</p>
-                                                    <p className="mt-1 text-xs text-muted">{jenisLabel[item.jenis]} · {item.tahun}</p>
-                                                </td>
-                                                <td className="max-w-xl px-5 py-4">
-                                                    <p className="line-clamp-2 leading-6 text-ink">{item.tentang}</p>
-                                                    {item.tautan_sumber && (
-                                                        <a href={item.tautan_sumber} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                                                            Sumber resmi <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                                                        </a>
+                            <Table className="min-w-[780px]">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Regulasi</TableHead>
+                                        <TableHead>Tentang</TableHead>
+                                        <TableHead>Lampiran</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Aksi</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {regulasi.data.map((item) => (
+                                        <TableRow key={item.id} className="align-top">
+                                            <TableCell>
+                                                <p className="text-sm font-semibold text-ink">{item.nomor}</p>
+                                                <p className="mt-1 text-xs text-muted">{jenisRegulasiLabel[item.jenis]} · {item.tahun}</p>
+                                            </TableCell>
+                                            <TableCell className="max-w-xl">
+                                                <p className="line-clamp-2 text-sm leading-6 text-ink">{item.tentang}</p>
+                                                {item.tautan_sumber && (
+                                                    <a href={item.tautan_sumber} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                                        Sumber resmi <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    </a>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap text-sm">{item.berkas_count} berkas</TableCell>
+                                            <TableCell>
+                                                <Badge variant={item.aktif ? 'success' : 'muted'}>{item.aktif ? 'Aktif' : 'Nonaktif'}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex justify-end gap-1">
+                                                    {can['regulasi:read'] && (
+                                                        <Link href={`/regulasi/${item.id}`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Lihat regulasi ${item.nomor}`}>
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
                                                     )}
-                                                </td>
-                                                <td className="px-5 py-4 text-ink">{item.berkas_count} berkas</td>
-                                                <td className="px-5 py-4">
-                                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${item.aktif ? 'bg-success/10 text-success' : 'bg-soft text-muted'}`}>
-                                                        {item.aktif ? 'Aktif' : 'Nonaktif'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <div className="flex justify-end gap-1">
-                                                        {can['regulasi:read'] && (
-                                                            <Link href={`/regulasi/${item.id}`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Lihat regulasi ${item.nomor}`}>
-                                                                <Eye className="h-4 w-4" />
-                                                            </Link>
-                                                        )}
-                                                        {can['regulasi:update'] && (
-                                                            <Link href={`/regulasi/${item.id}/edit`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Edit regulasi ${item.nomor}`}>
-                                                                <Edit3 className="h-4 w-4" />
-                                                            </Link>
-                                                        )}
-                                                        {can['regulasi:delete'] && (
-                                                            <button type="button" onClick={() => openDelete(item)} className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20" aria-label={`Hapus regulasi ${item.nomor}`}>
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                    {can['regulasi:update'] && (
+                                                        <Link href={`/regulasi/${item.id}/edit`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Edit regulasi ${item.nomor}`}>
+                                                            <Edit3 className="h-4 w-4" />
+                                                        </Link>
+                                                    )}
+                                                    {can['regulasi:delete'] && (
+                                                        <button type="button" onClick={() => openDelete(item)} className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20" aria-label={`Hapus regulasi ${item.nomor}`}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </Card>
 
                         <ul className="space-y-3 md:hidden">
@@ -236,11 +211,9 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <p className="font-semibold text-ink">{item.nomor}</p>
-                                            <p className="mt-1 text-xs text-muted">{jenisLabel[item.jenis]} · {item.tahun}</p>
+                                            <p className="mt-1 text-xs text-muted">{jenisRegulasiLabel[item.jenis]} · {item.tahun}</p>
                                         </div>
-                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${item.aktif ? 'bg-success/10 text-success' : 'bg-soft text-muted'}`}>
-                                            {item.aktif ? 'Aktif' : 'Nonaktif'}
-                                        </span>
+                                        <Badge variant={item.aktif ? 'success' : 'muted'} className="shrink-0">{item.aktif ? 'Aktif' : 'Nonaktif'}</Badge>
                                     </div>
                                     <p className="mt-3 text-sm leading-6 text-ink">{item.tentang}</p>
                                     <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
@@ -257,29 +230,7 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                     </>
                 )}
 
-                {regulasi.last_page > 1 && (
-                    <nav aria-label="Paginasi regulasi" className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                        <p className="text-muted">Menampilkan {regulasi.from}–{regulasi.to} dari {regulasi.total} data</p>
-                        <div className="flex flex-wrap gap-1">
-                            {regulasi.links.map((link, index) => (
-                                link.url ? (
-                                    <Link
-                                        key={`${link.label}-${index}`}
-                                        href={link.url}
-                                        preserveScroll
-                                        className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${link.active ? 'bg-primary text-white' : 'border border-border bg-surface text-ink hover:bg-soft'}`}
-                                    >
-                                        {cleanPaginationLabel(link.label)}
-                                    </Link>
-                                ) : (
-                                    <span key={`${link.label}-${index}`} className="rounded-lg border border-border px-3 py-2 text-sm text-muted opacity-60">
-                                        {cleanPaginationLabel(link.label)}
-                                    </span>
-                                )
-                            ))}
-                        </div>
-                    </nav>
-                )}
+                <Pagination links={regulasi.links} from={regulasi.from} to={regulasi.to} total={regulasi.total} ariaLabel="Paginasi regulasi" />
             </div>
 
             <AuditReasonModal

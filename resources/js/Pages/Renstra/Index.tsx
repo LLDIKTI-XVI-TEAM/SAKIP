@@ -6,6 +6,7 @@ import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
+import { Pagination } from '@/Components/Pagination';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { RenstraFormFields } from '@/Components/RenstraFormFields';
@@ -36,14 +37,6 @@ const statusLabel: Record<RenstraStatus, string> = {
     nonaktif: 'Nonaktif',
     diarsipkan: 'Diarsipkan',
 };
-
-function cleanPaginationLabel(label: string): string {
-    return label
-        .replace('&laquo;', '‹')
-        .replace('&raquo;', '›')
-        .replace('Previous', 'Sebelumnya')
-        .replace('Next', 'Berikutnya');
-}
 
 export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, can }: RenstraIndexProps) {
     const [query, setQuery] = useState(filters.q || '');
@@ -300,33 +293,14 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                         </table>
                     </div>
 
-                    {renstra.links.length > 3 && (
-                        <div className="flex items-center justify-between border-t border-border px-5 py-3 bg-page text-xs text-muted">
-                            <div>
-                                Menampilkan <span className="font-semibold text-ink">{renstra.from ?? 0}</span> sampai{' '}
-                                <span className="font-semibold text-ink">{renstra.to ?? 0}</span> dari{' '}
-                                <span className="font-semibold text-ink">{renstra.total}</span> data
-                            </div>
-                            <div className="flex gap-1">
-                                {renstra.links.map((link, idx) => (
-                                    <Link
-                                        key={idx}
-                                        href={link.url ?? '#'}
-                                        preserveState
-                                        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-                                            link.active
-                                                ? 'bg-primary text-white'
-                                                : link.url
-                                                ? 'text-muted hover:bg-soft hover:text-ink'
-                                                : 'cursor-not-allowed opacity-40'
-                                        }`}
-                                    >
-                                        {cleanPaginationLabel(link.label)}
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <Pagination
+                        links={renstra.links}
+                        from={renstra.from}
+                        to={renstra.to}
+                        total={renstra.total}
+                        ariaLabel="Paginasi Renstra"
+                        className="border-t border-border bg-page px-5 py-3"
+                    />
                 </div>
             </div>
 
