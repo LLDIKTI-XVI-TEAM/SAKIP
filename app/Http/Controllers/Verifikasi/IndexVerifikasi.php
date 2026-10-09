@@ -6,7 +6,6 @@ use App\Actions\Pengukuran\PresentPengukuran;
 use App\Http\Controllers\Controller;
 use App\Models\PengukuranKinerja;
 use App\Services\Authorization\PermissionResolver;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,11 +21,11 @@ class IndexVerifikasi extends Controller
         abort_if($permissions === [] || ! $resolver->allows($actor, 'pengukuran:read'), 403);
         $page = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->whereIn('status_alur', ['diajukan', 'diverifikasi'])
-            ->where(function ($query) use ($actor, $permissions) {
-                $query->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->deniedUnits($actor->id, 'pengukuran:read'));
-                $query->where(function ($allowed) use ($actor, $permissions) {
+            ->where(function ($query) use ($actor, $permissions, $resolver) {
+                $query->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $resolver->unitDitolak($actor, 'pengukuran:read'));
+                $query->where(function ($allowed) use ($actor, $permissions, $resolver) {
                     foreach ($permissions as $permission) {
-                        $allowed->orWhereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->deniedUnits($actor->id, $permission));
+                        $allowed->orWhereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $resolver->unitDitolak($actor, $permission));
                     }
                 });
             })->orderByDesc('updated_at')->withCount('buktiDukungs')->orderBy('id')->paginate(20)->withQueryString();
@@ -37,11 +36,5 @@ class IndexVerifikasi extends Controller
             'pengukurans' => $page->getCollection()->map(fn ($item) => $present->handle($item, $actor))->all(),
             'pagination' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'prev_page_url' => $page->previousPageUrl(), 'next_page_url' => $page->nextPageUrl()],
         ]);
-    }
-
-    private function deniedUnits(string $userId, string $permission): Builder
-    {
-        return DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
-            ->where('user_id', $userId)->where('permissions.kode', $permission)->whereNotNull('unit_id')->select('unit_id');
     }
 }

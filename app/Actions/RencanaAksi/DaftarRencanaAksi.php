@@ -24,9 +24,12 @@ class DaftarRencanaAksi
      * Daftar indikator × tahun pada jadwal aktif sebagai titik masuk Rencana Aksi.
      *
      * Baris berasal dari snapshot jadwal aktif, karena hanya indikator yang
-     * dibekukan saat aktivasi yang dapat dibuatkan rencana aksi. Unit yang
-     * di-deny untuk `rencana_aksi:read` disaring di database (deny menang;
-     * izin baca global sudah diperiksa controller). Indikator yang PJ
+     * dibekukan saat aktivasi yang dapat dibuatkan rencana aksi. Unit baris
+     * adalah unit header bila sudah ada header, selain itu unit snapshot
+     * terbaru; unit master yang berpindah setelah aktivasi tidak dipakai.
+     * Unit itu yang ditampilkan dan yang disaring terhadap deny
+     * `rencana_aksi:read` di database (deny menang; izin baca global sudah
+     * diperiksa controller). PJ tetap PJ efektif hari ini. Indikator yang PJ
      * efektifnya pengguna ini tampil paling atas. Aksi "buat" mensyaratkan
      * indikator bukan arsip, unit aktif, PJ efektif, izin unit, dan
      * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan
@@ -41,22 +44,18 @@ class DaftarRencanaAksi
     {
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $jadwalAktif = JadwalTahunan::where('status', 'aktif')->get()->keyBy('id');
-        $unitDitolak = DB::table('user_permission_denied')
-            ->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
-            ->where('user_permission_denied.user_id', $actor->id)
-            ->where('permissions.kode', PermissionCodes::RENCANA_AKSI_READ)
-            ->whereNotNull('user_permission_denied.unit_id')
-            ->select('user_permission_denied.unit_id');
+        $unitDitolak = $this->resolver->unitDitolak($actor, PermissionCodes::RENCANA_AKSI_READ);
 
         $halaman = IndikatorKinerja::query()
-            ->select('indikator_kinerjas.*', 'snap.jadwal_id', 'snap.unit_id as snap_unit_id', 'j.tahun as tahun_jadwal', 'ra.id as rencana_aksi_id', 'ra.status_alur', 'pj.user_id as pj_user_id', 'pju.nama as pj_nama')
+            ->select('indikator_kinerjas.*', 'snap.jadwal_id', 'snap.unit_id as snap_unit_id', 'j.tahun as tahun_jadwal', 'ra.id as rencana_aksi_id', 'ra.status_alur', 'pj.user_id as pj_user_id', 'pju.nama as pj_nama', 'unit_baris.nama as unit_baris_nama')
             // Satu baris per (jadwal, indikator): snapshot versi terbaru.
             ->joinSub(JadwalSnapshot::query()->selectRaw('DISTINCT ON (jadwal_id, indikator_id) jadwal_id, indikator_id, unit_id')->whereIn('jadwal_id', $jadwalAktif->keys())->orderBy('jadwal_id')->orderBy('indikator_id')->orderByDesc('nomor_versi'), 'snap', 'snap.indikator_id', '=', 'indikator_kinerjas.id')
             ->join('jadwal_tahunan as j', 'j.id', '=', 'snap.jadwal_id')
             ->leftJoin('rencana_aksi as ra', fn ($join) => $join->on('ra.indikator_id', '=', 'indikator_kinerjas.id')->on('ra.tahun', '=', 'j.tahun'))
             ->leftJoinSub(PenugasanIndikator::effectiveOn($hariIni)->select('indikator_id', 'user_id'), 'pj', 'pj.indikator_id', '=', 'indikator_kinerjas.id')
             ->leftJoin('users as pju', 'pju.id', '=', 'pj.user_id')
-            ->whereNotIn(DB::raw('COALESCE(ra.unit_id, indikator_kinerjas.unit_id)'), $unitDitolak)
+            ->join('unit as unit_baris', DB::raw('COALESCE(ra.unit_id, snap.unit_id)'), '=', 'unit_baris.id')
+            ->whereNotIn(DB::raw('COALESCE(ra.unit_id, snap.unit_id)'), $unitDitolak)
             ->orderByRaw('CASE WHEN pj.user_id = ? THEN 0 ELSE 1 END', [$actor->id])
             ->orderBy('j.tahun')
             ->orderBy('indikator_kinerjas.kode')
@@ -83,7 +82,7 @@ class DaftarRencanaAksi
                 'indikator_id' => $baris->id,
                 'kode' => $baris->kode,
                 'nama' => $baris->nama,
-                'unit_nama' => $baris->unit?->nama,
+                'unit_nama' => $baris->getAttribute('unit_baris_nama'),
                 'tahun' => (int) $baris->getAttribute('tahun_jadwal'),
                 'pj_nama' => $baris->getAttribute('pj_nama'),
                 'milik_saya' => (string) $baris->getAttribute('pj_user_id') === (string) $actor->id,

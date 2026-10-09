@@ -28,8 +28,7 @@ class GetDashboard
         $windows = PeriodeJadwal::with('periode')->when($jadwal, fn ($q) => $q->where('jadwal_id', $jadwal->id));
         $activeWindow = $jadwal ? (clone $windows)->whereDate('pengisian_mulai', '<=', $today)->whereDate('pengisian_selesai', '>=', $today)->first() : null;
         $window = $activeWindow ?? ($jadwal ? $windows->whereDate('pengisian_mulai', '<=', $today)->orderByDesc('pengisian_mulai')->orderBy('id')->first() : null);
-        $deniedUnits = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'permission_id')
-            ->where('user_id', $actor->id)->where('permissions.kode', 'dashboard:read')->whereNotNull('unit_id')->select('unit_id');
+        $deniedUnits = $this->permissions->unitDitolak($actor, 'dashboard:read');
         $query = PengukuranKinerja::query()->when($jadwal && $window,
             fn ($q) => $q->where('tahun', $jadwal->tahun)->where('periode_id', $window->periode_id)
                 ->whereHas('jadwalSnapshot', fn ($snapshot) => $snapshot->where('jadwal_id', $jadwal->id)),
@@ -37,8 +36,7 @@ class GetDashboard
             ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $deniedUnits);
         $counts = (clone $query)->selectRaw('status_alur, count(*) as total')->groupBy('status_alur')->pluck('total', 'status_alur');
         $canRead = $this->permissions->allows($actor, 'pengukuran:read');
-        $readDenies = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'permission_id')
-            ->where('user_id', $actor->id)->where('permissions.kode', 'pengukuran:read')->whereNotNull('unit_id')->pluck('unit_id')->all();
+        $readDenies = $this->permissions->unitDitolak($actor, 'pengukuran:read')->pluck('unit_id')->all();
         $measurements = (clone $query)->with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->orderByDesc('updated_at')->orderBy('id')->limit(20)->get();
         $this->present->prepareSummary($measurements);

@@ -409,6 +409,53 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
+     * Baris tanpa header disaring memakai unit snapshot terbaru, bukan unit
+     * master yang bisa berpindah setelah aktivasi.
+     */
+    public function test_daftar_menyaring_deny_memakai_unit_snapshot_untuk_baris_tanpa_header(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $unitBaru = Unit::create(['nama' => 'Unit Master Baru', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $fixture['indikator']->update(['unit_id' => $unitBaru->id]);
+
+        $ditolakUnitSnapshot = $this->penggunaDenganPeran('pimpinan');
+        $this->tolakBaca($ditolakUnitSnapshot, $fixture['unit']->id, $fixture['perencanaan']);
+        $this->actingAs($ditolakUnitSnapshot)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page->has('daftar', 0));
+
+        $ditolakUnitMaster = $this->penggunaDenganPeran('pimpinan');
+        $this->tolakBaca($ditolakUnitMaster, $unitBaru->id, $fixture['perencanaan']);
+        $this->actingAs($ditolakUnitMaster)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->has('daftar', 1)
+            ->where('daftar.0.indikator_id', $fixture['indikator']->id));
+    }
+
+    /**
+     * Baris ber-header menampilkan unit header; baris tanpa header
+     * menampilkan unit snapshot terbaru. Unit master yang berpindah tidak
+     * mengubah tampilan.
+     */
+    public function test_daftar_menampilkan_unit_header_dan_unit_snapshot(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $unitSnapshot = Unit::create(['nama' => 'Unit Snapshot Lain', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $tanpaHeader = $this->tambahIndikatorTerjadwal($fixture, 'A-SNAPSHOT', unitId: $unitSnapshot->id);
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $unitPindah = Unit::create(['nama' => 'Unit Master Pindah', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        IndikatorKinerja::whereKey([$fixture['indikator']->id, $tanpaHeader->id])->update(['unit_id' => $unitPindah->id]);
+
+        $this->actingAs($this->penggunaDenganPeran('pimpinan'))->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('daftar', fn ($daftar) => collect($daftar)->pluck('unit_nama', 'indikator_id')->all() === [
+                $tanpaHeader->id => 'Unit Snapshot Lain',
+                $fixture['indikator']->id => 'Unit Uji RA Baca',
+            ]));
+    }
+
+    /**
      * Gerbang tulis juga menolak unit nonaktif, indikator arsip, dan unit
      * snapshot yang tidak selaras dengan unit master, sehingga capability
      * tidak boleh menawarkan aksi yang pasti ditolak (dan diaudit sebagai
@@ -657,6 +704,19 @@ class RencanaAksiIndexTest extends TestCase
         }
 
         return $indikator;
+    }
+
+    private function tolakBaca(User $user, string $unitId, User $oleh): void
+    {
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
+            'unit_id' => $unitId,
+            'alasan' => 'Fixture pembatasan',
+            'ditetapkan_oleh' => $oleh->id,
+            'created_at' => now(),
+        ]);
     }
 
     private function penggunaDenganPeran(string $kode): User
