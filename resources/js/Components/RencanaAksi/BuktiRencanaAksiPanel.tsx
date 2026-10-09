@@ -253,7 +253,6 @@ export function BuktiRencanaAksiPanel({
                                 <div
                                     key={req.id}
                                     className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-soft/20 transition-colors"
-                                    break;
                                 >
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
@@ -502,7 +501,7 @@ export function BuktiRencanaAksiPanel({
                         <div className="grid grid-cols-3 gap-2">
                             <button
                                 type="button"
-                                disabled={activeRequirement && (!activeRequirement.izinkan_file || !storageSettings.unggahan_aktif)}
+                                disabled={Boolean(activeRequirement && (!activeRequirement.izinkan_file || !storageSettings.unggahan_aktif))}
                                 onClick={() => setData('mode', 'file')}
                                 className={`h-10 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                                     data.mode === 'file'
@@ -516,7 +515,7 @@ export function BuktiRencanaAksiPanel({
 
                             <button
                                 type="button"
-                                disabled={activeRequirement && !activeRequirement.izinkan_tautan}
+                                disabled={Boolean(activeRequirement && !activeRequirement.izinkan_tautan)}
                                 onClick={() => setData('mode', 'tautan')}
                                 className={`h-10 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                                     data.mode === 'tautan'
@@ -530,7 +529,7 @@ export function BuktiRencanaAksiPanel({
 
                             <button
                                 type="button"
-                                disabled={activeRequirement && !activeRequirement.izinkan_teks}
+                                disabled={Boolean(activeRequirement && !activeRequirement.izinkan_teks)}
                                 onClick={() => setData('mode', 'teks')}
                                 className={`h-10 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                                     data.mode === 'teks'
