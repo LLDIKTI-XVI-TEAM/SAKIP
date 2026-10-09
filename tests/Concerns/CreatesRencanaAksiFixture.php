@@ -43,6 +43,8 @@ trait CreatesRencanaAksiFixture
 
     protected function setUpRencanaAksiFixture(): void
     {
+        // Jadwal fixture tahun 2026; waktu dipin agar penutupan tidak terlewati saat test dijalankan kemudian.
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $this->seed(AccessCatalogSeeder::class);
 
         $this->actor = $this->createUserWithRole('superadmin');

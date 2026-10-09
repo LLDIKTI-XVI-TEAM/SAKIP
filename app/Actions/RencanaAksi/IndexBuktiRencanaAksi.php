@@ -6,6 +6,8 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -15,7 +17,10 @@ use Illuminate\Support\Facades\Gate;
  */
 class IndexBuktiRencanaAksi
 {
-    public function __construct(private readonly EvaluateEvidence $evaluator) {}
+    public function __construct(
+        private readonly EvaluateEvidence $evaluator,
+        private readonly GerbangBuktiRencanaAksi $gerbang,
+    ) {}
 
     /**
      * @return array<string, mixed>|null
@@ -50,9 +55,10 @@ class IndexBuktiRencanaAksi
                 'created_at' => $b->created_at?->toISOString(),
             ])->values()->all(),
             'unggahan' => $settings,
+            // Izin + validasi bisnis (status, unit, arsip, jendela PIC), sama dengan gerbang tulis.
             'can' => [
-                'upload' => Gate::forUser($actor)->allows('uploadEvidence', $header),
-                'delete' => Gate::forUser($actor)->allows('deleteEvidence', $header),
+                'upload' => $this->gerbang->bolehMutasi($actor, $header, PermissionCodes::BERKAS_UPLOAD),
+                'delete' => $this->gerbang->bolehMutasi($actor, $header, PermissionCodes::BERKAS_DELETE),
             ],
         ];
     }

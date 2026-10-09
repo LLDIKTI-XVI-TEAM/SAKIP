@@ -2,28 +2,32 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\RencanaAksi\HapusBuktiRencanaAksi;
+use App\Actions\RencanaAksi\TambahBuktiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\Pengaturan;
 use App\Models\RencanaAksi;
-use App\Models\RencanaAksiVersi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
 /**
- * Jalur HTTP pemenuhan bukti rencana aksi (US-05.02 AC-1..AC-5, PRD §18,
- * Workflow §10.3, Q32): izin turun dari induk, deny menang, status dan
- * jendela ditegakkan server-side.
+ * Jalur HTTP pemenuhan bukti rencana aksi (US-05.02 AC-1..AC-4, PRD §18,
+ * Workflow §10.3, Q32): izin turun dari induk dan dijawab 403, sedangkan
+ * status, unit, arsip, dan jendela adalah validasi bisnis 422 (Data Model
+ * §3.2 langkah 6). Pembekuan bukti dalam versi (AC-5) dibuktikan di ISS-05.03.
  */
 class RencanaAksiBuktiHttpTest extends TestCase
 {
@@ -118,6 +122,9 @@ class RencanaAksiBuktiHttpTest extends TestCase
             ->assertSessionHasErrors('file');
         $this->kirim($this->actor, ['jenis_berkas_id' => $jb->id, 'mode' => 'file', 'file' => UploadedFile::fake()->create('catatan.txt', 10, 'text/plain')])
             ->assertSessionHasErrors('file');
+        // Karakter kontrol ditolak 422, bukan diteruskan ke PostgreSQL (galat 22021).
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => "Teks\x00rusak"])->assertSessionHasErrors('isi_teks');
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => str_repeat('a', 10001)])->assertSessionHasErrors('isi_teks');
 
         $this->assertSame(0, $this->rencanaAksi->buktiDukungs()->count());
         $this->assertSame([], Storage::disk('local')->allFiles());
@@ -183,20 +190,69 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('actor_id', $pic->id)->exists());
     }
 
-    public function test_status_di_luar_draf_menolak_mutasi_bukti(): void
+    public function test_status_di_luar_draf_ditolak_sebagai_validasi_bisnis_bukan_izin(): void
     {
         $bukti = $this->createBuktiDukung();
 
         foreach ([RencanaAksi::STATUS_DIAJUKAN, RencanaAksi::STATUS_DIVERIFIKASI, RencanaAksi::STATUS_DISAHKAN] as $status) {
             $this->rencanaAksi->update(['status_alur' => $status]);
-            $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => "Pada status {$status}."])->assertForbidden();
-            $this->hapus($this->actor, $bukti->id)->assertForbidden();
+            $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => "Pada status {$status}."])->assertSessionHasErrors('status_alur');
+            $this->hapus($this->actor, $bukti->id)->assertSessionHasErrors('status_alur');
         }
         $this->assertNull($bukti->fresh()->dihapus_pada);
         $this->assertSame(1, $this->rencanaAksi->buktiDukungs()->count());
 
         $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
         $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Revisi setelah dikembalikan.'])->assertSessionHasNoErrors();
+    }
+
+    public function test_unit_nonaktif_atau_indikator_arsip_menolak_mutasi_jalur_peran(): void
+    {
+        $bukti = $this->createBuktiDukung();
+
+        Unit::whereKey($this->unit->id)->update(['status' => 'nonaktif']);
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Unit nonaktif.'])->assertSessionHasErrors('unit_id');
+        $this->hapus($this->actor, $bukti->id)->assertSessionHasErrors('unit_id');
+        Unit::whereKey($this->unit->id)->update(['status' => 'aktif']);
+
+        $this->indikator->update(['status' => IndikatorKinerja::STATUS_ARSIP]);
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Indikator arsip.'])->assertSessionHasErrors('indikator_id');
+        $this->hapus($this->actor, $bukti->id)->assertSessionHasErrors('indikator_id');
+        $this->actingAs($this->actor)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
+            ->assertInertia(fn ($page) => $page->where('bukti.can.upload', false)->where('bukti.can.delete', false));
+
+        $this->assertNull($bukti->fresh()->dihapus_pada);
+        $this->assertSame(1, $this->rencanaAksi->buktiDukungs()->count());
+    }
+
+    public function test_aksi_memeriksa_ulang_izin_dan_status_pada_state_terkunci(): void
+    {
+        // Izin dicabut setelah lolos gerbang awal: Action tetap menolak tanpa baris maupun file.
+        $this->denyPermission($this->actor, 'berkas:upload');
+        try {
+            app(TambahBuktiRencanaAksi::class)->handle($this->actor, $this->rencanaAksi->id, ['mode' => 'file', 'file' => UploadedFile::fake()->create('kak.pdf', 10, 'application/pdf')]);
+            $this->fail('AuthorizationException seharusnya dilempar.');
+        } catch (AuthorizationException) {
+        }
+        $this->assertSame(0, BuktiDukung::count());
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        $tolakUnggah = AuditLog::where('tindakan', 'berkas.unggah_ditolak')->sole();
+        $this->assertSame('berkas:upload', $tolakUnggah->dasar_izin['permission']);
+        $this->assertSame('ditolak', $tolakUnggah->dasar_izin['keputusan']);
+
+        // Status berubah setelah halaman dimuat: hapus ditolak 422 dan bukti tetap utuh.
+        $bukti = $this->createBuktiDukung();
+        $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+        try {
+            app(HapusBuktiRencanaAksi::class)->handle($this->actor, $this->rencanaAksi->id, $bukti->id, 'Alasan uji status.');
+            $this->fail('ValidationException seharusnya dilempar.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status_alur', $exception->errors());
+        }
+        $this->assertNull($bukti->fresh()->dihapus_pada);
+        $tolakHapus = AuditLog::where('tindakan', 'berkas.hapus_ditolak')->sole();
+        $this->assertSame('rencana_aksi:update', $tolakHapus->dasar_izin['permission']);
+        $this->assertSame('diizinkan', $tolakHapus->dasar_izin['keputusan']);
     }
 
     public function test_unduh_file_mengikuti_akses_induk_dan_menolak_bukti_induk_lain(): void
@@ -207,6 +263,8 @@ class RencanaAksiBuktiHttpTest extends TestCase
 
         $respons = $this->unduh($this->actor, $bukti->id)->assertOk();
         $this->assertSame('Konten PDF Rahasia', $respons->streamedContent());
+        $this->assertStringContainsString('no-store', (string) $respons->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', (string) $respons->headers->get('Cache-Control'));
         $this->unduh($this->actor, $milikLain->id)->assertNotFound();
 
         $pic = $this->createPicPegawai();
@@ -216,21 +274,14 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->unduh($pic, $bukti->id)->assertForbidden();
     }
 
-    public function test_hapus_soft_delete_teraudit_dan_tidak_mengubah_versi_beku(): void
+    /**
+     * Penghapusan non-destruktif: baris hanya soft delete dan file fisik tetap
+     * ada, sehingga versi pengajuan (ISS-05.03) yang merujuknya tidak putus.
+     */
+    public function test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file(): void
     {
         Storage::disk('local')->put('berkas/rencana_aksi/beku.pdf', 'isi');
         $bukti = $this->createBuktiDukung(['mode' => 'file', 'tautan' => null, 'nama_asli' => 'beku.pdf', 'path' => 'berkas/rencana_aksi/beku.pdf', 'mime' => 'application/pdf', 'ukuran_bytes' => 3]);
-        $snapshot = ['bukti_dukungs' => [['id' => $bukti->id, 'mode' => 'file', 'nama_asli' => 'beku.pdf', 'path' => 'berkas/rencana_aksi/beku.pdf']]];
-        $versi = RencanaAksiVersi::create([
-            'rencana_aksi_id' => $this->rencanaAksi->id,
-            'jadwal_snapshot_id' => $this->snapshot->id,
-            'nomor' => 1,
-            'diajukan_by' => $this->actor->id,
-            'diajukan_at' => now(),
-            'jalur_pengajuan' => 'perencanaan',
-            'dasar_izin_pengajuan' => ['sumber' => 'uji'],
-            'snapshot' => $snapshot,
-        ]);
         $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
 
         $this->hapus($this->actor, $bukti->id, 'Dokumen salah unggah.')->assertSessionHasNoErrors()->assertRedirect();
@@ -238,8 +289,7 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $segar = $bukti->fresh();
         $this->assertNotNull($segar->dihapus_pada);
         $this->assertSame($this->actor->id, $segar->dihapus_oleh);
-        // jsonb menata ulang urutan kunci; isinya yang harus tetap identik.
-        $this->assertEquals($snapshot, $versi->fresh()->snapshot);
+        $this->assertSame('berkas/rencana_aksi/beku.pdf', $segar->path);
         Storage::disk('local')->assertExists('berkas/rencana_aksi/beku.pdf');
         $this->assertSame(0, $this->rencanaAksi->buktiDukungs()->current()->count());
 
@@ -258,6 +308,8 @@ class RencanaAksiBuktiHttpTest extends TestCase
 
         $this->hapus($this->actor, $milikLain->id)->assertNotFound();
         $this->hapus($this->actor, $bukti->id, '')->assertSessionHasErrors('alasan');
+        // Alasan rusak ditolak, bukan diganti diam-diam oleh teks bawaan audit.
+        $this->hapus($this->actor, $bukti->id, "Alasan\x01 rusak")->assertSessionHasErrors('alasan');
         $this->assertNull($milikLain->fresh()->dihapus_pada);
         $this->assertNull($bukti->fresh()->dihapus_pada);
     }
@@ -302,6 +354,26 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->actingAs($pembaca)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('bukti', null));
+    }
+
+    public function test_capability_mengikuti_pj_efektif_dan_jendela_penyusunan(): void
+    {
+        $lihatCan = fn (User $user, bool $boleh) => $this->actingAs($user)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('bukti.can.upload', $boleh)->where('bukti.can.delete', $boleh));
+
+        $pic = $this->createPicPegawai();
+        $bukanPj = $this->createUserWithRole('pegawai');
+        $this->grantUnitPermission($bukanPj, 'rencana_aksi:update');
+
+        $lihatCan($pic, true);
+        // Grant unit tanpa penugasan PJ efektif ditolak gerbang jendela, jadi tombol tidak ditawarkan.
+        $lihatCan($bukanPj, false);
+
+        $hariIni = today(config('app.business_timezone'));
+        $this->jadwal->update(['rencana_aksi_mulai' => $hariIni->copy()->subDays(3)->toDateString(), 'rencana_aksi_selesai' => $hariIni->copy()->subDays(2)->toDateString()]);
+        $lihatCan($pic, false);
+        $lihatCan($this->actor, true);
     }
 
     public function test_membuka_halaman_tanpa_hak_mutasi_tidak_mencatat_percobaan_ditolak(): void

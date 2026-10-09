@@ -96,25 +96,20 @@ class RencanaAksiPolicy
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
+    /**
+     * Izin unggah bukti saja (fail-fast FormRequest). Status, unit, arsip, dan
+     * jendela adalah validasi bisnis (Data Model §3.2 langkah 6) yang dijawab
+     * 422 oleh Action pada state terkunci.
+     */
     public function uploadEvidence(User $user, RencanaAksi $header): bool
     {
-        return $this->bolehMutasiBukti($user, $header, PermissionCodes::BERKAS_UPLOAD);
+        return $this->gerbangBukti->periksaIzin($user, $header, PermissionCodes::BERKAS_UPLOAD)['tolak'] === null;
     }
 
+    /** Izin hapus bukti saja; lihat `uploadEvidence`. */
     public function deleteEvidence(User $user, RencanaAksi $header): bool
     {
-        return $this->bolehMutasiBukti($user, $header, PermissionCodes::BERKAS_DELETE);
-    }
-
-    /**
-     * Fail-fast tanpa audit karena dipakai juga untuk capability halaman.
-     * Penolakan request nyata dicatat FormRequest, dan Action memeriksa ulang
-     * izin, status, serta jendela PIC pada state terkunci.
-     */
-    private function bolehMutasiBukti(User $user, RencanaAksi $header, string $izinBerkas): bool
-    {
-        return $this->gerbangBukti->periksaIzin($user, $header, $izinBerkas)['tolak'] === null
-            && in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true);
+        return $this->gerbangBukti->periksaIzin($user, $header, PermissionCodes::BERKAS_DELETE)['tolak'] === null;
     }
 
     private function response(PermissionDecision $decision, string $pesan): Response

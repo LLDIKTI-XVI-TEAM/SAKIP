@@ -21,6 +21,11 @@ interface BuktiPanelProps {
 const MODE: BuktiMode[] = ['file', 'tautan', 'teks'];
 const LABEL_MODE: Record<BuktiMode, string> = { file: 'File', tautan: 'Tautan', teks: 'Teks' };
 
+/** Galat validasi bisnis gerbang tulis (422) yang tidak terikat ke field form. */
+function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
+    return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
+}
+
 /** Mode yang boleh dipilih di UI mengikuti persyaratan + saklar unggahan; server memvalidasi ulang. */
 function modeTersedia(req: BuktiPersyaratan | undefined, unggahanAktif: boolean): BuktiMode[] {
     return MODE.filter((mode) => {
@@ -113,9 +118,15 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
             data: { alasan: alasanHapus },
             preserveScroll: true,
             onSuccess: () => tutupHapus(),
-            onError: (errs) => setGalatHapus(errs.alasan ?? errs.status_alur ?? errs.jendela ?? 'Penghapusan bukti gagal.'),
+            onError: (errs) => setGalatHapus(errs.alasan ?? galatBisnis(errs) ?? 'Penghapusan bukti gagal.'),
             onNetworkError: () => {
                 setGalatHapus('Koneksi terputus. Muat ulang halaman untuk memastikan status bukti.');
+                return false;
+            },
+            onHttpException: (response) => {
+                setGalatHapus(response.status === 403
+                    ? 'Izin penghapusan bukti ditolak. Muat ulang halaman untuk melihat akses terbaru.'
+                    : 'Hasil penghapusan belum dapat dipastikan. Muat ulang halaman sebelum mencoba kembali.');
                 return false;
             },
             onFinish: () => setMenghapus(false),
@@ -304,8 +315,8 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                         />
                     )}
 
-                    {(fieldErrors.status_alur || fieldErrors.jendela) && (
-                        <p role="alert" className="text-sm text-danger">{fieldErrors.status_alur ?? fieldErrors.jendela}</p>
+                    {galatBisnis(fieldErrors) && (
+                        <p role="alert" className="text-sm text-danger">{galatBisnis(fieldErrors)}</p>
                     )}
                     {requestError !== '' && <p role="alert" className="text-sm text-danger">{requestError}</p>}
 

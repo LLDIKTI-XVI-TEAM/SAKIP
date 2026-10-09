@@ -5,6 +5,7 @@ namespace App\Http\Requests\RencanaAksi;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -35,7 +36,8 @@ class DestroyBuktiRencanaAksiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'alasan' => ['required', 'string', 'min:3', 'max:1000'],
+            // Teks rusak ditolak, bukan diganti diam-diam oleh sanitasi audit.
+            'alasan' => ['required', 'string', 'min:3', 'max:1000', AuditReason::validate(...)],
         ];
     }
 

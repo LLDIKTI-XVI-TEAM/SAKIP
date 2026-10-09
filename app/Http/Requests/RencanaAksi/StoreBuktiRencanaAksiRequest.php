@@ -5,6 +5,7 @@ namespace App\Http\Requests\RencanaAksi;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -42,7 +43,8 @@ class StoreBuktiRencanaAksiRequest extends FormRequest
             'jenis_berkas_id' => ['nullable', 'uuid'],
             'file' => ['required_if:mode,file', 'nullable', 'file'],
             'tautan' => ['required_if:mode,tautan', 'nullable', 'string', 'url:http,https', 'max:2048'],
-            'isi_teks' => ['required_if:mode,teks', 'nullable', 'string', 'max:65535'],
+            // Batas sama dengan bukti Pengukuran/Regulasi; karakter kontrol ditolak sebelum mencapai PostgreSQL.
+            'isi_teks' => ['required_if:mode,teks', 'nullable', 'string', 'max:10000', AuditReason::validate(...)],
         ];
     }
 

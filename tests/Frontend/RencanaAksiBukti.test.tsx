@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import BuktiPanel from '@/Pages/RencanaAksi/BuktiPanel';
@@ -236,5 +236,24 @@ describe('BuktiPanel rencana aksi', () => {
         expect(inertia.del).toHaveBeenCalledTimes(1);
         expect(inertia.del.mock.calls[0][0]).toBe('/rencana-aksi/ra-1/bukti/bukti-1');
         expect(inertia.del.mock.calls[0][1]).toMatchObject({ data: { alasan: 'Dokumen salah unggah' }, preserveScroll: true });
+    });
+
+    it('menampilkan galat di modal hapus saat server menjawab 403 atau galat status', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        await user.click(screen.getByRole('button', { name: /Hapus bukti kak-final.pdf/ }));
+        await user.type(screen.getByLabelText(/Alasan perubahan/), 'Dokumen salah unggah');
+        await user.click(screen.getByRole('button', { name: 'Hapus' }));
+        const opsi = inertia.del.mock.calls[0][1];
+
+        let ditangani: unknown;
+        act(() => { ditangani = opsi.onHttpException({ status: 403 }); });
+        // false mencegah modal error bawaan Inertia; pesan tampil di modal alasan.
+        expect(ditangani).toBe(false);
+        expect(screen.getByText(/Izin penghapusan bukti ditolak/)).toBeTruthy();
+
+        act(() => { opsi.onError({ status_alur: 'Bukti hanya dapat diubah pada rencana aksi yang masih dapat disunting.' }); });
+        expect(screen.getByText('Bukti hanya dapat diubah pada rencana aksi yang masih dapat disunting.')).toBeTruthy();
     });
 });

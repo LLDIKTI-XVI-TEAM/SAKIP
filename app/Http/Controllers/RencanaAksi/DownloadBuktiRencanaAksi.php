@@ -25,6 +25,6 @@ class DownloadBuktiRencanaAksi extends Controller
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('local');
 
-        return $disk->download($berkas->path, $berkas->nama_asli ?? 'bukti');
+        return $disk->download($berkas->path, $berkas->nama_asli ?? 'bukti', ['Cache-Control' => 'private, no-store']);
     }
 }
