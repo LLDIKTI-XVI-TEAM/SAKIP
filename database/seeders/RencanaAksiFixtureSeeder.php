@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Models\Renstra;
@@ -104,12 +106,44 @@ class RencanaAksiFixtureSeeder extends Seeder
 
         $periodes = $this->ensurePeriodes();
 
+        // Header Rencana Aksi hanya sah di atas jadwal aktif dengan snapshot
+        // beku; jendela pengisian dan RA dibuka sepanjang tahun fixture.
         $jadwal = JadwalTahunan::where('renstra_id', $renstra->id)->where('tahun', self::FIXTURE_TAHUN)->first()
             ?? JadwalTahunan::create([
                 'renstra_id' => $renstra->id,
                 'tahun' => self::FIXTURE_TAHUN,
+                'rencana_aksi_mulai' => sprintf('%d-01-01', self::FIXTURE_TAHUN),
+                'rencana_aksi_selesai' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
                 'penutupan' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
-                'status' => 'draft',
+                'status' => 'aktif',
+                'activated_at' => now(),
+            ]);
+
+        foreach ($periodes as $periode) {
+            PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $periode->id)->first() ?? PeriodeJadwal::create([
+                'jadwal_id' => $jadwal->id,
+                'periode_id' => $periode->id,
+                'pengisian_mulai' => sprintf('%d-01-01', self::FIXTURE_TAHUN),
+                'pengisian_selesai' => sprintf('%d-06-30', self::FIXTURE_TAHUN),
+                'reviu_mulai' => sprintf('%d-07-01', self::FIXTURE_TAHUN),
+                'reviu_selesai' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
+            ]);
+        }
+
+        $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)->where('indikator_id', $indikator->id)->orderByDesc('nomor_versi')->first()
+            ?? JadwalSnapshot::create([
+                'jadwal_id' => $jadwal->id,
+                'indikator_id' => $indikator->id,
+                'periode_mulai_id' => $periodes->first()?->id,
+                'unit_id' => $indikator->unit_id,
+                'nama' => $indikator->nama,
+                'definisi' => 'Definisi beku fixture (sintetis).',
+                'satuan' => $indikator->satuan,
+                'presisi' => $indikator->presisi,
+                'desimal_tampilan' => $indikator->desimal_tampilan,
+                'arah' => $indikator->arah,
+                'tipe_perhitungan' => $indikator->tipe_perhitungan,
+                'target' => 100,
             ]);
 
         PenugasanIndikator::where('indikator_id', $indikator->id)
@@ -132,6 +166,7 @@ class RencanaAksiFixtureSeeder extends Seeder
                 'tahun' => self::FIXTURE_TAHUN,
                 'unit_id' => $unit->id,
                 'jadwal_tahunan_id' => $jadwal->id,
+                'snapshot_draf_id' => $snapshot->id,
                 'penanggung_jawab_id' => $creator->id,
                 'uraian' => 'Header fixture rencana aksi (sintetis).',
                 'status_alur' => RencanaAksi::STATUS_DRAFT,
