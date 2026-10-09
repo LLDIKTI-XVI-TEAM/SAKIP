@@ -554,9 +554,11 @@ class RencanaAksiTargetTest extends TestCase
     /**
      * Penolakan pembuatan untuk indikator arsip tetap teraudit, baik saat
      * ditolak guard arsip di Action maupun saat ditolak otorisasi di request.
+     * UUID huruf besar sah sebagai input, tetapi audit mencatat bentuk
+     * kanonis agar pencarian audit per indikator tetap menemukannya.
      */
     #[DataProvider('jalurTolakIndikatorArsip')]
-    public function test_create_indikator_arsip_ditolak_tetap_diaudit(bool $berizin): void
+    public function test_create_indikator_arsip_ditolak_tetap_diaudit(bool $berizin, bool $hurufBesar): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -564,7 +566,7 @@ class RencanaAksiTargetTest extends TestCase
         $aktor = $berizin ? $fixture['pic'] : $this->penggunaDenganPeran('pegawai');
 
         $respons = $this->actingAs($aktor)->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
+            'indikator_id' => $hurufBesar ? strtoupper($fixture['indikator']->id) : $fixture['indikator']->id,
             'tahun' => 2026,
         ]);
 
@@ -580,13 +582,15 @@ class RencanaAksiTargetTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: bool}>
+     * @return array<string, array{0: bool, 1: bool}>
      */
     public static function jalurTolakIndikatorArsip(): array
     {
         return [
-            'ditolak guard arsip di Action' => [true],
-            'ditolak otorisasi di request' => [false],
+            'ditolak guard arsip di Action' => [true, false],
+            'ditolak guard arsip di Action, UUID huruf besar' => [true, true],
+            'ditolak otorisasi di request' => [false, false],
+            'ditolak otorisasi di request, UUID huruf besar' => [false, true],
         ];
     }
 
