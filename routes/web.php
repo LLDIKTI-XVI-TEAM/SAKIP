@@ -35,6 +35,7 @@ use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
 use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
 use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
 use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
+use App\Http\Controllers\Perencanaan\ShowIndikator;
 use App\Http\Controllers\Perencanaan\StoreIndikator;
 use App\Http\Controllers\Perencanaan\StoreSasaran;
 use App\Http\Controllers\Perencanaan\UpdateIndikator;
@@ -218,6 +219,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
 
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
+    Route::get('/perencanaan/indikator/{indikator}', ShowIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.show');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
     Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');

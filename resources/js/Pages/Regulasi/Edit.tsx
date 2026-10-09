@@ -9,6 +9,7 @@ import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { RegulasiFormFields } from '@/Components/RegulasiFormFields';
+import { tautanAman } from '@/lib/url';
 import type { BerkasRegulasi, RegulasiDetail, RegulasiFormData } from '@/types/regulasi';
 
 interface EditRegulasiProps {
@@ -30,6 +31,8 @@ interface ExistingAttachmentProps {
 }
 
 function ExistingAttachment({ attachment, canDelete, onDelete }: ExistingAttachmentProps) {
+    const tautan = attachment.mode === 'tautan' ? tautanAman(attachment.tautan) : null;
+
     return (
         <li className="rounded-lg border border-border bg-page px-4 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -51,8 +54,8 @@ function ExistingAttachment({ attachment, canDelete, onDelete }: ExistingAttachm
                             <Download className="h-4 w-4" aria-hidden="true" /> Unduh
                         </a>
                     )}
-                    {attachment.mode === 'tautan' && attachment.tautan && (
-                        <a href={attachment.tautan} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                    {tautan && (
+                        <a href={tautan} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
                             <ExternalLink className="h-4 w-4" aria-hidden="true" /> Buka tautan
                         </a>
                     )}
