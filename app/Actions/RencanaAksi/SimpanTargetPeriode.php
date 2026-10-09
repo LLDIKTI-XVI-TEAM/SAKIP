@@ -44,7 +44,7 @@ class SimpanTargetPeriode
      *
      * Urutan kunci deterministik di dalam transaksi (anti-deadlock, sama
      * dengan `EnsureDraftRencanaAksi`): pengguna beserta baris ACL, header
-     * rencana aksi, indikator, jadwal tahunan, snapshot beserta
+     * rencana aksi, indikator, jadwal tahunan, unit header (berbagi), snapshot beserta
      * komponennya, jendela periode jadwal, lalu baris target. Tanpa retry:
      * antrean kunci menserialkan transaksi bersamaan, bukan 40P01. Bacaan
      * tanpa kunci (`Periode::exists`, PIC efektif jalur tulis) tidak ikut
