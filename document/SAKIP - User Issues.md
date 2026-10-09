@@ -1040,7 +1040,7 @@ kegiatan:update
 
 - [ ] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] **AC-3:** Given snapshot belum dirujuk, When koreksi diperbolehkan, Then snapshot dapat dikoreksi sesuai aturan.
+- [ ] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
 - [ ] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
 - [ ] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
@@ -1069,7 +1069,7 @@ kegiatan:update
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot belum dirujuk, When koreksi diperbolehkan, Then snapshot dapat dikoreksi sesuai aturan.
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
@@ -1119,6 +1119,7 @@ kegiatan:update
 - [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
 - [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] **AC-6:** Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak; satu jadwal tahunan memuat paling banyak 12 periode. *(Q35 §35.3; bukti `RencanaAksiMatrixLimitTest` pada PR #62.)*
 
 #### Implementation Tasks
 
@@ -1147,6 +1148,7 @@ kegiatan:update
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak. *(`RencanaAksiMatrixLimitTest`: 13 periode ditolak, 12 diterima.)*
 
 #### Definition of Done
 
@@ -1253,11 +1255,12 @@ kegiatan:update
 - **Dependensi:** Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi.
 - **Otorisasi:** `target:update` / permission substantif terkait serta guard jadwal.
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
+- **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya.
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given snapshot belum pernah dirujuk RA/Pengukuran/versi pengajuan, When koreksi sah dilakukan pada jadwal aktif, Then snapshot dapat dikoreksi dan audit menyimpan before/after.
-- [ ] **AC-2:** Given snapshot sudah dirujuk, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
+- [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
 - [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
 - [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
 - [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
@@ -1267,10 +1270,10 @@ kegiatan:update
 **A. Persistence / Data Model**
 - [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Jaga snapshot idempoten/berversi: snapshot yang telah dirujuk tidak boleh di-update in-place.
+- [ ] Jaga snapshot idempoten/berversi: snapshot yang telah terbit tidak boleh di-update in-place (Q35 §35.1).
 
 **B. Backend / Domain**
-- [ ] Jika snapshot belum dirujuk, koreksi hanya pada kondisi yang diizinkan dan selalu diaudit; jika sudah dirujuk, buat versi pengganti dengan `menggantikan_id`, alasan, dan rujukan resmi.
+- [ ] Koreksi selalu membuat versi pengganti dengan `menggantikan_id`, alasan, dan rujukan resmi, baik sebelum maupun sesudah snapshot dirujuk, dan selalu diaudit (Q35 §35.1).
 
 **C. Authorization & Audit**
 - [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update` / permission substantif terkait serta guard jadwal.
@@ -1279,8 +1282,8 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given snapshot belum pernah dirujuk RA/Pengukuran/versi pengajuan, When koreksi sah dilakukan pada jadwal aktif, Then snapshot dapat dikoreksi dan audit menyimpan before/after.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah dirujuk, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
+- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
@@ -1330,7 +1333,7 @@ kegiatan:update
 **A. Persistence / Data Model**
 - [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Jaga snapshot idempoten/berversi: snapshot yang telah dirujuk tidak boleh di-update in-place.
+- [ ] Jaga snapshot idempoten/berversi: snapshot yang telah terbit tidak boleh di-update in-place (Q35 §35.1).
 
 **B. Backend / Domain**
 - [ ] Tambahkan indikator baru pada jadwal aktif secara eksplisit dan tetapkan `periode_mulai_id`; periode sebelumnya harus menghasilkan status Tidak berlaku.
@@ -1484,15 +1487,15 @@ Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai <
 - Pergantian wajib alasan dan menambah histori tanpa menimpa baris lama.
 - PJ efektif pada tanggal acuan adalah assignment dengan tanggal mulai terbesar yang <= tanggal acuan.
 
-#### Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder
+#### Aturan PJ — Diratifikasi Q34
 
-PJ-01–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah merekam behavior branch: tanggal mutasi lampau/mendatang, unique indikator/tanggal, penolakan no-op dan pengembalian mantan PJ, pemeliharaan assignment mendatang, serta guard lifecycle. Seluruhnya **PENDING STAKEHOLDER DECISION** dan terpisah dari kontrak final Q32/kontrak dasar di atas. Behavior dan constraint existing dipertahankan sementara; kode/test tidak membuktikan persetujuan produk.
+Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). PJ-01 dan PJ-03–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah (tanggal mutasi lampau/mendatang, penolakan no-op dan pengembalian mantan PJ, pemeliharaan assignment mendatang, serta guard lifecycle) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal) digantikan butir 1; constraint existing dipertahankan hingga #70 selesai.
 
-**Decision gate:** pemilik requirement perlu menyetujui setiap kebijakan PJ-01–PJ-05 melalui evidence resmi sebelum kebijakan tersebut dijadikan dasar penggunaan operasional. Nama individu pemilik keputusan belum terkonfirmasi; assignee development pada Issue #54 tidak otomatis menjadi bukti approval produk. Persetujuan dan dampak rekonsiliasi dokumen/kode/schema ditelusuri pada matriks di bawah.
+**Decision gate:** ditutup oleh keputusan PM pada Q34, 9 Oktober 2026. Dampak rekonsiliasi dokumen/kode/schema ditelusuri pada matriks di bawah.
 
 #### Acceptance Criteria
 
-> Centang di bagian AC, Automated Tests, dan DoD mencatat implementasi/verifikasi teknis yang tersedia, bukan persetujuan PJ-01–PJ-05, penyelesaian review, merge, UAT, atau deployment. Decision gate tetap terbuka; cakupan monitoring akun nonaktif masih memerlukan klarifikasi.
+> Centang di bagian AC, Automated Tests, dan DoD mencatat implementasi/verifikasi teknis yang tersedia, bukan penyelesaian review, merge, UAT, atau deployment. Persetujuan PJ-01–PJ-05 berasal dari Q34; cakupan monitoring akun nonaktif (D-01) masih memerlukan klarifikasi.
 
 - [x] Penugasan awal user aktif berhasil.
 - [x] User nonaktif ditolak.
@@ -1520,21 +1523,21 @@ PJ-01–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah
 
 **D-01: OPEN — PENDING REQUIREMENT CLARIFICATION.** Frasa “PJ aktif tanpa hak isi” pada Q32, Plan §4.5, dan Issue #54 belum membuktikan keputusan eksplisit mengenai PJ efektif yang kemudian dinonaktifkan. Filter akun aktif existing dipertahankan sementara. Stakeholder perlu memilih **A:** hanya akun aktif dengan assignment efektif dan izin kurang, atau **B:** seluruh assignment efektif yang bermasalah termasuk akun nonaktif. Opsi B memerlukan penjelasan status akun/reason `inactive_user` dan regresi monitoring; kedua opsi tetap menjaga histori, fail-closed, serta tidak memberi grant/aktivasi otomatis. Evidence keputusan perlu ditautkan pada Issue #54 atau dokumen pemilik requirement sebelum perilaku diubah.
 
-**MAJOR: OPEN — PENDING STAKEHOLDER DECISION.** Pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
+**MAJOR: RESOLVED oleh Q34 (9 Oktober 2026).** PJ-01 dan PJ-03–PJ-05 diratifikasi; PJ-02 digantikan butir 1 (pergantian di tanggal yang sama) yang belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). Sebelum Q34, pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
 
-Matriks berikut memisahkan kontrak baseline yang **CONFIRMED**, inferensi engineering (**INFERRED / TECHNICAL ASSUMPTION**), dan keputusan produk yang **PENDING DECISION**. Inferensi engineering menjelaskan implementasi saat ini; tidak menyetujui requirement tambahan yang ditulis pada PRD §13, Data Model §2.19/§5, Workflow §22.1, User Story, atau kontrak issue di branch ini.
+Matriks berikut memetakan setiap aturan PJ terhadap baseline, evidence resmi, status keputusan, dan dampak kode. Status PJ-01–PJ-05 diperbarui menurut Q34 (9 Oktober 2026).
 
 | Rule | Existing baseline | Evidence resmi | Status | Dampak kode |
 |---|---|---|---|---|
 | Q32: user aktif dengan/tanpa role boleh menjadi PJ; assignment tidak memberi permission; warning hak isi; role change menjaga assignment | Keputusan Penyelarasan §32.2–32.3; Plan §4.5 | Klarifikasi final LLDIKTI 24 September 2026 (Q32); Issue #54, kontrak Q32 | **CONFIRMED** | Pertahankan pemisahan assignment dan role/grant, tujuh izin scoped, canonical PermissionResolver, deny-wins, dan akun nonaktif fail-closed. |
 | Resolusi tanggal terbesar ≤ tanggal acuan; pergantian beralasan menambah histori | Plan §4.3–4.4; Data Model baseline §2.19 | Issue #54 AC-4–AC-5 dan Plan Modul 4 | **CONFIRMED** | Pertahankan `PenugasanIndikator::effectiveOn()` dan histori append-only; integrasi Rencana Aksi masih bergantung pada Modul 11. |
-| PJ-01: tanggal mutasi lampau dan mendatang diperbolehkan | Plan §4.4 mengizinkan query tanggal acuan lampau, tetapi tidak menetapkan tanggal mutasi yang boleh dipilih | Belum ada persetujuan spesifik; aturan ditambahkan pada PRD §13, Data Model §2.19, Workflow §22.1 di PR #68 | **PENDING DECISION** | `AssignmentRequest` menerima tanggal valid tanpa batas hari ini; `AppendAssignment` memakai tanggal yang dipilih. Jika dibatasi, ubah validasi dan test tanggal; data historis existing tidak dikoreksi otomatis. |
-| PJ-02: unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Data Model baseline §2.19 dan Plan §4.4 meminta PJ efektif, tanpa menetapkan constraint satu assignment per tanggal | Belum ada persetujuan spesifik; constraint ditambahkan pada Data Model §2.19/§5 dan migration PR #68 | **PENDING DECISION**; determinisme tanpa tie-break merupakan **TECHNICAL ASSUMPTION** | `AppendAssignment` menolak tanggal duplikat; migration `2026_10_06_000001_add_unique_indicator_date_to_penanggung_jawab.php` menambah unique. Jika lebih dari satu assignment per tanggal diizinkan, tetapkan urutan resmi lalu selaraskan resolver, constraint, migration, dan test; jangan memilih/menghapus duplikat otomatis. |
-| PJ-03: no-op ditolak; mantan PJ boleh kembali sesudah digantikan | Plan §4.3 dan Issue #54 AC-4 menetapkan alasan/histori pergantian; belum mengatur kedua kebijakan ini | Belum ada persetujuan spesifik; aturan ditambahkan pada PRD §13 dan Workflow §22.1 di PR #68 | **PENDING DECISION**; penolakan baris tanpa perubahan PJ merupakan **INFERRED** engineering | `AppendAssignment` membandingkan target dengan PJ efektif pada tanggal mutasi. Jika keputusan berbeda, selaraskan validasi no-op/reassignment dan audit/test; tidak perlu mengubah schema hanya untuk membolehkan no-op. |
-| PJ-04: assignment mendatang existing dipertahankan ketika assignment lebih awal ditambahkan | Plan §4.3 dan Issue #54 AC-4 melarang overwrite histori; belum menetapkan kebijakan benturan jadwal mendatang secara spesifik | Belum ada persetujuan spesifik; aturan eksplisit ditambahkan pada Workflow §22.1 di PR #68 | **PENDING DECISION**; mempertahankan seluruh baris merupakan **INFERRED** dari append-only | `AppendAssignment` hanya menambah baris; jadwal mendatang kembali efektif pada tanggalnya. Jika benturan harus ditolak, tambah guard/test; jika diperlukan pembatalan jadwal, tentukan kontrak data/migration dan audit terlebih dahulu tanpa overwrite histori. |
-| PJ-05: mutasi diblokir pada indikator arsip, Renstra diarsipkan, atau unit nonaktif; histori tetap terbaca | Lifecycle entitas dan fail-closed tersedia, tetapi larangan mutasi PJ untuk ketiga kondisi belum dinyatakan pada baseline Modul 4/Issue #54 | Belum ada persetujuan spesifik; guard dan tambahan PRD §13/Workflow §22.1 berasal dari PR #68 | **PENDING DECISION**; perluasan guard lifecycle ke mutasi PJ merupakan **INFERRED** engineering | `IndikatorKinerja::assignmentBlockReason()` dipakai `AppendAssignment` dan capability read path. Jika ada pengecualian resmi, selaraskan guard/capability/audit/test; tidak memberi permission baru atau menghapus histori. |
+| PJ-01: tanggal mutasi lampau dan mendatang diperbolehkan | Plan §4.4 mengizinkan query tanggal acuan lampau, tetapi tidak menetapkan tanggal mutasi yang boleh dipilih | Q34 §34.1 butir 2; aturan awal ditambahkan pada PRD §13, Data Model §2.19, Workflow §22.1 di PR #68 | **CONFIRMED** | `AssignmentRequest` menerima tanggal valid tanpa batas hari ini; `AppendAssignment` memakai tanggal yang dipilih. Jika dibatasi, ubah validasi dan test tanggal; data historis existing tidak dikoreksi otomatis. |
+| PJ-02: unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Data Model baseline §2.19 dan Plan §4.4 meminta PJ efektif, tanpa menetapkan constraint satu assignment per tanggal | Q34 §34.1 butir 1 menggantinya: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan; constraint awal ditambahkan pada Data Model §2.19/§5 dan migration PR #68 | **DIGANTI Q34** — belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70) | `AppendAssignment` menolak tanggal duplikat; migration `2026_10_06_000001_add_unique_indicator_date_to_penanggung_jawab.php` menambah unique. Jika lebih dari satu assignment per tanggal diizinkan, tetapkan urutan resmi lalu selaraskan resolver, constraint, migration, dan test; jangan memilih/menghapus duplikat otomatis. |
+| PJ-03: no-op ditolak; mantan PJ boleh kembali sesudah digantikan | Plan §4.3 dan Issue #54 AC-4 menetapkan alasan/histori pergantian; belum mengatur kedua kebijakan ini | Q34 §34.1 butir 3–4; aturan awal ditambahkan pada PRD §13 dan Workflow §22.1 di PR #68 | **CONFIRMED** | `AppendAssignment` membandingkan target dengan PJ efektif pada tanggal mutasi. Jika keputusan berbeda, selaraskan validasi no-op/reassignment dan audit/test; tidak perlu mengubah schema hanya untuk membolehkan no-op. |
+| PJ-04: assignment mendatang existing dipertahankan ketika assignment lebih awal ditambahkan | Plan §4.3 dan Issue #54 AC-4 melarang overwrite histori; belum menetapkan kebijakan benturan jadwal mendatang secara spesifik | Q34 §34.1 butir 5; aturan eksplisit awal ditambahkan pada Workflow §22.1 di PR #68 | **CONFIRMED** | `AppendAssignment` hanya menambah baris; jadwal mendatang kembali efektif pada tanggalnya. Jika benturan harus ditolak, tambah guard/test; jika diperlukan pembatalan jadwal, tentukan kontrak data/migration dan audit terlebih dahulu tanpa overwrite histori. |
+| PJ-05: mutasi diblokir pada indikator arsip, Renstra diarsipkan, atau unit nonaktif; histori tetap terbaca | Lifecycle entitas dan fail-closed tersedia, tetapi larangan mutasi PJ untuk ketiga kondisi belum dinyatakan pada baseline Modul 4/Issue #54 | Q34 §34.1 butir 6; guard dan tambahan PRD §13/Workflow §22.1 berasal dari PR #68 | **CONFIRMED** | `IndikatorKinerja::assignmentBlockReason()` dipakai `AppendAssignment` dan capability read path. Jika ada pengecualian resmi, selaraskan guard/capability/audit/test; tidak memberi permission baru atau menghapus histori. |
 
-Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Behavior domain dan constraint existing dipertahankan hingga keputusan resmi tersedia. Untuk menutup MAJOR, pemilik requirement perlu memutuskan tiap rule dan menautkan evidence pada Issue #54 atau catatan keputusan resmi; bila berbeda, rekonsiliasi dokumen pemilik kontrak, kode, migration, dan test berdasarkan keputusan tersebut.
+Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Q34 menutup MAJOR. PJ-01 dan PJ-03–PJ-05 sudah sesuai implementasi; PJ-02 berbeda, sehingga rekonsiliasi resolver, constraint, migration, dan test dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70).
 
 **MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah checkbox atau keputusan domain.
 
@@ -1561,51 +1564,53 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:create`, `rencana_aksi:update`.
 - **Dampak Data:** `rencana_aksi`, `rencana_aksi_target`, `audit_log`.
 
+> **Status implementasi — PR #62:** centang menunjukkan bukti implementasi dan QA pada `7ec7007`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37902466096); bukan persetujuan UAT atau deployment. Bukti memakai test Pest pada `tests/Feature/RencanaAksi/` (antara lain `RencanaAksiTargetTest`, `RencanaAksiIndexTest`, `RencanaAksiWriteGuardTest`, `RencanaAksiAuthorizationTest`, dan `RencanaAksiKoreksiLingkupTest`), test frontend `tests/Frontend/RencanaAksi*.test.tsx`, serta E2E browser lokal pada desktop dan mobile. AC-6/TEST-6 tetap terbuka: kewajiban alasan deviasi ditegakkan saat pengajuan (ISS-05.03, ADR-0008), sedangkan simpan draf hanya memberi peringatan. Kontras teks belum diaudit formal terhadap checklist `design-system.md`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
-- [ ] **AC-2:** Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
-- [ ] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
-- [ ] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
-- [ ] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
-- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
+- [x] **AC-1:** Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
+- [x] **AC-2:** Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
+- [x] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
+- [x] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
+- [x] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
+- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi. *(Q34/ADR-0008: kewajiban alasan ditegakkan pada pengajuan ISS-05.03; ISS-05.01 hanya menampilkan peringatan deviasi dan menyimpan `alasan_deviasi_pk` pada draf.)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_target`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_target`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Penyusunan Target Rencana Aksi per Periode** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Penyusunan Target Rencana Aksi per Periode** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:create`, `rencana_aksi:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:create`, `rencana_aksi:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penyusunan Target Rencana Aksi per Periode**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Penyusunan Target Rencana Aksi per Periode**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
-- [ ] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
+- [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-05.02 · [Feature] Pemenuhan Bukti Dukung Rencana Aksi
@@ -4618,6 +4623,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 - **Dependensi:** Jadwal berstatus `ditutup`; lingkup, alasan, dan durasi koreksi ditetapkan.
 - **Otorisasi:** `jadwal:buka_kembali` (sensitif).
 - **Dampak Data:** `jadwal_tahunan.koreksi_*`, `lingkup_koreksi`, `audit_log`.
+- **Q35 §35.2:** `lingkup_koreksi` tanpa `periode_ids` berarti tidak ada periode tercakup (gagal tertutup) untuk Rencana Aksi dan Pengukuran; lingkup yang mencakup periode wajib menyebutkan `periode_ids` secara eksplisit.
 
 #### Acceptance Criteria (QA/UAT)
 

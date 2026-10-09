@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\JadwalTahunan;
+use App\Models\RencanaAksi;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
@@ -44,6 +45,7 @@ class HandleInertiaRequests extends Middleware
                         'storagePolicy' => $can['storagePolicy'],
                         'storagePolicyUpdate' => $can['storagePolicyUpdate'],
                         'sasaranIndikator' => $can['sasaranIndikator'],
+                        'rencanaAksi' => $can['rencanaAksi'],
                         'pk' => $can['pk'],
                         'periode' => $can['periode'],
                         'jadwal' => $can['jadwal'],
@@ -94,6 +96,7 @@ class HandleInertiaRequests extends Middleware
             'storagePolicy' => false,
             'storagePolicyUpdate' => false,
             'sasaranIndikator' => false,
+            'rencanaAksi' => false,
             'pk' => false,
             'periode' => false,
             'jadwal' => false,
@@ -148,6 +151,7 @@ class HandleInertiaRequests extends Middleware
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
             'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
+            'rencanaAksi' => $user->can('viewAny', RencanaAksi::class),
             'pk' => $user->can('viewAny', RenstraPk::class),
             'periode' => $resolver->allows($user, 'periode:create') || $resolver->allows($user, 'periode:update'),
             'jadwal' => $user->can('viewAny', JadwalTahunan::class),
