@@ -503,7 +503,7 @@ sequenceDiagram
 
 **Gerbang keempat tidak memacetkan alur:** karena lampiran dokumen PK boleh dipenuhi lewat mode file/tautan/teks (§3.3, §10), gerbang 4 tidak pernah menjadi penghalang keras yang tidak dapat diatasi — bila unggahan file dimatikan pada setelan aplikasi dan belum ada lampiran mode lain, sistem menandai persyaratan `tidak_dapat_dipenuhi` dan tetap meloloskan gerbang secara administratif, konsisten dengan aturan anti-macet yang berlaku pada seluruh persyaratan bukti dukung (§10.5).
 
-**Sifat idempoten dan imutabilitas snapshot:** logika pembuatan snapshot pada langkah 7–8 dipanggil ulang, dengan perilaku yang sama, setiap kali `jadwal:buka_kembali` dijalankan (§13) — mis. saat indikator baru ditambahkan di tengah tahun. Baris snapshot yang **sudah dirujuk** oleh minimal satu `pengukuran` bersifat abadi dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya. Sebelum dirujuk pengukuran manapun, baris snapshot boleh dikoreksi hanya selama jadwal berstatus `aktif`, dan setiap koreksi wajib tercatat di `audit_log`. Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
+**Sifat idempoten dan imutabilitas snapshot:** logika pembuatan snapshot pada langkah 7–8 dipanggil ulang, dengan perilaku yang sama, setiap kali `jadwal:buka_kembali` dijalankan (§13) — mis. saat indikator baru ditambahkan di tengah tahun. Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
 
 ---
 
@@ -1678,13 +1678,13 @@ Halaman **read-only** digerbangi `pengguna:read`. Tidak ada form add/revoke `rol
 
 **Kontrak dasar histori/resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:**
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan dan satu indikator hanya memiliki satu assignment per tanggal, tanpa tie-break tambahan.
+- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, satu indikator masih hanya memiliki satu assignment per tanggal.
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali setelah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak dan diaudit; histori tetap terbaca sesuai akses.
 
-Kelima kebijakan tersebut masih **PENDING STAKEHOLDER DECISION** dan merekam behavior branch. Evidence, inferensi, dampak, dan decision gate penggunaan operasional berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Behavior existing dipertahankan sementara; tidak ada keputusan bisnis baru atau perubahan state transition dari klasifikasi ini.
+Rujukan keputusan: **Q34 §34.1** pada [Keputusan Penyelarasan](SAKIP%20-%20Keputusan%20Penyelarasan.md). Evidence dan dampak per aturan berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 ## 23. Catatan Penyelarasan Q32 — Klarifikasi Final
 

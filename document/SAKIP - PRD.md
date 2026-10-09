@@ -494,7 +494,7 @@ Keempat gerbang ini dievaluasi di service layer sebagai validasi utama. Sebagai 
 
 ### 12.5 Snapshot Saat Aktivasi (Fase Awal — Fondasi MVP)
 
-Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi, bukan trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
+Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi; imutabilitasnya dijaga trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
 
 - Referensi ke indikator master (`indikator_id`) untuk ketertelusuran.
 - `unit_id`, `nama`, `definisi`, `satuan`, `presisi`, `desimal_tampilan`, `arah`, `tipe_perhitungan`, `baseline` — salinan beku dari kondisi master saat itu.
@@ -505,7 +505,7 @@ Untuk indikator bertipe `tipe_perhitungan` selain `manual`, sistem juga membuat 
 Aturan pembentukan snapshot:
 
 - **Idempoten** — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`, sistem hanya membuat baris `jadwal_snapshot` (dan `jadwal_snapshot_komponen` anaknya) untuk pasangan (`jadwal_id`, `indikator_id`) yang **belum ada**. Baris lama tidak pernah ditimpa.
-- **Abadi setelah dirujuk** — begitu suatu baris snapshot dirujuk oleh pengukuran pertamanya, baris itu (beserta baris komponennya) tidak dapat lagi diubah. Sebelum dirujuk pengukuran mana pun, baris snapshot boleh dikoreksi hanya selama jadwal berstatus `aktif` (mis. setelah `jadwal:buka_kembali`), dan koreksi itu wajib teraudit. Tidak ada restatement data historis dalam bentuk apa pun.
+- **Beku sejak terbit (Q35 §35.1)** — begitu jadwal bertransisi ke `aktif`, baris snapshot (beserta baris komponennya) tidak dapat lagi diubah, baik sudah maupun belum dirujuk pengukuran atau rencana aksi. Koreksi konteks selalu dibuat sebagai versi snapshot baru (`nomor_versi` + 1, `menggantikan_id`, alasan, dan rujukan resmi) yang teraudit; versi lama tetap utuh. Tidak ada restatement data historis dalam bentuk apa pun.
 - Baris `audit_log` untuk pembuatan snapshot memakai `actor_id` = pengguna Perencanaan yang menjalankan aksi aktivasi — jejaknya menempel pada aksi manusia yang memicunya, bukan pada proses sistem anonim.
 
 Setiap `pengukuran` merujuk ke `jadwal_snapshot_id`, bukan langsung ke `indikator_id` master, untuk keperluan tampilan (nama, satuan, target pembanding, arah, cara hitung). Keputusan ini masuk sebagai fondasi MVP sejak Fase Awal, bukan fitur yang ditunda — tanpa snapshot, perubahan pada master indikator maupun definisi komponennya di masa depan akan mendistorsi tampilan capaian tahun-tahun yang sudah disahkan.
@@ -564,13 +564,13 @@ Kontrak dasar histori dan resolusi — Plan §4.3–4.4 / Issue #54: pergantian 
 
 Monitoring menilai seluruh tujuh permission scoped untuk unit indikator: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, dan `kegiatan:create/update`. Tampilkan izin tersedia dan kurang menurut PermissionResolver saat ini; explicit deny menang dan akun nonaktif fail-closed. Diagnosis tidak menggantikan pemeriksaan setiap aksi.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** behavior berikut berasal dari implementasi branch dan seluruhnya **PENDING STAKEHOLDER DECISION**, terpisah dari Q32 final:
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan; kombinasi indikator/tanggal mulai berlaku unik tanpa tie-break tambahan.
+- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, kombinasi indikator/tanggal mulai berlaku masih unik.
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali sesudah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi ditolak saat indikator `arsip`, Renstra `diarsipkan`, atau unit `nonaktif`; histori tetap tersimpan dan terbaca sesuai akses.
 
-Evidence, dampak, dan decision gate penggunaan operasional dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Kebijakan sementara ini belum menjadi keputusan produk final; enforcement existing dipertahankan hingga pemilik requirement memberi keputusan resmi.
+Rujukan keputusan: **Q34 §34.1** pada [Keputusan Penyelarasan](SAKIP%20-%20Keputusan%20Penyelarasan.md). Evidence dan dampak per aturan dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 Untuk initial setup 2026, Rencana Aksi yang sudah disusun Perencanaan harus dicatat sebagai **disahkan** sebelum pengajuan TW III. Workflow PIC operasional normal untuk RA baru dimulai dari siklus berikutnya (2027).
 

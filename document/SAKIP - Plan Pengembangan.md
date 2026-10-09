@@ -307,10 +307,10 @@ Setiap task memiliki tiga bagian wajib:
 - **Dependency:** 3.5, 2.7, 2.10, 3.6.
 - **DoD:** Setelah aktivasi jadwal dengan N indikator aktif terkait, query `jadwal_snapshot WHERE jadwal_id = ...` mengembalikan tepat N baris; memanggil logic ini ulang tanpa perubahan data (idempoten) tidak menambah baris baru maupun mengubah baris lama; setelah menambahkan 1 indikator baru dan memanggil ulang logic ini (mensimulasikan `jadwal:buka_kembali`), hanya 1 baris baru terbentuk sementara N baris lama tidak berubah; mengubah `indikator.nama` master setelah snapshot terbentuk tidak mengubah nilai `nama` pada baris snapshot yang sudah ada; audit_log baris snapshot baru memiliki `actor_id` sama dengan pelaku aktivasi/buka_kembali.
 
-### 3.8 Guard imutabilitas baris `jadwal_snapshot` yang sudah dirujuk
-- **Scope:** Policy/Observer yang menolak perubahan pada baris `jadwal_snapshot` yang telah dirujuk oleh minimal satu baris `pengukuran`; baris yang belum dirujuk boleh dikoreksi hanya selama `jadwal_tahunan` terkait berstatus `aktif`, dan koreksi tersebut wajib tercatat audit_log.
+### 3.8 Guard imutabilitas baris `jadwal_snapshot` sejak terbit
+- **Scope:** guard database yang menolak perubahan in-place pada baris `jadwal_snapshot` dan `jadwal_snapshot_komponen` sejak snapshot terbit, baik sudah maupun belum dirujuk (Q35 §35.1); koreksi konteks selalu dibuat sebagai versi baru yang tercatat audit_log.
 - **Dependency:** 3.7, 5.1 (pengukuran, untuk mengecek rujukan).
-- **DoD:** Test Pest: percobaan mengubah baris snapshot yang sudah dirujuk pengukuran ditolak dengan pesan spesifik; percobaan mengubah baris snapshot yang belum dirujuk, saat jadwal `aktif`, berhasil dan tercatat audit_log; percobaan yang sama saat jadwal `ditutup` ditolak.
+- **DoD:** Test Pest: percobaan mengubah atau menghapus baris snapshot yang sudah terbit ditolak dengan pesan spesifik, baik sudah maupun belum dirujuk; penyisipan komponen ke snapshot yang sudah final ditolak; penyisipan versi snapshot baru tetap diterima.
 
 ### 3.9 Aksi tutup & buka kembali Jadwal (mekanisme standar)
 - **Scope:** Transisi status `aktif → ditutup` (mengisi `closed_at`) dan `ditutup → aktif` (`jadwal:buka_kembali`, alasan wajib, memicu ulang trigger idempoten 3.7); permission `jadwal:tutup`, `jadwal:buka_kembali`. Dokumentasikan dalam kode/komentar bahwa buka_kembali adalah jalur standar untuk koreksi pasca-penutupan maupun penambahan indikator baru di tengah tahun — bukan jalur darurat semata.
