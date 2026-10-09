@@ -140,6 +140,49 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertSame(3, $header->fresh()->versi);
     }
 
+    /** Pembacaan seluruh matriks per `rencana_aksi_id` memakai index, bukan Seq Scan. */
+    public function test_baca_seluruh_matriks_memakai_index(): void
+    {
+        DB::statement('SET LOCAL enable_seqscan = off');
+        $rencana = collect(DB::select('EXPLAIN SELECT * FROM rencana_aksi_target WHERE rencana_aksi_id = ?', [(string) Str::uuid()]))
+            ->pluck('QUERY PLAN')->implode("\n");
+
+        $this->assertStringNotContainsString('Seq Scan', $rencana);
+    }
+
+    /**
+     * Baris target dimuat dan dikunci sekali per simpan; jumlah SELECT ke
+     * `rencana_aksi_target` tidak boleh bertambah seiring jumlah sel.
+     */
+    public function test_simpan_tidak_membaca_ulang_tiap_sel(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $kirim = fn (array $targets, int $versi) => $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ]);
+        $sel = fn (string $periodeId) => ['periode_id' => $periodeId, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null];
+        $selectTarget = fn (): int => collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_starts_with($query['query'], 'select') && str_contains($query['query'], '"rencana_aksi_target"'))
+            ->count();
+        DB::enableQueryLog();
+
+        $kirim([$sel($fixture['periode1']->id)], 1)->assertSessionHasNoErrors();
+        $satuSel = $selectTarget();
+        DB::flushQueryLog();
+        $kirim([$sel($fixture['periode1']->id), $sel($fixture['periode2']->id)], 2)->assertSessionHasNoErrors();
+
+        $this->assertSame($satuSel, $selectTarget());
+    }
+
     public function test_nonmanual_menyimpan_per_komponen_efektif_dan_nol_berbeda_dari_null(): void
     {
         $fixture = $this->buatFixtureRasio();

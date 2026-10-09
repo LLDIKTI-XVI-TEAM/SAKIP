@@ -182,9 +182,15 @@ class SimpanTargetPeriode
                 $header->versi++;
                 $header->save();
 
-                RencanaAksiTarget::where('rencana_aksi_id', $header->id)->lockForUpdate()->get();
+                // Header FOR UPDATE menyerialkan simpan, jadi sel yang belum ada
+                // di sini aman dibuat baru (index unik tetap menjaga duplikasi).
+                $tersimpan = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->lockForUpdate()->get()
+                    ->keyBy(fn (RencanaAksiTarget $row): string => $this->rekonsiliasi->kunciDimensi($row->periode_id, $row->komponen_id));
                 foreach ($targets as $baris) {
-                    $this->simpanBaris($header->id, $pengunci->id, $baris);
+                    ($tersimpan->get($this->rekonsiliasi->kunciDimensi($baris['periode_id'], $baris['komponen_id']))
+                        ?? new RencanaAksiTarget(['rencana_aksi_id' => $header->id, 'periode_id' => $baris['periode_id'], 'komponen_id' => $baris['komponen_id']]))
+                        ->fill(['nilai' => $baris['nilai'], 'keterangan' => $baris['keterangan'], 'updated_by' => $pengunci->id, 'updated_at' => now()])
+                        ->save();
                 }
 
                 // Hanya sel yang efektif KEMBALI di bawah konteks terbaru
@@ -468,33 +474,6 @@ class SimpanTargetPeriode
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['targets' => $exception->getMessage()]);
         }
-    }
-
-    private function simpanBaris(string $rencanaAksiId, string $actorId, array $baris): void
-    {
-        $query = RencanaAksiTarget::where('rencana_aksi_id', $rencanaAksiId)->where('periode_id', $baris['periode_id']);
-        if ($baris['komponen_id'] === null) {
-            $query->whereNull('komponen_id');
-        } else {
-            $query->where('komponen_id', $baris['komponen_id']);
-        }
-        $existing = $query->lockForUpdate()->first();
-        if ($existing instanceof RencanaAksiTarget) {
-            $existing->fill(['nilai' => $baris['nilai'], 'keterangan' => $baris['keterangan'], 'updated_by' => $actorId, 'updated_at' => now()]);
-            $existing->save();
-
-            return;
-        }
-
-        RencanaAksiTarget::create([
-            'rencana_aksi_id' => $rencanaAksiId,
-            'periode_id' => $baris['periode_id'],
-            'komponen_id' => $baris['komponen_id'],
-            'nilai' => $baris['nilai'],
-            'keterangan' => $baris['keterangan'],
-            'updated_by' => $actorId,
-            'updated_at' => now(),
-        ]);
     }
 
     /**
