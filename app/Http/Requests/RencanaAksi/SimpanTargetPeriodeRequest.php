@@ -3,6 +3,7 @@
 namespace App\Http\Requests\RencanaAksi;
 
 use App\Models\RencanaAksi;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
@@ -57,12 +58,13 @@ class SimpanTargetPeriodeRequest extends FormRequest
             // sah (mis. 10×11=110) yang dikirim utuh oleh halaman.
             // F3-rework: 12 periode dikunci di StoreJadwalRequest (`periode`
             // max:12) sehingga 600 selalu cukup dari konfigurasi yang sah.
-            'targets' => ['required', 'array', 'min:1', 'max:600'],
+            'targets' => ['required', 'array', 'min:1', 'max:600', $this->batasiTotalKeterangan(...)],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
             'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
             // Seluruh matriks (hingga 600 sel) masuk audit lama+baru tiap
-            // simpan; batas per sel menjaga ukuran satu permintaan.
+            // simpan; batas per sel dan batas total (batasiTotalKeterangan)
+            // menjaga ukuran satu permintaan.
             'targets.*.keterangan' => ['nullable', 'string', 'max:1000'],
             // F2/F3 (Review6 T2): jepit konteks ditulis server saja
             // (EnsureDraft saat buat, Simpan tiap simpan) — klien dilarang
@@ -79,6 +81,22 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'disahkan_at' => ['prohibited'],
             'disahkan_by' => ['prohibited'],
         ];
+    }
+
+    /**
+     * Batas per sel saja masih meloloskan 600 sel yang masing-masing penuh
+     * (±1,2 juta karakter audit per simpan), jadi jumlah seluruh keterangan
+     * satu simpan dibatasi setara satu kolom teks panjang (`uraian`).
+     */
+    private function batasiTotalKeterangan(string $attribute, mixed $value, Closure $fail): void
+    {
+        $total = is_array($value) ? array_sum(array_map(
+            fn (mixed $baris): int => is_array($baris) && is_string($baris['keterangan'] ?? null) ? mb_strlen($baris['keterangan']) : 0,
+            $value,
+        )) : 0;
+        if ($total > 10000) {
+            $fail('Total keterangan seluruh target melebihi 10.000 karakter.');
+        }
     }
 
     /**
