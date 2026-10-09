@@ -55,7 +55,7 @@ class DaftarRencanaAksi
             ->leftJoinSub(PenugasanIndikator::effectiveOn($hariIni)->select('indikator_id', 'user_id'), 'pj', 'pj.indikator_id', '=', 'indikator_kinerjas.id')
             ->leftJoin('users as pju', 'pju.id', '=', 'pj.user_id')
             ->join('unit as unit_baris', DB::raw('COALESCE(ra.unit_id, snap.unit_id)'), '=', 'unit_baris.id')
-            ->whereNotIn(DB::raw('COALESCE(ra.unit_id, snap.unit_id)'), $unitDitolak)
+            ->whereNotIn('unit_baris.id', $unitDitolak)
             ->orderByRaw('CASE WHEN pj.user_id = ? THEN 0 ELSE 1 END', [$actor->id])
             ->orderBy('j.tahun')
             ->orderBy('indikator_kinerjas.kode')
