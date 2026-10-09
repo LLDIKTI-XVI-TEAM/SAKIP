@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\RencanaAksi\DaftarRencanaAksi;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
@@ -321,6 +322,36 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('daftar.0.rencana_aksi.id', $header->id)
                 ->where('daftar.0.rencana_aksi.status_alur', 'draft')
                 ->where('daftar.0.can.create', false));
+    }
+
+    /**
+     * PJ efektif sudah ikut di-join daftar; capability "buat" tidak boleh
+     * membaca ulang penugasan per baris kandidat (N+1).
+     */
+    public function test_daftar_tidak_membaca_ulang_pic_per_baris(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $bacaPenugasan = function () use ($fixture): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $daftar = app(DaftarRencanaAksi::class)->handle($fixture['pic']);
+            $jumlah = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], '"penanggung_jawab"'))->count();
+            DB::disableQueryLog();
+            $this->assertSame([true], collect($daftar['daftar'])->where('milik_saya', true)->pluck('can.create')->all());
+            $this->assertSame([], collect($daftar['daftar'])->where('milik_saya', false)->where('can.create', true)->all());
+
+            return $jumlah;
+        };
+        foreach (range(1, 4) as $nomor) {
+            $this->tambahIndikatorTerjadwal($fixture, "A-LAIN-{$nomor}");
+        }
+        $limaBaris = $bacaPenugasan();
+        foreach (range(5, 19) as $nomor) {
+            $this->tambahIndikatorTerjadwal($fixture, "A-LAIN-{$nomor}");
+        }
+
+        $this->assertSame($limaBaris, $bacaPenugasan());
     }
 
     /**

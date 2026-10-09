@@ -76,7 +76,7 @@ class DaftarRencanaAksi
                 $unitId = (string) $baris->unit_id;
                 $keputusan = $izinBuat[$unitId] ??= $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
                 $buat = $keputusan->allowed
-                    && $this->jendela->alasanTolak($actor, $keputusan, $baris, $jadwalAktif[$baris->getAttribute('jadwal_id')], 'pembuatan') === null;
+                    && $this->jendela->alasanTolak($actor, $keputusan, $baris, $jadwalAktif[$baris->getAttribute('jadwal_id')], 'pembuatan', [], (string) $baris->getAttribute('pj_user_id')) === null;
             }
 
             return [
