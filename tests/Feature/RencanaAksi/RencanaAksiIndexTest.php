@@ -279,6 +279,16 @@ class RencanaAksiIndexTest extends TestCase
      * di atas, "Buat" hanya ditawarkan bila gerbang server mengizinkan, dan
      * berubah menjadi "Buka" setelah draf ada.
      */
+    /** Lookup header mendahului Gate: UUID asing selalu 404, dengan maupun tanpa izin baca. */
+    public function test_tampilan_header_tak_ditemukan_404_sebelum_otorisasi(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $idAsing = (string) Str::uuid();
+
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get("/rencana-aksi/{$idAsing}")->assertNotFound();
+        $this->actingAs($this->penggunaDenganPeran('pimpinan'))->get("/rencana-aksi/{$idAsing}")->assertNotFound();
+    }
+
     public function test_daftar_menawarkan_buat_lalu_buka_dengan_milik_sendiri_di_atas(): void
     {
         $fixture = $this->buatFixtureManual();

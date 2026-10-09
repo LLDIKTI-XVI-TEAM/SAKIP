@@ -175,7 +175,7 @@ class RencanaAksiTokenDanUnitSnapshotTest extends TestCase
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertSessionHasErrors('snapshot');
 
         try {
-            app(IndexRencanaAksi::class)->handle($fixture['pic'], $header->fresh());
+            app(IndexRencanaAksi::class)->handle($fixture['pic'], $header->id);
             $this->fail('IndexRencanaAksi harus menolak header A + snapshot B.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('snapshot', $exception->errors());

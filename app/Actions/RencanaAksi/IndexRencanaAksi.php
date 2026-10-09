@@ -18,6 +18,7 @@ use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -33,6 +34,10 @@ class IndexRencanaAksi
 
     /**
      * Menyusun satu payload baca untuk matriks target per periode per komponen.
+     *
+     * Header dimuat di luar transaksi hanya untuk 404 dan otorisasi baca
+     * (`unit_id` imutabel pasca-create sehingga aman); lookup mendahului
+     * Gate agar UUID asing selalu 404.
      *
      * Transaksi baca konsisten: header dimuat ulang di dalam transaksi
      * dengan `sharedLock` (akuisisi header-dahulu, sama dengan jalur tulis
@@ -60,8 +65,11 @@ class IndexRencanaAksi
      *
      * @return array<string, mixed>
      */
-    public function handle(User $actor, RencanaAksi $header): array
+    public function handle(User $actor, string $id): array
     {
+        $header = RencanaAksi::findOrFail($id);
+        Gate::forUser($actor)->authorize('view', $header);
+
         return DB::transaction(function () use ($actor, $header): array {
             $segel = RencanaAksi::whereKey($header->getKey())->sharedLock()->firstOrFail();
             $segel->loadMissing(['indikator', 'unit', 'jadwalTahunan', 'penanggungJawab']);
