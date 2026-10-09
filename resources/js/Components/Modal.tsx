@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -154,9 +155,9 @@ export const Modal: React.FC<ModalProps> = ({
         '3xl': 'max-w-3xl',
     };
 
-    return (
+    const modalElement = (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs transition-opacity duration-200"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md transition-opacity duration-200"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -242,4 +243,10 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
         </div>
     );
+
+    if (typeof document !== 'undefined') {
+        return createPortal(modalElement, document.body);
+    }
+
+    return modalElement;
 };

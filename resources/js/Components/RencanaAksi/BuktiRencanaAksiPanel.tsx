@@ -176,7 +176,7 @@ export function BuktiRencanaAksiPanel({
                         <div className="flex items-center gap-2 flex-wrap">
                             <CardTitle className="text-base sm:text-lg font-bold text-ink">
                                 {rencanaAksi.indikator
-                                    ? `${rencanaAksi.indikator.kode} - ${rencanaAksi.indikator.nama}`
+                                    ? `${rencanaAksi.indikator.kode} · ${rencanaAksi.indikator.nama}`
                                     : 'Indikator Kinerja'}
                             </CardTitle>
                             <Badge status={rencanaAksi.status_alur} />
@@ -214,19 +214,19 @@ export function BuktiRencanaAksiPanel({
                     </div>
                 </CardHeader>
 
-                <CardContent className="pt-4 border-t border-border bg-soft/40">
+                <CardContent className="bg-soft/30">
                     <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <dt className="text-xs font-semibold text-muted">Unit Pengelola</dt>
-                            <dd className="mt-0.5 text-sm font-medium text-ink">{rencanaAksi.unit?.nama || '-'}</dd>
+                            <dd className="mt-1 text-sm font-medium text-ink">{rencanaAksi.unit?.nama || '-'}</dd>
                         </div>
                         <div>
                             <dt className="text-xs font-semibold text-muted">Penanggung Jawab</dt>
-                            <dd className="mt-0.5 text-sm font-medium text-ink">{rencanaAksi.penanggungJawab?.nama || '-'}</dd>
+                            <dd className="mt-1 text-sm font-medium text-ink">{rencanaAksi.penanggungJawab?.nama || '-'}</dd>
                         </div>
                         <div>
                             <dt className="text-xs font-semibold text-muted">Periode & Versi</dt>
-                            <dd className="mt-0.5 text-sm font-medium text-ink">
+                            <dd className="mt-1 text-sm font-medium text-ink">
                                 Tahun {rencanaAksi.tahun} · Versi {rencanaAksi.versi}
                             </dd>
                         </div>
@@ -253,6 +253,7 @@ export function BuktiRencanaAksiPanel({
                                 <div
                                     key={req.id}
                                     className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-soft/20 transition-colors"
+                                    break;
                                 >
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
