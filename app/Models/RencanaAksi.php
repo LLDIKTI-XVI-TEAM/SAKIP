@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,13 +12,35 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RencanaAksi extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $table = 'rencana_aksi';
 
-    public $timestamps = false;
+    public const STATUS_DRAFT = 'draft';
 
-    protected $fillable = ['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'jadwal_snapshot_id', 'penanggung_jawab_id', 'uraian', 'status_alur', 'versi', 'alasan_revisi', 'created_by', 'disahkan_at', 'disahkan_by'];
+    public const STATUS_DIAJUKAN = 'diajukan';
+
+    public const STATUS_DIVERIFIKASI = 'diverifikasi';
+
+    public const STATUS_DIKEMBALIKAN = 'dikembalikan';
+
+    public const STATUS_DISAHKAN = 'disahkan';
+
+    /** Status header yang targetnya masih boleh disunting. */
+    public const STATUS_DAPAT_DISUNTING = [self::STATUS_DRAFT, self::STATUS_DIKEMBALIKAN];
+
+    /**
+     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi D7 sempit,
+     * audit-safe, tanpa relasi otorisasi): snapshot terakhir yang
+     * direkonsiliasi draf ini. Ditulis server saja, tak pernah dari request.
+     */
+    protected $fillable = ['indikator_id', 'tahun', 'unit_id', 'jadwal_tahunan_id', 'snapshot_draf_id', 'penanggung_jawab_id', 'uraian', 'status_alur', 'versi', 'alasan_revisi', 'alasan_deviasi_pk', 'created_by', 'disahkan_at', 'disahkan_by'];
+
+    /** Nilai bawaan header baru (cermin default basis data untuk model belum tersimpan). */
+    protected $attributes = [
+        'status_alur' => self::STATUS_DRAFT,
+        'versi' => 1,
+    ];
 
     protected $casts = ['tahun' => 'integer', 'versi' => 'integer', 'disahkan_at' => 'datetime'];
 
@@ -26,10 +50,10 @@ class RencanaAksi extends Model
         return $this->belongsTo(IndikatorKinerja::class, 'indikator_id');
     }
 
-    /** @return BelongsTo<JadwalSnapshot, $this> */
-    public function jadwalSnapshot(): BelongsTo
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
     {
-        return $this->belongsTo(JadwalSnapshot::class, 'jadwal_snapshot_id');
+        return $this->belongsTo(Unit::class, 'unit_id');
     }
 
     /** @return BelongsTo<JadwalTahunan, $this> */
@@ -38,22 +62,28 @@ class RencanaAksi extends Model
         return $this->belongsTo(JadwalTahunan::class, 'jadwal_tahunan_id');
     }
 
-    /** @return BelongsTo<Unit, $this> */
-    public function unit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class, 'unit_id');
-    }
-
-    /** @return BelongsTo<User, $this> */
+    /** PIC yang berlaku pada saat penyusunan (jejak historis, bukan hak berjalan). */
     public function penanggungJawab(): BelongsTo
     {
         return $this->belongsTo(User::class, 'penanggung_jawab_id');
     }
 
-    /** @return HasMany<BuktiDukung, $this> */
-    public function buktiDukungs(): HasMany
+    /** @return BelongsTo<User, $this> */
+    public function creator(): BelongsTo
     {
-        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi')->whereNull('dihapus_pada');
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function disahkanOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'disahkan_by');
+    }
+
+    /** @return HasMany<RencanaAksiTarget, $this> */
+    public function targets(): HasMany
+    {
+        return $this->hasMany(RencanaAksiTarget::class, 'rencana_aksi_id');
     }
 
     /** @return HasMany<RencanaAksiVersi, $this> */
@@ -65,17 +95,34 @@ class RencanaAksi extends Model
     /** @return HasOne<RencanaAksiVersi, $this> */
     public function latestVersion(): HasOne
     {
-        return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->orderByDesc('nomor')->limit(1);
+        return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->orderByDesc('nomor');
     }
 
-    /** @return HasOne<RencanaAksiVersi, $this> */
+    /** Versi terbaru yang telah disahkan (ratifikasi) — dipakai tampilan pasca-sah. @return HasOne<RencanaAksiVersi, $this> */
     public function ratifiedVersion(): HasOne
     {
-        return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->whereNotNull('disahkan_at')->orderByDesc('nomor')->limit(1);
+        return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->whereNotNull('disahkan_at')->orderByDesc('nomor');
     }
 
+    /** @return HasMany<BuktiDukung, $this> */
+    public function buktiDukungs(): HasMany
+    {
+        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi')->whereNull('dihapus_pada');
+    }
+
+    /** Unit scope otorisasi header (unit pemilik indikator saat penyusunan). */
     public function targetUnitId(): string
     {
         return $this->unit_id;
+    }
+
+    public function scopeDraft(Builder $query): void
+    {
+        $query->where('rencana_aksi.status_alur', self::STATUS_DRAFT);
+    }
+
+    public function scopeDisahkan(Builder $query): void
+    {
+        $query->where('rencana_aksi.status_alur', self::STATUS_DISAHKAN);
     }
 }

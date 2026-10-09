@@ -35,14 +35,20 @@ class SahkanRencanaAksi
                     throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
                 }
                 $ra = RencanaAksi::lockForUpdate()->findOrFail($id);
-                // t2: snapshot (immutable) dan jadwal hanya dibaca di transaksi ini — FOR SHARE cukup.
-                // Urutan kunci tetap satu arah User→RencanaAksi→Snapshot→Jadwal→Unit agar searah writer lain.
-                $snapshot = JadwalSnapshot::sharedLock()->findOrFail($ra->jadwal_snapshot_id);
-                $snapshot->setRelation('jadwal', JadwalTahunan::sharedLock()->findOrFail($snapshot->jadwal_id));
-                // Unit tetap eksklusif: status unit dinilai dari baris terkunci ini
-                // (anti-TOCTOU penonaktifan unit paralel, konsisten UpdateUnitAction/DeleteUnitAction).
-                $snapshot->setRelation('unit', Unit::lockForUpdate()->findOrFail($snapshot->unit_id));
-                $ra->setRelation('jadwalSnapshot', $snapshot);
+                // Konteks beku = snapshot versi pengajuan terbaru (header tidak lagi
+                // menyimpan rujukan snapshot — D7). t2: snapshot (immutable) dan jadwal
+                // hanya dibaca di transaksi ini — FOR SHARE cukup; urutan kunci tetap
+                // satu arah User→RencanaAksi→Snapshot→Jadwal→Unit agar searah writer lain.
+                $version = $ra->latestVersion()->first();
+                if ($version) {
+                    $snapshot = JadwalSnapshot::sharedLock()->findOrFail($version->jadwal_snapshot_id);
+                    $snapshot->setRelation('jadwal', JadwalTahunan::sharedLock()->findOrFail($snapshot->jadwal_id));
+                    // Unit tetap eksklusif: status unit dinilai dari baris terkunci ini
+                    // (anti-TOCTOU penonaktifan unit paralel, konsisten UpdateUnitAction/DeleteUnitAction).
+                    $snapshot->setRelation('unit', Unit::lockForUpdate()->findOrFail($snapshot->unit_id));
+                    $ra->setRelation('jadwalSnapshot', $snapshot);
+                    $ra->setRelation('latestVersion', $version);
+                }
                 $errors = $this->policy->businessErrors($actor, $ra);
                 if ($ra->versi !== (int) $data['versi']) {
                     $errors[] = 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.';
@@ -52,7 +58,6 @@ class SahkanRencanaAksi
                 }
                 $before = $this->auditState($ra);
                 $reason = 'Mengesahkan rencana aksi.';
-                $version = $ra->latestVersion;
                 // F2: jalur Perencanaan boleh disahkan pengaju sendiri; tandai self_approval di audit.
                 $selfApproval = $version->diajukan_by === $actor->id && $version->jalur_pengajuan === 'perencanaan';
                 $version->update(['disahkan_by' => $actor->id, 'disahkan_at' => now()]);

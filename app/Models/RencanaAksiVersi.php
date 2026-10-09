@@ -23,4 +23,10 @@ class RencanaAksiVersi extends Model
     {
         return $this->belongsTo(RencanaAksi::class, 'rencana_aksi_id');
     }
+
+    /** Snapshot jadwal yang membekukan konteks versi pengajuan ini. @return BelongsTo<JadwalSnapshot, $this> */
+    public function jadwalSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(JadwalSnapshot::class, 'jadwal_snapshot_id');
+    }
 }

@@ -423,7 +423,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 - [ ] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] **AC-3:** Given snapshot belum dirujuk, When koreksi diperbolehkan, Then snapshot dapat dikoreksi sesuai aturan.
+- [ ] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
 - [ ] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
 - [ ] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
@@ -456,6 +456,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
 - [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] **AC-6:** Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak; satu jadwal tahunan memuat paling banyak 12 periode. *(Q35 §35.3; bukti `RencanaAksiMatrixLimitTest` pada PR #62.)*
 
 ### US-03.02 · Aktivasi Jadwal Tahunan melalui Empat Gerbang & Pembentukan Snapshot
 
@@ -502,8 +503,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given snapshot belum pernah dirujuk RA/Pengukuran/versi pengajuan, When koreksi sah dilakukan pada jadwal aktif, Then snapshot dapat dikoreksi dan audit menyimpan before/after.
-- [ ] **AC-2:** Given snapshot sudah dirujuk, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
+- [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
 - [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
 - [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
 - [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
@@ -611,7 +612,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-6 (Q32):** Given target user aktif dengan role apa pun atau belum memiliki role, When ditetapkan sebagai PJ, Then assignment diperbolehkan tanpa memberi permission; kesiapan tujuh izin kerja dinilai terpisah melalui PermissionResolver.
 
 
-> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 ditelusuri terpisah pada matriks provenance ISS-04.01; AC-3/AC-4 integrasi Modul 11 tetap terbuka.
+> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 berasal dari Q34 dan ditelusuri pada matriks provenance ISS-04.01; AC-3/AC-4 integrasi Modul 11 tetap terbuka.
 
 **Kontrak Final Q32**
 
@@ -622,9 +623,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** PJ-01 (tanggal mutasi lampau/mendatang), PJ-02 (unique indikator/tanggal tanpa tie-break), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) merupakan behavior branch yang masih **PENDING STAKEHOLDER DECISION**. Detail evidence, inferensi, dampak, dan decision gate penggunaan operasional berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026). Kebijakan ini belum menjadi keputusan produk final; behavior existing dipertahankan sementara.
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal tanpa tie-break) digantikan butir 1 dan dipertahankan hingga #70 selesai. Detail evidence dan dampak berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
-**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) tetap **OPEN — PENDING STAKEHOLDER DECISION**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. Aturan tambahan tersebut merekam behavior implementasi branch, belum merupakan keputusan stakeholder yang terkonfirmasi. AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
+**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) **RESOLVED oleh Q34 (9 Oktober 2026)**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. PJ-02 digantikan Q34 butir 1 dan dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
 
 **Tindak lanjut review M-02/M-03:** audit penolakan aktor nonaktif dan continuation monitoring dengan batas kandidat telah diperbaiki serta diverifikasi lokal. Cakupan PJ efektif yang akunnya nonaktif (D-01) tetap **PENDING REQUIREMENT CLARIFICATION** dengan filter existing dipertahankan sementara; status dan pilihan keputusan berada pada bagian traceability ISS-04.01 di User Issues. Tidak ada perubahan AC atau keputusan bisnis dari tindak lanjut teknis ini.
 
@@ -651,13 +652,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** mengisi target kumulatif per periode secara manual atau per komponen sesuai snapshot,  
 > **Sehingga** target tahunan dapat diturunkan menjadi target operasional tanpa kehilangan konsistensi formula.
 
+> **Status implementasi — PR #62:** AC-1–5 memiliki bukti QA pada `7ec7007`; AC-6 menunggu ISS-05.03 (ADR-0008). Batas bukti tercatat pada [ISS-05.01](SAKIP%20-%20User%20Issues.md#iss-0501--feature-penyusunan-target-rencana-aksi-per-periode).
+
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
-- [ ] **AC-2:** Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
-- [ ] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
-- [ ] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
-- [ ] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
+- [x] **AC-1:** Given indikator manual, When target periode diisi, Then satu target langsung per periode disimpan dengan `komponen_id = NULL`.
+- [x] **AC-2:** Given indikator nonmanual, When target diisi, Then target disimpan per komponen snapshot dan nilai turunan dihitung server.
+- [x] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
+- [x] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
+- [x] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
 - [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
 
 ### US-05.02 · Pemenuhan Bukti Dukung Rencana Aksi

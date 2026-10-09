@@ -1,44 +1,70 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
-import Index from '@/Pages/RencanaAksi/Index';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { router } from '@inertiajs/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import RencanaAksiIndex, { type BarisRencanaAksi } from '@/Pages/RencanaAksi/Index';
 
-vi.mock('@inertiajs/react', async (original) => ({
-    ...(await original<typeof import('@inertiajs/react')>()),
-    Head: () => null,
-}));
+vi.mock('@inertiajs/react', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@inertiajs/react')>();
+    return { ...original, Head: () => null };
+});
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
-vi.mock('@/hooks/useLabelUnit', () => ({ useLabelUnit: () => 'Unit Kerja' }));
 
-afterEach(() => cleanup());
+const satuHalaman = { current_page: 1, last_page: 1, total: 3, prev_page_url: null, next_page_url: null };
+const milikSaya: BarisRencanaAksi = {
+    indikator_id: 'ind-1',
+    kode: 'IKU-3',
+    nama: 'Tingkat kepuasan layanan',
+    unit_nama: 'Bagian Umum',
+    tahun: 2026,
+    pj_nama: 'Budi',
+    milik_saya: true,
+    rencana_aksi: null,
+    can: { create: true },
+};
 
-const pagination = { current_page: 1, last_page: 1, total: 0, prev_page_url: null, next_page_url: null };
-
-it('tab antrean aktif secara default dan menautkan tab disahkan', () => {
-    render(<Index rencanaAksis={[]} pagination={pagination} status="antrean" />);
-
-    expect(screen.getByRole('link', { name: 'Antrean' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('link', { name: 'Disahkan' }).getAttribute('href')).toBe('/rencana-aksi?status=disahkan');
-    expect(screen.getByText('Semua pengajuan telah diproses')).toBeTruthy();
+beforeEach(() => {
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+});
+afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
 });
 
-it('tab disahkan menampilkan daftar monitoring read-only', () => {
-    render(<Index rencanaAksis={[]} pagination={pagination} status="disahkan" />);
+describe('Daftar Rencana Aksi', () => {
+    it('hanya menampilkan aksi dari capability server, dan Buat mengirim indikator × tahun', async () => {
+        const user = userEvent.setup();
+        render(
+            <RencanaAksiIndex
+                daftar={[
+                    milikSaya,
+                    { ...milikSaya, indikator_id: 'ind-2', kode: 'IKU-5', milik_saya: false, rencana_aksi: { id: 'ra-2', status_alur: 'draft' }, can: { create: false } },
+                    { ...milikSaya, indikator_id: 'ind-3', kode: 'IKU-7', milik_saya: false, can: { create: false } },
+                ]}
+                pagination={satuHalaman}
+            />,
+        );
 
-    expect(screen.getByRole('link', { name: 'Disahkan' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByText('Daftar Rencana Aksi Disahkan')).toBeTruthy();
-    expect(screen.getByText('Belum ada rencana aksi disahkan')).toBeTruthy();
-});
+        expect(screen.getAllByRole('button', { name: /Buat Rencana Aksi/ })).toHaveLength(1);
+        const tombolBuat = screen.getByRole('button', { name: 'Buat Rencana Aksi IKU-3 2026' });
+        const tautanBuka = screen.getByRole('link', { name: 'Buka Rencana Aksi IKU-5 2026' });
+        expect(tautanBuka.getAttribute('href')).toBe('/rencana-aksi/ra-2');
+        expect(within(tombolBuat.closest('tr') as HTMLElement).getByText('Anda')).toBeTruthy();
+        expect(within(tautanBuka.closest('tr') as HTMLElement).queryByText('Anda')).toBeNull();
 
-it('tautan Lihat per baris mengarah ke layar reviu terpisah', () => {
-    render(<Index rencanaAksis={[{
-        id: 'ra-9', versi: 1, status: 'diverifikasi', tahun: 2026, nomor_pengajuan: 1, jalur_pengajuan: 'pic',
-        diajukan_pada: null, uraian: 'Uraian', indikator: { kode: 'IK-09', nama: 'Indikator reviu' },
-        unit_kerja: { id: 'unit-9', nama: 'Unit reviu' }, pic: null, konteks_tidak_lengkap: [], bukti_count: 0,
-        bukti_dukungs: [], target_periode: [], can: { view: true },
-    }]} pagination={{ ...pagination, total: 1 }} status="antrean" />);
+        await user.click(tombolBuat);
 
-    expect(screen.getByRole('link', { name: 'Lihat' }).getAttribute('href')).toBe('/rencana-aksi/ra-9/reviu');
+        expect(router.post).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ensure-draft', { indikator_id: 'ind-1', tahun: 2026 }]);
+    });
+
+    it('daftar kosong cukup satu kalimat tanpa aksi', () => {
+        render(<RencanaAksiIndex daftar={[]} pagination={satuHalaman} />);
+
+        expect(screen.getByText('Belum ada indikator pada jadwal aktif.')).toBeTruthy();
+        expect(screen.queryByRole('button')).toBeNull();
+    });
 });

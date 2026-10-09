@@ -13,7 +13,6 @@ import {
     FileText,
     CalendarRange,
     FileSpreadsheet,
-    ClipboardCheck,
     CheckCircle2,
     Building2,
     UserCheck,
@@ -23,6 +22,7 @@ import {
     Search,
     Settings,
     HardDrive,
+    ClipboardList,
 } from 'lucide-react';
 
 export type LucideIconType = ComponentType<{
@@ -167,7 +167,7 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     id: 'rencana-aksi',
                     label: 'Rencana Aksi',
                     href: '/rencana-aksi',
-                    icon: ClipboardCheck,
+                    icon: ClipboardList,
                     canKey: 'rencanaAksi',
                 },
                 {

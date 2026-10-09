@@ -71,7 +71,7 @@ class RencanaAksiBuktiDownloadTest extends TestCase
             'unit_id' => $this->unit->id, 'nama' => 'Indikator Bukti '.$this->counter, 'definisi' => 'Definisi operasional beku.',
             'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         $ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $this->unit->id,
-            'jadwal_tahunan_id' => $this->jadwal->id, 'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $this->picUser->id,
+            'jadwal_tahunan_id' => $this->jadwal->id, 'penanggung_jawab_id' => $this->picUser->id,
             'created_by' => $this->perencana->id, 'status_alur' => $status]);
         if ($denganVersi) {
             $payload = ['uraian' => 'Versi pengajuan beku.',

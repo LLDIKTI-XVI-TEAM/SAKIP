@@ -939,7 +939,7 @@ class MutationConcurrencyTest extends TestCase
             'nama' => 'Indikator Race RA', 'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         $ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $unit->id, 'jadwal_tahunan_id' => $jadwal->id,
-            'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $pic->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
+            'penanggung_jawab_id' => $pic->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
         RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $snapshot->id, 'nomor' => 1, 'diajukan_by' => $pic->id,
             'diajukan_at' => now(), 'jalur_pengajuan' => 'pic', 'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $unit->id],
             'snapshot' => ['uraian' => 'Versi pengajuan beku.', 'target_periode' => []]]);
@@ -1032,7 +1032,7 @@ class MutationConcurrencyTest extends TestCase
             'unit_id' => $indicator->unit_id, 'nama' => 'Indikator PJ', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         $plan = RencanaAksi::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'unit_id' => $indicator->unit_id,
-            'jadwal_tahunan_id' => $schedule->id, 'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $pic->id, 'created_by' => $pic->id,
+            'jadwal_tahunan_id' => $schedule->id, 'penanggung_jawab_id' => $pic->id, 'created_by' => $pic->id,
             'status_alur' => 'disahkan', 'disahkan_by' => $operator->id, 'disahkan_at' => now()]);
         RencanaAksiVersi::create(['rencana_aksi_id' => $plan->id, 'jadwal_snapshot_id' => $snapshot->id, 'nomor' => 1, 'diajukan_by' => $pic->id,
             'diajukan_at' => now(), 'jalur_pengajuan' => 'pic', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'],

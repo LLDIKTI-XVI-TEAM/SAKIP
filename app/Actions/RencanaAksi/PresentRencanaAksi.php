@@ -26,19 +26,20 @@ class PresentRencanaAksi
      * 'narasi'), 'target_periode', 'bukti_dukungs'. Baris 'target_periode'
      * membawa 'periode_id','periode_nama','periode_urutan','nilai',
      * 'status_perhitungan','komponen' ([['komponen_id','kode','label','nilai']]).
-     * Fallback kedua adalah jadwal_snapshot beku (nama indikator, unit_id).
-     * Relasi live / header live TIDAK PERNAH dipakai untuk status beku
-     * (termasuk master Periode live untuk nama/urutan); draft/dikembalikan
-     * tetap live.
+     * Fallback kedua adalah baris jadwal_snapshot milik versi pengajuan
+     * (nama indikator, unit_id). Relasi live / header live TIDAK PERNAH dipakai
+     * untuk status beku (termasuk master Periode live untuk nama/urutan);
+     * draft/dikembalikan tetap live.
      */
     public function handle(RencanaAksi $ra, User $actor, bool $detail = false): array
     {
-        $ra->loadMissing(['indikator', 'unit', 'penanggungJawab:id,nama', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion']);
+        $ra->loadMissing(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion']);
         $version = $ra->latestVersion;
         $isBeku = in_array($ra->status_alur, ['diajukan', 'diverifikasi', 'disahkan'], true);
         $frozen = $isBeku && $version !== null && is_array($version->snapshot) ? $version->snapshot : null;
-        // Fallback kedua (masih beku): kolom jadwal_snapshot, bukan relasi live.
-        $jadwalBeku = $isBeku ? $ra->jadwalSnapshot : null;
+        // Fallback kedua (masih beku): baris jadwal_snapshot milik versi pengajuan,
+        // bukan relasi live maupun kolom header (header tidak menyimpan snapshot sejak D7).
+        $jadwalBeku = $isBeku ? $version?->jadwalSnapshot : null;
         $konteksHilang = [];
         if ($frozen !== null || $isBeku) {
             $indikator = $this->frozenIndikator($frozen, $jadwalBeku, $konteksHilang);
@@ -78,8 +79,8 @@ class PresentRencanaAksi
         $data['disahkan_pada'] = $ra->disahkan_at?->toIso8601String();
         $targets = is_array($data['target_periode']) ? $data['target_periode'] : [];
         if ($targets !== []) {
-            $ra->loadMissing('jadwalSnapshot.komponen');
-            $definisis = ($ra->jadwalSnapshot?->komponen ?? collect())->keyBy('komponen_id');
+            $version?->loadMissing('jadwalSnapshot.komponen');
+            $definisis = ($version?->jadwalSnapshot?->komponen ?? collect())->keyBy('komponen_id');
             if ($isBeku && is_array($frozen)) {
                 // Status beku: nama/urutan periode HANYA dari snapshot versi.
                 // Snapshot lama tanpa kunci → penanda, tanpa join master Periode live.
@@ -157,7 +158,7 @@ class PresentRencanaAksi
         return $data;
     }
 
-    /** Konteks indikator beku: versi.snapshot dulu, lalu kolom jadwal_snapshot beku. */
+    /** Konteks indikator beku: versi.snapshot dulu, lalu baris jadwal_snapshot versi. */
     private function frozenIndikator(?array $frozen, mixed $jadwalBeku, array &$hilang): array
     {
         $beku = is_array($frozen['indikator'] ?? null) ? $frozen['indikator'] : [];

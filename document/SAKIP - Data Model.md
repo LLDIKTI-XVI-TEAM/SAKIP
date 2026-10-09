@@ -294,6 +294,11 @@ erDiagram
         uuid id PK
         uuid jadwal_id FK
         uuid indikator_id FK
+        int nomor_versi
+        uuid menggantikan_id FK "nullable"
+        text alasan_koreksi "nullable"
+        text rujukan_koreksi "nullable"
+        uuid periode_mulai_id FK
         uuid unit_id
         string nama
         text definisi
@@ -304,11 +309,13 @@ erDiagram
         enum tipe_perhitungan
         numeric target "nullable"
         numeric baseline "nullable"
+        boolean komposisi_final
     }
 
     JADWAL_SNAPSHOT_KOMPONEN {
         uuid id PK
         uuid jadwal_snapshot_id FK
+        uuid komponen_id FK
         varchar kode
         text label
         enum peran
@@ -332,11 +339,13 @@ erDiagram
         int tahun
         uuid unit_id FK
         uuid jadwal_tahunan_id FK
+        uuid snapshot_draf_id "nullable"
         uuid penanggung_jawab_id FK
         text uraian "nullable"
         enum status_alur
         int versi
         text alasan_revisi "nullable"
+        text alasan_deviasi_pk "nullable"
         uuid created_by FK
         timestamp created_at
         timestamp updated_at
@@ -348,7 +357,7 @@ erDiagram
         uuid id PK
         uuid rencana_aksi_id FK
         uuid periode_id FK
-        uuid komponen_id FK
+        uuid komponen_id FK "nullable, NULL untuk indikator manual"
         numeric nilai "nullable"
         text keterangan "nullable"
         uuid updated_by FK
@@ -908,13 +917,18 @@ Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela wakt
 
 ### 2.17 `jadwal_snapshot`
 
-Salinan beku konteks indikator (termasuk konteks cara hitung), dibuat otomatis oleh logika aplikasi (bukan trigger DB) saat `jadwal_tahunan` bertransisi ke `aktif` — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`. Masuk penuh sejak Fase Awal sebagai fondasi integritas historis.
+Salinan beku konteks indikator (termasuk konteks cara hitung) per jadwal, berversi. Versi 1 dibuat otomatis oleh logika aplikasi saat `jadwal_tahunan` bertransisi ke `aktif` — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`; imutabilitasnya dijaga trigger database (lihat perilaku kunci). Masuk penuh sejak Fase Awal sebagai fondasi integritas historis.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `jadwal_id` | uuid | FK → jadwal_tahunan.id | |
 | `indikator_id` | uuid | FK → indikator.id | Referensi ke master, untuk ketertelusuran — **bukan** untuk menarik data terkini |
+| `nomor_versi` | int | not null, default 1 | Versi konteks indikator pada jadwal ini; koreksi menambah versi baru (Q35 §35.1) |
+| `menggantikan_id` | uuid | FK → jadwal_snapshot.id, nullable | Versi sebelumnya yang digantikan; `NULL` pada versi 1 |
+| `alasan_koreksi` | text | nullable | Alasan koreksi; diisi pada versi koreksi (ISS-03.03) |
+| `rujukan_koreksi` | text | nullable | Rujukan resmi koreksi; diisi pada versi koreksi (ISS-03.03) |
+| `periode_mulai_id` | uuid | FK → periode.id, not null | Periode pertama snapshot berlaku; versi aktivasi memakai periode jadwal dengan urutan terendah |
 | `unit_id` | uuid | (salinan, bukan FK aktif secara semantik) | Salinan nilai `indikator.unit_id` saat aktivasi |
 | `nama` | string | salinan | Salinan `indikator.nama` saat aktivasi |
 | `definisi` | text | salinan | Salinan `indikator.definisi` saat aktivasi |
@@ -925,13 +939,14 @@ Salinan beku konteks indikator (termasuk konteks cara hitung), dibuat otomatis o
 | `tipe_perhitungan` | enum(`rasio_persen`,`penjumlahan`,`manual`) | salinan | Salinan `indikator.tipe_perhitungan` saat aktivasi — menentukan apakah pengukuran yang merujuk snapshot ini dihitung dari komponen atau diketik manual, tanpa terpengaruh perubahan definisi komponen di tengah tahun |
 | `target` | numeric | nullable, salinan | Salinan `target_tahunan.nilai` untuk `(indikator_id, tahun jadwal)` saat aktivasi |
 | `baseline` | numeric | nullable, salinan | Salinan `target_tahunan.baseline` untuk `(indikator_id, tahun jadwal)` saat aktivasi |
+| `komposisi_final` | boolean | not null, default false | `true` sejak snapshot terbit; setelah itu komponen tidak dapat disisipkan (§2.18) |
 
-**Constraint:** `unique(jadwal_id, indikator_id)` — menjamin idempotensi pembuatan snapshot: setiap pasangan (`jadwal_id`, `indikator_id`) hanya boleh punya tepat satu baris.
+**Constraint:** `unique(jadwal_id, indikator_id, nomor_versi)` — setiap versi konteks indikator pada satu jadwal unik; pembuatan versi 1 saat aktivasi tetap idempoten per (`jadwal_id`, `indikator_id`).
 
 **Perilaku kunci:**
-- **Idempoten:** pembuatan baris dilakukan hanya untuk pasangan (`jadwal_id`, `indikator_id`) yang belum memiliki snapshot pada jadwal tersebut — baik saat aktivasi awal maupun saat `jadwal:buka_kembali`. Baris yang sudah ada **tidak pernah ditimpa**.
-- **Abadi setelah dirujuk:** begitu suatu baris snapshot dirujuk oleh pengukuran pertama (lihat `pengukuran.jadwal_snapshot_id`, §2.20), baris tersebut menjadi final dan tidak boleh diubah lagi — termasuk baris anak `jadwal_snapshot_komponen`-nya (§2.18).
-- **Koreksi terbatas sebelum dirujuk:** selama baris snapshot belum dirujuk pengukuran manapun, baris tersebut boleh dikoreksi — namun hanya ketika `jadwal_tahunan` berstatus `aktif` (termasuk aktif kembali via `buka_kembali`), dan koreksi tersebut wajib tercatat di `audit_log` (`nilai_lama`/`nilai_baru`).
+- **Idempoten:** pembuatan versi 1 dilakukan hanya untuk pasangan (`jadwal_id`, `indikator_id`) yang belum memiliki snapshot pada jadwal tersebut — baik saat aktivasi awal maupun saat `jadwal:buka_kembali`. Baris yang sudah ada **tidak pernah ditimpa**.
+- **Beku sejak terbit (Q35 §35.1):** begitu jadwal bertransisi ke `aktif`, seluruh snapshot jadwal tersebut difinalkan (`komposisi_final = true`) — oleh aplikasi dan oleh trigger database `finalisasi_snapshot_saat_jadwal_aktif`. Guard `guard_referenced_schedule_snapshot` menolak UPDATE kolom konteks dan DELETE; UPDATE yang diterima hanya no-op atau transisi `komposisi_final` `false → true`.
+- **Koreksi selalu versi baru:** koreksi tidak pernah in-place, baik sebelum maupun sesudah snapshot dirujuk. Koreksi menyisipkan baris `nomor_versi` + 1 dengan `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi` (alur pengguna: ISS-03.03); versi lama tetap menjadi rujukan histori.
 - **Tidak ada restatement:** perubahan pada `indikator`/`target_tahunan`/`indikator_komponen` master setelah snapshot terbentuk tidak pernah mempropagasi ke baris snapshot yang sudah ada — tidak ada mekanisme restatement data historis pada Fase Awal maupun Fase Lanjutan. Baris baru untuk indikator yang sama hanya terbentuk lagi saat jadwal tahun berikutnya diaktifkan, dengan kondisi master terkini pada saat itu. Konsekuensinya, perubahan definisi komponen (§2.27) di tengah tahun **tidak** mengubah makna data historis yang sudah dibekukan.
 
 ---
@@ -944,13 +959,14 @@ Salinan beku definisi komponen indikator pada suatu `jadwal_snapshot`, dibuat pa
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id | |
+| `komponen_id` | uuid | FK → indikator_komponen.id | Komponen master yang dibekukan, untuk ketertelusuran |
 | `kode` | varchar | salinan | Salinan `indikator_komponen.kode` saat aktivasi |
 | `label` | text | salinan | Salinan `indikator_komponen.label` saat aktivasi |
 | `peran` | enum(`pembilang`,`penyebut`,`penjumlah`) | salinan | Salinan `indikator_komponen.peran` saat aktivasi |
 | `bobot` | numeric | salinan | Salinan `indikator_komponen.bobot` saat aktivasi |
 | `urutan` | int | salinan | Salinan `indikator_komponen.urutan` saat aktivasi |
 
-**Perilaku kunci:** mengikuti sepenuhnya sifat idempoten dan imutabel `jadwal_snapshot` induknya (§2.17) — baris hanya dibuat untuk snapshot yang baru dibentuk, tidak pernah ditimpa, dan menjadi final begitu snapshot induknya dirujuk pengukuran pertama. Indikator bertipe `manual` tetap dapat memiliki baris `jadwal_snapshot` tanpa baris `jadwal_snapshot_komponen` (tabel anak kosong bila indikator tidak memiliki komponen aktif).
+**Perilaku kunci:** mengikuti sifat idempoten dan beku `jadwal_snapshot` induknya (§2.17) — baris hanya dibuat untuk snapshot yang baru dibentuk dan tidak pernah ditimpa. UPDATE dan DELETE selalu ditolak; INSERT ditolak bila induk sudah `komposisi_final = true` atau sudah dirujuk, sehingga komposisi komponen tidak berubah setelah snapshot terbit — koreksi komposisi wajib lewat versi snapshot baru (Q35 §35.1). Indikator bertipe `manual` tetap dapat memiliki baris `jadwal_snapshot` tanpa baris `jadwal_snapshot_komponen` (tabel anak kosong bila indikator tidak memiliki komponen aktif).
 
 ---
 
@@ -970,7 +986,7 @@ Riwayat assignment penanggung jawab per indikator. Baris tidak dihapus untuk men
 
 **Kontrak dasar — Plan §4.3–4.4 / Issue #54:** PJ efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`; pergantian wajib alasan dan menambah histori tanpa overwrite.
 
-**Aturan Implementasi Sementara — Menunggu Keputusan Stakeholder:** PJ-01 (tanggal mutasi lampau/mendatang), PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break `created_at`), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) merupakan behavior/constraint branch dengan status **PENDING STAKEHOLDER DECISION**. Constraint dan histori existing dipertahankan sementara; tidak ada perubahan schema/data dari klasifikasi ini. Evidence, dampak rekonsiliasi, dan decision gate penggunaan operasional dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break) digantikan butir 1: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan, bukan `created_at` saja. Hingga #70 selesai, constraint dan histori existing dipertahankan. Evidence dan dampak rekonsiliasi dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 **Kontrak final Q32:**
 
@@ -1083,11 +1099,13 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 | `tahun` | int | not null | |
 | `unit_id` | uuid | FK → unit.id, not null | Salinan unit pemilik indikator pada saat rencana aksi disusun |
 | `jadwal_tahunan_id` | uuid | FK → jadwal_tahunan.id, not null | |
+| `snapshot_draf_id` | uuid | nullable, rujukan non-FK | Jepit versi `jadwal_snapshot` yang menjadi konteks draf: diisi versi terbaru saat draf dibuat dan dimajukan ke versi terbaru setiap simpan; `NULL` bila jadwal belum pernah aktif. Snapshot yang dirujuk kolom ini diperlakukan sebagai dirujuk oleh guard snapshot |
 | `penanggung_jawab_id` | uuid | FK → users.id, not null | PIC efektif pada saat penyusunan — hasil resolusi `penanggung_jawab` (§2.19) pada tanggal penyusunan |
 | `uraian` | text | nullable | |
 | `status_alur` | enum(`draft`,`diajukan`,`diverifikasi`,`dikembalikan`,`disahkan`) | not null, default `draft` | |
 | `versi` | int | not null, default 1 | Optimistic locking |
-| `alasan_revisi` | text | nullable | |
+| `alasan_revisi` | text | nullable | Alasan revisi/buka-kembali; tidak dipakai untuk deviasi target PK |
+| `alasan_deviasi_pk` | text | nullable | Alasan deviasi total target periode efektif terakhir terhadap target tahunan PK snapshot. Boleh kosong saat draf (hanya peringatan); wajib saat pengajuan bila terdapat deviasi (Q34, ADR-0008) |
 | `created_by` | uuid | FK → users.id | |
 | `created_at` | timestamp | not null | |
 | `updated_at` | timestamp | not null | |
@@ -1114,26 +1132,26 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 ### 2.24 `rencana_aksi_target`
 
-Target per periode per komponen di bawah satu `rencana_aksi`. Target diinput pada level komponen (angka mentah), bukan sebagai skor final indikator.
+Target per periode di bawah satu `rencana_aksi`. Indikator nonmanual diinput per komponen (angka mentah), bukan sebagai skor final indikator; indikator manual memiliki satu target langsung per periode tanpa komponen semu (Q7, Q34, ADR-0007).
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `rencana_aksi_id` | uuid | FK → rencana_aksi.id, not null | |
 | `periode_id` | uuid | FK → periode.id, not null | |
-| `komponen_id` | uuid | FK → indikator_komponen.id, not null | |
+| `komponen_id` | uuid | FK → indikator_komponen.id, **nullable** | `NULL` wajib untuk indikator manual; wajib terisi komponen efektif untuk indikator nonmanual |
 | `nilai` | numeric | **nullable** | `0` sah; `null` = belum diisi |
 | `keterangan` | text | nullable | |
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
-**Constraint:** `unique(rencana_aksi_id, periode_id, komponen_id)`.
+**Constraint:** dua partial unique index — `unique(rencana_aksi_id, periode_id) WHERE komponen_id IS NULL` (manual: tepat satu baris per periode) dan `unique(rencana_aksi_id, periode_id, komponen_id) WHERE komponen_id IS NOT NULL` (nonmanual).
 
 **Sifat nilai turunan:** perkiraan skor indikator pada tampilan rencana aksi dihitung dari nilai komponen memakai mesin perhitungan yang sama dengan pengukuran (lihat §2.28) — perkiraan itu tidak disimpan sebagai kolom, murni hasil tampilan.
 
 **Sifat kumulatif:** target triwulan bersifat **kumulatif** — nilai suatu periode mencakup capaian periode-periode sebelumnya dalam tahun yang sama (mis. target Triwulan II = target kumulatif Januari–Juni, bukan hanya April–Juni). Sistem menampilkan **peringatan, bukan blokir**, bila nilai suatu periode lebih kecil dari periode sebelumnya pada komponen yang sama.
 
-**Rekonsiliasi dengan target tahunan PK:** total target komponen pada periode terakhir seharusnya setara dengan hasil hitung target `target_tahunan` tahun tersebut. Ketidaksetaraan **tidak memblokir** pengajuan — sistem menampilkan peringatan dan **mewajibkan alasan** pada saat pengajuan rencana aksi. Target tahunan PK tetap hanya dapat diubah lewat revisi PK resmi (§2.13); deviasi pada rencana aksi wajib terlihat di layar dan tercatat di audit, tidak disesuaikan secara diam-diam.
+**Rekonsiliasi dengan target tahunan PK:** total target komponen pada periode terakhir seharusnya setara dengan hasil hitung target `target_tahunan` tahun tersebut. Ketidaksetaraan **tidak memblokir** pengajuan — sistem menampilkan peringatan dan **mewajibkan alasan** pada saat pengajuan rencana aksi, disimpan di `rencana_aksi.alasan_deviasi_pk` (§2.23). Penyimpanan draf tidak mewajibkan alasan. Target tahunan PK tetap hanya dapat diubah lewat revisi PK resmi (§2.13); deviasi pada rencana aksi wajib terlihat di layar dan tercatat di audit, tidak disesuaikan secara diam-diam.
 
 ---
 
@@ -1611,7 +1629,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13) |
-| `penanggung_jawab` | unique(`indikator_id`, `tanggal_mulai_berlaku`) — constraint branch **PJ-02: PENDING STAKEHOLDER DECISION**, lihat §2.19 dan matriks provenance ISS-04.01 |
+| `penanggung_jawab` | unique(`indikator_id`, `tanggal_mulai_berlaku`) — dipertahankan sementara; Q34 butir 1 mengizinkan pergantian PJ pada tanggal yang sama, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70), lihat §2.19 |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |
@@ -1619,7 +1637,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`) |
 | `pengaturan` | unique(`kunci`) |
 | `rencana_aksi` | unique(`indikator_id`, `tahun`) |
-| `rencana_aksi_target` | unique(`rencana_aksi_id`, `periode_id`, `komponen_id`) |
+| `rencana_aksi_target` | partial unique (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL` (§2.24) |
 | `klaim_kegiatan` | unique(`rencana_aksi_id`, `kegiatan_id`, `komponen_id`) — implementasi index memakai `COALESCE(komponen_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
 | `indikator_komponen` | unique(`indikator_id`, `kode`) |
 | `pengukuran_komponen` | unique(`pengukuran_id`, `komponen_id`) |
@@ -1665,7 +1683,7 @@ Catatan tambahan: permission `pengukuran:setujui` dan peran approval Pimpinan ju
 ## 7. Prinsip Desain yang Mendasari Skema
 
 1. UUID dipakai sebagai primary key di seluruh tabel — memudahkan referensi lintas tabel tanpa bocor informasi urutan/volume data, dan cukup aman untuk sinkronisasi/replikasi di masa depan bila diperlukan.
-2. Snapshot ditempatkan di atas referensi langsung untuk konteks historis (`jadwal_snapshot`, `jadwal_snapshot_komponen`), memisahkan "apa yang berlaku sekarang" (master) dari "apa yang berlaku saat pengukuran dilakukan" (snapshot) — termasuk cara hitungnya, bukan hanya nilainya. Pembuatan baris snapshot dijaga idempoten dan diperlakukan abadi setelah dirujuk, sehingga tidak ada jalur restatement data historis yang tidak sengaja.
+2. Snapshot ditempatkan di atas referensi langsung untuk konteks historis (`jadwal_snapshot`, `jadwal_snapshot_komponen`), memisahkan "apa yang berlaku sekarang" (master) dari "apa yang berlaku saat pengukuran dilakukan" (snapshot) — termasuk cara hitungnya, bukan hanya nilainya. Pembuatan baris snapshot dijaga idempoten dan baris beku sejak terbit; koreksi selalu lewat versi baru (Q35 §35.1), sehingga tidak ada jalur restatement data historis yang tidak sengaja.
 3. Riwayat dicatat sebagai baris baru, bukan mutasi in-place — berlaku untuk `penanggung_jawab`, `status_capaian`, dan `rekomendasi_pimpinan`. Ketiga tabel ini sengaja tidak memiliki mekanisme update-in-place atas makna intinya (siapa PJ efektif / apa status capaian aktif / rekomendasi mana yang berlaku); nilainya dihitung dari baris terbaru.
 4. Optimistic locking eksplisit (`pengukuran.versi`, `rencana_aksi.versi`) dipilih ketimbang mengandalkan `updated_at` sebagai penanda versi — integer lebih murah dibandingkan dan tidak rentan masalah presisi timestamp/timezone.
 5. Audit diperlakukan sebagai warga kelas satu, bukan tempelan belakangan — `audit_log` dirancang append-only sejak awal dengan kolom `nilai_lama`/`nilai_baru` berformat JSONB agar fleksibel menampung struktur berbeda-beda per jenis entitas tanpa memerlukan tabel audit terpisah per entitas; cakupannya diperluas eksplisit untuk mencakup seluruh entitas baru pada alur rencana aksi, kegiatan, komponen, dan model akses RBAC (kolom `dasar_izin` khusus untuk aksi sensitif, §3.5).

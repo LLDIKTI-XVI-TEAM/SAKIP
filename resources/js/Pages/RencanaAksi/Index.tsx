@@ -1,147 +1,129 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, Eye, Paperclip } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardHeader, CardTitle } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
-import type { RencanaAksiRingkas, RencanaAksiPagination } from './types';
+import { Button } from '@/Components/Button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import Pagination from '@/Pages/Pengukuran/Pagination';
-import { useLabelUnit } from '@/hooks/useLabelUnit';
+import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import TabFilter from './TabFilter';
 
-type StatusFilter = 'antrean' | 'disahkan';
-
-interface RencanaAksiIndexProps {
-    rencanaAksis: RencanaAksiRingkas[];
-    pagination: RencanaAksiPagination;
-    status: StatusFilter;
+export interface BarisRencanaAksi {
+    indikator_id: string;
+    kode: string;
+    nama: string;
+    unit_nama: string | null;
+    tahun: number;
+    pj_nama: string | null;
+    milik_saya: boolean;
+    rencana_aksi: { id: string; status_alur: string } | null;
+    /** Capability server: `create` sudah memuat PJ efektif, izin unit, unit snapshot, dan jendela. */
+    can: { create: boolean };
 }
 
-const TAB_LABELS: Record<StatusFilter, string> = { antrean: 'Antrean', disahkan: 'Disahkan' };
+interface RencanaAksiIndexProps {
+    daftar: BarisRencanaAksi[];
+    pagination: PengukuranPagination;
+}
 
-export default function RencanaAksiIndex({ rencanaAksis = [], pagination, status = 'antrean' }: RencanaAksiIndexProps) {
-    const labelUnit = useLabelUnit();
+/** Satu form per baris agar status proses dan pesan gagal tidak bercampur antarbaris. */
+function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
+    const form = useForm({ indikator_id: baris.indikator_id, tahun: baris.tahun });
+    const galat = Object.values(form.errors)[0];
 
     return (
-        <AuthenticatedLayout
-            title="Pengesahan Rencana Aksi"
-            breadcrumbs={[{ label: 'Rencana Aksi' }]}
-        >
+        <div className="flex flex-col items-end gap-1">
+            <Button
+                type="button"
+                size="sm"
+                className="whitespace-nowrap"
+                isLoading={form.processing}
+                onClick={() => form.post('/rencana-aksi/ensure-draft')}
+                aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
+            >
+                Buat Rencana Aksi
+            </Button>
+            {galat && (
+                <p role="alert" className="max-w-56 text-right text-xs text-danger">
+                    {galat}
+                </p>
+            )}
+        </div>
+    );
+}
+
+export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiIndexProps) {
+    return (
+        <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
             <Head title="Rencana Aksi" />
 
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h2 className="text-sm font-semibold text-ink">
-                        {status === 'disahkan' ? 'Daftar Rencana Aksi Disahkan' : 'Antrean Pengesahan Rencana Aksi'}
-                    </h2>
-                    <p className="mt-0.5 text-xs text-muted">
-                        {status === 'disahkan'
-                            ? 'Rencana aksi yang telah disahkan dan menjadi dokumen resmi.'
-                            : 'Daftar rencana aksi yang diajukan dan memerlukan pengesahan resmi oleh Tim Perencanaan.'}
-                    </p>
-                </div>
-                <nav aria-label="Filter status rencana aksi" className="flex gap-1 rounded-lg border border-border bg-soft p-1">
-                    {(Object.keys(TAB_LABELS) as StatusFilter[]).map((tab) => (
-                        <Link
-                            key={tab}
-                            href={`/rencana-aksi?status=${tab}`}
-                            aria-current={status === tab ? 'page' : undefined}
-                            className={status === tab
-                                ? 'rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-primary shadow-xs'
-                                : 'rounded-md px-3 py-1.5 text-xs font-medium text-muted hover:text-ink'}
-                        >
-                            {TAB_LABELS[tab]}
-                        </Link>
-                    ))}
-                </nav>
-            </div>
+            <TabFilter active="draf" />
 
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-ink">
-                        {status === 'disahkan' ? 'Daftar Disahkan' : 'Daftar Pengajuan Masuk'} ({pagination.total})
-                    </CardTitle>
-                </CardHeader>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-ink">
-                        <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
-                            <tr>
-                                <th className="px-6 py-3.5">KODE & INDIKATOR</th>
-                                <th className="px-6 py-3.5">{labelUnit.toUpperCase()} & PIC</th>
-                                <th className="px-6 py-3.5 text-center">TAHUN</th>
-                                <th className="px-6 py-3.5 text-center">BUKTI</th>
-                                <th className="px-6 py-3.5 text-center">STATUS</th>
-                                <th className="px-6 py-3.5 text-center">AKSI</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {rencanaAksis.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success border border-success/20">
-                                                <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
-                                            </div>
-                                            <p className="text-sm font-semibold text-ink">
-                                                {status === 'disahkan' ? 'Belum ada rencana aksi disahkan' : 'Semua pengajuan telah diproses'}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted max-w-sm">
-                                                {status === 'disahkan'
-                                                    ? 'Rencana aksi yang telah disahkan akan tampil di sini.'
-                                                    : 'Tidak ada antrean rencana aksi yang menunggu pengesahan saat ini.'}
-                                            </p>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Indikator</TableHead>
+                            <TableHead className="hidden md:table-cell">Unit</TableHead>
+                            <TableHead className="hidden md:table-cell">Tahun</TableHead>
+                            <TableHead className="hidden md:table-cell">Penanggung Jawab</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {daftar.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="py-12 text-center text-sm text-muted">
+                                    Belum ada indikator pada jadwal aktif.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            daftar.map((baris) => (
+                                <TableRow key={`${baris.indikator_id}:${baris.tahun}`}>
+                                    <TableCell className="max-w-sm">
+                                        <div className="font-semibold">
+                                            {baris.kode}
+                                            <span className="font-normal text-muted md:hidden"> · {baris.tahun}</span>
+                                            {baris.milik_saya && (
+                                                <Badge variant="primary" size="sm" className="ml-2">
+                                                    Anda
+                                                </Badge>
+                                            )}
                                         </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                rencanaAksis.map((ra) => (
-                                    <tr key={ra.id} className="hover:bg-soft transition-colors">
-                                        <td className="px-6 py-4 max-w-xs">
-                                            <div className="font-bold text-ink text-xs">
-                                                {ra.indikator?.kode}
-                                            </div>
-                                            <div className="text-muted mt-0.5 line-clamp-2 leading-relaxed">
-                                                {ra.indikator?.nama}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-ink">{ra.unit_kerja?.nama}</div>
-                                            <div className="text-[11px] text-muted mt-0.5">
-                                                PIC: {ra.pic?.nama || '-'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center font-medium text-ink">
-                                            {ra.tahun}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {ra.bukti_count > 0 ? (
-                                                <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                                                    <Paperclip className="w-3.5 h-3.5" />
-                                                    {ra.bukti_count} Dokumen
-                                                </span>
-                                            ) : (
-                                                <span className="text-muted">Tanpa bukti</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <Badge status={ra.status} />
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {ra.can.view && (
-                                                <Link
-                                                    href={`/rencana-aksi/${ra.id}/reviu`}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-xs"
-                                                >
-                                                    <Eye aria-hidden="true" className="h-3.5 w-3.5" />
-                                                    Lihat
-                                                </Link>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                        <div className="mt-0.5 text-muted">{baris.nama}</div>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.unit_nama ?? '—'}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.tahun}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{baris.pj_nama ?? '—'}</TableCell>
+                                    <TableCell>
+                                        {baris.rencana_aksi ? (
+                                            <Badge status={baris.rencana_aksi.status_alur} size="sm" />
+                                        ) : (
+                                            <span className="text-muted">Belum dibuat</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {baris.can.create ? (
+                                            <TombolBuat baris={baris} />
+                                        ) : baris.rencana_aksi ? (
+                                            <Link
+                                                href={`/rencana-aksi/${baris.rencana_aksi.id}`}
+                                                aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
+                                                className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                            >
+                                                Buka
+                                            </Link>
+                                        ) : (
+                                            <span className="text-muted">—</span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+
                 <Pagination pagination={pagination} entityLabel="rencana aksi" />
             </Card>
         </AuthenticatedLayout>

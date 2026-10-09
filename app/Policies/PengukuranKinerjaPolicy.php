@@ -37,11 +37,15 @@ class PengukuranKinerjaPolicy
         return $decision['allowed'] || $this->resolver->allows($user, 'pengukuran:update', $p->targetUnitId()) || $this->resolver->allows($user, 'pengukuran:create', $p->targetUnitId());
     }
 
+    /**
+     * Jalur Perencanaan (global) bila allow berasal dari peran; allow yang hanya dari grant unit
+     * adalah jalur PIC yang tunduk pada PJ efektif dan jendela (Data Model §4.2; ADR-0002).
+     */
     public function usesPlanningPath(User $user, PengukuranKinerja $p): bool
     {
         $decision = $this->resolver->decide($user, 'pengukuran:update', $p->targetUnitId());
 
-        return $decision['allowed'] && $user->roles()->whereIn('roles.id', $decision['roles'])->whereIn('kode', ['perencanaan', 'superadmin'])->exists();
+        return $decision['allowed'] && $decision['roles'] !== [];
     }
 
     public function viewClaims(User $user, PengukuranKinerja $p): bool

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\RencanaAksi;
 
-use App\Actions\RencanaAksi\PresentRencanaAksi;
+use App\Actions\RencanaAksi\IndexRencanaAksi;
 use App\Http\Controllers\Controller;
 use App\Models\RencanaAksi;
 use Illuminate\Http\Request;
@@ -12,12 +12,18 @@ use Inertia\Response;
 
 class ShowRencanaAksi extends Controller
 {
-    public function __invoke(Request $request, string $id, PresentRencanaAksi $present): Response
+    /**
+     * T7: header pra-transaksi hanya untuk 404 + otorisasi view (`unit_id`
+     * imutabel pasca-create sehingga aman). Konsistensi payload (versi vs
+     * target) ditegakkan di dalam `IndexRencanaAksi::handle` via transaksi
+     * baca + `sharedLock` + verifikasi versi — model ini tidak diteruskan
+     * apa adanya ke payload.
+     */
+    public function __invoke(Request $request, string $rencanaAksi, IndexRencanaAksi $index): Response
     {
-        $rencanaAksi = RencanaAksi::with('jadwalSnapshot')->findOrFail($id);
-        Gate::authorize('view', $rencanaAksi);
-        $actor = $request->user();
+        $header = RencanaAksi::findOrFail($rencanaAksi);
+        Gate::authorize('view', $header);
 
-        return Inertia::render('RencanaAksi/Show', ['rencanaAksi' => $present->handle($rencanaAksi, $actor, true)]);
+        return Inertia::render('RencanaAksi/Show', ['rencanaAksi' => $index->handle($request->user(), $header)]);
     }
 }

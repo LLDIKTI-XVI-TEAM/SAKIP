@@ -40,6 +40,8 @@ class SahkanRencanaAksiTest extends TestCase
 
     private RencanaAksi $ra;
 
+    private JadwalSnapshot $snapshot;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -57,19 +59,19 @@ class SahkanRencanaAksiTest extends TestCase
         $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-RA', 'tanggal_pk' => '2026-01-01', 'created_by' => $superadmin->id]);
         $periode = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
         $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id, 'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => now()]);
-        $snapshot = JadwalSnapshot::create(['jadwal_id' => $jadwal->id, 'indikator_id' => $indikator->id, 'periode_mulai_id' => $periode->id, 'unit_id' => $this->unit->id,
+        $this->snapshot = JadwalSnapshot::create(['jadwal_id' => $jadwal->id, 'indikator_id' => $indikator->id, 'periode_mulai_id' => $periode->id, 'unit_id' => $this->unit->id,
             'nama' => 'Indikator RA', 'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
         // PIC operasional memperoleh hak kerja unit lewat grant scoped; Perencanaan memegang allow global via role.
         $this->grant($this->picUser, 'rencana_aksi:ajukan');
         $this->ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $this->unit->id, 'jadwal_tahunan_id' => $jadwal->id,
-            'jadwal_snapshot_id' => $snapshot->id, 'penanggung_jawab_id' => $this->picUser->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
+            'penanggung_jawab_id' => $this->picUser->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
     }
 
     /** Versi pengajuan beku sejak INSERT; provenance tiap test dibuat langsung, bukan diubah. */
     private function ajukanVersi(string $jalur, User $diajukanBy): void
     {
-        RencanaAksiVersi::create(['rencana_aksi_id' => $this->ra->id, 'jadwal_snapshot_id' => $this->ra->jadwal_snapshot_id, 'nomor' => 1, 'diajukan_by' => $diajukanBy->id,
+        RencanaAksiVersi::create(['rencana_aksi_id' => $this->ra->id, 'jadwal_snapshot_id' => $this->snapshot->id, 'nomor' => 1, 'diajukan_by' => $diajukanBy->id,
             'diajukan_at' => now(), 'jalur_pengajuan' => $jalur, 'dasar_izin_pengajuan' => ['jalur' => $jalur, 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi pengajuan beku.']]);
     }
 
@@ -141,15 +143,19 @@ class SahkanRencanaAksiTest extends TestCase
         $this->actingAs($pegawai)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
     }
 
-    public function test_5_versi_bukan_terbaru_ditolak(): void
+    public function test_5_versi_terbaru_merujuk_snapshot_tidak_selaras_ditolak(): void
     {
         $this->ajukanVersi('pic', $this->picUser);
         $otherUnit = Unit::create(['nama' => 'Unit Lain', 'created_by' => $this->perencana->id]);
-        $otherSnapshot = JadwalSnapshot::create(['jadwal_id' => $this->ra->jadwalSnapshot->jadwal_id, 'indikator_id' => $this->ra->indikator_id,
-            'periode_mulai_id' => $this->ra->jadwalSnapshot->periode_mulai_id, 'unit_id' => $otherUnit->id, 'nama' => 'Indikator RA',
+        $otherSnapshot = JadwalSnapshot::create(['jadwal_id' => $this->snapshot->jadwal_id, 'indikator_id' => $this->ra->indikator_id,
+            'periode_mulai_id' => $this->snapshot->periode_mulai_id, 'unit_id' => $otherUnit->id, 'nama' => 'Indikator RA',
             'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70, 'nomor_versi' => 2]);
-        $this->ra->update(['jadwal_snapshot_id' => $otherSnapshot->id]);
+        // Versi terbaru (nomor 2) merujuk snapshot unit berbeda: konteks beku tidak
+        // selaras dengan header sehingga pengesahan ditolak.
+        RencanaAksiVersi::create(['rencana_aksi_id' => $this->ra->id, 'jadwal_snapshot_id' => $otherSnapshot->id, 'nomor' => 2,
+            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi kedua beku.']]);
 
         $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
         $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);

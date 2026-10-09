@@ -15,17 +15,21 @@ class AntreanRencanaAksi
     public function __construct(private PresentRencanaAksi $present) {}
 
     /**
-     * Data halaman daftar rencana aksi (antrean/disahkan) siap dirender.
+     * Data halaman antrean/disahkan pengesahan rencana aksi siap dirender.
+     *
+     * Konteks beku dibaca dari snapshot versi pengajuan terbaru (header tidak
+     * lagi menyimpan rujukan snapshot); baris dengan unit snapshot ≠ unit
+     * header tidak konsisten dan disaring di database.
      *
      * @return array{rencanaAksis: list<array<string, mixed>>, pagination: array<string, mixed>, status: string}
      */
     public function handle(User $actor, string $status): array
     {
         $status = $status === 'disahkan' ? 'disahkan' : 'antrean';
-        $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
+        $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion'])
             ->whereIn('status_alur', $status === 'disahkan' ? ['disahkan'] : ['diajukan', 'diverifikasi'])
-            // Record dengan unit header ≠ unit snapshot tidak konsisten dan ditolak saat dibuka.
-            ->whereHas('jadwalSnapshot', fn (EloquentBuilder $query) => $query->whereColumn('jadwal_snapshot.unit_id', 'rencana_aksi.unit_id'))
+            // Record dengan unit header ≠ unit snapshot versi tidak konsisten dan ditolak saat dibuka.
+            ->whereHas('latestVersion', fn (EloquentBuilder $query) => $query->whereHas('jadwalSnapshot', fn (EloquentBuilder $snapshot) => $snapshot->whereColumn('jadwal_snapshot.unit_id', 'rencana_aksi.unit_id')))
             ->whereNotIn('unit_id', $this->deniedUnits($actor->id, PermissionCodes::RENCANA_AKSI_READ))
             // Antrean mengikuti waktu pengajuan versi terbaru; kolom updated_at header tidak dipelihara.
             ->orderByDesc(
