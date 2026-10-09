@@ -29,7 +29,7 @@ class SubmissionPrerequisites
         } else {
             $version = RencanaAksiVersi::where('rencana_aksi_id', $ra->id)->orderByDesc('nomor')->when($lock, fn ($q) => $q->lockForUpdate())->first();
             if (! $version || ! $version->disahkan_at || ! $version->disahkan_by || $version->jadwal_snapshot_id !== $pengukuran->jadwal_snapshot_id
-                || $ra->jadwal_snapshot_id !== $pengukuran->jadwal_snapshot_id || $ra->unit_id !== $pengukuran->targetUnitId()) {
+                || $ra->unit_id !== $pengukuran->targetUnitId()) {
                 $errors[] = 'Versi rencana aksi sah harus cocok dengan snapshot dan unit pengukuran.';
             } else {
                 $targets = $version->snapshot['target_periode'] ?? [];

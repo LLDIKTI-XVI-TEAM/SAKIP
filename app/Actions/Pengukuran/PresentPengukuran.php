@@ -45,8 +45,7 @@ class PresentPengukuran
             $plan = $plans->get($row->indikator_id.':'.$row->tahun);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
             $target = null;
-            if ($planVersion && $plan->jadwal_snapshot_id === $row->jadwal_snapshot_id
-                && $planVersion->jadwal_snapshot_id === $row->jadwal_snapshot_id && $plan->unit_id === $row->targetUnitId()) {
+            if ($planVersion && $planVersion->jadwal_snapshot_id === $row->jadwal_snapshot_id && $plan->unit_id === $row->targetUnitId()) {
                 $periodTarget = collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $row->periode_id);
                 $target = $periodTarget['nilai'] ?? null;
             }

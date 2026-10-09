@@ -42,3 +42,22 @@ it.each(['0', '10000'])('filter tahun %s mempertahankan input dan menampilkan er
     expect(document.activeElement?.textContent).toContain('Periksa filter jadwal');
     expect(vi.mocked(router.get).mock.calls[0][2]?.preserveState).toBe('errors');
 });
+
+it('menampilkan placeholder pencarian dan tombol reset filter ketika filter aktif', () => {
+    render(<Index {...props} />);
+    expect(screen.getByPlaceholderText('Cari nama atau kode Renstra...')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Contoh: 2026')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reset filter' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Cari Renstra'), { target: { value: 'Renstra 2025' } });
+    const resetButton = screen.getByRole('button', { name: 'Reset filter' });
+    fireEvent.click(resetButton);
+
+    expect(screen.getByLabelText<HTMLInputElement>('Cari Renstra').value).toBe('');
+    expect(router.get).toHaveBeenCalledWith(
+        '/jadwal',
+        { q: '', tahun: '', status: '', sort: 'tahun_desc' },
+        { replace: true, preserveState: 'errors' },
+    );
+});
+

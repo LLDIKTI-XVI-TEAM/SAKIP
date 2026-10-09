@@ -22,6 +22,7 @@ import {
     Search,
     Settings,
     HardDrive,
+    ClipboardList,
 } from 'lucide-react';
 
 export type LucideIconType = ComponentType<{
@@ -72,7 +73,7 @@ export type SidebarNavEntry =
 /**
  * Skema kanonikal navigasi SAKIP:
  * - 1 item direct: Dashboard
- * - 6 grup berfitur sesuai hierarki bisnis SAKIP (18 child items)
+ * - 6 grup berfitur sesuai hierarki bisnis SAKIP (19 child items)
  */
 export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
     {
@@ -162,6 +163,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
             label: 'Pelaksanaan & Evaluasi',
             icon: ChartNoAxesCombined,
             children: [
+                {
+                    id: 'rencana-aksi',
+                    label: 'Rencana Aksi',
+                    href: '/rencana-aksi',
+                    icon: ClipboardList,
+                    canKey: 'rencanaAksi',
+                },
                 {
                     id: 'pengukuran',
                     label: 'Pengukuran Kinerja',

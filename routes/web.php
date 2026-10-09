@@ -52,6 +52,11 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
+use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
+use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
+use App\Http\Controllers\RencanaAksi\StoreRencanaAksiDraft;
+use App\Http\Controllers\RencanaAksi\UpdateRencanaAksiTarget;
 use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
 use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
@@ -232,4 +237,15 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'update'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.update');
     Route::delete('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}', [PerjanjianKinerjaController::class, 'destroyBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.destroy');
     Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}/unduh', [PerjanjianKinerjaController::class, 'downloadBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.download');
+
+    // Rencana Aksi — penyusunan target per periode
+    Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
+    Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
+    // Tulis RA menambah audit append-only (matriks penuh); batasi per pengguna.
+    // Pratinjau tidak menulis audit dan dipanggil tiap ketikan, jadi dikecualikan.
+    Route::middleware('throttle:30,1,rencana-aksi-tulis')->group(function (): void {
+        Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
+        Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
+    });
+    Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');
 });

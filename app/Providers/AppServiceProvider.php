@@ -42,9 +42,9 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(Regulasi::class, RegulasiPolicy::class);
+        Gate::policy(RencanaAksi::class, RencanaAksiPolicy::class);
         Gate::policy(Renstra::class, RenstraPolicy::class);
         Gate::policy(RenstraPk::class, RenstraPkPolicy::class);
-        Gate::policy(RencanaAksi::class, RencanaAksiPolicy::class);
 
         foreach (PermissionCatalog::codes() as $code) {
             Gate::define($code, function (User $user, ?string $unitId = null) use ($code) {
