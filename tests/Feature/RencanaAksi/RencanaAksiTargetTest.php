@@ -209,7 +209,9 @@ class RencanaAksiTargetTest extends TestCase
     }
 
     /**
-     * Sel yang sudah ada diperbarui di tempat (ID tetap); sel baru dibuat.
+     * Sel yang sudah ada diperbarui di tempat (ID tetap) beserta penanda
+     * penyunting dan waktunya; sel baru dibuat. Simpan kedua oleh aktor lain
+     * yang berhak agar `updated_by`/`updated_at` terbukti ikut diperbarui.
      */
     public function test_simpan_ulang_mempertahankan_id_sel(): void
     {
@@ -219,15 +221,18 @@ class RencanaAksiTargetTest extends TestCase
 
         $this->simpan($fixture, $header, 1, [$sel('periode1', 'pembilang', 1), $sel('periode1', 'penyebut', 4)]);
         $lama = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->pluck('id', 'komponen_id')->all();
+        $waktuLama = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('komponen_id', $fixture['pembilang']->id)->value('updated_at');
+        $this->travel(1)->hours();
         $this->simpan($fixture, $header, 2, [
             $sel('periode1', 'pembilang', 3), $sel('periode1', 'penyebut', 4),
             $sel('periode2', 'pembilang', 2), $sel('periode2', 'penyebut', 5),
-        ]);
+        ], $fixture['perencanaan']);
 
         $periode1 = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode1']->id)->get()->keyBy('komponen_id');
         $this->assertSame($lama, $periode1->map->id->all());
         $this->assertSame('3.000000000000', $periode1[$fixture['pembilang']->id]->nilai);
-        $this->assertSame((string) $fixture['pic']->id, (string) $periode1[$fixture['pembilang']->id]->updated_by);
+        $this->assertSame((string) $fixture['perencanaan']->id, (string) $periode1[$fixture['pembilang']->id]->updated_by);
+        $this->assertTrue($periode1[$fixture['pembilang']->id]->updated_at->gt($waktuLama));
         $periode2 = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode2']->id)->pluck('id');
         $this->assertCount(2, $periode2);
         $this->assertTrue($periode2->every(fn (string $id): bool => Str::isUuid($id)));
@@ -731,9 +736,9 @@ class RencanaAksiTargetTest extends TestCase
      * @param  array<string, mixed>  $fixture
      * @param  list<array<string, mixed>>  $targets
      */
-    private function simpan(array $fixture, RencanaAksi $header, int $versi, array $targets): void
+    private function simpan(array $fixture, RencanaAksi $header, int $versi, array $targets, ?User $aktor = null): void
     {
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($aktor ?? $fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $versi,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
