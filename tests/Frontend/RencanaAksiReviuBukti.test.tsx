@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import Show from '@/Pages/RencanaAksi/Show';
+import Reviu from '@/Pages/RencanaAksi/Reviu';
 import type { RencanaAksiDetail } from '@/Pages/RencanaAksi/types';
 
 vi.mock('@inertiajs/react', async (original) => ({
@@ -24,7 +24,7 @@ const dasar = (bukti: RencanaAksiDetail['bukti_dukungs']): RencanaAksiDetail => 
 });
 
 it('menampilkan tautan unduh hanya untuk bukti mode file yang memiliki URL server', () => {
-    render(<Show rencanaAksi={dasar([
+    render(<Reviu rencanaAksi={dasar([
         { id: 'b1', jenis_berkas_id: null, menggantikan_id: null, alasan_koreksi: null, mode: 'file', nama_asli: 'bukti.pdf', mime: 'application/pdf', ukuran_bytes: 10, tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/bukti/b1' },
         { id: 'b2', jenis_berkas_id: null, menggantikan_id: null, alasan_koreksi: null, mode: 'tautan', nama_asli: null, mime: null, ukuran_bytes: null, tautan: 'https://contoh.test/dokumen', isi_teks: null, download_url: null },
     ])} />);

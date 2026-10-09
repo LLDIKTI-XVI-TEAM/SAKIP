@@ -4,7 +4,9 @@ namespace App\Policies;
 
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
 use App\Models\RencanaAksi;
+use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -166,7 +168,8 @@ class RencanaAksiPolicy
         }
         // Action sahkan memasang relasi snapshot terkunci; jalur Gate membaca
         // snapshot versi (tanpa lock) dengan kontrak data yang sama.
-        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->jadwalSnapshot : $version->jadwalSnapshot;
+        /** @var JadwalSnapshot|null $snapshot */
+        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->getRelation('jadwalSnapshot') : $version->jadwalSnapshot;
         if (! $snapshot || $snapshot->indikator_id !== $header->indikator_id || $snapshot->jadwal->tahun !== $header->tahun) {
             return ['Snapshot jadwal tidak cocok dengan rencana aksi.'];
         }
@@ -218,15 +221,15 @@ class RencanaAksiPolicy
 
     /**
      * Unit snapshot versi pengajuan terbaru; null bila belum ada versi.
-     * Memakai relasi yang sudah dimuat bila ada agar tidak menambah query di jalur daftar.
+     * Relasi versi dimuat lazy bila belum tersedia.
      */
     private function snapshotUnit(RencanaAksi $header): ?string
     {
-        $version = $header->relationLoaded('latestVersion') ? $header->latestVersion : $header->latestVersion()->first();
-        if (! $version) {
+        $version = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
+        if (! $version instanceof RencanaAksiVersi) {
             return null;
         }
-        $snapshot = $version->relationLoaded('jadwalSnapshot') ? $version->jadwalSnapshot : $version->jadwalSnapshot()->first();
+        $snapshot = $version->jadwalSnapshot;
 
         return $snapshot?->unit_id !== null ? (string) $snapshot->unit_id : null;
     }
@@ -238,7 +241,8 @@ class RencanaAksiPolicy
      */
     private function lockedUnitStatus(RencanaAksi $header): ?bool
     {
-        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->jadwalSnapshot : null;
+        /** @var JadwalSnapshot|null $snapshot */
+        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->getRelation('jadwalSnapshot') : null;
         $unit = $snapshot && $snapshot->relationLoaded('unit') ? $snapshot->unit : null;
 
         return $unit ? $unit->status === 'aktif' : null;
