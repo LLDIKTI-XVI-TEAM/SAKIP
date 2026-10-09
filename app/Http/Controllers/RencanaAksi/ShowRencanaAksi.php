@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\RencanaAksi;
 
+use App\Actions\RencanaAksi\IndexBuktiRencanaAksi;
 use App\Actions\RencanaAksi\IndexRencanaAksi;
 use App\Http\Controllers\Controller;
 use App\Models\RencanaAksi;
@@ -19,11 +20,14 @@ class ShowRencanaAksi extends Controller
      * baca + `sharedLock` + verifikasi versi — model ini tidak diteruskan
      * apa adanya ke payload.
      */
-    public function __invoke(Request $request, string $rencanaAksi, IndexRencanaAksi $index): Response
+    public function __invoke(Request $request, string $rencanaAksi, IndexRencanaAksi $index, IndexBuktiRencanaAksi $bukti): Response
     {
         $header = RencanaAksi::findOrFail($rencanaAksi);
         Gate::authorize('view', $header);
 
-        return Inertia::render('RencanaAksi/Show', ['rencanaAksi' => $index->handle($request->user(), $header)]);
+        return Inertia::render('RencanaAksi/Show', [
+            'rencanaAksi' => $index->handle($request->user(), $header),
+            'bukti' => $bukti->handle($request->user(), $header),
+        ]);
     }
 }

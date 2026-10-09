@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Actions\RencanaAksi;
+
+use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Models\BuktiDukung;
+use App\Models\RencanaAksi;
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+
+/**
+ * Props panel bukti pada halaman rencana aksi: persyaratan tahap
+ * `rencana_aksi` beserta pemenuhannya, daftar bukti berlaku, dan capability
+ * mutasi. Null bila aktor tidak berhak melihat bukti induk ini.
+ */
+class IndexBuktiRencanaAksi
+{
+    public function __construct(private readonly EvaluateEvidence $evaluator) {}
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function handle(User $actor, RencanaAksi $header): ?array
+    {
+        if (! Gate::forUser($actor)->allows('viewEvidence', $header)) {
+            return null;
+        }
+
+        $bukti = $header->buktiDukungs()->current()->with('pengunggah:id,nama')->orderByDesc('created_at')->orderBy('id')->get();
+        $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $header->indikator_id, $bukti);
+        $namaPersyaratan = collect($persyaratan)->pluck('nama', 'id');
+        $settings = $this->evaluator->settings();
+
+        return [
+            'persyaratan' => $persyaratan,
+            'ringkasan' => $this->evaluator->ringkasan($persyaratan),
+            // `path` tidak pernah dikirim; unduhan lewat route berizin.
+            'daftar' => $bukti->map(fn (BuktiDukung $b): array => [
+                'id' => $b->id,
+                'jenis_berkas_id' => $b->jenis_berkas_id,
+                'nama_persyaratan' => $b->jenis_berkas_id ? $namaPersyaratan->get($b->jenis_berkas_id) : null,
+                'mode' => $b->mode,
+                'nama_asli' => $b->nama_asli,
+                'mime' => $b->mime,
+                'ukuran_bytes' => $b->ukuran_bytes,
+                'tautan' => $b->tautan,
+                'isi_teks' => $b->isi_teks,
+                'download_url' => $b->mode === 'file' ? route('rencana-aksi.bukti.download', ['rencanaAksi' => $header->id, 'bukti' => $b->id]) : null,
+                'pengunggah' => $b->pengunggah?->nama,
+                'created_at' => $b->created_at?->toISOString(),
+            ])->values()->all(),
+            'unggahan' => $settings,
+            'can' => [
+                'upload' => Gate::forUser($actor)->allows('uploadEvidence', $header),
+                'delete' => Gate::forUser($actor)->allows('deleteEvidence', $header),
+            ],
+        ];
+    }
+}

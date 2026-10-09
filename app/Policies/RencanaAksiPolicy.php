@@ -7,34 +7,20 @@ use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
-use Illuminate\Auth\Access\HandlesAuthorization;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Str;
 
 class RencanaAksiPolicy
 {
-    use HandlesAuthorization;
-
     public function __construct(
         private readonly PermissionResolver $resolver,
         private readonly AuditLogger $audit,
+        private readonly GerbangBuktiRencanaAksi $gerbangBukti,
     ) {}
-
-    public function before(User $user, string $ability): ?bool
-    {
-        if (in_array($ability, ['uploadEvidence', 'deleteEvidence', 'update', 'create'], true)) {
-            return null;
-        }
-
-        if ($user->status === 'aktif' && $user->hasRole('superadmin')) {
-            return true;
-        }
-
-        return null;
-    }
 
     /**
      * Baca daftar memakai izin global; scope unit ditegakkan pada tiap baris via view().
@@ -91,66 +77,44 @@ class RencanaAksiPolicy
     }
 
     /**
-     * Memeriksa hak melihat bukti dukung rencana aksi.
+     * Lihat/unduh bukti mengikuti akses induk (pola PengukuranKinerjaPolicy):
+     * allow `berkas:read` atau hak tulis unit; deny/katalog nonaktif menang.
      */
-    public function viewEvidence(User $user, RencanaAksi $rencanaAksi): bool
+    public function viewEvidence(User $user, RencanaAksi $header): bool
     {
-        if ($user->status === 'aktif' && $user->hasRole('superadmin')) {
-            return true;
+        if (! $this->view($user, $header)) {
+            return false;
         }
-
-        return $this->view($user, $rencanaAksi)
-            && $this->resolver->allows($user, PermissionCodes::BERKAS_READ);
-    }
-
-    /**
-     * Memeriksa hak mengunggah/menambah bukti dukung rencana aksi.
-     * Mengikuti kewenangan induk rencana aksi dan izin upload berkas; ditolak jika status rencana aksi sudah disahkan.
-     */
-    public function uploadEvidence(User $user, RencanaAksi $rencanaAksi): bool
-    {
-        if ($user->status !== 'aktif' || $rencanaAksi->isDisahkan()) {
+        $unitId = (string) $header->unit_id;
+        $decision = $this->resolver->decide($user, PermissionCodes::BERKAS_READ, $unitId);
+        if (in_array($decision['reason'], GerbangBuktiRencanaAksi::ALASAN_TERTUTUP, true)) {
             return false;
         }
 
-        if ($user->hasRole('superadmin')) {
-            return true;
-        }
+        return $decision['allowed']
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId)
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
+    }
 
-        return $this->resolver->allows(
-            $user,
-            PermissionCodes::RENCANA_AKSI_UPDATE,
-            $rencanaAksi->targetUnitId()
-        ) && $this->resolver->allows($user, PermissionCodes::BERKAS_UPLOAD);
+    public function uploadEvidence(User $user, RencanaAksi $header): bool
+    {
+        return $this->bolehMutasiBukti($user, $header, PermissionCodes::BERKAS_UPLOAD);
+    }
+
+    public function deleteEvidence(User $user, RencanaAksi $header): bool
+    {
+        return $this->bolehMutasiBukti($user, $header, PermissionCodes::BERKAS_DELETE);
     }
 
     /**
-     * Memeriksa hak menghapus bukti dukung rencana aksi.
-     * Mengikuti kewenangan induk rencana aksi dan izin hapus berkas; ditolak jika status rencana aksi sudah disahkan.
+     * Fail-fast tanpa audit karena dipakai juga untuk capability halaman.
+     * Penolakan request nyata dicatat FormRequest, dan Action memeriksa ulang
+     * izin, status, serta jendela PIC pada state terkunci.
      */
-    public function deleteEvidence(User $user, RencanaAksi $rencanaAksi): bool
+    private function bolehMutasiBukti(User $user, RencanaAksi $header, string $izinBerkas): bool
     {
-        if ($user->status !== 'aktif' || $rencanaAksi->isDisahkan()) {
-            return false;
-        }
-
-        if ($user->hasRole('superadmin')) {
-            return true;
-        }
-
-        return $this->resolver->allows(
-            $user,
-            PermissionCodes::RENCANA_AKSI_UPDATE,
-            $rencanaAksi->targetUnitId()
-        ) && $this->resolver->allows($user, PermissionCodes::BERKAS_DELETE);
-    }
-
-    /**
-     * Memeriksa hak mengunduh file lampiran rencana aksi dari storage privat.
-     */
-    public function downloadEvidence(User $user, RencanaAksi $rencanaAksi): bool
-    {
-        return $this->viewEvidence($user, $rencanaAksi);
+        return $this->gerbangBukti->periksaIzin($user, $header, $izinBerkas)['tolak'] === null
+            && in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true);
     }
 
     private function response(PermissionDecision $decision, string $pesan): Response

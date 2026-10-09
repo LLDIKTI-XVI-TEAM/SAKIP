@@ -2,7 +2,7 @@
 
 namespace Tests\Concerns;
 
-use App\Models\Berkas;
+use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -22,6 +22,11 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * Fixture bukti rencana aksi: jadwal aktif dengan jendela penyusunan yang
+ * sedang berjalan, aktor superadmin sebagai PJ awal, dan helper untuk
+ * membentuk PIC pegawai (grant unit + penugasan efektif).
+ */
 trait CreatesRencanaAksiFixture
 {
     protected User $actor;
@@ -86,10 +91,13 @@ trait CreatesRencanaAksiFixture
             'is_nilai_akhir' => false,
         ]);
 
+        $hariIni = today(config('app.business_timezone'));
         $this->jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
             'renstra_pk_id' => $pk->id,
+            'rencana_aksi_mulai' => $hariIni->copy()->subDay()->toDateString(),
+            'rencana_aksi_selesai' => $hariIni->copy()->addDay()->toDateString(),
             'penutupan' => '2026-12-31',
             'status' => 'aktif',
             'activated_at' => now(),
@@ -132,7 +140,6 @@ trait CreatesRencanaAksiFixture
             'tahun' => 2026,
             'unit_id' => $this->unit->id,
             'jadwal_tahunan_id' => $this->jadwal->id,
-            'jadwal_snapshot_id' => $this->snapshot->id,
             'penanggung_jawab_id' => $this->actor->id,
             'uraian' => 'Rencana Aksi Pengujian Bukti Dukung',
             'status_alur' => RencanaAksi::STATUS_DRAFT,
@@ -153,6 +160,25 @@ trait CreatesRencanaAksiFixture
         ]);
 
         return $user;
+    }
+
+    /**
+     * PIC operasional (Q32.2): pegawai + grant `rencana_aksi:update` pada unit
+     * header + penugasan PJ yang efektif hari ini.
+     */
+    protected function createPicPegawai(?string $unitId = null): User
+    {
+        $pic = $this->createUserWithRole('pegawai');
+        $this->grantUnitPermission($pic, 'rencana_aksi:update', $unitId);
+        PenugasanIndikator::create([
+            'indikator_id' => $this->indikator->id,
+            'user_id' => $pic->id,
+            'tanggal_mulai_berlaku' => today(config('app.business_timezone'))->toDateString(),
+            'ditetapkan_oleh' => $this->actor->id,
+            'created_at' => now(),
+        ]);
+
+        return $pic;
     }
 
     protected function grantUnitPermission(User $user, string $permissionCode, ?string $unitId = null): void
@@ -206,9 +232,9 @@ trait CreatesRencanaAksiFixture
     /**
      * @param  array<string, mixed>  $attributes
      */
-    protected function createBuktiDukung(array $attributes = []): Berkas
+    protected function createBuktiDukung(array $attributes = []): BuktiDukung
     {
-        return Berkas::create(array_merge([
+        return BuktiDukung::create(array_merge([
             'berkasable_type' => 'rencana_aksi',
             'berkasable_id' => $this->rencanaAksi->id,
             'mode' => 'tautan',

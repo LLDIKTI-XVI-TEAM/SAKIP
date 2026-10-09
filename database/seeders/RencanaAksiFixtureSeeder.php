@@ -157,13 +157,14 @@ class RencanaAksiFixtureSeeder extends Seeder
                 ]);
         }
 
-        // Persyaratan bukti dukung tahap rencana aksi untuk fixture/demo
-        JenisBerkas::where('tahap', 'rencana_aksi')->where('nama', 'Dokumen Kerangka Acuan Kerja (KAK)')->first()
+        // Persyaratan bukti dukung tahap rencana aksi, dibatasi pada indikator
+        // fixture agar tidak menggerbangi pengajuan rencana aksi lain.
+        JenisBerkas::where('tahap', 'rencana_aksi')->where('indikator_id', $indikator->id)->where('nama', 'Dokumen Kerangka Acuan Kerja (KAK)')->first()
             ?? JenisBerkas::create([
                 'nama' => 'Dokumen Kerangka Acuan Kerja (KAK)',
                 'keterangan' => 'KAK yang memuat rincian aktivitas dan anggaran pelaksanaan.',
                 'tahap' => 'rencana_aksi',
-                'indikator_id' => null,
+                'indikator_id' => $indikator->id,
                 'wajib' => true,
                 'semua_mode_wajib' => false,
                 'izinkan_file' => true,

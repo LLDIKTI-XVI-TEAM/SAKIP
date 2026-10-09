@@ -8,13 +8,16 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import BuktiPanel from './BuktiPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
-import type { RencanaAksiShow } from './types';
+import type { RencanaAksiBukti, RencanaAksiShow } from './types';
 import { dapatDisuntingPeriode, kunciSel } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
+    /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
+    bukti?: RencanaAksiBukti | null;
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
@@ -32,7 +35,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
 }
 
-function RencanaAksiForm({ rencanaAksi }: ShowProps) {
+function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const manual = rencanaAksi.tipe_perhitungan === 'manual';
@@ -235,13 +238,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         Kembali ke daftar
                     </Link>
-                    <div className="flex items-center gap-3">
-                        <Link
-                            href={`/rencana-aksi/${rencanaAksi.id}/bukti`}
-                            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
-                        >
-                            Bukti Dukung
-                        </Link>
+                    <div className="flex items-center gap-2">
                         <Badge status={rencanaAksi.status_alur} />
                         <span className="text-xs text-muted">Versi {rencanaAksi.versi}</span>
                     </div>
@@ -482,6 +479,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         </div>
                     )}
                 </form>
+
+                {/* Di luar form target agar form modal bukti tidak bersarang. */}
+                {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} />}
             </div>
         </AuthenticatedLayout>
     );

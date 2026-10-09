@@ -108,6 +108,56 @@ export interface RencanaAksiShow {
     };
 }
 
+export type BuktiMode = 'file' | 'tautan' | 'teks';
+
+/** Satu persyaratan `jenis_berkas` tahap rencana aksi beserta pemenuhannya dari evaluator server. */
+export interface BuktiPersyaratan {
+    id: string;
+    nama: string;
+    keterangan: string | null;
+    wajib: boolean;
+    semua_mode_wajib: boolean;
+    izinkan_file: boolean;
+    izinkan_tautan: boolean;
+    izinkan_teks: boolean;
+    format_diizinkan: string;
+    ukuran_maks_kb: number;
+    pemenuhan: {
+        terpenuhi: boolean;
+        mode_terpenuhi: BuktiMode[];
+        mode_kurang: BuktiMode[];
+        mode_dikecualikan: BuktiMode[];
+        /** Penanda anti-macet §18.7: unggahan nonaktif dan tidak ada mode alternatif. */
+        tidak_dapat_dipenuhi: boolean;
+        alasan_pengecualian: string | null;
+    };
+}
+
+export interface BuktiItem {
+    id: string;
+    jenis_berkas_id: string | null;
+    nama_persyaratan: string | null;
+    mode: BuktiMode;
+    nama_asli: string | null;
+    mime: string | null;
+    ukuran_bytes: number | null;
+    tautan: string | null;
+    isi_teks: string | null;
+    /** URL unduh ber-otorisasi dari server; null untuk mode tautan/teks. */
+    download_url: string | null;
+    pengunggah: string | null;
+    created_at: string | null;
+}
+
+/** Props panel bukti dari `IndexBuktiRencanaAksi`; null bila aktor tidak berhak melihat bukti. */
+export interface RencanaAksiBukti {
+    persyaratan: BuktiPersyaratan[];
+    ringkasan: { lengkap: boolean; total_wajib: number; terpenuhi_wajib: number };
+    daftar: BuktiItem[];
+    unggahan: { unggahan_aktif: boolean; ukuran_maks_kb: number; format_diizinkan: string };
+    can: { upload: boolean; delete: boolean };
+}
+
 export const rencanaAksiStatusPerhitungan: Record<string, string> = {
     belum_diisi: 'Belum diisi',
     terhitung: 'Terhitung',

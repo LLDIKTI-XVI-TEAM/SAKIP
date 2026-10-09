@@ -37,7 +37,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Relation::morphMap([
             'renstra_pk' => RenstraPk::class,
-            'rencana_aksi' => RencanaAksi::class,
         ]);
 
         Gate::policy(Unit::class, UnitPolicy::class);

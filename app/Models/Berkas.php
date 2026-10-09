@@ -2,21 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * @property string $id
  * @property string|null $jenis_berkas_id
  * @property string $berkasable_type
  * @property string $berkasable_id
- * @property string|null $menggantikan_id
- * @property string|null $alasan_koreksi
  * @property string $mode
  * @property string|null $nama_asli
  * @property string|null $path
@@ -39,10 +35,6 @@ class Berkas extends Model
 
     protected $fillable = [
         'jenis_berkas_id',
-        'berkasable_type',
-        'berkasable_id',
-        'menggantikan_id',
-        'alasan_koreksi',
         'mode',
         'nama_asli',
         'path',
@@ -70,30 +62,10 @@ class Berkas extends Model
         ];
     }
 
-    /**
-     * Bukti kerja memilih ujung rantai koreksi; baris lama tetap tersedia bagi versi historis.
-     */
-    public function scopeCurrent(Builder $query): void
-    {
-        $query->whereNull('berkas.dihapus_pada')->whereNotExists(function (QueryBuilder $replacement): void {
-            $replacement->selectRaw('1')->from('berkas as pengganti')
-                ->whereColumn('pengganti.menggantikan_id', 'berkas.id')
-                ->whereColumn('pengganti.berkasable_type', 'berkas.berkasable_type')
-                ->whereColumn('pengganti.berkasable_id', 'berkas.berkasable_id')
-                ->whereNull('pengganti.dihapus_pada');
-        });
-    }
-
     /** @return MorphTo<Model, $this> */
     public function berkasable(): MorphTo
     {
         return $this->morphTo();
-    }
-
-    /** @return BelongsTo<JenisBerkas, $this> */
-    public function jenisBerkas(): BelongsTo
-    {
-        return $this->belongsTo(JenisBerkas::class, 'jenis_berkas_id');
     }
 
     /** @return BelongsTo<User, $this> */
@@ -108,4 +80,3 @@ class Berkas extends Model
         return $this->belongsTo(User::class, 'dihapus_oleh');
     }
 }
-
