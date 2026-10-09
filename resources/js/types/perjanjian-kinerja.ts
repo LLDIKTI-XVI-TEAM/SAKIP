@@ -1,13 +1,6 @@
-export type LampiranMode = 'file' | 'tautan' | 'teks';
+import type { LampiranDraft, LampiranMode } from './lampiran';
 
-export interface LampiranDraft {
-    clientId: string;
-    mode: LampiranMode;
-    file: File | null;
-    tautan: string;
-    isi_teks: string;
-    nama_asli?: string;
-}
+export type { LampiranDraft, LampiranMode };
 
 export interface BerkasPk {
     id: string;

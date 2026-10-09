@@ -41,6 +41,7 @@ it('detail PK memakai pola detail bersama, menautkan unduhan ber-otorisasi, dan 
     expect(screen.getByText('Belum Aktif')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe('/perjanjian-kinerja/pk-1/berkas/berkas-1/unduh');
     expect(screen.getByText(/Diunggah oleh Superadmin/)).toBeTruthy();
+    expect(screen.getByText('application/pdf · 2 KB')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hapus lampiran naskah-pk.pdf' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hapus lampiran Lampiran Dokumen #2' })).toBeTruthy();
     expect(screen.queryByText(/lampiran yang ada tidak dapat dihapus/)).toBeNull();

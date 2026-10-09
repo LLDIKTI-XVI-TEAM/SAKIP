@@ -11,6 +11,7 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { RenstraFormFields } from '@/Components/RenstraFormFields';
 import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Tooltip } from '@/Components/Tooltip';
 import type { Paginated, RegulasiOption, RenstraFormData, RenstraStatus, RenstraSummary } from '@/types/renstra';
 
@@ -193,49 +194,48 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                     </CardContent>
                 </Card>
 
-                <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-ink">
-                            <thead className="border-b border-border bg-soft text-xs font-semibold uppercase tracking-wider text-muted">
-                                <tr>
-                                    <th scope="col" className="px-5 py-3.5">Kode & Nama Renstra</th>
-                                    <th scope="col" className="px-5 py-3.5">Periode Tahun</th>
-                                    <th scope="col" className="px-5 py-3.5">Status</th>
-                                    <th scope="col" className="px-5 py-3.5">Rujukan Regulasi</th>
-                                    <th scope="col" className="px-5 py-3.5">Naskah Lampiran</th>
-                                    <th scope="col" className="px-5 py-3.5 text-left">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
+                <Card>
+                        <Table className="text-sm">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Kode & Nama Renstra</TableHead>
+                                    <TableHead>Periode Tahun</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Rujukan Regulasi</TableHead>
+                                    <TableHead>Naskah Lampiran</TableHead>
+                                    <TableHead>Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {renstra.data.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-5 py-12 text-center text-sm font-medium text-muted">
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="px-5 py-12 text-center text-sm font-medium text-muted">
                                             Tidak ada data Renstra ditemukan
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ) : (
                                     renstra.data.map((item) => (
-                                        <tr key={item.id} className="transition-colors hover:bg-soft/40">
-                                            <td className="px-5 py-4">
+                                        <TableRow key={item.id}>
+                                            <TableCell className="px-5 py-4">
                                                 <div className="font-semibold text-ink">{item.nama}</div>
                                                 <div className="text-xs font-mono text-muted">{item.kode}</div>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap font-mono text-sm">
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 whitespace-nowrap font-mono text-sm">
                                                 {item.tahun_mulai} - {item.tahun_selesai}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 whitespace-nowrap">
                                                 <Badge variant={statusBadgeVariant[item.status]} dot>
                                                     {statusLabel[item.status]}
                                                 </Badge>
-                                            </td>
-                                            <td className="px-5 py-4 text-xs text-muted">
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 text-xs text-muted">
                                                 {item.regulasi_nomor ? (
                                                     <span className="font-medium text-ink">{item.regulasi_nomor}</span>
                                                 ) : (
                                                     <span className="text-muted italic">Tidak ada</span>
                                                 )}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-xs text-muted">
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 whitespace-nowrap text-xs text-muted">
                                                 {item.berkas_count === null ? (
                                                     <span>Akses dibatasi</span>
                                                 ) : (
@@ -244,8 +244,8 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         {item.berkas_count} lampiran
                                                     </span>
                                                 )}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-left">
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 whitespace-nowrap text-left">
                                                 <div className="flex items-center justify-start gap-1.5">
                                                     <Tooltip content="Lihat Detail">
                                                         <Link
@@ -285,13 +285,12 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                                         </Tooltip>
                                                     )}
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
 
                     <Pagination
                         links={renstra.links}
@@ -301,7 +300,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                         ariaLabel="Paginasi Renstra"
                         className="border-t border-border bg-page px-5 py-3"
                     />
-                </div>
+                </Card>
             </div>
 
             <AuditReasonModal

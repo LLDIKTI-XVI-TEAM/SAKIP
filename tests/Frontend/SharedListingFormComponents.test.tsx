@@ -135,3 +135,8 @@ it('tautan eksternal hanya http/https: skema berbahaya tidak menjadi link', () =
     rerender(<ul><BerkasLampiranItem berkas={{ ...base, mode: 'tautan', tautan: 'https://contoh.go.id/pk' }} /></ul>);
     expect(screen.getByRole('link', { name: 'Buka tautan' }).getAttribute('href')).toBe('https://contoh.go.id/pk');
 });
+
+it('ukuran berkas memakai format angka Indonesia', () => {
+    render(<ul><BerkasLampiranItem berkas={{ mode: 'file', nama_asli: 'naskah.pdf', mime: 'application/pdf', ukuran_bytes: 1536, tautan: null, isi_teks: null, download_url: null }} /></ul>);
+    expect(screen.getByText('application/pdf · 1,5 KB')).toBeTruthy();
+});

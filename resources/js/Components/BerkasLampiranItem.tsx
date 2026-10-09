@@ -12,12 +12,14 @@ export interface BerkasLampiran {
     download_url: string | null;
 }
 
+const angka = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
+
 function formatBytes(value: number | null): string {
     if (!value || value <= 0) return '';
     if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    if (value < 1024 * 1024) return `${angka.format(value / 1024)} KB`;
 
-    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    return `${angka.format(value / (1024 * 1024))} MB`;
 }
 
 const modeIcon = { file: FileText, tautan: Link2, teks: Quote };

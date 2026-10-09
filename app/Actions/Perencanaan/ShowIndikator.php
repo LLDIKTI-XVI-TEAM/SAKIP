@@ -13,7 +13,8 @@ class ShowIndikator
     /**
      * Menyusun payload halaman detail satu indikator. Otorisasi `view` tetap di controller;
      * bentuk indikator, capability, gerbang regulasi, dan PJ efektif memakai aturan halaman daftar.
-     * Opsi sasaran/unit/regulasi disertakan karena modal ubah dibuka dari halaman ini.
+     * Opsi sasaran/unit/regulasi hanya dikirim bila aktor boleh mengubah indikator, karena
+     * hanya modal ubah di halaman ini yang memakainya (props minimum, Standards §2).
      *
      * @return array<string, mixed>
      */
@@ -24,18 +25,21 @@ class ShowIndikator
         $sasaran = $indikator->sasaranStrategis;
         $renstra = $sasaran->renstra;
         $pic = $this->daftar->pjEfektif($can['penanggung_jawab_update'], [$indikator->id])->get($indikator->id)?->pic;
+        $bolehUbah = $can['indikator_update'];
 
         return [
             'indikator' => $this->daftar->presentIndikator($indikator, $can['regulasi_read'], $pic),
             'sasaran' => $sasaran->only(['id', 'kode', 'deskripsi']),
             'renstra' => $renstra->only(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']),
             'jumlahKomponenAktif' => $can['komponen_read'] ? $indikator->komponen()->where('aktif', true)->count() : null,
-            'sasarans' => SasaranStrategis::where('renstra_id', $renstra->id)
-                ->orderBy('urutan')
-                ->orderBy('kode')
-                ->get(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan'])
-                ->map(fn (SasaranStrategis $item) => [...$item->only(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan']), 'indikator_kinerjas' => []]),
-            ...$this->daftar->formOptions($can['regulasi_read']),
+            'sasarans' => $bolehUbah
+                ? SasaranStrategis::where('renstra_id', $renstra->id)
+                    ->orderBy('urutan')
+                    ->orderBy('kode')
+                    ->get(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan'])
+                    ->map(fn (SasaranStrategis $item) => [...$item->only(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan']), 'indikator_kinerjas' => []])
+                : [],
+            ...($bolehUbah ? $this->daftar->formOptions($can['regulasi_read']) : ['units' => [], 'regulasis' => []]),
             'can' => $can,
         ];
     }

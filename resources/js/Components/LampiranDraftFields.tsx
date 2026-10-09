@@ -2,7 +2,7 @@ import React, { useId, type ReactNode } from 'react';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
-import type { LampiranDraft, LampiranMode } from '@/types/renstra';
+import type { LampiranDraft, LampiranMode } from '@/types/lampiran';
 
 interface LampiranDraftFieldsProps {
     items: LampiranDraft[];

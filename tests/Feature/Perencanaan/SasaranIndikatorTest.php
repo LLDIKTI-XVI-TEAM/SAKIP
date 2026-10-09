@@ -171,6 +171,22 @@ class SasaranIndikatorTest extends TestCase
                 ->where('indikator.regulasi', null)
                 ->where('indikator.regulasi_id', null)
                 ->where('regulasis', []));
+
+        // Opsi form modal ubah tidak dikirim kepada pembaca yang tidak boleh mengubah.
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'indikator:update')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Dilarang mengubah indikator untuk pengujian detail',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+        $this->actingAs($this->perencanaan)->get("/perencanaan/indikator/{$indikator->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.indikator_update', false)
+                ->where('indikator.kode', 'IKU-DETAIL')
+                ->where('sasarans', [])
+                ->where('units', [])
+                ->where('regulasis', []));
     }
 
     public function test_ubah_dari_detail_kembali_ke_detail_dan_tujuan_lain_ditolak(): void
