@@ -1102,6 +1102,8 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 **Status alur:** mengikuti pola pengukuran — `draft → diajukan → diverifikasi → disahkan`, dengan `dikembalikan` (alasan wajib) sebagai jalur revisi. Permission `rencana_aksi:buka_kembali` (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) menangani transisi `disahkan → dikembalikan`, sepenuhnya paralel dengan `pengukuran:buka_kembali` (§2.20).
 
+**Versi pengajuan beku:** setiap pengajuan tersimpan sebagai baris `rencana_aksi_versi` (§2.34) berisi provenance beku dan snapshot isi pengajuan; yang disahkan pada transisi akhir adalah snapshot versi tersebut, bukan header.
+
 **Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`) **ditolak** bila ada `indikator_komponen` aktif yang belum memiliki `rencana_aksi_target` pada salah satu periode yang diharapkan menurut `jadwal_periode` — ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
 
 **Pemisahan tugas pada jalur verifikasi/pengesahan:** aturan yang sama seperti pengukuran (§2.20) berlaku di sini — bila rencana aksi diajukan lewat jalur PIC ber-scope unit, aktor pengaju tidak boleh melanjutkan sendiri transisi verifikasi/pengesahannya. Rinciannya di §4.
@@ -1481,6 +1483,41 @@ diisi.
 perubahan pada baris `renstra`/`indikator` yang bersangkutan (lihat §2.32).
 
 ---
+
+### 2.34 `rencana_aksi_versi`
+
+Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada sebuah rencana aksi, menyimpan provenance beku (siapa mengajukan, lewat jalur apa, dengan dasar izin apa) beserta `snapshot` isi pengajuan saat itu. Transisi `diverifikasi → disahkan` mengesahkan **snapshot versi ini**, bukan header; `rencana_aksi.disahkan_at`/`disahkan_by` hanya ringkasan status terkini.
+
+> **Kepemilikan kontrak (draft):** tabel ini beserta isi `snapshot`-nya adalah kontrak milik **ISS-05.03** (penyusunan/pengajuan rencana aksi). ISS-05.05 (pengesahan) adalah konsumen pertama; struktur di bawah diajukan oleh ISS-05.05 dan **menunggu konfirmasi ISS-05.03** sebelum dibakukan. Perubahan bentuk `snapshot` tidak boleh dilakukan sepihak oleh konsumen.
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `rencana_aksi_id` | uuid | FK → rencana_aksi.id, not null | |
+| `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id, not null | Snapshot jadwal yang menjadi konteks beku versi ini |
+| `nomor` | int | not null | Nomor urut pengajuan; `unique(rencana_aksi_id, nomor)`; versi terbaru = `nomor` terbesar |
+| `diajukan_by` | uuid | FK → users.id, not null | Pengaju; dasar keras F1/F2 (§4) — bukan `rencana_aksi.created_by` |
+| `diajukan_at` | timestamp | not null | Waktu pengajuan; sekaligus kunci urutan antrean pengesahan |
+| `jalur_pengajuan` | enum(`pic`,`perencanaan`) | not null | Dibekukan saat submit, tidak boleh berubah kemudian |
+| `dasar_izin_pengajuan` | jsonb | not null | Bukti izin saat submit (mis. `{jalur, unit_id}`) |
+| `disahkan_by` | uuid | FK → users.id, nullable | Diisi sekali saat pengesahan |
+| `disahkan_at` | timestamp | nullable | Diisi sekali saat pengesahan |
+| `snapshot` | jsonb | not null | Isi pengajuan beku — kontrak di bawah |
+
+**Sifat beku:** `UPDATE`/`DELETE` baris versi ditolak trigger basis data (`reject_submission_version_mutation`); satu-satunya pengecualian adalah pengisian sekali `disahkan_by` + `disahkan_at` dari `NULL` saat pengesahan. Perbaikan pengajuan dilakukan dengan membuat versi baru — bukan menimpa snapshot lama.
+
+**Kontrak isi `snapshot` (jsonb):**
+
+| Key | Tipe | Isi |
+|---|---|---|
+| `indikator` | object | `{kode, nama}` saat pengajuan |
+| `unit_kerja` | object | `{id, nama}` unit pemilik saat pengajuan |
+| `pic` | object\|null | `{id, nama}` PIC saat pengajuan |
+| `uraian` | string | Uraian pengajuan |
+| `target_periode` | array | Per periode: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, komponen[]}`; `komponen[]` berisi `{komponen_id, kode, label, nilai}` (array kosong = tanpa komponen) |
+| `bukti_dukungs` | array | Metadata bukti dukung versi ini: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`. `mode = file` menyimpan `path` berkas privat; unduhan memakai metadata beku ini, bukan relasi live |
+
+Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya.
 
 ---
 

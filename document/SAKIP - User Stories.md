@@ -759,6 +759,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
 - [x] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
 
+> **Catatan eviden (traceability):** AC-1–AC-6 dibuktikan lewat fixture versi `diverifikasi` (ISS-05.05); bukti end-to-end menyusul setelah ISS-05.03/05.04 (penyusunan, pengajuan, dan verifikasi) tersedia.
+
 ### US-05.06 · Buka-Kembali Rencana Aksi yang Telah Disahkan
 
 | Field | Detail |

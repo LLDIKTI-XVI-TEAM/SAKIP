@@ -1885,6 +1885,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
 - [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
+> **Catatan eviden (traceability):** TEST-1–TEST-6 + REGRESSION dibuktikan lewat fixture versi `diverifikasi`; E2E penuh menunggu ISS-05.03/05.04. Klaim CI pada PR dirujuk per-commit (exact-head).
+
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
