@@ -156,7 +156,7 @@ class IndexRencanaAksi
                 'periode' => $periode,
                 // Lingkup koreksi untuk UI; lihat statusKoreksi.
                 'koreksi' => $koreksi,
-                'deviasi_pk' => $this->deviasiPk($segel, $indikator, $presisi, $snapshot, $periode),
+                'deviasi_pk' => $this->deviasiPk($segel, $presisi, $snapshot, $periode),
                 // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
                 // (izin, unit aktif, indikator bukan arsip, status draf,
                 // lingkup koreksi yang mencakup periode efektif, jendela
@@ -381,7 +381,7 @@ class IndexRencanaAksi
      * @param  list<array<string, mixed>>  $periode
      * @return array{dapat_dinilai: bool, ada: bool, alasan_diperlukan: bool, alasan_terisi: bool, skor_periode_terakhir: string|null, target_pk: string|null, periode_id: string|null}
      */
-    private function deviasiPk(RencanaAksi $header, IndikatorKinerja $indikator, int $presisi, JadwalSnapshot $snapshot, array $periode): array
+    private function deviasiPk(RencanaAksi $header, int $presisi, JadwalSnapshot $snapshot, array $periode): array
     {
         $terakhir = collect($periode)->where('efektif', true)->sortBy('urutan')->last();
         $skor = is_array($terakhir) ? ($terakhir['skor']['nilai'] ?? null) : null;
