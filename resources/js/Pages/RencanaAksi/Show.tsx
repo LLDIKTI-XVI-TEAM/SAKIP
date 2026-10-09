@@ -360,9 +360,6 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                     {requestError !== '' && (
                         <p role="alert" className="text-sm text-danger">{requestError}</p>
                     )}
-                    {terlaluSering && (
-                        <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
-                    )}
 
                     <Card>
                         <CardHeader>
@@ -483,7 +480,10 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                     </Card>
 
                     {canUpdate && !kosong && !terkunciSemua && (
-                        <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
+                        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+                            {terlaluSering && (
+                                <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
+                            )}
                             <Button type="submit" variant="primary" isLoading={processing} disabled={processing || requestError !== ''}>
                                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />
                                 Simpan Target

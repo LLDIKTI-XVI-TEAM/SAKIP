@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { http } from '@inertiajs/core';
@@ -338,8 +338,10 @@ describe('Rencana aksi matriks target', () => {
         });
 
         expect(hasil).toBe(false);
-        expect(screen.getByText('Terlalu sering menyimpan. Coba lagi sebentar.')).toBeTruthy();
-        expect((screen.getByRole('button', { name: 'Simpan Target' }) as HTMLButtonElement).disabled).toBe(false);
+        const tombol = screen.getByRole('button', { name: 'Simpan Target' }) as HTMLButtonElement;
+        expect(tombol.disabled).toBe(false);
+        // Pesan tampil di samping tombol yang baru ditekan, bukan jauh di atas halaman.
+        expect(within(tombol.parentElement as HTMLElement).getByRole('alert').textContent).toBe('Terlalu sering menyimpan. Coba lagi sebentar.');
     });
 
     it('label alasan deviasi tanpa kode keputusan', () => {
