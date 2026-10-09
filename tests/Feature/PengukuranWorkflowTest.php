@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Permission;
+use App\Models\Role;
+use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +39,20 @@ class PengukuranWorkflowTest extends TestCase
         $perencanaan = $this->userWithRole('perencanaan');
         $this->pengukuran->update(['status_alur' => 'diajukan']);
         $this->assertFalse(Gate::forUser($perencanaan)->allows('update', $this->pengukuran));
+    }
+
+    public function test_planning_path_follows_role_allow_source_not_role_code(): void
+    {
+        // Preset resmi tidak memberi pimpinan izin ini; fixture membuktikan jalur ikut sumber allow, bukan kode peran.
+        $pimpinan = $this->userWithRole('pimpinan');
+        DB::table('role_permissions')->insert(['id' => (string) Str::uuid(), 'role_id' => Role::where('kode', 'pimpinan')->value('id'),
+            'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'), 'created_at' => now()]);
+        $pegawai = $this->userWithRole('pegawai');
+        $this->grant($pegawai, 'pengukuran:update');
+        $policy = app(PengukuranKinerjaPolicy::class);
+
+        $this->assertTrue($policy->usesPlanningPath($pimpinan, $this->pengukuran));
+        $this->assertFalse($policy->usesPlanningPath($pegawai, $this->pengukuran));
     }
 
     public function test_dashboard_does_not_publish_raw_evidence_or_average_heterogeneous_values(): void
