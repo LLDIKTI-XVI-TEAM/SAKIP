@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Actions\Perencanaan;
+
+use App\Models\IndikatorKinerja;
+use App\Models\SasaranStrategis;
+use App\Models\User;
+
+class ShowIndikator
+{
+    public function __construct(private readonly IndexSasaranIndikator $daftar) {}
+
+    /**
+     * Menyusun payload halaman detail satu indikator. Otorisasi `view` tetap di controller;
+     * bentuk indikator, capability, gerbang regulasi, dan PJ efektif memakai aturan halaman daftar.
+     * Opsi sasaran/unit/regulasi disertakan karena modal ubah dibuka dari halaman ini.
+     *
+     * @return array<string, mixed>
+     */
+    public function handle(User $user, IndikatorKinerja $indikator): array
+    {
+        $can = $this->daftar->capabilities($user);
+        $indikator->load([...$this->daftar->indikatorRelations($can['regulasi_read']), 'sasaranStrategis.renstra:id,kode,nama,tahun_mulai,tahun_selesai,is_aktif']);
+        $sasaran = $indikator->sasaranStrategis;
+        $renstra = $sasaran->renstra;
+        $pic = $this->daftar->pjEfektif($can['penanggung_jawab_update'], [$indikator->id])->get($indikator->id)?->pic;
+
+        return [
+            'indikator' => $this->daftar->presentIndikator($indikator, $can['regulasi_read'], $pic),
+            'sasaran' => $sasaran->only(['id', 'kode', 'deskripsi']),
+            'renstra' => $renstra->only(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']),
+            'jumlahKomponenAktif' => $can['komponen_read'] ? $indikator->komponen()->where('aktif', true)->count() : null,
+            'sasarans' => SasaranStrategis::where('renstra_id', $renstra->id)
+                ->orderBy('urutan')
+                ->orderBy('kode')
+                ->get(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan'])
+                ->map(fn (SasaranStrategis $item) => [...$item->only(['id', 'renstra_id', 'kode', 'deskripsi', 'urutan']), 'indikator_kinerjas' => []]),
+            ...$this->daftar->formOptions($can['regulasi_read']),
+            'can' => $can,
+        ];
+    }
+}

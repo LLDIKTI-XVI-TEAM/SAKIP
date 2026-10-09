@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
+import { formatRegulasiRingkas } from '@/lib/regulasi';
 import {
     Plus,
     Edit3,
@@ -19,15 +23,15 @@ import {
     Sigma,
     BookOpen,
     UserCheck,
+    MoreHorizontal,
+    Eye,
 } from 'lucide-react';
 import { SasaranModal } from './SasaranModal';
 import { IndikatorModal } from './IndikatorModal';
 import { PindahUnitModal } from './PindahUnitModal';
-import { HttpResponseError } from '@inertiajs/core';
-import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import { Modal } from '@/Components/Modal';
-import { loadDefinition, hasParentMetadata, type DefinitionEditor } from '@/Pages/Indikator/Komponen/definition';
+import { type DefinitionEditor } from '@/Pages/Indikator/Komponen/definition';
+import { useIndikatorEditorLoader } from './useIndikatorEditorLoader';
+import { tipePerhitunganLabel } from '@/lib/indikator';
 import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
@@ -42,30 +46,8 @@ import type {
     UnitOption,
 } from '@/types/sasaran-indikator';
 
-const tipePerhitunganLabel: Record<IndikatorTipePerhitungan, string> = {
-    manual: 'Manual',
-    rasio_persen: 'Rasio Persen',
-    penjumlahan: 'Penjumlahan',
-};
-
-function formatRegulasiRingkas(regulasi: RegulasiOption): string {
-    const jenisMap: Record<string, string> = {
-        kepmen: 'Kepmen',
-        permen: 'Permen',
-        perpres: 'Perpres',
-        uu: 'UU',
-        pp: 'PP',
-        keputusan_lainnya: 'Keputusan Lainnya',
-    };
-    const jenisText =
-        jenisMap[regulasi.jenis.toLowerCase()] ||
-        (regulasi.jenis.charAt(0).toUpperCase() + regulasi.jenis.slice(1));
-    const nomor = regulasi.nomor.trim();
-    if (regulasi.tahun && !nomor.includes(String(regulasi.tahun))) {
-        return `${jenisText} ${nomor}/${regulasi.tahun}`;
-    }
-    return `${jenisText} ${nomor}`;
-}
+const iconAction = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const iconDangerAction = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-danger/40 hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20';
 
 interface SasaranIndikatorIndexProps {
     renstras: RenstraOption[];
@@ -92,7 +74,6 @@ export default function SasaranIndikatorIndex({
     const [selectedSasaran, setSelectedSasaran] = useState<SasaranStrategisItem | null>(null);
 
     const [indikatorModalOpen, setIndikatorModalOpen] = useState(false);
-    const [selectedIndikator, setSelectedIndikator] = useState<IndikatorKinerjaItem | null>(null);
     const [defaultSasaranId, setDefaultSasaranId] = useState<string | undefined>();
 
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -102,12 +83,7 @@ export default function SasaranIndikatorIndex({
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
     const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
-    const [selectedEditor, setSelectedEditor] = useState<DefinitionEditor | null>(null);
-    const [editorLoading, setEditorLoading] = useState(false);
-    const [editorError, setEditorError] = useState('');
-    const editorRecovery = useAuthRecovery();
-    const editorRequest = useRef<AbortController | null>(null);
-    useEffect(() => () => editorRequest.current?.abort(), []);
+    const editorLoader = useIndikatorEditorLoader();
 
     const toggleCollapse = (id: string) => {
         setCollapsedMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -132,56 +108,41 @@ export default function SasaranIndikatorIndex({
     };
 
     const openCreateIndikator = (sasaranId?: string) => {
-        editorRequest.current?.abort();
-        setSelectedEditor(null);
-        setSelectedIndikator(null);
+        editorLoader.cancel();
         setDefaultSasaranId(sasaranId || sasarans[0]?.id);
         setIndikatorModalOpen(true);
     };
 
-    const openEditor = async (indikator: IndikatorKinerjaItem, mode: 'metadata' | 'formula') => {
-        editorRequest.current?.abort();
-        const controller = new AbortController();
-        editorRequest.current = controller;
-        setEditorLoading(true);
-        setEditorError('');
-        try {
-            const editor = await loadDefinition(`/perencanaan/indikator/${indikator.id}/editor`, controller.signal);
-            if (controller.signal.aborted) return;
-            if (!hasParentMetadata(editor) || editor.indikator.id !== indikator.id) throw new Error('Metadata editor tidak lengkap.');
-            if (mode === 'formula') setFormulaTarget(editor);
-            else {
-                setSelectedEditor(editor);
-                setSelectedIndikator(editor.indikator);
-                setDefaultSasaranId(editor.indikator.sasaran_strategis_id);
-                setIndikatorModalOpen(true);
-            }
-        } catch (error) {
-            if (!controller.signal.aborted) {
-                if (error instanceof HttpResponseError) editorRecovery.handleHttpException(error.response, { effectiveMethod: 'get', path: `/perencanaan/indikator/${indikator.id}/editor`, mutation: false });
-                setEditorError('Editor tidak dapat dimuat. Periksa koneksi dan akses, lalu buka kembali indikator.');
-            }
-        }
-        finally { if (!controller.signal.aborted) setEditorLoading(false); }
+    const openFormula = async (indikator: IndikatorKinerjaItem) => {
+        const editor = await editorLoader.load(indikator.id);
+        if (editor) setFormulaTarget(editor);
     };
-    const openEditIndikator = (indikator: IndikatorKinerjaItem) => { void openEditor(indikator, 'metadata'); };
 
     const selectedRenstra = renstras.find((r) => r.id === selectedRenstraId);
 
     const canAturFormula = can.komponen_read && (can.indikator_update || can.komponen_create || can.komponen_update || can.komponen_delete);
 
+    const indikatorActions = (ind: IndikatorKinerjaItem): ActionMenuItem[] => [
+        ...(can.indikator_read ? [{ key: 'detail', label: 'Lihat Detail', icon: Eye, href: `/perencanaan/indikator/${ind.id}`, ariaLabel: `Lihat detail indikator ${ind.kode}` }] : []),
+        ...(can.penanggung_jawab_update ? [{ key: 'pj', label: 'Penanggung Jawab', icon: UserCheck, href: `/perencanaan/indikator/${ind.id}/penanggung-jawab`, ariaLabel: `Penanggung jawab ${ind.kode}` }] : []),
+        ...(can.indikator_read && selectedRenstra ? [{
+            key: 'target', label: 'Baseline & Target', icon: Target, ariaLabel: `Baseline & target ${ind.kode}`,
+            onSelect: () => {
+                setAnnualMessage('');
+                setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
+            },
+        }] : []),
+        ...(ind.tipe_perhitungan !== 'manual' && can.komponen_read ? [{ key: 'komponen', label: 'Komponen Perhitungan', icon: Calculator, href: `/indikator/${ind.id}/komponen`, ariaLabel: `Kelola komponen ${ind.kode}` }] : []),
+        ...(canAturFormula ? [{ key: 'formula', label: 'Atur Formula', icon: Sigma, ariaLabel: `Atur formula indikator ${ind.kode}`, onSelect: () => { void openFormula(ind); } }] : []),
+        ...(can.indikator_update ? [
+            { key: 'pindah', label: 'Pindah Unit', icon: ArrowLeftRight, ariaLabel: `Pindah unit indikator ${ind.kode}`, onSelect: () => setPindahTarget(ind) },
+        ] : []),
+        ...(can.indikator_delete ? [{ key: 'arsip', label: 'Arsipkan Indikator', icon: Trash2, ariaLabel: `Hapus indikator ${ind.kode}`, danger: true, onSelect: () => setDeleteTarget({ type: 'indikator', item: ind }) }] : []),
+    ];
+
     return (
         <AuthenticatedLayout
             title="Sasaran & Indikator Kinerja"
-            headerActions={can.penanggung_jawab_update && (
-                <Link
-                    href="/penanggung-jawab"
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1"
-                >
-                    <UserCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    Monitoring PJ
-                </Link>
-            )}
             breadcrumbs={[
                 { label: 'Perencanaan' },
                 { label: 'Sasaran & Indikator' },
@@ -192,68 +153,45 @@ export default function SasaranIndikatorIndex({
             {annualMessage && <p role="status" className="mb-4 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">{annualMessage}</p>}
 
             <div className="space-y-6">
-                {/* Header Context Card */}
-                <Card className="p-4 sm:p-5 bg-surface shadow-xs border border-border overflow-visible relative z-20">
-                    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-                        {/* Metadata Renstra (Paling Kiri) */}
-                        {selectedRenstra ? (
-                            <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-ink">Periode Renstra:</span>
-                                    <span>{selectedRenstra.tahun_mulai} — {selectedRenstra.tahun_selesai}</span>
+                {(renstras.length > 0 || can.penanggung_jawab_update) && (
+                    <Card className="overflow-visible p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            {renstras.length > 0 && (
+                                <div className="w-full sm:w-96">
+                                    <Select
+                                        id="renstra_filter"
+                                        label="Periode Renstra"
+                                        value={selectedRenstraId || ''}
+                                        onChange={(e) => handleRenstraChange(e.target.value)}
+                                    >
+                                        {renstras.map((r) => (
+                                            <option key={r.id} value={r.id}>
+                                                {r.nama} ({r.tahun_mulai}–{r.tahun_selesai}){r.is_aktif ? ' · Aktif' : ''}
+                                            </option>
+                                        ))}
+                                    </Select>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-ink">Status Renstra:</span>
-                                    {selectedRenstra.is_aktif ? (
-                                        <Badge variant="success" size="sm" dot>Renstra Aktif</Badge>
-                                    ) : (
-                                        <Badge variant="muted" size="sm">Non-aktif</Badge>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-ink">Total Sasaran:</span>
-                                    <span>{sasarans.length} Sasaran</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-ink">Total Indikator:</span>
-                                    <span>
-                                        {sasarans.reduce((acc, s) => acc + s.indikator_kinerjas.length, 0)} Indikator
-                                    </span>
-                                </div>
+                            )}
+                            <div className="flex items-center gap-2 sm:ml-auto">
+                                {can.penanggung_jawab_update && (
+                                    <Link
+                                        href="/penanggung-jawab"
+                                        className="inline-flex h-[42px] shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                    >
+                                        <UserCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        Monitoring PJ
+                                    </Link>
+                                )}
+                                <TambahMenu
+                                    showSasaran={can.sasaran_create && Boolean(selectedRenstraId)}
+                                    showIndikator={can.indikator_create && sasarans.length > 0}
+                                    onAddSasaran={openCreateSasaran}
+                                    onAddIndikator={() => openCreateIndikator()}
+                                />
                             </div>
-                        ) : (
-                            <div />
-                        )}
-
-                        {/* Filter & Actions (Sisi Kanan) */}
-                        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:shrink-0">
-                            {/* Renstra Selector */}
-                            <div className="w-full lg:w-72">
-                                <Select
-                                    id="renstra_filter"
-                                    className="renstra-filter h-10"
-                                    value={selectedRenstraId || ''}
-                                    onChange={(e) => handleRenstraChange(e.target.value)}
-                                    aria-label="Pilih Periode Renstra"
-                                >
-                                    {renstras.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.nama} ({r.tahun_mulai} - {r.tahun_selesai}) {r.is_aktif ? 'Aktif' : ''}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
-
-                            {/* Top Actions */}
-                            <TambahMenu
-                                showSasaran={can.sasaran_create && Boolean(selectedRenstraId)}
-                                showIndikator={can.indikator_create && sasarans.length > 0}
-                                onAddSasaran={openCreateSasaran}
-                                onAddIndikator={() => openCreateIndikator()}
-                            />
                         </div>
-                    </div>
-                </Card>
+                    </Card>
+                )}
 
                 {/* Empty State when no renstras */}
                 {renstras.length === 0 && (
@@ -276,7 +214,7 @@ export default function SasaranIndikatorIndex({
                         </p>
                         {can.sasaran_create && selectedRenstraId && (
                             <div className="mt-5">
-                                <Button variant="primary" onClick={openCreateSasaran} className="gap-2">
+                                <Button variant="outline" size="sm" onClick={openCreateSasaran} className="gap-1.5">
                                     <Plus className="h-4 w-4" aria-hidden="true" />
                                     Tambah Sasaran Pertama
                                 </Button>
@@ -312,12 +250,12 @@ export default function SasaranIndikatorIndex({
 
                                     <div className="space-y-1 min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-primary text-white">
+                                            <Badge variant="primary" size="sm" className="font-mono">
                                                 {sasaran.kode}
-                                            </span>
-                                            <Badge variant="primary" size="sm">
-                                                {sasaran.indikator_kinerjas.length} Indikator
                                             </Badge>
+                                            <span className="text-xs text-muted">
+                                                {sasaran.indikator_kinerjas.length} indikator
+                                            </span>
                                         </div>
                                         <h2 className="text-base font-semibold text-ink leading-relaxed">
                                             {sasaran.deskripsi}
@@ -340,27 +278,29 @@ export default function SasaranIndikatorIndex({
                                     )}
 
                                     {can.sasaran_update && (
-                                        <button
-                                            type="button"
-                                            onClick={() => openEditSasaran(sasaran)}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-                                            title="Ubah Sasaran"
-                                            aria-label={`Ubah sasaran ${sasaran.kode}`}
-                                        >
-                                            <Edit3 className="h-4 w-4" />
-                                        </button>
+                                        <Tooltip content="Ubah Sasaran">
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditSasaran(sasaran)}
+                                                className={iconAction}
+                                                aria-label={`Ubah sasaran ${sasaran.kode}`}
+                                            >
+                                                <Edit3 className="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                        </Tooltip>
                                     )}
 
                                     {can.sasaran_delete && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setDeleteTarget({ type: 'sasaran', item: sasaran })}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
-                                            title="Hapus Sasaran"
-                                            aria-label={`Hapus sasaran ${sasaran.kode}`}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                        <Tooltip content="Hapus Sasaran" align="right">
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeleteTarget({ type: 'sasaran', item: sasaran })}
+                                                className={iconDangerAction}
+                                                aria-label={`Hapus sasaran ${sasaran.kode}`}
+                                            >
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                        </Tooltip>
                                     )}
                                 </div>
                             </div>
@@ -375,164 +315,89 @@ export default function SasaranIndikatorIndex({
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left text-sm">
-                                                <thead className="bg-soft/50 text-[11px] font-bold text-muted uppercase tracking-wider border-b border-border">
-                                                    <tr>
-                                                        <th scope="col" className="px-5 py-3 w-28">Kode</th>
-                                                        <th scope="col" className="px-5 py-3">Indikator Kinerja</th>
-                                                        <th scope="col" className="px-5 py-3 w-64">Penanggung Jawab</th>
-                                                        <th scope="col" className="px-5 py-3 w-36">Satuan</th>
-                                                        <th scope="col" className="px-5 py-3 w-56 text-right">Aksi</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-border">
-                                                    {sasaran.indikator_kinerjas.map((ind) => (
-                                                        <tr
-                                                            key={ind.id}
-                                                            className={`hover:bg-soft/30 transition-colors ${
-                                                                ind.status === 'arsip' ? 'opacity-60 bg-soft/20' : ''
-                                                            }`}
-                                                        >
-                                                            {/* 1. Kode */}
-                                                            <td className="px-5 py-4 align-middle">
-                                                                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-soft text-ink border border-border">
-                                                                    {ind.kode}
-                                                                </span>
-                                                            </td>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="w-28">Kode</TableHead>
+                                                    <TableHead>Indikator Kinerja</TableHead>
+                                                    <TableHead className="w-48">Unit</TableHead>
+                                                    {can.penanggung_jawab_update && <TableHead className="w-48">Penanggung Jawab</TableHead>}
+                                                    <TableHead className="w-36">Satuan</TableHead>
+                                                    <TableHead className="w-16 text-right">Aksi</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {sasaran.indikator_kinerjas.map((ind) => (
+                                                    <TableRow key={ind.id} className={ind.status === 'arsip' ? 'bg-soft/20 opacity-60' : undefined}>
+                                                        <TableCell className="whitespace-nowrap font-mono font-semibold">{ind.kode}</TableCell>
 
-                                                            {/* 2. Indikator Kinerja */}
-                                                            <td className="px-5 py-4 align-middle">
-                                                                <div className="space-y-1">
-                                                                    <p className="font-medium text-ink text-sm leading-snug">
-                                                                        {ind.nama}
-                                                                    </p>
-                                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                                                                        <span className="text-muted font-medium">
-                                                                            {tipePerhitunganLabel[ind.tipe_perhitungan] || ind.tipe_perhitungan}
-                                                                        </span>
-                                                                        {ind.status === 'arsip' && (
-                                                                            <Badge variant="muted" size="sm">
-                                                                                Arsip
-                                                                            </Badge>
-                                                                        )}
-                                                                        {can.regulasi_read !== false && ind.regulasi && (
-                                                                            <>
-                                                                                <span className="text-muted/40" aria-hidden="true">·</span>
-                                                                                <span className="text-muted flex items-center gap-1 font-medium">
-                                                                                    <BookOpen className="h-3 w-3 text-muted/70 shrink-0" aria-hidden="true" />
-                                                                                    <span>{formatRegulasiRingkas(ind.regulasi)}</span>
-                                                                                </span>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
+                                                        <TableCell>
+                                                            <div className="space-y-1">
+                                                                <p className="text-sm font-medium leading-snug text-ink">{ind.nama}</p>
+                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                                                                    <span>{tipePerhitunganLabel[ind.tipe_perhitungan] || ind.tipe_perhitungan}</span>
+                                                                    {selectedRenstra && ind.tahun_mulai_berlaku > selectedRenstra.tahun_mulai && (
+                                                                        <>
+                                                                            <span className="text-muted/40" aria-hidden="true">·</span>
+                                                                            <span>Mulai {ind.tahun_mulai_berlaku}</span>
+                                                                        </>
+                                                                    )}
+                                                                    {ind.status === 'arsip' && (
+                                                                        <Badge variant="muted" size="sm">
+                                                                            Arsip
+                                                                        </Badge>
+                                                                    )}
+                                                                    {can.regulasi_read !== false && ind.regulasi && (
+                                                                        <>
+                                                                            <span className="text-muted/40" aria-hidden="true">·</span>
+                                                                            <span className="flex items-center gap-1">
+                                                                                <BookOpen className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                                                                <span>{formatRegulasiRingkas(ind.regulasi)}</span>
+                                                                            </span>
+                                                                        </>
+                                                                    )}
                                                                 </div>
-                                                            </td>
+                                                            </div>
+                                                        </TableCell>
 
-                                                            {/* 3. Penanggung Jawab */}
-                                                            <td className="px-5 py-4 align-middle text-xs text-ink font-medium">
-                                                                {ind.unit_nama || ind.unit_id}
-                                                            </td>
+                                                        <TableCell className="font-medium">{ind.unit_nama || ind.unit_id}</TableCell>
 
-                                                            {/* 4. Satuan & Arah Target */}
-                                                            <td className="px-5 py-4 align-middle text-xs">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className="font-mono font-semibold text-ink bg-soft px-2 py-0.5 rounded border border-border">
-                                                                        {ind.satuan}
+                                                        {can.penanggung_jawab_update && (
+                                                            <TableCell>
+                                                                {ind.penanggung_jawab ? (
+                                                                    <span className="inline-flex flex-wrap items-center gap-1.5 font-medium">
+                                                                        {ind.penanggung_jawab.nama}
+                                                                        {ind.penanggung_jawab.status !== 'aktif' && <Badge variant="muted" size="sm">Nonaktif</Badge>}
                                                                     </span>
-                                                                    {ind.arah === 'naik_baik' ? (
-                                                                        <span className="text-success inline-flex items-center gap-0.5 text-xs font-medium" title="Target: Naik Lebih Baik">
-                                                                            <TrendingUp className="h-3 w-3" /> Naik
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-info inline-flex items-center gap-0.5 text-xs font-medium" title="Target: Turun Lebih Baik">
-                                                                            <TrendingDown className="h-3 w-3" /> Turun
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
+                                                                ) : (
+                                                                    <span className="font-medium text-warning-dark">Belum ditetapkan</span>
+                                                                )}
+                                                            </TableCell>
+                                                        )}
 
-                                                            {/* 5. Aksi */}
-                                                            <td className="px-5 py-4 align-middle text-right">
-                                                                <div className="flex items-center justify-end gap-1.5">
-                                                                    {can.penanggung_jawab_update && <Link href={`/perencanaan/indikator/${ind.id}/penanggung-jawab`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-primary hover:bg-soft" aria-label={`Penanggung jawab ${ind.kode}`}>PJ</Link>}
-                                                                    {can.indikator_read && selectedRenstra && (
-                                                                        <button
-                                                                            type="button"
-                                                                            aria-label={`Baseline & target ${ind.kode}`}
-                                                                            onClick={() => {
-                                                                                setAnnualMessage('');
-                                                                                setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
-                                                                            }}
-                                                                            className="inline-flex min-h-9 items-center whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                                                                        >Baseline & target</button>
-                                                                    )}
-                                                                    {ind.tipe_perhitungan !== 'manual' && can.komponen_read && (
-                                                                        <Link
-                                                                            href={`/indikator/${ind.id}/komponen`}
-                                                                            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink shadow-2xs hover:bg-soft transition-colors"
-                                                                            title="Konfigurasi Komponen Perhitungan"
-                                                                            aria-label={`Kelola komponen ${ind.kode}`}
-                                                                        >
-                                                                            <Calculator className="h-3.5 w-3.5" />
-                                                                            Komponen
-                                                                        </Link>
-                                                                    )}
+                                                        <TableCell className="whitespace-nowrap">
+                                                            <span className="font-mono font-semibold text-ink">{ind.satuan}</span>
+                                                            <span className="ml-2 inline-flex items-center gap-0.5 text-muted">
+                                                                {ind.arah === 'naik_baik' ? (
+                                                                    <><TrendingUp className="h-3 w-3" aria-hidden="true" /> Naik</>
+                                                                ) : (
+                                                                    <><TrendingDown className="h-3 w-3" aria-hidden="true" /> Turun</>
+                                                                )}
+                                                            </span>
+                                                        </TableCell>
 
-                                                                    {canAturFormula && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => { void openEditor(ind, 'formula'); }}
-                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-                                                                            title="Atur Formula"
-                                                                            aria-label={`Atur formula indikator ${ind.kode}`}
-                                                                        >
-                                                                            <Sigma className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-
-                                                                    {can.indikator_update && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => openEditIndikator(ind)}
-                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-                                                                            title="Ubah Indikator"
-                                                                            aria-label={`Ubah indikator ${ind.kode}`}
-                                                                        >
-                                                                            <Edit3 className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-
-                                                                    {can.indikator_update && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => setPindahTarget(ind)}
-                                                                            className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-soft transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-                                                                            title="Pindah Unit"
-                                                                            aria-label={`Pindah unit indikator ${ind.kode}`}
-                                                                        >
-                                                                            <ArrowLeftRight className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-
-                                                                    {can.indikator_delete && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => setDeleteTarget({ type: 'indikator', item: ind })}
-                                                                            className="p-1.5 rounded-md text-muted hover:text-danger hover:bg-danger/10 transition-colors focus:outline-none focus:ring-2 focus:ring-danger"
-                                                                            title="Hapus / Arsipkan Indikator"
-                                                                            aria-label={`Hapus indikator ${ind.kode}`}
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                        <TableCell className="text-right">
+                                                            <ActionMenu
+                                                                items={indikatorActions(ind)}
+                                                                trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+                                                                triggerLabel={`Aksi ${ind.kode}`}
+                                                                triggerClassName="h-8 w-8 px-0"
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
                                     )}
                                 </div>
                             )}
@@ -560,8 +425,8 @@ export default function SasaranIndikatorIndex({
                 defaultSasaranId={defaultSasaranId}
                 units={units}
                 regulasis={regulasis}
-                indikator={selectedIndikator}
-                editor={selectedEditor}
+                indikator={null}
+                editor={null}
                 can={can}
             />}
 
@@ -579,7 +444,7 @@ export default function SasaranIndikatorIndex({
                 onClose={() => setFormulaTarget(null)}
                 editor={formulaTarget}
             />}
-            <Modal isOpen={editorLoading || Boolean(editorError)} onClose={() => { editorRequest.current?.abort(); setEditorLoading(false); setEditorError(''); }} title="Memuat Editor Indikator"><AuthRecoveryNotice recovery={editorRecovery.recovery} /><p role={editorError ? 'alert' : 'status'}>{editorError || 'Memuat metadata dan seluruh komponen pada revisi yang sama…'}</p></Modal>
+            {editorLoader.loaderModal}
 
             {/* Modal Konfirmasi Hapus dengan Alasan Audit */}
             <DeleteConfirmModal

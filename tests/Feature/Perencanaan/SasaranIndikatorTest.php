@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
+use App\Models\PenugasanIndikator;
 use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\Renstra;
@@ -97,6 +98,104 @@ class SasaranIndikatorTest extends TestCase
             ->where('can.sasaran_create', true)
             ->where('can.indikator_create', true)
         );
+    }
+
+    public function test_index_mengirim_pj_efektif_hanya_untuk_pemegang_penanggung_jawab_update(): void
+    {
+        $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
+        $sasaran = SasaranStrategis::create(['renstra_id' => $this->renstra->id, 'kode' => 'SS-PJ', 'deskripsi' => 'Sasaran PJ', 'urutan' => 1]);
+        $atribut = ['sasaran_strategis_id' => $sasaran->id, 'satuan' => 'Poin', 'unit_id' => $this->unit->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'created_by_role' => 'perencanaan'];
+        $denganPj = $this->buatIndikator(['kode' => 'IKU-PJ', 'nama' => 'Indikator Dengan PJ'] + $atribut);
+        $this->buatIndikator(['kode' => 'IKU-TANPA-PJ', 'nama' => 'Indikator Tanpa PJ'] + $atribut);
+        PenugasanIndikator::create(['indikator_id' => $denganPj->id, 'user_id' => $this->pegawai->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->perencanaan->id, 'created_at' => now()]);
+        // Penugasan terjadwal belum berlaku pada tanggal bisnis hari ini.
+        PenugasanIndikator::create(['indikator_id' => $denganPj->id, 'user_id' => $this->perencanaan->id, 'tanggal_mulai_berlaku' => '2026-06-01', 'ditetapkan_oleh' => $this->perencanaan->id, 'created_at' => now()]);
+
+        $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.penanggung_jawab_update', true)
+                ->where('sasarans.0.indikator_kinerjas.0.kode', 'IKU-PJ')
+                ->where('sasarans.0.indikator_kinerjas.0.penanggung_jawab', ['nama' => $this->pegawai->nama, 'status' => 'aktif'])
+                ->where('sasarans.0.indikator_kinerjas.1.penanggung_jawab', null));
+
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'penanggung_jawab:update')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Deny pengelolaan PJ untuk pengujian',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->perencanaan)->get('/perencanaan/sasaran-indikator')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.penanggung_jawab_update', false)
+                ->where('sasarans.0.indikator_kinerjas.0.penanggung_jawab', null));
+    }
+
+    public function test_detail_indikator_menampilkan_metadata_dengan_gerbang_akses_yang_sama_dengan_daftar(): void
+    {
+        $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
+        $sasaran = SasaranStrategis::create(['renstra_id' => $this->renstra->id, 'kode' => 'SS-DETAIL', 'deskripsi' => 'Sasaran Detail', 'urutan' => 1]);
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id, 'kode' => 'IKU-DETAIL', 'nama' => 'Indikator Detail', 'satuan' => '%',
+            'unit_id' => $this->unit->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'created_by_role' => 'perencanaan',
+            'regulasi_id' => $this->regulasi->id,
+        ]);
+        PenugasanIndikator::create(['indikator_id' => $indikator->id, 'user_id' => $this->pegawai->id, 'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->perencanaan->id, 'created_at' => now()]);
+
+        $this->actingAs($this->perencanaan)->get("/perencanaan/indikator/{$indikator->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Perencanaan/Indikator/Show')
+                ->where('indikator.kode', 'IKU-DETAIL')
+                ->where('indikator.unit_nama', $this->unit->nama)
+                ->where('indikator.penanggung_jawab.nama', $this->pegawai->nama)
+                ->where('indikator.regulasi.nomor', '358/M/KEP/2025')
+                ->where('sasaran.kode', 'SS-DETAIL')
+                ->where('renstra.id', $this->renstra->id)
+                ->has('sasarans', 1)
+                ->where('sasarans.0.indikator_kinerjas', [])
+                ->where('can.indikator_update', true));
+
+        $this->actingAs($this->pegawai)->get("/perencanaan/indikator/{$indikator->id}")->assertForbidden();
+        $this->actingAs($this->perencanaan)->get('/perencanaan/indikator/bukan-uuid')->assertNotFound();
+
+        UserPermissionDeny::create([
+            'user_id' => $this->perencanaan->id,
+            'permission_id' => Permission::where('kode', 'regulasi:read')->value('id'),
+            'unit_id' => null,
+            'alasan' => 'Dilarang melihat regulasi untuk pengujian detail',
+            'ditetapkan_oleh' => $this->perencanaan->id,
+        ]);
+        $this->actingAs($this->perencanaan)->get("/perencanaan/indikator/{$indikator->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('indikator.regulasi', null)
+                ->where('indikator.regulasi_id', null)
+                ->where('regulasis', []));
+    }
+
+    public function test_ubah_dari_detail_kembali_ke_detail_dan_tujuan_lain_ditolak(): void
+    {
+        $sasaran = SasaranStrategis::create(['renstra_id' => $this->renstra->id, 'kode' => 'SS-KEMBALI', 'deskripsi' => 'Sasaran Kembali', 'urutan' => 1]);
+        $indikator = $this->buatIndikator([
+            'sasaran_strategis_id' => $sasaran->id, 'kode' => 'IKU-KEMBALI', 'nama' => 'Indikator Kembali', 'satuan' => '%',
+            'unit_id' => $this->unit->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'created_by_role' => 'perencanaan',
+        ]);
+        $payload = fn (string $nama) => [
+            'sasaran_strategis_id' => $sasaran->id, 'kode' => 'IKU-KEMBALI', 'nama' => $nama, 'satuan' => '%',
+            'unit_id' => $this->unit->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual',
+            'expected_updated_at' => $indikator->fresh()->updated_at?->toISOString() ?? $indikator->fresh()->created_at->toISOString(),
+        ];
+
+        $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [...$payload('Nama Dari Detail'), 'kembali' => 'detail'])
+            ->assertRedirect(route('perencanaan.indikator.show', $indikator));
+        $this->assertSame('Nama Dari Detail', $indikator->fresh()->nama);
+
+        $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", [...$payload('Nama Ditolak'), 'kembali' => 'https://contoh.invalid'])
+            ->assertSessionHasErrors('kembali');
+        $this->assertSame('Nama Dari Detail', $indikator->fresh()->nama);
+
+        $this->actingAs($this->perencanaan)->put("/perencanaan/indikator/{$indikator->id}", $payload('Nama Dari Daftar'))
+            ->assertRedirect(route('perencanaan.sasaran-indikator.index', ['renstra_id' => $this->renstra->id]));
     }
 
     public function test_1_create_sasaran_valid_menghasilkan_data_dan_audit_log(): void

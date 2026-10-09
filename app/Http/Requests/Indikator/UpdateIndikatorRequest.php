@@ -105,6 +105,8 @@ class UpdateIndikatorRequest extends FormRequest
             'wajib_catatan' => ['nullable', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
             'expected_updated_at' => ['required', 'date'],
+            // Tujuan kembali setelah simpan; daftar tertutup agar tidak menjadi open redirect.
+            'kembali' => ['sometimes', 'in:detail'],
         ]);
     }
 
