@@ -72,6 +72,12 @@ class RekonsiliasiTargetDraf
 
         $jendela = $this->konteks->jendela((string) $snapshot->jadwal_id);
 
+        // Komponen seluruh versi antara dibaca sekali agar jumlah query tidak
+        // tumbuh mengikuti jumlah versi.
+        $komponenPerVersi = JadwalSnapshotKomponen::whereIn('jadwal_snapshot_id', $antara->pluck('id'))
+            ->get(['jadwal_snapshot_id', 'komponen_id'])
+            ->groupBy(fn (JadwalSnapshotKomponen $row): string => (string) $row->jadwal_snapshot_id);
+
         $konteks = [];
         foreach ($antara as $versi) {
             $tipe = (string) $versi->tipe_perhitungan;
@@ -80,7 +86,7 @@ class RekonsiliasiTargetDraf
                 'tipe' => $tipe,
                 'komponen' => $tipe === 'manual'
                     ? []
-                    : JadwalSnapshotKomponen::where('jadwal_snapshot_id', $versi->id)->pluck('komponen_id')->map(fn ($id): string => (string) $id)->all(),
+                    : ($komponenPerVersi->get((string) $versi->id) ?? collect())->map(fn (JadwalSnapshotKomponen $row): string => (string) $row->komponen_id)->values()->all(),
             ];
         }
 

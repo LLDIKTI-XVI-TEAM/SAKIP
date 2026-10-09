@@ -78,7 +78,13 @@ class KonteksBekuRencanaAksi
      */
     public function periodeEfektif(JadwalSnapshot $snapshot, Collection $jendela): Collection
     {
-        $mulai = is_string($snapshot->periode_mulai_id) ? Periode::whereKey($snapshot->periode_mulai_id)->first() : null;
+        $mulai = null;
+        if (is_string($snapshot->periode_mulai_id)) {
+            // Periode-mulai lazimnya anggota jendela yang periodenya sudah
+            // dimuat; query hanya bila tidak ditemukan di sana.
+            $mulai = $jendela->firstWhere('periode_id', $snapshot->periode_mulai_id)?->periode
+                ?? Periode::whereKey($snapshot->periode_mulai_id)->first();
+        }
         if ($mulai instanceof Periode) {
             $jendela = $jendela->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan);
         }

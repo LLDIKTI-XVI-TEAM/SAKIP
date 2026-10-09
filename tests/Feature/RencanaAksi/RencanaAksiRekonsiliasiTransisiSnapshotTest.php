@@ -19,6 +19,7 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -116,6 +117,49 @@ class RencanaAksiRekonsiliasiTransisiSnapshotTest extends TestCase
         // Perpindahan jepit snapshot ikut terekam agar konteks formula tiap simpan dapat dibuktikan.
         $this->assertSame($fixture['snapshot']->id, $audit->nilai_lama['snapshot_draf_id']);
         $this->assertSame($v3->id, $audit->nilai_baru['snapshot_draf_id']);
+    }
+
+    /**
+     * Penelusuran versi antara jepit dan snapshot terbaru membaca komponen
+     * dan periode-mulai seluruh versi secara batch; jumlah query tidak
+     * tumbuh mengikuti jumlah versi (N+1).
+     */
+    public function test_rekonsiliasi_jumlah_query_tetap_terhadap_jumlah_versi(): void
+    {
+        $fixture = $this->buatFixturePenjumlahan();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenA']->id, 'nilai' => 50, 'keterangan' => null],
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['komponenB']->id, 'nilai' => 100, 'keterangan' => null],
+            ],
+        ])->assertSessionHasNoErrors();
+        $header->refresh();
+        $hitung = function (JadwalSnapshot $terbaru) use ($header): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            app(RekonsiliasiTargetDraf::class)->rekonsiliasi($header, $terbaru);
+            $jumlah = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $jumlah;
+        };
+
+        $versi = [2 => $this->terbitkanSnapshotLengkap($fixture, 2, $fixture['snapshot']->id)];
+        $duaVersi = $hitung($versi[2]);
+        foreach ([3, 4, 5] as $nomor) {
+            $versi[$nomor] = $this->terbitkanSnapshotLengkap($fixture, $nomor, $versi[$nomor - 1]->id);
+        }
+
+        $this->assertSame($duaVersi, $hitung($versi[5]));
     }
 
     public function test_snapshot_terbit_yang_dipakai_draf_beku_di_db_tapi_koreksi_sisipan_terbuka(): void
