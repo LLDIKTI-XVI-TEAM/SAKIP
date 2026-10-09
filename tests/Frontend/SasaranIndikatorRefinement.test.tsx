@@ -209,8 +209,8 @@ describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
         expect(screen.getByLabelText('Atur formula indikator IKU-PERM')).toBeTruthy();
         expect(screen.getByLabelText('Lihat detail indikator IKU-PERM')).toBeTruthy();
         expect(screen.getByLabelText('Pindah unit indikator IKU-PERM')).toBeTruthy();
-        expect(screen.getByLabelText('Hapus indikator IKU-PERM')).toBeTruthy();
-        expect(screen.getByLabelText('Kelola komponen IKU-PERM')).toBeTruthy();
+        expect(screen.getByLabelText('Arsipkan indikator IKU-PERM')).toBeTruthy();
+        expect(screen.getByLabelText('Komponen perhitungan IKU-PERM')).toBeTruthy();
 
         unmount();
 
@@ -226,8 +226,8 @@ describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
         if (aksi) fireEvent.click(aksi);
         expect(screen.queryByLabelText('Atur formula indikator IKU-PERM')).toBeNull();
         expect(screen.queryByLabelText('Pindah unit indikator IKU-PERM')).toBeNull();
-        expect(screen.queryByLabelText('Hapus indikator IKU-PERM')).toBeNull();
-        expect(screen.queryByLabelText('Kelola komponen IKU-PERM')).toBeNull();
+        expect(screen.queryByLabelText('Arsipkan indikator IKU-PERM')).toBeNull();
+        expect(screen.queryByLabelText('Komponen perhitungan IKU-PERM')).toBeNull();
     });
 });
 

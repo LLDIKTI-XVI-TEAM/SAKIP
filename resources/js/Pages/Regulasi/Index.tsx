@@ -163,45 +163,49 @@ export default function RegulasiIndex({ regulasi, filters, can }: RegulasiIndexP
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {regulasi.data.map((item) => (
-                                        <TableRow key={item.id} className="align-top">
-                                            <TableCell>
-                                                <p className="text-sm font-semibold text-ink">{item.nomor}</p>
-                                                <p className="mt-1 text-xs text-muted">{jenisRegulasiLabel[item.jenis]} · {item.tahun}</p>
-                                            </TableCell>
-                                            <TableCell className="max-w-xl">
-                                                <p className="line-clamp-2 text-sm leading-6 text-ink">{item.tentang}</p>
-                                                {tautanAman(item.tautan_sumber) && (
-                                                    <a href={tautanAman(item.tautan_sumber) ?? undefined} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                                                        Sumber resmi <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                                                    </a>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap text-sm">{item.berkas_count} berkas</TableCell>
-                                            <TableCell>
-                                                <Badge variant={item.aktif ? 'success' : 'muted'}>{item.aktif ? 'Aktif' : 'Nonaktif'}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex justify-end gap-1">
-                                                    {can['regulasi:read'] && (
-                                                        <Link href={`/regulasi/${item.id}`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Lihat regulasi ${item.nomor}`}>
-                                                            <Eye className="h-4 w-4" />
-                                                        </Link>
+                                    {regulasi.data.map((item) => {
+                                        const sumberResmi = tautanAman(item.tautan_sumber);
+
+                                        return (
+                                            <TableRow key={item.id} className="align-top">
+                                                <TableCell>
+                                                    <p className="text-sm font-semibold text-ink">{item.nomor}</p>
+                                                    <p className="mt-1 text-xs text-muted">{jenisRegulasiLabel[item.jenis]} · {item.tahun}</p>
+                                                </TableCell>
+                                                <TableCell className="max-w-xl">
+                                                    <p className="line-clamp-2 text-sm leading-6 text-ink">{item.tentang}</p>
+                                                    {sumberResmi && (
+                                                        <a href={sumberResmi} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                                            Sumber resmi <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                                        </a>
                                                     )}
-                                                    {can['regulasi:update'] && (
-                                                        <Link href={`/regulasi/${item.id}/edit`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Edit regulasi ${item.nomor}`}>
-                                                            <Edit3 className="h-4 w-4" />
-                                                        </Link>
-                                                    )}
-                                                    {can['regulasi:delete'] && (
-                                                        <button type="button" onClick={() => openDelete(item)} className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20" aria-label={`Hapus regulasi ${item.nomor}`}>
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-sm">{item.berkas_count} berkas</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={item.aktif ? 'success' : 'muted'}>{item.aktif ? 'Aktif' : 'Nonaktif'}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex justify-end gap-1">
+                                                        {can['regulasi:read'] && (
+                                                            <Link href={`/regulasi/${item.id}`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Lihat regulasi ${item.nomor}`}>
+                                                                <Eye className="h-4 w-4" />
+                                                            </Link>
+                                                        )}
+                                                        {can['regulasi:update'] && (
+                                                            <Link href={`/regulasi/${item.id}/edit`} className="rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20" aria-label={`Edit regulasi ${item.nomor}`}>
+                                                                <Edit3 className="h-4 w-4" />
+                                                            </Link>
+                                                        )}
+                                                        {can['regulasi:delete'] && (
+                                                            <button type="button" onClick={() => openDelete(item)} className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20" aria-label={`Hapus regulasi ${item.nomor}`}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </Card>

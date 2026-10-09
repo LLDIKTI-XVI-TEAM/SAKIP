@@ -6,6 +6,7 @@ import { ActionMenu } from '@/Components/ActionMenu';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { tautanAman } from '@/lib/url';
 import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
+import { Modal } from '@/Components/Modal';
 import { Pagination } from '@/Components/Pagination';
 import type { LampiranDraft } from '@/types/perjanjian-kinerja';
 
@@ -117,6 +118,33 @@ it('menu aksi: tidak tampil tanpa item, navigasi keyboard, Escape mengembalikan 
     expect(arsip).toHaveBeenCalledTimes(1);
     expect(ubah).not.toHaveBeenCalled();
     expect(screen.queryByRole('menu')).toBeNull();
+});
+
+it('menu aksi: modal yang dibuka dari item mengembalikan fokus ke pemicu saat ditutup', async () => {
+    const user = userEvent.setup();
+    function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+            <>
+                <ActionMenu trigger="⋯" triggerLabel="Aksi IKU-01" items={[{ key: 'pindah', label: 'Pindah Unit', onSelect: () => setOpen(true) }]} />
+                <Modal isOpen={open} onClose={() => setOpen(false)} title="Pindah unit indikator">
+                    <p>Isi modal</p>
+                </Modal>
+            </>
+        );
+    }
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'Aksi IKU-01' });
+
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Pindah Unit' }));
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
 });
 
 it('tautan eksternal hanya http/https: skema berbahaya tidak menjadi link', () => {

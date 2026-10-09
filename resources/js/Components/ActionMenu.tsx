@@ -159,7 +159,8 @@ export function ActionMenu({ items, trigger, triggerLabel, variant = 'outline', 
                                         aria-label={item.ariaLabel}
                                         className={className}
                                         onClick={() => {
-                                            close(false);
+                                            // Fokus ke pemicu dulu agar Modal yang dibuka onSelect merekamnya sebagai tujuan pemulihan fokus.
+                                            close(true);
                                             item.onSelect?.();
                                         }}
                                     >

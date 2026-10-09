@@ -132,12 +132,12 @@ export default function SasaranIndikatorIndex({
                 setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
             },
         }] : []),
-        ...(ind.tipe_perhitungan !== 'manual' && can.komponen_read ? [{ key: 'komponen', label: 'Komponen Perhitungan', icon: Calculator, href: `/indikator/${ind.id}/komponen`, ariaLabel: `Kelola komponen ${ind.kode}` }] : []),
+        ...(ind.tipe_perhitungan !== 'manual' && can.komponen_read ? [{ key: 'komponen', label: 'Komponen Perhitungan', icon: Calculator, href: `/indikator/${ind.id}/komponen`, ariaLabel: `Komponen perhitungan ${ind.kode}` }] : []),
         ...(canAturFormula ? [{ key: 'formula', label: 'Atur Formula', icon: Sigma, ariaLabel: `Atur formula indikator ${ind.kode}`, onSelect: () => { void openFormula(ind); } }] : []),
         ...(can.indikator_update ? [
             { key: 'pindah', label: 'Pindah Unit', icon: ArrowLeftRight, ariaLabel: `Pindah unit indikator ${ind.kode}`, onSelect: () => setPindahTarget(ind) },
         ] : []),
-        ...(can.indikator_delete ? [{ key: 'arsip', label: 'Arsipkan Indikator', icon: Trash2, ariaLabel: `Hapus indikator ${ind.kode}`, danger: true, onSelect: () => setDeleteTarget({ type: 'indikator', item: ind }) }] : []),
+        ...(can.indikator_delete ? [{ key: 'arsip', label: 'Arsipkan Indikator', icon: Trash2, ariaLabel: `Arsipkan indikator ${ind.kode}`, danger: true, onSelect: () => setDeleteTarget({ type: 'indikator', item: ind }) }] : []),
     ];
 
     return (
