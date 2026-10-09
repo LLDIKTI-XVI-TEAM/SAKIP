@@ -53,9 +53,10 @@ class PreviewTargetPeriodeRequest extends FormRequest
             // v2 tak terlihat). Tanpa persistensi/audit — murni tolak hitung.
             'expected_versi' => ['required', 'integer', 'min:1'],
             // Token konkurensi snapshot WAJIB dikirim
-            // (`present`), cermin `SimpanTargetPeriodeRequest`; null hanya sah
-            // bila konteks memang tanpa snapshot. Pratinjau menolak konteks
-            // usang 409 agar yang ditampilkan = yang dipakai simpan.
+            // (`present`), cermin `SimpanTargetPeriodeRequest`; null lolos
+            // validasi bentuk tetapi selalu ditolak 409 oleh Action. Pratinjau
+            // menolak konteks usang 409 agar yang ditampilkan = yang dipakai
+            // simpan.
             'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
             // Subset bentuk simpan — pratinjau murni kalkulasi, bukan

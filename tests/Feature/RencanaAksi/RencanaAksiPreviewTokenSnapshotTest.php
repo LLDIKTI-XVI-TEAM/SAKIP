@@ -99,7 +99,7 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
     }
 
-    public function test_preview_tanpa_token_ditolak_dan_null_hanya_tanpa_snapshot(): void
+    public function test_preview_tanpa_token_ditolak_dan_token_null_konflik(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -129,7 +129,7 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
     }
 
-    public function test_preview_token_null_diterima_bila_konteks_tanpa_snapshot(): void
+    public function test_pratinjau_ditolak_bila_jadwal_header_belum_pernah_aktif(): void
     {
         $fixture = $this->buatFixtureDraftTanpaSnapshot();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -153,7 +153,7 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 25, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 35, 'keterangan' => null],
             ],
-        ])->assertOk()->assertJsonPath('periode.0.skor.nilai', '25.00');
+        ])->assertUnprocessable()->assertJsonValidationErrors('snapshot')->assertJsonMissingPath('periode');
 
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());

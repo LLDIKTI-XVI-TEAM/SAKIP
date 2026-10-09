@@ -43,11 +43,9 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'expected_versi' => ['required', 'integer', 'min:1'],
             // Token konkurensi snapshot dari IndexRencanaAksi
             // (identitas + nomor versi beku) WAJIB dikirim (`present`) pada
-            // setiap penyimpanan; nilai null hanya sah bila konteks memang
-            // tanpa snapshot (jadwal belum pernah aktif). Jalur bypass
-            // klien-lama-tanpa-token dihapus — SimpanTargetPeriode selalu
-            // membandingkan token dengan snapshot terbaru terkunci (409 bila
-            // beda), tanpa pengecualian.
+            // setiap penyimpanan. Null lolos validasi bentuk tetapi selalu
+            // ditolak 409 oleh SimpanTargetPeriode, yang membandingkan token
+            // dengan snapshot terbaru terkunci tanpa pengecualian.
             'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
             'uraian' => ['nullable', 'string', 'max:10000'],

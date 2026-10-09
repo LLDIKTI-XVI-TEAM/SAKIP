@@ -29,7 +29,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     const koreksiKey = props.rencanaAksi.koreksi.aktif
         ? `koreksi:${props.rencanaAksi.koreksi.periode_ids.slice().sort().join(',')}`
         : 'tanpa-koreksi';
-    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
+    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}`} {...props} />;
 }
 
 function RencanaAksiForm({ rencanaAksi }: ShowProps) {

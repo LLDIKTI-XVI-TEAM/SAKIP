@@ -24,7 +24,7 @@ use Tests\TestCase;
 
 /**
  * Konsistensi baca: payload `expected_versi` + target berasal dari satu
- * transaksi baca yang sama (header dimuat ulang + versi diverifikasi), bukan
+ * transaksi baca yang sama (header dimuat ulang dengan kunci baca), bukan
  * dari model pra-transaksi milik controller.
  */
 class RencanaAksiReadConsistencyTest extends TestCase

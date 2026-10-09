@@ -72,7 +72,7 @@ class DaftarRencanaAksi
             $buat = false;
             $unitBeku = (string) $baris->getAttribute('snap_unit_id');
             if (! $adaHeader && ! $baris->isArsip() && $baris->unit?->status === 'aktif' && $baris->getAttribute('pj_user_id') !== null
-                && ($unitBeku === '' || $unitBeku === (string) $baris->unit_id)) {
+                && $unitBeku === (string) $baris->unit_id) {
                 $unitId = (string) $baris->unit_id;
                 $keputusan = $izinBuat[$unitId] ??= $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
                 $buat = $keputusan->allowed

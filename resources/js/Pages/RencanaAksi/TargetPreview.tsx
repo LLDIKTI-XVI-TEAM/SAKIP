@@ -14,8 +14,8 @@ interface TargetPreviewProps {
     /** Versi header halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
     expectedVersi: number;
     /** Token snapshot halaman — dikirim ke preview agar konteks usang ditolak 409, konsisten dengan simpan. */
-    expectedSnapshotId: string | null;
-    expectedSnapshotVersi: number | null;
+    expectedSnapshotId: string;
+    expectedSnapshotVersi: number;
     disabled?: boolean;
 }
 

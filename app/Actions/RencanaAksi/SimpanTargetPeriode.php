@@ -4,9 +4,6 @@ namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\IndikatorKinerja;
-use App\Models\IndikatorKomponen;
-use App\Models\JadwalSnapshot;
-use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -19,6 +16,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
+use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
@@ -38,6 +36,7 @@ class SimpanTargetPeriode
         private readonly AuditLogger $audit,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
         private readonly JendelaTulisRencanaAksi $jendela,
+        private readonly KonteksBekuRencanaAksi $konteks,
     ) {}
 
     /**
@@ -101,26 +100,19 @@ class SimpanTargetPeriode
                     throw ValidationException::withMessages(['expected_versi' => 'Data telah berubah. Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
-                $snapshotWajib = $this->jadwalPernahDiaktifkan($jadwal);
-                $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
-                    ->where('indikator_id', $indikator->id)
-                    ->orderByDesc('nomor_versi')
-                    ->lockForUpdate()
-                    ->first();
-                if ($snapshotWajib && ! $snapshot instanceof JadwalSnapshot) {
-                    throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
-                }
+                // Target selalu ditulis di bawah snapshot beku; header yang
+                // jadwalnya belum pernah aktif (tanpa snapshot) ditolak
+                // fail-closed, bukan dihitung dari master berjalan.
+                $snapshot = $this->konteks->snapshotTerbaru($jadwal->id, $indikator->id, kunci: true)
+                    ?? throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
 
                 // Guard keselarasan unit jalur update (lanjutan guard unit yang
                 // hanya di create). Auth dievaluasi terhadap header.unit_id,
                 // sementara konteks efektif berasal dari snapshot terbaru —
                 // bila keduanya berbeda, tolak fail-closed agar RA tidak lolos
                 // tulis di sini lalu ditolak SubmissionPrerequisites.
-                if ($snapshot instanceof JadwalSnapshot) {
-                    $unitBeku = (string) ($snapshot->unit_id ?? '');
-                    if ($unitBeku !== '' && $unitBeku !== (string) $header->unit_id) {
-                        throw ValidationException::withMessages(['snapshot' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; penyimpanan ditolak sampai snapshot koreksi tersedia.']);
-                    }
+                if ((string) $snapshot->unit_id !== (string) $header->unit_id) {
+                    throw ValidationException::withMessages(['snapshot' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; penyimpanan ditolak sampai snapshot koreksi tersedia.']);
                 }
 
                 // Token konkurensi snapshot (eksplisit,
@@ -129,25 +121,23 @@ class SimpanTargetPeriode
                 // konteks diam-diam (tipe/bobot/presisi/periode-mulai)
                 // sementara ID komponen sama — simpan dengan token lama/usang
                 // (termasuk kunci hilang yang dinormalisasi menjadi null, atau
-                // null eksplisit saat snapshot ada) ditolak 409 agar nilai tak
-                // diterima dengan konteks yang tak pernah dilihat pengguna.
-                // Null hanya sah bila konteks memang tanpa snapshot (jadwal
-                // belum pernah aktif → snapshot null). Tanpa jalur bypass:
+                // null eksplisit) ditolak 409 agar nilai tak diterima dengan
+                // konteks yang tak pernah dilihat pengguna. Tanpa jalur bypass:
                 // perbandingan selalu dijalankan, bukan hanya bila kunci ada.
                 $tokenId = $data['expected_snapshot_id'] ?? null;
                 $tokenVersi = $data['expected_snapshot_versi'] ?? null;
                 $tokenId = $tokenId === null ? null : (string) $tokenId;
                 $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
-                $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
-                $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
+                $aktualId = (string) $snapshot->id;
+                $aktualVersi = (int) $snapshot->nomor_versi;
                 if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
                     throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
-                $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
-                $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
-                $definisi = $this->definisiEfektif($indikator, $snapshot, $snapshotWajib);
-                $periodeEfektif = $this->periodeEfektif($header, $indikator, $jadwal, $snapshot);
+                $tipe = (string) $snapshot->tipe_perhitungan;
+                $presisi = (int) $snapshot->presisi;
+                $definisi = $this->konteks->komponen($snapshot, kunci: true);
+                $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $this->konteks->jendela($jadwal->id, kunci: true));
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
@@ -175,8 +165,7 @@ class SimpanTargetPeriode
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
-                    // Majukan jepit ke snapshot terbaru yang dipakai
-                    // simpan ini (null bila konteks tanpa snapshot).
+                    // Majukan jepit ke snapshot terbaru yang dipakai simpan ini.
                     'snapshot_draf_id' => $aktualId,
                 ]);
                 $header->versi++;
@@ -256,102 +245,6 @@ class SimpanTargetPeriode
 
             throw $exception;
         }
-    }
-
-    /**
-     * Jadwal dianggap pernah diaktifkan bila terkunci (aktif/ditutup atau
-     * activated_at terisi). RA yang terikat padanya wajib memakai frozen
-     * snapshot versi resmi terbaru, bukan live master.
-     */
-    private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool
-    {
-        return $jadwal->is_terkunci
-            || $jadwal->activated_at !== null
-            || in_array($jadwal->status, ['aktif', 'ditutup'], true);
-    }
-
-    /**
-     * Himpunan komponen efektif selalu memakai frozen snapshot bila RA terikat
-     * pada jadwal yang pernah diaktifkan; snapshot wajib-tapi-hilang ditolak
-     * di pemanggil (fail-closed), bukan fallback ke master live.
-     */
-    private function definisiEfektif(IndikatorKinerja $indikator, ?JadwalSnapshot $snapshot, bool $snapshotWajib): Collection
-    {
-        if ($snapshot instanceof JadwalSnapshot) {
-            $rows = JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshot->id)
-                ->orderBy('urutan')
-                ->orderBy('kode')
-                ->lockForUpdate()
-                ->get();
-
-            return $rows->map(fn (JadwalSnapshotKomponen $row): array => [
-                'komponen_id' => (string) $row->komponen_id,
-                'kode' => (string) $row->kode,
-                'label' => (string) $row->label,
-                'peran' => (string) $row->peran,
-                'bobot' => (string) $row->bobot,
-                'urutan' => (int) $row->urutan,
-            ])->values();
-        }
-
-        if ($snapshotWajib) {
-            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
-        }
-
-        $rows = IndikatorKomponen::where('indikator_id', $indikator->id)
-            ->where('aktif', true)
-            ->orderBy('urutan')
-            ->orderBy('kode')
-            ->lockForUpdate()
-            ->get();
-
-        return $rows->map(fn (IndikatorKomponen $row): array => [
-            'komponen_id' => (string) $row->id,
-            'kode' => (string) $row->kode,
-            'label' => (string) $row->label,
-            'peran' => (string) $row->peran,
-            'bobot' => (string) $row->bobot,
-            'urutan' => (int) $row->urutan,
-        ])->values();
-    }
-
-    /**
-     * Himpunan periode efektif memakai jendela jadwal minus periode pra-berlaku.
-     *
-     * Bila snapshot ada, `periode_mulai_id` snapshot
-     * adalah satu-satunya sumber efektivitas — tahun master diabaikan
-     * agar koreksi master ke atas pasca-aktivasi tak membuat semua
-     * periode tak efektif. Tahun master hanya untuk konteks tanpa
-     * snapshot (cermin Index/Preview/Rekonsiliasi).
-     */
-    private function periodeEfektif(RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?JadwalSnapshot $snapshot): Collection
-    {
-        $jendela = PeriodeJadwal::where('jadwal_id', $jadwal->id)
-            ->with('periode')
-            ->lockForUpdate()
-            ->get()
-            ->sortBy(fn (PeriodeJadwal $row): int => $row->periode?->urutan ?? 0)
-            ->values();
-
-        if ($snapshot instanceof JadwalSnapshot) {
-            if (is_string($snapshot->periode_mulai_id)) {
-                $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
-                if ($mulai instanceof Periode) {
-                    return $jendela
-                        ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
-                        ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
-                        ->values();
-                }
-            }
-
-            return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
-        }
-
-        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
-            return collect();
-        }
-
-        return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
     }
 
     /**

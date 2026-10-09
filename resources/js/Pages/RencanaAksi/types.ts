@@ -65,10 +65,10 @@ export interface RencanaAksiShow {
     status_alur: string;
     versi: number;
     expected_versi: number;
-    /** Token konkurensi snapshot beku terbaru (null bila tanpa snapshot). Dikembalikan apa adanya saat simpan. */
-    expected_snapshot_id: string | null;
-    /** Nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`, null bila tanpa snapshot). */
-    expected_snapshot_versi: number | null;
+    /** Token konkurensi snapshot beku terbaru. Dikembalikan apa adanya saat simpan. */
+    expected_snapshot_id: string;
+    /** Nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`). */
+    expected_snapshot_versi: number;
     uraian: string | null;
     alasan_deviasi_pk: string | null;
     indikator: {
