@@ -9,7 +9,9 @@ use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
-use App\Services\Authorization\PermissionResolver;
+use App\Services\Authorization\ResolveLockedActor;
+use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,31 +19,30 @@ use Throwable;
 
 class SahkanRencanaAksi
 {
-    public function __construct(private PermissionResolver $resolver, private WriteAuditLog $audit, private RencanaAksiPolicy $policy) {}
+    public function __construct(private ResolveLockedActor $lockedActor, private WriteAuditLog $audit, private RencanaAksiPolicy $policy) {}
 
     /** Pengesahan diverifikasi→disahkan; versi beku dan audit diserialkan pada header yang sama. */
     public function handle(User $actor, string $id, array $data): RencanaAksi
     {
-        $permission = 'rencana_aksi:sahkan';
+        /** @var PermissionDecision|null $decision */
         $decision = null;
         try {
-            return DB::transaction(function () use ($actor, $id, $data, $permission, &$decision) {
-                $actor = User::lockForUpdate()->findOrFail($actor->id);
-                $ra = RencanaAksi::lockForUpdate()->findOrFail($id);
-                $snapshot = JadwalSnapshot::lockForUpdate()->findOrFail($ra->jadwal_snapshot_id);
-                $snapshot->setRelation('jadwal', JadwalTahunan::lockForUpdate()->findOrFail($snapshot->jadwal_id));
-                // FIX1: serialkan penonaktifan unit paralel. Urutan kunci satu arah
-                // User→RencanaAksi→Snapshot→Jadwal→Unit (konsisten dengan
-                // UpdateUnitAction/DeleteUnitAction yang mengunci User dulu lalu Unit,
-                // sehingga tidak ada siklus lock). lockForUpdate (bukan sharedLock)
-                // mengikuti rantai eksklusif Sahkan/ChangePengukuran; baris unit yang
-                // dicek businessErrors adalah baris terkunci ini.
-                $snapshot->setRelation('unit', Unit::lockForUpdate()->findOrFail($snapshot->unit_id));
-                $ra->setRelation('jadwalSnapshot', $snapshot);
-                $decision = $this->resolver->decide($actor, $permission, $ra->targetUnitId());
-                if (! $decision['allowed']) {
+            return DB::transaction(function () use ($actor, $id, $data, &$decision) {
+                // m1: permission sahkan bersifat global — kunci baris aktor + ACL kanonis
+                // lalu resolusi ulang di dalam transaksi (menutup jendela rilis preset).
+                $decision = $this->lockedActor->handle($actor, PermissionCodes::RENCANA_AKSI_SAHKAN)['keputusan'];
+                if (! $decision->allowed) {
                     throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
                 }
+                $ra = RencanaAksi::lockForUpdate()->findOrFail($id);
+                // t2: snapshot (immutable) dan jadwal hanya dibaca di transaksi ini — FOR SHARE cukup.
+                // Urutan kunci tetap satu arah User→RencanaAksi→Snapshot→Jadwal→Unit agar searah writer lain.
+                $snapshot = JadwalSnapshot::sharedLock()->findOrFail($ra->jadwal_snapshot_id);
+                $snapshot->setRelation('jadwal', JadwalTahunan::sharedLock()->findOrFail($snapshot->jadwal_id));
+                // Unit tetap eksklusif: status unit dinilai dari baris terkunci ini
+                // (anti-TOCTOU penonaktifan unit paralel, konsisten UpdateUnitAction/DeleteUnitAction).
+                $snapshot->setRelation('unit', Unit::lockForUpdate()->findOrFail($snapshot->unit_id));
+                $ra->setRelation('jadwalSnapshot', $snapshot);
                 $errors = $this->policy->businessErrors($actor, $ra);
                 if ($ra->versi !== (int) $data['versi']) {
                     $errors[] = 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.';
@@ -62,13 +63,13 @@ class SahkanRencanaAksi
                 $ra->save();
                 $ra->unsetRelation('latestVersion');
                 $after = [...$this->auditState($ra), 'self_approval' => $selfApproval];
-                $this->writeAudit($actor, $ra->id, 'rencana_aksi.sahkan', $reason, $decision, $before, $after);
+                $this->writeAudit($actor, $ra->id, 'rencana_aksi.sahkan', $reason, $decision->toAuditBasis(), $before, $after);
 
                 return $ra;
             });
         } catch (Throwable $exception) {
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException) && RencanaAksi::whereKey($id)->exists()) {
-                $this->writeAudit($actor, $id, 'rencana_aksi.ditolak', 'Tindakan sahkan ditolak.', $decision, null,
+                $this->writeAudit($actor, $id, 'rencana_aksi.ditolak', 'Tindakan sahkan ditolak.', $decision?->toAuditBasis(), null,
                     ['tindakan_diminta' => 'sahkan', 'jenis_penolakan' => $exception instanceof AuthorizationException ? 'otorisasi' : 'validasi_bisnis',
                         'alasan_penolakan' => $exception instanceof ValidationException ? $exception->errors() : $exception->getMessage()]);
             }
@@ -82,9 +83,9 @@ class SahkanRencanaAksi
             'versi_pengajuan' => $ra->latestVersion?->only(['id', 'nomor', 'diajukan_by', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at'])];
     }
 
-    private function writeAudit(User $actor, string $id, string $event, string $reason, ?array $decision, ?array $before, ?array $after): void
+    private function writeAudit(User $actor, string $id, string $event, string $reason, ?array $basis, ?array $before, ?array $after): void
     {
         $this->audit->handle(['actor_type' => 'user', 'actor_id' => $actor->id, 'sumber' => 'manual', 'tindakan' => $event, 'objek_tipe' => 'rencana_aksi', 'objek_id' => $id,
-            'alasan' => $reason, 'dasar_izin' => $decision, 'nilai_lama' => $before, 'nilai_baru' => $after]);
+            'alasan' => $reason, 'dasar_izin' => $basis, 'nilai_lama' => $before, 'nilai_baru' => $after]);
     }
 }

@@ -6,8 +6,10 @@ use App\Models\BuktiDukung;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RencanaAksiPolicy
 {
@@ -15,19 +17,23 @@ class RencanaAksiPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->resolver->allows($user, 'rencana_aksi:read');
+        return $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ);
     }
 
     public function view(User $user, RencanaAksi $ra): bool
     {
         // Fail-closed saat unit header tidak konsisten dengan unit snapshot beku:
-        // data beku tidak boleh dibaca memakai scope unit yang berbeda.
+        // data beku tidak boleh dibaca memakai scope unit yang berbeda; anomali dicatat.
         $snapshotUnit = $ra->jadwalSnapshot?->unit_id;
         if ($snapshotUnit !== null && $snapshotUnit !== $ra->unit_id) {
+            Log::warning('rencana_aksi.unit_snapshot_tidak_konsisten', [
+                'rencana_aksi_id' => $ra->id, 'unit_id' => $ra->unit_id, 'snapshot_unit_id' => $snapshotUnit,
+            ]);
+
             return false;
         }
 
-        return $this->resolver->allows($user, 'rencana_aksi:read', $ra->targetUnitId());
+        return $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ, $ra->targetUnitId());
     }
 
     /**
@@ -39,24 +45,17 @@ class RencanaAksiPolicy
         if (! $this->view($user, $ra)) {
             return false;
         }
-        $decision = $this->resolver->decide($user, 'berkas:read', $ra->targetUnitId());
+        $decision = $this->resolver->decide($user, PermissionCodes::BERKAS_READ, $ra->targetUnitId());
         if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true)) {
             return false;
         }
 
-        return $decision['allowed'] || $this->resolver->allows($user, 'rencana_aksi:update', $ra->targetUnitId()) || $this->resolver->allows($user, 'rencana_aksi:ajukan', $ra->targetUnitId());
-    }
-
-    public function usesPlanningPath(User $user, RencanaAksi $ra): bool
-    {
-        $decision = $this->resolver->decide($user, 'rencana_aksi:update', $ra->targetUnitId());
-
-        return $decision['allowed'] && $user->roles()->whereIn('roles.id', $decision['roles'])->whereIn('kode', ['perencanaan', 'superadmin'])->exists();
+        return $decision['allowed'] || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, $ra->targetUnitId()) || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_AJUKAN, $ra->targetUnitId());
     }
 
     public function sahkan(User $user, RencanaAksi $ra): Response
     {
-        return $this->capability($user, $ra, 'rencana_aksi:sahkan');
+        return $this->capability($user, $ra, PermissionCodes::RENCANA_AKSI_SAHKAN);
     }
 
     /**
@@ -81,7 +80,7 @@ class RencanaAksiPolicy
         if (in_array($bukti->id, $frozenIds, true)) {
             return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
         }
-        if (! $this->resolver->allows($user, 'berkas:delete', $ra->targetUnitId())) {
+        if (! $this->resolver->allows($user, PermissionCodes::BERKAS_DELETE, $ra->targetUnitId())) {
             return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
         }
 

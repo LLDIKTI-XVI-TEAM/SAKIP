@@ -114,7 +114,7 @@ class RencanaAksiBuktiDownloadTest extends TestCase
         $this->actingAs($this->perencana)->get($url)->assertOk()->assertStreamedContent('Isi bukti beku');
         $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/bukti/'.(string) Str::uuid())->assertNotFound();
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.can.evidence', true)
             ->where('rencanaAksi.bukti_dukungs.0.download_url', url($url))
             ->missing('rencanaAksi.bukti_dukungs.0.path'));

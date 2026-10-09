@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\PengaturanService;
+use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -125,7 +126,7 @@ class HandleInertiaRequests extends Middleware
                 && ($resolver->allows($user, 'pengukuran:verifikasi')
                     || $resolver->allows($user, 'pengukuran:sahkan')
                     || $resolver->allows($user, 'pengukuran:kembalikan')),
-            'rencanaAksi' => $resolver->allows($user, 'rencana_aksi:read'),
+            'rencanaAksi' => $resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ),
             'aktivasi' => $resolver->allows($user, 'pengguna:read'),
             'assignRole' => $resolver->allows($user, 'pengguna:read')
                 && $resolver->allows($user, 'akses:update'),

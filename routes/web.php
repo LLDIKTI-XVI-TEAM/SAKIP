@@ -179,7 +179,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Pengesahan Rencana Aksi (ISS-05.05)
     Route::get('/rencana-aksi', IndexRencanaAksi::class)->name('rencana-aksi.index');
-    Route::get('/rencana-aksi/{id}', ShowRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.show');
+    Route::get('/rencana-aksi/{id}/reviu', ShowRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.reviu');
     Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
     Route::get('/rencana-aksi/{id}/bukti/{buktiId}', DownloadBuktiRencanaAksi::class)->whereUuid('id')->whereUuid('buktiId')->name('rencana-aksi.bukti');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');

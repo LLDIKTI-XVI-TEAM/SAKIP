@@ -20,6 +20,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -153,14 +154,14 @@ class RencanaAksiHalamanTest extends TestCase
         // Admin tidak memegang read substantif (Q14) → ditolak pada antrean dan detail.
         $admin = $this->userWithRole('admin');
         $this->actingAs($admin)->get('/rencana-aksi')->assertForbidden();
-        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id)->assertForbidden();
+        $this->actingAs($admin)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertForbidden();
 
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
             'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
             'unit_id' => $this->unit->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertForbidden();
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertForbidden();
 
-        $this->actingAs($this->userWithRole('perencanaan'))->get('/rencana-aksi/'.(string) Str::uuid())->assertNotFound();
+        $this->actingAs($this->userWithRole('perencanaan'))->get('/rencana-aksi/'.(string) Str::uuid().'/reviu')->assertNotFound();
     }
 
     public function test_show_can_ratify_false_untuk_f1_dan_true_untuk_perencana(): void
@@ -169,10 +170,10 @@ class RencanaAksiHalamanTest extends TestCase
         $raF1 = $this->buatRencanaAksi('diverifikasi', null, 'pic', $reviewer);
         $raSah = $this->buatRencanaAksi('diverifikasi', null, 'pic', $this->picUser);
 
-        $this->actingAs($reviewer)->get('/rencana-aksi/'.$raF1->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($reviewer)->get('/rencana-aksi/'.$raF1->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')->where('rencanaAksi.id', $raF1->id)->where('rencanaAksi.can.ratify', false));
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$raSah->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$raSah->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', true)->where('rencanaAksi.indikator.kode', $raSah->fresh()->indikator->kode));
     }
 
@@ -183,7 +184,7 @@ class RencanaAksiHalamanTest extends TestCase
         foreach (['pimpinan', 'pegawai'] as $kode) {
             $user = $this->userWithRole($kode);
             $this->actingAs($user)->get('/rencana-aksi')->assertOk();
-            $this->actingAs($user)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+            $this->actingAs($user)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
                 ->component('RencanaAksi/Show')->where('rencanaAksi.can.ratify', false));
             // Tombol tersembunyi mengikuti can.ratify false di Show.tsx; POST tetap ditolak.
             $this->actingAs($user)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
@@ -205,7 +206,7 @@ class RencanaAksiHalamanTest extends TestCase
                 'bukti_dukungs' => $buktiSnapshot]]);
 
         // Perencana normal (punya berkas:read) melihat bukti.
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.can.evidence', true)->has('rencanaAksi.bukti_dukungs', 1)
             ->where('rencanaAksi.bukti_dukungs.0.tautan', 'https://rahasia.internal/dokumen'));
 
@@ -217,7 +218,7 @@ class RencanaAksiHalamanTest extends TestCase
         DB::table('role_permissions')->where('role_id', Role::where('kode', 'perencanaan')->value('id'))
             ->whereIn('permission_id', Permission::whereIn('kode', ['rencana_aksi:update', 'rencana_aksi:ajukan'])->pluck('id'))->delete();
 
-        $this->actingAs($this->perencana->fresh())->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana->fresh())->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.can.evidence', false)->has('rencanaAksi.bukti_dukungs', 0)
             ->where('rencanaAksi.bukti_count', 1)->missing('rencanaAksi.bukti_dukungs.0.tautan'));
     }
@@ -229,12 +230,12 @@ class RencanaAksiHalamanTest extends TestCase
         $live = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
             'mode' => 'teks', 'isi_teks' => 'Bukti live yang tidak dibekukan.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.bukti_count', 0)->has('rencanaAksi.bukti_dukungs', 0));
 
         $this->assertNotNull($live->id);
         // Target periode tanpa key juga kosong, bukan live (pola sama, sudah benar).
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk();
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk();
     }
 
     public function test_delete_evidence_baru_pasca_buka_kembali_bisa_dihapus(): void
@@ -343,7 +344,7 @@ class RencanaAksiHalamanTest extends TestCase
         $this->unit->update(['nama' => 'Unit berubah live']);
         $this->picUser->update(['nama' => 'PIC berubah live']);
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')
             ->where('rencanaAksi.indikator.kode', $beku['indikator']['kode'])
             ->where('rencanaAksi.indikator.nama', $beku['indikator']['nama'])
@@ -367,7 +368,7 @@ class RencanaAksiHalamanTest extends TestCase
         $ra->indikator->update(['kode' => 'I-BERUBAH', 'nama' => 'Indikator berubah live']);
         $jadwalNamaBeku = $ra->jadwalSnapshot->nama;
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')
             ->where('rencanaAksi.indikator.kode', 'konteks tidak lengkap')
             ->where('rencanaAksi.indikator.nama', $jadwalNamaBeku)
@@ -389,7 +390,7 @@ class RencanaAksiHalamanTest extends TestCase
 
         $this->periode->update(['nama' => 'Triwulan I (Revisi Master)', 'urutan' => 9]);
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')
             ->where('rencanaAksi.target_periode.0.periode_nama', $beku['periode_nama'])
             ->where('rencanaAksi.target_periode.0.periode_urutan', $beku['periode_urutan'])
@@ -412,7 +413,7 @@ class RencanaAksiHalamanTest extends TestCase
                 'pic' => ['id' => $this->picUser->id, 'nama' => $this->picUser->nama],
                 'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id)->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->component('RencanaAksi/Show')
             ->where('rencanaAksi.target_periode.0.periode_nama', 'konteks tidak lengkap')
             ->where('rencanaAksi.konteks_tidak_lengkap', fn ($hilang) => collect($hilang)->contains('target_periode_nama')
@@ -458,8 +459,12 @@ class RencanaAksiHalamanTest extends TestCase
         DB::table('rencana_aksi')->where('id', $inkonsisten->id)->update(['unit_id' => $unitLain->id]);
 
         // Fail-closed: data beku unit snapshot tidak dibaca memakai scope unit header yang berbeda.
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$inkonsisten->id)->assertForbidden();
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$konsisten->id)->assertOk();
+        Log::spy();
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$inkonsisten->id.'/reviu')->assertForbidden();
+        Log::shouldHaveReceived('warning')->withArgs(function ($message): bool {
+            return $message === 'rencana_aksi.unit_snapshot_tidak_konsisten';
+        })->once();
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$konsisten->id.'/reviu')->assertOk();
 
         $this->actingAs($this->perencana)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
             ->where('pagination.total', 1)->where('rencanaAksis.0.id', $konsisten->id));

@@ -31,3 +31,14 @@ it('tab disahkan menampilkan daftar monitoring read-only', () => {
     expect(screen.getByText('Daftar Rencana Aksi Disahkan')).toBeTruthy();
     expect(screen.getByText('Belum ada rencana aksi disahkan')).toBeTruthy();
 });
+
+it('tautan Lihat per baris mengarah ke layar reviu terpisah', () => {
+    render(<Index rencanaAksis={[{
+        id: 'ra-9', versi: 1, status: 'diverifikasi', tahun: 2026, nomor_pengajuan: 1, jalur_pengajuan: 'pic',
+        diajukan_pada: null, uraian: 'Uraian', indikator: { kode: 'IK-09', nama: 'Indikator reviu' },
+        unit_kerja: { id: 'unit-9', nama: 'Unit reviu' }, pic: null, konteks_tidak_lengkap: [], bukti_count: 0,
+        bukti_dukungs: [], target_periode: [], can: { view: true },
+    }]} pagination={{ ...pagination, total: 1 }} status="antrean" />);
+
+    expect(screen.getByRole('link', { name: 'Lihat' }).getAttribute('href')).toBe('/rencana-aksi/ra-9/reviu');
+});
