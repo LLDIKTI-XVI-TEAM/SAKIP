@@ -167,7 +167,7 @@ class PenanggungJawabTest extends TestCase
 
     public function test_same_date_migration_rollback_refuses_twin_dates_and_round_trips_otherwise(): void
     {
-        $migration = require database_path('migrations/2026_10_09_000001_allow_same_date_penanggung_jawab.php');
+        $migration = require database_path('migrations/2026_10_09_000002_allow_same_date_penanggung_jawab.php');
         $indexes = fn () => DB::table('pg_indexes')->where('tablename', 'penanggung_jawab')->orderBy('indexname')->pluck('indexdef', 'indexname')->all();
         $before = $indexes();
         $first = $this->assignment($this->target, '2026-01-01');
