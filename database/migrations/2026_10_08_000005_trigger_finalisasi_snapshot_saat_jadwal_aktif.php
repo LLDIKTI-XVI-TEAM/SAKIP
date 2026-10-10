@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Invariant database: snapshot difinalkan saat jadwalnya terbit (Review10 F5).
+ * Invariant database: snapshot difinalkan saat jadwalnya terbit.
  *
  * Advisory lock pada migrasi backfill hanya melindungi aktivasi yang sudah
  * in-flight. Pada rolling deploy, worker versi lama masih dapat menerbitkan

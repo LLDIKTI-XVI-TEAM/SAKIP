@@ -23,6 +23,7 @@ use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class RencanaAksiTargetTest extends TestCase
@@ -181,6 +182,155 @@ class RencanaAksiTargetTest extends TestCase
         $kirim([$sel($fixture['periode1']->id), $sel($fixture['periode2']->id)], 2)->assertSessionHasNoErrors();
 
         $this->assertSame($satuSel, $selectTarget());
+    }
+
+    /**
+     * Seluruh sel terkirim ditulis dalam satu statement, berapa pun jumlah sel.
+     */
+    public function test_simpan_menulis_matriks_dalam_satu_statement(): void
+    {
+        $fixture = $this->buatFixtureRasio();
+        $header = $this->buatDraf($fixture);
+        $sel = fn (string $periode, string $komponen): array => ['periode_id' => $fixture[$periode]->id, 'komponen_id' => $fixture[$komponen]->id, 'nilai' => 2, 'keterangan' => null];
+        $tulisTarget = fn (): int => collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => preg_match('/^(insert into|update) "rencana_aksi_target"/', $query['query']) === 1)
+            ->count();
+        DB::enableQueryLog();
+
+        $this->simpan($fixture, $header, 1, [$sel('periode1', 'pembilang'), $sel('periode1', 'penyebut')]);
+        $this->assertSame(1, $tulisTarget());
+        DB::flushQueryLog();
+        $this->simpan($fixture, $header, 2, [
+            $sel('periode1', 'pembilang'), $sel('periode1', 'penyebut'),
+            $sel('periode2', 'pembilang'), $sel('periode2', 'penyebut'),
+        ]);
+        $this->assertSame(1, $tulisTarget());
+        $this->assertSame(4, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+    }
+
+    /**
+     * Sel yang sudah ada diperbarui di tempat (ID tetap) beserta penanda
+     * penyunting dan waktunya; sel baru dibuat. Simpan kedua oleh aktor lain
+     * yang berhak agar `updated_by`/`updated_at` terbukti ikut diperbarui.
+     */
+    public function test_simpan_ulang_mempertahankan_id_sel(): void
+    {
+        $fixture = $this->buatFixtureRasio();
+        $header = $this->buatDraf($fixture);
+        $sel = fn (string $periode, string $komponen, ?int $nilai): array => ['periode_id' => $fixture[$periode]->id, 'komponen_id' => $fixture[$komponen]->id, 'nilai' => $nilai, 'keterangan' => null];
+
+        $this->simpan($fixture, $header, 1, [$sel('periode1', 'pembilang', 1), $sel('periode1', 'penyebut', 4)]);
+        $lama = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->pluck('id', 'komponen_id')->all();
+        $waktuLama = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('komponen_id', $fixture['pembilang']->id)->value('updated_at');
+        $this->travel(1)->hours();
+        $this->simpan($fixture, $header, 2, [
+            $sel('periode1', 'pembilang', 3), $sel('periode1', 'penyebut', 4),
+            $sel('periode2', 'pembilang', 2), $sel('periode2', 'penyebut', 5),
+        ], $fixture['perencanaan']);
+
+        $periode1 = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode1']->id)->get()->keyBy('komponen_id');
+        $this->assertSame($lama, $periode1->map->id->all());
+        $this->assertSame('3.000000000000', $periode1[$fixture['pembilang']->id]->nilai);
+        $this->assertSame((string) $fixture['perencanaan']->id, (string) $periode1[$fixture['pembilang']->id]->updated_by);
+        $this->assertTrue($periode1[$fixture['pembilang']->id]->updated_at->gt($waktuLama));
+        $periode2 = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->where('periode_id', $fixture['periode2']->id)->pluck('id');
+        $this->assertCount(2, $periode2);
+        $this->assertTrue($periode2->every(fn (string $id): bool => Str::isUuid($id)));
+    }
+
+    /**
+     * Pasangan periode+komponen yang dikirim dua kali ditolak sebelum upsert
+     * (tanpa ini PostgreSQL menolak ON CONFLICT ganda dengan 21000 → 500).
+     */
+    #[DataProvider('pasanganGanda')]
+    public function test_simpan_menolak_pasangan_periode_komponen_ganda_tanpa_tulis(bool $manual): void
+    {
+        $fixture = $manual ? $this->buatFixtureManual() : $this->buatFixtureRasio();
+        $header = $this->buatDraf($fixture);
+        $komponen = $manual ? null : $fixture['pembilang']->id;
+        $baris = ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $komponen, 'nilai' => 1, 'keterangan' => null];
+        $targets = $manual ? [$baris, [...$baris, 'nilai' => 2]] : [$baris, [...$baris, 'nilai' => 2], ['periode_id' => $fixture['periode1']->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => 4, 'keterangan' => null]];
+
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ])->assertUnprocessable()->assertJsonValidationErrors('targets');
+
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertFalse(AuditLog::where('tindakan', 'rencana_aksi.ubah')->exists());
+    }
+
+    /**
+     * @return array<string, array{0: bool}>
+     */
+    public static function pasanganGanda(): array
+    {
+        return ['manual' => [true], 'berkomponen' => [false]];
+    }
+
+    /**
+     * Bentuk audit simpan dikunci persis: header terpilih + seluruh matriks
+     * terurut periode lalu komponen, dengan tipe nilai yang sama, baik untuk
+     * keadaan sebelum maupun sesudah simpan.
+     */
+    public function test_audit_simpan_mencatat_matriks_sebelum_dan_sesudah_dengan_bentuk_tetap(): void
+    {
+        $fixture = $this->buatFixtureRasio();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $sel = fn (string $periode, string $komponen, ?int $nilai, ?string $keterangan = null): array => ['periode_id' => $fixture[$periode]->id, 'komponen_id' => $fixture[$komponen]->id, 'nilai' => $nilai, 'keterangan' => $keterangan];
+        $kirim = fn (array $data) => $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            ...$data,
+        ])->assertSessionHasNoErrors();
+
+        $kirim(['expected_versi' => 1, 'targets' => [
+            $sel('periode1', 'pembilang', 1), $sel('periode1', 'penyebut', 4),
+            $sel('periode2', 'pembilang', 2), $sel('periode2', 'penyebut', 4),
+        ]]);
+        $kirim(['expected_versi' => 2, 'uraian' => 'Uraian kedua', 'targets' => [
+            $sel('periode2', 'pembilang', 3, 'naik'), $sel('periode2', 'penyebut', null),
+        ]]);
+
+        // Urutan kunci objek mengikuti normalisasi `jsonb` (panjang kunci lalu
+        // byte); urutan baris matriks berasal dari aplikasi dan wajib tetap.
+        $matriks = fn (array $nilai): array => collect($nilai)
+            ->map(fn (array $baris): array => ['nilai' => $baris[2], 'keterangan' => $baris[3] ?? null, 'periode_id' => $fixture[$baris[0]]->id, 'komponen_id' => $fixture[$baris[1]]->id])
+            ->sortBy(fn (array $baris): string => $baris['periode_id'].'|'.$baris['komponen_id'])
+            ->values()
+            ->all();
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.ubah')->where('objek_id', $header->id)->orderByDesc('waktu')->orderByDesc('id')->first();
+
+        $this->assertSame([
+            'versi' => 2,
+            'uraian' => null,
+            'targets' => $matriks([
+                ['periode1', 'pembilang', '1.000000000000'], ['periode1', 'penyebut', '4.000000000000'],
+                ['periode2', 'pembilang', '2.000000000000'], ['periode2', 'penyebut', '4.000000000000'],
+            ]),
+            'status_alur' => 'draft',
+            'snapshot_draf_id' => $fixture['snapshot']->id,
+            'alasan_deviasi_pk' => null,
+        ], $audit->nilai_lama);
+        $this->assertSame([
+            'versi' => 3,
+            'uraian' => 'Uraian kedua',
+            'targets' => $matriks([
+                ['periode1', 'pembilang', '1.000000000000'], ['periode1', 'penyebut', '4.000000000000'],
+                ['periode2', 'pembilang', '3.000000000000', 'naik'], ['periode2', 'penyebut', null],
+            ]),
+            'status_alur' => 'draft',
+            'snapshot_draf_id' => $fixture['snapshot']->id,
+            'alasan_deviasi_pk' => null,
+        ], $audit->nilai_baru);
     }
 
     public function test_nonmanual_menyimpan_per_komponen_efektif_dan_nol_berbeda_dari_null(): void
@@ -406,17 +556,47 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_indikator_arsip_ditolak(): void
+    /**
+     * Penolakan pembuatan untuk indikator arsip tetap teraudit, baik saat
+     * ditolak guard arsip di Action maupun saat ditolak otorisasi di request.
+     * UUID huruf besar sah sebagai input, tetapi audit mencatat bentuk
+     * kanonis agar pencarian audit per indikator tetap menemukannya.
+     */
+    #[DataProvider('jalurTolakIndikatorArsip')]
+    public function test_create_indikator_arsip_ditolak_tetap_diaudit(bool $berizin, bool $hurufBesar): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $fixture['indikator']->update(['status' => 'arsip']);
+        $aktor = $berizin ? $fixture['pic'] : $this->penggunaDenganPeran('pegawai');
 
-        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
+        $respons = $this->actingAs($aktor)->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $hurufBesar ? strtoupper($fixture['indikator']->id) : $fixture['indikator']->id,
             'tahun' => 2026,
-        ])->assertSessionHasErrors('indikator_id');
+        ]);
+
+        $berizin ? $respons->assertSessionHasErrors('indikator_id') : $respons->assertForbidden();
         $this->assertDatabaseCount('rencana_aksi', 0);
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->sole();
+        $this->assertSame((string) $aktor->id, (string) $audit->actor_id);
+        // Urutan kunci mengikuti normalisasi `jsonb` (panjang kunci lalu byte).
+        $this->assertSame(['tahun' => 2026, 'indikator_id' => $fixture['indikator']->id], $audit->nilai_baru);
+        if ($berizin) {
+            $this->assertStringContainsString('diarsipkan', (string) $audit->alasan);
+        }
+    }
+
+    /**
+     * @return array<string, array{0: bool, 1: bool}>
+     */
+    public static function jalurTolakIndikatorArsip(): array
+    {
+        return [
+            'ditolak guard arsip di Action' => [true, false],
+            'ditolak guard arsip di Action, UUID huruf besar' => [true, true],
+            'ditolak otorisasi di request' => [false, false],
+            'ditolak otorisasi di request, UUID huruf besar' => [false, true],
+        ];
     }
 
     /**
@@ -536,6 +716,34 @@ class RencanaAksiTargetTest extends TestCase
         }
 
         return [...$dasar, 'pembilang' => $pembilang, 'penyebut' => $penyebut];
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     */
+    private function buatDraf(array $fixture): RencanaAksi
+    {
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+
+        return RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     * @param  list<array<string, mixed>>  $targets
+     */
+    private function simpan(array $fixture, RencanaAksi $header, int $versi, array $targets, ?User $aktor = null): void
+    {
+        $this->actingAs($aktor ?? $fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ])->assertSessionHasNoErrors();
     }
 
     private function penggunaDenganPeran(string $kode): User

@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 class PreviewRencanaAksiTarget extends Controller
 {
     /**
-     * Pratinjau server-side tanpa persistensi (F5): kalkulasi memakai
+     * Pratinjau server-side tanpa persistensi: kalkulasi memakai
      * `CalculatePengukuran` yang sama dengan jalur baca/tulis.
      */
     public function __invoke(PreviewTargetPeriodeRequest $request, string $rencanaAksi, PreviewTargetPeriode $preview): JsonResponse

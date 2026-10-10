@@ -3,14 +3,24 @@
 namespace App\Http\Requests\RencanaAksi;
 
 use App\Models\RencanaAksi;
+use App\Models\User;
+use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\AlasanAudit;
+use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 
 class SimpanTargetPeriodeRequest extends FormRequest
 {
+    private ?RencanaAksi $header = null;
+
+    private ?PermissionDecision $keputusan = null;
+
     public function authorize(): bool
     {
-        if ($this->user() === null) {
+        $user = $this->user();
+        if (! $user instanceof User) {
             return false;
         }
 
@@ -21,8 +31,8 @@ class SimpanTargetPeriodeRequest extends FormRequest
 
         $header = RencanaAksi::whereKey($id)->first();
         if (! $header instanceof RencanaAksi) {
-            // F2 (Review8 V1): header tak ditemukan → 404 SEBELUM validasi
-            // `exists`, cermin `PreviewTargetPeriodeRequest` (T1/Review6).
+            // Header tak ditemukan → 404 SEBELUM validasi
+            // `exists`, cermin `PreviewTargetPeriodeRequest`.
             // Tanpa ini UUID asing + payload tak valid memberi 422 sedangkan
             // payload valid memberi 404 (oracle 422-vs-404), dan tanpa-izin
             // memberi oracle 403-vs-404. Lookup mendahului Gate agar urutan
@@ -30,8 +40,39 @@ class SimpanTargetPeriodeRequest extends FormRequest
             // dengan-izin atas UUID asing wajib 404 (bukan 403).
             abort(404);
         }
+        $this->header = $header;
 
-        return Gate::allows('update', $header);
+        // Satu keputusan izin (setara `RencanaAksiPolicy::update`) dipakai
+        // untuk otorisasi sekaligus dasar audit penolakan.
+        $this->keputusan = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
+
+        return $this->keputusan->allowed;
+    }
+
+    /**
+     * Percobaan simpan yang ditolak otorisasi dicatat di sini, bukan di
+     * Policy, agar pratinjau yang juga memakai Gate `update` tidak tercatat
+     * sebagai percobaan simpan. Dasar audit memakai keputusan izin yang sama
+     * dengan `authorize()`, bukan hasil resolve ulang; respons tetap 403.
+     * Penolakan di dalam transaksi `SimpanTargetPeriode`
+     * diaudit Action itu sendiri, sehingga setiap jalur tercatat tepat sekali.
+     */
+    protected function failedAuthorization(): void
+    {
+        $user = $this->user();
+        if ($user instanceof User && $this->header instanceof RencanaAksi && $this->keputusan instanceof PermissionDecision) {
+            app(AuditLogger::class)->catat(
+                actor: $user,
+                tindakan: 'rencana_aksi.ubah_ditolak',
+                objekTipe: 'rencana_aksi',
+                objekId: (string) $this->header->id,
+                nilaiLama: $this->header->withoutRelations()->toArray(),
+                alasan: AlasanAudit::sanitasi(null, 'Percobaan penyimpanan target rencana aksi ditolak oleh sistem otorisasi.'),
+                dasarIzin: $this->keputusan->toAuditBasis(),
+            );
+        }
+
+        parent::failedAuthorization();
     }
 
     /**
@@ -41,21 +82,19 @@ class SimpanTargetPeriodeRequest extends FormRequest
     {
         return [
             'expected_versi' => ['required', 'integer', 'min:1'],
-            // F1 (Review4 Q1): token konkurensi snapshot dari IndexRencanaAksi
+            // Token konkurensi snapshot dari IndexRencanaAksi
             // (identitas + nomor versi beku) WAJIB dikirim (`present`) pada
-            // setiap penyimpanan; nilai null hanya sah bila konteks memang
-            // tanpa snapshot (jadwal belum pernah aktif). Jalur bypass
-            // klien-lama-tanpa-token dihapus — SimpanTargetPeriode selalu
-            // membandingkan token dengan snapshot terbaru terkunci (409 bila
-            // beda), tanpa pengecualian.
+            // setiap penyimpanan. Null lolos validasi bentuk tetapi selalu
+            // ditolak 409 oleh SimpanTargetPeriode, yang membandingkan token
+            // dengan snapshot terbaru terkunci tanpa pengecualian.
             'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
             'uraian' => ['nullable', 'string', 'max:10000'],
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],
-            // T12: batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
+            // Batas domain = 50 komponen (ChangeIndicatorFormulaRequest)
             // × 12 periode bulanan = 600 sel. Angka 100 lama menolak matriks
             // sah (mis. 10×11=110) yang dikirim utuh oleh halaman.
-            // F3-rework: 12 periode dikunci di StoreJadwalRequest (`periode`
+            // 12 periode dikunci di StoreJadwalRequest (`periode`
             // max:12) sehingga 600 selalu cukup dari konfigurasi yang sah.
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
@@ -65,7 +104,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
             // tiap simpan) dibatasi oleh batas total matriks tersimpan di
             // SimpanTargetPeriode.
             'targets.*.keterangan' => ['nullable', 'string', 'max:1000'],
-            // F2/F3 (Review6 T2): jepit konteks ditulis server saja
+            // Jepit konteks ditulis server saja
             // (EnsureDraft saat buat, Simpan tiap simpan) — klien dilarang
             // mengirimnya agar tak dapat memalsukan rekonsiliasi/trigger.
             'snapshot_draf_id' => ['prohibited'],

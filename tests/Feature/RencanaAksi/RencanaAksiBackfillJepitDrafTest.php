@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review7 U2 (F3 backfill jepit draf lama).
+ * Regresi backfill jepit draf lama.
  *
  * Keputusan: backfill deterministik dari tabel backup pemetaan snapshot lama
  * (`_backup_rencana_aksi_jadwal_snapshot_20261004`, dibuat SEBELUM kolom
@@ -37,10 +37,10 @@ use Tests\TestCase;
  * (JOIN memastikan keberadaan) — dibaca fail-closed telusur-penuh (pin 0).
  * `UPDATE rencana_aksi` tak memicu `guard_referenced_schedule_snapshot()`
  * (terpasang pada snapshot/komponen, bukan header) sehingga aman terhadap
- * trigger immutable U1. `down()` hanya me-NULL-kan baris yang masih memegang
+ * trigger immutable-sejak-terbit. `down()` hanya me-NULL-kan baris yang masih memegang
  * nilai backfill persis, préserver jepit baru pasca-backfill.
  */
-class RencanaAksiReview7U2Test extends TestCase
+class RencanaAksiBackfillJepitDrafTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -94,7 +94,7 @@ class RencanaAksiReview7U2Test extends TestCase
         $this->migrasiBackfill()->up();
         $this->assertNull($yatim->fresh()->snapshot_draf_id);
 
-        // Trigger immutable U1 tetap utuh sesudah backfill.
+        // Trigger immutable-sejak-terbit tetap utuh sesudah backfill.
         try {
             DB::transaction(function () use ($fixture): void {
                 $fixture['snapshot']->update(['target' => 666]);

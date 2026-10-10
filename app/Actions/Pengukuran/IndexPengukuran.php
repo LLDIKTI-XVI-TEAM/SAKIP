@@ -7,11 +7,12 @@ use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Support\Facades\DB;
 
 class IndexPengukuran
 {
-    public function __construct(private PresentPengukuran $present) {}
+    public function __construct(private PresentPengukuran $present, private PermissionResolver $resolver) {}
 
     /**
      * Daftar pengukuran periode berjalan: Renstra aktif tahun ini → jadwal tahun ini (aktif diutamakan) → periode pengisian
@@ -27,8 +28,7 @@ class IndexPengukuran
         $jadwal = $renstra ? JadwalTahunan::where('renstra_id', $renstra->id)->where('tahun', $today->year)
             ->orderByRaw("case when status = 'aktif' then 0 else 1 end")->orderBy('id')->first() : null;
         $periode = $jadwal ? PeriodeJadwal::with('periode')->where('jadwal_id', $jadwal->id)->whereDate('pengisian_mulai', '<=', $today)->orderByDesc('pengisian_mulai')->first() : null;
-        $deniedUnits = DB::table('user_permission_denied')->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
-            ->where('user_id', $actor->id)->where('permissions.kode', 'pengukuran:read')->whereNotNull('unit_id')->select('unit_id');
+        $deniedUnits = $this->resolver->unitDitolak($actor, 'pengukuran:read');
         $page = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->when($periode, fn ($query) => $query->where('periode_id', $periode->periode_id)->where('tahun', $jadwal->tahun)
                 ->whereHas('jadwalSnapshot', fn ($context) => $context->where('jadwal_id', $jadwal->id)),

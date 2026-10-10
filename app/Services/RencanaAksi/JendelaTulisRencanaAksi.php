@@ -23,7 +23,9 @@ use Carbon\CarbonInterface;
  * Pemanggil tulis wajib meneruskan indikator dan jadwal yang sudah dikunci
  * agar keputusan memakai state terkini. PIC efektif dibaca tanpa kunci
  * karena writer PJ juga mengunci indikator, yang sudah dikunci pemanggil
- * tulis.
+ * tulis. `DaftarRencanaAksi` meneruskan PIC efektif yang sudah di-join dari
+ * scope `PenugasanIndikator::effectiveOn` yang sama agar tidak membaca ulang
+ * penugasan per baris.
  */
 class JendelaTulisRencanaAksi
 {
@@ -33,8 +35,13 @@ class JendelaTulisRencanaAksi
      * @param  'pembuatan'|'penyimpanan'  $tindakan
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
+     * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
+     *                                  null berarti dibaca di sini. Hanya capability baca
+     *                                  (`DaftarRencanaAksi`) yang boleh mengisinya; gerbang
+     *                                  tulis wajib membiarkannya null agar PIC dibaca
+     *                                  setelah indikator dikunci, bukan dipercaya dari pemanggil.
      */
-    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = []): ?string
+    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null): ?string
     {
         if ($this->tahunDitutup($jadwal) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds)) {
             return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
@@ -45,8 +52,8 @@ class JendelaTulisRencanaAksi
         }
 
         $hariIni = today(config('app.business_timezone'))->toDateString();
-        $pic = PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->first();
-        if (! $pic instanceof PenugasanIndikator || (string) $pic->user_id !== (string) $aktor->id) {
+        $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
+        if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
             return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
         }
 

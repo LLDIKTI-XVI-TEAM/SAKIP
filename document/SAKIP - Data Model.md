@@ -1144,7 +1144,7 @@ Target per periode di bawah satu `rencana_aksi`. Indikator nonmanual diinput per
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
-**Constraint:** dua partial unique index — `unique(rencana_aksi_id, periode_id) WHERE komponen_id IS NULL` (manual: tepat satu baris per periode) dan `unique(rencana_aksi_id, periode_id, komponen_id) WHERE komponen_id IS NOT NULL` (nonmanual).
+**Constraint:** satu unique index `ra_target_unik (rencana_aksi_id, periode_id, komponen_id) NULLS NOT DISTINCT` — manual: tepat satu baris `komponen_id IS NULL` per periode; nonmanual: unik per komponen. Menggantikan dua partial unique index semula (ADR-0007 butir 2, amandemen 10 Oktober 2026); membutuhkan PostgreSQL ≥ 15.
 
 **Sifat nilai turunan:** perkiraan skor indikator pada tampilan rencana aksi dihitung dari nilai komponen memakai mesin perhitungan yang sama dengan pengukuran (lihat §2.28) — perkiraan itu tidak disimpan sebagai kolom, murni hasil tampilan.
 
@@ -1601,7 +1601,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`) |
 | `pengaturan` | unique(`kunci`) |
 | `rencana_aksi` | unique(`indikator_id`, `tahun`) |
-| `rencana_aksi_target` | partial unique (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL` (§2.24) |
+| `rencana_aksi_target` | unique(`rencana_aksi_id`, `periode_id`, `komponen_id`) `NULLS NOT DISTINCT` — `komponen_id IS NULL` untuk manual tetap tepat satu baris per periode (§2.24, ADR-0007) |
 | `klaim_kegiatan` | unique(`rencana_aksi_id`, `kegiatan_id`, `komponen_id`) — implementasi index memakai `COALESCE(komponen_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
 | `indikator_komponen` | unique(`indikator_id`, `kode`) |
 | `pengukuran_komponen` | unique(`pengukuran_id`, `komponen_id`) |

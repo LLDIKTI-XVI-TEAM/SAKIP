@@ -11,6 +11,7 @@ use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
+use App\Actions\RencanaAksi\EnsureDraftRencanaAksi;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -642,6 +643,78 @@ class MutationConcurrencyTest extends TestCase
             'regulasi null update' => ['renstra-update', 'regulasi:read', 'regulasi-null'],
             'attachment parent update' => ['renstra-attachment', 'renstra:update', 'parent-update'],
             'parent berkas delete' => ['renstra-delete', 'berkas:delete', 'parent-berkas'],
+        ];
+    }
+
+    /**
+     * Request lolos gerbang FormRequest lalu menunggu kunci aktor di Action;
+     * deny yang commit selama menunggu wajib menolak mutasi lewat otorisasi
+     * ulang di dalam transaksi, dengan tepat satu audit dari Action itu.
+     */
+    #[DataProvider('rencanaAksiMutations')]
+    public function test_rencana_aksi_reauthorize_saat_deny_commit_selagi_request_menunggu(string $operation, string $permission, string $denialEvent, string $alasan): void
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $indicator->update(['tipe_perhitungan' => 'manual']);
+        $manager = User::factory()->create(['status' => 'aktif']);
+        $manager->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
+        // Worker memakai jam nyata: jalur Perencanaan global hanya terikat
+        // penutupan, sehingga jadwal tahun berjalan yang ditutup akhir tahun
+        // tetap terbuka kapan pun test dijalankan.
+        $tahun = (int) now()->year;
+        $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $tahun,
+            'rencana_aksi_mulai' => "{$tahun}-01-01", 'rencana_aksi_selesai' => "{$tahun}-12-31", 'penutupan' => "{$tahun}-12-31", 'status' => 'aktif', 'activated_at' => now()]);
+        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => "{$tahun}-01-01",
+            'pengisian_selesai' => "{$tahun}-06-30", 'reviu_mulai' => "{$tahun}-07-01", 'reviu_selesai' => "{$tahun}-12-31"]);
+        $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
+            'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Race', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $actor->id,
+            'tanggal_mulai_berlaku' => "{$tahun}-01-01", 'ditetapkan_oleh' => $manager->id, 'created_at' => now()]);
+        $header = $operation === 'ra-simpan' ? app(EnsureDraftRencanaAksi::class)->handle($actor, $indicator->id, $tahun) : null;
+        $data = $operation === 'ra-simpan'
+            ? ['expected_versi' => 1, 'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => 1,
+                'targets' => [['periode_id' => $period->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null]]]
+            : ['indikator_id' => $indicator->id, 'tahun' => $tahun];
+        $payload = ['actor_id' => $actor->id, 'permission' => $permission, 'izin_unit_id' => $indicator->unit_id, 'rencana_aksi_id' => $header?->id, 'data' => $data];
+        $prepare = function () use ($actor, $manager, $indicator, $header): void {
+            // Writer izin mengambil user lebih dahulu; induk menahan Action setelah otorisasi request.
+            User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
+            $header !== null
+                ? RencanaAksi::whereKey($header->id)->lockForUpdate()->firstOrFail()
+                : IndikatorKinerja::whereKey($indicator->id)->lockForUpdate()->firstOrFail();
+        };
+        $denyId = null;
+        $denyWhileBlocked = function () use ($actor, $manager, $permission, &$denyId): void {
+            $denyId = app(CreateDeny::class)->handle($manager, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sah saat request Rencana Aksi menunggu')->id;
+        };
+
+        $results = $this->race($operation, $actor->id, '', [$payload], $prepare, assertBlocked: $denyWhileBlocked);
+
+        $this->assertSame(['denied'], $results, 'Keputusan izin di request tidak boleh dipakai untuk mutasi setelah deny committed.');
+        $this->assertDatabaseCount('rencana_aksi', $header === null ? 0 : 1);
+        if ($header !== null) {
+            $this->assertSame(1, $header->fresh()->versi);
+            $this->assertDatabaseCount('rencana_aksi_target', 0);
+        }
+        $this->assertSame($header === null ? 0 : 1, AuditLog::where('tindakan', 'rencana_aksi.buat')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.ubah')->count());
+        $audit = AuditLog::where('tindakan', $denialEvent)->sole();
+        $this->assertSame($alasan, $audit->alasan, 'Penolakan wajib berasal dari otorisasi ulang di dalam transaksi Action.');
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        $this->assertSame($permission, $audit->dasar_izin['permission']);
+        $this->assertContains($denyId, $audit->dasar_izin['deny']);
+        if ($header === null) {
+            $this->assertSame(['tahun' => $tahun, 'indikator_id' => $indicator->id], $audit->nilai_baru);
+        }
+    }
+
+    public static function rencanaAksiMutations(): array
+    {
+        return [
+            'ensure-draft' => ['ra-ensure-draft', 'rencana_aksi:create', 'rencana_aksi.buat_ditolak', 'Izin pembuatan rencana aksi tidak tersedia atau telah dicabut.'],
+            'simpan' => ['ra-simpan', 'rencana_aksi:update', 'rencana_aksi.ubah_ditolak', 'Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.'],
         ];
     }
 

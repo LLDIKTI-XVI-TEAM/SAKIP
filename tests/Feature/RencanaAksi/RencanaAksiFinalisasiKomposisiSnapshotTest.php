@@ -26,20 +26,20 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review8 V2 (F1 bekukan penambahan komponen pasca-terbit).
+ * Regresi pembekuan penambahan komponen pasca-terbit.
  *
  * Keputusan: (a) finalisasi atomik snapshot+komponen sebelum publik lalu tolak
  * seluruh INSERT komponen pasca-publik, BUKAN (b) ubah identitas versi tiap
- * komposisi berubah. Alasan: selaras immutable-sejak-terbit U1 — identitas
+ * komposisi berubah. Alasan: selaras immutable-sejak-terbit — identitas
  * versi stabil sebagai token konkurensi (`expected_snapshot_id` +
  * `expected_snapshot_versi`); opsi (b) memaksa bump semu tiap sisipan sehingga
  * token basi + rekonsiliasi transisi berisik tanpa koreksi resmi. Publikasi =
  * INSERT snapshot (false) + INSERT komponen + UPDATE finalisasi true dalam satu
- * transaksi; pasca-finalisasi INSERT ditolak walau belum dijepit (celah F1: v2
+ * transaksi; pasca-finalisasi INSERT ditolak walau belum dijepit (celah: v2
  * tampil + pin lama), koreksi sah tetap via sisipan berversi (snapshot baru +
  * komponennya selagi induk baru belum final).
  */
-class RencanaAksiReview8V2Test extends TestCase
+class RencanaAksiFinalisasiKomposisiSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -76,7 +76,7 @@ class RencanaAksiReview8V2Test extends TestCase
         $v2->update(['komposisi_final' => true]);
         $this->assertTrue($v2->fresh()->komposisi_final);
 
-        // v2 tampil sebagai terbaru sedangkan jepit masih v1 (celah F1 tepat:
+        // v2 tampil sebagai terbaru sedangkan jepit masih v1 (tepat celahnya:
         // tampil + pin lama, belum dirujuk pin/pengukuran/versi).
         $this->assertSame($fixture['snapshot']->id, $header->fresh()->snapshot_draf_id);
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
@@ -187,7 +187,7 @@ class RencanaAksiReview8V2Test extends TestCase
     {
         $fixture = $this->buatFixturePenjumlahan();
 
-        // Mutasi data snapshot tetap ditolak walau belum final (U1 utuh).
+        // Mutasi data snapshot tetap ditolak walau belum final (guard immutable-sejak-terbit utuh).
         try {
             DB::transaction(function () use ($fixture): void {
                 $fixture['snapshot']->update(['target' => 777]);
@@ -214,34 +214,34 @@ class RencanaAksiReview8V2Test extends TestCase
             $this->assertSame('23514', $exception->getCode());
         }
 
-        // down() aman non-destruktif: flag dilepas, trigger kembali ke U1,
+        // down() aman non-destruktif: flag dilepas, trigger kembali ke varian immutable-sejak-terbit,
         // baris snapshot/komponen utuh.
         $snapshotId = $fixture['snapshot']->id;
         $komponenCount = JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshotId)->count();
 
-        $this->migrasiV2()->down();
+        $this->migrasiBekukanKomposisi()->down();
 
         $this->assertFalse(Schema::hasColumn('jadwal_snapshot', 'komposisi_final'));
         $this->assertTrue(JadwalSnapshot::whereKey($snapshotId)->exists());
         $this->assertSame($komponenCount, JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshotId)->count());
 
-        // Mutasi data tetap ditolak di bawah guard U1 (bukti trigger pulih).
+        // Mutasi data tetap ditolak di bawah guard immutable-sejak-terbit (bukti trigger pulih).
         try {
             DB::transaction(function () use ($snapshotId): void {
                 DB::table('jadwal_snapshot')->where('id', $snapshotId)->update(['target' => 888]);
             });
-            $this->fail('Mutasi snapshot harus tetap ditolak setelah down() U1.');
+            $this->fail('Mutasi snapshot harus tetap ditolak setelah down().');
         } catch (QueryException $exception) {
             $this->assertSame('23514', $exception->getCode());
         }
 
-        $this->migrasiV2()->up();
+        $this->migrasiBekukanKomposisi()->up();
 
         $this->assertTrue(Schema::hasColumn('jadwal_snapshot', 'komposisi_final'));
         $this->assertTrue((bool) DB::table('jadwal_snapshot')->where('id', $snapshotId)->value('komposisi_final'));
     }
 
-    private function migrasiV2(): object
+    private function migrasiBekukanKomposisi(): object
     {
         static $migrasi = null;
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\RencanaAksi\DaftarRencanaAksi;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
@@ -274,6 +275,36 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('rencanaAksi.status_alur', 'draft'));
     }
 
+    /** Daftar mengotorisasi sebelum memvalidasi `page`: tanpa izin selalu 403, dengan izin `page` tak sah ditolak validasi. */
+    public function test_daftar_otorisasi_mendahului_validasi_halaman(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi?page=0')->assertForbidden();
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=0')->assertSessionHasErrors('page');
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=2')->assertOk();
+    }
+
+    /** Halaman yang divalidasi Action juga yang dipakai paginator, bukan halaman dari request global. */
+    public function test_daftar_memakai_halaman_dari_query_action(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $daftar = app(DaftarRencanaAksi::class)->handle($this->penggunaDenganPeran('perencanaan'), ['page' => 2]);
+
+        $this->assertSame(2, $daftar['pagination']['current_page']);
+    }
+
+    /** Lookup header mendahului Gate: UUID asing selalu 404, dengan maupun tanpa izin baca. */
+    public function test_tampilan_header_tak_ditemukan_404_sebelum_otorisasi(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $idAsing = (string) Str::uuid();
+
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get("/rencana-aksi/{$idAsing}")->assertNotFound();
+        $this->actingAs($this->penggunaDenganPeran('pimpinan'))->get("/rencana-aksi/{$idAsing}")->assertNotFound();
+    }
+
     /**
      * Daftar Rencana Aksi adalah titik masuk PIC: indikator miliknya tampil
      * di atas, "Buat" hanya ditawarkan bila gerbang server mengizinkan, dan
@@ -311,6 +342,36 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('daftar.0.rencana_aksi.id', $header->id)
                 ->where('daftar.0.rencana_aksi.status_alur', 'draft')
                 ->where('daftar.0.can.create', false));
+    }
+
+    /**
+     * PJ efektif sudah ikut di-join daftar; capability "buat" tidak boleh
+     * membaca ulang penugasan per baris kandidat (N+1).
+     */
+    public function test_daftar_tidak_membaca_ulang_pic_per_baris(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $bacaPenugasan = function () use ($fixture): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $daftar = app(DaftarRencanaAksi::class)->handle($fixture['pic'], []);
+            $jumlah = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], '"penanggung_jawab"'))->count();
+            DB::disableQueryLog();
+            $this->assertSame([true], collect($daftar['daftar'])->where('milik_saya', true)->pluck('can.create')->all());
+            $this->assertSame([], collect($daftar['daftar'])->where('milik_saya', false)->where('can.create', true)->all());
+
+            return $jumlah;
+        };
+        foreach (range(1, 4) as $nomor) {
+            $this->tambahIndikatorTerjadwal($fixture, "A-LAIN-{$nomor}");
+        }
+        $limaBaris = $bacaPenugasan();
+        foreach (range(5, 19) as $nomor) {
+            $this->tambahIndikatorTerjadwal($fixture, "A-LAIN-{$nomor}");
+        }
+
+        $this->assertSame($limaBaris, $bacaPenugasan());
     }
 
     /**
@@ -365,6 +426,53 @@ class RencanaAksiIndexTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('daftar', 1)->where('daftar.0.indikator_id', $lain->id));
         $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi')->assertForbidden();
+    }
+
+    /**
+     * Baris tanpa header disaring memakai unit snapshot terbaru, bukan unit
+     * master yang bisa berpindah setelah aktivasi.
+     */
+    public function test_daftar_menyaring_deny_memakai_unit_snapshot_untuk_baris_tanpa_header(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $unitBaru = Unit::create(['nama' => 'Unit Master Baru', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $fixture['indikator']->update(['unit_id' => $unitBaru->id]);
+
+        $ditolakUnitSnapshot = $this->penggunaDenganPeran('pimpinan');
+        $this->tolakBaca($ditolakUnitSnapshot, $fixture['unit']->id, $fixture['perencanaan']);
+        $this->actingAs($ditolakUnitSnapshot)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page->has('daftar', 0));
+
+        $ditolakUnitMaster = $this->penggunaDenganPeran('pimpinan');
+        $this->tolakBaca($ditolakUnitMaster, $unitBaru->id, $fixture['perencanaan']);
+        $this->actingAs($ditolakUnitMaster)->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->has('daftar', 1)
+            ->where('daftar.0.indikator_id', $fixture['indikator']->id));
+    }
+
+    /**
+     * Baris ber-header menampilkan unit header; baris tanpa header
+     * menampilkan unit snapshot terbaru. Unit master yang berpindah tidak
+     * mengubah tampilan.
+     */
+    public function test_daftar_menampilkan_unit_header_dan_unit_snapshot(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $unitSnapshot = Unit::create(['nama' => 'Unit Snapshot Lain', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        $tanpaHeader = $this->tambahIndikatorTerjadwal($fixture, 'A-SNAPSHOT', unitId: $unitSnapshot->id);
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $unitPindah = Unit::create(['nama' => 'Unit Master Pindah', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
+        IndikatorKinerja::whereKey([$fixture['indikator']->id, $tanpaHeader->id])->update(['unit_id' => $unitPindah->id]);
+
+        $this->actingAs($this->penggunaDenganPeran('pimpinan'))->get('/rencana-aksi')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('daftar', fn ($daftar) => collect($daftar)->pluck('unit_nama', 'indikator_id')->all() === [
+                $tanpaHeader->id => 'Unit Snapshot Lain',
+                $fixture['indikator']->id => 'Unit Uji RA Baca',
+            ]));
     }
 
     /**
@@ -616,6 +724,19 @@ class RencanaAksiIndexTest extends TestCase
         }
 
         return $indikator;
+    }
+
+    private function tolakBaca(User $user, string $unitId, User $oleh): void
+    {
+        DB::table('user_permission_denied')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:read')->value('id'),
+            'unit_id' => $unitId,
+            'alasan' => 'Fixture pembatasan',
+            'ditetapkan_oleh' => $oleh->id,
+            'created_at' => now(),
+        ]);
     }
 
     private function penggunaDenganPeran(string $kode): User

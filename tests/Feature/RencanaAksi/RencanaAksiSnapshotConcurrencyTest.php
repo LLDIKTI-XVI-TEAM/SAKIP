@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi P2 F4: token konkurensi snapshot.
+ * Regresi token konkurensi snapshot.
  *
  * `expected_versi` saja tidak cukup — snapshot koreksi baru yang terbit
  * antara baca–simpan mengubah konteks diam-diam (tipe/bobot/presisi/
