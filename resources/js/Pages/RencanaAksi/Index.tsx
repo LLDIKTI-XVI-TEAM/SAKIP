@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
@@ -28,7 +29,21 @@ interface RencanaAksiIndexProps {
 /** Satu form per baris agar status proses dan pesan gagal tidak bercampur antarbaris. */
 function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
     const form = useForm({ indikator_id: baris.indikator_id, tahun: baris.tahun });
-    const galat = Object.values(form.errors)[0];
+    // 429 ditampilkan sebagai pesan baris, bukan modal HTML bawaan Inertia.
+    const [terlaluSering, setTerlaluSering] = useState(false);
+    const galat = terlaluSering ? 'Terlalu sering. Coba lagi sebentar.' : Object.values(form.errors)[0];
+    const buat = (): void => {
+        setTerlaluSering(false);
+        form.post('/rencana-aksi/ensure-draft', {
+            onHttpException: (response) => {
+                if (response.status !== 429) {
+                    return;
+                }
+                setTerlaluSering(true);
+                return false;
+            },
+        });
+    };
 
     return (
         <div className="flex flex-col items-end gap-1">
@@ -37,7 +52,7 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
                 size="sm"
                 className="whitespace-nowrap"
                 isLoading={form.processing}
-                onClick={() => form.post('/rencana-aksi/ensure-draft')}
+                onClick={buat}
                 aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
             >
                 Buat Rencana Aksi

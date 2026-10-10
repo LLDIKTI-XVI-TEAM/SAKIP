@@ -711,7 +711,7 @@ Q34 meratifikasi aturan Penanggung Jawab (PJ) yang berstatus *pending stakeholde
 5. Penugasan mendatang yang sudah ada tetap dipertahankan saat ditambahkan penugasan bertanggal lebih awal.
 6. Indikator arsip, Renstra arsip, atau unit nonaktif tidak menerima perubahan PJ baru; histori tetap dapat dibaca sesuai akses.
 
-**Status implementasi:** butir 2–6 sudah diimplementasikan pada ISS-04.01 (#68). Butir 1 **belum**: implementasi saat ini masih menolak penugasan kedua pada tanggal yang sama melalui unique `(indikator_id, tanggal_mulai_berlaku)`. Perubahan dikerjakan pada modul Penanggung Jawab, bukan dengan mengubah business logic Rencana Aksi, dan wajib disertai regression test pergantian tanggal sama, concurrency, histori, penugasan mendatang, serta integrasi Rencana Aksi dan Pengukuran. Urutan penugasan tidak boleh bergantung pada `created_at` saja karena dua baris dapat memiliki nilai identik.
+**Status implementasi:** butir 2–6 sudah diimplementasikan pada ISS-04.01 (#68). Butir 1 diimplementasikan pada #70: unique `(indikator_id, tanggal_mulai_berlaku)` dilepas dan kolom identity `urutan` menentukan PJ efektif pada tanggal yang sama, bukan `created_at` atau UUID. Perubahan dikerjakan pada modul Penanggung Jawab tanpa mengubah business logic Rencana Aksi, disertai regression test pergantian tanggal sama, concurrency, histori, penugasan mendatang, serta integrasi Rencana Aksi dan Pengukuran.
 
 ## 34.2 Struktur Target dan Alasan Deviasi Rencana Aksi
 

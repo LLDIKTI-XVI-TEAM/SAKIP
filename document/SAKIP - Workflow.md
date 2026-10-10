@@ -1678,11 +1678,11 @@ Halaman **read-only** digerbangi `pengguna:read`. Tidak ada form add/revoke `rol
 - Perubahan role tidak mengakhiri assignment PJ.
 - Monitoring memakai tujuh izin scoped pada unit indikator (`pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`), menampilkan izin tersedia/kurang memakai ACL saat ini. Assignment tidak memberi izin, explicit deny menang, akun nonaktif fail-closed; diagnosis bukan pengganti resolver saat aksi.
 
-**Kontrak dasar histori/resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
+**Kontrak dasar histori/resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan, lalu `urutan` penugasan terbesar pada tanggal yang sama.
 
-**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, satu indikator masih hanya memiliki satu assignment per tanggal.
+- **PJ-01/PJ-02:** mutasi bertanggal lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan (`urutan`).
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali setelah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi pada indikator arsip, Renstra diarsipkan, atau unit nonaktif ditolak dan diaudit; histori tetap terbaca sesuai akses.
 

@@ -25,8 +25,9 @@ class IndexBuktiRencanaAksi
     /**
      * @return array<string, mixed>|null
      */
-    public function handle(User $actor, RencanaAksi $header): ?array
+    public function handle(User $actor, string $id): ?array
     {
+        $header = RencanaAksi::findOrFail($id);
         if (! Gate::forUser($actor)->allows('viewEvidence', $header)) {
             return null;
         }

@@ -3,14 +3,11 @@
 namespace App\Http\Controllers\Access;
 
 use App\Actions\Access\CreateDeny;
+use App\Actions\Access\IndexDeny;
 use App\Actions\Access\RevokeDeny;
+use App\Actions\Access\SearchDenyOptions;
 use App\Http\Requests\Access\CreateDenyRequest;
 use App\Http\Requests\Access\RevokeDenyRequest;
-use App\Models\Permission;
-use App\Models\Unit;
-use App\Models\User;
-use App\Models\UserPermissionDeny;
-use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -30,54 +27,24 @@ class DenyManagement
         return trim($query['q'] ?? '');
     }
 
-    public function index(Request $request): Response
+    public function index(Request $request, IndexDeny $action): Response
     {
-        $search = $this->search($request);
-        $rows = UserPermissionDeny::select(['id', 'user_id', 'permission_id', 'unit_id', 'alasan', 'ditetapkan_oleh', 'created_at'])
-            ->with(['user:id,nama,email,status', 'permission:id,kode,keterangan,butuh_scope,aktif', 'unit:id,nama,status', 'penetap:id,nama'])
-            ->when($search !== '', fn ($query) => $query->whereHas('user', fn ($user) => $user
-                ->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%'))))
-            ->orderByDesc('created_at')->orderByDesc('id')->simplePaginate(20)->withQueryString();
-
-        return Inertia::render('Access/DenyIndex', [
-            'denies' => $rows->getCollection()->map(fn (UserPermissionDeny $deny) => [
-                'id' => $deny->id, 'user' => $deny->user->only(['id', 'nama', 'email', 'status']),
-                'permission' => $deny->permission->only(['id', 'kode', 'keterangan', 'butuh_scope', 'aktif']),
-                'unit' => $deny->unit?->only(['id', 'nama', 'status']), 'alasan' => $deny->alasan,
-                'ditetapkan_oleh' => $deny->penetap->only(['id', 'nama']), 'created_at' => $deny->created_at->toISOString(),
-            ])->all(),
-            'pagination' => ['current_page' => $rows->currentPage(), 'prev_page_url' => $rows->previousPageUrl(), 'next_page_url' => $rows->nextPageUrl()],
-            'filters' => ['q' => $search], 'can' => ['manageDeny' => true],
-        ]);
+        return Inertia::render('Access/DenyIndex', $action->handle($this->search($request)));
     }
 
-    public function users(Request $request): JsonResponse
+    public function users(Request $request, SearchDenyOptions $options): JsonResponse
     {
-        $search = $this->search($request);
-        $rows = User::select(['id', 'nama', 'email', 'status'])
-            ->when($search !== '', fn ($query) => $query->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%')))
-            ->orderBy('nama')->orderBy('id')->simplePaginate(20);
-
-        return response()->json(['items' => $rows->getCollection()->map(fn (User $user) => $user->only(['id', 'nama', 'email', 'status']))->all(), 'page' => $rows->currentPage(), 'hasMore' => $rows->hasMorePages()]);
+        return response()->json($options->users($this->search($request)));
     }
 
-    public function units(Request $request): JsonResponse
+    public function units(Request $request, SearchDenyOptions $options): JsonResponse
     {
-        $search = $this->search($request);
-        $rows = Unit::select(['id', 'nama', 'status'])->when($search !== '', fn ($query) => $query->where('nama', 'ilike', '%'.$search.'%'))
-            ->orderBy('nama')->orderBy('id')->simplePaginate(20);
-
-        return response()->json(['items' => $rows->getCollection()->map(fn (Unit $unit) => $unit->only(['id', 'nama', 'status']))->all(), 'page' => $rows->currentPage(), 'hasMore' => $rows->hasMorePages()]);
+        return response()->json($options->units($this->search($request)));
     }
 
-    public function permissions(Request $request): JsonResponse
+    public function permissions(Request $request, SearchDenyOptions $options): JsonResponse
     {
-        $search = $this->search($request);
-        $rows = Permission::select(['id', 'kode', 'keterangan', 'butuh_scope'])->whereIn('kode', PermissionCatalog::codes())->where('aktif', true)
-            ->when($search !== '', fn ($query) => $query->where(fn ($filter) => $filter->where('kode', 'ilike', '%'.$search.'%')->orWhere('keterangan', 'ilike', '%'.$search.'%')))
-            ->orderBy('kode')->orderBy('id')->simplePaginate(20);
-
-        return response()->json(['items' => $rows->getCollection()->map(fn (Permission $permission) => $permission->only(['id', 'kode', 'keterangan', 'butuh_scope']))->all(), 'page' => $rows->currentPage(), 'hasMore' => $rows->hasMorePages()]);
+        return response()->json($options->permissions($this->search($request)));
     }
 
     public function store(CreateDenyRequest $request, CreateDeny $create): RedirectResponse

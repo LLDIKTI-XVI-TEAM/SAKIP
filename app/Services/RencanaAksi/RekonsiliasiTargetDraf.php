@@ -4,45 +4,50 @@ namespace App\Services\RencanaAksi;
 
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
-use App\Models\Periode;
-use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use Illuminate\Support\Collection;
 
+/**
+ * Rekonsiliasi transisi snapshot pada target draf Rencana Aksi: menandai
+ * baris yang tak efektif pada versi snapshot mana pun antara jepit draf dan
+ * snapshot terbaru.
+ *
+ * Dipisah karena dipakai tiga Action dengan peran berbeda: `IndexRencanaAksi`
+ * dan `PreviewTargetPeriode` menyaring baris basi tanpa efek samping,
+ * sedangkan `SimpanTargetPeriode` menghapusnya dan mengauditnya di dalam
+ * transaksinya. Service ini hanya membaca; penghapusan, audit, dan kunci
+ * baris tetap milik Action pemanggil (jalur tulis sudah mengunci header,
+ * snapshot, dan jendela periode sebelum memanggilnya).
+ */
 class RekonsiliasiTargetDraf
 {
+    public function __construct(
+        private readonly KonteksBekuRencanaAksi $konteks,
+    ) {}
+
     /**
      * Menelusuri versi snapshot antara jepit draf dan snapshot terbaru.
      *
      * Baris tersimpan dianggap basi bila dimensinya (periode_id +
      * komponen_id) tidak efektif pada SATU PUN versi antara — termasuk
      * versi yang dilewati tanpa penyimpanan (v1 → v2 tanpa save → v3).
-     * Pembersihan pasca-POST saja (Review5 S2) tak menjangkau jendela
-     * tanpa-simpan itu; di sinilah nilai lama bangkit kembali (F2).
+     * Pembersihan pasca-POST saja tak menjangkau jendela
+     * tanpa-simpan itu; di sinilah nilai lama bangkit kembali.
      *
-     * Jepit (`rencana_aksi.snapshot_draf_id`, revisi D7 sempit non-FK)
+     * Jepit (`rencana_aksi.snapshot_draf_id`, non-FK)
      * menandai "terakhir direkonsiliasi di bawah snapshot X". NULL
      * dibaca fail-closed sebagai "telusuri seluruh versi sejak awal"
-     * bila snapshot ada (draf lawas/pembuatan langsung), dan diabaikan
-     * bila konteks memang tanpa snapshot.
+     * (draf lawas/pembuatan langsung).
      *
-     * Predikat efektif per versi cermin `SimpanTargetPeriode` (tipe,
-     * himpunan komponen, periode-mulai snapshot). F4 (Review6 T3): tahun
-     * master live sengaja diabaikan di sini — bila snapshot ada,
-     * `periode_mulai_id` snapshot adalah satu-satunya sumber
-     * efektivitas; tahun master hanya untuk konteks tanpa snapshot
-     * (cermin ketiga jalur Simpan/Index/Preview). Metode ini selalu
-     * berjalan dengan snapshot sehingga tanpa gerbang tahun.
+     * Predikat efektif per versi memakai aturan `KonteksBekuRencanaAksi`
+     * yang sama dengan Simpan/Index/Preview (tipe, himpunan komponen,
+     * periode-mulai snapshot).
      *
-     * @return array{pin_nomor: int, aktual_nomor: int|null, kunci: list<string>}
+     * @return array{pin_nomor: int, aktual_nomor: int, kunci: list<string>}
      */
-    public function rekonsiliasi(RencanaAksi $header, ?JadwalSnapshot $snapshot): array
+    public function rekonsiliasi(RencanaAksi $header, JadwalSnapshot $snapshot): array
     {
-        if (! $snapshot instanceof JadwalSnapshot) {
-            return ['pin_nomor' => 0, 'aktual_nomor' => null, 'kunci' => []];
-        }
-
         $aktualNomor = (int) $snapshot->nomor_versi;
         $pinNomor = $this->nomorJepit($header);
         if ($pinNomor >= $aktualNomor) {
@@ -65,21 +70,23 @@ class RekonsiliasiTargetDraf
             return ['pin_nomor' => $pinNomor, 'aktual_nomor' => $aktualNomor, 'kunci' => []];
         }
 
-        $jendela = PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)
-            ->with('periode')
-            ->get()
-            ->sortBy(fn (PeriodeJadwal $row): int => $row->periode?->urutan ?? 0)
-            ->values();
+        $jendela = $this->konteks->jendela((string) $snapshot->jadwal_id);
+
+        // Komponen seluruh versi antara dibaca sekali agar jumlah query tidak
+        // tumbuh mengikuti jumlah versi.
+        $komponenPerVersi = JadwalSnapshotKomponen::whereIn('jadwal_snapshot_id', $antara->pluck('id'))
+            ->get(['jadwal_snapshot_id', 'komponen_id'])
+            ->groupBy(fn (JadwalSnapshotKomponen $row): string => (string) $row->jadwal_snapshot_id);
 
         $konteks = [];
         foreach ($antara as $versi) {
             $tipe = (string) $versi->tipe_perhitungan;
             $konteks[] = [
-                'periode' => $this->periodeEfektifVersi($versi, $jendela),
+                'periode' => $this->konteks->periodeEfektif($versi, $jendela)->all(),
                 'tipe' => $tipe,
                 'komponen' => $tipe === 'manual'
                     ? []
-                    : JadwalSnapshotKomponen::where('jadwal_snapshot_id', $versi->id)->pluck('komponen_id')->map(fn ($id): string => (string) $id)->all(),
+                    : ($komponenPerVersi->get((string) $versi->id) ?? collect())->map(fn (JadwalSnapshotKomponen $row): string => (string) $row->komponen_id)->values()->all(),
             ];
         }
 
@@ -143,7 +150,7 @@ class RekonsiliasiTargetDraf
     }
 
     /**
-     * F4 (Review6 T3): tanpa cek tahun master — konteks ini selalu
+     * Tanpa cek tahun master — konteks ini selalu
      * bersnapshot sehingga `periode_mulai_id` versi adalah sumbernya.
      *
      * @param  array{periode: list<string>, tipe: string, komponen: list<string>}  $lihat
@@ -159,28 +166,5 @@ class RekonsiliasiTargetDraf
         }
 
         return $komponenId !== null && in_array($komponenId, $lihat['komponen'], true);
-    }
-
-    /**
-     * Himpunan periode efektif satu versi: jendela jadwal minus periode
-     * pra-berlaku (cermin D3 jalur tulis).
-     *
-     * @param  Collection<int, PeriodeJadwal>  $jendela
-     * @return list<string>
-     */
-    private function periodeEfektifVersi(JadwalSnapshot $versi, Collection $jendela): array
-    {
-        if (is_string($versi->periode_mulai_id)) {
-            $mulai = Periode::whereKey($versi->periode_mulai_id)->first();
-            if ($mulai instanceof Periode) {
-                return $jendela
-                    ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
-                    ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
-                    ->values()
-                    ->all();
-            }
-        }
-
-        return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values()->all();
     }
 }

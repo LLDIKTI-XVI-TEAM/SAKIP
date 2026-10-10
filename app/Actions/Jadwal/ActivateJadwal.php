@@ -186,7 +186,7 @@ class ActivateJadwal
             ])->all();
             // Satu INSERT per snapshot agar lock aktivasi tidak tertahan oleh round-trip per komponen.
             JadwalSnapshotKomponen::insert(array_map(fn (array $row): array => ['id' => (string) Str::uuid(), 'jadwal_snapshot_id' => $snapshot->id, ...$row], $komponen));
-            // Finalisasi komposisi (Review10 D1): komposisi beku sejak terbit. Setelah flag ini true,
+            // Finalisasi komposisi: komposisi beku sejak terbit. Setelah flag ini true,
             // guard INSERT menolak child tambahan sehingga rumus yang dilihat pembaca RA tidak dapat
             // berubah tanpa versi baru. Hanya kolom flag yang berubah, jadi guard UPDATE (yang
             // membandingkan seluruh kolom beku lain) meloloskannya.

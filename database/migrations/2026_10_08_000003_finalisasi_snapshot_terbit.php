@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Finalisasi snapshot terbit yang tertinggal (Review10 D3).
+ * Finalisasi snapshot terbit yang tertinggal.
  *
  * Guard INSERT komponen hanya menolak sisipan setelah induk difinalkan, dan
  * finalisasi itu sebelumnya tidak pernah dilakukan jalur publikasi sehingga
@@ -28,7 +28,7 @@ return new class extends Migration
     {
         $jumlah = 0;
 
-        // Serialisasi dengan jalur aktivasi (Review10 P1): aktivasi memegang
+        // Serialisasi dengan jalur aktivasi: aktivasi memegang
         // advisory lock bersama `sakip:periode-konfigurasi` selama transaksinya
         // (lihat Periode::lockConfiguration()). Kunci eksklusif dengan nama yang
         // sama membuat migrasi ini menunggu aktivasi yang sedang berjalan commit

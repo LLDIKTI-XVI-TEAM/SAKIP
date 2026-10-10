@@ -147,6 +147,28 @@ class AuthHttpTest extends TestCase
         $this->actingAs($user)->get('/verifikasi')->assertOk()->assertInertia(fn (Assert $page) => $page->where('auth.can.verifikasi', true));
     }
 
+    /** Antrean verifikasi mengotorisasi sebelum memvalidasi `page`: tanpa izin reviu selalu 403. */
+    public function test_verifikasi_otorisasi_mendahului_validasi_halaman(): void
+    {
+        $tanpaIzin = User::factory()->create(['status' => 'aktif']);
+        $tanpaIzin->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+            'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $tanpaIzin->id, 'created_at' => now(),
+        ]);
+        $peninjau = User::factory()->create(['status' => 'aktif']);
+        $peninjau->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+            'id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $peninjau->id, 'created_at' => now(),
+        ]);
+        foreach (['pengukuran:read', 'pengukuran:kembalikan'] as $code) {
+            UserPermissionGrant::create([
+                'user_id' => $peninjau->id, 'permission_id' => Permission::where('kode', $code)->sole()->id,
+                'unit_id' => null, 'alasan' => 'Delegasi reviu sintetis', 'diberikan_oleh' => $peninjau->id,
+            ]);
+        }
+
+        $this->actingAs($tanpaIzin)->get('/verifikasi?page=0')->assertForbidden();
+        $this->actingAs($peninjau)->get('/verifikasi?page=0')->assertSessionHasErrors('page');
+    }
+
     public function test_logout_is_local_first_and_landing_does_not_restart_sso(): void
     {
         $resolved = false;

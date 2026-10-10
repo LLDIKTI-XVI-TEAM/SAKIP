@@ -564,9 +564,9 @@ Kontrak dasar histori dan resolusi — Plan §4.3–4.4 / Issue #54: pergantian 
 
 Monitoring menilai seluruh tujuh permission scoped untuk unit indikator: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, dan `kegiatan:create/update`. Tampilkan izin tersedia dan kurang menurut PermissionResolver saat ini; explicit deny menang dan akun nonaktif fail-closed. Diagnosis tidak menggantikan pemeriksaan setiap aksi.
 
-**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):**
 
-- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan. Hingga #70 selesai, kombinasi indikator/tanggal mulai berlaku masih unik.
+- **PJ-01/PJ-02:** tanggal mutasi lampau/mendatang diperbolehkan tanpa mengubah data historis yang sudah dibekukan; pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan (`urutan`).
 - **PJ-03/PJ-04:** no-op ditolak, mantan PJ boleh kembali sesudah pergantian nyata, dan assignment mendatang existing dipertahankan.
 - **PJ-05:** mutasi ditolak saat indikator `arsip`, Renstra `diarsipkan`, atau unit `nonaktif`; histori tetap tersimpan dan terbaca sesuai akses.
 

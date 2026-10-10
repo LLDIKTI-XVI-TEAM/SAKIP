@@ -30,7 +30,7 @@ class RencanaAksi extends Model
     public const STATUS_DAPAT_DISUNTING = [self::STATUS_DRAFT, self::STATUS_DIKEMBALIKAN];
 
     /**
-     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi D7 sempit,
+     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi sempit,
      * audit-safe, tanpa relasi otorisasi): snapshot terakhir yang
      * direkonsiliasi draf ini. Ditulis server saja, tak pernah dari request.
      */

@@ -26,18 +26,19 @@ use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * Regresi Review4 Q1 (F1 token wajib + F4 guard unit baca/pratinjau).
+ * Regresi token snapshot wajib pada simpan dan guard unit baca/pratinjau.
  *
- * F1: `expected_snapshot_id`/`expected_snapshot_versi` wajib dikirim pada
- * setiap penyimpanan (`present`); null hanya sah bila konteks memang tanpa
- * snapshot. Jalur bypass klien-lama-tanpa-token dihapus — Action selalu
- * membandingkan token dengan snapshot terbaru terkunci.
+ * `expected_snapshot_id`/`expected_snapshot_versi` wajib dikirim pada
+ * setiap penyimpanan (`present`); null selalu ditolak 409. Jalur bypass
+ * klien-lama-tanpa-token dihapus — Action selalu membandingkan token dengan
+ * snapshot terbaru terkunci. Header yang jadwalnya belum pernah aktif
+ * (tanpa snapshot) ditolak fail-closed di simpan, tampilan, dan pratinjau.
  *
- * F4: `IndexRencanaAksi` + `PreviewTargetPeriode` menolak fail-closed bila
+ * `IndexRencanaAksi` + `PreviewTargetPeriode` menolak fail-closed bila
  * snapshot terbaru milik unit B untuk header milik unit A, sebelum payload
  * dibangun dan tanpa mengekspos konteks lintas-unit.
  */
-class RencanaAksiReview4Q1Test extends TestCase
+class RencanaAksiTokenDanUnitSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -103,21 +104,11 @@ class RencanaAksiReview4Q1Test extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_simpan_token_null_diterima_bila_konteks_tanpa_snapshot(): void
+    public function test_simpan_ditolak_bila_jadwal_header_belum_pernah_aktif(): void
     {
         $fixture = $this->buatFixtureDraftTanpaSnapshot();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-
-        $header = RencanaAksi::create([
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-            'unit_id' => $fixture['unit']->id,
-            'jadwal_tahunan_id' => $fixture['jadwal']->id,
-            'penanggung_jawab_id' => $fixture['pic']->id,
-            'status_alur' => 'draft',
-            'versi' => 1,
-            'created_by' => $fixture['perencanaan']->id,
-        ]);
+        $header = $this->buatHeaderTanpaSnapshot($fixture);
 
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
@@ -127,10 +118,24 @@ class RencanaAksiReview4Q1Test extends TestCase
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 20, 'keterangan' => null],
             ],
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('snapshot');
 
-        $this->assertSame(2, $header->fresh()->versi);
-        $this->assertSame(2, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
+        $audit = AuditLog::where('objek_id', $header->id)->sole();
+        $this->assertSame('rencana_aksi.ubah_ditolak', $audit->tindakan);
+        $this->assertStringContainsString('Konteks indikator beku', (string) $audit->alasan);
+    }
+
+    public function test_tampilan_ditolak_bila_jadwal_header_belum_pernah_aktif(): void
+    {
+        $fixture = $this->buatFixtureDraftTanpaSnapshot();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $header = $this->buatHeaderTanpaSnapshot($fixture);
+
+        $this->actingAs($fixture['pic'])->from('/rencana-aksi')->get("/rencana-aksi/{$header->id}")
+            ->assertRedirect('/rencana-aksi')
+            ->assertSessionHasErrors('snapshot');
     }
 
     public function test_baca_ditolak_saat_unit_snapshot_tidak_selaras_tanpa_ekspos_lintas_unit(): void
@@ -144,7 +149,7 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // F3 (Review6 T2): koreksi pindah unit diterbitkan sebagai versi
+        // Koreksi pindah unit diterbitkan sebagai versi
         // baru — mutasi langsung snapshot yang dijepit draf kini ditolak
         // trigger 23514, sehingga skenario ini memakai pola berversi.
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
@@ -170,7 +175,7 @@ class RencanaAksiReview4Q1Test extends TestCase
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertSessionHasErrors('snapshot');
 
         try {
-            app(IndexRencanaAksi::class)->handle($fixture['pic'], $header->fresh());
+            app(IndexRencanaAksi::class)->handle($fixture['pic'], $header->id);
             $this->fail('IndexRencanaAksi harus menolak header A + snapshot B.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('snapshot', $exception->errors());
@@ -190,7 +195,7 @@ class RencanaAksiReview4Q1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // F3 (Review6 T2): sama seperti di atas — koreksi pindah unit
+        // Sama seperti di atas — koreksi pindah unit
         // sebagai versi baru; token pratinjau memakai v2 agar kegagalan
         // yang diuji murni guard unit (bukan 409 token usang).
         $unitB = Unit::create(['nama' => 'Unit Rahasia B Preview Q1', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
@@ -310,7 +315,9 @@ class RencanaAksiReview4Q1Test extends TestCase
     }
 
     /**
-     * Jadwal draf yang belum pernah aktif → tanpa snapshot adalah konteks sah.
+     * Jadwal draf yang belum pernah aktif sehingga tak memiliki snapshot.
+     * Aplikasi tidak dapat membuat header di sini (pembuatan mensyaratkan
+     * jadwal aktif), jadi header dibuat langsung untuk menguji fail-closed.
      *
      * @return array<string, mixed>
      */
@@ -370,6 +377,23 @@ class RencanaAksiReview4Q1Test extends TestCase
         ]);
 
         return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal');
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     */
+    private function buatHeaderTanpaSnapshot(array $fixture): RencanaAksi
+    {
+        return RencanaAksi::create([
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+            'unit_id' => $fixture['unit']->id,
+            'jadwal_tahunan_id' => $fixture['jadwal']->id,
+            'penanggung_jawab_id' => $fixture['pic']->id,
+            'status_alur' => 'draft',
+            'versi' => 1,
+            'created_by' => $fixture['perencanaan']->id,
+        ]);
     }
 
     private function penggunaDenganPeran(string $kode): User

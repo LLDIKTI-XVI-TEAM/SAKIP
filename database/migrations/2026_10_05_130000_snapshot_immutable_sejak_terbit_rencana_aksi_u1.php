@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * Bekukan snapshot sejak terbit (Review7 U1 F2: immutable-sejak-terbit).
+     * Bekukan snapshot sejak terbit (immutable-sejak-terbit).
      *
      * Keputusan: immutable-sejak-terbit, BUKAN pin-on-read. Alasan: pin-on-read
      * memajukan jepit tanpa membersihkan sehingga bacaan kedua membangkitkan
@@ -71,7 +71,7 @@ return new class extends Migration
     }
 
     /**
-     * Kembalikan penjaga ke varian jepit-draf (pin-based) Review6 T2.
+     * Kembalikan penjaga ke varian jepit-draf (pin-based).
      *
      * Teks disalin persis dari up() migrasi
      * `2026_10_05_120000_rekonsiliasi_snapshot_draf_rencana_aksi_f2_f3`.

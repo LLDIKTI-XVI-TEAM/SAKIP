@@ -23,21 +23,21 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review8 V1 (F2 guard simpan-404 + F3 rollback non-destruktif).
+ * Regresi guard 404 jalur simpan dan rollback backfill yang non-destruktif.
  *
- * F2: `SimpanTargetPeriodeRequest::authorize()` abort 404 bila header tak
+ * `SimpanTargetPeriodeRequest::authorize()` abort 404 bila header tak
  * ditemukan SEBELUM validasi `exists` — cermin `PreviewTargetPeriodeRequest`
- * (T1/Review6). Tanpa ini UUID asing + payload tak valid memberi 422
+ * Tanpa ini UUID asing + payload tak valid memberi 422
  * sedangkan payload valid memberi 404 (oracle 422-vs-404), dan jalur
  * tanpa-izin memberi oracle 403-vs-404.
  *
- * F3: `down()` migrasi backfill U2 hanya me-NULL-kan pin yang benar-benar
+ * `down()` migrasi backfill jepit draf hanya me-NULL-kan pin yang benar-benar
  * diisi `up()` (ditandai tabel sisi deterministik). Jepit sah pra-existing
  * yang kebetulan sama nilainya dengan peta backup tak tersentuh karena tak
- * pernah masuk penanda. Tanpa penanda (up lama pra-V1), down() no-op
+ * pernah masuk penanda. Tanpa penanda (up() versi lama tanpa penanda), down() no-op
  * non-destruktif.
  */
-class RencanaAksiReview8V1Test extends TestCase
+class RencanaAksiSimpan404DanRollbackBackfillTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -193,7 +193,7 @@ class RencanaAksiReview8V1Test extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        // Simulasi hasil up() lama pra-V1 (tanpa penanda): pin memegang nilai
+        // Simulasi hasil up() versi lama (tanpa penanda): pin memegang nilai
         // backfill persis tetapi tabel sisi hilang.
         DB::table('rencana_aksi')->where('id', $header->id)->update(['snapshot_draf_id' => $fixture['snapshot']->id]);
         DB::table(self::BACKUP_TABLE)->insert([

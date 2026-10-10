@@ -2,8 +2,8 @@
  * Kontrak props halaman RencanaAksi/Show.
  *
  * Bentuk JSON mengikuti `App\Actions\RencanaAksi\IndexRencanaAksi::handle`
- * secara eksplisit: skor turunan, peringatan turun (11.5), dan deviasi
- * vs target PK (11.6) dihitung server. React hanya menampilkan payload
+ * secara eksplisit: skor turunan, peringatan turun, dan deviasi vs target
+ * PK dihitung server. React hanya menampilkan payload
  * dan tidak menghitung ulang skor turunan di klien.
  */
 export interface RencanaAksiKomponen {
@@ -65,10 +65,10 @@ export interface RencanaAksiShow {
     status_alur: string;
     versi: number;
     expected_versi: number;
-    /** F4: token konkurensi snapshot beku terbaru (null bila tanpa snapshot). Dikembalikan apa adanya saat simpan. */
-    expected_snapshot_id: string | null;
-    /** F4: nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`, null bila tanpa snapshot). */
-    expected_snapshot_versi: number | null;
+    /** Token konkurensi snapshot beku terbaru. Dikembalikan apa adanya saat simpan. */
+    expected_snapshot_id: string;
+    /** Nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`). */
+    expected_snapshot_versi: number;
     uraian: string | null;
     alasan_deviasi_pk: string | null;
     indikator: {
@@ -99,7 +99,7 @@ export interface RencanaAksiShow {
     baseline: string | number | null;
     komponen: RencanaAksiKomponen[];
     periode: RencanaAksiPeriode[];
-    /** F2: lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
+    /** Lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
     koreksi: RencanaAksiKoreksi;
     deviasi_pk: RencanaAksiDeviasiPk;
     can: {

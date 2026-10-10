@@ -26,7 +26,7 @@ use Tests\Support\JadwalFixtures;
 use Tests\TestCase;
 
 /**
- * Regresi P1 F3-rework: batas matriks dikunci di sumbernya.
+ * Regresi batas matriks dikunci di sumbernya.
  *
  * Keputusan (a): `StoreJadwalRequest` membatasi `periode` max:12 sehingga
  * batas `targets` max:600 (= 50 komponen × 12 periode) selalu cukup untuk

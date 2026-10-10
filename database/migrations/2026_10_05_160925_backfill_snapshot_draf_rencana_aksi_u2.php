@@ -16,7 +16,7 @@ return new class extends Migration
     private const BACKUP_TABLE = '_backup_rencana_aksi_jadwal_snapshot_20261004';
 
     /**
-     * Penanda baris yang benar-benar diisi up() (Review8 V1 F3).
+     * Penanda baris yang benar-benar diisi up().
      *
      * Tanpa penanda, down() lama (`snapshot_draf_id = backup...`) tak dapat
      * membedakan pin backfill dari jepit sah pra-existing yang kebetulan
@@ -27,7 +27,7 @@ return new class extends Migration
     private const MARKER_TABLE = '_backfill_snapshot_draf_rencana_aksi_u2_ids';
 
     /**
-     * Backfill jepit draf lama (Review7 U2 F3).
+     * Backfill jepit draf lama.
      *
      * Migrasi penambah `rencana_aksi.snapshot_draf_id`
      * (`2026_10_05_120000`) membiarkan NULL tanpa backfill sehingga draf
@@ -44,13 +44,13 @@ return new class extends Migration
      *   (`INNER JOIN`, bukan FK — kolom jepit memang non-FK audit-safe).
      *
      * NULL tersisa hanya bila memang tak ada peta/snapshot: tanpa baris
-     * backup (draf dibuat setelah cutover D7, atau tabel backup hilang),
+     * backup (draf dibuat setelah kolom `jadwal_snapshot_id` di-drop, atau tabel backup hilang),
      * peta bernilai NULL, atau snapshot rujukan sudah tak ada. NULL
      * tersebut dibaca fail-closed sebagai "telusuri seluruh versi sejak
      * awal" (`RekonsiliasiTargetDraf::nomorJepit` → 0) bila snapshot ada,
      * dan diabaikan bila konteks memang tanpa snapshot.
      *
-     * Interaksi trigger immutable U1
+     * Interaksi trigger immutable-sejak-terbit
      * (`2026_10_05_130000_snapshot_immutable_sejak_terbit_rencana_aksi_u1`):
      * backfill ini `UPDATE rencana_aksi`, sedangkan penjaga
      * `guard_referenced_schedule_snapshot()` terpasang pada
@@ -58,10 +58,10 @@ return new class extends Migration
      * `2026_09_18_030003`), bukan pada `rencana_aksi` — sehingga pengisian
      * jepit tak memicu penolakan 23514.
      *
-     * F3 (Review8 V1): up() mencatat ID yang benar-benar diisi ke tabel sisi
+     * up() mencatat ID yang benar-benar diisi ke tabel sisi
      * `MARKER_TABLE` dalam statement atomik yang SAMA dengan `UPDATE`
-     * (Review9 W2 F2: CTE data-modifying `WITH updated AS (UPDATE ...
-     * RETURNING) INSERT INTO penanda SELECT FROM updated`). Sebelum W2,
+     * (CTE data-modifying `WITH updated AS (UPDATE ...
+     * RETURNING) INSERT INTO penanda SELECT FROM updated`). Pada versi sebelumnya,
      * penanda dipilih via `SELECT` di statement terpisah SEBELUM `UPDATE`
      * sehingga write aplikasi yang commit di antaranya (pin sah, bahkan yang
      * kebetulan sama nilainya dengan peta backup) ikut tertanda tanpa
@@ -87,11 +87,11 @@ return new class extends Migration
             self::MARKER_TABLE
         ));
 
-        // Review9 W2 F2: SATU statement atomik — UPDATE + pencatatan penanda
+        // SATU statement atomik — UPDATE + pencatatan penanda
         // via CTE data-modifying (`WITH updated AS (UPDATE ... RETURNING)
         // INSERT INTO penanda SELECT FROM updated`). Satu snapshot PostgreSQL
         // untuk baca+tulis: write aplikasi yang commit tepat di tengah
-        // jendela tak dapat ikut tertanda tanpa dibackfill (sebelum W2,
+        // jendela tak dapat ikut tertanda tanpa dibackfill (versi sebelumnya:
         // `INSERT INTO penanda SELECT ...` dan `UPDATE` adalah dua statement
         // terpisah dengan dua snapshot). `ON CONFLICT DO NOTHING` menjaga
         // idempotensi pemanggilan ulang.
@@ -123,10 +123,10 @@ return new class extends Migration
      * backfill persis (`snapshot_draf_id = backup.jadwal_snapshot_id`)
      * yang di-NULL-kan kembali. Baris yang sudah dimajukan
      * `SimpanTargetPeriode` ke snapshot koreksi lebih baru (nilai != peta
-     * backup) dipertahankan, dan — yang diperbaiki V1 — jepit sah
+     * backup) dipertahankan, dan jepit sah
      * pra-existing yang kebetulan sama nilainya dengan peta backup tak
      * tersentuh karena tak pernah masuk penanda (up() hanya menandai
-     * kandidat `IS NULL`). Tanpa tabel penanda (mis. up() lama pra-V1 yang
+     * kandidat `IS NULL`). Tanpa tabel penanda (mis. up() versi lama yang
      * tak menandai), down() adalah no-op non-destruktif: tak mengarang
      * atau menghapus jepit yang tak dapat dibedakan. Tanpa tabel backup
      * atau kolom jepit, down() membersihkan penanda bila ada lalu no-op.

@@ -25,16 +25,16 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi Review4 Q2 (F2 preview terikat token + F3 validasi set-based).
+ * Regresi pratinjau terikat token snapshot dan validasi periode set-based.
  *
- * F2: `POST /rencana-aksi/{id}/preview` menerima + membandingkan token
+ * `POST /rencana-aksi/{id}/preview` menerima + membandingkan token
  * snapshot halaman; konteks usang ditolak 409 (bukan menampilkan snapshot
  * terbaru diam-diam). Konsisten dengan jalur simpan.
  *
- * F3: validasi periode set-based — satu query untuk seluruh ID unik, bukan
+ * Validasi periode set-based: satu query untuk seluruh ID unik, bukan
  * `exists()` per-sel, agar lock transaksi tak tertahan s/d 600 query.
  */
-class RencanaAksiReview4Q2Test extends TestCase
+class RencanaAksiPreviewTokenSnapshotTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -99,7 +99,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
     }
 
-    public function test_preview_tanpa_token_ditolak_dan_null_hanya_tanpa_snapshot(): void
+    public function test_preview_tanpa_token_ditolak_dan_token_null_konflik(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -129,7 +129,7 @@ class RencanaAksiReview4Q2Test extends TestCase
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
     }
 
-    public function test_preview_token_null_diterima_bila_konteks_tanpa_snapshot(): void
+    public function test_pratinjau_ditolak_bila_jadwal_header_belum_pernah_aktif(): void
     {
         $fixture = $this->buatFixtureDraftTanpaSnapshot();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -153,7 +153,7 @@ class RencanaAksiReview4Q2Test extends TestCase
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 25, 'keterangan' => null],
                 ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 35, 'keterangan' => null],
             ],
-        ])->assertOk()->assertJsonPath('periode.0.skor.nilai', '25.00');
+        ])->assertUnprocessable()->assertJsonValidationErrors('snapshot')->assertJsonMissingPath('periode');
 
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
@@ -243,7 +243,7 @@ class RencanaAksiReview4Q2Test extends TestCase
             'targets' => $targets,
         ];
 
-        // F3: hitung query `periode` pada Action langsung (tanpa FormRequest
+        // Hitung query `periode` pada Action langsung (tanpa FormRequest
         // `exists` yang berjalan di luar lock). Set-based = satu whereIn +
         // lookup periode_mulai + eager jendela; per-sel lama = 12 exists.
         DB::enableQueryLog();

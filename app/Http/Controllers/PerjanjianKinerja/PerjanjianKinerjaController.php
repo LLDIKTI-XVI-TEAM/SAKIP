@@ -4,6 +4,9 @@ namespace App\Http\Controllers\PerjanjianKinerja;
 
 use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\DownloadBerkasPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\IndexPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\ShowPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
@@ -11,8 +14,6 @@ use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
 use App\Models\Berkas;
 use App\Models\RenstraPk;
-use App\Services\PerjanjianKinerja\PerjanjianKinerjaQueryService;
-use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -23,14 +24,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PerjanjianKinerjaController extends Controller
 {
-    public function __construct(
-        protected PerjanjianKinerjaQueryService $queryService,
-    ) {}
-
     /**
      * Menampilkan daftar Perjanjian Kinerja tahunan.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, IndexPerjanjianKinerja $action): Response
     {
         Gate::authorize('viewAny', RenstraPk::class);
 
@@ -40,13 +37,7 @@ class PerjanjianKinerjaController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
         ]);
 
-        return Inertia::render('PerjanjianKinerja/Index', [
-            'perjanjianKinerja' => $this->queryService->paginateIndex($filters),
-            'renstras' => $this->queryService->getRenstraOptions(),
-            'storageSettings' => $this->queryService->getStorageSettings(),
-            'filters' => $request->only(['renstra_id', 'tahun', 'q']),
-            'can' => $this->queryService->resolveIndexCapabilities($request->user()),
-        ]);
+        return Inertia::render('PerjanjianKinerja/Index', $action->handle($request->user(), $filters, $request->only(['renstra_id', 'tahun', 'q'])));
     }
 
     /**
@@ -74,21 +65,11 @@ class PerjanjianKinerjaController extends Controller
     /**
      * Menampilkan detail Perjanjian Kinerja dan daftar lampiran legalnya.
      */
-    public function show(RenstraPk $perjanjianKinerja): Response
+    public function show(Request $request, RenstraPk $perjanjianKinerja, ShowPerjanjianKinerja $action): Response
     {
         Gate::authorize('view', $perjanjianKinerja);
 
-        $user = request()->user();
-        $detail = $this->queryService->presentDetail($perjanjianKinerja, $user);
-
-        return Inertia::render('PerjanjianKinerja/Show', [
-            'pk' => $detail['pk'],
-            'jadwal_status' => $detail['jadwal_status'],
-            'is_jadwal_aktif' => $detail['is_jadwal_aktif'],
-            'is_jadwal_terkunci' => $detail['is_jadwal_terkunci'],
-            'storageSettings' => $this->queryService->getStorageSettings(),
-            'can' => $this->queryService->resolveShowCapabilities($user, $perjanjianKinerja, $detail['is_jadwal_terkunci']),
-        ]);
+        return Inertia::render('PerjanjianKinerja/Show', $action->handle($request->user(), $perjanjianKinerja));
     }
 
     /**
@@ -143,26 +124,11 @@ class PerjanjianKinerjaController extends Controller
     /**
      * Mengunduh file lampiran dokumen Perjanjian Kinerja dari private storage.
      */
-    public function downloadBerkas(RenstraPk $perjanjianKinerja, Berkas $berkas): StreamedResponse
+    public function downloadBerkas(RenstraPk $perjanjianKinerja, Berkas $berkas, DownloadBerkasPerjanjianKinerja $action): StreamedResponse
     {
         Gate::authorize('downloadBerkas', $perjanjianKinerja);
+        $file = $action->handle($perjanjianKinerja, $berkas);
 
-        abort_unless(
-            $berkas->berkasable_id === $perjanjianKinerja->id
-                && in_array($berkas->berkasable_type, ['renstra_pk', RenstraPk::class], true),
-            404,
-        );
-
-        abort_unless(
-            $berkas->mode === 'file'
-                && is_string($berkas->path)
-                && Storage::disk('local')->exists($berkas->path),
-            404,
-        );
-
-        /** @var FilesystemAdapter $storage */
-        $storage = Storage::disk('local');
-
-        return $storage->download($berkas->path, $berkas->nama_asli);
+        return Storage::disk('local')->download($file['path'], $file['name']);
     }
 }

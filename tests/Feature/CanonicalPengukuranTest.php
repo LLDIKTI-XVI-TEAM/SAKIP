@@ -14,7 +14,9 @@ use App\Models\KlaimKegiatan;
 use App\Models\Pengaturan;
 use App\Models\RencanaAksiVersi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
@@ -224,5 +226,56 @@ class CanonicalPengukuranTest extends TestCase
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
         $evidence->update(['path' => 'berkas/berubah.txt']);
         $this->actingAs($this->actor)->get(route('pengukuran.bukti', ['id' => $this->pengukuran->id, 'buktiId' => $evidence->id]))->assertOk()->assertStreamedContent('Isi semula');
+    }
+
+    public function test_component_ids_match_case_insensitively_while_duplicates_and_foreign_ids_are_rejected(): void
+    {
+        [$n, $t] = $this->ratioContext();
+        $url = '/pengukuran/'.$this->pengukuran->id;
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft',
+            'komponen' => [['komponen_id' => strtoupper($n), 'nilai' => 8], ['komponen_id' => $t, 'nilai' => 10]]])->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame(2, $measurement->versi);
+        $this->assertSame('8.000000000000', $measurement->komponen->firstWhere('komponen_id', $n)->nilai);
+        $this->post($url, ['versi' => 2, 'action' => 'draft', 'komponen' => [['komponen_id' => $n, 'nilai' => 9], ['komponen_id' => strtoupper($n), 'nilai' => 9]]])
+            ->assertSessionHasErrors(['komponen' => 'Komponen tidak boleh dikirim berulang.']);
+        $this->post($url, ['versi' => 2, 'action' => 'draft', 'komponen' => [['komponen_id' => (string) Str::uuid(), 'nilai' => 9], ['komponen_id' => $t, 'nilai' => 10]]])
+            ->assertSessionHasErrors('komponen');
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame(2, $measurement->versi);
+        $this->assertSame('8.000000000000', $measurement->komponen->firstWhere('komponen_id', $n)->nilai);
+    }
+
+    public function test_return_note_made_of_control_characters_fails_on_catatan_without_history(): void
+    {
+        $url = '/pengukuran/'.$this->pengukuran->id;
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
+        $return = '/verifikasi/'.$this->pengukuran->id.'/kembalikan';
+        $this->post($return, ['versi' => 2, 'catatan' => "\x01\x02\x7F"])->assertSessionHasErrors('catatan')->assertSessionDoesntHaveErrors('alasan');
+        $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+        $this->assertDatabaseCount('riwayat_pengukurans', 1);
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.kembalikan')->count());
+        // Tab dan baris baru bukan karakter kontrol ilegal; catatan multibaris tetap sah.
+        $this->post($return, ['versi' => 2, 'catatan' => "Populasi diperbarui.\n\tCek ulang."])->assertSessionHasNoErrors();
+        $this->assertSame('dikembalikan', $this->pengukuran->fresh()->status_alur);
+        $this->assertDatabaseCount('riwayat_pengukurans', 2);
+    }
+
+    public function test_failed_submission_removes_the_new_evidence_file_and_leaves_no_partial_state(): void
+    {
+        Storage::fake('local');
+        $this->plan->update(['status_alur' => 'draft']);
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85,
+            'bukti' => ['mode' => 'file', 'file' => UploadedFile::fake()->create('bukti.pdf', 10, 'application/pdf')]])->assertSessionHasErrors('pengajuan');
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        $this->assertDatabaseCount('berkas', 0);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertDatabaseCount('riwayat_pengukurans', 0);
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame(1, $measurement->versi);
+        $this->assertSame('draft', $measurement->status_alur);
+        $this->assertNull($measurement->nilai);
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
     }
 }

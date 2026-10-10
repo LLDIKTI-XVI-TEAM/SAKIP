@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Migrasi korektif finalisasi snapshot terbit (Review10 F4).
+ * Migrasi korektif finalisasi snapshot terbit.
  *
  * `2026_10_08_000003_finalisasi_snapshot_terbit` sudah diedarkan dalam bentuk
  * tanpa advisory lock, sehingga database yang sempat menjalankannya telah
