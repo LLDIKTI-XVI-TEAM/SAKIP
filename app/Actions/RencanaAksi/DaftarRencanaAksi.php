@@ -6,12 +6,15 @@ use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PenugasanIndikator;
+use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 
 class DaftarRencanaAksi
 {
@@ -28,8 +31,9 @@ class DaftarRencanaAksi
      * adalah unit header bila sudah ada header, selain itu unit snapshot
      * terbaru; unit master yang berpindah setelah aktivasi tidak dipakai.
      * Unit itu yang ditampilkan dan yang disaring terhadap deny
-     * `rencana_aksi:read` di database (deny menang; izin baca global sudah
-     * diperiksa controller). PJ tetap PJ efektif hari ini. Indikator yang PJ
+     * `rencana_aksi:read` di database (deny menang; izin baca global diperiksa
+     * lebih dulu lewat Gate `viewAny`, sebelum validasi `page`, agar tanpa
+     * izin selalu 403). PJ tetap PJ efektif hari ini. Indikator yang PJ
      * efektifnya pengguna ini tampil paling atas. Aksi "buat" mensyaratkan
      * indikator bukan arsip, unit aktif, PJ efektif, izin unit, dan
      * `JendelaTulisRencanaAksi`, sumber aturan yang sama dengan
@@ -38,10 +42,14 @@ class DaftarRencanaAksi
      * indikator yang pindah unit setelah aktivasi: unit snapshot terbaru wajib
      * sama dengan unit master, cermin `pastikanSnapshotTersedia`.
      *
+     * @param  array<string, mixed>  $query  Query string halaman; hanya `page` yang dipakai paginator.
      * @return array{daftar: list<array<string, mixed>>, pagination: array<string, mixed>}
      */
-    public function handle(User $actor): array
+    public function handle(User $actor, array $query): array
     {
+        Gate::forUser($actor)->authorize('viewAny', RencanaAksi::class);
+        Validator::make($query, ['page' => ['nullable', 'integer', 'min:1']])->validate();
+
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $jadwalAktif = JadwalTahunan::where('status', 'aktif')->get()->keyBy('id');
         $unitDitolak = $this->resolver->unitDitolak($actor, PermissionCodes::RENCANA_AKSI_READ);

@@ -275,6 +275,16 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('rencanaAksi.status_alur', 'draft'));
     }
 
+    /** Daftar mengotorisasi sebelum memvalidasi `page`: tanpa izin selalu 403, dengan izin `page` tak sah ditolak validasi. */
+    public function test_daftar_otorisasi_mendahului_validasi_halaman(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi?page=0')->assertForbidden();
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=0')->assertSessionHasErrors('page');
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=2')->assertOk();
+    }
+
     /** Lookup header mendahului Gate: UUID asing selalu 404, dengan maupun tanpa izin baca. */
     public function test_tampilan_header_tak_ditemukan_404_sebelum_otorisasi(): void
     {
@@ -335,7 +345,7 @@ class RencanaAksiIndexTest extends TestCase
         $bacaPenugasan = function () use ($fixture): int {
             DB::flushQueryLog();
             DB::enableQueryLog();
-            $daftar = app(DaftarRencanaAksi::class)->handle($fixture['pic']);
+            $daftar = app(DaftarRencanaAksi::class)->handle($fixture['pic'], []);
             $jumlah = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], '"penanggung_jawab"'))->count();
             DB::disableQueryLog();
             $this->assertSame([true], collect($daftar['daftar'])->where('milik_saya', true)->pluck('can.create')->all());
