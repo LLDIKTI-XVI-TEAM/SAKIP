@@ -107,9 +107,9 @@ export const SasaranModal: React.FC<SasaranModalProps> = ({
                         type="submit"
                         variant="primary"
                         onClick={handleSubmit}
-                        disabled={processing}
+                        isLoading={processing}
                     >
-                        {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Sasaran'}
+                        {isEdit ? 'Simpan Perubahan' : 'Tambah Sasaran'}
                     </Button>
                 </div>
             }

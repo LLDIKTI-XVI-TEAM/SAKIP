@@ -16,8 +16,6 @@ use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\QueryException;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -134,20 +132,82 @@ class PenanggungJawabTest extends TestCase
         $this->assertSame(0, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
     }
 
-    public function test_database_rejects_two_assignments_on_the_same_indicator_date(): void
+    public function test_same_date_replacement_appends_and_latest_order_wins(): void
     {
-        $this->assignment($this->target, '2026-01-01');
-        $this->expectException(QueryException::class);
-        $this->assignment($this->actor, '2026-01-01');
+        $first = $this->assignment($this->target, '2026-02-01');
+        $future = $this->assignment($this->actor, '2026-04-01')->fresh()->getRawOriginal();
+        $change = fn (User $user) => $this->actingAs($this->actor)->from($this->url())
+            ->post($this->url().'/pergantian', $this->payload($user, '2026-02-01', 'Pergantian hari yang sama'));
+        $change($this->actor)->assertSessionHasNoErrors();
+        $change($this->actor)->assertSessionHasErrors('user_id');
+        $change($this->target)->assertSessionHasNoErrors();
+        // Waktu dibekukan sehingga created_at identik; pemenang hanya ditentukan urutan penugasan.
+        $latest = PenugasanIndikator::where('user_id', $this->target->id)->where('tanggal_mulai_berlaku', '2026-02-01')->whereKeyNot($first->id)->sole();
+        $this->assertSame($future, PenugasanIndikator::where('tanggal_mulai_berlaku', '2026-04-01')->sole()->getRawOriginal());
+        $this->assertSame(2, AuditLog::where('tindakan', 'penanggung_jawab.ganti')->count());
+        $this->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('effective.id', $latest->id)->where('history.data.0.state', 'Terjadwal')
+            ->where('history.data.1.id', $latest->id)->where('history.data.1.state', 'Efektif')
+            ->where('history.data.2.pic.id', $this->actor->id)->where('history.data.2.state', 'Riwayat')
+            ->where('history.data.3.id', $first->id)->where('history.data.3.state', 'Riwayat'));
+    }
+
+    public function test_superseded_future_row_is_not_scheduled_and_uuid_order_never_picks_winner(): void
+    {
+        $this->assignment($this->target, '2026-02-01');
+        $this->assignment($this->actor, '2026-04-01');
+        // UUIDv7 ikut waktu; UUID terkecil pada baris terakhir membuktikan pemenang hanya dari `urutan`.
+        $latest = PenugasanIndikator::forceCreate(['id' => '00000000-0000-7000-8000-000000000001', 'indikator_id' => $this->indicator->id,
+            'user_id' => $this->target->id, 'tanggal_mulai_berlaku' => '2026-04-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->assertSame($latest->id, PenugasanIndikator::effectiveOn('2026-04-01')->where('indikator_id', $this->indicator->id)->sole()->id);
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('history.data.0.id', $latest->id)->where('history.data.0.state', 'Terjadwal')
+            ->where('history.data.1.pic.id', $this->actor->id)->where('history.data.1.state', 'Riwayat'));
+    }
+
+    public function test_same_date_winner_follows_urutan_not_physical_insert_order(): void
+    {
+        // Baris yang disisipkan lebih dulu diberi `urutan` lebih besar; resolver tanpa tie-break
+        // `urutan` akan mengikuti urutan sisip fisik dan memilih baris kedua.
+        DB::insert('insert into penanggung_jawab (id, indikator_id, user_id, tanggal_mulai_berlaku, ditetapkan_oleh, created_at, urutan)
+            overriding system value values (?, ?, ?, ?, ?, ?, ?)', [
+            (string) Str::uuid7(), $this->indicator->id, $this->target->id, '2026-02-01', $this->actor->id, now(), 1000000,
+        ]);
+        $this->assignment($this->actor, '2026-02-01');
+
+        $this->assertSame($this->target->id, PenugasanIndikator::effectiveOn('2026-02-01')->where('indikator_id', $this->indicator->id)->sole()->user_id);
+    }
+
+    public function test_same_date_migration_rollback_refuses_twin_dates_and_round_trips_otherwise(): void
+    {
+        $migration = require database_path('migrations/2026_10_09_000002_allow_same_date_penanggung_jawab.php');
+        $indexes = fn () => DB::table('pg_indexes')->where('tablename', 'penanggung_jawab')->orderBy('indexname')->pluck('indexdef', 'indexname')->all();
+        $before = $indexes();
+        $first = $this->assignment($this->target, '2026-01-01');
+        $twin = $this->assignment($this->actor, '2026-01-01');
+        try {
+            $migration->down();
+            $this->fail('Rollback harus ditolak tanpa menyentuh histori.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('tanggal kembar', $exception->getMessage());
+        }
+        $this->assertSame(2, PenugasanIndikator::where('tanggal_mulai_berlaku', '2026-01-01')->count());
+        $this->assertSame($before, $indexes());
+        // Transaksi test hanya dipakai untuk membuktikan rollback tanpa kembar; histori produksi tetap append-only.
+        DB::table('penanggung_jawab')->where('id', $twin->id)->delete();
+        $migration->down();
+        $this->assertFalse(Schema::hasColumn('penanggung_jawab', 'urutan'));
+        $this->assertArrayHasKey('penanggung_jawab_indikator_tanggal_unique', $indexes());
+        $this->assertArrayNotHasKey('penanggung_jawab_indikator_id_tanggal_mulai_berlaku_index', $indexes());
+        $migration->up();
+        $this->assertSame($before, $indexes());
+        $this->assertNotNull($first->fresh()->urutan);
+        $this->assertNotNull($this->assignment($this->actor, '2026-01-01')->fresh()->urutan);
     }
 
     public function test_migration_refuses_legacy_duplicate_dates_without_changing_history(): void
     {
-        // Simulasikan schema sebelum constraint baru, hanya pada transaksi PostgreSQL disposable.
-        Schema::table('penanggung_jawab', function (Blueprint $table): void {
-            $table->dropUnique('penanggung_jawab_indikator_tanggal_unique');
-            $table->index(['indikator_id', 'tanggal_mulai_berlaku']);
-        });
+        // Schema terkini sudah non-unique, sama dengan kondisi sebelum migration 2026_10_06.
         $this->assignment($this->target, '2026-01-01');
         $this->assignment($this->actor, '2026-01-01');
         $before = DB::table('penanggung_jawab')->orderBy('id')->get()->toArray();
@@ -265,18 +325,17 @@ class PenanggungJawabTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ganti')->count());
     }
 
-    public function test_duplicate_date_empty_reason_and_stale_backdate_are_audited_without_insert(): void
+    public function test_empty_reason_and_stale_backdate_are_audited_without_insert(): void
     {
         $this->assignment($this->target, '2026-02-01');
         $oldPayload = $this->payload($this->actor, '2026-04-01', 'Pergantian');
         $this->assignment($this->actor, '2026-01-01');
         $this->actingAs($this->actor)->from($this->url())->post($this->url().'/pergantian', $oldPayload)->assertSessionHasErrors('expected_state');
-        $this->actingAs($this->actor)->from($this->url())->post($this->url().'/pergantian', $this->payload($this->actor, '2026-02-01', 'Tanggal sama'))->assertSessionHasErrors('tanggal_mulai_berlaku');
         foreach (['', '   ', "\x01"] as $reason) {
             $this->actingAs($this->actor)->from($this->url())->post($this->url().'/pergantian', $this->payload($this->actor, '2026-03-01', $reason))->assertSessionHasErrors('alasan');
         }
         $this->assertDatabaseCount('penanggung_jawab', 2);
-        $this->assertSame(5, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+        $this->assertSame(4, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
     }
 
     #[DataProvider('blockedContexts')]

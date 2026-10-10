@@ -22,10 +22,14 @@ class ReadPenanggungJawab
             $indicator->load(['unit:id,nama,status', 'sasaranStrategis.renstra:id,kode,nama,status']);
             $date = $filters['tanggal_acuan'] ?? today(config('app.business_timezone'))->toDateString();
             $effective = PenugasanIndikator::effectiveOn($date)->where('indikator_id', $indicator->id)->with(['pic:id,nama,status', 'establishedBy:id,nama'])->first();
+            // Baris yang digantikan pada tanggal sama tidak akan pernah efektif, jadi bukan "Terjadwal".
+            // Dihitung per baris di SQL agar tetap benar ketika pagination memotong satu tanggal.
             $history = $indicator->penugasanIndikators()->with(['pic:id,nama,status', 'establishedBy:id,nama'])
-                ->orderByDesc('tanggal_mulai_berlaku')->simplePaginate(15)->appends($filters)
+                ->select('penanggung_jawab.*')->selectRaw('exists (select 1 from penanggung_jawab later where later.indikator_id = penanggung_jawab.indikator_id
+                    and later.tanggal_mulai_berlaku = penanggung_jawab.tanggal_mulai_berlaku and later.urutan > penanggung_jawab.urutan) as digantikan')
+                ->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('urutan')->simplePaginate(15)->appends($filters)
                 ->through(fn (PenugasanIndikator $row) => $this->present($row) + [
-                    'state' => $row->id === $effective?->id ? 'Efektif' : ($row->tanggal_mulai_berlaku->toDateString() > $date ? 'Terjadwal' : 'Riwayat'),
+                    'state' => $row->id === $effective?->id ? 'Efektif' : (! $row->getAttribute('digantikan') && $row->tanggal_mulai_berlaku->toDateString() > $date ? 'Terjadwal' : 'Riwayat'),
                 ]);
             $blocked = $indicator->assignmentBlockReason();
 

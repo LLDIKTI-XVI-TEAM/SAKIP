@@ -6,11 +6,11 @@ import Show from '@/Pages/PenanggungJawab/Show';
 import type { AssignmentDetailProps } from '@/types/penanggung-jawab';
 import type { Page, VisitOptions } from '@inertiajs/core';
 
-const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string> }));
+const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string>, bacaIndikator: true }));
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()), Head: () => null,
     router: { reload: transport.reload, get: transport.get },
-    usePage: () => ({ props: { pengaturan: transport.pengaturan } }),
+    usePage: () => ({ props: { pengaturan: transport.pengaturan, auth: { can: { sasaranIndikator: transport.bacaIndikator } } } }),
     useForm: (initial: { user_id: string; tanggal_mulai_berlaku: string; alasan: string; expected_state: string }) => {
         const [data, setData] = useState(initial);
         return { data, processing: false, errors: {}, clearErrors: vi.fn(),
@@ -33,7 +33,7 @@ const props: AssignmentDetailProps = {
     has_history: true, expected_state: 'old-token', tanggal_acuan: '2026-03-15', today: '2026-03-15', blocked_reason: null,
     can: { assign: true }, saved_assignment_id: null,
 };
-beforeEach(() => { transport.pengaturan = {}; });
+beforeEach(() => { transport.pengaturan = {}; transport.bacaIndikator = true; });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 function draft() {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
@@ -86,14 +86,14 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
     }
 
     it.each([
-        ['Asia/Makassar', 'd F Y', '02 Februari 2026 00:30'],
-        ['Asia/Jakarta', 'd/m/Y', '01/02/2026 23:30'],
-        ['UTC', 'Y-m-d', '2026-02-01 16:30'],
-    ])('memakai zona %s dan format %s untuk timestamp histori', (zone, format, expected) => {
+        ['Asia/Makassar', 'd F Y', '02 Februari 2026 00:30', '01 Februari 2026'],
+        ['Asia/Jakarta', 'd/m/Y', '01/02/2026 23:30', '01/02/2026'],
+        ['UTC', 'Y-m-d', '2026-02-01 16:30', '2026-02-01'],
+    ])('memakai zona %s dan format %s untuk timestamp histori', (zone, format, expected, mulai) => {
         transport.pengaturan = { 'tampilan.zona_waktu': zone, 'tampilan.format_tanggal': format };
         render(<Show {...historyProps('2026-02-01T16:30:00Z')} />);
         expect(screen.getByText(`Dicatat ${expected}`)).toBeTruthy();
-        expect(screen.getByText('Mulai berlaku 2026-02-01', { exact: false })).toBeTruthy();
+        expect(screen.getByText(`Mulai berlaku ${mulai}`, { exact: false })).toBeTruthy();
         expect((screen.getByLabelText(/Tanggal mulai berlaku/) as HTMLInputElement).value).toBe(props.today);
         fireEvent.change(screen.getByLabelText(/PJ efektif pada tanggal/), { target: { value: '2026-02-01' } });
         fireEvent.click(screen.getByRole('button', { name: 'Tampilkan' }));
@@ -104,4 +104,29 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
         render(<Show {...historyProps(createdAt)} />);
         expect(screen.getByText('Dicatat Tidak tersedia')).toBeTruthy();
     });
+
+    it('menampilkan dua penugasan bertanggal sama sesuai urutan server', () => {
+        const base = historyProps('2026-02-01T01:00:00Z');
+        const [latest] = base.history.data;
+        const replaced = { ...latest, id: 'assignment-b', pic: { id: 'user-b', nama: 'PJ Lama', status: 'aktif' }, state: 'Riwayat' };
+        render(<Show {...base} history={{ ...base.history, data: [latest, replaced] }} />);
+        const rows = screen.getAllByRole('listitem');
+        expect(rows.map((row) => row.textContent)).toEqual([expect.stringMatching(/^PJ QAEfektifBerlaku /), expect.stringMatching(/^PJ LamaRiwayatBerlaku /)]);
+    });
+});
+
+it('navigasi kembali ke detail indikator dan menandai PJ efektif yang akunnya nonaktif', () => {
+    const assignment = { id: 'assignment-b', tanggal_mulai_berlaku: '2026-02-01', pic: { id: 'user-b', nama: 'PJ Lama', status: 'nonaktif' },
+        ditetapkan_oleh: null, alasan: null, created_at: null, state: 'Efektif' };
+    render(<Show {...props} effective={assignment} />);
+    expect(screen.getByRole('link', { name: 'Kembali ke detail indikator' }).getAttribute('href')).toBe('/perencanaan/indikator/indicator-a');
+    expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
+    expect(screen.getByText('PJ Lama').textContent).toContain('Nonaktif');
+});
+
+it('tanpa indikator:read tidak menautkan ke detail indikator yang akan ditolak 403', () => {
+    transport.bacaIndikator = false;
+    render(<Show {...props} />);
+    expect(screen.queryByRole('link', { name: 'Kembali ke detail indikator' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
 });

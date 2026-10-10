@@ -1,6 +1,5 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
-import { FileText, Save } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { PerjanjianKinerjaFormFields } from '@/Components/PerjanjianKinerjaFormFields';
@@ -74,15 +73,7 @@ export function PerjanjianKinerjaCreateModal({
             size="3xl"
             hideScrollbar={true}
             bodyClassName="p-4 sm:p-6"
-            title={
-                <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
-                        <FileText className="w-4 h-4" />
-                    </div>
-                    <span>Formulir Pencatatan Perjanjian Kinerja</span>
-                </div>
-            }
-            description="Masukkan rincian dokumen legal formal komitmen kinerja dan lampirkan naskah pendukung."
+            title="Tambah Perjanjian Kinerja"
             footer={
                 <div className="flex items-center justify-end gap-3 w-full">
                     <Button
@@ -97,10 +88,9 @@ export function PerjanjianKinerjaCreateModal({
                         type="submit"
                         form="create-pk-modal-form"
                         variant="primary"
-                        disabled={processing}
+                        isLoading={processing}
                     >
-                        <Save className="h-4 w-4" aria-hidden="true" />
-                        {processing ? 'Menyimpan...' : 'Simpan Perjanjian Kinerja'}
+                        Simpan Perjanjian Kinerja
                     </Button>
                 </div>
             }
