@@ -14,6 +14,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
+use App\Support\DeviasiTargetPk;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Collection;
@@ -374,9 +375,11 @@ class IndexRencanaAksi
 
     /**
      * Deviasi: skor turunan periode efektif terakhir vs target PK
-     * (salinan beku `jadwal_snapshot.target`, yaitu target PK snapshot)
-     * dengan toleransi `presisi`. Bila tak dapat dinilai
-     * (skor/target tak tersedia), alasan tidak diperlukan.
+     * (salinan beku `jadwal_snapshot.target`) lewat `DeviasiTargetPk`, yaitu
+     * HALF_UP dua sisi pada presisi snapshot, pembanding yang sama dengan
+     * gerbang pengajuan. Bila tak dapat dinilai (skor/target tak tersedia),
+     * alasan tidak diperlukan. `skor_periode_terakhir`/`target_pk` adalah
+     * angka hasil pembulatan yang dibandingkan.
      *
      * @param  list<array<string, mixed>>  $periode
      * @return array{dapat_dinilai: bool, ada: bool, alasan_diperlukan: bool, alasan_terisi: bool, skor_periode_terakhir: string|null, target_pk: string|null, periode_id: string|null}
@@ -385,19 +388,16 @@ class IndexRencanaAksi
     {
         $terakhir = collect($periode)->where('efektif', true)->sortBy('urutan')->last();
         $skor = is_array($terakhir) ? ($terakhir['skor']['nilai'] ?? null) : null;
-        $targetPk = $snapshot->target === null ? null : (string) $snapshot->target;
-
-        $dapatDinilai = is_string($terakhir['id'] ?? null) && is_numeric($skor) && is_numeric($targetPk);
-        $ada = $dapatDinilai && bccomp((string) $skor, (string) $targetPk, $presisi) !== 0;
-        $alasanTerisi = trim((string) $header->alasan_deviasi_pk) !== '';
+        $hasil = DeviasiTargetPk::bandingkan($skor, $snapshot->target === null ? null : (string) $snapshot->target, $presisi);
+        $ada = $hasil['status'] === DeviasiTargetPk::DEVIASI;
 
         return [
-            'dapat_dinilai' => $dapatDinilai,
+            'dapat_dinilai' => $hasil['status'] !== DeviasiTargetPk::TIDAK_DAPAT_DINILAI,
             'ada' => $ada,
             'alasan_diperlukan' => $ada,
-            'alasan_terisi' => $alasanTerisi,
-            'skor_periode_terakhir' => is_numeric($skor) ? (string) $skor : null,
-            'target_pk' => is_numeric($targetPk) ? (string) $targetPk : null,
+            'alasan_terisi' => trim((string) $header->alasan_deviasi_pk) !== '',
+            'skor_periode_terakhir' => $hasil['skor'],
+            'target_pk' => $hasil['target_pk'],
             'periode_id' => is_string($terakhir['id'] ?? null) ? $terakhir['id'] : null,
         ];
     }
