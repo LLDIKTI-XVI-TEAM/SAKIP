@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\PengaturanService;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
@@ -16,6 +17,9 @@ use Illuminate\Validation\Validator;
 
 class UpdatePengaturanRequest extends FormRequest
 {
+    /** Keputusan otorisasi awal, disimpan sekali agar audit penolakan memakai keputusan yang benar-benar menolak. */
+    private ?array $decision = null;
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -24,14 +28,16 @@ class UpdatePengaturanRequest extends FormRequest
             return false;
         }
 
-        return app(PermissionResolver::class)->allows($user, PermissionCodes::PENGATURAN_UPDATE);
+        $this->decision = app(PermissionResolver::class)->decide($user, PermissionCodes::PENGATURAN_UPDATE);
+
+        return $this->decision['allowed'];
     }
 
     protected function failedAuthorization(): void
     {
         $user = $this->user()?->fresh();
         if ($user) {
-            $decision = app(PermissionResolver::class)->decide($user, PermissionCodes::PENGATURAN_UPDATE);
+            $decision = $this->decision ?? app(PermissionResolver::class)->decide($user, PermissionCodes::PENGATURAN_UPDATE);
             $rawAlasan = $this->input('alasan');
             $alasan = is_string($rawAlasan) && trim($rawAlasan) !== ''
                 ? mb_substr(trim($rawAlasan), 0, 255)
@@ -75,7 +81,8 @@ class UpdatePengaturanRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'alasan' => ['required', 'string', 'min:5', 'max:255'],
+            // Karakter kontrol ditolak sebelum min:5 agar panjang minimal dihitung dari teks yang benar-benar terbaca di audit.
+            'alasan' => ['required', 'string', AuditReason::validate(...), 'min:5', 'max:255'],
             'expected_updated_at' => ['sometimes', 'nullable', 'array'],
         ];
 

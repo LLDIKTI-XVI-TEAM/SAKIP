@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;

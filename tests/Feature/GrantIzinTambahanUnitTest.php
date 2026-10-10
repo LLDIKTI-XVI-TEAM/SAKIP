@@ -17,7 +17,6 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RolePermissionPresets;
-use App\Services\PermissionResolver as AuditPermissionResolver;
 use App\Support\PermissionDecision;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PermissionCatalogSeeder;
@@ -195,7 +194,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $decision = new PermissionDecision(false, 'delegasi:update', [
             'alasan' => 'no_allow', 'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => [],
         ]);
-        $this->mock(AuditPermissionResolver::class)->shouldReceive('resolve')->once()
+        $this->mock(PermissionResolver::class)->shouldReceive('resolve')->once()
             ->with(\Mockery::on(fn ($actor) => $actor->id === $this->pegawaiUser->id), 'delegasi:update')->andReturn($decision);
         $id = (string) Str::uuid();
         $this->actingAs($this->pegawaiUser)->call(
@@ -352,7 +351,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-2 / AC-2: Given permission global, when dicoba diberikan melalui Form Grant Unit,
+     * Given permission global, when dicoba diberikan melalui Form Grant Unit,
      * then validasi menolak (422).
      */
     public function test_granting_global_permission_is_rejected(): void
@@ -369,7 +368,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-3 / AC-3: Given permission unit-scoped tanpa unit, when submit dilakukan,
+     * Given permission unit-scoped tanpa unit, when submit dilakukan,
      * then validasi menolak (422).
      */
     public function test_granting_unit_scoped_permission_without_unit_is_rejected(): void
@@ -386,7 +385,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-4 / AC-4: Given kombinasi user-permission-unit identik sudah ada, when disimpan ulang,
+     * Given kombinasi user-permission-unit identik sudah ada, when disimpan ulang,
      * then duplikasi ditolak.
      */
     public function test_duplicate_grant_is_rejected(): void
@@ -411,7 +410,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-5 / AC-5: Given target user bukan role Pegawai (misal Pimpinan), when Admin memberi grant eksplisit valid,
+     * Given target user bukan role Pegawai (misal Pimpinan), when Admin memberi grant eksplisit valid,
      * then grant tetap dapat disimpan; guard role target tidak memblokir.
      */
     public function test_grant_to_non_pegawai_user_is_allowed(): void
@@ -432,7 +431,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-6 / AC-6: Given grant dicabut, when pencabutan selesai,
+     * Given grant dicabut, when pencabutan selesai,
      * then audit mencatat aktor, alasan, dan grant yang dicabut.
      */
     public function test_revoking_grant_deletes_record_and_creates_audit_log(): void
@@ -474,7 +473,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * TEST-7 / AC-5 & Security: Given user tanpa izin akses:update (misal Pegawai),
+     * Given user tanpa izin akses:update (misal Pegawai),
      * when memanggil endpoint grant, then server menghasilkan 403.
      */
     public function test_unauthorized_user_cannot_access_or_mutate_grants(): void
@@ -508,7 +507,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Temuan Review 8: Parameter route non-UUID pada revoke grant menghasilkan 404 bukan 500.
+     * Parameter route non-UUID pada revoke grant menghasilkan 404 bukan 500.
      */
     public function test_revoke_grant_with_invalid_uuid_returns_404(): void
     {
@@ -519,7 +518,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * ISS-01.04 AC-5: Admin BISA memberikan izin unit kepada Admin atau Superadmin.
+     * Admin BISA memberikan izin unit kepada Admin atau Superadmin.
      */
     public function test_admin_can_grant_permission_to_admin_or_superadmin(): void
     {
@@ -556,7 +555,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * ISS-01.04 AC-5: Admin BISA mencabut izin unit milik Admin atau Superadmin.
+     * Admin BISA mencabut izin unit milik Admin atau Superadmin.
      */
     public function test_admin_can_revoke_grant_belonging_to_admin_or_superadmin(): void
     {
@@ -678,7 +677,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * ISS-01.04 AC-5 & Review: Endpoint opsi pengguna grant mempaginasi dan memuat semua user aktif untuk Admin dan Superadmin.
+     * Endpoint opsi pengguna grant mempaginasi dan memuat semua user aktif untuk Admin dan Superadmin.
      */
     public function test_grant_user_options_endpoint_returns_paginated_active_users(): void
     {
@@ -695,7 +694,7 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $adminItems = collect($adminResponse->json('items'));
         $this->assertTrue($adminItems->every(fn ($item) => $item['status'] === 'aktif' && ! array_key_exists('is_active', $item)));
-        // Seluruh pengguna aktif (termasuk Admin & Superadmin) dapat dipilih sesuai ISS-01.04 AC-5
+        // Seluruh pengguna aktif (termasuk Admin & Superadmin) dapat dipilih
         $this->assertTrue($adminItems->contains('id', $this->adminUser->id));
         $this->assertTrue($adminItems->contains('id', $this->otherAdminUser->id));
         $this->assertTrue($adminItems->contains('id', $this->superadminUser->id));
@@ -751,7 +750,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Temuan 1: Tolak pencabutan grant berscope global melalui endpoint unit (HTTP 422).
+     * Tolak pencabutan grant berscope global melalui endpoint unit (HTTP 422).
      */
     public function test_cannot_revoke_global_grant_via_unit_grant_endpoint(): void
     {
@@ -776,7 +775,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Temuan 5: Tolak permission nonaktif sebelum membuat grant (HTTP 422 Validation Error).
+     * Tolak permission nonaktif sebelum membuat grant (HTTP 422 Validation Error).
      */
     public function test_cannot_grant_inactive_permission(): void
     {
@@ -799,7 +798,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Temuan 3: Tangani benturan unik saat grant dibuat bersamaan (SQLSTATE 23505 -> Validation Error).
+     * Tangani benturan unik saat grant dibuat bersamaan (SQLSTATE 23505 -> Validation Error).
      */
     public function test_concurrent_grant_creation_handles_unique_violation_gracefully(): void
     {
@@ -860,7 +859,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Request dengan user_id, permission_id, atau unit_id non-UUID ditolak dengan validasi 422.
+     * Request dengan user_id, permission_id, atau unit_id non-UUID ditolak dengan validasi 422.
      */
     public function test_grant_creation_rejects_non_uuid_identifiers_with_validation_error(): void
     {
@@ -911,7 +910,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review 1: Tolak penerima grant yang sudah nonaktif.
+     * Tolak penerima grant yang sudah nonaktif.
      */
     public function test_cannot_grant_permission_to_inactive_user(): void
     {
@@ -936,7 +935,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review 2: Tolak pembuatan grant untuk unit nonaktif.
+     * Tolak pembuatan grant untuk unit nonaktif.
      */
     public function test_cannot_grant_permission_for_inactive_unit(): void
     {
@@ -961,7 +960,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review 4: Catat penolakan aksi sensitif sebelum mengembalikan 403 saat aktor memiliki explicit deny.
+     * Catat penolakan aksi sensitif sebelum mengembalikan 403 saat aktor memiliki explicit deny.
      */
     public function test_explicit_deny_on_delegasi_update_records_denial_audit_before_403(): void
     {
@@ -1015,7 +1014,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * ISS-01.04 AC-5: Pemberian dan pencabutan grant admin oleh Admin berhasil dan diaudit.
+     * Pemberian dan pencabutan grant admin oleh Admin berhasil dan diaudit.
      */
     public function test_admin_granting_and_revoking_admin_succeeds_and_records_audit(): void
     {
@@ -1055,7 +1054,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Index grant mendukung server pagination dan filtering (search dan unit_id).
+     * Index grant mendukung server pagination dan filtering (search dan unit_id).
      */
     public function test_grant_index_supports_server_pagination_and_filtering(): void
     {
@@ -1148,7 +1147,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Pencegahan TOCTOU jika pengguna atau unit dinonaktifkan di dalam transaksi.
+     * Pencegahan TOCTOU jika pengguna atau unit dinonaktifkan di dalam transaksi.
      */
     public function test_grant_creation_fails_if_target_becomes_inactive_during_transaction(): void
     {
@@ -1204,7 +1203,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Request dengan unit_id non-UUID ditangani secara aman tanpa SQL error 500.
+     * Request dengan unit_id non-UUID ditangani secara aman tanpa SQL error 500.
      */
     public function test_index_grant_handles_non_uuid_unit_id_gracefully(): void
     {
@@ -1219,7 +1218,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Request dengan alasan hanya berisi spasi ditolak dengan validasi 422, bukan 500.
+     * Request dengan alasan hanya berisi spasi ditolak dengan validasi 422, bukan 500.
      */
     public function test_grant_creation_and_revocation_rejects_whitespace_only_reason(): void
     {
@@ -1259,7 +1258,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Pemeriksaan hierarki mengabaikan role yang nonaktif (roles.aktif = false).
+     * Pemeriksaan hierarki mengabaikan role yang nonaktif (roles.aktif = false).
      */
     public function test_inactive_role_is_ignored_in_hierarchy_and_access_checks(): void
     {
@@ -1296,7 +1295,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Otorisasi ulang aktor di dalam transaksi grant menolak mutasi jika izin dicabut saat transaksi.
+     * Otorisasi ulang aktor di dalam transaksi grant menolak mutasi jika izin dicabut saat transaksi.
      */
     public function test_grant_creation_reauthorizes_actor_inside_transaction(): void
     {
@@ -1330,7 +1329,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Kunci dan validasi ulang permission di dalam transaksi menolak permission yang dinonaktifkan dengan 422.
+     * Kunci dan validasi ulang permission di dalam transaksi menolak permission yang dinonaktifkan dengan 422.
      */
     public function test_grant_creation_locks_and_revalidates_permission_inside_transaction(): void
     {
@@ -1353,7 +1352,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Penolakan otorisasi di dalam transaksi tetap mempertahankan catatan audit di luar transaksi.
+     * Penolakan otorisasi di dalam transaksi tetap mempertahankan catatan audit di luar transaksi.
      */
     public function test_grant_creation_and_revocation_preserves_rejection_audit_in_database(): void
     {
@@ -1418,7 +1417,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Batasi grant pada kode permission yang masih ada di katalog UNIT_SCOPED.
+     * Batasi grant pada kode permission yang masih ada di katalog UNIT_SCOPED.
      */
     public function test_grant_creation_and_dropdown_rejects_unit_permission_not_in_catalog_scoped(): void
     {
@@ -1454,7 +1453,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Jangan aktifkan ulang permission melalui seeder katalog saat dijalankan ulang.
+     * Jangan aktifkan ulang permission melalui seeder katalog saat dijalankan ulang.
      */
     public function test_permission_catalog_seeder_does_not_reactivate_deactivated_permission(): void
     {
@@ -1471,7 +1470,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * ISS-01.04 AC-5: Admin BISA mencabut grant milik pengguna sekalipun pengguna telah berstatus Admin.
+     * Admin BISA mencabut grant milik pengguna sekalipun pengguna telah berstatus Admin.
      */
     public function test_revoke_grant_allows_admin_to_revoke_grant_of_promoted_user(): void
     {
@@ -1507,7 +1506,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Admin biasa mencabut grant milik pengguna yang sekarang sudah berstatus Admin (sah sesuai ISS-01.04 AC-5)
+        // Admin biasa mencabut grant milik pengguna yang sekarang sudah berstatus Admin
         $response = $this->actingAs($this->adminUser)->delete("/akses/grant/{$grant->id}", [
             'alasan' => 'Mencoba cabut grant pengguna yang sudah dipromosikan',
         ]);
@@ -1525,7 +1524,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Hentikan efektivitas grant saat unit dinonaktifkan (PermissionResolver fail-closed).
+     * Hentikan efektivitas grant saat unit dinonaktifkan (PermissionResolver fail-closed).
      */
     public function test_grant_becomes_ineffective_when_unit_is_inactive(): void
     {
@@ -1555,7 +1554,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Codex Review: Kunci role sumber sebelum otorisasi ulang grant di StoreGrant dan RevokeGrant.
+     * Kunci role sumber sebelum otorisasi ulang grant di StoreGrant dan RevokeGrant.
      */
     public function test_grant_mutation_locks_active_source_roles_of_actor(): void
     {
@@ -1766,7 +1765,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Q32 / TEST-4 / AC-3: Permission baca (rencana_aksi:read dan kegiatan:read) berstatus global dan ditolak pada Grant Unit.
+     * Q32: Permission baca (rencana_aksi:read dan kegiatan:read) berstatus global dan ditolak pada Grant Unit.
      */
     public function test_read_permissions_cannot_be_granted_via_unit_grant_endpoint(): void
     {

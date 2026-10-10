@@ -9,6 +9,7 @@ use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\PenanggungJawab\ReadPenanggungJawab;
+use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
 use App\Actions\Unit\CreateUnitAction;
@@ -16,8 +17,8 @@ use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
 use App\Models\IndikatorKinerja;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
-use App\Services\PermissionResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
@@ -74,6 +75,7 @@ try {
             'unit-update' => app(UpdateUnitAction::class)->handle($actor, $assignment['unit_id'], $assignment['data']),
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
+            'pengukuran-ajukan' => app(SubmitPengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
             'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
@@ -88,7 +90,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan'], true)) {
             throw $exception;
         }
         $result = 'denied';
