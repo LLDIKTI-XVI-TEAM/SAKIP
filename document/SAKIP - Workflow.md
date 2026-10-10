@@ -866,10 +866,12 @@ Satu persyaratan (`jenis_berkas`) dapat mengizinkan lebih dari satu mode sekalig
 
 🎯 Penanggung Jawab (unit pemilik bukti) / 📋 Perencanaan (bukti mana pun)
   6. Dapat menghapus bukti milik unitnya (PIC) atau bukti mana pun (Perencanaan) SELAMA
-     induknya belum dalam keadaan sah (untuk rencana_aksi/pengukuran: belum disahkan; untuk
-     kegiatan: belum terlaksana); setiap penghapusan tercatat audit_log
+     induknya masih dapat disunting (untuk rencana_aksi/pengukuran: hanya saat draft/dikembalikan,
+     sejak diajukan koreksi lewat pengembalian beralasan, Q36; untuk kegiatan: belum
+     terlaksana); setiap penghapusan tercatat audit_log
   7. Imutabilitas mengikuti status induk masing-masing (rincian per induk — §10.6a):
-     rencana_aksi/pengukuran: setelah disahkan; kegiatan: setelah terlaksana; renstra: setelah
+     rencana_aksi/pengukuran: sejak diajukan (koreksi lewat pengembalian), imutabel setelah
+     disahkan (Q36); kegiatan: setelah terlaksana; renstra: setelah
      Renstra aktif; renstra_pk: setelah Jadwal Tahunan tahun itu aktif; regulasi: selama masih
      dirujuk Renstra/indikator aktif. Sebelum batas itu, PIC/Perencanaan (dan pengunggah) dapat
      menghapus; setiap penghapusan tercatat audit_log. Setelah jadwal_tahunan.penutupan, koreksi
@@ -901,11 +903,11 @@ flowchart TD
     Q --> R{Seluruh jenis_berkas aktif\nwajib tahap ini terpenuhi?}
     R -- Tidak, dan bukan kasus\ntidak_dapat_dipenuhi --> S[DITOLAK - gerbang\nkelengkapan bukti dukung]
     R -- Ya, atau ditandai\ntidak_dapat_dipenuhi --> T[Lanjut - lolos gerbang]
-    K --> U{Induk sudah sah?\ndisahkan / terlaksana}
+    K --> U{Induk masih dapat disunting?\nRA/pengukuran draft atau dikembalikan\nkegiatan belum terlaksana}
     L --> U
     M --> U
-    U -- Belum --> V[PIC unitnya / Perencanaan\ndapat menghapus - ter-audit]
-    U -- Sudah --> W[Bukti dukung IMUTABEL -\ntidak dapat dihapus/diganti,\nseluruh mode]
+    U -- Ya --> V[PIC unitnya / Perencanaan\ndapat menambah/menghapus - ter-audit]
+    U -- Tidak --> W[Bukti dukung tidak dapat diubah -\nRA/pengukuran diajukan - koreksi lewat kembalikan\nsetelah sah - IMUTABEL seluruh mode]
     W --> X{Jadwal sudah penutupan?}
     X -- Ya --> Y[Koreksi hanya lewat\njadwal:buka_kembali]
 ```
@@ -948,8 +950,8 @@ flowchart TD
 
 | Induk (`berkasable_type`) | Lampiran tidak dapat dihapus setelah | Sebelum batas itu, dapat dihapus oleh |
 |---|---|---|
-| `rencana_aksi` | induk berstatus `disahkan` | PIC unit terkait, Perencanaan |
-| `pengukuran` | induk berstatus `disahkan` | PIC unit terkait, Perencanaan |
+| `rencana_aksi` | induk berstatus `diajukan` (koreksi lewat pengembalian beralasan); imutabel setelah `disahkan` (Q36) | PIC unit terkait, Perencanaan |
+| `pengukuran` | induk berstatus `diajukan` (koreksi lewat pengembalian beralasan); imutabel setelah `disahkan` (Q36) | PIC unit terkait, Perencanaan |
 | `kegiatan` | induk berstatus `terlaksana` | PIC unit terkait, Perencanaan |
 | `renstra` | Renstra berstatus `aktif` | Perencanaan |
 | `renstra_pk` | Jadwal Tahunan tahun tsb berstatus `aktif` | Perencanaan |

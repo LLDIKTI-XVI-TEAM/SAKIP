@@ -1,11 +1,12 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **9 Oktober 2026**  
+Pembaruan terakhir: **10 Oktober 2026**  
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
 Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`  
-Basis commit sebelum pembaruan Q35: `405fac1e16b768046879b7e6a418fa6d14d9af77`
+Basis commit sebelum pembaruan Q35: `405fac1e16b768046879b7e6a418fa6d14d9af77`  
+Basis commit sebelum pembaruan Q36: `db0a887923127dc7af4b667bdf98c5d91e9a06b1`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -31,6 +32,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Keputusan 9 Oktober 2026 (Q34)** meratifikasi aturan Penanggung Jawab indikator — termasuk pergantian PJ pada tanggal yang sama dengan satu PJ efektif deterministik — serta ADR-0007 (`komponen_id = NULL` untuk target manual Rencana Aksi) dan ADR-0008 (`alasan_deviasi_pk`, wajib saat pengajuan, bukan saat simpan draf).
 
 **Keputusan 9 Oktober 2026 (Q35)** menetapkan bahwa snapshot jadwal yang sudah terbit tidak pernah diubah in-place (koreksi selalu lewat versi baru), bahwa `lingkup_koreksi` tanpa `periode_ids` berarti tidak ada periode tercakup (gagal tertutup) untuk Rencana Aksi dan Pengukuran, dan bahwa satu jadwal tahunan memuat paling banyak 12 periode.
+
+**Keputusan 10 Oktober 2026 (Q36)** menetapkan bahwa bukti dukung `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya `draft`/`dikembalikan`; sejak `diajukan` koreksi bukti lewat pengembalian beralasan, dan setelah `disahkan` bukti imutabel.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -757,6 +760,37 @@ Q35 menutup tiga kontrak yang ditemukan saat review ISS-05.01: aturan dokumen ma
 - PRD §12.5, Workflow §5, dan Plan 3.8 mengganti aturan "abadi setelah dirujuk / koreksi sebelum dirujuk" dengan 35.1.
 - User Issues dan User Stories: ISS-02.09/US-02.09 AC-3, ISS-03.03/US-03.03 AC-1–AC-2 beserta task terkait, task imutabilitas ISS-03.04, ISS-03.01/US-03.01 AC-6 (35.3), dan catatan 35.2 pada ISS-14.02.
 - Keputusan ini tidak membutuhkan perubahan kode di luar yang sudah ada pada PR #62.
+
+---
+
+# Keputusan Q36 — Jendela Mutasi Bukti Dukung Rencana Aksi dan Pengukuran
+
+**Keputusan PM (Dion), 10 Oktober 2026 (WITA), dalam review PR #76 (ISS-05.02, keputusan D1).**
+
+Q36 menutup ketidakselarasan antara PRD §18.8, Workflow §10.3/§10.6a, dan Data Model §2.30/§5 (lampiran `rencana_aksi`/`pengukuran` dapat dihapus sampai induk `disahkan`) dengan kontrak ISS-05.02 ("RA berstatus dapat diedit"), prinsip pembekuan Q24, dan implementasi Pengukuran yang sudah berjalan.
+
+## 36.1 Aturan
+
+1. Bukti dukung (`berkas`) berinduk `rencana_aksi` dan `pengukuran` hanya dapat **ditambah, diganti (`menggantikan_id`), atau dihapus** selama induknya berstatus `draft` atau `dikembalikan`.
+2. Sejak induk berstatus `diajukan`, bukti dukung induk tersebut tidak dapat ditambah, diganti, maupun dihapus. Koreksi bukti dilakukan melalui pengembalian beralasan ke status `dikembalikan` oleh pemegang izin pengembalian, lalu bukti diperbaiki dan induk diajukan ulang.
+3. Setelah induk `disahkan`, bukti dukung imutabel. Setelah `jadwal_tahunan.penutupan`, koreksi hanya lewat `jadwal:buka_kembali` (tidak berubah).
+4. Penghapusan tetap soft delete (`dihapus_pada`/`dihapus_oleh`), beralasan, dan teraudit; file fisik dipertahankan.
+5. Penolakan mutasi bukti di luar status pada butir 1 adalah validasi bisnis (422), bukan penolakan izin (Data Model §3.2 langkah 6).
+6. Aturan untuk induk `kegiatan`, `renstra`, `renstra_pk`, dan `regulasi` tidak berubah.
+
+## 36.2 Status implementasi
+
+- **Rencana Aksi:** PR #76 (ISS-05.02).
+  - `GerbangBuktiRencanaAksi::pelanggaranBisnis()` memakai `RencanaAksi::STATUS_DAPAT_DISUNTING` (`draft`, `dikembalikan`) untuk tambah dan hapus.
+  - Dibuktikan oleh `RencanaAksiBuktiHttpTest::test_status_di_luar_draf_ditolak_sebagai_validasi_bisnis_bukan_izin`.
+- **Pengukuran:** sudah sesuai di `development`. Bukti hanya masuk lewat aksi `draft`/`ajukan` pada status `draft`/`dikembalikan` (`PengukuranKinerjaPolicy`); koreksi lewat `menggantikan_id`; tidak ada endpoint hapus bukti pengukuran.
+- Q36 tidak membutuhkan perubahan kode.
+
+## 36.3 Dampak dan Traceability
+
+- PRD §18.8; Workflow §10.3 langkah 6–7 beserta diagramnya, dan §10.6a; Data Model §2.30 (imutabilitas lampiran) dan §5 (constraint level aplikasi `berkas`) diselaraskan.
+- User Issues ISS-05.02: catatan "Keputusan terbuka (D1)" diganti rujukan Q36, dan butir DoD dokumentasi diperbarui.
+- Q24, Q25, Q32, dan Q35 tidak berubah.
 
 ---
 

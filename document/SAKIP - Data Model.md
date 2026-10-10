@@ -1378,7 +1378,7 @@ Perjanjian Kinerja, salinan produk hukum) dalam mode apa pun.
 - lampiran `renstra_pk` **tidak dapat dihapus** setelah `jadwal_tahunan` tahun tersebut berstatus `aktif`;
 - lampiran `regulasi` **tidak dapat dihapus** selama regulasi yang bersangkutan masih dirujuk oleh `renstra.regulasi_id` atau `indikator.regulasi_id` yang aktif;
 - lampiran `kegiatan` **tidak dapat dihapus** setelah kegiatan yang bersangkutan berstatus `terlaksana`;
-- lampiran `rencana_aksi`/`pengukuran` **tidak dapat dihapus** setelah induknya berstatus `disahkan`.
+- lampiran `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya berstatus `draft`/`dikembalikan`; sejak `diajukan` **tidak dapat dihapus** (koreksi lewat pengembalian beralasan), dan imutabel setelah `disahkan` (Q36).
 
 Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (izin `berkas:delete` ber-scope unit lewat grant, untuk `rencana_aksi`/`pengukuran`/`kegiatan`) dapat menghapus lampiran; setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali` — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas.
 
@@ -1612,7 +1612,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` (level aplikasi) | pengajuan ditolak selama `rencana_aksi` (indikator × tahun) belum `disahkan`; ditolak bila ada komponen aktif bernilai `null` |
 | `rencana_aksi` (level aplikasi) | pengajuan ditolak bila ada komponen aktif tanpa `rencana_aksi_target` pada salah satu periode yang diharapkan |
 | `klaim_kegiatan` (level aplikasi) | ditolak bila `kegiatan.unit_id` berbeda dari unit rencana aksi/indikator yang diklaim |
-| `berkas` (level aplikasi) | imutabilitas per induk (enam nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`; `rencana_aksi`/`pengukuran` tidak dapat dihapus setelah induknya `disahkan` |
+| `berkas` (level aplikasi) | imutabilitas per induk (enam nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`; `rencana_aksi`/`pengukuran` hanya dapat ditambah/diganti/dihapus selama induk `draft`/`dikembalikan` (Q36) |
 | `jenis_berkas` (level aplikasi) | minimal satu dari `izinkan_file`/`izinkan_tautan`/`izinkan_teks` bernilai `true`; penyimpanan tanpa satu pun mode aktif ditolak |
 | `berkas` (level aplikasi) | mode wajib termasuk mode yang diizinkan pada `jenis_berkas` terkait, kecuali lampiran bebas (`jenis_berkas_id = null`); `tautan` wajib berskema `http`/`https` bila `mode = tautan`; `isi_teks` wajib terisi bila `mode = teks`; `nama_asli`/`path`/`mime`/`ukuran_bytes` wajib terisi bila `mode = file` |
 | `kegiatan` (level aplikasi) | transisi status `rencana → terlaksana` ditolak bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` yang belum terpenuhi |

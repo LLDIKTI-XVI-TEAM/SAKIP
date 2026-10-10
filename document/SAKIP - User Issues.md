@@ -1640,7 +1640,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Status implementasi — PR #76:** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT/deployment. Hak mutasi bukti diturunkan dari `rencana_aksi:update` pada unit header (Q32.3: `berkas:*` hanya gerbang deny/fail-closed) dan dijawab 403; unit nonaktif, indikator arsip, status di luar `draft`/`dikembalikan`, serta jendela PIC adalah validasi bisnis 422 (Data Model §3.2 langkah 6). Evaluator kelengkapan memakai `EvaluateEvidence` bersama (Plan 13.4). Browser smoke desktop/mobile belum dilakukan.
 >
-> **Keputusan terbuka (D1):** pembatasan mutasi bukti pada `draft`/`dikembalikan` lebih ketat daripada PRD §18.8 dan Workflow §10.3/§10.6a (hapus diizinkan sampai `disahkan`); perlu ratifikasi tim sebagai addendum Keputusan Penyelarasan sebelum dokumen tersebut diselaraskan.
+> **Keputusan D1 — diputuskan Q36 (10 Oktober 2026):** mutasi bukti `rencana_aksi`/`pengukuran` hanya selama induk `draft`/`dikembalikan`; sejak `diajukan` koreksi lewat pengembalian beralasan. PRD §18.8, Workflow §10.3/§10.6a, dan Data Model §2.30/§5 telah diselaraskan.
 >
 > **Handoff ISS-05.03:** `DownloadBuktiRencanaAksi` saat ini hanya melayani bukti yang masih berlaku (`current`). Setelah pembekuan versi ada, unduhan bukti yang dirujuk versi beku tetapi sudah dihapus perlu membaca metadata dari snapshot versi, mengikuti pola `DownloadBuktiPengukuran`.
 
@@ -1683,7 +1683,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(Menunggu ratifikasi D1.)*
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; tersisa penyelarasan Data Model §2.30 dengan Q32.3 dan Plan 13.6 dengan Q36.)*
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
