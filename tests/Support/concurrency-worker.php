@@ -105,7 +105,7 @@ try {
         $result = 'ineligible';
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
-            'pj-assign' => $assignment['expected_error_field'] ?? 'expected_state',
+            'pj-assign', 'pj-change' => $assignment['expected_error_field'] ?? 'expected_state',
             'assign-role' => 'expected_assignment',
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',

@@ -32,7 +32,8 @@ class PenugasanIndikator extends Model
 
     /**
      * Pilih pemenang seluruh histori dahulu; filter user pada query luar tidak
-     * boleh membuat penugasan lama menjadi PJ efektif kembali.
+     * boleh membuat penugasan lama menjadi PJ efektif kembali. Pada tanggal
+     * sama, penugasan dengan `urutan` terbesar (terakhir dicatat) yang menang.
      *
      * @param  Builder<static>  $query
      * @return Builder<static>
@@ -41,7 +42,7 @@ class PenugasanIndikator extends Model
     {
         $winners = static::query()->select('penanggung_jawab.*')
             ->where('tanggal_mulai_berlaku', '<=', $date)
-            ->distinct('indikator_id')->orderBy('indikator_id')->orderByDesc('tanggal_mulai_berlaku');
+            ->distinct('indikator_id')->orderBy('indikator_id')->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('urutan');
 
         return $query->fromSub($winners, 'penanggung_jawab');
     }

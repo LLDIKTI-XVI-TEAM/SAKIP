@@ -104,6 +104,15 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
         render(<Show {...historyProps(createdAt)} />);
         expect(screen.getByText('Dicatat Tidak tersedia')).toBeTruthy();
     });
+
+    it('menampilkan dua penugasan bertanggal sama sesuai urutan server', () => {
+        const base = historyProps('2026-02-01T01:00:00Z');
+        const [latest] = base.history.data;
+        const replaced = { ...latest, id: 'assignment-b', pic: { id: 'user-b', nama: 'PJ Lama', status: 'aktif' }, state: 'Riwayat' };
+        render(<Show {...base} history={{ ...base.history, data: [latest, replaced] }} />);
+        const rows = screen.getAllByRole('listitem');
+        expect(rows.map((row) => row.textContent)).toEqual([expect.stringMatching(/^PJ QAEfektifBerlaku /), expect.stringMatching(/^PJ LamaRiwayatBerlaku /)]);
+    });
 });
 
 it('navigasi kembali ke detail indikator dan menandai PJ efektif yang akunnya nonaktif', () => {

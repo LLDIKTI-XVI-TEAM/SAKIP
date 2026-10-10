@@ -6,7 +6,6 @@ use App\Models\IndikatorKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\User;
 use App\Services\PenanggungJawab\AppendAssignment;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class ChangePenanggungJawab
@@ -19,11 +18,7 @@ class ChangePenanggungJawab
      */
     public function handle(User $actor, IndikatorKinerja $indicator, array $data): array
     {
-        try {
-            $result = DB::transaction(fn () => $this->assignments->append($actor, $indicator, $data, false));
-        } catch (QueryException $error) {
-            $result = $this->assignments->uniqueConflict($error, $actor);
-        }
+        $result = DB::transaction(fn () => $this->assignments->append($actor, $indicator, $data, false));
 
         return $this->assignments->finish($actor, $indicator, $result);
     }
