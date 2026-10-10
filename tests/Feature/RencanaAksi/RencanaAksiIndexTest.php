@@ -285,6 +285,16 @@ class RencanaAksiIndexTest extends TestCase
         $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=2')->assertOk();
     }
 
+    /** Halaman yang divalidasi Action juga yang dipakai paginator, bukan halaman dari request global. */
+    public function test_daftar_memakai_halaman_dari_query_action(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $daftar = app(DaftarRencanaAksi::class)->handle($this->penggunaDenganPeran('perencanaan'), ['page' => 2]);
+
+        $this->assertSame(2, $daftar['pagination']['current_page']);
+    }
+
     /** Lookup header mendahului Gate: UUID asing selalu 404, dengan maupun tanpa izin baca. */
     public function test_tampilan_header_tak_ditemukan_404_sebelum_otorisasi(): void
     {

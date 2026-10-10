@@ -42,13 +42,13 @@ class DaftarRencanaAksi
      * indikator yang pindah unit setelah aktivasi: unit snapshot terbaru wajib
      * sama dengan unit master, cermin `pastikanSnapshotTersedia`.
      *
-     * @param  array<string, mixed>  $query  Query string halaman; hanya `page` yang dipakai paginator.
+     * @param  array<string, mixed>  $query  Query string halaman; `page` tervalidasi diteruskan ke paginator.
      * @return array{daftar: list<array<string, mixed>>, pagination: array<string, mixed>}
      */
     public function handle(User $actor, array $query): array
     {
         Gate::forUser($actor)->authorize('viewAny', RencanaAksi::class);
-        Validator::make($query, ['page' => ['nullable', 'integer', 'min:1']])->validate();
+        $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1']])->validate();
 
         $hariIni = today(config('app.business_timezone'))->toDateString();
         $jadwalAktif = JadwalTahunan::where('status', 'aktif')->get()->keyBy('id');
@@ -69,7 +69,7 @@ class DaftarRencanaAksi
             ->orderBy('indikator_kinerjas.kode')
             ->orderBy('indikator_kinerjas.id')
             ->with('unit:id,nama,status')
-            ->paginate(20)
+            ->paginate(20, page: $query['page'] ?? 1)
             ->withQueryString();
 
         /** @var array<string, PermissionDecision> $izinBuat */
