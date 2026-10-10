@@ -31,9 +31,10 @@ class IndexBuktiRencanaAksi
             return null;
         }
 
-        $bukti = $header->buktiDukungs()->current()->with('pengunggah:id,nama')->orderByDesc('created_at')->orderBy('id')->get();
+        // Nama persyaratan dibaca dari relasi, bukan daftar persyaratan aktif, agar bukti untuk
+        // persyaratan yang kemudian dinonaktifkan atau dipindah indikator tidak tampil sebagai lampiran bebas.
+        $bukti = $header->buktiDukungs()->current()->with(['pengunggah:id,nama', 'jenisBerkas:id,nama'])->orderByDesc('created_at')->orderBy('id')->get();
         $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $header->indikator_id, $bukti);
-        $namaPersyaratan = collect($persyaratan)->pluck('nama', 'id');
         $settings = $this->evaluator->settings();
 
         return [
@@ -43,7 +44,7 @@ class IndexBuktiRencanaAksi
             'daftar' => $bukti->map(fn (BuktiDukung $b): array => [
                 'id' => $b->id,
                 'jenis_berkas_id' => $b->jenis_berkas_id,
-                'nama_persyaratan' => $b->jenis_berkas_id ? $namaPersyaratan->get($b->jenis_berkas_id) : null,
+                'nama_persyaratan' => $b->jenisBerkas?->nama,
                 'mode' => $b->mode,
                 'nama_asli' => $b->nama_asli,
                 'mime' => $b->mime,

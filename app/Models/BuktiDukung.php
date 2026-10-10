@@ -26,6 +26,12 @@ class BuktiDukung extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
+    /** @return BelongsTo<JenisBerkas, $this> */
+    public function jenisBerkas(): BelongsTo
+    {
+        return $this->belongsTo(JenisBerkas::class, 'jenis_berkas_id');
+    }
+
     /** Bukti kerja memilih ujung rantai koreksi; baris lama tetap tersedia bagi versi historis. */
     public function scopeCurrent(Builder $query): void
     {

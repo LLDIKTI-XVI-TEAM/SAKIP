@@ -356,6 +356,20 @@ class RencanaAksiBuktiHttpTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('bukti', null));
     }
 
+    public function test_bukti_tetap_menampilkan_nama_persyaratan_yang_sudah_dinonaktifkan(): void
+    {
+        $jb = $this->createJenisBerkas(['nama' => 'KAK Lama']);
+        $this->createBuktiDukung(['jenis_berkas_id' => $jb->id]);
+        // Jalur yang dianjurkan DeleteJenisBerkasAction bila persyaratan sudah dipakai bukti.
+        $jb->update(['aktif' => false]);
+
+        $this->actingAs($this->actor)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('bukti.persyaratan', 0)
+                ->where('bukti.daftar.0.jenis_berkas_id', $jb->id)
+                ->where('bukti.daftar.0.nama_persyaratan', 'KAK Lama'));
+    }
+
     public function test_capability_mengikuti_pj_efektif_dan_jendela_penyusunan(): void
     {
         $lihatCan = fn (User $user, bool $boleh) => $this->actingAs($user)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
