@@ -40,11 +40,9 @@ class TambahBuktiRencanaAksi
     {
         /** @var array<string, mixed>|null $dasarIzin */
         $dasarIzin = null;
-        /** @var string|null $path */
-        $path = null;
 
         try {
-            return DB::transaction(function () use ($actor, $id, $data, &$dasarIzin, &$path): BuktiDukung {
+            return DB::transaction(function () use ($actor, $id, $data, &$dasarIzin): BuktiDukung {
                 ['pengunci' => $pengunci, 'header' => $header] = $this->gerbang->kunci($actor, $id, PermissionCodes::BERKAS_UPLOAD, $dasarIzin);
                 $mode = (string) $data['mode'];
 
@@ -64,6 +62,7 @@ class TambahBuktiRencanaAksi
                 $attributes = ['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $header->id, 'jenis_berkas_id' => $requirement?->id,
                     'mode' => $mode, 'uploaded_by' => $pengunci->id, 'created_at' => now()];
 
+                $path = null;
                 if ($mode === 'file') {
                     $settings = $this->evidence->settings();
                     if (! $settings['unggahan_aktif']) {
@@ -90,25 +89,30 @@ class TambahBuktiRencanaAksi
                     $attributes['isi_teks'] = $data['isi_teks'];
                 }
 
-                $bukti = BuktiDukung::create($attributes);
+                try {
+                    $bukti = BuktiDukung::create($attributes);
 
-                $this->audit->catat(
-                    actor: $pengunci,
-                    tindakan: 'berkas.unggah',
-                    objekTipe: 'berkas',
-                    objekId: (string) $bukti->id,
-                    nilaiBaru: [...GerbangBuktiRencanaAksi::metadataAudit($bukti), 'rencana_aksi_id' => (string) $header->id],
-                    alasan: 'Pemenuhan bukti dukung rencana aksi.',
-                    dasarIzin: $dasarIzin,
-                );
+                    $this->audit->catat(
+                        actor: $pengunci,
+                        tindakan: 'berkas.unggah',
+                        objekTipe: 'berkas',
+                        objekId: (string) $bukti->id,
+                        nilaiBaru: [...GerbangBuktiRencanaAksi::metadataAudit($bukti), 'rencana_aksi_id' => (string) $header->id],
+                        alasan: 'Pemenuhan bukti dukung rencana aksi.',
+                        dasarIzin: $dasarIzin,
+                    );
+                } catch (Throwable $exception) {
+                    // Gagal sebelum COMMIT pasti di-rollback, jadi file baru aman dihapus. Kegagalan saat COMMIT
+                    // terjadi di luar closure dan hasilnya ambigu, sehingga file sengaja dipertahankan (Eng. Standards §7).
+                    if (is_string($path)) {
+                        Storage::disk('local')->delete($path);
+                    }
+                    throw $exception;
+                }
 
                 return $bukti;
             });
         } catch (Throwable $exception) {
-            // Transaksi SQL tidak mengembalikan file yang sudah tersimpan di disk.
-            if (is_string($path)) {
-                Storage::disk('local')->delete($path);
-            }
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException)
                 && RencanaAksi::whereKey($id)->exists()) {
                 $this->audit->catat(
