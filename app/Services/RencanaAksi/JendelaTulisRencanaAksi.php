@@ -15,8 +15,8 @@ use Carbon\CarbonInterface;
  * sampai `rencana_aksi_selesai` pada tanggal Asia/Makassar.
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
- * `SimpanTargetPeriode`) dan capability baca (`IndexRencanaAksi`,
- * `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
+ * `SimpanTargetPeriode`, `AjukanRencanaAksi`) dan capability baca
+ * (`IndexRencanaAksi`, `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
  * menawarkan aksi yang pasti ditolak. Service ini hanya menilai; izin dasar
  * (`PermissionDecision`) diputuskan pemanggil lewat resolver, sedangkan
  * transaksi, kunci baris, pelemparan error, dan audit tetap milik Action.
