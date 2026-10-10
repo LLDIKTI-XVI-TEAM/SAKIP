@@ -228,7 +228,8 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                 </section>
             </CardContent>
 
-            <Modal isOpen={modalTambah} onClose={tutupTambah} title="Tambah bukti dukung" size="lg">
+            {/* Selama unggahan berjalan modal tidak boleh ditutup agar outcome server tetap terlihat. */}
+            <Modal isOpen={modalTambah} onClose={() => { if (!processing) tutupTambah(); }} title="Tambah bukti dukung" size="lg">
                 <form onSubmit={kirim} className="space-y-4" aria-busy={processing}>
                     <Select
                         id="bukti-jenis-berkas"
@@ -240,7 +241,7 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                     >
                         <option value="">Lampiran bebas (tanpa persyaratan)</option>
                         {persyaratan.map((req) => (
-                            <option key={req.id} value={req.id}>
+                            <option key={req.id} value={req.id} disabled={modeTersedia(req, unggahan.unggahan_aktif).length === 0}>
                                 {req.nama} ({req.wajib ? 'wajib' : 'opsional'})
                             </option>
                         ))}
@@ -278,14 +279,14 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                                 required
                                 disabled={processing}
                                 aria-invalid={fieldErrors.file ? true : undefined}
-                                aria-describedby="bukti-file-keterangan"
+                                aria-describedby={fieldErrors.file ? 'bukti-file-keterangan bukti-file-error' : 'bukti-file-keterangan'}
                                 onChange={(event) => setData('file', event.target.files?.[0] ?? null)}
                                 className="block w-full text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark"
                             />
                             <p id="bukti-file-keterangan" className="mt-1 text-xs text-muted">
                                 Format: {persyaratanAktif?.format_diizinkan ?? unggahan.format_diizinkan}. Ukuran maksimal {persyaratanAktif?.ukuran_maks_kb ?? unggahan.ukuran_maks_kb} KB.
                             </p>
-                            {fieldErrors.file && <p className="mt-1 text-xs text-danger" role="alert">{fieldErrors.file}</p>}
+                            {fieldErrors.file && <p id="bukti-file-error" className="mt-1 text-xs text-danger" role="alert">{fieldErrors.file}</p>}
                         </div>
                     )}
                     {data.mode === 'tautan' && (

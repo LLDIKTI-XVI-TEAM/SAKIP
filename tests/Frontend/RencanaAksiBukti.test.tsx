@@ -221,6 +221,53 @@ describe('BuktiPanel rencana aksi', () => {
         expect(within(dialog).getByLabelText(/^Berkas/).getAttribute('aria-invalid')).toBe('true');
     });
 
+    it('tidak menutup modal tambah lewat Escape, backdrop, atau tombol tutup selama unggahan berjalan', async () => {
+        const user = userEvent.setup();
+        inertia.state.processing = true;
+        const { rerender } = renderPanel();
+
+        await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
+        const dialog = screen.getByRole('dialog', { name: 'Tambah bukti dukung' });
+        await user.keyboard('{Escape}');
+        await user.click(dialog);
+        await user.click(within(dialog).getByRole('button', { name: 'Tutup dialog' }));
+        expect(screen.getByRole('dialog', { name: 'Tambah bukti dukung' })).toBeTruthy();
+
+        // Kontrol: setelah request selesai, Escape kembali menutup modal.
+        inertia.state.processing = false;
+        rerender(<BuktiPanel rencanaAksiId="ra-1" bukti={bukti} />);
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('menonaktifkan opsi persyaratan tanpa mode tersedia saat unggahan nonaktif', async () => {
+        const user = userEvent.setup();
+        renderPanel({
+            unggahan: { ...bukti.unggahan, unggahan_aktif: false },
+            persyaratan: [
+                { ...bukti.persyaratan[0], id: 'jb-file', nama: 'Scan Dokumen Asli', izinkan_tautan: false, izinkan_teks: false },
+                bukti.persyaratan[1],
+            ],
+        });
+
+        await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
+        const dialog = screen.getByRole('dialog');
+        expect((within(dialog).getByRole('option', { name: /Scan Dokumen Asli/ }) as HTMLOptionElement).disabled).toBe(true);
+        expect((within(dialog).getByRole('option', { name: /Surat Keputusan Tim Pelaksana/ }) as HTMLOptionElement).disabled).toBe(false);
+    });
+
+    it('menghubungkan galat field file ke input lewat aria-describedby', async () => {
+        const user = userEvent.setup();
+        inertia.state.errors = { file: 'Ukuran berkas melebihi batas 100 KB.' };
+        renderPanel();
+
+        await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
+        const input = within(screen.getByRole('dialog')).getByLabelText(/^Berkas/);
+        expect(input.getAttribute('aria-invalid')).toBe('true');
+        const deskripsi = (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent);
+        expect(deskripsi).toContain('Ukuran berkas melebihi batas 100 KB.');
+    });
+
     it('hapus memakai modal alasan audit dan baru mengirim setelah alasan diisi', async () => {
         const user = userEvent.setup();
         renderPanel();
