@@ -62,7 +62,7 @@ try {
         }
         // Izin Rencana Aksi ber-scope unit: cek awal memakai unit indikator,
         // bukan keputusan global di blok atas.
-        if (in_array($argv[1], ['ra-ensure-draft', 'ra-simpan'], true)
+        if (in_array($argv[1], ['ra-ensure-draft', 'ra-simpan', 'ra-ajukan'], true)
             && ! app(PermissionResolver::class)->allows(User::findOrFail($assignment['actor_id']), $assignment['permission'], $assignment['izin_unit_id'])) {
             throw new RuntimeException('Fixture harus diizinkan sebelum menunggu lock.');
         }
@@ -73,7 +73,7 @@ try {
             'formula-update' => app(ChangeIndicatorFormula::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data'])['status'],
             'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
             'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment' => performRenstraMutation($argv[1], $assignment),
-            'ra-ensure-draft', 'ra-simpan' => performRencanaAksiMutation($argv[1], $assignment),
+            'ra-ensure-draft', 'ra-simpan', 'ra-ajukan' => performRencanaAksiMutation($argv[1], $assignment),
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),
             'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical' => performJenisBerkasMutation($argv[1], $assignment),
@@ -180,7 +180,11 @@ function performRenstraMutation(string $operation, array $assignment): string
 function performRencanaAksiMutation(string $operation, array $assignment): string
 {
     Auth::setUser(User::findOrFail($assignment['actor_id']));
-    $path = $operation === 'ra-ensure-draft' ? '/rencana-aksi/ensure-draft' : '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/target';
+    $path = match ($operation) {
+        'ra-ensure-draft' => '/rencana-aksi/ensure-draft',
+        'ra-simpan' => '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/target',
+        'ra-ajukan' => '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/ajukan',
+    };
     $request = Request::create($path, 'POST', $assignment['data']);
     $kernel = app(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request);
@@ -188,6 +192,10 @@ function performRencanaAksiMutation(string $operation, array $assignment): strin
 
     if ($response->getStatusCode() === 403) {
         return 'denied';
+    }
+    // Pengajuan yang kalah antrean kunci ditolak gerbang bisnis (redirect + error bag), bukan 500.
+    if ($operation === 'ra-ajukan' && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+        return 'conflict';
     }
     if ($response->getStatusCode() !== 302 || $request->session()->has('errors') || ! $request->session()->has('success')) {
         throw new RuntimeException('Mutasi Rencana Aksi tidak mencapai hasil sukses atau penolakan izin.');

@@ -12,6 +12,7 @@ use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Actions\RencanaAksi\EnsureDraftRencanaAksi;
+use App\Actions\RencanaAksi\SimpanTargetPeriode;
 use App\Actions\Renstra\UpdateRenstraAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -654,29 +655,19 @@ class MutationConcurrencyTest extends TestCase
     #[DataProvider('rencanaAksiMutations')]
     public function test_rencana_aksi_reauthorize_saat_deny_commit_selagi_request_menunggu(string $operation, string $permission, string $denialEvent, string $alasan): void
     {
-        [$actor, $indicator] = $this->formulaFixture();
-        $indicator->update(['tipe_perhitungan' => 'manual']);
-        $manager = User::factory()->create(['status' => 'aktif']);
-        $manager->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
-        // Worker memakai jam nyata: jalur Perencanaan global hanya terikat
-        // penutupan, sehingga jadwal tahun berjalan yang ditutup akhir tahun
-        // tetap terbuka kapan pun test dijalankan.
-        $tahun = (int) now()->year;
-        $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
-        $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $tahun,
-            'rencana_aksi_mulai' => "{$tahun}-01-01", 'rencana_aksi_selesai' => "{$tahun}-12-31", 'penutupan' => "{$tahun}-12-31", 'status' => 'aktif', 'activated_at' => now()]);
-        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => "{$tahun}-01-01",
-            'pengisian_selesai' => "{$tahun}-06-30", 'reviu_mulai' => "{$tahun}-07-01", 'reviu_selesai' => "{$tahun}-12-31"]);
-        $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
-            'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Race', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
-            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
-        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $actor->id,
-            'tanggal_mulai_berlaku' => "{$tahun}-01-01", 'ditetapkan_oleh' => $manager->id, 'created_at' => now()]);
-        $header = $operation === 'ra-simpan' ? app(EnsureDraftRencanaAksi::class)->handle($actor, $indicator->id, $tahun) : null;
-        $data = $operation === 'ra-simpan'
-            ? ['expected_versi' => 1, 'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => 1,
-                'targets' => [['periode_id' => $period->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null]]]
-            : ['indikator_id' => $indicator->id, 'tahun' => $tahun];
+        [$actor, $manager, $indicator, $period, $snapshot, $tahun] = $this->rencanaAksiRaceFixture();
+        $header = $operation === 'ra-ensure-draft' ? null : app(EnsureDraftRencanaAksi::class)->handle($actor, $indicator->id, $tahun);
+        $simpan = ['expected_versi' => 1, 'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $period->id, 'komponen_id' => null, 'nilai' => 70, 'keterangan' => null]]];
+        if ($operation === 'ra-ajukan') {
+            // Draf lengkap (target = PK) agar hanya otorisasi ulang yang dapat menolak pengajuan.
+            app(SimpanTargetPeriode::class)->handle($actor, $header->id, $simpan);
+        }
+        $data = match ($operation) {
+            'ra-ensure-draft' => ['indikator_id' => $indicator->id, 'tahun' => $tahun],
+            'ra-simpan' => $simpan,
+            'ra-ajukan' => ['expected_versi' => 2],
+        };
         $payload = ['actor_id' => $actor->id, 'permission' => $permission, 'izin_unit_id' => $indicator->unit_id, 'rencana_aksi_id' => $header?->id, 'data' => $data];
         $prepare = function () use ($actor, $manager, $indicator, $header): void {
             // Writer izin mengambil user lebih dahulu; induk menahan Action setelah otorisasi request.
@@ -694,12 +685,17 @@ class MutationConcurrencyTest extends TestCase
 
         $this->assertSame(['denied'], $results, 'Keputusan izin di request tidak boleh dipakai untuk mutasi setelah deny committed.');
         $this->assertDatabaseCount('rencana_aksi', $header === null ? 0 : 1);
+        // Pengajuan didahului satu simpan sah; penolakannya tidak menyisakan versi beku.
+        $sudahDisimpan = $operation === 'ra-ajukan';
         if ($header !== null) {
-            $this->assertSame(1, $header->fresh()->versi);
-            $this->assertDatabaseCount('rencana_aksi_target', 0);
+            $this->assertSame($sudahDisimpan ? 2 : 1, $header->fresh()->versi);
+            $this->assertSame(RencanaAksi::STATUS_DRAFT, $header->fresh()->status_alur);
+            $this->assertDatabaseCount('rencana_aksi_target', $sudahDisimpan ? 1 : 0);
         }
         $this->assertSame($header === null ? 0 : 1, AuditLog::where('tindakan', 'rencana_aksi.buat')->count());
-        $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.ubah')->count());
+        $this->assertSame($sudahDisimpan ? 1 : 0, AuditLog::where('tindakan', 'rencana_aksi.ubah')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.ajukan')->count());
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
         $audit = AuditLog::where('tindakan', $denialEvent)->sole();
         $this->assertSame($alasan, $audit->alasan, 'Penolakan wajib berasal dari otorisasi ulang di dalam transaksi Action.');
         $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
@@ -715,7 +711,62 @@ class MutationConcurrencyTest extends TestCase
         return [
             'ensure-draft' => ['ra-ensure-draft', 'rencana_aksi:create', 'rencana_aksi.buat_ditolak', 'Izin pembuatan rencana aksi tidak tersedia atau telah dicabut.'],
             'simpan' => ['ra-simpan', 'rencana_aksi:update', 'rencana_aksi.ubah_ditolak', 'Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.'],
+            'ajukan' => ['ra-ajukan', 'rencana_aksi:ajukan', 'rencana_aksi.ajukan_ditolak', 'Izin pengajuan rencana aksi tidak tersedia atau telah dicabut.'],
         ];
+    }
+
+    /**
+     * Klik ganda dari dua koneksi: keduanya lolos FormRequest lalu antre di
+     * kunci aktor/header. Pemenang membekukan versi; yang kalah ditolak
+     * gerbang status (bukan 500) dengan tepat satu audit penolakan.
+     */
+    public function test_rencana_aksi_dua_pengajuan_bersamaan_menghasilkan_satu_versi(): void
+    {
+        [$actor, , $indicator, $period, $snapshot, $tahun] = $this->rencanaAksiRaceFixture();
+        $header = app(EnsureDraftRencanaAksi::class)->handle($actor, $indicator->id, $tahun);
+        app(SimpanTargetPeriode::class)->handle($actor, $header->id, ['expected_versi' => 1, 'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $period->id, 'komponen_id' => null, 'nilai' => 70, 'keterangan' => null]]]);
+        $payload = ['actor_id' => $actor->id, 'permission' => 'rencana_aksi:ajukan', 'izin_unit_id' => $indicator->unit_id,
+            'rencana_aksi_id' => $header->id, 'data' => ['expected_versi' => 2]];
+
+        $results = $this->race('ra-ajukan', $actor->id, '', [$payload, $payload],
+            prepare: fn () => RencanaAksi::whereKey($header->id)->lockForUpdate()->firstOrFail());
+
+        sort($results);
+        $this->assertSame(['conflict', 'mutated'], $results);
+        $this->assertDatabaseCount('rencana_aksi_versi', 1);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.ajukan')->count());
+        $this->assertStringContainsString('tidak dapat diajukan', AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->sole()->alasan);
+        $this->assertSame(RencanaAksi::STATUS_DIAJUKAN, $header->fresh()->status_alur);
+    }
+
+    /**
+     * Rencana aksi manual satu periode pada tahun berjalan, aktor Perencanaan
+     * sebagai PJ, dan superadmin pengelola izin. Worker memakai jam nyata:
+     * jalur Perencanaan global hanya terikat penutupan, sehingga jadwal tahun
+     * berjalan yang ditutup akhir tahun tetap terbuka kapan pun test dijalankan.
+     *
+     * @return array{0: User, 1: User, 2: IndikatorKinerja, 3: Periode, 4: JadwalSnapshot, 5: int}
+     */
+    private function rencanaAksiRaceFixture(): array
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $indicator->update(['tipe_perhitungan' => 'manual']);
+        $manager = User::factory()->create(['status' => 'aktif']);
+        $manager->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
+        $tahun = (int) now()->year;
+        $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $tahun,
+            'rencana_aksi_mulai' => "{$tahun}-01-01", 'rencana_aksi_selesai' => "{$tahun}-12-31", 'penutupan' => "{$tahun}-12-31", 'status' => 'aktif', 'activated_at' => now()]);
+        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => "{$tahun}-01-01",
+            'pengisian_selesai' => "{$tahun}-06-30", 'reviu_mulai' => "{$tahun}-07-01", 'reviu_selesai' => "{$tahun}-12-31"]);
+        $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
+            'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Race', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $actor->id,
+            'tanggal_mulai_berlaku' => "{$tahun}-01-01", 'ditetapkan_oleh' => $manager->id, 'created_at' => now()]);
+
+        return [$actor, $manager, $indicator, $period, $snapshot, $tahun];
     }
 
     #[DataProvider('invalidatedRegulasiReferences')]
