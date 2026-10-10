@@ -632,12 +632,13 @@ Status alur Rencana Aksi mengikuti pola yang sama dengan Pengukuran:
 
 ```
 Draft ──ajukan──► Diajukan ──verifikasi──► Diverifikasi ──sahkan──► Disahkan
-  ▲                    │                        │
-  │                    │      kembalikan         │
-  └────────────────────┴────────────────────────┘
+                    ▲   │                       │
+                    │   └──────kembalikan───────┤
+                    │                           ▼
+                    └────────ajukan─────── Dikembalikan
 ```
 
-`Dikembalikan` (alasan wajib) berfungsi sebagai jalur revisi dari `Diajukan`/`Diverifikasi`. Untuk koreksi setelah pengesahan, tersedia permission khusus **`rencana_aksi:buka_kembali`** (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) untuk transisi `Disahkan → Dikembalikan` — pola yang identik dengan `pengukuran:buka_kembali` (§19.5).
+`Dikembalikan` (alasan wajib) berfungsi sebagai jalur revisi dari `Diajukan`/`Diverifikasi`: rencana aksi disunting di tempat lalu diajukan ulang sebagai versi baru (Q36.1 butir 2). Untuk koreksi setelah pengesahan, tersedia permission khusus **`rencana_aksi:buka_kembali`** (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) untuk transisi `Disahkan → Dikembalikan` — pola yang identik dengan `pengukuran:buka_kembali` (§19.5).
 
 ### 14.7 Gerbang Kelengkapan saat Pengajuan
 

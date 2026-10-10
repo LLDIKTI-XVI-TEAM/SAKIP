@@ -628,7 +628,7 @@ stateDiagram-v2
     diajukan --> dikembalikan: rencana_aksi:kembalikan (Perencanaan, alasan wajib)
     diverifikasi --> dikembalikan: rencana_aksi:kembalikan (Perencanaan, alasan wajib)
     diverifikasi --> disahkan: rencana_aksi:sahkan (Perencanaan)
-    dikembalikan --> draft: penanggung jawab/Perencanaan merevisi
+    dikembalikan --> diajukan: rencana_aksi:ajukan (revisi langsung, Q36.1 butir 2)
     disahkan --> dikembalikan: rencana_aksi:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nhanya sebelum jadwal_tahunan.penutupan)
     disahkan --> [*]: gerbang pengukuran terbuka -\npengukuran indikator ini dapat diajukan (§11)
 
@@ -639,6 +639,8 @@ stateDiagram-v2
         disahkan, pengajuan pengukuran DITOLAK.
     end note
 ```
+
+**Revisi dari `dikembalikan`:** rencana aksi yang dikembalikan disunting di tempat lalu diajukan ulang langsung ke `diajukan` sebagai versi pengajuan baru, tanpa kembali ke `draft` — sama dengan pengukuran.
 
 **Rekonsiliasi dengan PK tahunan:** total target komponen periode terakhir seharusnya setara dengan target PK tahunan indikator. Bila tidak setara, sistem menampilkan peringatan dan mewajibkan alasan pada saat pengajuan — bukan memblokir — karena target tahunan tetap hanya dapat diubah lewat revisi PK resmi (asumsi operasional §9), sementara target komponen per periode pada rencana aksi memang dapat direvisi lewat `rencana_aksi:buka_kembali` (alasan wajib, ter-audit).
 
@@ -1601,7 +1603,7 @@ flowchart TD
 
 **Alasan pengecualian F2:** bila jalur Perencanaan-mengisi-sendiri turut diblokir sekeras F1, LLDIKTI Wilayah XVI wajib menugaskan minimal dua akun Perencanaan agar pengisian yang terlambat masih dapat disahkan — kondisi yang belum tentu terpenuhi pada Fase Awal. Sebagai gantinya, jalur ini tetap dibuka dengan syarat transparansi: setiap pengesahan diri sendiri oleh Perencanaan wajib tercatat dan terlihat (`self_approval`), bukan disembunyikan.
 
-**Cakupan aturan ini:** F1/F2 pada Fase Awal berlaku eksplisit untuk transisi status `pengukuran` (verifikasi dan pengesahan). Rencana aksi (§7) mengikuti pola status alur yang sama, tetapi aturan pemisahan tugas kerasnya tidak diperluas ke sana pada Fase Awal — cakupannya sengaja dibatasi seperti tertulis di atas, bukan diperluas melampaui yang diputuskan.
+**Cakupan aturan ini (Q15):** F1/F2 berlaku untuk transisi status `pengukuran` dan `rencana_aksi` (verifikasi dan pengesahan). Keduanya memakai identitas dan jalur pengaju yang dibekukan pada versi pengajuan (`diajukan_by`, `jalur_pengajuan` — Data Model §2.34 untuk rencana aksi), bukan pembuat draft maupun role terkini; self-approval jalur Perencanaan ditandai `self_approval` pada audit.
 
 ---
 
