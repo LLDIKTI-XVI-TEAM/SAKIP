@@ -682,7 +682,7 @@ Test sesuai risiko:
 
 # ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`
 
-- **Status keputusan:** Accepted (Q34, 9 Oktober 2026)
+- **Status keputusan:** Accepted (Q34, 9 Oktober 2026); butir 2 diamandemen 10 Oktober 2026 ([keputusan K1 PR #77](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/77#issuecomment-6096268634))
 - **Status dokumen:** Draft untuk review tim
 - **Scope:** `rencana_aksi_target`, ISS-05.01 Penyusunan Target Rencana Aksi per Periode
 
@@ -695,7 +695,8 @@ Keputusan Penyelarasan **Q7** menetapkan indikator `manual` memiliki satu target
 ## Decision
 
 1. `rencana_aksi_target.komponen_id` nullable. Baris indikator manual wajib `komponen_id IS NULL`, tepat satu baris per (`rencana_aksi_id`, `periode_id`). Baris nonmanual wajib `komponen_id NOT NULL` dan merujuk komponen efektif.
-2. Keunikan ditegakkan database dengan dua partial unique index: (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL`.
+2. Keunikan ditegakkan database dengan satu unique index `ra_target_unik (rencana_aksi_id, periode_id, komponen_id) NULLS NOT DISTINCT`. Semantiknya tetap: indikator manual tepat satu baris `komponen_id IS NULL` per (`rencana_aksi_id`, `periode_id`); indikator nonmanual unik per (`rencana_aksi_id`, `periode_id`, `komponen_id`). Index ini juga menjadi arbiter `ON CONFLICT` untuk upsert target dan membutuhkan PostgreSQL ≥ 15.
+   - *Amandemen 10 Oktober 2026 ([keputusan K1 PR #77](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/77#issuecomment-6096268634)):* menggantikan dua partial unique index semula, `ra_target_manual_unik` (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan `ra_target_komponen_unik` (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL`. Butir lain ADR ini dan Keputusan Penyelarasan Q34 §34.2 tidak berubah.
 3. Validasi server membedakan tipe: manual menolak `komponen_id` terisi; nonmanual menolak `komponen_id` kosong. `nilai` tetap nullable: `0` sah, `null` berarti belum diisi.
 4. Snapshot komponen kosong untuk indikator manual adalah keadaan sah (Data Model §2.18).
 
@@ -723,7 +724,7 @@ Ditolak karena menduplikasi skema dan memecah jalur baca/tulis permanen hanya un
 - `document/SAKIP - Keputusan Penyelarasan.md` Q7, Q34.
 - `document/SAKIP - Data Model.md` §2.18, §2.24.
 - `document/SAKIP - PRD.md` §14.3; `document/SAKIP - Plan Pengembangan.md` 11.1–11.2.
-- Migration `2026_10_04_043803_align_rencana_aksi_header_d1_d5_d7.php`.
+- Migration `2026_10_04_043803_align_rencana_aksi_header_d1_d5_d7.php`; amandemen butir 2: migration `2026_10_09_100000_satukan_index_unik_target_rencana_aksi.php`.
 
 
 ---
