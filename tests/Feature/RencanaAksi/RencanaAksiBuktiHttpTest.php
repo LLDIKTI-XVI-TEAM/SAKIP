@@ -130,6 +130,21 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
+    public function test_field_mode_lain_yang_tertinggal_diabaikan_saat_menyimpan(): void
+    {
+        $this->kirim($this->actor, ['mode' => 'teks', 'tautan' => 'ftp://arsip/x', 'isi_teks' => 'Keterangan setelah berganti mode.'])
+            ->assertSessionHasNoErrors();
+        $this->kirim($this->actor, ['mode' => 'tautan', 'tautan' => 'https://lldikti16.kemdiktisaintek.go.id/kak', 'file' => UploadedFile::fake()->create('lama.pdf', 10, 'application/pdf')])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, $this->rencanaAksi->buktiDukungs()->count());
+        $this->assertNull($this->rencanaAksi->buktiDukungs()->where('mode', 'teks')->sole()->tautan);
+        $tautan = $this->rencanaAksi->buktiDukungs()->where('mode', 'tautan')->sole();
+        $this->assertNull($tautan->nama_asli);
+        $this->assertNull($tautan->path);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
     public function test_saklar_unggahan_nonaktif_menolak_file_namun_teks_tetap_diterima(): void
     {
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);

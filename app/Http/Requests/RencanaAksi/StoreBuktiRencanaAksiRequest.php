@@ -41,10 +41,11 @@ class StoreBuktiRencanaAksiRequest extends FormRequest
         return [
             'mode' => ['required', 'string', 'in:file,tautan,teks'],
             'jenis_berkas_id' => ['nullable', 'uuid'],
-            'file' => ['required_if:mode,file', 'nullable', 'file'],
-            'tautan' => ['required_if:mode,tautan', 'nullable', 'string', 'url:http,https', 'max:2048'],
+            // Field mode lain dibuang (pola Regulasi) agar nilai tertinggal tidak memicu 422 pada field tersembunyi.
+            'file' => ['exclude_unless:mode,file', 'required', 'file'],
+            'tautan' => ['exclude_unless:mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
             // Batas sama dengan bukti Pengukuran/Regulasi; karakter kontrol ditolak sebelum mencapai PostgreSQL.
-            'isi_teks' => ['required_if:mode,teks', 'nullable', 'string', 'max:10000', AuditReason::validate(...)],
+            'isi_teks' => ['exclude_unless:mode,teks', 'required', 'string', 'max:10000', AuditReason::validate(...)],
         ];
     }
 
@@ -56,10 +57,10 @@ class StoreBuktiRencanaAksiRequest extends FormRequest
         return [
             'mode.required' => 'Mode bukti dukung wajib dipilih.',
             'mode.in' => 'Mode bukti dukung harus berupa salah satu dari: file, tautan, teks.',
-            'file.required_if' => 'Berkas bukti dukung wajib diunggah.',
-            'tautan.required_if' => 'Tautan bukti dukung wajib diisi.',
+            'file.required' => 'Berkas bukti dukung wajib diunggah.',
+            'tautan.required' => 'Tautan bukti dukung wajib diisi.',
             'tautan.url' => 'Tautan harus berskema http atau https.',
-            'isi_teks.required_if' => 'Keterangan teks wajib diisi.',
+            'isi_teks.required' => 'Keterangan teks wajib diisi.',
         ];
     }
 }
