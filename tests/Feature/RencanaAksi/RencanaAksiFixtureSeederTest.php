@@ -18,8 +18,9 @@ class RencanaAksiFixtureSeederTest extends TestCase
 
     /**
      * Header fixture harus berdiri di atas jadwal aktif dengan snapshot beku,
-     * karena header tanpa snapshot ditolak fail-closed. Urutan seed mengikuti
-     * pemakaian QA, dan seeder RA dijalankan dua kali (aman diulang).
+     * karena header tanpa snapshot ditolak fail-closed. Snapshot pada jadwal
+     * aktif selalu berkomposisi final, sama seperti hasil aktivasi. Urutan
+     * seed mengikuti pemakaian QA, dan seeder RA dijalankan dua kali.
      */
     public function test_header_fixture_dapat_dibuka_dan_disunting_pic(): void
     {
@@ -31,6 +32,7 @@ class RencanaAksiFixtureSeederTest extends TestCase
         $pic = User::where('email', 'perencanaan@sakip.local')->sole();
 
         $this->assertSame((string) $snapshot->id, (string) $header->snapshot_draf_id);
+        $this->assertTrue($snapshot->komposisi_final);
         $this->actingAs($pic)->get("/rencana-aksi/{$header->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page

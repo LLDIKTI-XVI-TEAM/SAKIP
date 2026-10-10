@@ -144,6 +144,10 @@ class RencanaAksiFixtureSeeder extends Seeder
                 'arah' => $indikator->arah,
                 'tipe_perhitungan' => $indikator->tipe_perhitungan,
                 'target' => 100,
+                // Jadwal dibuat langsung aktif sehingga trigger finalisasi
+                // (hanya saat transisi status) tidak berjalan; tandai final
+                // seperti hasil aktivasi.
+                'komposisi_final' => true,
             ]);
 
         PenugasanIndikator::where('indikator_id', $indikator->id)
