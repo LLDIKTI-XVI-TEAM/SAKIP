@@ -130,6 +130,25 @@ class SahkanRencanaAksiTest extends TestCase
             ->where('rencanaAksi.disahkan_oleh.id', $this->perencana->id)->where('rencanaAksi.self_approval', true));
     }
 
+    public function test_penutupan_menolak_pengesahan_kecuali_sesi_koreksi_mencakup_rencana_aksi(): void
+    {
+        $this->ajukanVersi('pic', $this->picUser);
+        $this->travelTo(now()->setDate(2027, 1, 5));
+        $ditutup = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup rencana aksi ini.';
+        $sahkan = fn () => $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1]);
+        $koreksi = fn (array $jenis) => JadwalTahunan::findOrFail($this->snapshot->jadwal_id)->update(['koreksi_mulai' => now()->subDay(), 'koreksi_sampai' => now()->addDay(),
+            'lingkup_koreksi' => ['indikator_ids' => [$this->ra->indikator_id], 'jenis_objek' => $jenis]]);
+
+        $sahkan()->assertSessionHasErrors(['versi' => $ditutup]);
+        $koreksi(['pengukuran']);
+        $sahkan()->assertSessionHasErrors(['versi' => $ditutup]);
+        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
+
+        $koreksi(['rencana_aksi']);
+        $sahkan()->assertSessionHasNoErrors();
+        $this->assertSame('disahkan', $this->ra->fresh()->status_alur);
+    }
+
     public function test_4_f2_tidak_melewati_deny_atau_permission_hilang(): void
     {
         // Jalur perencanaan + self-approval, tetapi deny eksplisit tetap menang atas F2.
