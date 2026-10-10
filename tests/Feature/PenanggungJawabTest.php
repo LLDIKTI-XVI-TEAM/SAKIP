@@ -165,6 +165,19 @@ class PenanggungJawabTest extends TestCase
             ->where('history.data.1.pic.id', $this->actor->id)->where('history.data.1.state', 'Riwayat'));
     }
 
+    public function test_same_date_winner_follows_urutan_not_physical_insert_order(): void
+    {
+        // Baris yang disisipkan lebih dulu diberi `urutan` lebih besar; resolver tanpa tie-break
+        // `urutan` akan mengikuti urutan sisip fisik dan memilih baris kedua.
+        DB::insert('insert into penanggung_jawab (id, indikator_id, user_id, tanggal_mulai_berlaku, ditetapkan_oleh, created_at, urutan)
+            overriding system value values (?, ?, ?, ?, ?, ?, ?)', [
+            (string) Str::uuid7(), $this->indicator->id, $this->target->id, '2026-02-01', $this->actor->id, now(), 1000000,
+        ]);
+        $this->assignment($this->actor, '2026-02-01');
+
+        $this->assertSame($this->target->id, PenugasanIndikator::effectiveOn('2026-02-01')->where('indikator_id', $this->indicator->id)->sole()->user_id);
+    }
+
     public function test_same_date_migration_rollback_refuses_twin_dates_and_round_trips_otherwise(): void
     {
         $migration = require database_path('migrations/2026_10_09_000002_allow_same_date_penanggung_jawab.php');

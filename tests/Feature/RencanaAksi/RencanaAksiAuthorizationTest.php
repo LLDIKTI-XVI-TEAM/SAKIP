@@ -377,6 +377,40 @@ class RencanaAksiAuthorizationTest extends TestCase
         $this->assertSame($fixture['pic']->id, $header->penanggung_jawab_id);
     }
 
+    public function test_pic_tanggal_sama_mengikuti_penugasan_terakhir_tanpa_mengubah_header(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        // B ditetapkan pada tanggal yang sama dengan PIC fixture, ber-UUID terkecil dan ber-created_at
+        // lebih lama (dibuat sesudah travelTo), sehingga resolver berbasis UUID atau created_at akan
+        // salah memilih. Pemilihan via `urutan` sendiri dibuktikan di PenanggungJawabTest.
+        $picB = $this->picTanggalSama($fixture, '00000000-0000-7000-8000-000000000001');
+        $bukanPic = ['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.'];
+        $simpan = fn (User $aktor, RencanaAksi $header, int $versi) => $this->actingAs($aktor)->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $versi,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 25, 'keterangan' => null]],
+        ]);
+        $draf = ['indikator_id' => $fixture['indikator']->id, 'tahun' => 2026];
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', $draf)->assertSessionHasErrors($bukanPic);
+        $this->actingAs($picB)->post('/rencana-aksi/ensure-draft', $draf)->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        $this->assertSame($picB->id, $header->penanggung_jawab_id);
+
+        $simpan($fixture['pic'], $header, 1)->assertSessionHasErrors($bukanPic);
+        $simpan($picB, $header, 1)->assertSessionHasNoErrors();
+        $this->assertSame(2, $header->fresh()->versi);
+
+        // Pergantian berikutnya pada tanggal sama memindahkan hak tulis, bukan PIC yang tercatat di header draf.
+        $picC = $this->picTanggalSama($fixture);
+        $simpan($picB, $header, 2)->assertSessionHasErrors($bukanPic);
+        $simpan($picC, $header, 2)->assertSessionHasNoErrors();
+        $this->assertSame(3, $header->fresh()->versi);
+        $this->assertSame($picB->id, $header->fresh()->penanggung_jawab_id);
+    }
+
     public function test_baca_menolak_tanpa_izin_dan_deny_menang(): void
     {
         $fixture = $this->buatFixtureManual();
@@ -473,6 +507,24 @@ class RencanaAksiAuthorizationTest extends TestCase
         ]);
 
         return compact('perencanaan', 'pic', 'unit', 'renstra', 'sasaran', 'indikator', 'periode1', 'periode2', 'jadwal', 'snapshot');
+    }
+
+    /** @param array<string, mixed> $fixture */
+    private function picTanggalSama(array $fixture, ?string $id = null): User
+    {
+        $pic = $this->penggunaDenganPeran('pegawai');
+        $this->grant($pic, 'rencana_aksi:create', $fixture['unit']->id, $fixture['perencanaan']);
+        $this->grant($pic, 'rencana_aksi:update', $fixture['unit']->id, $fixture['perencanaan']);
+        PenugasanIndikator::forceCreate(array_filter([
+            'id' => $id,
+            'indikator_id' => $fixture['indikator']->id,
+            'user_id' => $pic->id,
+            'tanggal_mulai_berlaku' => '2026-01-01',
+            'ditetapkan_oleh' => $fixture['perencanaan']->id,
+            'created_at' => now(),
+        ]));
+
+        return $pic;
     }
 
     private function penggunaDenganPeran(string $kode): User
