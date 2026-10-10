@@ -1507,7 +1507,7 @@ perubahan pada baris `renstra`/`indikator` yang bersangkutan (lihat §2.32).
 
 Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada sebuah rencana aksi, menyimpan provenance beku (siapa mengajukan, lewat jalur apa, dengan dasar izin apa) beserta `snapshot` isi pengajuan saat itu. Transisi `diverifikasi → disahkan` mengesahkan **snapshot versi ini**, bukan header; `rencana_aksi.disahkan_at`/`disahkan_by` hanya ringkasan status terkini.
 
-> **Kepemilikan kontrak (draft):** tabel ini beserta isi `snapshot`-nya adalah kontrak milik **ISS-05.03** (penyusunan/pengajuan rencana aksi). ISS-05.05 (pengesahan) adalah konsumen pertama; struktur di bawah diajukan oleh ISS-05.05 dan **menunggu konfirmasi ISS-05.03** sebelum dibakukan. Perubahan bentuk `snapshot` tidak boleh dilakukan sepihak oleh konsumen.
+> **Kepemilikan kontrak:** tabel ini beserta isi `snapshot`-nya adalah kontrak milik **ISS-05.03** (penyusunan/pengajuan rencana aksi); ISS-05.05 (pengesahan) adalah konsumen pertama. Kontrak dikonfirmasi pada review PR #66 tanggal 9 Oktober 2026. Perubahan bentuk `snapshot` wajib dicatat di dokumen ini terlebih dahulu dan diselaraskan dengan produsen maupun konsumennya.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -1534,9 +1534,9 @@ Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada s
 | `pic` | object\|null | `{id, nama}` PIC saat pengajuan |
 | `uraian` | string | Uraian pengajuan |
 | `target_periode` | array | Per periode: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, komponen[]}`; `komponen[]` berisi `{komponen_id, kode, label, nilai}` (array kosong = tanpa komponen) |
-| `bukti_dukungs` | array | Metadata bukti dukung versi ini: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`. `mode = file` menyimpan `path` berkas privat; unduhan memakai metadata beku ini, bukan relasi live |
+| `bukti_dukungs` | array | Metadata bukti dukung versi ini: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`. `mode = file` menyimpan `path` berkas privat sebagai jejak beku; unduhan memakai jalur unduh bukti rencana aksi (§2.30) atas `id` ini |
 
-Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti dibatasi pada versi yang sedang direviu (nomor terbesar) atau versi resmi yang telah disahkan; versi superseded non-resmi tidak dapat dijangkau lewat URL lama.
+Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti hanya melayani bukti yang masih berlaku pada induknya; karena bukti tidak dapat diubah sejak induk diajukan (Q36), bukti versi yang sedang direviu dan versi resmi terakhir selalu termasuk di dalamnya. Akses bukti versi resmi lama setelah buka-kembali menjadi bagian ISS-05.06.
 
 ---
 
