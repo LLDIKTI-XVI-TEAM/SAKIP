@@ -113,6 +113,8 @@ class SahkanRencanaAksiTest extends TestCase
         $nilaiBaru = json_decode((string) $audit->nilai_baru, true);
         $this->assertFalse($nilaiBaru['self_approval']);
         $this->assertSame('disahkan', $nilaiBaru['status_alur']);
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.disahkan_oleh.id', $this->perencana->id)->where('rencanaAksi.self_approval', false));
     }
 
     public function test_3_f2_mengizinkan_self_approval_jalur_perencanaan_dengan_catatan_audit(): void
@@ -124,6 +126,8 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertSame('disahkan', $this->ra->fresh()->status_alur);
         $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.sahkan')->where('objek_id', $this->ra->id)->firstOrFail();
         $this->assertTrue(json_decode((string) $audit->nilai_baru, true)['self_approval']);
+        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$this->ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.disahkan_oleh.id', $this->perencana->id)->where('rencanaAksi.self_approval', true));
     }
 
     public function test_4_f2_tidak_melewati_deny_atau_permission_hilang(): void

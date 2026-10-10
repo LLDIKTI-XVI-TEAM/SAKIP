@@ -248,6 +248,8 @@ export interface RencanaAksiRingkas {
 export interface RencanaAksiDetail extends RencanaAksiRingkas {
     diajukan_oleh: { id: string; nama: string } | null;
     disahkan_pada: string | null;
+    disahkan_oleh: { id: string; nama: string } | null;
+    self_approval: boolean;
     target_periode: {
         periode_id: string | null;
         periode_nama: string | null;

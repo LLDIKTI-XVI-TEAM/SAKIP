@@ -76,6 +76,10 @@ class PresentRencanaAksi
         }
         $data['diajukan_oleh'] = $diajukanOleh;
         $data['disahkan_pada'] = $ra->disahkan_at?->toIso8601String();
+        $data['disahkan_oleh'] = $version?->disahkan_by ? User::whereKey($version->disahkan_by)->first(['id', 'nama'])?->only(['id', 'nama']) : null;
+        // F2 wajib terlihat, bukan hanya diaudit: pengesah = pengaju pada jalur Perencanaan.
+        $data['self_approval'] = $version !== null && $version->disahkan_by !== null
+            && $version->disahkan_by === $version->diajukan_by && $version->jalur_pengajuan === 'perencanaan';
         $targets = is_array($data['target_periode']) ? $data['target_periode'] : [];
         if ($targets !== []) {
             $version?->loadMissing('jadwalSnapshot.komponen');
