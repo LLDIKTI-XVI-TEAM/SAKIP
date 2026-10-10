@@ -35,7 +35,7 @@ class AntreanRencanaAksi
             'status' => ['required', 'in:antrean,disahkan'],
         ])->validate();
         $status = $query['status'];
-        $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion'])
+        $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot'])
             ->whereIn('status_alur', $status === 'disahkan' ? ['disahkan'] : ['diajukan', 'diverifikasi'])
             // Record dengan unit header ≠ unit snapshot versi TERBARU tidak konsisten dan ditolak
             // saat dibuka. Korelasi ke nomor maksimum wajib: whereHas pada hasOne ber-orderBy
@@ -52,7 +52,7 @@ class AntreanRencanaAksi
                     ->orderByDesc('nomor')
                     ->limit(1)
             )
-            ->orderBy('id')->withCount('buktiDukungs')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
+            ->orderBy('id')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
 
         return [
             'rencanaAksis' => $page->getCollection()->map(fn ($item) => $this->present->handle($item, $actor))->all(),

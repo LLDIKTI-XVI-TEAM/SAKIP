@@ -109,16 +109,6 @@ class RencanaAksi extends Model
         return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->orderByDesc('nomor');
     }
 
-    /**
-     * Versi terbaru yang telah disahkan (ratifikasi) — dipakai tampilan pasca-sah.
-     *
-     * @return HasOne<RencanaAksiVersi, $this>
-     */
-    public function ratifiedVersion(): HasOne
-    {
-        return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->whereNotNull('disahkan_at')->orderByDesc('nomor');
-    }
-
     /** Unit scope otorisasi header (unit pemilik indikator saat penyusunan). */
     public function targetUnitId(): string
     {

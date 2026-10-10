@@ -2,7 +2,6 @@
 
 namespace App\Actions\RencanaAksi;
 
-use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -33,7 +32,7 @@ class PresentRencanaAksi
      */
     public function handle(RencanaAksi $ra, User $actor, bool $detail = false): array
     {
-        $ra->loadMissing(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion']);
+        $ra->loadMissing(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot']);
         $version = $ra->latestVersion;
         $isBeku = in_array($ra->status_alur, ['diajukan', 'diverifikasi', 'disahkan'], true);
         $frozen = $isBeku && $version !== null && is_array($version->snapshot) ? $version->snapshot : null;
@@ -81,66 +80,44 @@ class PresentRencanaAksi
         if ($targets !== []) {
             $version?->loadMissing('jadwalSnapshot.komponen');
             $definisis = ($version?->jadwalSnapshot?->komponen ?? collect())->keyBy('komponen_id');
-            if ($isBeku && is_array($frozen)) {
-                // Status beku: nama/urutan periode HANYA dari snapshot versi.
-                // Snapshot lama tanpa kunci → penanda, tanpa join master Periode live.
-                // Kode/label komponen tetap boleh fallback definisi jadwal_snapshot
-                // beku (bukan master live).
-                $hilangTarget = [];
-                $data['target_periode'] = collect($targets)->map(function ($row) use ($definisis, &$hilangTarget) {
-                    $nama = $row['periode_nama'] ?? null;
-                    if (! is_string($nama) || $nama === '') {
-                        $nama = self::KONTEKS_TIDAK_LENGKAP;
-                        $hilangTarget['target_periode_nama'] = true;
-                    }
-                    $urutan = $row['periode_urutan'] ?? null;
-                    $urutan = is_numeric($urutan) ? (int) $urutan : null;
-                    if ($urutan === null) {
-                        $hilangTarget['target_periode_urutan'] = true;
-                    }
-                    $komponens = collect(array_values($row['komponen'] ?? []))->map(fn ($komponen) => [
-                        'komponen_id' => $komponen['komponen_id'] ?? null,
-                        'kode' => $definisis->get($komponen['komponen_id'] ?? '')?->kode ?? $komponen['kode'] ?? null,
-                        'label' => $definisis->get($komponen['komponen_id'] ?? '')?->label ?? $komponen['label'] ?? null,
-                        'nilai' => $komponen['nilai'] ?? null,
-                    ])->values()->all();
-
-                    return [
-                        'periode_id' => $row['periode_id'] ?? null,
-                        'periode_nama' => $nama,
-                        'periode_urutan' => $urutan,
-                        'nilai' => $row['nilai'] ?? null,
-                        'status_perhitungan' => $row['status_perhitungan'] ?? null,
-                        'komponen' => $komponens,
-                    ];
-                })->sortBy(fn ($row) => $row['periode_urutan'] ?? PHP_INT_MAX)->values()->all();
-                foreach (array_keys($hilangTarget) as $key) {
-                    if (! in_array($key, $konteksHilang, true)) {
-                        $konteksHilang[] = $key;
-                    }
+            // Status beku: nama/urutan periode HANYA dari snapshot versi.
+            // Snapshot lama tanpa kunci → penanda, tanpa join master Periode live.
+            // Kode/label komponen tetap boleh fallback definisi jadwal_snapshot
+            // beku (bukan master live).
+            $hilangTarget = [];
+            $data['target_periode'] = collect($targets)->map(function ($row) use ($definisis, &$hilangTarget) {
+                $nama = $row['periode_nama'] ?? null;
+                if (! is_string($nama) || $nama === '') {
+                    $nama = self::KONTEKS_TIDAK_LENGKAP;
+                    $hilangTarget['target_periode_nama'] = true;
                 }
-                $data['konteks_tidak_lengkap'] = $konteksHilang;
-            } else {
-                // Status tidak beku: pertahankan live join master Periode.
-                $periodes = Periode::whereIn('id', collect($targets)->pluck('periode_id')->filter()->all())->get(['id', 'nama', 'urutan'])->keyBy('id');
-                $data['target_periode'] = collect($targets)->map(function ($row) use ($periodes, $definisis) {
-                    $komponens = collect(array_values($row['komponen'] ?? []))->map(fn ($komponen) => [
-                        'komponen_id' => $komponen['komponen_id'] ?? null,
-                        'kode' => $definisis->get($komponen['komponen_id'] ?? '')?->kode ?? $komponen['kode'] ?? null,
-                        'label' => $definisis->get($komponen['komponen_id'] ?? '')?->label ?? $komponen['label'] ?? null,
-                        'nilai' => $komponen['nilai'] ?? null,
-                    ])->values()->all();
+                $urutan = $row['periode_urutan'] ?? null;
+                $urutan = is_numeric($urutan) ? (int) $urutan : null;
+                if ($urutan === null) {
+                    $hilangTarget['target_periode_urutan'] = true;
+                }
+                $komponens = collect(array_values($row['komponen'] ?? []))->map(fn ($komponen) => [
+                    'komponen_id' => $komponen['komponen_id'] ?? null,
+                    'kode' => $definisis->get($komponen['komponen_id'] ?? '')?->kode ?? $komponen['kode'] ?? null,
+                    'label' => $definisis->get($komponen['komponen_id'] ?? '')?->label ?? $komponen['label'] ?? null,
+                    'nilai' => $komponen['nilai'] ?? null,
+                ])->values()->all();
 
-                    return [
-                        'periode_id' => $row['periode_id'] ?? null,
-                        'periode_nama' => isset($row['periode_id']) ? $periodes->get($row['periode_id'])?->nama : null,
-                        'periode_urutan' => isset($row['periode_id']) ? $periodes->get($row['periode_id'])?->urutan : null,
-                        'nilai' => $row['nilai'] ?? null,
-                        'status_perhitungan' => $row['status_perhitungan'] ?? null,
-                        'komponen' => $komponens,
-                    ];
-                })->sortBy('periode_urutan')->values()->all();
+                return [
+                    'periode_id' => $row['periode_id'] ?? null,
+                    'periode_nama' => $nama,
+                    'periode_urutan' => $urutan,
+                    'nilai' => $row['nilai'] ?? null,
+                    'status_perhitungan' => $row['status_perhitungan'] ?? null,
+                    'komponen' => $komponens,
+                ];
+            })->sortBy(fn ($row) => $row['periode_urutan'] ?? PHP_INT_MAX)->values()->all();
+            foreach (array_keys($hilangTarget) as $key) {
+                if (! in_array($key, $konteksHilang, true)) {
+                    $konteksHilang[] = $key;
+                }
             }
+            $data['konteks_tidak_lengkap'] = $konteksHilang;
         }
         if ($can['evidence']) {
             // Status beku tanpa key bukti = daftar kosong; jangan fallback relasi live.
