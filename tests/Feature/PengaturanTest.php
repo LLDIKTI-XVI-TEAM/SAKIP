@@ -5,6 +5,7 @@ use App\Models\AuditLog;
 use App\Models\Pengaturan;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\PengaturanService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PengaturanSeeder;
@@ -654,4 +655,33 @@ test('alasan yang memuat karakter kontrol ditolak pada field alasan sebelum muta
     $response->assertJsonValidationErrors(['alasan']);
     expect($setting->fresh()->nilai)->toBe($setting->nilai);
     expect(AuditLog::query()->where('tindakan', 'pengaturan:update')->count())->toBe(0);
+});
+
+test('audit penolakan memakai keputusan izin yang sama dengan authorize tanpa evaluasi ulang', function (): void {
+    $keputusanMenolak = [
+        'allowed' => false,
+        'permission' => 'pengaturan:update',
+        'reason' => 'no_allow',
+        'roles' => [],
+        'grants' => [],
+        'denies' => ['deny-sintetis-keputusan-tunggal'],
+    ];
+
+    // Admin normalnya diizinkan; keputusan menolak hanya datang dari satu panggilan decide() ini.
+    $this->mock(PermissionResolver::class)
+        ->shouldReceive('decide')
+        ->with(Mockery::on(fn (User $user) => $user->is($this->admin)), 'pengaturan:update')
+        ->once()
+        ->andReturn($keputusanMenolak);
+
+    $response = $this->actingAs($this->admin)->put('/pengaturan', [
+        'instansi.nama' => 'Nama Tidak Boleh Tersimpan',
+        'alasan' => 'Uji keputusan izin tunggal',
+    ]);
+
+    $response->assertForbidden();
+    expect(Pengaturan::query()->where('kunci', 'instansi.nama')->value('nilai'))->not->toBe('Nama Tidak Boleh Tersimpan');
+
+    $audit = AuditLog::query()->where('tindakan', 'pengaturan.ubah_ditolak')->where('actor_id', $this->admin->id)->sole();
+    expect($audit->dasar_izin)->toEqual($keputusanMenolak);
 });
