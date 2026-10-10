@@ -68,6 +68,17 @@ class RencanaAksi extends Model
         return $this->belongsTo(User::class, 'penanggung_jawab_id');
     }
 
+    /**
+     * Bukti dukung tahap rencana aksi (PRD §18.4), model yang sama dengan
+     * pengukuran agar scope `current` dan gerbang kelengkapan dipakai bersama.
+     *
+     * @return HasMany<BuktiDukung, $this>
+     */
+    public function buktiDukungs(): HasMany
+    {
+        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi');
+    }
+
     /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {

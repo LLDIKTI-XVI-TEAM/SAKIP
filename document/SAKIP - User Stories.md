@@ -681,11 +681,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [x] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: PR #76 membuktikan penghapusan bukti non-destruktif — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
+
+> **Status implementasi — PR #76 (ISS-05.02):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT maupun deployment.
 
 ### US-05.03 · Pengajuan Rencana Aksi & Pembekuan Versi
 
@@ -1413,7 +1415,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Story Points** | 8 |
 | **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
 | **Dependensi** | Berkas terkait salah satu induk yang didukung. |
-| **Otorisasi** | `berkas:delete` (sensitif) + guard status induk. |
+| **Otorisasi** | `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36). |
 | **Dampak Data** | `berkas`, `audit_log`. |
 
 > **Sebagai** Sistem Integritas SAKIP,  

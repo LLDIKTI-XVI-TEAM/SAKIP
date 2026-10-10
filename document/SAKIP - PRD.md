@@ -917,13 +917,13 @@ Kelengkapan suatu persyaratan mengikuti `semua_mode_wajib` (§18.2): bila `false
 
 **Imutabilitas mengikuti status induk, ditegakkan seragam untuk seluruh mode (`file`/`tautan`/`teks`) pada keenam jenis induk:**
 
-- lampiran **`rencana_aksi`**/**`pengukuran`** tidak dapat dihapus setelah induknya berstatus `disahkan`;
+- lampiran **`rencana_aksi`**/**`pengukuran`** hanya dapat ditambah, diganti, atau dihapus selama induknya berstatus `draft`/`dikembalikan`; sejak `diajukan` koreksi bukti dilakukan melalui pengembalian beralasan, dan setelah `disahkan` lampiran imutabel (Q36);
 - lampiran **`kegiatan`** tidak dapat dihapus setelah kegiatan berstatus `terlaksana` (§15.6);
 - lampiran **`renstra`** tidak dapat dihapus setelah Renstra berstatus `aktif` (§10.6);
 - lampiran **`renstra_pk`** tidak dapat dihapus setelah Jadwal Tahunan tahun itu berstatus `aktif` (§14.10);
 - lampiran **`regulasi`** tidak dapat dihapus selama regulasi masih dirujuk oleh Renstra atau indikator aktif (§9.5).
 
-Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghapus lampiran; setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`). Setelah `penutupan` jadwal, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali`.
+Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghapus lampiran (untuk `rencana_aksi`/`pengukuran`: hanya selama induk `draft`/`dikembalikan`, Q36); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`). Setelah `penutupan` jadwal, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali`.
 
 ### 18.9 Kebijakan Storage pada Setelan Aplikasi
 

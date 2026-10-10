@@ -8,13 +8,16 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import BuktiPanel from './BuktiPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
-import type { RencanaAksiShow } from './types';
+import type { RencanaAksiBukti, RencanaAksiShow } from './types';
 import { dapatDisuntingPeriode, kunciSel } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
+    /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
+    bukti?: RencanaAksiBukti | null;
 }
 
 /** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
@@ -38,7 +41,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}`} {...props} />;
 }
 
-function RencanaAksiForm({ rencanaAksi }: ShowProps) {
+function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const manual = rencanaAksi.tipe_perhitungan === 'manual';
@@ -491,6 +494,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         </div>
                     )}
                 </form>
+
+                {/* Di luar form target agar form modal bukti tidak bersarang. */}
+                {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} />}
             </div>
         </AuthenticatedLayout>
     );

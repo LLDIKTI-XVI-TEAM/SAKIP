@@ -1638,47 +1638,53 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+> **Status implementasi — PR #76:** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT/deployment. Hak mutasi bukti diturunkan dari `rencana_aksi:update` pada unit header (Q32.3: `berkas:*` hanya gerbang deny/fail-closed) dan dijawab 403; unit nonaktif, indikator arsip, status di luar `draft`/`dikembalikan`, serta jendela PIC adalah validasi bisnis 422 (Data Model §3.2 langkah 6). Evaluator kelengkapan memakai `EvaluateEvidence` bersama (Plan 13.4). Browser smoke desktop/mobile belum dilakukan.
+>
+> **Keputusan D1 — diputuskan Q36 (10 Oktober 2026):** mutasi bukti `rencana_aksi`/`pengukuran` hanya selama induk `draft`/`dikembalikan`; sejak `diajukan` koreksi lewat pengembalian beralasan. PRD §18.8, Workflow §10.3/§10.6a, dan Data Model §2.30/§5 telah diselaraskan.
+>
+> **Handoff ISS-05.03:** `DownloadBuktiRencanaAksi` saat ini hanya melayani bukti yang masih berlaku (`current`). Setelah pembekuan versi ada, unduhan bukti yang dirujuk versi beku tetapi sudah dihapus perlu membaca metadata dari snapshot versi, mengikuti pola `DownloadBuktiPengukuran`.
+
+- [x] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: penghapusan bukti non-destruktif terbukti — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `berkas`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `berkas`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Pemenuhan Bukti Dukung Rencana Aksi** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Pemenuhan Bukti Dukung Rencana Aksi** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Capability berkas mengikuti kewenangan induk RA; deny berkas tetap berlaku.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Capability berkas mengikuti kewenangan induk RA; deny berkas tetap berlaku.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pemenuhan Bukti Dukung Rencana Aksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pemenuhan Bukti Dukung Rencana Aksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. *(State loading/disabled/error teruji Vitest; responsivitas dan kontras menunggu browser smoke.)*
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: `test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` menjadi regresi soft delete dan retensi file; bukti pembekuan versi menunggu ISS-05.03.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; PRD §18.8, Workflow §10.3/§10.6a, Data Model §2.30/§5, Plan 13.6, dan tabel klasifikasi permission Plan diselaraskan; hak mutasi bukti di Data Model §2.30 serta otorisasi ISS-11.04/US-11.04 diselaraskan dengan Q32.3. Tersisa: Plan 13.5 masih menyebut route bukti memakai permission `berkas:upload`/`berkas:read` tanpa membedakan induk bergerbang unit (Q32.3).)*
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
 
@@ -3638,7 +3644,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 #### Kontrak Teknis
 
 - **Dependensi:** Berkas terkait salah satu induk yang didukung.
-- **Otorisasi:** `berkas:delete` (sensitif) + guard status induk.
+- **Otorisasi:** `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - **Dampak Data:** `berkas`, `audit_log`.
 
 #### Acceptance Criteria (QA/UAT)
@@ -3660,7 +3666,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 - [ ] Implementasikan guard imutabilitas per enam induk; penghapusan sebelum batas memakai soft delete, sesudah batas ditolak.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) + guard status induk.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 

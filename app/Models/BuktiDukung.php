@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class BuktiDukung extends Model
@@ -18,6 +19,18 @@ class BuktiDukung extends Model
     protected $fillable = ['jenis_berkas_id', 'berkasable_type', 'berkasable_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks', 'uploaded_by', 'created_at', 'dihapus_pada', 'dihapus_oleh'];
 
     protected $casts = ['ukuran_bytes' => 'integer', 'created_at' => 'datetime', 'dihapus_pada' => 'datetime'];
+
+    /** @return BelongsTo<User, $this> */
+    public function pengunggah(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /** @return BelongsTo<JenisBerkas, $this> */
+    public function jenisBerkas(): BelongsTo
+    {
+        return $this->belongsTo(JenisBerkas::class, 'jenis_berkas_id');
+    }
 
     /** Bukti kerja memilih ujung rantai koreksi; baris lama tetap tersedia bagi versi historis. */
     public function scopeCurrent(Builder $query): void

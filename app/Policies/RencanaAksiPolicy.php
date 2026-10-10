@@ -6,6 +6,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
@@ -65,6 +66,26 @@ class RencanaAksiPolicy
         $decision = $this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
 
         return $this->response($decision, 'Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.');
+    }
+
+    /**
+     * Lihat/unduh bukti mengikuti akses induk (pola PengukuranKinerjaPolicy):
+     * allow `berkas:read` atau hak tulis unit; deny/katalog nonaktif menang.
+     */
+    public function viewEvidence(User $user, RencanaAksi $header): bool
+    {
+        if (! $this->view($user, $header)) {
+            return false;
+        }
+        $unitId = (string) $header->unit_id;
+        $decision = $this->resolver->decide($user, PermissionCodes::BERKAS_READ, $unitId);
+        if (in_array($decision['reason'], GerbangBuktiRencanaAksi::ALASAN_TERTUTUP, true)) {
+            return false;
+        }
+
+        return $decision['allowed']
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId)
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
     private function response(PermissionDecision $decision, string $pesan): Response
