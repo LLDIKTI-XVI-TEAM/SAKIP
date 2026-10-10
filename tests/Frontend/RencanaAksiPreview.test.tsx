@@ -83,7 +83,9 @@ function buatPayload(): RencanaAksiPayload {
             target_pk: '100.000000000000',
             periode_id: PERIODE_1,
         },
-        can: { view: true, update: true },
+        pengajuan: { siap: true, alasan: [] },
+        versi_pengajuan: null,
+        can: { view: true, update: true, submit: false },
     };
 }
 

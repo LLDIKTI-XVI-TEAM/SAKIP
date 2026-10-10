@@ -8,6 +8,7 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
@@ -218,6 +219,9 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
     };
 
     const deviasi = rencanaAksi.deviasi_pk;
+    // Status yang masih dapat disunting (cermin `RencanaAksi::STATUS_DAPAT_DISUNTING`):
+    // kartu kesiapan tampil di sini, status lain menampilkan banner versi beku.
+    const dapatDiajukan = rencanaAksi.status_alur === 'draft' || rencanaAksi.status_alur === 'dikembalikan';
 
     // Pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
     // React). Dibangun dari nilai formulir saat ini untuk periode yang
@@ -300,6 +304,18 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         </dl>
                     </CardContent>
                 </Card>
+
+                {/* Status beku: isi yang direviu adalah versi pengajuan, bukan draf hidup. */}
+                {!dapatDiajukan && rencanaAksi.versi_pengajuan && (
+                    <div role="status" className="flex flex-wrap items-start gap-3 rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
+                        <Badge status={rencanaAksi.status_alur} />
+                        <p>
+                            Diajukan sebagai versi {rencanaAksi.versi_pengajuan.nomor} oleh {rencanaAksi.versi_pengajuan.diajukan_oleh ?? '—'} pada{' '}
+                            {formatTanggal(rencanaAksi.versi_pengajuan.diajukan_at)}.
+                            {rencanaAksi.status_alur === 'diajukan' ? ' Menunggu verifikasi Tim Perencanaan.' : ''}
+                        </p>
+                    </div>
+                )}
 
                 {!canUpdate && !terkunciSemua && (
                     <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
@@ -494,6 +510,18 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         </div>
                     )}
                 </form>
+
+                {/* Di luar form target: pengajuan memakai data tersimpan dan form sendiri. */}
+                {dapatDiajukan && (
+                    <AjukanPanel
+                        rencanaAksiId={rencanaAksi.id}
+                        expectedVersi={rencanaAksi.expected_versi}
+                        pengajuan={rencanaAksi.pengajuan}
+                        canSubmit={rencanaAksi.can.submit}
+                        kotor={kotor}
+                        onMuatUlang={muatUlang}
+                    />
+                )}
 
                 {/* Di luar form target agar form modal bukti tidak bersarang. */}
                 {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} />}
