@@ -89,7 +89,7 @@ beforeEach(function (): void {
     $this->pembaca = userDenganRoleRenstra('pegawai', 'pembaca-renstra@example.test');
 });
 
-test('AC-1: Data Renstra valid tersimpan dengan status awal draft', function (): void {
+test('Data Renstra valid tersimpan dengan status awal draft', function (): void {
     $payload = [
         'nama' => 'Rencana Strategis LLDIKTI XVI 2025-2029',
         'kode' => 'RENSTRA-2025-2029',
@@ -125,7 +125,7 @@ test('AC-1: Data Renstra valid tersimpan dengan status awal draft', function ():
     expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
 });
 
-test('AC-4: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode', function (): void {
+test('Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode', function (): void {
     Storage::fake('local');
 
     $payload = [
@@ -190,7 +190,7 @@ test('AC-4: Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mod
     expect($auditInduk->nilai_baru['lampiran'][0])->not->toHaveKey('path');
 });
 
-test('AC-2: Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak', function (): void {
+test('Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak', function (): void {
     $payloadInvalid = [
         'nama' => 'Renstra Tahun Terbalik',
         'kode' => 'RENSTRA-INVALID-YEAR',
@@ -279,7 +279,7 @@ test('Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit lo
     expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
 });
 
-test('AC-5: Pegawai tanpa renstra:create ditolak 403 saat mencoba membuat Renstra', function (): void {
+test('Pegawai tanpa renstra:create ditolak 403 saat mencoba membuat Renstra', function (): void {
     $response = $this->actingAs($this->pembaca)->post('/renstra', [
         'nama' => 'Renstra Tidak Berhak',
         'kode' => 'RENSTRA-403',
@@ -315,7 +315,7 @@ test('RBAC: Renstra index dan show dapat diakses oleh perencanaan dan ditolak un
     $this->actingAs($this->pembaca)->get("/renstra/{$renstra->id}")->assertForbidden();
 });
 
-test('AC-3: Rujukan regulasi valid dapat ditampilkan dan dikosongkan tanpa kehilangan dasar hukum', function (): void {
+test('Rujukan regulasi valid dapat ditampilkan dan dikosongkan tanpa kehilangan dasar hukum', function (): void {
     $regulasi = Regulasi::query()->create([
         'jenis' => 'permen',
         'nomor' => 'Permen 123/2024',
@@ -675,7 +675,7 @@ test('Penghapusan Renstra berstatus selain draft ditolak', function (): void {
     $this->assertDatabaseHas('renstras', ['id' => $renstraNonaktif->id]);
 });
 
-test('AC-6: Penghapusan Renstra draft menghapus berkas lampiran dengan dihapus_oleh dan mencatat audit log berkas.hapus', function (): void {
+test('Penghapusan Renstra draft menghapus berkas lampiran dengan dihapus_oleh dan mencatat audit log berkas.hapus', function (): void {
     Storage::fake('local');
 
     $renstra = buatRenstra($this->perencanaan, [

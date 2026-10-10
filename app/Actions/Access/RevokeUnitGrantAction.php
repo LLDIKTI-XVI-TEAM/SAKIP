@@ -6,7 +6,7 @@ use App\Models\Permission;
 use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 

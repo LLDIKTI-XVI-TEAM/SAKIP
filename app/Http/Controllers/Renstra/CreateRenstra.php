@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Renstra;
 
+use App\Actions\Renstra\CreateRenstraForm;
 use App\Http\Controllers\Controller;
-use App\Models\Regulasi;
 use App\Models\Renstra;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -12,29 +12,10 @@ use Inertia\Response;
 
 class CreateRenstra extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, CreateRenstraForm $action): Response
     {
         Gate::authorize('create', Renstra::class);
 
-        $dapatBacaRegulasi = $request->user()?->can('viewAny', Regulasi::class) ?? false;
-
-        $regulasiPilihan = $dapatBacaRegulasi
-            ? Regulasi::query()
-                ->where('aktif', true)
-                ->orderBy('tahun', 'desc')
-                ->orderBy('nomor')
-                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
-            : [];
-
-        $user = $request->user();
-        $canUploadAttachment = $user !== null && $user->can('uploadAttachment', Renstra::class);
-
-        return Inertia::render('Renstra/Create', [
-            'regulasiPilihan' => $regulasiPilihan,
-            'can' => [
-                'uploadAttachment' => $canUploadAttachment,
-                'readRegulasi' => $dapatBacaRegulasi,
-            ],
-        ]);
+        return Inertia::render('Renstra/Create', $action->handle($request->user()));
     }
 }

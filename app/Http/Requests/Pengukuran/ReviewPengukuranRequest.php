@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Pengukuran;
 
+use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReviewPengukuranRequest extends FormRequest
@@ -13,7 +14,8 @@ class ReviewPengukuranRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['versi' => ['required', 'integer', 'min:1'], 'catatan' => [$this->routeIs('verifikasi.kembalikan') ? 'required' : 'nullable', 'string', 'max:10000'],
+        // Catatan menjadi riwayat dan alasan audit; teks kontrol ditolak di sini agar error jatuh ke field pengguna, bukan ke audit.
+        return ['versi' => ['required', 'integer', 'min:1'], 'catatan' => [$this->routeIs('verifikasi.kembalikan') ? 'required' : 'nullable', 'string', 'max:10000', AuditReason::validate(...)],
             'status_alur' => ['prohibited'], 'status' => ['prohibited'], 'self_approval' => ['prohibited']];
     }
 

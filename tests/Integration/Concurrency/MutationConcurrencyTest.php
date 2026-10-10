@@ -7,7 +7,7 @@ use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
-use App\Actions\Pengukuran\ChangePengukuran;
+use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
@@ -1011,22 +1011,74 @@ class MutationConcurrencyTest extends TestCase
     #[DataProvider('pjChangeDates')]
     public function test_pj_change_waits_until_submission_provenance_is_frozen(string $date): void
     {
-        [$operator, $indicator] = $this->formulaFixture();
-        $indicator->update(['tipe_perhitungan' => 'manual']);
-        $pic = User::factory()->create(['status' => 'aktif']);
-        $pic->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        [$operator, $indicator, $pic, $measurement] = $this->submittableMeasurementFixture();
         $target = User::factory()->create(['status' => 'aktif']);
         $permission = Permission::where('kode', 'pengukuran:update')->sole();
         DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $pic->id, 'permission_id' => $permission->id,
             'unit_id' => $indicator->unit_id, 'alasan' => 'Fixture', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
-        $initial = PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id,
+        $initial = PenugasanIndikator::where('indikator_id', $indicator->id)->sole();
+        $payload = ['actor_id' => $operator->id, 'indikator_id' => $indicator->id, 'data' => [
+            'user_id' => $target->id, 'tanggal_mulai_berlaku' => $date, 'expected_state' => $indicator->assignmentStateToken(), 'alasan' => 'Pergantian setelah pengajuan',
+        ]];
+        $results = $this->race('pj-change', $indicator->id, '', [$payload],
+            prepare: fn () => app(SubmitPengukuran::class)->handle($pic, $measurement->id, ['versi' => 1, 'nilai' => 70]));
+        $this->assertSame(['assigned'], $results);
+        $version = $measurement->fresh()->latestVersion;
+        $this->assertSame($pic->id, $version->diajukan_by);
+        $this->assertSame($pic->id, $version->dasar_izin_pengajuan['pic_id']);
+        $this->assertSame($initial->id, $version->dasar_izin_pengajuan['penugasan_id']);
+        $this->assertSame($pic->id, $version->snapshot['pic']['id']);
+        $this->assertSame($target->id, $measurement->fresh()->effectivePic()->user_id);
+    }
+
+    public function test_pengukuran_submission_reauthorizes_after_waiting_for_preset_release(): void
+    {
+        [, , $pic, $measurement] = $this->submittableMeasurementFixture();
+        // Drift: izin datang dari role pegawai di luar preset resmi; rilis preset produksi mencabutnya di bawah lock role.
+        DB::table('role_permissions')->insert(['id' => Str::uuid(), 'role_id' => Role::where('kode', 'pegawai')->value('id'),
+            'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'), 'created_at' => now()]);
+        $this->assertTrue(app(PermissionResolver::class)->decide($pic, 'pengukuran:update', $measurement->targetUnitId())['allowed']);
+        $assertRoleShareLock = function (array $pids): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringContainsString('for share', $query);
+        };
+
+        $results = $this->race('pengukuran-ajukan', $measurement->id, '', [[
+            'actor_id' => $pic->id, 'pengukuran_id' => $measurement->id, 'data' => ['versi' => 1, 'nilai' => 70],
+        ]], prepare: fn () => app(SyncRolePermissionPresets::class)->handle('test-release', 'Cabut drift izin pengukuran', 'test-parent'), assertBlocked: $assertRoleShareLock);
+
+        $this->assertSame(['denied'], $results);
+        $measurement = $measurement->fresh();
+        $this->assertSame(['draft', 1], [$measurement->status_alur, $measurement->versi]);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        $audit = AuditLog::where('tindakan', 'pengukuran.ditolak')->sole();
+        $this->assertSame($pic->id, $audit->actor_id);
+        $this->assertSame('otorisasi', $audit->nilai_baru['jenis_penolakan']);
+        $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+    }
+
+    /**
+     * Pengukuran manual siap diajukan pada jendela pengisian 15 Maret 2026 oleh PIC efektif berperan pegawai.
+     * Sumber izin aktor sengaja diserahkan ke pemanggil; penutupan jauh di masa depan agar worker dengan jam nyata tidak terkena gate tahun ditutup.
+     *
+     * @return array{0: User, 1: IndikatorKinerja, 2: User, 3: PengukuranKinerja}
+     */
+    private function submittableMeasurementFixture(): array
+    {
+        [$operator, $indicator] = $this->formulaFixture();
+        $indicator->update(['tipe_perhitungan' => 'manual']);
+        $pic = User::factory()->create(['status' => 'aktif']);
+        $pic->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id,
             'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $operator->id, 'created_at' => now()]);
         $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
         $renstra = $indicator->sasaranStrategis->renstra;
         $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-PJ', 'tanggal_pk' => '2026-01-01', 'created_by' => $operator->id]);
         $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
         $schedule = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id,
-            'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+            'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => '2026-03-01',
             'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
         $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
@@ -1041,18 +1093,8 @@ class MutationConcurrencyTest extends TestCase
             'disahkan_by' => $operator->id, 'disahkan_at' => now()]);
         $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'periode_id' => $period->id,
             'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
-        $payload = ['actor_id' => $operator->id, 'indikator_id' => $indicator->id, 'data' => [
-            'user_id' => $target->id, 'tanggal_mulai_berlaku' => $date, 'expected_state' => $indicator->assignmentStateToken(), 'alasan' => 'Pergantian setelah pengajuan',
-        ]];
-        $results = $this->race('pj-change', $indicator->id, '', [$payload],
-            prepare: fn () => app(ChangePengukuran::class)->handle($pic, $measurement->id, 'ajukan', ['versi' => 1, 'nilai' => 70]));
-        $this->assertSame(['assigned'], $results);
-        $version = $measurement->fresh()->latestVersion;
-        $this->assertSame($pic->id, $version->diajukan_by);
-        $this->assertSame($pic->id, $version->dasar_izin_pengajuan['pic_id']);
-        $this->assertSame($initial->id, $version->dasar_izin_pengajuan['penugasan_id']);
-        $this->assertSame($pic->id, $version->snapshot['pic']['id']);
-        $this->assertSame($target->id, $measurement->fresh()->effectivePic()->user_id);
+
+        return [$operator, $indicator, $pic, $measurement];
     }
 
     public static function pjChangeDates(): array

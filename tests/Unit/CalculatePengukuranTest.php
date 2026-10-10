@@ -48,9 +48,10 @@ class CalculatePengukuranTest extends TestCase
         $this->assertSame(['nilai' => null, 'status_perhitungan' => 'tidak_dapat_dihitung', 'sumber_nilai' => 'komponen'], $engine->handle('rasio_persen', 2, $definitions, ['n' => 5, 't' => 0], null));
     }
 
-    public function test_iku_three_is_five_weighted_terms_without_double_weighting(): void
+    public function test_five_weighted_terms_are_summed_without_double_weighting(): void
     {
-        $keys = ['perencanaan_kinerja', 'pengukuran_kinerja', 'pelaporan_kinerja', 'evaluasi_internal', 'zi'];
+        // Kasus sintetis lima suku berbobot 0,5; bukan definisi IKU resmi (Q32 menetapkan dua input).
+        $keys = ['suku_a', 'suku_b', 'suku_c', 'suku_d', 'suku_e'];
         $definitions = array_map(fn ($key) => ['komponen_id' => $key, 'peran' => 'penjumlah', 'bobot' => 0.5], $keys);
         $engine = new CalculatePengukuran;
         $this->assertSame('76.25', $engine->handle('penjumlahan', 2, $definitions, array_combine($keys, [23, 24, 11.5, 19, 75]), null)['nilai']);
