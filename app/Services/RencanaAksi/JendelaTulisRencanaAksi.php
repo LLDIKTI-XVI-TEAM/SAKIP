@@ -32,9 +32,11 @@ class JendelaTulisRencanaAksi
     /**
      * Alasan penolakan tulis dalam Bahasa Indonesia, atau null bila boleh.
      *
-     * @param  'pembuatan'|'penyimpanan'  $tindakan
+     * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
+     *                                    Pengajuan selalu kosong karena menyentuh seluruh RA;
+     *                                    periode sudah dijaga lingkup koreksi saat simpan.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
      *                                  null berarti dibaca di sini. Hanya capability baca
      *                                  (`DaftarRencanaAksi`) yang boleh mengisinya; gerbang
@@ -111,9 +113,10 @@ class JendelaTulisRencanaAksi
     /**
      * Jalur global bila allow berasal dari peran, bukan hanya grant unit
      * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
-     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
+     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela. Publik agar
+     * pengajuan membekukan `jalur_pengajuan` dari aturan yang sama.
      */
-    private function jalurPerencanaan(PermissionDecision $keputusan): bool
+    public function jalurPerencanaan(PermissionDecision $keputusan): bool
     {
         return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
     }

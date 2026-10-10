@@ -3,6 +3,7 @@
 namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
+use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -12,6 +13,7 @@ use App\Models\RencanaAksiTarget;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
+use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
@@ -31,6 +33,8 @@ class IndexRencanaAksi
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
         private readonly JendelaTulisRencanaAksi $jendela,
         private readonly KonteksBekuRencanaAksi $konteks,
+        private readonly KesiapanPengajuan $kesiapan,
+        private readonly EvaluateEvidence $evaluator,
     ) {}
 
     /**
@@ -101,7 +105,7 @@ class IndexRencanaAksi
             $jendela = $this->konteks->jendela($jadwal->id);
             $efektifIds = $this->konteks->periodeEfektif($snapshot, $jendela);
 
-            $baris = $this->petaTarget($segel);
+            $baris = $this->kesiapan->petaTarget(RencanaAksiTarget::where('rencana_aksi_id', $segel->id)->get());
 
             // Baris basi transisi (tak efektif pada
             // satu pun versi antara jepit→terbaru) disaring bagai tak
@@ -112,8 +116,26 @@ class IndexRencanaAksi
             $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
             $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
+            // Kesiapan pengajuan memakai evaluator yang sama dengan gerbang
+            // `AjukanRencanaAksi` (tanpa kunci di sini), atas peta yang sudah
+            // disaring dari baris basi agar sel basi tidak dihitung lengkap.
+            // Skor periode dihitung dua kali pada GET (`susunPeriode` untuk
+            // tampilan, `barisPeriode` untuk bentuk beku); keduanya terbatas
+            // 600 sel, dan jalur tampilan sengaja tidak dirombak. Bukti current
+            // dibaca lagi oleh `IndexBuktiRencanaAksi` untuk panel (terbatas).
+            $barisBeku = $this->kesiapan->barisPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+            $deviasiBeku = DeviasiTargetPk::bandingkan(
+                $barisBeku === [] ? null : $barisBeku[array_key_last($barisBeku)]['nilai'],
+                $snapshot->target === null ? null : (string) $snapshot->target,
+                $presisi,
+            );
+            $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
+            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
+
             $unitId = (string) $segel->unit_id;
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
+            $keputusanAjukan = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, $unitId);
+            $versiPengajuan = $segel->latestVersion;
 
             // Metadata indikator (nama, satuan, arah, tipe,
             // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
@@ -158,6 +180,13 @@ class IndexRencanaAksi
                 // Lingkup koreksi untuk UI; lihat statusKoreksi.
                 'koreksi' => $koreksi,
                 'deviasi_pk' => $this->deviasiPk($segel, $presisi, $snapshot, $periode),
+                // Teks alasan berasal dari server; React hanya menampilkannya.
+                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan],
+                'versi_pengajuan' => $versiPengajuan === null ? null : [
+                    'nomor' => (int) $versiPengajuan->nomor,
+                    'diajukan_oleh' => User::whereKey($versiPengajuan->diajukan_by)->value('nama'),
+                    'diajukan_at' => $versiPengajuan->diajukan_at->toIso8601String(),
+                ],
                 // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
                 // (izin, unit aktif, indikator bukan arsip, status draf,
                 // lingkup koreksi yang mencakup periode efektif, jendela
@@ -171,6 +200,17 @@ class IndexRencanaAksi
                         && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
                         && (! $koreksi['aktif'] || array_intersect($efektifIds->all(), $koreksi['periode_ids']) !== [])
                         && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan') === null,
+                    // `submit` = eligibility gerbang `AjukanRencanaAksi` tanpa
+                    // kelengkapan isi (izin, unit aktif, bukan arsip, status
+                    // dapat disunting, jepit snapshot terbaru, jendela
+                    // pengajuan); kelengkapan dilaporkan terpisah di
+                    // `pengajuan` agar UI dapat menunjukkan alasannya.
+                    'submit' => $keputusanAjukan->allowed
+                        && $segel->unit?->status === 'aktif'
+                        && ! $indikator->isArsip()
+                        && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
+                        && (string) $segel->snapshot_draf_id === (string) $snapshot->id
+                        && $this->jendela->alasanTolak($actor, $keputusanAjukan, $indikator, $jadwal, 'pengajuan') === null,
                 ],
             ];
         });
@@ -191,18 +231,6 @@ class IndexRencanaAksi
             'aktif' => $this->jendela->tahunDitutup($jadwal) && $this->jendela->sesiKoreksiAktif($indikator, $jadwal),
             'periode_ids' => $this->jendela->periodeLingkupKoreksi($jadwal),
         ];
-    }
-
-    /**
-     * Target tersimpan dikelompokkan per periode lalu per komponen
-     * (`manual` untuk baris manual `komponen_id = NULL`).
-     */
-    private function petaTarget(RencanaAksi $header): Collection
-    {
-        return RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->get()
-            ->groupBy(fn (RencanaAksiTarget $row): string => (string) $row->periode_id)
-            ->map(fn (Collection $rows): Collection => $rows->keyBy(fn (RencanaAksiTarget $row): string => $row->komponen_id === null ? 'manual' : (string) $row->komponen_id));
     }
 
     /**
