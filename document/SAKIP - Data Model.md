@@ -1507,7 +1507,7 @@ perubahan pada baris `renstra`/`indikator` yang bersangkutan (lihat §2.32).
 
 Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada sebuah rencana aksi, menyimpan provenance beku (siapa mengajukan, lewat jalur apa, dengan dasar izin apa) beserta `snapshot` isi pengajuan saat itu. Transisi `diverifikasi → disahkan` mengesahkan **snapshot versi ini**, bukan header; `rencana_aksi.disahkan_at`/`disahkan_by` hanya ringkasan status terkini.
 
-> **Kepemilikan kontrak:** tabel ini beserta isi `snapshot`-nya adalah kontrak milik **ISS-05.03** (penyusunan/pengajuan rencana aksi); ISS-05.05 (pengesahan) adalah konsumen pertama. Kontrak dikonfirmasi pada review PR #66 tanggal 9 Oktober 2026. Perubahan bentuk `snapshot` wajib dicatat di dokumen ini terlebih dahulu dan diselaraskan dengan produsen maupun konsumennya.
+> **Kepemilikan kontrak (dikonfirmasi 2026-10-09):** tabel ini beserta isi `snapshot`-nya adalah kontrak milik **ISS-05.03** (penyusunan/pengajuan rencana aksi). ISS-05.05 (pengesahan) adalah konsumen pertama; konfirmasi pemilik tercatat di [PR #66 · issuecomment-6084316378](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/66#issuecomment-6084316378). Perubahan bentuk `snapshot` wajib dicatat di Data Model lebih dahulu dan diselaraskan dengan produsen maupun konsumennya.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
