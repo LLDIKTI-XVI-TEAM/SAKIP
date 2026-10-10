@@ -7,15 +7,25 @@ use App\Models\User;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DestroyBuktiRencanaAksiRequest extends FormRequest
 {
+    private ?PermissionDecision $tolak = null;
+
     public function authorize(): bool
     {
         $header = $this->route('rencanaAksi');
+        $user = $this->user();
+        if (! $user instanceof User || ! $header instanceof RencanaAksi) {
+            return false;
+        }
 
-        return $header instanceof RencanaAksi && ($this->user()?->can('deleteEvidence', $header) ?? false);
+        // Satu keputusan izin dipakai untuk otorisasi sekaligus dasar audit penolakan.
+        $this->tolak = app(GerbangBuktiRencanaAksi::class)->periksaIzin($user, $header, PermissionCodes::BERKAS_DELETE)['tolak'];
+
+        return $this->tolak === null;
     }
 
     /** Request hapus langsung yang ditolak tetap tercatat (Data Model: percobaan tindakan ditolak). */
@@ -23,8 +33,8 @@ class DestroyBuktiRencanaAksiRequest extends FormRequest
     {
         $header = $this->route('rencanaAksi');
         $user = $this->user();
-        if ($user instanceof User && $header instanceof RencanaAksi) {
-            app(GerbangBuktiRencanaAksi::class)->catatTolakTepi($user, $header, PermissionCodes::BERKAS_DELETE, 'berkas.hapus_ditolak');
+        if ($user instanceof User && $header instanceof RencanaAksi && $this->tolak instanceof PermissionDecision) {
+            app(GerbangBuktiRencanaAksi::class)->catatTolakTepi($user, $header, $this->tolak, 'berkas.hapus_ditolak');
         }
 
         parent::failedAuthorization();

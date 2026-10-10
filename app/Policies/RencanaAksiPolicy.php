@@ -21,7 +21,6 @@ class RencanaAksiPolicy
 {
     public function __construct(
         private readonly PermissionResolver $resolver,
-        private readonly GerbangBuktiRencanaAksi $gerbangBukti,
     ) {}
 
     /**
@@ -87,22 +86,6 @@ class RencanaAksiPolicy
         return $decision['allowed']
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId)
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
-    }
-
-    /**
-     * Izin unggah bukti saja (fail-fast FormRequest). Status, unit, arsip, dan
-     * jendela adalah validasi bisnis (Data Model §3.2 langkah 6) yang dijawab
-     * 422 oleh Action pada state terkunci.
-     */
-    public function uploadEvidence(User $user, RencanaAksi $header): bool
-    {
-        return $this->gerbangBukti->periksaIzin($user, $header, PermissionCodes::BERKAS_UPLOAD)['tolak'] === null;
-    }
-
-    /** Izin hapus bukti saja; lihat `uploadEvidence`. */
-    public function deleteEvidence(User $user, RencanaAksi $header): bool
-    {
-        return $this->gerbangBukti->periksaIzin($user, $header, PermissionCodes::BERKAS_DELETE)['tolak'] === null;
     }
 
     private function response(PermissionDecision $decision, string $pesan): Response

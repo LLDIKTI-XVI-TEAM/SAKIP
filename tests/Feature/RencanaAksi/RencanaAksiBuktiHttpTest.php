@@ -12,6 +12,8 @@ use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
@@ -192,6 +195,49 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->hapus($this->actor, $bukti->id)->assertForbidden();
         $this->assertNull($bukti->fresh()->dihapus_pada);
         $this->assertSame(0, $this->rencanaAksi->buktiDukungs()->where('mode', 'teks')->count());
+    }
+
+    #[DataProvider('jalurPenolakanRequest')]
+    public function test_audit_penolakan_request_memakai_keputusan_authorize(string $kode, string $tindakan): void
+    {
+        $this->denyPermission($this->actor, $kode);
+        // Deny "dicabut" setelah authorize(): evaluasi ulang sesudahnya akan mengizinkan.
+        $this->app->instance(PermissionResolver::class, new class($kode) extends PermissionResolver
+        {
+            private int $panggilan = 0;
+
+            public function __construct(private readonly string $kode) {}
+
+            public function resolve(User $user, string $permissionCode, ?string $unitId = null): PermissionDecision
+            {
+                if ($permissionCode === $this->kode && $this->panggilan++ > 0) {
+                    return new PermissionDecision(true, $permissionCode, ['alasan' => 'allow']);
+                }
+
+                return parent::resolve($user, $permissionCode, $unitId);
+            }
+        });
+
+        $bukti = $kode === 'berkas:delete' ? $this->createBuktiDukung() : null;
+        $respons = $bukti instanceof BuktiDukung
+            ? $this->hapus($this->actor, $bukti->id)
+            : $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Ditolak deny berkas.']);
+
+        $respons->assertForbidden();
+        $audit = AuditLog::where('tindakan', $tindakan)->where('objek_id', $this->rencanaAksi->id)->sole();
+        $this->assertSame($kode, $audit->dasar_izin['permission']);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+        if ($bukti instanceof BuktiDukung) {
+            $this->assertNull($bukti->fresh()->dihapus_pada);
+        }
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function jalurPenolakanRequest(): array
+    {
+        return ['unggah' => ['berkas:upload', 'berkas.unggah_ditolak'], 'hapus' => ['berkas:delete', 'berkas.hapus_ditolak']];
     }
 
     public function test_pic_di_luar_jendela_ditolak_sedangkan_jalur_perencanaan_tetap_boleh(): void

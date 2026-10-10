@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Gerbang tulis bukti rencana aksi yang dipakai bersama aksi tambah dan
- * hapus, capability halaman, dan Policy. Izin (`periksaIzin`) dan validasi
+ * hapus, capability halaman, dan FormRequest. Izin (`periksaIzin`) dan validasi
  * bisnis (`pelanggaranBisnis`) sengaja dipisah sesuai Data Model §3.2
  * langkah 6: kegagalan bisnis dijawab 422, bukan "izin ditolak".
  * `kunci()` wajib dipanggil di dalam transaksi pemanggil.
@@ -96,19 +96,18 @@ class GerbangBuktiRencanaAksi
     /**
      * Audit penolakan izin untuk request mutasi langsung (dipanggil
      * FormRequest). Tidak dipakai capability halaman agar kunjungan biasa
-     * tidak tercatat sebagai percobaan unggah/hapus.
+     * tidak tercatat sebagai percobaan unggah/hapus. `$keputusan` adalah
+     * keputusan yang sama dengan `authorize()`, bukan hasil evaluasi ulang.
      */
-    public function catatTolakTepi(User $user, RencanaAksi $header, string $izinBerkas, string $tindakan): void
+    public function catatTolakTepi(User $user, RencanaAksi $header, PermissionDecision $keputusan, string $tindakan): void
     {
-        $izin = $this->periksaIzin($user, $header, $izinBerkas);
-
         $this->audit->catat(
             actor: $user,
             tindakan: $tindakan,
             objekTipe: 'rencana_aksi',
             objekId: (string) $header->id,
             alasan: 'Percobaan mutasi bukti dukung rencana aksi ditolak oleh sistem otorisasi.',
-            dasarIzin: ($izin['tolak'] ?? $izin['induk'])->toAuditBasis(),
+            dasarIzin: $keputusan->toAuditBasis(),
         );
     }
 
