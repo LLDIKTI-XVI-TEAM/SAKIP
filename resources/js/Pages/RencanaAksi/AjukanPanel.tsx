@@ -18,8 +18,8 @@ interface AjukanPanelProps {
     onMuatUlang: () => void;
 }
 
-/** Field galat pengajuan yang tampil sebagai pesan; konflik versi/snapshot memakai blok muat ulang. */
-const FIELD_GALAT = ['pengajuan', 'jendela', 'status_alur', 'snapshot', 'unit_id'] as const;
+/** Konflik versi/snapshot memakai blok muat ulang; field lain di bag `ajukan` tampil sebagai pesan. */
+const FIELD_KONFLIK = ['expected_versi', 'expected_snapshot_id'];
 
 export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, canSubmit, kotor, onMuatUlang }: AjukanPanelProps) {
     // Galat dibaca dari props halaman (bag `ajukan`), bukan `useForm().errors`:
@@ -33,7 +33,7 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
     const galatRef = useRef<HTMLDivElement>(null);
 
     const konflik = errors.expected_versi ?? errors.expected_snapshot_id;
-    const galat = FIELD_GALAT.map((field) => errors[field]).find((pesan) => pesan !== undefined && pesan !== '');
+    const galat = Object.entries(errors).find(([field, pesan]) => !FIELD_KONFLIK.includes(field) && pesan)?.[1];
 
     const gagal = (pesan: string): void => {
         setKonfirmasi(false);

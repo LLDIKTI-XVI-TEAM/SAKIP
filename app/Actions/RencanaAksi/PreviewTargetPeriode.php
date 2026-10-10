@@ -4,13 +4,13 @@ namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\IndikatorKinerja;
-use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Models\User;
+use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
@@ -19,21 +19,21 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
 
 class PreviewTargetPeriode
 {
     public function __construct(
-        private readonly CalculatePengukuran $calculator,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
         private readonly KonteksBekuRencanaAksi $konteks,
+        private readonly KesiapanPengajuan $kesiapan,
     ) {}
 
     /**
      * Pratinjau skor turunan tanpa persistensi.
      *
-     * Memakai `CalculatePengukuran` yang sama dengan jalur baca/tulis
-     * sehingga React tidak menghitung formula sendiri. Nilai request
+     * Memakai `KesiapanPengajuan::skor` (mesin `CalculatePengukuran`) yang
+     * sama dengan jalur baca dan gerbang pengajuan sehingga React tidak
+     * menghitung formula sendiri. Nilai request
      * dilapiskan di atas target tersimpan per sel
      * (`periode_id::komponen_id`, `manual` untuk indikator manual);
      * periode efektif yang tak dikirim memakai nilai tersimpan, sehingga
@@ -109,7 +109,7 @@ class PreviewTargetPeriode
             $jendela = $this->konteks->jendela($jadwal->id);
             $efektifIds = $this->konteks->periodeEfektif($snapshot, $jendela);
 
-            $tersimpan = $this->petaTarget($segel);
+            $tersimpan = $this->kesiapan->petaTarget(RencanaAksiTarget::where('rencana_aksi_id', $segel->id)->get());
 
             // Cermin baca Index — nilai basi transisi tak
             // dilapiskan ke skor pratinjau. Tanpa efek samping.
@@ -125,24 +125,22 @@ class PreviewTargetPeriode
                 ? $this->normalisasiTeks($data['alasan_deviasi_pk'])
                 : $segel->alasan_deviasi_pk;
 
+            // Deviasi atas skor pratinjau dengan pembanding yang sama dengan
+            // halaman dan gerbang pengajuan; `alasan_terisi` memakai alasan dari
+            // request bila dikirim (lapisan form reaktif), selain itu tersimpan.
+            $terakhir = collect($periode)->where('efektif', true)->last();
+
             return [
                 'periode' => $periode,
-                'deviasi_pk' => $this->deviasiPk($alasan, $presisi, $snapshot, $periode),
+                'deviasi_pk' => DeviasiTargetPk::props(
+                    DeviasiTargetPk::bandingkan($terakhir['skor']['nilai'] ?? null, $snapshot->target, $presisi),
+                    $alasan,
+                    $terakhir['id'] ?? null,
+                ),
             ];
         });
 
         return $hasil;
-    }
-
-    /**
-     * Target tersimpan dikelompokkan per periode lalu per komponen.
-     */
-    private function petaTarget(RencanaAksi $header): Collection
-    {
-        return RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->get()
-            ->groupBy(fn (RencanaAksiTarget $row): string => (string) $row->periode_id)
-            ->map(fn (Collection $rows): Collection => $rows->keyBy(fn (RencanaAksiTarget $row): string => $row->komponen_id === null ? 'manual' : (string) $row->komponen_id));
     }
 
     /**
@@ -277,7 +275,7 @@ class PreviewTargetPeriode
             }
 
             $nilai = $this->nilaiGabungan($tipe, $definisi, $tersimpan->get($periodeId) ?? collect(), $lapis[$periodeId] ?? []);
-            $skor = $this->skorPeriode($tipe, $presisi, $definisi, $nilai);
+            $skor = $this->kesiapan->skor($tipe, $presisi, $definisi, $nilai);
             $turun = $this->komponenTurun($nilai, $nilaiSebelumnya);
             foreach ($nilai as $kunci => $angka) {
                 $nilaiSebelumnya[$kunci] = $angka;
@@ -325,32 +323,6 @@ class PreviewTargetPeriode
     }
 
     /**
-     * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
-     * @param  array<string, string|int|float|null>  $nilai
-     * @return array{nilai: string|null, status_perhitungan: string}
-     */
-    private function skorPeriode(string $tipe, int $presisi, Collection $definisi, array $nilai): array
-    {
-        $definitions = $definisi->map(fn (array $item): array => [
-            'komponen_id' => $item['komponen_id'],
-            'peran' => $item['peran'],
-            'bobot' => $item['bobot'],
-        ])->all();
-
-        try {
-            if ($tipe === 'manual') {
-                $hitung = $this->calculator->handle($tipe, $presisi, $definitions, [], $nilai['manual'] ?? null);
-            } else {
-                $hitung = $this->calculator->handle($tipe, $presisi, $definitions, $nilai, null);
-            }
-        } catch (InvalidArgumentException|ValidationException) {
-            return ['nilai' => null, 'status_perhitungan' => 'tidak_dapat_dihitung'];
-        }
-
-        return ['nilai' => $hitung['nilai'] === null ? null : (string) $hitung['nilai'], 'status_perhitungan' => (string) $hitung['status_perhitungan']];
-    }
-
-    /**
      * @param  array<string, string|int|float|null>  $nilai
      * @param  array<string, string|int|float|null>  $nilaiSebelumnya
      * @return list<string|null>
@@ -369,35 +341,6 @@ class PreviewTargetPeriode
         }
 
         return $turun;
-    }
-
-    /**
-     * Deviasi atas skor pratinjau: cermin `IndexRencanaAksi::deviasiPk`
-     * (pembanding `DeviasiTargetPk`, HALF_UP dua sisi) tetapi
-     * `alasan_terisi` memakai alasan dari request bila dikirim (lapisan form
-     * reaktif), selain itu nilai tersimpan. `$periode` sudah terurut jendela
-     * sehingga periode efektif terakhir = elemen efektif terakhir.
-     *
-     * @param  list<array<string, mixed>>  $periode
-     * @return array{dapat_dinilai: bool, ada: bool, alasan_diperlukan: bool, alasan_terisi: bool, skor_periode_terakhir: string|null, target_pk: string|null, periode_id: string|null}
-     */
-    private function deviasiPk(?string $alasan, int $presisi, JadwalSnapshot $snapshot, array $periode): array
-    {
-        $efektif = array_values(array_filter($periode, fn (array $row): bool => ($row['efektif'] ?? false) === true));
-        $terakhir = $efektif === [] ? null : end($efektif);
-        $skor = is_array($terakhir) ? ($terakhir['skor']['nilai'] ?? null) : null;
-        $hasil = DeviasiTargetPk::bandingkan($skor, $snapshot->target === null ? null : (string) $snapshot->target, $presisi);
-        $ada = $hasil['status'] === DeviasiTargetPk::DEVIASI;
-
-        return [
-            'dapat_dinilai' => $hasil['status'] !== DeviasiTargetPk::TIDAK_DAPAT_DINILAI,
-            'ada' => $ada,
-            'alasan_diperlukan' => $ada,
-            'alasan_terisi' => trim((string) $alasan) !== '',
-            'skor_periode_terakhir' => $hasil['skor'],
-            'target_pk' => $hasil['target_pk'],
-            'periode_id' => is_string($terakhir['id'] ?? null) ? $terakhir['id'] : null,
-        ];
     }
 
     private function normalisasiTeks(mixed $value): ?string

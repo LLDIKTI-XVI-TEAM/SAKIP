@@ -52,6 +52,29 @@ final class DeviasiTargetPk
         ];
     }
 
+    /**
+     * Bentuk props `deviasi_pk` halaman Show dan pratinjau dari hasil
+     * `bandingkan`. Deviasi adalah data peringatan; alasannya baru diwajibkan
+     * gerbang pengajuan.
+     *
+     * @param  array{status: string, skor: ?string, target_pk: ?string, presisi: int}  $hasil
+     * @return array{dapat_dinilai: bool, ada: bool, alasan_diperlukan: bool, alasan_terisi: bool, skor_periode_terakhir: string|null, target_pk: string|null, periode_id: string|null}
+     */
+    public static function props(array $hasil, ?string $alasanDeviasi, ?string $periodeId): array
+    {
+        $ada = $hasil['status'] === self::DEVIASI;
+
+        return [
+            'dapat_dinilai' => $hasil['status'] !== self::TIDAK_DAPAT_DINILAI,
+            'ada' => $ada,
+            'alasan_diperlukan' => $ada,
+            'alasan_terisi' => trim((string) $alasanDeviasi) !== '',
+            'skor_periode_terakhir' => $hasil['skor'],
+            'target_pk' => $hasil['target_pk'],
+            'periode_id' => $periodeId,
+        ];
+    }
+
     private static function bulatkan(?string $nilai, int $presisi): ?BigDecimal
     {
         return is_numeric($nilai) ? BigDecimal::of($nilai)->toScale($presisi, RoundingMode::HalfUp) : null;

@@ -193,8 +193,12 @@ function performRencanaAksiMutation(string $operation, array $assignment): strin
     if ($response->getStatusCode() === 403) {
         return 'denied';
     }
-    // Pengajuan yang kalah antrean kunci ditolak gerbang bisnis (redirect + error bag), bukan 500.
-    if ($operation === 'ra-ajukan' && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+    // Penolakan bisnis yang diharapkan test (mis. pengajuan yang kalah antrean kunci) wajib pada field yang disebut.
+    if (isset($assignment['expected_error_field']) && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+        if (! array_key_exists($assignment['expected_error_field'], (array) $request->session()->get('errors.default.messages'))) {
+            throw new RuntimeException('Penolakan validasi Rencana Aksi tidak sesuai field yang diharapkan.');
+        }
+
         return 'conflict';
     }
     if ($response->getStatusCode() !== 302 || $request->session()->has('errors') || ! $request->session()->has('success')) {

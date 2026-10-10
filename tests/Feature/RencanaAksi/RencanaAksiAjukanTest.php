@@ -3,7 +3,6 @@
 namespace Tests\Feature\RencanaAksi;
 
 use App\Models\AuditLog;
-use App\Models\JadwalSnapshot;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -150,10 +149,8 @@ class RencanaAksiAjukanTest extends TestCase
             ->assertSessionHasErrors(['pengajuan' => 'Skor periode terakhir berbeda dari target PK; alasan deviasi wajib diisi.']);
         $this->assertDatabaseCount('rencana_aksi_versi', 0);
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            ...$this->payloadSimpan($fixture, 2, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 90)]),
-            'alasan_deviasi_pk' => 'Realisasi anggaran triwulan II terlambat.',
-        ])->assertSessionHasNoErrors();
+        $this->simpan($fixture, $header, 2, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 90)],
+            tambahan: ['alasan_deviasi_pk' => 'Realisasi anggaran triwulan II terlambat.']);
 
         $this->ajukan($fixture['pic'], $header, 3)->assertSessionHasNoErrors();
 
@@ -224,7 +221,7 @@ class RencanaAksiAjukanTest extends TestCase
 
         // (d) Grant ajukan dicabut: 403 dari FormRequest dengan satu audit penolakan.
         $this->travelTo(Carbon::parse('2026-03-10 09:00', 'Asia/Makassar'));
-        $this->cabutGrantAjukan($fixture['pic']);
+        $this->cabutGrant($fixture['pic'], 'rencana_aksi:ajukan');
         $this->ajukan($fixture['pic'], $header, 2)->assertForbidden();
         $audit = AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('alasan', self::ALASAN_TOLAK_OTORISASI)->sole();
         $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
@@ -319,10 +316,8 @@ class RencanaAksiAjukanTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
-            ...$this->payloadSimpan($fixture, 2, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)]),
-            'uraian' => 'Uraian diperbarui dari tab lain.',
-        ])->assertSessionHasNoErrors();
+        $this->simpan($fixture, $header, 2, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)],
+            tambahan: ['uraian' => 'Uraian diperbarui dari tab lain.']);
 
         // Skenario A: header masih draf tetapi versi sudah naik → 409.
         $this->ajukan($fixture['pic'], $header, 2)->assertRedirect()->assertSessionHasErrors('expected_versi');
@@ -346,25 +341,7 @@ class RencanaAksiAjukanTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
-        JadwalSnapshot::create([
-            'jadwal_id' => $fixture['jadwal']->id,
-            'indikator_id' => $fixture['indikator']->id,
-            'nomor_versi' => 2,
-            'menggantikan_id' => $fixture['snapshot']->id,
-            'alasan_koreksi' => 'Koreksi resmi target PK.',
-            'rujukan_koreksi' => 'SK-UJI-002',
-            'komposisi_final' => true,
-            'periode_mulai_id' => $fixture['periode1']->id,
-            'unit_id' => $fixture['unit']->id,
-            'nama' => $fixture['indikator']->nama,
-            'definisi' => 'Definisi beku v2.',
-            'satuan' => 'poin',
-            'presisi' => 2,
-            'desimal_tampilan' => 2,
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
-            'target' => 100,
-        ]);
+        $this->terbitkanSnapshotKoreksi($fixture);
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])
             ->assertConflict()
@@ -446,59 +423,5 @@ class RencanaAksiAjukanTest extends TestCase
     private function ajukan(User $aktor, RencanaAksi $header, int $versi, array $tambahan = []): TestResponse
     {
         return $this->actingAs($aktor)->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $versi, ...$tambahan]);
-    }
-
-    /**
-     * Draf manual dengan kedua periode tersimpan (versi header menjadi 2).
-     *
-     * @param  array<string, mixed>  $fixture
-     */
-    private function drafManual(array $fixture, int|string $nilai1 = 100, int|string $nilai2 = 100): RencanaAksi
-    {
-        $header = $this->buatDraf($fixture);
-        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], $nilai1), $this->manual($fixture['periode2'], $nilai2)]);
-
-        return $header->fresh();
-    }
-
-    /**
-     * @param  array<string, mixed>  $fixture
-     * @param  list<array<string, mixed>>  $targets
-     * @return array<string, mixed>
-     */
-    private function payloadSimpan(array $fixture, int $versi, array $targets): array
-    {
-        return [
-            'expected_versi' => $versi,
-            'expected_snapshot_id' => $fixture['snapshot']->id,
-            'expected_snapshot_versi' => 1,
-            'targets' => $targets,
-        ];
-    }
-
-    private function cabutGrantAjukan(User $user): void
-    {
-        DB::table('user_permission_granted')
-            ->where('user_id', $user->id)
-            ->where('permission_id', Permission::where('kode', 'rencana_aksi:ajukan')->value('id'))
-            ->delete();
-    }
-
-    /** @return array<string, mixed> */
-    private function manual(Periode $periode, int|string $nilai): array
-    {
-        return ['periode_id' => $periode->id, 'komponen_id' => null, 'nilai' => $nilai, 'keterangan' => null];
-    }
-
-    /**
-     * @param  array<string, mixed>  $fixture
-     * @return list<array<string, mixed>>
-     */
-    private function rasio(array $fixture, Periode $periode, int $pembilang, int $penyebut): array
-    {
-        return [
-            ['periode_id' => $periode->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => $pembilang, 'keterangan' => null],
-            ['periode_id' => $periode->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => $penyebut, 'keterangan' => null],
-        ];
     }
 }

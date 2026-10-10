@@ -2,13 +2,9 @@
 
 namespace Tests\Feature\RencanaAksi;
 
-use App\Models\JadwalSnapshot;
-use App\Models\Periode;
-use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
@@ -98,10 +94,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
         $this->assertCanSubmit(true, $fixture['pic'], $header);
 
         // (a) Grant ajukan dicabut: izin dasar hilang.
-        DB::table('user_permission_granted')
-            ->where('user_id', $fixture['pic']->id)
-            ->where('permission_id', Permission::where('kode', 'rencana_aksi:ajukan')->value('id'))
-            ->delete();
+        $this->cabutGrant($fixture['pic'], 'rencana_aksi:ajukan');
         $this->assertCanSubmit(false, $fixture['pic'], $header);
         $this->grant($fixture['pic'], 'rencana_aksi:ajukan', $fixture['unit']->id, $fixture['perencanaan']);
 
@@ -112,24 +105,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
 
         // (c) Snapshot koreksi baru terbit setelah draf dijepit ke v1.
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
-        JadwalSnapshot::create([
-            'jadwal_id' => $fixture['jadwal']->id,
-            'indikator_id' => $fixture['indikator']->id,
-            'nomor_versi' => 2,
-            'menggantikan_id' => $fixture['snapshot']->id,
-            'alasan_koreksi' => 'Koreksi resmi target PK.',
-            'rujukan_koreksi' => 'SK-UJI-001',
-            'periode_mulai_id' => $fixture['periode1']->id,
-            'unit_id' => $fixture['unit']->id,
-            'nama' => $fixture['indikator']->nama,
-            'definisi' => 'Definisi beku v2.',
-            'satuan' => 'poin',
-            'presisi' => 2,
-            'desimal_tampilan' => 2,
-            'arah' => 'naik_baik',
-            'tipe_perhitungan' => 'manual',
-            'target' => 100,
-        ]);
+        $this->terbitkanSnapshotKoreksi($fixture);
         $this->assertCanSubmit(false, $fixture['pic'], $header);
     }
 
@@ -154,23 +130,5 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
     private function assertCanSubmit(bool $diharapkan, User $aktor, RencanaAksi $header): void
     {
         $this->tampil($aktor, $header)->assertInertia(fn ($page) => $page->where('rencanaAksi.can.submit', $diharapkan));
-    }
-
-    /** @return array<string, mixed> */
-    private function manual(Periode $periode, int|string $nilai): array
-    {
-        return ['periode_id' => $periode->id, 'komponen_id' => null, 'nilai' => $nilai, 'keterangan' => null];
-    }
-
-    /**
-     * @param  array<string, mixed>  $fixture
-     * @return list<array<string, mixed>>
-     */
-    private function rasio(array $fixture, Periode $periode, int $pembilang, int $penyebut): array
-    {
-        return [
-            ['periode_id' => $periode->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => $pembilang, 'keterangan' => null],
-            ['periode_id' => $periode->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => $penyebut, 'keterangan' => null],
-        ];
     }
 }

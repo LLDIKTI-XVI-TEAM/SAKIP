@@ -25,7 +25,7 @@ class RencanaAksiVersiBekuTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         $jenis = $this->buatPersyaratanWajib($fixture);
-        $header = $this->drafLengkap($fixture);
+        $header = $this->drafManual($fixture);
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/bukti", [
             'jenis_berkas_id' => $jenis->id,
             'mode' => 'teks',
@@ -37,7 +37,7 @@ class RencanaAksiVersiBekuTest extends TestCase
         $snapshotAwal = $versi->snapshot;
 
         DB::table('rencana_aksi')->where('id', $header->id)->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
-        $this->simpan($fixture, $header, 3, [['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 50, 'keterangan' => null]]);
+        $this->simpan($fixture, $header, 3, [$this->manual($fixture['periode2'], 50)]);
         $this->actingAs($fixture['pic'])->delete("/rencana-aksi/{$header->id}/bukti/{$bukti->id}", [
             'alasan' => 'Bukti diganti setelah dikembalikan.',
         ])->assertSessionHasNoErrors();
@@ -54,7 +54,7 @@ class RencanaAksiVersiBekuTest extends TestCase
     public function test_versi_beku_terbaca_oleh_prasyarat_pengukuran(): void
     {
         $fixture = $this->buatFixtureManual();
-        $header = $this->drafLengkap($fixture);
+        $header = $this->drafManual($fixture);
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
         $versi = RencanaAksiVersi::sole();
 
@@ -80,22 +80,6 @@ class RencanaAksiVersiBekuTest extends TestCase
             $this->assertStringNotContainsString('Target pada versi RA', $alasan);
             $this->assertStringNotContainsString('Versi rencana aksi sah', $alasan);
         }
-    }
-
-    /**
-     * Draf manual dengan kedua periode tersimpan 100 (versi header menjadi 2).
-     *
-     * @param  array<string, mixed>  $fixture
-     */
-    private function drafLengkap(array $fixture): RencanaAksi
-    {
-        $header = $this->buatDraf($fixture);
-        $this->simpan($fixture, $header, 1, [
-            ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 100, 'keterangan' => null],
-            ['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 100, 'keterangan' => null],
-        ]);
-
-        return $header->fresh();
     }
 
     /** Savepoint menjaga transaksi RefreshDatabase tetap hidup setelah trigger menolak. */

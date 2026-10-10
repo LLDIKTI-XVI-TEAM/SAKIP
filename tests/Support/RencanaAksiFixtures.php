@@ -172,14 +172,82 @@ trait RencanaAksiFixtures
      * @param  array<string, mixed>  $fixture
      * @param  list<array<string, mixed>>  $targets
      */
-    private function simpan(array $fixture, RencanaAksi $header, int $versi, array $targets, ?User $aktor = null): void
+    private function simpan(array $fixture, RencanaAksi $header, int $versi, array $targets, ?User $aktor = null, array $tambahan = []): void
     {
         $this->actingAs($aktor ?? $fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $versi,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
             'targets' => $targets,
+            ...$tambahan,
         ])->assertSessionHasNoErrors();
+    }
+
+    /**
+     * Draf manual dengan kedua periode tersimpan (versi header menjadi 2).
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function drafManual(array $fixture, int|string $nilai1 = 100, int|string $nilai2 = 100): RencanaAksi
+    {
+        $header = $this->buatDraf($fixture);
+        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], $nilai1), $this->manual($fixture['periode2'], $nilai2)]);
+
+        return $header->fresh();
+    }
+
+    /** @return array<string, mixed> */
+    private function manual(Periode $periode, int|string $nilai): array
+    {
+        return ['periode_id' => $periode->id, 'komponen_id' => null, 'nilai' => $nilai, 'keterangan' => null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     * @return list<array<string, mixed>>
+     */
+    private function rasio(array $fixture, Periode $periode, int $pembilang, int $penyebut): array
+    {
+        return [
+            ['periode_id' => $periode->id, 'komponen_id' => $fixture['pembilang']->id, 'nilai' => $pembilang, 'keterangan' => null],
+            ['periode_id' => $periode->id, 'komponen_id' => $fixture['penyebut']->id, 'nilai' => $penyebut, 'keterangan' => null],
+        ];
+    }
+
+    /**
+     * Snapshot koreksi v2 terbit setelah draf dijepit ke v1.
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function terbitkanSnapshotKoreksi(array $fixture): JadwalSnapshot
+    {
+        return JadwalSnapshot::create([
+            'jadwal_id' => $fixture['jadwal']->id,
+            'indikator_id' => $fixture['indikator']->id,
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi resmi target PK.',
+            'rujukan_koreksi' => 'SK-UJI-002',
+            'komposisi_final' => true,
+            'periode_mulai_id' => $fixture['periode1']->id,
+            'unit_id' => $fixture['unit']->id,
+            'nama' => $fixture['indikator']->nama,
+            'definisi' => 'Definisi beku v2.',
+            'satuan' => 'poin',
+            'presisi' => 2,
+            'desimal_tampilan' => 2,
+            'arah' => 'naik_baik',
+            'tipe_perhitungan' => 'manual',
+            'target' => 100,
+        ]);
+    }
+
+    private function cabutGrant(User $user, string $permission): void
+    {
+        DB::table('user_permission_granted')
+            ->where('user_id', $user->id)
+            ->where('permission_id', Permission::where('kode', $permission)->value('id'))
+            ->delete();
     }
 
     private function penggunaDenganPeran(string $kode): User

@@ -20,7 +20,6 @@ use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AlasanAudit;
-use App\Support\DeviasiTargetPk;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -141,11 +140,7 @@ class AjukanRencanaAksi
                     $this->konteks->periodeEfektif($snapshot, $jendela),
                     $this->kesiapan->petaTarget($targets),
                 );
-                $deviasi = DeviasiTargetPk::bandingkan(
-                    $baris === [] ? null : $baris[array_key_last($baris)]['nilai'],
-                    $snapshot->target === null ? null : (string) $snapshot->target,
-                    $presisi,
-                );
+                $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
                 $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);
                 if ($alasan !== []) {
@@ -223,7 +218,7 @@ class AjukanRencanaAksi
                     objekTipe: 'rencana_aksi',
                     objekId: $id,
                     alasan: AlasanAudit::sanitasi($teks, 'Pengajuan rencana aksi ditolak.'),
-                    dasarIzin: is_array($dasarIzin) ? $dasarIzin : null,
+                    dasarIzin: $dasarIzin,
                 );
             }
 

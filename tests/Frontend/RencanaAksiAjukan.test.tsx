@@ -178,6 +178,13 @@ describe('pengajuan rencana aksi di halaman Show', () => {
         expect(galat.getAttribute('role')).toBe('alert');
     });
 
+    it('menampilkan galat gerbang lain di bag ajukan, termasuk indikator arsip', () => {
+        halaman.props.errors = { ajukan: { indikator_id: "Indikator 'I-UJI' telah diarsipkan sehingga tidak dapat dibuatkan rencana aksi baru." } };
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        expect(screen.getByRole('alert').textContent).toContain('telah diarsipkan');
+    });
+
     it('menampilkan blok data berubah dari props.errors.ajukan setelah remount', async () => {
         const user = userEvent.setup();
         halaman.props.errors = { ajukan: { expected_snapshot_id: 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang dan simpan target sebelum mengajukan.' } };

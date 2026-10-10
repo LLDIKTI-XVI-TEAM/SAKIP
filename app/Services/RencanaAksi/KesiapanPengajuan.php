@@ -3,6 +3,7 @@
 namespace App\Services\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
+use App\Models\JadwalSnapshot;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksiTarget;
 use App\Support\DeviasiTargetPk;
@@ -20,9 +21,11 @@ use InvalidArgumentException;
  * menampilkan kesiapan tanpa kunci, sedangkan `AjukanRencanaAksi`
  * mengevaluasi ulang di bawah kunci tepat sebelum membekukan versi. Dengan
  * satu sumber, alasan yang tampil di halaman sama dengan alasan penolakan
- * server. Service ini tidak membuka transaksi, tidak mengunci, tidak mengaudit,
- * dan tidak membaca database: semua state (definisi snapshot, jendela,
- * target, hasil evaluator bukti) diberikan caller, yang menentukan mode kunci.
+ * server, dan skor yang tampil (`IndexRencanaAksi`, `PreviewTargetPeriode`
+ * lewat `skor`) sama dengan skor yang dibekukan. Service ini tidak membuka
+ * transaksi, tidak mengunci, tidak mengaudit, dan tidak membaca database:
+ * semua state (definisi snapshot, jendela, target, hasil evaluator bukti)
+ * diberikan caller, yang menentukan mode kunci.
  */
 class KesiapanPengajuan
 {
@@ -57,12 +60,6 @@ class KesiapanPengajuan
      */
     public function barisPeriode(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $petaTarget): array
     {
-        $definitions = $definisi->map(fn (array $item): array => [
-            'komponen_id' => $item['komponen_id'],
-            'peran' => $item['peran'],
-            'bobot' => $item['bobot'],
-        ])->all();
-
         $hasil = [];
         foreach ($jendela as $window) {
             $periodeId = (string) $window->periode_id;
@@ -73,7 +70,7 @@ class KesiapanPengajuan
             $sel = $petaTarget->get($periodeId) ?? collect();
             if ($tipe === 'manual') {
                 $manual = $sel->get('manual');
-                $skor = $this->hitung($tipe, $presisi, [], [], $manual?->nilai);
+                $skor = $this->skor($tipe, $presisi, $definisi, ['manual' => $manual?->nilai]);
                 $keterangan = $manual?->keterangan;
                 $komponen = [];
             } else {
@@ -88,7 +85,7 @@ class KesiapanPengajuan
                         'keterangan' => $row?->keterangan,
                     ];
                 })->values()->all();
-                $skor = $this->hitung($tipe, $presisi, $definitions, array_column($komponen, 'nilai', 'komponen_id'), null);
+                $skor = $this->skor($tipe, $presisi, $definisi, array_column($komponen, 'nilai', 'komponen_id'));
                 $keterangan = null;
             }
 
@@ -147,17 +144,36 @@ class KesiapanPengajuan
     }
 
     /**
-     * Kegagalan hitung (data drift, presisi di luar kapasitas) menjadi
-     * `tidak_dapat_dihitung`, bukan galat halaman; gerbang menolaknya.
+     * Deviasi skor periode efektif terakhir terhadap target PK beku snapshot.
      *
-     * @param  list<array{komponen_id: string, peran: string, bobot: string}>  $definitions
-     * @param  array<string, string|null>  $values
+     * @param  list<array{nilai: ?string}>  $baris  Keluaran `barisPeriode`.
+     * @return array{status: string, skor: ?string, target_pk: ?string, presisi: int}
+     */
+    public function deviasi(array $baris, JadwalSnapshot $snapshot): array
+    {
+        return DeviasiTargetPk::bandingkan($baris === [] ? null : $baris[array_key_last($baris)]['nilai'], $snapshot->target, (int) $snapshot->presisi);
+    }
+
+    /**
+     * Skor satu periode dari nilai sel (`manual`, atau per `komponen_id`)
+     * lewat mesin hitung bersama. Kegagalan hitung (data drift, presisi di
+     * luar kapasitas) menjadi `tidak_dapat_dihitung`, bukan galat halaman;
+     * gerbang pengajuan menolaknya.
+     *
+     * @param  Collection<int, array{komponen_id: string, peran: string, bobot: string}>  $definisi
+     * @param  array<string, string|int|float|null>  $nilai
      * @return array{nilai: ?string, status_perhitungan: string}
      */
-    private function hitung(string $tipe, int $presisi, array $definitions, array $values, ?string $manual): array
+    public function skor(string $tipe, int $presisi, Collection $definisi, array $nilai): array
     {
         try {
-            $hitung = $this->calculator->handle($tipe, $presisi, $definitions, $values, $manual);
+            $hitung = $tipe === 'manual'
+                ? $this->calculator->handle($tipe, $presisi, [], [], $nilai['manual'] ?? null)
+                : $this->calculator->handle($tipe, $presisi, $definisi->map(fn (array $item): array => [
+                    'komponen_id' => $item['komponen_id'],
+                    'peran' => $item['peran'],
+                    'bobot' => $item['bobot'],
+                ])->all(), $nilai, null);
         } catch (InvalidArgumentException|ValidationException) {
             return ['nilai' => null, 'status_perhitungan' => 'tidak_dapat_dihitung'];
         }

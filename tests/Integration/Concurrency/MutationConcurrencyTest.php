@@ -727,7 +727,7 @@ class MutationConcurrencyTest extends TestCase
         app(SimpanTargetPeriode::class)->handle($actor, $header->id, ['expected_versi' => 1, 'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => 1,
             'targets' => [['periode_id' => $period->id, 'komponen_id' => null, 'nilai' => 70, 'keterangan' => null]]]);
         $payload = ['actor_id' => $actor->id, 'permission' => 'rencana_aksi:ajukan', 'izin_unit_id' => $indicator->unit_id,
-            'rencana_aksi_id' => $header->id, 'data' => ['expected_versi' => 2]];
+            'rencana_aksi_id' => $header->id, 'data' => ['expected_versi' => 2], 'expected_error_field' => 'status_alur'];
 
         $results = $this->race('ra-ajukan', $actor->id, '', [$payload, $payload],
             prepare: fn () => RencanaAksi::whereKey($header->id)->lockForUpdate()->firstOrFail());
