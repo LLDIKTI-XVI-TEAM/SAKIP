@@ -30,7 +30,7 @@ class EvaluateEvidence
     }
 
     /**
-     * Waiver hanya mode file; mode nonfile tetap wajib sesuai kontrak persyaratan.
+     * Waiver hanya mode file pada persyaratan wajib (Plan 13.7); mode nonfile tetap wajib sesuai kontrak persyaratan.
      *
      * @param  'pengukuran'|'rencana_aksi'|'kegiatan'  $tahap
      * @param  Collection<int, BuktiDukung>  $evidence  Bukti berlaku milik induk (sudah difilter `current`).
@@ -44,7 +44,7 @@ class EvaluateEvidence
             ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence) {
                 $modes = array_values(array_filter(['file', 'tautan', 'teks'], fn ($mode) => $requirement->{'izinkan_'.$mode}));
                 $fulfilled = $evidence->where('jenis_berkas_id', $requirement->id)->pluck('mode')->unique()->intersect($modes)->values()->all();
-                $waived = ! $settings['unggahan_aktif'] && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
+                $waived = $requirement->wajib && ! $settings['unggahan_aktif'] && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
                 $available = array_values(array_diff($modes, $waived));
                 $missing = array_values(array_diff($available, $fulfilled));
                 // Konfigurasi tanpa mode bukan waiver file-only yang memang diizinkan.

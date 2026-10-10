@@ -73,6 +73,19 @@ class BuktiRencanaAksiEvaluasiTest extends TestCase
         $this->assertTrue($this->evaluator->ringkasan($hasil)['lengkap']);
     }
 
+    public function test_persyaratan_opsional_file_saja_tidak_dikecualikan_saat_unggahan_nonaktif(): void
+    {
+        Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
+        $this->createJenisBerkas(['wajib' => false, 'izinkan_tautan' => false, 'izinkan_teks' => false]);
+
+        $hasil = $this->evaluasi();
+        $this->assertFalse($hasil[0]['pemenuhan']['terpenuhi']);
+        $this->assertFalse($hasil[0]['pemenuhan']['tidak_dapat_dipenuhi']);
+        $this->assertSame([], $hasil[0]['pemenuhan']['mode_dikecualikan']);
+        $this->assertNull($hasil[0]['pemenuhan']['alasan_pengecualian']);
+        $this->assertSame(['lengkap' => true, 'total_wajib' => 0, 'terpenuhi_wajib' => 0], $this->evaluator->ringkasan($hasil));
+    }
+
     public function test_persyaratan_tahap_lain_dan_opsional_tidak_mempengaruhi_ringkasan(): void
     {
         $this->createJenisBerkas(['nama' => 'Bukti Pengukuran', 'tahap' => 'pengukuran']);
