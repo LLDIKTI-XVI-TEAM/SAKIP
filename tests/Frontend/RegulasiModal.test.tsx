@@ -12,7 +12,7 @@ vi.mock('@inertiajs/react', async (original) => ({
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;
@@ -67,16 +67,12 @@ describe('Regulasi Modal UI/UX', () => {
         // Sebelum klik, modal belum ada di DOM / belum terbuka
         expect(screen.queryByRole('heading', { name: 'Tambah Dasar Aturan' })).toBeNull();
 
-        // Keterangan privasi file dan jejak audit tetap tampil pada deskripsi halaman
-        expect(screen.getByText(/File tersimpan privat dan setiap perubahan sensitif dicatat pada audit log/)).toBeTruthy();
-
         // Klik tombol Tambah dasar aturan
         const tambahBtn = screen.getByRole('button', { name: /Tambah dasar aturan/i });
         await user.click(tambahBtn);
 
-        // Modal terbuka dengan judul dan deskripsi
+        // Modal terbuka dengan judul
         expect(screen.getByRole('heading', { name: 'Tambah Dasar Aturan' })).toBeTruthy();
-        expect(screen.getByText('Tambahkan dasar hukum atau regulasi yang menjadi rujukan dalam penyusunan SAKIP.')).toBeTruthy();
 
         // Field form tersedia di dalam modal
         expect(screen.getByLabelText(/Jenis regulasi/i)).toBeTruthy();

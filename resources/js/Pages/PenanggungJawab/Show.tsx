@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { ArrowLeft } from 'lucide-react';
 import { Input } from '@/Components/Input';
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { GrantUserAutocomplete } from '@/Components/Access/GrantUserAutocomplete';
 import { WorkReadinessList } from '@/Components/Access/WorkReadinessList';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import type { SharedPageProps } from '@/types/auth';
 import type { AssignmentDetailProps, WorkReadiness } from '@/types/penanggung-jawab';
 
 function validReadiness(value: unknown): value is WorkReadiness & { user_id: string; unit_id: string } {
@@ -30,6 +33,8 @@ export default function Show(props: AssignmentDetailProps) {
 }
 function AssignmentDetail({ indicator, unit, renstra, effective, readiness, history, has_history, expected_state, tanggal_acuan, today, blocked_reason, can }: AssignmentDetailProps) {
     const formatTanggal = useFormatTanggal();
+    // Halaman ini cukup penanggung_jawab:update; daftar & detail indikator butuh indikator:read (bisa dicabut eksplisit).
+    const bolehBacaIndikator = usePage<SharedPageProps>().props.auth.can.sasaranIndikator === true;
     const base = `/perencanaan/indikator/${indicator.id}/penanggung-jawab`;
     const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, alasan: '', expected_state });
     const [reference, setReference] = useState(tanggal_acuan);
@@ -110,69 +115,113 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
             {!recovery.recovery && <Button type="button" variant="outline" isLoading={refreshing} onClick={refresh} disabled={form.processing}>Muat data terbaru</Button>}
         </div>}</>;
     const disabled = form.processing || refreshing || unknownOutcome || Boolean(recovery.recovery);
-    return <AuthenticatedLayout title="Penanggung Jawab Indikator" breadcrumbs={[{ label: 'Perencanaan' }, { label: 'Sasaran & Indikator', href: '/perencanaan/sasaran-indikator' }, { label: indicator.kode }]}
-        headerActions={<Link href="/penanggung-jawab" className="text-sm font-semibold text-primary underline underline-offset-4">Monitoring izin kerja</Link>}>
+    const detailHref = `/perencanaan/indikator/${indicator.id}`;
+    const daftarHref = renstra ? `/perencanaan/sasaran-indikator?renstra_id=${renstra.id}` : '/perencanaan/sasaran-indikator';
+    const pagerLink = 'inline-flex h-9 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
+    return <AuthenticatedLayout title="Penanggung Jawab Indikator" breadcrumbs={[
+        { label: 'Perencanaan' },
+        { label: 'Sasaran & Indikator', href: bolehBacaIndikator ? daftarHref : undefined },
+        { label: indicator.kode, href: bolehBacaIndikator ? detailHref : undefined },
+        { label: 'Penanggung Jawab' },
+    ]}>
         <Head title={`Penanggung Jawab · ${indicator.kode}`} />
-        <div className="space-y-6">
-            <section className="rounded-xl border border-border bg-surface p-5">
-                <p className="text-xs font-semibold text-primary">{indicator.kode} · {unit?.nama ?? 'Unit tidak tersedia'}</p>
-                <h2 className="mt-1 text-lg font-semibold text-ink">{indicator.nama}</h2>
-                <p className="mt-2 text-sm text-muted">{renstra?.nama ?? 'Renstra tidak tersedia'} · <span className="capitalize">{indicator.status}</span></p>
-                <form className="mt-5 flex flex-col items-end gap-3 sm:max-w-md sm:flex-row" onSubmit={(event) => {
-                    event.preventDefault(); router.get(base, { tanggal_acuan: reference }, { preserveState: true, preserveScroll: true });
-                }}>
-                    <Input label="PJ efektif pada tanggal" type="date" value={reference} required onChange={(event) => setReference(event.target.value)} />
-                    <Button type="submit" variant="outline" className="shrink-0">Tampilkan</Button>
-                </form>
-                <div className="mt-5 border-t border-border pt-4">
-                    <p className="text-xs font-medium text-muted">PJ efektif pada {tanggal_acuan}</p>
-                    <p className="mt-1 text-base font-semibold text-ink">{effective?.pic?.nama ?? 'Belum ada PJ efektif'}</p>
-                    {effective && <p className="mt-1 text-sm text-muted">Mulai berlaku {effective.tanggal_mulai_berlaku} · <span className="capitalize">{effective.pic?.status}</span></p>}
-                    {readiness && <details className="mt-4">
+        <div className="mx-auto max-w-5xl space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {bolehBacaIndikator && <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali ke detail indikator
+                </Link>}
+                <Link href="/penanggung-jawab" className={`sm:ml-auto ${pagerLink}`}>Monitoring izin kerja</Link>
+            </div>
+
+            <Card>
+                <CardHeader className="items-start gap-4">
+                    <div className="min-w-0">
+                        <CardTitle>{indicator.nama}</CardTitle>
+                        <p className="mt-1 text-sm text-muted"><span className="font-mono">{indicator.kode}</span> · {unit?.nama ?? 'Unit tidak tersedia'}</p>
+                    </div>
+                    <Badge variant={indicator.status === 'aktif' ? 'success' : 'muted'} dot className="shrink-0">
+                        {indicator.status === 'aktif' ? 'Aktif' : 'Arsip'}
+                    </Badge>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold text-muted">PJ efektif per {formatTanggal(tanggal_acuan)}</p>
+                            <p className="mt-1 flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
+                                {effective?.pic?.nama ?? 'Belum ada PJ efektif'}
+                                {effective?.pic && effective.pic.status !== 'aktif' && <Badge variant="muted" size="sm">Nonaktif</Badge>}
+                            </p>
+                            {effective && <p className="mt-0.5 text-sm text-muted">Mulai berlaku {formatTanggal(effective.tanggal_mulai_berlaku)}</p>}
+                        </div>
+                        <form className="flex items-end gap-2" onSubmit={(event) => {
+                            event.preventDefault(); router.get(base, { tanggal_acuan: reference }, { preserveState: true, preserveScroll: true });
+                        }}>
+                            <Input label="PJ efektif pada tanggal" type="date" value={reference} required onChange={(event) => setReference(event.target.value)} />
+                            <Button type="submit" variant="outline" className="h-[42px] shrink-0">Tampilkan</Button>
+                        </form>
+                    </div>
+                    {readiness && <details className="border-t border-border pt-4">
                         <summary className="cursor-pointer text-sm font-medium text-ink">Izin kerja saat ini: {readiness.available.length}/7 tersedia</summary>
                         <WorkReadinessList readiness={readiness} />
                     </details>}
-                </div>
-            </section>
+                </CardContent>
+            </Card>
+
             {blocked_reason && <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-ink">{blocked_reason} Histori penugasan tetap dapat dibaca.</p>}
-            {can.assign && <section className="rounded-xl border border-border bg-surface p-5">
-                <h2 className="text-base font-semibold text-ink">{has_history ? 'Ganti penanggung jawab' : 'Tetapkan penanggung jawab'}</h2>
-                <p className="mt-2 text-sm leading-6 text-muted">Pilih pengguna aktif dan tanggal mulai berlaku. Penugasan tidak otomatis memberikan izin kerja. Tanggal lampau dan mendatang diperbolehkan; pada tanggal yang sama, penugasan terakhir menjadi PJ efektif.</p>
-                <form className="mt-5 space-y-4" onSubmit={(event) => { event.preventDefault(); if (has_history) setModal(true); else submit(); }}>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <GrantUserAutocomplete id="pj-user" label="Penanggung jawab" endpoint="/penanggung-jawab/opsi/pengguna"
-                            value={form.data.user_id} onChange={(id) => form.setData('user_id', id)} error={form.errors.user_id} disabled={disabled} />
-                        <Input label="Tanggal mulai berlaku" type="date" required value={form.data.tanggal_mulai_berlaku} onChange={(event) => form.setData('tanggal_mulai_berlaku', event.target.value)} error={form.errors.tanggal_mulai_berlaku} disabled={disabled} />
-                    </div>
-                    {previewStatus && <p role="status" className="text-sm text-muted">{previewStatus}</p>}
-                    {preview && <details open className="rounded-lg border border-border bg-soft p-4">
-                        <summary className="cursor-pointer text-sm font-semibold text-ink">{preview.complete ? 'Izin kerja lengkap' : `${preview.missing.length} izin kerja belum tersedia`}</summary>
-                        <WorkReadinessList readiness={preview} />
-                        {!preview.complete && <p className="mt-2 text-sm text-muted">Penetapan tetap diperbolehkan. Perencanaan perlu mengevaluasi hak akses pengguna secara terpisah.</p>}
-                    </details>}
-                    {!modal && notice}
-                    <Button type="submit" isLoading={form.processing} disabled={disabled || !form.data.user_id}>
-                        {has_history ? 'Lanjutkan pergantian' : 'Tetapkan PJ'}
-                    </Button>
-                </form>
-            </section>}
-            <section className="rounded-xl border border-border bg-surface p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-base font-semibold text-ink">Histori penugasan</h2><p className="text-xs text-muted">Status terhadap {tanggal_acuan}</p></div>
-                <p className="mt-2 text-sm text-muted">Riwayat tersimpan permanen. Pergantian menambahkan penugasan baru.</p>
-                {history.data.length === 0 ? <p className="py-6 text-sm text-muted">Belum ada penugasan untuk indikator ini.</p> :
-                    <ol className="mt-4 divide-y divide-border">{history.data.map((row) => <li key={row.id} className="py-4">
-                        <div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold text-ink">{row.pic?.nama ?? 'Pengguna tidak tersedia'}</p><Badge size="sm" variant={row.state === 'Efektif' ? 'success' : row.state === 'Terjadwal' ? 'info' : 'muted'}>{row.state}</Badge></div>
-                        <p className="mt-1 text-xs text-muted">Berlaku {row.tanggal_mulai_berlaku} · Ditetapkan oleh {row.ditetapkan_oleh?.nama ?? 'Tidak tersedia'}</p>
-                        <p className="mt-1 text-xs text-muted">Dicatat {row.created_at ? formatTanggal(row.created_at, { withTime: true }) : 'Tidak tersedia'}</p>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Penetapan awal'}</p>
-                    </li>)}</ol>}
-                <nav aria-label="Halaman histori" className="mt-4 flex justify-between gap-3">
-                    {history.prev_page_url && <Link href={history.prev_page_url} preserveState preserveScroll className="text-sm font-semibold text-primary underline">Sebelumnya</Link>}
-                    {history.next_page_url && <Link href={history.next_page_url} preserveState preserveScroll className="ml-auto text-sm font-semibold text-primary underline">Berikutnya</Link>}
-                </nav>
-            </section>
+
+            {can.assign && <Card>
+                <CardHeader>
+                    <CardTitle>{has_history ? 'Ganti penanggung jawab' : 'Tetapkan penanggung jawab'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (has_history) setModal(true); else submit(); }}>
+                        <p className="text-sm text-muted">Penugasan tidak otomatis memberikan izin kerja.</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <GrantUserAutocomplete id="pj-user" label="Penanggung jawab" endpoint="/penanggung-jawab/opsi/pengguna"
+                                value={form.data.user_id} onChange={(id) => form.setData('user_id', id)} error={form.errors.user_id} disabled={disabled} />
+                            <Input label="Tanggal mulai berlaku" type="date" required value={form.data.tanggal_mulai_berlaku} onChange={(event) => form.setData('tanggal_mulai_berlaku', event.target.value)} error={form.errors.tanggal_mulai_berlaku} disabled={disabled} />
+                        </div>
+                        {previewStatus && <p role="status" className="text-sm text-muted">{previewStatus}</p>}
+                        {preview && <details open className="rounded-lg border border-border bg-soft p-4">
+                            <summary className="cursor-pointer text-sm font-semibold text-ink">{preview.complete ? 'Izin kerja lengkap' : `${preview.missing.length} izin kerja belum tersedia`}</summary>
+                            <WorkReadinessList readiness={preview} />
+                            {!preview.complete && <p className="mt-2 text-sm text-muted">Penetapan tetap diperbolehkan. Perencanaan perlu mengevaluasi hak akses pengguna secara terpisah.</p>}
+                        </details>}
+                        {!modal && notice}
+                        <div className="flex justify-end">
+                            <Button type="submit" isLoading={form.processing} disabled={disabled || !form.data.user_id}>
+                                {has_history ? 'Lanjutkan pergantian' : 'Tetapkan PJ'}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Histori penugasan</CardTitle>
+                    <span className="text-xs text-muted">Status per {formatTanggal(tanggal_acuan)}</span>
+                </CardHeader>
+                <CardContent>
+                    {history.data.length === 0 ? <p className="text-sm text-muted">Belum ada penugasan untuk indikator ini.</p> :
+                        <ol className="-my-4 divide-y divide-border">{history.data.map((row) => <li key={row.id} className="py-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-ink">{row.pic?.nama ?? 'Pengguna tidak tersedia'}</p>
+                                <Badge size="sm" variant={row.state === 'Efektif' ? 'success' : row.state === 'Terjadwal' ? 'info' : 'muted'}>{row.state}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted">Berlaku {formatTanggal(row.tanggal_mulai_berlaku)} · Ditetapkan oleh {row.ditetapkan_oleh?.nama ?? 'Tidak tersedia'}</p>
+                            <p className="mt-0.5 text-xs text-muted">Dicatat {row.created_at ? formatTanggal(row.created_at, { withTime: true }) : 'Tidak tersedia'}</p>
+                            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Penetapan awal'}</p>
+                        </li>)}</ol>}
+                    {(history.prev_page_url || history.next_page_url) && <nav aria-label="Halaman histori" className="mt-6 flex justify-between gap-3 border-t border-border pt-4">
+                        {history.prev_page_url && <Link href={history.prev_page_url} preserveState preserveScroll className={pagerLink}>‹ Sebelumnya</Link>}
+                        {history.next_page_url && <Link href={history.next_page_url} preserveState preserveScroll className={`ml-auto ${pagerLink}`}>Berikutnya ›</Link>}
+                    </nav>}
+                </CardContent>
+            </Card>
         </div>
-        <AuditReasonModal open={modal} title="Konfirmasi pergantian PJ" description={`Pergantian untuk ${indicator.kode} berlaku ${form.data.tanggal_mulai_berlaku}. Penugasan lama tetap tersimpan.`}
+        <AuditReasonModal open={modal} title="Konfirmasi pergantian PJ" description={`Pergantian untuk ${indicator.kode} berlaku ${formatTanggal(form.data.tanggal_mulai_berlaku)}. Penugasan lama tetap tersimpan.`}
             reason={form.data.alasan} error={form.errors.alasan ?? form.errors.user_id ?? form.errors.tanggal_mulai_berlaku}
             onReasonChange={(reason) => form.setData('alasan', reason)} busy={form.processing} submitDisabled={disabled || !form.data.alasan.trim()}
             notice={notice} confirmLabel="Simpan pergantian" onConfirm={submit} onClose={() => { if (!form.processing) setModal(false); }} />

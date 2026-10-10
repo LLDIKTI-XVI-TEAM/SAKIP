@@ -3,18 +3,15 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
-use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\SasaranStrategis;
-use App\Models\Unit;
 use App\Models\User;
-use App\Services\Authorization\PermissionResolver;
-use App\Support\PermissionCodes;
+use App\Services\Perencanaan\IndikatorPresenter;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
 {
-    public function __construct(private readonly PermissionResolver $resolver) {}
+    public function __construct(private readonly IndikatorPresenter $presenter) {}
 
     /**
      * Menyusun payload halaman Sasaran & Indikator untuk satu Renstra.
@@ -22,13 +19,14 @@ class IndexSasaranIndikator
      * `regulasi_id`/`regulasi` disembunyikan (null) dan katalog
      * regulasi dikosongkan bila pembaca tidak berwenang `regulasi:read`,
      * serta `renstra_id` non-UUID ditolak 404 sebelum menyentuh query UUID.
+     * Nama PJ efektif hanya dikirim kepada pemegang `penanggung_jawab:update`,
+     * sama dengan gerbang halaman Penanggung Jawab; selain itu bernilai null.
      *
      * @return array{renstras: mixed, selectedRenstraId: ?string, sasarans: mixed, units: mixed, regulasis: mixed, can: array<string, bool>}
      */
     public function handle(User $user, mixed $requestedRenstraId, bool $renstraParamPresent): array
     {
-        $canReadRegulasi = $this->resolver->resolve($user, PermissionCodes::REGULASI_READ)->allowed;
-        $canReadKomponen = $this->resolver->resolve($user, PermissionCodes::KOMPONEN_READ)->allowed;
+        $can = $this->presenter->capabilities($user);
 
         $renstras = Renstra::orderByDesc('is_aktif')
             ->orderByDesc('tahun_mulai')
@@ -57,88 +55,32 @@ class IndexSasaranIndikator
                 ->orderBy('urutan')
                 ->orderBy('kode')
                 ->with([
-                    'indikatorKinerjas' => function ($query) use ($canReadRegulasi) {
-                        $relations = ['unit:id,nama'];
-                        if ($canReadRegulasi) {
-                            $relations[] = 'regulasi:id,jenis,nomor,tahun,tentang';
-                        }
-                        $query->orderBy('kode')->with($relations);
-                    },
+                    'indikatorKinerjas' => fn ($query) => $query->orderBy('kode')->with($this->presenter->indikatorRelations($can['regulasi_read'])),
                 ])
-                ->get()
-                ->map(function (SasaranStrategis $sasaran) use ($canReadRegulasi) {
-                    return [
-                        'id' => $sasaran->id,
-                        'renstra_id' => $sasaran->renstra_id,
-                        'kode' => $sasaran->kode,
-                        'deskripsi' => $sasaran->deskripsi,
-                        'urutan' => $sasaran->urutan,
-                        'updated_at' => $sasaran->updated_at?->toISOString(),
-                        'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(function (IndikatorKinerja $indikator) use ($canReadRegulasi) {
-                            return [
-                                'id' => $indikator->id,
-                                'sasaran_strategis_id' => $indikator->sasaran_strategis_id,
-                                'regulasi_id' => $canReadRegulasi ? $indikator->regulasi_id : null,
-                                'kode' => $indikator->kode,
-                                'nama' => $indikator->nama,
-                                'definisi_operasional' => $indikator->definisi_operasional,
-                                'satuan' => $indikator->satuan,
-                                'unit_id' => $indikator->unit_id,
-                                'unit_nama' => $indikator->unit?->nama,
-                                'arah' => $indikator->arah,
-                                'tipe_perhitungan' => $indikator->tipe_perhitungan,
-                                'presisi' => $indikator->presisi,
-                                'desimal_tampilan' => $indikator->desimal_tampilan,
-                                'wajib_catatan' => $indikator->wajib_catatan,
-                                'jenis_agregasi' => $indikator->jenis_agregasi,
-                                'status' => $indikator->status,
-                                'tahun_mulai_berlaku' => $indikator->tahun_mulai_berlaku,
-                                'updated_at' => $indikator->updated_at?->toISOString(),
-                                'created_by_role' => $indikator->created_by_role,
-                                'regulasi' => ($canReadRegulasi && $indikator->regulasi) ? [
-                                    'id' => $indikator->regulasi->id,
-                                    'jenis' => $indikator->regulasi->jenis,
-                                    'nomor' => $indikator->regulasi->nomor,
-                                    'tahun' => $indikator->regulasi->tahun,
-                                    'tentang' => $indikator->regulasi->tentang,
-                                ] : null,
-                            ];
-                        }),
-                    ];
-                });
+                ->get();
+            $pjEfektif = $this->presenter->pjEfektif(
+                $can['penanggung_jawab_update'],
+                $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id'))->all(),
+            );
+            $sasarans = $sasarans->map(fn (SasaranStrategis $sasaran) => [
+                'id' => $sasaran->id,
+                'renstra_id' => $sasaran->renstra_id,
+                'kode' => $sasaran->kode,
+                'deskripsi' => $sasaran->deskripsi,
+                'urutan' => $sasaran->urutan,
+                'updated_at' => $sasaran->updated_at?->toISOString(),
+                'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(
+                    fn (IndikatorKinerja $indikator) => $this->presenter->presentIndikator($indikator, $can['regulasi_read'], $pjEfektif->get($indikator->id)?->pic),
+                ),
+            ]);
         }
-
-        $units = Unit::where('status', 'aktif')
-            ->orderBy('nama')
-            ->get(['id', 'nama']);
-
-        $regulasis = $canReadRegulasi
-            ? Regulasi::where('aktif', true)
-                ->orderByDesc('tahun')
-                ->get(['id', 'jenis', 'nomor', 'tahun', 'tentang'])
-            : [];
 
         return [
             'renstras' => $renstras,
             'selectedRenstraId' => $selectedRenstraId,
             'sasarans' => $sasarans,
-            'units' => $units,
-            'regulasis' => $regulasis,
-            'can' => [
-                'penanggung_jawab_update' => $this->resolver->resolve($user, 'penanggung_jawab:update')->allowed,
-                'sasaran_create' => $this->resolver->resolve($user, PermissionCodes::SASARAN_CREATE)->allowed,
-                'sasaran_update' => $this->resolver->resolve($user, PermissionCodes::SASARAN_UPDATE)->allowed,
-                'sasaran_delete' => $this->resolver->resolve($user, PermissionCodes::SASARAN_DELETE)->allowed,
-                'indikator_create' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_CREATE)->allowed,
-                'indikator_read' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_READ)->allowed,
-                'indikator_update' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_UPDATE)->allowed,
-                'indikator_delete' => $this->resolver->resolve($user, PermissionCodes::INDIKATOR_DELETE)->allowed,
-                'regulasi_read' => $canReadRegulasi,
-                'komponen_read' => $canReadKomponen,
-                'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
-                'komponen_update' => $this->resolver->resolve($user, 'komponen:update')->allowed,
-                'komponen_delete' => $this->resolver->resolve($user, 'komponen:delete')->allowed,
-            ],
+            ...$this->presenter->formOptions($can['regulasi_read']),
+            'can' => $can,
         ];
     }
 }

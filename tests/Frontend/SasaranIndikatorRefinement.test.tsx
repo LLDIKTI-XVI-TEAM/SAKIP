@@ -109,14 +109,17 @@ it('aksi baseline tetap tersedia untuk pembaca dan membuka tahun mulai indikator
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
     renderIndex([makeIndikator({ tahun_mulai_berlaku: 2027 })], { ...defaultCan, indikator_update: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Baseline & target IKU-01' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Baseline & target IKU-01' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(fetchMock.mock.calls[0][0]).toBe('/perencanaan/indikator/ind-1/target-tahunan/2027/editor');
 });
 
 it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {
     renderIndex([makeIndikator()], { ...defaultCan, indikator_read: false });
-    expect(screen.queryByRole('button', { name: 'Baseline & target IKU-01' })).toBeNull();
+    const aksi = screen.queryByRole('button', { name: 'Aksi IKU-01' });
+    if (aksi) fireEvent.click(aksi);
+    expect(screen.queryByRole('menuitem', { name: 'Baseline & target IKU-01' })).toBeNull();
 });
 
 describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
@@ -202,11 +205,12 @@ describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
             komponen_create: true,
         });
 
+        fireEvent.click(screen.getByRole('button', { name: 'Aksi IKU-PERM' }));
         expect(screen.getByLabelText('Atur formula indikator IKU-PERM')).toBeTruthy();
-        expect(screen.getByLabelText('Ubah indikator IKU-PERM')).toBeTruthy();
+        expect(screen.getByLabelText('Lihat detail indikator IKU-PERM')).toBeTruthy();
         expect(screen.getByLabelText('Pindah unit indikator IKU-PERM')).toBeTruthy();
-        expect(screen.getByLabelText('Hapus indikator IKU-PERM')).toBeTruthy();
-        expect(screen.getByLabelText('Kelola komponen IKU-PERM')).toBeTruthy();
+        expect(screen.getByLabelText('Arsipkan indikator IKU-PERM')).toBeTruthy();
+        expect(screen.getByLabelText('Komponen perhitungan IKU-PERM')).toBeTruthy();
 
         unmount();
 
@@ -218,10 +222,38 @@ describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {
             komponen_read: false,
         });
 
+        const aksi = screen.queryByRole('button', { name: 'Aksi IKU-PERM' });
+        if (aksi) fireEvent.click(aksi);
         expect(screen.queryByLabelText('Atur formula indikator IKU-PERM')).toBeNull();
-        expect(screen.queryByLabelText('Ubah indikator IKU-PERM')).toBeNull();
         expect(screen.queryByLabelText('Pindah unit indikator IKU-PERM')).toBeNull();
-        expect(screen.queryByLabelText('Hapus indikator IKU-PERM')).toBeNull();
-        expect(screen.queryByLabelText('Kelola komponen IKU-PERM')).toBeNull();
+        expect(screen.queryByLabelText('Arsipkan indikator IKU-PERM')).toBeNull();
+        expect(screen.queryByLabelText('Komponen perhitungan IKU-PERM')).toBeNull();
     });
+});
+
+it('kolom PJ efektif hanya tampil bagi pengelola PJ dan menandai indikator tanpa PJ', () => {
+    const indikators = [
+        makeIndikator({ penanggung_jawab: { nama: 'Siti Aminah', status: 'aktif' } }),
+        makeIndikator({ id: 'ind-2', kode: 'IKU-02', penanggung_jawab: { nama: 'Budi Lama', status: 'nonaktif' } }),
+        makeIndikator({ id: 'ind-3', kode: 'IKU-03', penanggung_jawab: null }),
+    ];
+    const { unmount } = renderIndex(indikators, { ...defaultCan, penanggung_jawab_update: true });
+    expect(screen.getByRole('columnheader', { name: 'Penanggung Jawab' })).toBeTruthy();
+    expect(screen.getByText('Siti Aminah')).toBeTruthy();
+    expect(screen.getByText('Budi Lama').parentElement?.textContent).toContain('Nonaktif');
+    expect(screen.getByText('Belum ditetapkan')).toBeTruthy();
+    unmount();
+
+    renderIndex(indikators, { ...defaultCan, penanggung_jawab_update: false });
+    expect(screen.queryByRole('columnheader', { name: 'Penanggung Jawab' })).toBeNull();
+    expect(screen.queryByText('Siti Aminah')).toBeNull();
+});
+
+it('menandai tahun mulai berlaku hanya untuk indikator yang mulai setelah awal Renstra', () => {
+    renderIndex([
+        makeIndikator({ tahun_mulai_berlaku: 2025 }),
+        makeIndikator({ id: 'ind-2', kode: 'IKU-02', tahun_mulai_berlaku: 2027 }),
+    ]);
+    expect(screen.getByText('Mulai 2027')).toBeTruthy();
+    expect(screen.queryByText('Mulai 2025')).toBeNull();
 });

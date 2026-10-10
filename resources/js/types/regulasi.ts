@@ -1,13 +1,7 @@
+import type { LampiranDraft, LampiranMode } from './lampiran';
 export type RegulasiJenis = 'kepmen' | 'permen' | 'perpres' | 'keputusan_lainnya';
-export type LampiranMode = 'file' | 'tautan' | 'teks';
 
-export interface LampiranDraft {
-    clientId: string;
-    mode: LampiranMode;
-    file: File | null;
-    tautan: string;
-    isi_teks: string;
-}
+export type { LampiranDraft, LampiranMode };
 
 export interface BerkasRegulasi {
     id: number;

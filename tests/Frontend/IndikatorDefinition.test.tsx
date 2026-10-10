@@ -6,25 +6,26 @@ import { afterEach, expect, it, vi } from 'vitest';
 import KomponenIndex from '@/Pages/Indikator/Komponen/Index';
 import { COMPONENTS, definition, REVISION } from './indikatorFixtures';
 
-vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null }));
+const akses = vi.hoisted(() => ({ bacaIndikator: true }));
+vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null, usePage: () => ({ props: { pengaturan: {}, auth: { can: { sasaranIndikator: akses.bacaIndikator } } } }) }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); akses.bacaIndikator = true; });
 const exact = '123456789.123456789012';
 const editor = definition({ komponen: [{ ...COMPONENTS[0], bobot: exact }, COMPONENTS[1]] });
 
 it('mempertahankan 12 digit bobot ketika membuka edit', async () => {
     const user = userEvent.setup();
     render(<KomponenIndex editor={editor} />);
-    await waitFor(() => expect((screen.getAllByTitle('Ubah Komponen')[0] as HTMLButtonElement).disabled).toBe(false));
-    await user.click(screen.getAllByTitle('Ubah Komponen')[0]);
+    await waitFor(() => expect((screen.getAllByRole('button', { name: /^Ubah komponen / })[0] as HTMLButtonElement).disabled).toBe(false));
+    await user.click(screen.getAllByRole('button', { name: /^Ubah komponen / })[0]);
     expect((screen.getByLabelText('Bobot komponen 1') as HTMLInputElement).value).toBe(exact);
 });
 it('draft yang dipertahankan memakai token asal setelah props baru', async () => {
     const user = userEvent.setup();
     const patch = vi.spyOn(router, 'patch').mockImplementation(() => undefined);
     const { rerender } = render(<KomponenIndex editor={editor} />);
-    await waitFor(() => expect((screen.getAllByTitle('Ubah Komponen')[0] as HTMLButtonElement).disabled).toBe(false));
-    await user.click(screen.getAllByTitle('Ubah Komponen')[0]);
+    await waitFor(() => expect((screen.getAllByRole('button', { name: /^Ubah komponen / })[0] as HTMLButtonElement).disabled).toBe(false));
+    await user.click(screen.getAllByRole('button', { name: /^Ubah komponen / })[0]);
     await user.type(screen.getByLabelText('Label komponen 1'), ' draft');
     rerender(<KomponenIndex editor={{ ...editor, revision: '2026-10-02T11:00:00.123456Z' }} />);
     await user.click(screen.getByRole('button', { name: 'Simpan' }));
@@ -39,4 +40,25 @@ it('mempertahankan pencarian dan filter peran di daftar komponen', async () => {
     await user.selectOptions(screen.getByLabelText('Filter Peran'), 'penyebut');
     expect(screen.queryByText('Capaian aktual')).toBeNull();
     expect(screen.getByText('Total target')).toBeTruthy();
+});
+
+it('halaman komponen kembali ke detail indikator, memakai badge status, dan simulasi tertutup secara default', async () => {
+    const user = userEvent.setup();
+    render(<KomponenIndex editor={definition({ komponen: [COMPONENTS[0], { ...COMPONENTS[1], aktif: false }] })} />);
+    expect(screen.getByRole('link', { name: 'Kembali ke detail indikator' }).getAttribute('href')).toBe('/perencanaan/indikator/ind-1');
+    expect(screen.getByText('Aktif')).toBeTruthy();
+    expect(screen.getByText('Nonaktif')).toBeTruthy();
+    const simulasi = await screen.findByRole('button', { name: 'Simulasi Perhitungan' });
+    expect(simulasi.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('Menggunakan definisi tersimpan. Nilai simulasi tidak disimpan.')).toBeNull();
+    await user.click(simulasi);
+    expect(screen.getByRole('button', { name: 'Tutup Simulasi' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Menggunakan definisi tersimpan. Nilai simulasi tidak disimpan.')).toBeTruthy();
+});
+
+it('halaman komponen tanpa indikator:read tidak menautkan ke detail indikator', () => {
+    akses.bacaIndikator = false;
+    render(<KomponenIndex editor={definition()} />);
+    expect(screen.queryByRole('link', { name: 'Kembali ke detail indikator' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
 });

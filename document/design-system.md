@@ -450,6 +450,21 @@ export default function ModalAlasan({
 }
 ```
 
+### 4. Komponen Bersama Halaman Daftar & Detail
+
+> Contoh di atas memakai path lama (`components/ui/…`). Komponen aktual berada di `resources/js/Components/` (huruf C besar). Gunakan komponen di bawah sebelum membuat pola baru; komponen bersama tidak memuat logika domain, dan visibilitas aksi tetap berasal dari `can.*` server.
+
+| Komponen | Path | Gunakan untuk |
+|----------|------|---------------|
+| `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` | `Components/Table.tsx` | Seluruh tabel daftar; jangan menulis `<table>` dengan kelas header sendiri |
+| `Pagination` | `Components/Pagination.tsx` | Paginator Laravel (`links`, `from`, `to`, `total`); label sebelumnya/berikutnya diterjemahkan tanpa `dangerouslySetInnerHTML` |
+| `ActionMenu` | `Components/ActionMenu.tsx` | Dropdown aksi (kolom aksi tabel, tombol "Tambah" bercabang); item dari pemanggil, aksi berbahaya diberi `danger` |
+| `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
+| `LampiranDraftFields` | `Components/LampiranDraftFields.tsx` | Editor draf lampiran file/tautan/teks pada form master; field khusus modul lewat `renderExtraFields` |
+| `BerkasLampiranItem` | `Components/BerkasLampiranItem.tsx` | Baris lampiran tersimpan di halaman detail; unduhan memakai URL ber-otorisasi dari server, tautan hanya http/https |
+
+Pola halaman detail: tautan "← Kembali ke daftar" (`<Link>`) di kiri dan aksi berukuran `sm` di kanan, satu `h1` dari `AuthenticatedLayout`, `Card` dengan judul objek dan `Badge` status, lalu daftar data `dl` dua kolom.
+
 ---
 
 ## 📝 Pola Form Inertia 3 (`useForm`)

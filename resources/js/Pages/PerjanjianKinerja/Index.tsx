@@ -1,25 +1,13 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    Calendar,
-    ChevronDown,
-    Eye,
-    FileSpreadsheet,
-    FileText,
-    Lock,
-    Pencil,
-    Plus,
-    Search,
-    ShieldCheck,
-    X,
-} from 'lucide-react';
+import { Eye, FileText, Pencil, Plus, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent } from '@/Components/Card';
+import { Card } from '@/Components/Card';
+import { Pagination } from '@/Components/Pagination';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
-import { Badge } from '@/Components/Badge';
-import { HoverScrollText } from '@/Components/HoverScrollText';
+import { Tooltip } from '@/Components/Tooltip';
 import {
     Table,
     TableBody,
@@ -32,6 +20,7 @@ import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { Paginated, RenstraPkSummary, RenstraSummary, StorageSettings } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaCreateModal } from './Partials/PerjanjianKinerjaCreateModal';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
+import { StatusJadwalBadge } from './Partials/StatusJadwal';
 
 interface IndexProps {
     perjanjianKinerja: Paginated<RenstraPkSummary>;
@@ -49,6 +38,8 @@ interface IndexProps {
     };
 }
 
+const iconAction = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+
 export default function Index({ perjanjianKinerja, renstras, storageSettings, filters, can }: IndexProps) {
     const formatTanggal = useFormatTanggal();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -56,9 +47,6 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
     const [renstraId, setRenstraId] = useState(filters.renstra_id ?? '');
     const [tahun, setTahun] = useState(filters.tahun ? String(filters.tahun) : '');
     const [search, setSearch] = useState(filters.q ?? '');
-    const [isFilterRenstraHovered, setIsFilterRenstraHovered] = useState(false);
-
-    const selectedFilterRenstra = renstras.find((r) => r.id === renstraId);
 
     const applyFilters = (newFilters: { renstra_id?: string; tahun?: string; q?: string }) => {
         router.get(
@@ -93,134 +81,52 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
         <AuthenticatedLayout
             title="Perjanjian Kinerja (PK)"
             breadcrumbs={[{ label: 'Perjanjian Kinerja (PK)' }]}
+            headerActions={can.create && (
+                <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="gap-1.5">
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Tambah Perjanjian Kinerja
+                </Button>
+            )}
         >
             <Head title="Perjanjian Kinerja (PK)" />
 
-            <div className="mx-auto max-w-7xl space-y-6">
-                {/* Header Action Bar */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted">
-                        Pencatatan dokumen komitmen kinerja tahunan LLDIKTI Wilayah XVI beserta lampiran legalnya.
-                    </p>
-
-                    {can.create && (
-                        <div className="shrink-0">
-                            <Button
-                                size="sm"
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="w-full sm:w-auto gap-1.5"
-                            >
-                                <Plus className="h-4 w-4" aria-hidden="true" />
-                                Catat PK Baru
+            <div className="space-y-5">
+                <Card className="overflow-visible">
+                    <form onSubmit={handleSearchSubmit} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_9rem_minmax(0,1fr)_auto] lg:items-end">
+                        <Select id="filter_renstra_id" label="Periode Renstra" value={renstraId} onChange={(e) => setRenstraId(e.target.value)}>
+                            <option value="">Semua Renstra</option>
+                            {renstras.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                    {r.nama} ({r.tahun_mulai}–{r.tahun_selesai})
+                                </option>
+                            ))}
+                        </Select>
+                        <Input type="number" label="Tahun" placeholder="Contoh: 2026" value={tahun} onChange={(e) => setTahun(e.target.value)} />
+                        <Input label="Cari nomor PK" placeholder="Ketik nomor dokumen…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                        <div className="flex gap-2">
+                            <Button type="submit" variant="outline" className="h-[42px] gap-1.5">
+                                <Search className="h-4 w-4" aria-hidden="true" />
+                                Terapkan
                             </Button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Filter Toolbar */}
-                <Card>
-                    <CardContent className="p-4 sm:p-5">
-                        <form onSubmit={handleSearchSubmit} className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                            <div className="flex-1">
-                                <label
-                                    htmlFor="filter_renstra_id"
-                                    className="mb-1.5 block text-sm font-medium text-ink whitespace-nowrap"
-                                >
-                                    Filter Periode Renstra
-                                </label>
-                                <div
-                                    className="relative w-full h-[42px] rounded-lg border border-border bg-surface px-3.5 py-2 text-sm transition-colors flex items-center justify-between cursor-pointer hover:border-border-dark focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-                                    onMouseEnter={() => setIsFilterRenstraHovered(true)}
-                                    onMouseLeave={() => setIsFilterRenstraHovered(false)}
-                                >
-                                    <div className="min-w-0 flex-1 pr-6 overflow-hidden">
-                                        {selectedFilterRenstra ? (
-                                            <HoverScrollText
-                                                text={`${selectedFilterRenstra.nama} (${selectedFilterRenstra.tahun_mulai} - ${selectedFilterRenstra.tahun_selesai})`}
-                                                isParentHovered={isFilterRenstraHovered}
-                                                className="text-sm font-normal text-ink"
-                                                textClassName="font-normal"
-                                            />
-                                        ) : (
-                                            <span className="text-ink text-sm select-none">
-                                                Semua Renstra
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
-                                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                                    </div>
-
-                                    <select
-                                        id="filter_renstra_id"
-                                        name="filter_renstra_id"
-                                        aria-label="Filter Periode Renstra"
-                                        value={renstraId}
-                                        onChange={(e) => setRenstraId(e.target.value)}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                    >
-                                        <option value="">Semua Renstra</option>
-                                        {renstras.map((r) => (
-                                            <option key={r.id} value={r.id}>
-                                                {r.nama} ({r.tahun_mulai} - {r.tahun_selesai})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="w-full lg:w-36">
-                                <Input
-                                    type="number"
-                                    label="Filter Tahun"
-                                    placeholder="Contoh: 2026"
-                                    value={tahun}
-                                    onChange={(e) => setTahun(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex-1">
-                                <Input
-                                    label="Cari Nomor PK"
-                                    placeholder="Ketik nomor surat..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                                <Button type="submit" variant="primary" size="md" className="gap-1.5 px-4 shrink-0">
-                                    <Search className="h-4 w-4" aria-hidden="true" />
-                                    Filter
+                            {hasActiveFilters && (
+                                <Button type="button" variant="ghost" className="h-[42px]" onClick={resetFilters}>
+                                    Reset
                                 </Button>
-                                {hasActiveFilters && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="md"
-                                        onClick={resetFilters}
-                                        title="Reset filter"
-                                    >
-                                        <X className="h-4 w-4" aria-hidden="true" />
-                                    </Button>
-                                )}
-                            </div>
-                        </form>
-                    </CardContent>
+                            )}
+                        </div>
+                    </form>
                 </Card>
 
-                {/* Data Table */}
-                <Card className="overflow-hidden">
+                <Card>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>TAHUN & RENSTRA</TableHead>
-                                <TableHead>NOMOR DOKUMEN PK</TableHead>
-                                <TableHead>TANGGAL PK</TableHead>
-                                <TableHead>STATUS JADWAL</TableHead>
-                                <TableHead>LAMPIRAN</TableHead>
-                                <TableHead className="text-right">AKSI</TableHead>
+                                <TableHead className="w-20">Tahun</TableHead>
+                                <TableHead>Nomor Dokumen PK</TableHead>
+                                <TableHead>Tanggal PK</TableHead>
+                                <TableHead>Status Jadwal</TableHead>
+                                <TableHead>Lampiran</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -241,82 +147,39 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                             ) : (
                                 perjanjianKinerja.data.map((item) => {
                                     const statusJadwal = item.jadwal_tahunan?.status;
+                                    const jumlahBerkas = item.berkas_count ?? item.berkas?.length ?? 0;
 
                                     return (
                                         <TableRow key={item.id}>
-                                            <TableCell className="whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="inline-flex items-center justify-center rounded-lg bg-primary/10 px-2.5 py-1 font-bold text-primary shrink-0">
-                                                        {item.tahun}
-                                                    </span>
-                                                    <Link
-                                                        href={`/perjanjian-kinerja/${item.id}`}
-                                                        className="min-w-0 max-w-[200px] overflow-hidden block hover:text-primary transition-colors cursor-pointer group"
-                                                    >
-                                                        <HoverScrollText
-                                                            text={item.renstra.nama}
-                                                            className="text-xs font-normal text-muted group-hover:text-primary transition-colors"
-                                                            textClassName="font-normal text-muted group-hover:text-primary transition-colors"
-                                                        />
-                                                    </Link>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-semibold text-ink">
-                                                <Link
-                                                    href={`/perjanjian-kinerja/${item.id}`}
-                                                    className="hover:text-primary transition-colors inline-block"
-                                                >
+                                            <TableCell className="whitespace-nowrap font-mono text-sm font-semibold">{item.tahun}</TableCell>
+                                            <TableCell className="max-w-md">
+                                                <Link href={`/perjanjian-kinerja/${item.id}`} className="text-sm font-semibold text-ink hover:text-primary hover:underline">
                                                     {item.nomor_pk}
                                                 </Link>
+                                                <p className="mt-0.5 truncate text-xs text-muted" title={item.renstra.nama}>{item.renstra.nama}</p>
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-muted">
                                                 {item.tanggal_pk ? formatTanggal(item.tanggal_pk) : '-'}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap">
-                                                {statusJadwal === 'aktif' ? (
-                                                    <Badge variant="success">
-                                                        <ShieldCheck className="h-3 w-3 mr-1" aria-hidden="true" />
-                                                        Aktif
-                                                    </Badge>
-                                                ) : statusJadwal === 'ditutup' ? (
-                                                    <Badge variant="secondary">
-                                                        <Lock className="h-3 w-3 mr-1" aria-hidden="true" />
-                                                        Ditutup
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="muted">
-                                                        Belum Aktif
-                                                    </Badge>
-                                                )}
+                                                <StatusJadwalBadge status={statusJadwal} />
                                             </TableCell>
-                                            <TableCell className="whitespace-nowrap text-muted">
-                                                {(item.berkas_count ?? item.berkas?.length ?? 0) > 0 ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink bg-soft px-2.5 py-1 rounded-md">
-                                                        <FileText className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                                        {item.berkas_count ?? item.berkas?.length} Berkas
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted/70">Tanpa Lampiran</span>
-                                                )}
+                                            <TableCell className="whitespace-nowrap text-sm">
+                                                {jumlahBerkas > 0 ? `${jumlahBerkas} berkas` : <span className="text-muted">-</span>}
                                             </TableCell>
-                                            <TableCell className="whitespace-nowrap text-right text-sm">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Link
-                                                        href={`/perjanjian-kinerja/${item.id}`}
-                                                        className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors"
-                                                        title="Lihat Detail PK"
-                                                    >
-                                                        <Eye className="h-4 w-4" aria-hidden="true" />
-                                                    </Link>
+                                            <TableCell className="whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Tooltip content="Lihat Detail">
+                                                        <Link href={`/perjanjian-kinerja/${item.id}`} className={iconAction} aria-label={`Lihat detail PK ${item.nomor_pk}`}>
+                                                            <Eye className="h-4 w-4" aria-hidden="true" />
+                                                        </Link>
+                                                    </Tooltip>
                                                     {can.update && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setEditingPk(item)}
-                                                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted hover:bg-soft hover:text-primary transition-colors cursor-pointer"
-                                                            title="Edit Dokumen PK"
-                                                        >
-                                                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </button>
+                                                        <Tooltip content="Edit Perjanjian Kinerja" align="right">
+                                                            <button type="button" onClick={() => setEditingPk(item)} className={iconAction} aria-label={`Edit PK ${item.nomor_pk}`}>
+                                                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                            </button>
+                                                        </Tooltip>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -327,40 +190,14 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                         </TableBody>
                     </Table>
 
-                    {/* Pagination */}
-                    {perjanjianKinerja.links && perjanjianKinerja.links.length > 3 && (
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border px-5 py-3.5 text-sm text-muted">
-                            <div>
-                                Menampilkan {perjanjianKinerja.from ?? 0} s/d {perjanjianKinerja.to ?? 0} dari {perjanjianKinerja.total} data
-                            </div>
-                            <nav aria-label="Navigasi halaman" className="flex items-center gap-1">
-                                {perjanjianKinerja.links.map((link, idx) => {
-                                    if (!link.url) {
-                                        return (
-                                            <span
-                                                key={idx}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted/50"
-                                            />
-                                        );
-                                    }
-                                    return (
-                                        <Link
-                                            key={idx}
-                                            href={link.url}
-                                            preserveScroll
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                                                link.active
-                                                    ? 'bg-primary text-white'
-                                                    : 'border border-border bg-surface text-ink hover:bg-soft'
-                                            }`}
-                                        />
-                                    );
-                                })}
-                            </nav>
-                        </div>
-                    )}
+                    <Pagination
+                        links={perjanjianKinerja.links}
+                        from={perjanjianKinerja.from}
+                        to={perjanjianKinerja.to}
+                        total={perjanjianKinerja.total}
+                        ariaLabel="Paginasi Perjanjian Kinerja"
+                        className="border-t border-border px-5 py-3.5"
+                    />
                 </Card>
             </div>
 

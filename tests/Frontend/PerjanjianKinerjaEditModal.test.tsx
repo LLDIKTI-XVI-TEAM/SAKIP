@@ -197,8 +197,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
             />
         );
 
-        expect(screen.getByText('Jadwal Tahunan Aktif / Terkunci')).toBeTruthy();
-        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+        expect(screen.getByText(/^Jadwal tahunan aktif: lampiran yang ada tidak dapat dihapus/)).toBeTruthy();
     });
 
     it('menyembunyikan banner informasi saat jadwal tahunan belum aktif / tidak terkunci', () => {
@@ -211,7 +210,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
             />
         );
 
-        expect(screen.queryByText('Jadwal Tahunan Aktif / Terkunci')).toBeNull();
+        expect(screen.queryByText(/lampiran yang ada tidak dapat dihapus/)).toBeNull();
     });
 
     it('menampilkan banner jadwal ditutup terkunci saat jadwalStatus ditutup', () => {
@@ -225,8 +224,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
             />
         );
 
-        expect(screen.getByText('Jadwal Tahunan Ditutup (Terkunci)')).toBeTruthy();
-        expect(screen.getByText(/lampiran yang telah ada tidak dapat dihapus demi kepatuhan audit legal formal/)).toBeTruthy();
+        expect(screen.getByText(/^Jadwal tahunan ditutup: lampiran yang ada tidak dapat dihapus/)).toBeTruthy();
     });
 });
 
