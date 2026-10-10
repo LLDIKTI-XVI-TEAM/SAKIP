@@ -141,11 +141,7 @@ Implementasi canonical saat ini:
 
 `App\Services\Authorization\PermissionResolver`
 
-Compatibility wrapper:
-
-`App\Services\PermissionResolver`
-
-adalah deprecated wrapper untuk consumer legacy dan **bukan resolver kedua**.
+Compatibility wrapper `App\Services\PermissionResolver` sudah dihapus; seluruh consumer memakai namespace canonical di atas dan **tidak ada resolver kedua**.
 
 Effective permission mengikuti prinsip:
 
@@ -207,7 +203,7 @@ Tidak menjadi baseline karena explicit deny dan invariant bisnis tetap harus dih
 ### Trade-offs
 
 - beberapa mutation perlu recheck/locking sehingga flow lebih kompleks;
-- compatibility wrapper perlu dimigrasikan bertahap agar namespace canonical benar-benar tunggal pada consumer baru.
+- consumer baru wajib memakai namespace canonical; compatibility wrapper sudah dihapus sehingga tidak ada jalur legacy yang tersisa.
 
 ## Guardrails
 

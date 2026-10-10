@@ -300,7 +300,7 @@ Implementasi canonical berada pada:
 
 `App\Services\Authorization\PermissionResolver`
 
-`App\Services\PermissionResolver` adalah compatibility wrapper deprecated untuk consumer legacy yang belum dimigrasikan; wrapper tersebut bukan resolver kedua.
+Compatibility wrapper `App\Services\PermissionResolver` sudah dihapus; seluruh consumer runtime dan test memakai namespace canonical di atas, sehingga tidak ada resolver kedua.
 
 ### 8.2 Effective permission
 
