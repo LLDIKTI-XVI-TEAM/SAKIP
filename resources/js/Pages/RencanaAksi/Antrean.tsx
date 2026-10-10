@@ -126,7 +126,7 @@ export default function RencanaAksiAntrean({ rencanaAksis = [], pagination, stat
                         </tbody>
                     </table>
                 </div>
-                <Pagination pagination={pagination} entityLabel="rencana aksi" />
+                <Pagination pagination={pagination} label="rencana aksi" />
             </Card>
         </AuthenticatedLayout>
     );

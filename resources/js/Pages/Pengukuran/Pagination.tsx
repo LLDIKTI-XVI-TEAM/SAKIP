@@ -1,11 +1,11 @@
 import { Link } from '@inertiajs/react';
 import type { PengukuranPagination } from './types';
 
-export default function Pagination({ pagination, entityLabel = 'pengukuran' }: { pagination: PengukuranPagination; entityLabel?: string }) {
+export default function Pagination({ pagination, label = 'pengukuran' }: { pagination: PengukuranPagination; label?: string }) {
     if (pagination.last_page <= 1) return null;
-    return <nav aria-label={`Halaman ${entityLabel}`} className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4 text-sm text-ink">
+    return <nav aria-label={`Halaman ${label}`} className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4 text-sm text-ink">
         {pagination.prev_page_url ? <Link href={pagination.prev_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Sebelumnya</Link> : <span className="text-muted">Sebelumnya</span>}
-        <span>Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} {entityLabel}</span>
+        <span>Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} {label}</span>
         {pagination.next_page_url ? <Link href={pagination.next_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Berikutnya</Link> : <span className="text-muted">Berikutnya</span>}
     </nav>;
 }

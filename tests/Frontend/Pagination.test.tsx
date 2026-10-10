@@ -18,8 +18,8 @@ describe('Pagination', () => {
         expect(screen.getByText('Halaman 1 dari 3 · 55 pengukuran')).toBeTruthy();
     });
 
-    it('entityLabel rencana aksi terbaca di footer dan aria', () => {
-        render(<Pagination pagination={dasar} entityLabel="rencana aksi" />);
+    it('label rencana aksi terbaca di footer dan aria', () => {
+        render(<Pagination pagination={dasar} label="rencana aksi" />);
         expect(screen.getByRole('navigation', { name: 'Halaman rencana aksi' })).toBeTruthy();
         expect(screen.getByText('Halaman 1 dari 3 · 55 rencana aksi')).toBeTruthy();
     });

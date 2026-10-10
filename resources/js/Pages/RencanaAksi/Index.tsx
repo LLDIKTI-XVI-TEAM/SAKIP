@@ -139,7 +139,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                     </TableBody>
                 </Table>
 
-                <Pagination pagination={pagination} entityLabel="rencana aksi" />
+                <Pagination pagination={pagination} label="rencana aksi" />
             </Card>
         </AuthenticatedLayout>
     );
