@@ -5,6 +5,7 @@ import { router, useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
+import { Textarea } from '@/Components/Textarea';
 import { Button } from '@/Components/Button';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
@@ -125,31 +126,45 @@ export function Editor({ editor, loading = false, loadError, retryYear, loadReco
 
     const firstYear = Math.max(editor.renstra.tahun_mulai, editor.indikator.tahun_mulai_berlaku);
     const years = Array.from({ length: editor.renstra.tahun_selesai - firstYear + 1 }, (_, i) => firstYear + i);
-    return <><Modal isOpen onClose={close} title="Baseline & target tahunan" description={`${editor.indikator.kode} · ${editor.indikator.nama}`} size="2xl" bodyClassName="p-4 sm:p-6" scrollable>
+    return <><Modal isOpen onClose={close} title="Baseline & target tahunan" description={`${editor.indikator.kode} · ${editor.indikator.nama}`} size="xl" bodyClassName="p-4 sm:p-6" scrollable>
         <form onSubmit={submit} noValidate className="space-y-5" aria-busy={busy}>
-            <div className="flex flex-wrap items-end gap-4">
-                <div className="w-32"><Select label="Tahun" name="target-year" value={editor.tahun} disabled={busy} options={years.map((year) => ({ value: year, label: String(year) }))} onChange={(event) => load(Number(event.target.value))} /></div>
-                <p className="min-w-0 flex-1 pb-2 text-sm text-muted break-words">{editor.renstra.nama} · {editor.indikator.satuan}</p>
+            <div className="grid gap-4 rounded-lg border border-border bg-soft/50 p-4 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-end">
+                <Select label="Tahun" name="target-year" value={editor.tahun} disabled={busy} options={years.map((year) => ({ value: year, label: String(year) }))} onChange={(event) => load(Number(event.target.value))} />
+                <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 text-sm sm:pb-2.5">
+                    <div className="min-w-0">
+                        <dt className="text-xs font-semibold text-muted">Renstra</dt>
+                        <dd className="truncate text-ink" title={editor.renstra.nama}>{editor.renstra.nama}</dd>
+                    </div>
+                    <div>
+                        <dt className="text-xs font-semibold text-muted">Satuan</dt>
+                        <dd className="font-mono text-ink">{editor.indikator.satuan}</dd>
+                    </div>
+                </dl>
             </div>
-            {!editable && <p role="status" className="rounded-lg bg-soft p-3 text-sm">{editor.read_only_reason ?? 'Anda tidak memiliki izin mengubah target.'}</p>}
+            {!editable && <p role="status" className="rounded-lg bg-soft p-3 text-sm text-ink">{editor.read_only_reason ?? 'Anda tidak memiliki izin mengubah target.'}</p>}
             <AuthRecoveryNotice recovery={recovery.recovery ?? loadRecovery ?? null} pending={busy} />
-            {(form.hasErrors || failure || (loadError && !loadRecovery)) && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-danger/30">
+            {(form.hasErrors || failure || (loadError && !loadRecovery)) && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger focus:outline-none focus:ring-2 focus:ring-danger/30">
                 <p className="font-semibold">{failure || loadError || 'Periksa isian berikut.'}</p>
                 {form.hasErrors && <ul className="list-inside list-disc">{Object.entries(form.errors).map(([field, error]) => <li key={field}>{error}</li>)}</ul>}
-                {blocked && !recovery.recovery && <><p>Salin isian yang ingin dipertahankan sebelum memuat ulang.</p><Button type="button" variant="outline" onClick={() => load(loadError ? retryYear ?? editor.tahun : editor.tahun)} disabled={busy}>{loadError ? 'Coba lagi' : 'Muat data terbaru'}</Button></>}
+                {blocked && !recovery.recovery && <><p className="text-ink">Salin isian yang ingin dipertahankan sebelum memuat ulang.</p><Button type="button" variant="outline" size="sm" onClick={() => load(loadError ? retryYear ?? editor.tahun : editor.tahun)} disabled={busy}>{loadError ? 'Coba lagi' : 'Muat data terbaru'}</Button></>}
             </div>}
-            {loading && <p role="status" className="text-sm text-muted">Memuat data…</p>}
-            <div className="grid grid-cols-2 gap-3 sm:gap-5">
-                <Input label={`Baseline ${editor.baseline_year}`} name="baseline" inputMode="decimal" autoComplete="off" value={form.data.baseline} onChange={(event) => form.setData('baseline', event.target.value)} readOnly={!editable || busy} error={form.errors.baseline} helperText="Nilai acuan tahun sebelumnya." className="min-w-0 font-mono tabular-nums" />
-                <Input label={`Target ${editor.tahun}`} name="target_tahunan" inputMode="decimal" autoComplete="off" value={form.data.target_tahunan} onChange={(event) => form.setData('target_tahunan', event.target.value)} readOnly={!editable || busy} error={form.errors.target_tahunan} helperText={editable ? `Maksimal ${editor.indikator.presisi} desimal untuk nilai baru.` : undefined} className="min-w-0 font-mono tabular-nums" />
+            {loading && <p role="status" className="rounded-lg bg-soft p-3 text-sm text-muted">Memuat data…</p>}
+            <div className="space-y-2">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Input label={`Baseline ${editor.baseline_year}`} name="baseline" inputMode="decimal" autoComplete="off" value={form.data.baseline} onChange={(event) => form.setData('baseline', event.target.value)} readOnly={!editable || busy} error={form.errors.baseline} helperText="Nilai acuan tahun sebelumnya." className="min-w-0 font-mono tabular-nums" />
+                    <Input label={`Target ${editor.tahun}`} name="target_tahunan" inputMode="decimal" autoComplete="off" value={form.data.target_tahunan} onChange={(event) => form.setData('target_tahunan', event.target.value)} readOnly={!editable || busy} error={form.errors.target_tahunan} helperText={editable ? `Maksimal ${editor.indikator.presisi} desimal untuk nilai baru.` : undefined} className="min-w-0 font-mono tabular-nums" />
+                </div>
+                {editable && <p className="text-xs text-muted">Kosong berarti belum diisi; 0 tetap dihitung sebagai nilai.</p>}
             </div>
-            {editable && <p className="text-xs text-muted">Kosong berarti belum diisi; 0 tetap dihitung sebagai nilai.</p>}
-            {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">Perubahan ini tidak mengubah data pengukuran sebelumnya.</p>}
-            {editable && editor.has_snapshot && <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-xs text-muted">Alasan dan rujukan wajib jika nilai diubah.</p>
-                <Input label="Alasan perubahan" name="alasan" autoComplete="off" value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} readOnly={busy} error={form.errors.alasan} maxLength={1000} />
-                <Input label="Rujukan sumber" name="rujukan_sumber" autoComplete="off" value={form.data.rujukan_sumber} onChange={(event) => form.setData('rujukan_sumber', event.target.value)} readOnly={busy} error={form.errors.rujukan_sumber} maxLength={1000} />
-            </div>}
+            {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">Perubahan ini tidak mengubah data pengukuran sebelumnya.</p>}
+            {editable && editor.has_snapshot && <section aria-labelledby={`${id}-dasar`} className="space-y-4 border-t border-border pt-5">
+                <div>
+                    <h3 id={`${id}-dasar`} className="text-sm font-semibold text-ink">Dasar perubahan</h3>
+                    <p className="mt-0.5 text-xs text-muted">Alasan dan rujukan wajib jika nilai diubah.</p>
+                </div>
+                <Textarea label="Alasan perubahan" name="alasan" autoComplete="off" rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} readOnly={busy} error={form.errors.alasan} maxLength={1000} />
+                <Input label="Rujukan sumber" name="rujukan_sumber" autoComplete="off" value={form.data.rujukan_sumber} onChange={(event) => form.setData('rujukan_sumber', event.target.value)} readOnly={busy} error={form.errors.rujukan_sumber} maxLength={1000} placeholder="Contoh: Nomor surat keputusan atau dokumen PK" />
+            </section>}
             <div className="flex justify-end gap-3 border-t border-border pt-4">
                 <Button type="button" variant="outline" disabled={busy} onClick={close}>{editable ? 'Batal' : 'Tutup'}</Button>
                 {editable && <Button type="submit" disabled={busy || blocked} isLoading={form.processing}>Simpan</Button>}

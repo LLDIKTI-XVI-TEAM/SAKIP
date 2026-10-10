@@ -9,18 +9,28 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Support\AuditReason;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Langkah append histori PJ bersama untuk AssignPenanggungJawab (penetapan awal)
+ * dan ChangePenanggungJawab (pergantian). Dipisah dari Action karena kedua use case
+ * berbagi validasi, locking, dan audit yang sama; transaksi tetap dimiliki Action,
+ * sedangkan penolakan diaudit lewat finish() sesudah transaksi agar tidak ikut rollback.
+ *
+ * Kunci FOR UPDATE pada aktor/target lalu indikator menserialkan semua append per
+ * indikator, sehingga validasi expected_state dan no-op membaca histori terkini.
+ * Izin `penanggung_jawab:update` diputuskan ulang di bawah lock lewat ResolveLockedActor;
+ * sasaran, Renstra, dan unit dikunci shared untuk guard konteks arsip/nonaktif.
+ * Histori append-only; PJ efektif dibaca melalui PenugasanIndikator::effectiveOn().
+ * Penugasan tidak memberi permission.
+ */
 class AppendAssignment
 {
     public function __construct(
         private readonly ResolveLockedActor $lockedActor,
-        private readonly PermissionResolver $resolver,
         private readonly AuditLogger $audit,
         private readonly WorkReadiness $readiness,
     ) {}
@@ -64,9 +74,6 @@ class AppendAssignment
             return $this->rejection('expected_state', 'Jenis penetapan tidak sesuai histori terkini. Muat data terbaru sebelum menyimpan.', $basis);
         }
         $date = $data['tanggal_mulai_berlaku'];
-        if ($current->penugasanIndikators()->where('tanggal_mulai_berlaku', $date)->exists()) {
-            return $this->rejection('tanggal_mulai_berlaku', 'Sudah ada penugasan pada tanggal tersebut untuk indikator ini.', $basis);
-        }
         $old = PenugasanIndikator::effectiveOn($date)->where('indikator_id', $current->id)->first();
         if ($old?->user_id === $target->id) {
             return $this->rejection('user_id', 'Pengguna ini sudah menjadi PJ efektif pada tanggal yang dipilih. Penetapan tidak mengubah tanggung jawab.', $basis);
@@ -77,6 +84,8 @@ class AppendAssignment
         }
         // Diagnosis izin tidak memberikan hak baru dan bukan prasyarat assignment.
         $readiness = $this->readiness->forUser($target, $current->unit_id);
+        // `urutan` (identity) dialokasikan saat INSERT di bawah lock indikator, jadi
+        // per indikator urutannya sama dengan urutan commit: penugasan terakhir menang.
         $assignment = PenugasanIndikator::create([
             'indikator_id' => $current->id, 'user_id' => $target->id,
             'tanggal_mulai_berlaku' => $date, 'ditetapkan_oleh' => $actor->id,
@@ -96,16 +105,6 @@ class AppendAssignment
             'assignment' => $assignment,
             'warning' => $readiness['complete'] ? null : 'Hak kerja PJ belum lengkap: '.implode(', ', $readiness['missing']).'. Penugasan tidak memberikan permission; kelola izin melalui pengelolaan akses.',
         ];
-    }
-
-    /** @return array<string,mixed> */
-    public function uniqueConflict(QueryException $error, User $actor): array
-    {
-        if (($error->errorInfo[0] ?? null) !== '23505' || ! str_contains($error->getMessage(), 'penanggung_jawab_indikator_tanggal_unique')) {
-            throw $error;
-        }
-
-        return $this->rejection('tanggal_mulai_berlaku', 'Sudah ada penugasan pada tanggal tersebut untuk indikator ini.', $this->resolver->resolve($actor->fresh() ?? $actor, 'penanggung_jawab:update')->toAuditBasis());
     }
 
     /** Penolakan dicatat setelah transaksi berakhir, supaya tidak hilang akibat rollback.

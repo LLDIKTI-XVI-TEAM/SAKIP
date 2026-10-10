@@ -58,6 +58,8 @@ export interface IndikatorKinerjaItem {
     updated_at?: string | null;
     created_by_role?: string | null;
     regulasi?: RegulasiOption | null;
+    /** PJ efektif hari ini; hanya dikirim kepada pemegang `penanggung_jawab:update`, selain itu null. */
+    penanggung_jawab?: { nama: string; status: string } | null;
 }
 
 export interface SasaranStrategisItem {

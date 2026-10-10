@@ -123,7 +123,7 @@ it('halaman detail menampilkan jenis, nomor, tahun, dan tentang regulasi rujukan
         },
     }} />);
 
-    expect(screen.getByText('Jenis')).toBeTruthy();
+    expect(screen.getByText('Rujukan regulasi')).toBeTruthy();
     expect(screen.getByText('Peraturan Menteri')).toBeTruthy();
     expect(screen.getByText('Permen 123/2024 (2024)')).toBeTruthy();
     expect(screen.getByText('Standar Akuntabilitas')).toBeTruthy();
@@ -144,7 +144,7 @@ it('halaman detail memakai URL unduh yang dikirim server', () => {
         }],
     }} />);
 
-    expect(screen.getByRole('link', { name: 'Unduh' }).getAttribute('href')).toBe('/unduh/naskah-yang-diizinkan');
+    expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe('/unduh/naskah-yang-diizinkan');
 });
 
 
