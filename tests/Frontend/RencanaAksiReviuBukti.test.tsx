@@ -23,15 +23,16 @@ const dasar = (bukti: RencanaAksiDetail['bukti_dukungs']): RencanaAksiDetail => 
     can: { view: true, ratify: false, evidence: true },
 });
 
-it('menampilkan tautan unduh hanya untuk bukti mode file yang memiliki URL server', () => {
+it('bukti file dapat diunduh, bukti tautan dapat dibuka, dan kembali ke tab antrean', () => {
     render(<Reviu rencanaAksi={dasar([
         { id: 'b1', jenis_berkas_id: null, menggantikan_id: null, alasan_koreksi: null, mode: 'file', nama_asli: 'bukti.pdf', mime: 'application/pdf', ukuran_bytes: 10, tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/bukti/b1/unduh' },
         { id: 'b2', jenis_berkas_id: null, menggantikan_id: null, alasan_koreksi: null, mode: 'tautan', nama_asli: null, mime: null, ukuran_bytes: null, tautan: 'https://contoh.test/dokumen', isi_teks: null, download_url: null },
     ])} />);
 
-    expect(screen.getByRole('link', { name: 'Unduh berkas' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/bukti/b1/unduh');
-    expect(screen.getAllByRole('link', { name: 'Unduh berkas' })).toHaveLength(1);
-    expect(screen.getByText('https://contoh.test/dokumen')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/bukti/b1/unduh');
+    expect(screen.getAllByRole('link', { name: 'Unduh file' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Buka tautan' }).getAttribute('href')).toBe('https://contoh.test/dokumen');
+    expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=antrean');
 });
 
 it('menandai pengesahan oleh pengaju sendiri pada jalur Perencanaan', () => {
@@ -39,4 +40,5 @@ it('menandai pengesahan oleh pengaju sendiri pada jalur Perencanaan', () => {
 
     expect(screen.getByText('Perencana Satu')).toBeTruthy();
     expect(screen.getByText(/Disahkan sendiri oleh pengaju/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=disahkan');
 });
