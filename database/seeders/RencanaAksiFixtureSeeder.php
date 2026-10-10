@@ -17,6 +17,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -45,7 +46,19 @@ class RencanaAksiFixtureSeeder extends Seeder
 
     private const FIXTURE_TAHUN = 2026;
 
+    private const FIXTURE_LAMA = 'Fixture Rencana Aksi versi lama terdeteksi (jadwal belum aktif atau snapshot belum final); seed ulang dari database kosong.';
+
+    /**
+     * Satu transaksi: jadwal aktif tidak pernah terlihat tanpa jendela,
+     * snapshot, penugasan, dan header, dan penolakan fixture lama tidak
+     * meninggalkan sisa.
+     */
     public function run(): void
+    {
+        DB::transaction(fn () => $this->susun());
+    }
+
+    private function susun(): void
     {
         $creator = User::where('email', self::FIXTURE_USER_EMAIL)->orderBy('id')->first();
 
@@ -118,6 +131,11 @@ class RencanaAksiFixtureSeeder extends Seeder
                 'status' => 'aktif',
                 'activated_at' => now(),
             ]);
+        // Fixture lama tidak di-upgrade diam-diam: header di atasnya ditolak
+        // fail-closed, jadi lebih jelas gagal dan minta seed ulang.
+        if ($jadwal->status !== 'aktif') {
+            throw new \LogicException(self::FIXTURE_LAMA);
+        }
 
         foreach ($periodes as $periode) {
             PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $periode->id)->first() ?? PeriodeJadwal::create([
@@ -149,6 +167,9 @@ class RencanaAksiFixtureSeeder extends Seeder
                 // seperti hasil aktivasi.
                 'komposisi_final' => true,
             ]);
+        if (! $snapshot->komposisi_final) {
+            throw new \LogicException(self::FIXTURE_LAMA);
+        }
 
         PenugasanIndikator::where('indikator_id', $indikator->id)
             ->where('user_id', $creator->id)
