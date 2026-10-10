@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Pengaturan\UpdatePengaturan;
 use App\Models\AuditLog;
 use App\Models\Pengaturan;
 use App\Models\Role;
@@ -50,7 +51,7 @@ function buatUserDenganRole(string $roleName, string $email): User
     return $user;
 }
 
-test('AC-1: admin dapat mengakses halaman pengaturan dan melihat grup konfigurasi', function (): void {
+test('admin dapat mengakses halaman pengaturan dan melihat grup konfigurasi', function (): void {
     $response = $this->actingAs($this->admin)->get('/pengaturan');
 
     $response->assertOk();
@@ -68,7 +69,7 @@ test('AC-1: admin dapat mengakses halaman pengaturan dan melihat grup konfiguras
     expect($props['values']['instansi.nama'])->toBe('Lembaga Layanan Pendidikan Tinggi Wilayah XVI');
 });
 
-test('AC-1 & AC-2: admin dapat memperbarui pengaturan dan menghasilkan pencatatan audit log lengkap', function (): void {
+test('admin dapat memperbarui pengaturan dan menghasilkan pencatatan audit log lengkap', function (): void {
     $seeded = Pengaturan::query()->pluck('updated_at', 'kunci')->all();
     $expectedUpdatedAt = [];
     foreach ($seeded as $key => $ts) {
@@ -126,7 +127,7 @@ test('AC-1 & AC-2: admin dapat memperbarui pengaturan dan menghasilkan pencatata
     expect($audit->dasar_izin['keputusan'])->toBe('diizinkan');
 });
 
-test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui', function (): void {
+test('cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui', function (): void {
     /** @var PengaturanService $service */
     $service = app(PengaturanService::class);
 
@@ -137,7 +138,7 @@ test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui',
     $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
 
     // Update via service
-    $service->update(
+    app(UpdatePengaturan::class)->handle(
         $this->admin,
         ['instansi.nama' => 'LLDIKTI Wilayah XVI Terverifikasi Cache'],
         'Uji invalidasi cache',
@@ -149,7 +150,7 @@ test('AC-1: cache pengaturan bekerja dan di-invalidasi ketika nilai diperbarui',
     expect($val2)->toBe('LLDIKTI Wilayah XVI Terverifikasi Cache');
 });
 
-test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 403 dan dicatat dalam audit trail', function (): void {
+test('peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 403 dan dicatat dalam audit trail', function (): void {
     // Role perencanaan mencoba mengakses GET /pengaturan
     $resPerencanaanGet = $this->actingAs($this->perencanaan)->get('/pengaturan');
     $resPerencanaanGet->assertForbidden();
@@ -201,7 +202,7 @@ test('AC-3: peran non-administratif (perencanaan, pegawai) ditolak dengan HTTP 4
     ]);
 });
 
-test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): void {
+test('pengguna tamu (unauthenticated) diarahkan ke login', function (): void {
     $response = $this->get('/pengaturan');
     $response->assertRedirect('/login');
 
@@ -211,7 +212,7 @@ test('AC-3: pengguna tamu (unauthenticated) diarahkan ke login', function (): vo
     $responsePut->assertRedirect('/login');
 });
 
-test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist dengan HTTP 422', function (): void {
+test('strict server-side whitelist guard menolak kunci di luar whitelist dengan HTTP 422', function (): void {
     $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
         'alasan' => 'Uji validasi whitelist sistem',
         'instansi.nama' => 'LLDIKTI XVI Valid',
@@ -234,7 +235,7 @@ test('AC-4: strict server-side whitelist guard menolak kunci di luar whitelist d
     ]);
 });
 
-test('AC-4: validasi menolak format input tidak valid dengan HTTP 422', function (): void {
+test('validasi menolak format input tidak valid dengan HTTP 422', function (): void {
     $seeded = Pengaturan::query()->whereIn('kunci', [
         'instansi.nama',
         'aplikasi.nama',
@@ -424,7 +425,7 @@ test('evaluasi ulang izin di dalam batas transaksi mutasi menolak aksi jika izin
     $inactiveAdmin->status = 'nonaktif';
     $inactiveAdmin->save();
 
-    expect(fn () => $service->update(
+    expect(fn () => app(UpdatePengaturan::class)->handle(
         $inactiveAdmin,
         ['instansi.nama' => 'Nilai Baru Nonaktif'],
         'Pembaruan oleh admin nonaktif',
@@ -435,7 +436,7 @@ test('evaluasi ulang izin di dalam batas transaksi mutasi menolak aksi jika izin
     $revokedAdmin = buatUserDenganRole('admin', 'admin-dicabut@example.test');
     $revokedAdmin->roles()->detach();
 
-    expect(fn () => $service->update(
+    expect(fn () => app(UpdatePengaturan::class)->handle(
         $revokedAdmin,
         ['instansi.nama' => 'Nilai Baru Dicabut'],
         'Pembaruan oleh user yang rolenya dicabut',
@@ -507,7 +508,7 @@ test('pembaca lama tidak menimpa cache dengan data stale setelah mutasi dan inva
     $staleRevision = $service->getCacheRevision();
 
     // Jalankan mutasi sampai commit dan invalidasi selesai
-    $service->update(
+    app(UpdatePengaturan::class)->handle(
         $this->admin,
         ['instansi.nama' => 'Nama Baru Terverifikasi Cache'],
         'Uji perlindungan cache race condition',
@@ -534,7 +535,7 @@ test('penolakan otorisasi pada evaluasi ulang di dalam transaksi tercatat dalam 
     $actor->save();
 
     try {
-        $service->update(
+        app(UpdatePengaturan::class)->handle(
             $actor,
             ['instansi.nama' => 'Nilai Gagal Karena Akun Nonaktif'],
             'Mencoba ubah pengaturan dengan akun nonaktif',
@@ -614,7 +615,7 @@ test('inisialisasi revisi cache yang tertunda tidak menimpa revisi baru dari mut
 
         // C menyelesaikan mutasi dan invalidasi sebelum A melanjutkan initializer aslinya.
         $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
-        $service->update(
+        app(UpdatePengaturan::class)->handle(
             $this->admin,
             ['instansi.nama' => 'Nama Instansi Hasil Writer C'],
             'Pembaruan mutasi writer C',
@@ -637,4 +638,20 @@ test('inisialisasi revisi cache yang tertunda tidak menimpa revisi baru dari mut
     expect($service->get('instansi.nama'))->toBe('Nama Instansi Hasil Writer C');
     $values = $service->allValues();
     expect($values['instansi.nama'])->toBe('Nama Instansi Hasil Writer C');
+});
+
+test('alasan yang memuat karakter kontrol ditolak pada field alasan sebelum mutasi dan audit', function (): void {
+    $setting = Pengaturan::query()->where('kunci', 'instansi.nama')->firstOrFail();
+
+    // Lima karakter mentah lolos min:5, tetapi hanya dua yang terbaca setelah sanitasi audit.
+    $response = $this->actingAs($this->admin)->putJson('/pengaturan', [
+        'instansi.nama' => 'Nama Baru',
+        'alasan' => "ab\x01\x01\x01",
+        'expected_updated_at' => ['instansi.nama' => $setting->updated_at?->toISOString()],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['alasan']);
+    expect($setting->fresh()->nilai)->toBe($setting->nilai);
+    expect(AuditLog::query()->where('tindakan', 'pengaturan:update')->count())->toBe(0);
 });

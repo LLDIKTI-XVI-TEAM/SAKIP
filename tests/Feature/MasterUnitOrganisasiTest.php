@@ -16,7 +16,7 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionDecision;
 use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
@@ -283,7 +283,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * AC-2 / TEST-2: Unit yang masih memiliki relasi ke indikator kinerja ditolak dihapus.
+     * Unit yang masih memiliki relasi ke indikator kinerja ditolak dihapus.
      */
     public function test_delete_unit_linked_to_indicator_is_rejected(): void
     {
@@ -338,7 +338,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Temuan Review 2: Unit yang memiliki relasi ke user_permission_denied ditolak dihapus.
+     * Unit yang memiliki relasi ke user_permission_denied ditolak dihapus.
      */
     public function test_delete_unit_linked_to_user_permission_denied_is_rejected(): void
     {
@@ -558,7 +558,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * AC-3 / TEST-3: Superadmin dapat menghapus unit yang benar-benar kosong dengan alasan tertulis.
+     * Superadmin dapat menghapus unit yang benar-benar kosong dengan alasan tertulis.
      */
     public function test_superadmin_can_delete_empty_unit(): void
     {
@@ -589,7 +589,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review 5: Penghapusan unit wajib mencantumkan alasan minimal 5 karakter.
+     * Penghapusan unit wajib mencantumkan alasan minimal 5 karakter.
      */
     public function test_delete_unit_requires_reason(): void
     {
@@ -614,7 +614,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * AC-3: Admin biasa TIDAK berwenang menghapus unit kosong sekalipun.
+     * Admin biasa TIDAK berwenang menghapus unit kosong sekalipun.
      */
     public function test_admin_cannot_delete_empty_unit(): void
     {
@@ -639,7 +639,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * AC-4 / TEST-4: Admin dapat mengubah dan menonaktifkan unit tanpa menghapus data historis.
+     * Admin dapat mengubah dan menonaktifkan unit tanpa menghapus data historis.
      */
     public function test_admin_can_update_and_deactivate_unit(): void
     {
@@ -671,7 +671,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * AC-5 / TEST-5: Pengguna tanpa hak akses unit:* menghasilkan 403 Forbidden.
+     * Pengguna tanpa hak akses unit:* menghasilkan 403 Forbidden.
      */
     public function test_unauthorized_user_is_forbidden(): void
     {
@@ -687,7 +687,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Temuan Review 8: Parameter route non-UUID menghasilkan 404 bukan 500.
+     * Parameter route non-UUID menghasilkan 404 bukan 500.
      */
     public function test_invalid_uuid_route_parameters_return_404(): void
     {
@@ -702,7 +702,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Input nama unit yang hanya berisi spasi ditolak pada pembuatan.
+     * Input nama unit yang hanya berisi spasi ditolak pada pembuatan.
      */
     public function test_cannot_create_unit_with_whitespace_only_name(): void
     {
@@ -719,7 +719,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Input nama unit yang hanya berisi spasi ditolak pada pembaruan.
+     * Input nama unit yang hanya berisi spasi ditolak pada pembaruan.
      */
     public function test_cannot_update_unit_with_whitespace_only_name(): void
     {
@@ -741,7 +741,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Penghapusan unit dengan alasan hanya berisi spasi ditolak dengan validasi 422.
+     * Penghapusan unit dengan alasan hanya berisi spasi ditolak dengan validasi 422.
      */
     public function test_delete_unit_rejects_whitespace_only_reason(): void
     {
@@ -760,7 +760,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Otorisasi ulang aktor di dalam transaksi penghapusan unit mencatat audit penolakan di luar transaksi.
+     * Otorisasi ulang aktor di dalam transaksi penghapusan unit mencatat audit penolakan di luar transaksi.
      */
     public function test_delete_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
     {
@@ -794,7 +794,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Penambahan unit menolak duplikasi nama tanpa membedakan kapitalisasi (case-insensitive).
+     * Penambahan unit menolak duplikasi nama tanpa membedakan kapitalisasi (case-insensitive).
      */
     public function test_store_unit_rejects_duplicate_name_case_insensitive(): void
     {
@@ -822,7 +822,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Pembaruan unit menolak duplikasi nama dari unit lain tanpa membedakan kapitalisasi.
+     * Pembaruan unit menolak duplikasi nama dari unit lain tanpa membedakan kapitalisasi.
      */
     public function test_update_unit_rejects_duplicate_name_case_insensitive(): void
     {
@@ -860,11 +860,13 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Penambahan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
+     * Penambahan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
      */
     public function test_store_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
     {
         $mockResolver = $this->mock(PermissionResolver::class);
+        // Keputusan awal Gate/UnitPolicy tetap mengizinkan; hanya evaluasi ulang terkunci di Action yang menolak.
+        $mockResolver->shouldReceive('allows')->with(\Mockery::any(), 'unit:create')->once()->andReturnTrue();
         $mockResolver->shouldReceive('resolve')
             ->with(\Mockery::any(), 'unit:create')
             ->andReturn(new PermissionDecision(false, 'unit:create', [
@@ -888,7 +890,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Pembaruan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
+     * Pembaruan unit mengevaluasi ulang izin aktor di dalam transaksi dan mencatat penolakan di luar transaksi.
      */
     public function test_update_unit_reauthorizes_actor_inside_transaction_and_preserves_rejection_audit(): void
     {
@@ -899,6 +901,8 @@ class MasterUnitOrganisasiTest extends TestCase
         ]);
 
         $mockResolver = $this->mock(PermissionResolver::class);
+        // Keputusan awal Gate/UnitPolicy tetap mengizinkan; hanya evaluasi ulang terkunci di Action yang menolak.
+        $mockResolver->shouldReceive('allows')->with(\Mockery::any(), 'unit:update')->once()->andReturnTrue();
         $mockResolver->shouldReceive('resolve')
             ->with(\Mockery::any(), 'unit:update')
             ->andReturn(new PermissionDecision(false, 'unit:update', [
@@ -925,7 +929,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Penonaktifan unit ditolak jika masih memiliki grant izin aktif.
+     * Penonaktifan unit ditolak jika masih memiliki grant izin aktif.
      */
     public function test_update_unit_cannot_deactivate_unit_with_active_grants(): void
     {
@@ -957,7 +961,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Migrasi membersihkan duplikasi nama unit (case-insensitive) sebelum membuat indeks unik.
+     * Migrasi membersihkan duplikasi nama unit (case-insensitive) sebelum membuat indeks unik.
      */
     public function test_migration_resolves_duplicate_names_before_creating_unique_index(): void
     {
@@ -999,7 +1003,7 @@ class MasterUnitOrganisasiTest extends TestCase
     }
 
     /**
-     * Codex Review: Kunci role sumber sebelum otorisasi ulang mutasi unit (StoreUnit, UpdateUnit, DestroyUnit).
+     * Kunci role sumber sebelum otorisasi ulang mutasi unit (StoreUnit, UpdateUnit, DestroyUnit).
      */
     public function test_unit_mutation_locks_active_source_roles_of_actor(): void
     {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Regulasi;
 
+use App\Actions\Regulasi\DownloadBerkasRegulasi as DownloadBerkasRegulasiAction;
 use App\Http\Controllers\Controller;
 use App\Models\Berkas;
 use App\Models\Regulasi;
@@ -11,23 +12,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DownloadBerkasRegulasi extends Controller
 {
-    public function __invoke(Regulasi $regulasi, Berkas $berkas): StreamedResponse
+    public function __invoke(Regulasi $regulasi, Berkas $berkas, DownloadBerkasRegulasiAction $action): StreamedResponse
     {
         Gate::authorize('view', $regulasi);
+        $file = $action->handle($regulasi, $berkas);
 
-        abort_unless(
-            $berkas->berkasable_type === $regulasi->getMorphClass()
-                && $berkas->berkasable_id === $regulasi->id
-                && $berkas->mode === 'file'
-                && is_string($berkas->path),
-            404,
-        );
-
-        abort_unless(Storage::disk('local')->exists($berkas->path), 404);
-
-        return Storage::disk('local')->download(
-            $berkas->path,
-            $berkas->nama_asli ?: 'lampiran-regulasi',
-        );
+        return Storage::disk('local')->download($file['path'], $file['name']);
     }
 }

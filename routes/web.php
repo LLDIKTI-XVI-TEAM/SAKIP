@@ -203,7 +203,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
 
-    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    // Sasaran Strategis & Indikator Kinerja
     Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
     Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
     Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
