@@ -1683,7 +1683,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; PRD §18.8, Workflow §10.3/§10.6a, Data Model §2.30/§5, dan Plan 13.6 diselaraskan; hak mutasi bukti di Data Model §2.30 diselaraskan dengan Q32.3. Tersisa: tabel klasifikasi permission Plan kelompok "Manajemen Berkas Bukti Dukung" (`berkas:upload`/`berkas:delete` "terkunci jika disahkan") belum mengikuti Q36, dan otorisasi ISS-11.04/US-11.04 masih menyebut `berkas:delete` sebagai sumber izin hapus, belum mengikuti Q32.3.)*
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; PRD §18.8, Workflow §10.3/§10.6a, Data Model §2.30/§5, Plan 13.6, dan tabel klasifikasi permission Plan diselaraskan; hak mutasi bukti di Data Model §2.30 serta otorisasi ISS-11.04/US-11.04 diselaraskan dengan Q32.3. Tersisa: Plan 13.5 masih menyebut route bukti memakai permission `berkas:upload`/`berkas:read` tanpa membedakan induk bergerbang unit (Q32.3).)*
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
@@ -3644,7 +3644,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 #### Kontrak Teknis
 
 - **Dependensi:** Berkas terkait salah satu induk yang didukung.
-- **Otorisasi:** `berkas:delete` (sensitif) + guard status induk.
+- **Otorisasi:** `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - **Dampak Data:** `berkas`, `audit_log`.
 
 #### Acceptance Criteria (QA/UAT)
@@ -3666,7 +3666,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 - [ ] Implementasikan guard imutabilitas per enam induk; penghapusan sebelum batas memakai soft delete, sesudah batas ditolak.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) + guard status induk.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 

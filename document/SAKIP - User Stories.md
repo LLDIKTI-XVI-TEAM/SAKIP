@@ -1415,7 +1415,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Story Points** | 8 |
 | **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
 | **Dependensi** | Berkas terkait salah satu induk yang didukung. |
-| **Otorisasi** | `berkas:delete` (sensitif) + guard status induk. |
+| **Otorisasi** | `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36). |
 | **Dampak Data** | `berkas`, `audit_log`. |
 
 > **Sebagai** Sistem Integritas SAKIP,  

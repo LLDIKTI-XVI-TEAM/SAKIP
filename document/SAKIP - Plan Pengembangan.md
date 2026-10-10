@@ -1100,8 +1100,8 @@ Izin-izin ini diberikan secara bawaan (*default*) kepada seluruh pengguna yang t
 | No | Kode Permission | Entitas | Aksi | Scope | Hak Akses | Sensitif | Keterangan untuk PM | Status Konfirmasi PM |
 |:---:|:---|:---|:---|:---:|:---|:---:|:---|:---:|
 | 55 | `berkas:read` | `berkas` | `read` | Global | Seluruh pemegang izin baca data induk | Tidak | Mengunduh berkas bukti (mengikuti hak baca induk) | [ ] Disetujui |
-| 56 | `berkas:upload` | `berkas` | `upload` | Global | Diturunkan dari hak mutasi data induk | Tidak | Mengunggah bukti PDF / link dokumen (terkunci jika disahkan) | [ ] Disetujui |
-| 57 | `berkas:delete` | `berkas` | `delete` | Global | Perencanaan & Pemegang hak mutasi induk | **Ya** | Menghapus lampiran bukti dukung (terkunci jika disahkan) | [ ] Disetujui |
+| 56 | `berkas:upload` | `berkas` | `upload` | Global | Diturunkan dari hak mutasi data induk | Tidak | Mengunggah bukti PDF / link dokumen (terkunci sesuai batas imutabilitas induk, 13.6; `rencana_aksi`/`pengukuran` sejak `diajukan`, Q36) | [ ] Disetujui |
+| 57 | `berkas:delete` | `berkas` | `delete` | Global | Perencanaan & Pemegang hak mutasi induk | **Ya** | Menghapus lampiran bukti dukung (terkunci sesuai batas imutabilitas induk, 13.6; `rencana_aksi`/`pengukuran` sejak `diajukan`, Q36) | [ ] Disetujui |
 
 ---
 

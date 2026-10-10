@@ -789,7 +789,8 @@ Q36 menutup ketidakselarasan antara PRD §18.8, Workflow §10.3/§10.6a, dan Dat
 ## 36.3 Dampak dan Traceability
 
 - PRD §18.8; Workflow §10.3 langkah 6–7 beserta diagramnya, dan §10.6a; Data Model §2.30 (imutabilitas lampiran) dan §5 (constraint level aplikasi `berkas`) diselaraskan.
-- Plan Pengembangan 13.6 (scope dan DoD guard imutabilitas bukti) diselaraskan.
+- Plan Pengembangan 13.6 (scope dan DoD guard imutabilitas bukti) dan tabel klasifikasi permission (`berkas:upload`/`berkas:delete`) diselaraskan.
+- User Stories US-11.04 dan User Issues ISS-11.04: kontrak otorisasi hapus bukti diselaraskan dengan Q32.3 dan guard status induk Q36.
 - User Issues ISS-05.02: catatan "Keputusan terbuka (D1)" diganti rujukan Q36, dan butir DoD dokumentasi diperbarui.
 - Q24, Q25, Q32, dan Q35 tidak berubah.
 
