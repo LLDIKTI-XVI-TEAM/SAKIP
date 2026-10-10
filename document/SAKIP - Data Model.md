@@ -983,10 +983,11 @@ Riwayat assignment penanggung jawab per indikator. Baris tidak dihapus untuk men
 | `ditetapkan_oleh` | uuid | FK → users.id | Perencanaan/Superadmin sesuai permission |
 | `alasan` | text | nullable | wajib untuk pergantian setelah assignment pertama |
 | `created_at` | timestamp | not null | |
+| `urutan` | bigint | not null, generated always as identity | Urutan pencatatan penugasan, diisi database; penentu PJ efektif bila beberapa baris memiliki tanggal sama |
 
-**Kontrak dasar — Plan §4.3–4.4 / Issue #54:** PJ efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`; pergantian wajib alasan dan menambah histori tanpa overwrite.
+**Kontrak dasar — Plan §4.3–4.4 / Issue #54:** PJ efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`, lalu `urutan` terbesar bila tanggalnya sama; pergantian wajib alasan dan menambah histori tanpa overwrite.
 
-**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break) digantikan butir 1: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan, bukan `created_at` saja. Hingga #70 selesai, constraint dan histori existing dipertahankan. Evidence dan dampak rekonsiliasi dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break) digantikan butir 1: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan (`urutan`), bukan `created_at` atau UUID. Unique per tanggal dilepas dan diganti index non-unique; histori existing dipertahankan tanpa koreksi. Evidence dan dampak rekonsiliasi dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 **Kontrak final Q32:**
 
@@ -1592,7 +1593,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13) |
-| `penanggung_jawab` | unique(`indikator_id`, `tanggal_mulai_berlaku`) — dipertahankan sementara; Q34 butir 1 mengizinkan pergantian PJ pada tanggal yang sama, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70), lihat §2.19 |
+| `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |
