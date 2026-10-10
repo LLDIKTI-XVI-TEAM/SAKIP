@@ -7,6 +7,7 @@ import { Button } from '@/Components/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import TabFilter from './TabFilter';
 
 export interface BarisRencanaAksi {
     indikator_id: string;
@@ -70,6 +71,8 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
     return (
         <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
             <Head title="Rencana Aksi" />
+
+            <TabFilter active="draf" />
 
             <Card>
                 <Table>

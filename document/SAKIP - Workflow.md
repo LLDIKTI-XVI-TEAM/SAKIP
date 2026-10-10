@@ -1601,7 +1601,7 @@ flowchart TD
 
 **Alasan pengecualian F2:** bila jalur Perencanaan-mengisi-sendiri turut diblokir sekeras F1, LLDIKTI Wilayah XVI wajib menugaskan minimal dua akun Perencanaan agar pengisian yang terlambat masih dapat disahkan — kondisi yang belum tentu terpenuhi pada Fase Awal. Sebagai gantinya, jalur ini tetap dibuka dengan syarat transparansi: setiap pengesahan diri sendiri oleh Perencanaan wajib tercatat dan terlihat (`self_approval`), bukan disembunyikan.
 
-**Cakupan aturan ini:** F1/F2 pada Fase Awal berlaku eksplisit untuk transisi status `pengukuran` (verifikasi dan pengesahan). Rencana aksi (§7) mengikuti pola status alur yang sama, tetapi aturan pemisahan tugas kerasnya tidak diperluas ke sana pada Fase Awal — cakupannya sengaja dibatasi seperti tertulis di atas, bukan diperluas melampaui yang diputuskan.
+**Cakupan aturan ini (Q15):** F1/F2 berlaku untuk transisi status `pengukuran` dan `rencana_aksi` (verifikasi dan pengesahan). Keduanya memakai identitas dan jalur pengaju yang dibekukan pada versi pengajuan (`diajukan_by`, `jalur_pengajuan` — Data Model §2.34 untuk rencana aksi), bukan pembuat draft maupun role terkini; self-approval jalur Perencanaan ditandai `self_approval` pada audit.
 
 ---
 

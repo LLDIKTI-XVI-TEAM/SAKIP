@@ -109,6 +109,12 @@ class RencanaAksi extends Model
         return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->orderByDesc('nomor');
     }
 
+    /** Unit scope otorisasi header (unit pemilik indikator saat penyusunan). */
+    public function targetUnitId(): string
+    {
+        return $this->unit_id;
+    }
+
     public function scopeDraft(Builder $query): void
     {
         $query->where('rencana_aksi.status_alur', self::STATUS_DRAFT);
