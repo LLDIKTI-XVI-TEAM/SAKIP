@@ -1683,7 +1683,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; tersisa penyelarasan Data Model §2.30 dengan Q32.3 dan Plan 13.6 dengan Q36.)*
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; PRD §18.8, Workflow §10.3/§10.6a, Data Model §2.30/§5, dan Plan 13.6 diselaraskan; hak mutasi bukti di Data Model §2.30 diselaraskan dengan Q32.3. Tersisa: tabel klasifikasi permission Plan kelompok "Manajemen Berkas Bukti Dukung" (`berkas:upload`/`berkas:delete` "terkunci jika disahkan") belum mengikuti Q36, dan otorisasi ISS-11.04/US-11.04 masih menyebut `berkas:delete` sebagai sumber izin hapus, belum mengikuti Q32.3.)*
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
