@@ -292,7 +292,7 @@ class RencanaAksiHalamanTest extends TestCase
         RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $this->snapshotId($ra), 'nomor' => 1,
             'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
             'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
-            'snapshot' => ['target_periode' => []]]);
+            'snapshot' => ['kunci_lama' => 'tidak dikenal dan diabaikan']]);
         $ra->indikator->update(['kode' => 'I-BERUBAH', 'nama' => 'Indikator berubah live']);
         $jadwalNamaBeku = $this->snapshotRow($ra)->nama;
 
@@ -304,7 +304,7 @@ class RencanaAksiHalamanTest extends TestCase
             ->where('rencanaAksi.pic.nama', 'konteks tidak lengkap')
             ->where('rencanaAksi.uraian', 'konteks tidak lengkap')
             ->where('rencanaAksi.konteks_tidak_lengkap', fn ($hilang) => collect($hilang)->contains('indikator_kode')
-                && collect($hilang)->contains('unit_nama') && collect($hilang)->contains('uraian')));
+                && collect($hilang)->contains('unit_nama') && collect($hilang)->contains('uraian') && collect($hilang)->contains('target_periode')));
     }
 
     /**

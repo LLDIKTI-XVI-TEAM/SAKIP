@@ -45,6 +45,9 @@ class PresentRencanaAksi
             $unitKerja = $this->frozenUnit($frozen, $jadwalBeku, $konteksHilang);
             $pic = $this->frozenPic($frozen, $konteksHilang);
             $uraian = $this->frozenUraian($frozen, $konteksHilang);
+            if (! is_array($frozen) || ! array_key_exists('target_periode', $frozen)) {
+                $konteksHilang[] = 'target_periode';
+            }
         } else {
             $indikator = ['kode' => $ra->indikator->kode, 'nama' => $ra->indikator->nama];
             $unitKerja = $ra->unit ? $ra->unit->only(['id', 'nama']) : ['id' => $ra->unit_id, 'nama' => ''];
