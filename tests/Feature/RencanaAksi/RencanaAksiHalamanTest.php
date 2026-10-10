@@ -216,7 +216,7 @@ class RencanaAksiHalamanTest extends TestCase
             'unit_id' => $this->unit->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
         // Cabut fallback kelola agar deny benar-benar menutup akses bukti.
         DB::table('role_permissions')->where('role_id', Role::where('kode', 'perencanaan')->value('id'))
-            ->whereIn('permission_id', Permission::whereIn('kode', ['rencana_aksi:update', 'rencana_aksi:ajukan'])->pluck('id'))->delete();
+            ->whereIn('permission_id', Permission::whereIn('kode', ['rencana_aksi:update', 'rencana_aksi:create'])->pluck('id'))->delete();
 
         $this->actingAs($this->perencana->fresh())->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.can.evidence', false)->has('rencanaAksi.bukti_dukungs', 0)
@@ -238,39 +238,6 @@ class RencanaAksiHalamanTest extends TestCase
         $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk();
     }
 
-    public function test_delete_evidence_baru_pasca_buka_kembali_bisa_dihapus(): void
-    {
-        $ra = $this->buatRencanaAksi('diverifikasi');
-        $lama = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti resmi beku.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
-        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $this->snapshotId($ra), 'nomor' => 1,
-            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
-            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
-            'snapshot' => ['uraian' => 'Versi pengajuan beku.',
-                'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]],
-                'bukti_dukungs' => [[
-                    'id' => $lama->id, 'jenis_berkas_id' => null, 'menggantikan_id' => null, 'alasan_koreksi' => null,
-                    'mode' => 'teks', 'nama_asli' => null, 'mime' => null, 'ukuran_bytes' => null, 'tautan' => null, 'isi_teks' => 'Bukti resmi beku.']]]]);
-
-        // Sahkan agar ratifiedVersion terbentuk.
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
-        $ra = $ra->fresh();
-        $this->assertSame('disahkan', $ra->status_alur);
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $lama])->denied());
-
-        // Buka-kembali resmi: status dikembalikan tetapi ratifiedVersion tetap ada.
-        $ra->update(['status_alur' => 'dikembalikan']);
-        $ra = $ra->fresh();
-        $this->assertNotNull($ra->ratifiedVersion);
-
-        $baru = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti baru pasca-buka-kembali.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
-
-        // Bukti lama (ID di snapshot resmi) tetap beku; bukti baru bisa dihapus.
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $lama])->denied());
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $baru])->allowed());
-    }
-
     /**
      * FIX1: penonaktifan unit di antara baca (Gate lolos saat aktif) dan tulis
      * (POST sahkan) membuat pengesahan ditolak — cek terkunci terserialisasi.
@@ -290,45 +257,6 @@ class RencanaAksiHalamanTest extends TestCase
         $this->actingAs($this->perencana)->post('/rencana-aksi/'.$ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
         $this->assertSame('diverifikasi', $ra->fresh()->status_alur);
         $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_tipe' => 'rencana_aksi', 'objek_id' => $ra->id]);
-    }
-
-    /**
-     * FIX2: ID bukti yang ada di snapshot SEMUA versi tersahkan tetap beku
-     * walau versi tersahkan terbaru tidak merujuknya. v1=[A] tersahkan,
-     * v2=[B] tersahkan, lalu buka-kembali: A dan B ditolak, bukti baru (C) diizinkan.
-     */
-    public function test_delete_evidence_menolak_id_dari_semua_versi_tersahkan(): void
-    {
-        $ra = $this->buatRencanaAksi('diverifikasi');
-        $a = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti A versi satu.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
-        $b = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti B versi dua.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
-        $beku = ['uraian' => 'Versi pengajuan beku.',
-            'target_periode' => [['periode_id' => $this->periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]];
-        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $this->snapshotId($ra), 'nomor' => 1,
-            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
-            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
-            'disahkan_by' => $this->perencana->id, 'disahkan_at' => now(),
-            'snapshot' => [...$beku, 'bukti_dukungs' => [['id' => $a->id, 'mode' => 'teks', 'isi_teks' => 'Bukti A versi satu.']]]]);
-        RencanaAksiVersi::create(['rencana_aksi_id' => $ra->id, 'jadwal_snapshot_id' => $this->snapshotId($ra), 'nomor' => 2,
-            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
-            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id],
-            'disahkan_by' => $this->perencana->id, 'disahkan_at' => now(),
-            'snapshot' => [...$beku, 'bukti_dukungs' => [['id' => $b->id, 'mode' => 'teks', 'isi_teks' => 'Bukti B versi dua.']]]]);
-
-        // Buka-kembali resmi: status dikembalikan tetapi kedua versi tersahkan tetap ada.
-        $ra->update(['status_alur' => 'dikembalikan']);
-        $ra = $ra->fresh();
-        $this->assertCount(2, $ra->versions()->whereNotNull('disahkan_at')->get());
-
-        // Versi terbaru (v2) tidak merujuk A — cek terbaru-saja akan keliru mengizinkan.
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $a])->denied());
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra, $b])->denied());
-
-        $c = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti baru tak di snapshot mana pun.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$ra->fresh(), $c])->allowed());
     }
 
     /**

@@ -26,7 +26,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi P3 F5: pratinjau server-side tanpa persistensi.
+ * Regresi pratinjau server-side tanpa persistensi.
  *
  * `POST /rencana-aksi/{id}/preview` memakai `CalculatePengukuran` yang
  * sama dengan jalur baca/tulis; edit nilai → pratinjau berubah tanpa POST
@@ -248,7 +248,7 @@ class RencanaAksiPreviewTest extends TestCase
      */
     private function buatFixtureRasio(): array
     {
-        // U1 immutable: snapshot beku sejak terbit — buat langsung rasio
+        // Snapshot immutable sejak terbit — buat langsung rasio
         // (tanpa UPDATE in-place pasca-INSERT yang kini ditolak trigger).
         $dasar = $this->buatFixtureManual('rasio_persen');
 

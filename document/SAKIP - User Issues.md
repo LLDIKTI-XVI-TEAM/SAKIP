@@ -1489,7 +1489,7 @@ Mendukung TW I–II 2026 sebagai periode lampau berdasarkan `pengisian_selesai <
 
 #### Aturan PJ — Diratifikasi Q34
 
-Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). PJ-01 dan PJ-03–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah (tanggal mutasi lampau/mendatang, penolakan no-op dan pengembalian mantan PJ, pemeliharaan assignment mendatang, serta guard lifecycle) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal) digantikan butir 1; constraint existing dipertahankan hingga #70 selesai.
+Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). PJ-01 dan PJ-03–PJ-05 pada matriks **Status Review dan Traceability ISS-04.01** di bawah (tanggal mutasi lampau/mendatang, penolakan no-op dan pengembalian mantan PJ, pemeliharaan assignment mendatang, serta guard lifecycle) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal) digantikan butir 1; unique dilepas dan urutan penugasan disimpan pada kolom `urutan` (#70).
 
 **Decision gate:** ditutup oleh keputusan PM pada Q34, 9 Oktober 2026. Dampak rekonsiliasi dokumen/kode/schema ditelusuri pada matriks di bawah.
 
@@ -1523,23 +1523,23 @@ Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasi
 
 **D-01: OPEN — PENDING REQUIREMENT CLARIFICATION.** Frasa “PJ aktif tanpa hak isi” pada Q32, Plan §4.5, dan Issue #54 belum membuktikan keputusan eksplisit mengenai PJ efektif yang kemudian dinonaktifkan. Filter akun aktif existing dipertahankan sementara. Stakeholder perlu memilih **A:** hanya akun aktif dengan assignment efektif dan izin kurang, atau **B:** seluruh assignment efektif yang bermasalah termasuk akun nonaktif. Opsi B memerlukan penjelasan status akun/reason `inactive_user` dan regresi monitoring; kedua opsi tetap menjaga histori, fail-closed, serta tidak memberi grant/aktivasi otomatis. Evidence keputusan perlu ditautkan pada Issue #54 atau dokumen pemilik requirement sebelum perilaku diubah.
 
-**MAJOR: RESOLVED oleh Q34 (9 Oktober 2026).** PJ-01 dan PJ-03–PJ-05 diratifikasi; PJ-02 digantikan butir 1 (pergantian di tanggal yang sama) yang belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). Sebelum Q34, pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
+**MAJOR: RESOLVED oleh Q34 (9 Oktober 2026).** PJ-01 dan PJ-03–PJ-05 diratifikasi; PJ-02 digantikan butir 1 (pergantian di tanggal yang sama) yang diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). Sebelum Q34, pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
 
 Matriks berikut memetakan setiap aturan PJ terhadap baseline, evidence resmi, status keputusan, dan dampak kode. Status PJ-01–PJ-05 diperbarui menurut Q34 (9 Oktober 2026).
 
 | Rule | Existing baseline | Evidence resmi | Status | Dampak kode |
 |---|---|---|---|---|
 | Q32: user aktif dengan/tanpa role boleh menjadi PJ; assignment tidak memberi permission; warning hak isi; role change menjaga assignment | Keputusan Penyelarasan §32.2–32.3; Plan §4.5 | Klarifikasi final LLDIKTI 24 September 2026 (Q32); Issue #54, kontrak Q32 | **CONFIRMED** | Pertahankan pemisahan assignment dan role/grant, tujuh izin scoped, canonical PermissionResolver, deny-wins, dan akun nonaktif fail-closed. |
-| Resolusi tanggal terbesar ≤ tanggal acuan; pergantian beralasan menambah histori | Plan §4.3–4.4; Data Model baseline §2.19 | Issue #54 AC-4–AC-5 dan Plan Modul 4 | **CONFIRMED** | Pertahankan `PenugasanIndikator::effectiveOn()` dan histori append-only; integrasi Rencana Aksi masih bergantung pada Modul 11. |
+| Resolusi tanggal terbesar ≤ tanggal acuan; pergantian beralasan menambah histori | Plan §4.3–4.4; Data Model baseline §2.19 | Issue #54 AC-4–AC-5 dan Plan Modul 4 | **CONFIRMED** | Pertahankan `PenugasanIndikator::effectiveOn()` dan histori append-only; Rencana Aksi (`EnsureDraftRencanaAksi`, `JendelaTulisRencanaAksi`) dan Pengukuran memakai resolver yang sama dan teruji, termasuk pergantian pada tanggal yang sama. |
 | PJ-01: tanggal mutasi lampau dan mendatang diperbolehkan | Plan §4.4 mengizinkan query tanggal acuan lampau, tetapi tidak menetapkan tanggal mutasi yang boleh dipilih | Q34 §34.1 butir 2; aturan awal ditambahkan pada PRD §13, Data Model §2.19, Workflow §22.1 di PR #68 | **CONFIRMED** | `AssignmentRequest` menerima tanggal valid tanpa batas hari ini; `AppendAssignment` memakai tanggal yang dipilih. Jika dibatasi, ubah validasi dan test tanggal; data historis existing tidak dikoreksi otomatis. |
-| PJ-02: unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Data Model baseline §2.19 dan Plan §4.4 meminta PJ efektif, tanpa menetapkan constraint satu assignment per tanggal | Q34 §34.1 butir 1 menggantinya: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan; constraint awal ditambahkan pada Data Model §2.19/§5 dan migration PR #68 | **DIGANTI Q34** — belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70) | `AppendAssignment` menolak tanggal duplikat; migration `2026_10_06_000001_add_unique_indicator_date_to_penanggung_jawab.php` menambah unique. Jika lebih dari satu assignment per tanggal diizinkan, tetapkan urutan resmi lalu selaraskan resolver, constraint, migration, dan test; jangan memilih/menghapus duplikat otomatis. |
+| PJ-02: unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break | Data Model baseline §2.19 dan Plan §4.4 meminta PJ efektif, tanpa menetapkan constraint satu assignment per tanggal | Q34 §34.1 butir 1 menggantinya: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan; constraint awal ditambahkan pada Data Model §2.19/§5 dan migration PR #68 | **DIGANTI Q34** — diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70) | `AppendAssignment` tidak lagi menolak tanggal sama; migration `2026_10_09_000002_allow_same_date_penanggung_jawab.php` melepas unique dan menambah kolom identity `urutan`; `effectiveOn()` memilih tanggal lalu `urutan`. Duplikat legacy sebelum `2026_10_06_000001` tetap ditolak migration tersebut dan memerlukan keputusan koreksi data; jangan memilih/menghapus duplikat otomatis. |
 | PJ-03: no-op ditolak; mantan PJ boleh kembali sesudah digantikan | Plan §4.3 dan Issue #54 AC-4 menetapkan alasan/histori pergantian; belum mengatur kedua kebijakan ini | Q34 §34.1 butir 3–4; aturan awal ditambahkan pada PRD §13 dan Workflow §22.1 di PR #68 | **CONFIRMED** | `AppendAssignment` membandingkan target dengan PJ efektif pada tanggal mutasi. Jika keputusan berbeda, selaraskan validasi no-op/reassignment dan audit/test; tidak perlu mengubah schema hanya untuk membolehkan no-op. |
 | PJ-04: assignment mendatang existing dipertahankan ketika assignment lebih awal ditambahkan | Plan §4.3 dan Issue #54 AC-4 melarang overwrite histori; belum menetapkan kebijakan benturan jadwal mendatang secara spesifik | Q34 §34.1 butir 5; aturan eksplisit awal ditambahkan pada Workflow §22.1 di PR #68 | **CONFIRMED** | `AppendAssignment` hanya menambah baris; jadwal mendatang kembali efektif pada tanggalnya. Jika benturan harus ditolak, tambah guard/test; jika diperlukan pembatalan jadwal, tentukan kontrak data/migration dan audit terlebih dahulu tanpa overwrite histori. |
 | PJ-05: mutasi diblokir pada indikator arsip, Renstra diarsipkan, atau unit nonaktif; histori tetap terbaca | Lifecycle entitas dan fail-closed tersedia, tetapi larangan mutasi PJ untuk ketiga kondisi belum dinyatakan pada baseline Modul 4/Issue #54 | Q34 §34.1 butir 6; guard dan tambahan PRD §13/Workflow §22.1 berasal dari PR #68 | **CONFIRMED** | `IndikatorKinerja::assignmentBlockReason()` dipakai `AppendAssignment` dan capability read path. Jika ada pengecualian resmi, selaraskan guard/capability/audit/test; tidak memberi permission baru atau menghapus histori. |
 
-Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Q34 menutup MAJOR. PJ-01 dan PJ-03–PJ-05 sudah sesuai implementasi; PJ-02 berbeda, sehingga rekonsiliasi resolver, constraint, migration, dan test dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70).
+Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Q34 menutup MAJOR. PJ-01 dan PJ-03–PJ-05 sudah sesuai implementasi; PJ-02 berbeda dan direkonsiliasi pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70) (resolver, constraint, migration, dan test).
 
-**MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah checkbox atau keputusan domain.
+**MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11 sampai versi pengajuan ISS-05.03 tersedia, sedangkan AC-3 terverifikasi melalui #70 (10 Oktober 2026); catatan ini tidak mengubah checkbox atau keputusan domain.
 
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 
@@ -1638,47 +1638,53 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+> **Status implementasi — PR #76:** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT/deployment. Hak mutasi bukti diturunkan dari `rencana_aksi:update` pada unit header (Q32.3: `berkas:*` hanya gerbang deny/fail-closed) dan dijawab 403; unit nonaktif, indikator arsip, status di luar `draft`/`dikembalikan`, serta jendela PIC adalah validasi bisnis 422 (Data Model §3.2 langkah 6). Evaluator kelengkapan memakai `EvaluateEvidence` bersama (Plan 13.4). Browser smoke desktop/mobile belum dilakukan.
+>
+> **Keputusan D1 — diputuskan Q36 (10 Oktober 2026):** mutasi bukti `rencana_aksi`/`pengukuran` hanya selama induk `draft`/`dikembalikan`; sejak `diajukan` koreksi lewat pengembalian beralasan. PRD §18.8, Workflow §10.3/§10.6a, dan Data Model §2.30/§5 telah diselaraskan.
+>
+> **Handoff ISS-05.03:** `DownloadBuktiRencanaAksi` saat ini hanya melayani bukti yang masih berlaku (`current`). Setelah pembekuan versi ada, unduhan bukti yang dirujuk versi beku tetapi sudah dihapus perlu membaca metadata dari snapshot versi, mengikuti pola `DownloadBuktiPengukuran`.
+
+- [x] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: penghapusan bukti non-destruktif terbukti — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `berkas`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `berkas`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Pemenuhan Bukti Dukung Rencana Aksi** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Pemenuhan Bukti Dukung Rencana Aksi** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Capability berkas mengikuti kewenangan induk RA; deny berkas tetap berlaku.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Capability berkas mengikuti kewenangan induk RA; deny berkas tetap berlaku.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pemenuhan Bukti Dukung Rencana Aksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pemenuhan Bukti Dukung Rencana Aksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. *(State loading/disabled/error teruji Vitest; responsivitas dan kontras menunggu browser smoke.)*
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: `test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` menjadi regresi soft delete dan retensi file; bukti pembekuan versi menunggu ISS-05.03.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-5/TEST-5 masih parsial.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(D1 diputuskan Q36; PRD §18.8, Workflow §10.3/§10.6a, Data Model §2.30/§5, Plan 13.6, dan tabel klasifikasi permission Plan diselaraskan; hak mutasi bukti di Data Model §2.30 serta otorisasi ISS-11.04/US-11.04 diselaraskan dengan Q32.3. Tersisa: Plan 13.5 masih menyebut route bukti memakai permission `berkas:upload`/`berkas:read` tanpa membedakan induk bergerbang unit (Q32.3).)*
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu browser smoke desktop/mobile.)*
 
 ### ISS-05.03 · [Feature] Pengajuan Rencana Aksi & Pembekuan Versi
 
@@ -3640,7 +3646,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 #### Kontrak Teknis
 
 - **Dependensi:** Berkas terkait salah satu induk yang didukung.
-- **Otorisasi:** `berkas:delete` (sensitif) + guard status induk.
+- **Otorisasi:** `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - **Dampak Data:** `berkas`, `audit_log`.
 
 #### Acceptance Criteria (QA/UAT)
@@ -3662,7 +3668,7 @@ Mencatat pengukuran TW I–II 2026 melalui jalur Perencanaan karena jendela norm
 - [ ] Implementasikan guard imutabilitas per enam induk; penghapusan sebelum batas memakai soft delete, sesudah batas ditolak.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) + guard status induk.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 

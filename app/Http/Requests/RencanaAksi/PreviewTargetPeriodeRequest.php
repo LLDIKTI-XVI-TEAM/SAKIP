@@ -21,7 +21,7 @@ class PreviewTargetPeriodeRequest extends FormRequest
 
         $header = RencanaAksi::whereKey($id)->first();
         if (! $header instanceof RencanaAksi) {
-            // F1 (Review6 T1): header tak ditemukan → 404 SEBELUM validasi
+            // Header tak ditemukan → 404 SEBELUM validasi
             // `exists`, bukan lolos (`return true`) yang membiarkan 422 vs
             // 404 menjadi oracle keberadaan UUID lintas unit. Lookup
             // mendahului Gate agar urutan respons 404/403 tetap sama —
@@ -32,7 +32,7 @@ class PreviewTargetPeriodeRequest extends FormRequest
             abort(404);
         }
 
-        // F2 (Review5 S1): pratinjau menuntut izin baca DAN tulis bersama
+        // Pratinjau menuntut izin baca DAN tulis bersama
         // (cermin gerbang ganda di `PreviewTargetPeriode::handle`). Tanpa
         // `read` (atau kena deny) selalu 403 di sini — sebelum validasi
         // `exists` — agar tak membocorkan keberadaan UUID lintas unit via
@@ -47,18 +47,19 @@ class PreviewTargetPeriodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // F1 (Review5 S1): versi header wajib dikirim (`required`),
+            // Versi header wajib dikirim (`required`),
             // cermin `SimpanTargetPeriodeRequest`; pratinjau menolak konteks
             // usang 409 agar skor/deviasi tak tercampur (input form + target
             // v2 tak terlihat). Tanpa persistensi/audit — murni tolak hitung.
             'expected_versi' => ['required', 'integer', 'min:1'],
-            // F2 (Review4 Q2): token konkurensi snapshot WAJIB dikirim
-            // (`present`), cermin `SimpanTargetPeriodeRequest`; null hanya sah
-            // bila konteks memang tanpa snapshot. Pratinjau menolak konteks
-            // usang 409 agar yang ditampilkan = yang dipakai simpan.
+            // Token konkurensi snapshot WAJIB dikirim
+            // (`present`), cermin `SimpanTargetPeriodeRequest`; null lolos
+            // validasi bentuk tetapi selalu ditolak 409 oleh Action. Pratinjau
+            // menolak konteks usang 409 agar yang ditampilkan = yang dipakai
+            // simpan.
             'expected_snapshot_id' => ['present', 'nullable', 'uuid', 'exists:jadwal_snapshot,id'],
             'expected_snapshot_versi' => ['present', 'nullable', 'integer', 'min:1'],
-            // F5: subset bentuk simpan — pratinjau murni kalkulasi, bukan
+            // Subset bentuk simpan — pratinjau murni kalkulasi, bukan
             // persistensi. Kelengkapan per-periode sengaja tidak dituntut
             // (sel hilang = belum_diisi, bukan 422).
             'alasan_deviasi_pk' => ['nullable', 'string', 'max:10000'],

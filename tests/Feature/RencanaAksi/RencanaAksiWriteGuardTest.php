@@ -137,8 +137,8 @@ class RencanaAksiWriteGuardTest extends TestCase
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
         // Simulasi snapshot koreksi terbaru pindah unit B sementara header
-        // tetap unit A — diterbitkan sebagai versi baru (F3 Review6 T2:
-        // mutasi langsung snapshot yang dijepit draf ditolak trigger).
+        // tetap unit A — diterbitkan sebagai versi baru (mutasi langsung
+        // snapshot yang dijepit draf ditolak trigger).
         $unitBaru = Unit::create(['nama' => 'Unit Koreksi Pindah RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
         $v2 = JadwalSnapshot::create([
             'jadwal_id' => $fixture['jadwal']->id,

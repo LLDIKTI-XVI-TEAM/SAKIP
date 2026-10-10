@@ -2,8 +2,8 @@
  * Kontrak props halaman RencanaAksi/Show.
  *
  * Bentuk JSON mengikuti `App\Actions\RencanaAksi\IndexRencanaAksi::handle`
- * secara eksplisit: skor turunan, peringatan turun (11.5), dan deviasi
- * vs target PK (11.6) dihitung server. React hanya menampilkan payload
+ * secara eksplisit: skor turunan, peringatan turun, dan deviasi vs target
+ * PK dihitung server. React hanya menampilkan payload
  * dan tidak menghitung ulang skor turunan di klien.
  */
 export interface RencanaAksiKomponen {
@@ -65,10 +65,10 @@ export interface RencanaAksiShow {
     status_alur: string;
     versi: number;
     expected_versi: number;
-    /** F4: token konkurensi snapshot beku terbaru (null bila tanpa snapshot). Dikembalikan apa adanya saat simpan. */
-    expected_snapshot_id: string | null;
-    /** F4: nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`, null bila tanpa snapshot). */
-    expected_snapshot_versi: number | null;
+    /** Token konkurensi snapshot beku terbaru. Dikembalikan apa adanya saat simpan. */
+    expected_snapshot_id: string;
+    /** Nomor versi snapshot beku terbaru (`jadwal_snapshot.nomor_versi`). */
+    expected_snapshot_versi: number;
     uraian: string | null;
     alasan_deviasi_pk: string | null;
     indikator: {
@@ -99,13 +99,63 @@ export interface RencanaAksiShow {
     baseline: string | number | null;
     komponen: RencanaAksiKomponen[];
     periode: RencanaAksiPeriode[];
-    /** F2: lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
+    /** Lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
     koreksi: RencanaAksiKoreksi;
     deviasi_pk: RencanaAksiDeviasiPk;
     can: {
         view: boolean;
         update: boolean;
     };
+}
+
+export type BuktiMode = 'file' | 'tautan' | 'teks';
+
+/** Satu persyaratan `jenis_berkas` tahap rencana aksi beserta pemenuhannya dari evaluator server. */
+export interface BuktiPersyaratan {
+    id: string;
+    nama: string;
+    keterangan: string | null;
+    wajib: boolean;
+    semua_mode_wajib: boolean;
+    izinkan_file: boolean;
+    izinkan_tautan: boolean;
+    izinkan_teks: boolean;
+    format_diizinkan: string;
+    ukuran_maks_kb: number;
+    pemenuhan: {
+        terpenuhi: boolean;
+        mode_terpenuhi: BuktiMode[];
+        mode_kurang: BuktiMode[];
+        mode_dikecualikan: BuktiMode[];
+        /** Penanda anti-macet §18.7: unggahan nonaktif dan tidak ada mode alternatif. */
+        tidak_dapat_dipenuhi: boolean;
+        alasan_pengecualian: string | null;
+    };
+}
+
+export interface BuktiItem {
+    id: string;
+    jenis_berkas_id: string | null;
+    nama_persyaratan: string | null;
+    mode: BuktiMode;
+    nama_asli: string | null;
+    mime: string | null;
+    ukuran_bytes: number | null;
+    tautan: string | null;
+    isi_teks: string | null;
+    /** URL unduh ber-otorisasi dari server; null untuk mode tautan/teks. */
+    download_url: string | null;
+    pengunggah: string | null;
+    created_at: string | null;
+}
+
+/** Props panel bukti dari `IndexBuktiRencanaAksi`; null bila aktor tidak berhak melihat bukti. */
+export interface RencanaAksiBukti {
+    persyaratan: BuktiPersyaratan[];
+    ringkasan: { lengkap: boolean; total_wajib: number; terpenuhi_wajib: number };
+    daftar: BuktiItem[];
+    unggahan: { unggahan_aktif: boolean; ukuran_maks_kb: number; format_diizinkan: string };
+    can: { upload: boolean; delete: boolean };
 }
 
 export const rencanaAksiStatusPerhitungan: Record<string, string> = {
@@ -155,7 +205,7 @@ export interface RencanaAksiSahkan {
     };
 }
 
-export interface RencanaAksiBukti {
+export interface RencanaAksiBuktiBeku {
     id: string;
     jenis_berkas_id: string | null;
     menggantikan_id: string | null;
@@ -190,7 +240,7 @@ export interface RencanaAksiRingkas {
     pic: { id: string; nama: string } | null;
     konteks_tidak_lengkap: string[];
     bukti_count: number;
-    bukti_dukungs: RencanaAksiBukti[];
+    bukti_dukungs: RencanaAksiBuktiBeku[];
     target_periode: { periode_id: string | null; nilai: string | number | null; status_perhitungan: string | null; komponen: RencanaAksiKomponenBeku[] }[];
     can: { view: boolean };
 }
@@ -206,7 +256,7 @@ export interface RencanaAksiDetail extends RencanaAksiRingkas {
         status_perhitungan: string | null;
         komponen: RencanaAksiKomponenBeku[];
     }[];
-    bukti_dukungs: RencanaAksiBukti[];
+    bukti_dukungs: RencanaAksiBuktiBeku[];
     can: { view: boolean; ratify: boolean; evidence: boolean };
 }
 

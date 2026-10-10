@@ -8,25 +8,25 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Bekukan komposisi snapshot pasca-finalisasi (Review8 V2 F1).
+     * Bekukan komposisi snapshot pasca-finalisasi.
      *
      * Keputusan: (a) finalisasi atomik snapshot+komponen sebelum publik lalu
      * tolak seluruh INSERT komponen pasca-publik, BUKAN (b) ubah identitas
-     * versi tiap komposisi berubah. Alasan: selaras immutable-sejak-terbit U1
-     * (Review7 U1 F2) — identitas versi (`jadwal_id,indikator_id,nomor_versi`)
+     * versi tiap komposisi berubah. Alasan: selaras immutable-sejak-terbit
+     * — identitas versi (`jadwal_id,indikator_id,nomor_versi`)
      * tetap stabil sebagai token konkurensi baca-tulis (`expected_snapshot_id`
      * + `expected_snapshot_versi`); opsi (b) memaksa bump versi semu tiap ada
      * sisipan sehingga token basi + rekonsiliasi transisi (`RekonsiliasiTargetDraf`
      * jepit→terbaru) berisik tanpa peristiwa koreksi resmi. Opsi (a) menutup
-     * celah F1 — INSERT komponen ke v2 yang tampil (terbaru) namun belum
-     * dijepit pin lama tetap lolos guard rujukan U1 — dengan satu flag
+     * celah (INSERT komponen ke v2 yang tampil terbaru namun belum dijepit
+     * pin lama tetap lolos guard rujukan) dengan satu flag
      * pengunci `komposisi_final`: publikasi = INSERT snapshot (false) +
      * INSERT komponen + UPDATE finalisasi true dalam satu transaksi; pasca-
      * finalisasi seluruh INSERT komponen ditolak (23514) walau belum dirujuk,
      * sehingga koreksi sah wajib via sisipan berversi (snapshot baru +
      * komponennya, pola fixture/produksi dua-langkah tetap hijau selama induk
      * baru belum difinalisasi). UPDATE/DELETE komponen tetap selalu ditolak
-     * (U1 utuh, berlaku pula saat draf agar jendela publikasi all-or-nothing
+     * (immutable-sejak-terbit utuh, berlaku pula saat draf agar jendela publikasi all-or-nothing
      * via rollback, bukan tambal in-place); satu-satunya UPDATE snapshot yang
      * diizinkan adalah penguncian (kolom non-flag identik + NEW true; no-op
      * flag-sama diizinkan agar save tanpa-dirty tak gagal).
@@ -40,7 +40,7 @@ return new class extends Migration
             });
         }
 
-        // Pasang penjaga baru DULU sebelum backfill: guard lama U1 menolak
+        // Pasang penjaga baru DULU sebelum backfill: guard immutable-sejak-terbit menolak
         // seluruh UPDATE snapshot sehingga backfill finalisasi tertolak;
         // guard baru mengizinkan false->true (kolom non-flag identik).
         DB::unprepared(<<<'SQL'
@@ -105,7 +105,7 @@ return new class extends Migration
     }
 
     /**
-     * Kembalikan penjaga ke varian immutable-sejak-terbit U1 lalu lepas flag.
+     * Kembalikan penjaga ke varian immutable-sejak-terbit lalu lepas flag.
      *
      * Aman non-destruktif: hanya kolom pengunci boolean yang di-drop (tidak
      * ada data pengguna di dalamnya; fresh migrate ulang mem-finalisasi ulang

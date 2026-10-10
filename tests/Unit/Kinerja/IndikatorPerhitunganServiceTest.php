@@ -260,7 +260,7 @@ class IndikatorPerhitunganServiceTest extends TestCase
     }
 
     /**
-     * AC-11: Kontrak formula dihasilkan oleh server.
+     * Kontrak formula dihasilkan oleh server.
      */
     public function test_formula_contract_berasal_dari_server(): void
     {

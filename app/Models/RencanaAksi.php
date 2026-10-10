@@ -30,7 +30,7 @@ class RencanaAksi extends Model
     public const STATUS_DAPAT_DISUNTING = [self::STATUS_DRAFT, self::STATUS_DIKEMBALIKAN];
 
     /**
-     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi D7 sempit,
+     * `snapshot_draf_id` adalah jepit konteks non-FK (revisi sempit,
      * audit-safe, tanpa relasi otorisasi): snapshot terakhir yang
      * direkonsiliasi draf ini. Ditulis server saja, tak pernah dari request.
      */
@@ -66,6 +66,17 @@ class RencanaAksi extends Model
     public function penanggungJawab(): BelongsTo
     {
         return $this->belongsTo(User::class, 'penanggung_jawab_id');
+    }
+
+    /**
+     * Bukti dukung tahap rencana aksi (PRD §18.4), model yang sama dengan
+     * pengukuran agar scope `current` dan gerbang kelengkapan dipakai bersama.
+     *
+     * @return HasMany<BuktiDukung, $this>
+     */
+    public function buktiDukungs(): HasMany
+    {
+        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi');
     }
 
     /** @return BelongsTo<User, $this> */
@@ -106,12 +117,6 @@ class RencanaAksi extends Model
     public function ratifiedVersion(): HasOne
     {
         return $this->hasOne(RencanaAksiVersi::class, 'rencana_aksi_id')->whereNotNull('disahkan_at')->orderByDesc('nomor');
-    }
-
-    /** @return HasMany<BuktiDukung, $this> */
-    public function buktiDukungs(): HasMany
-    {
-        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'rencana_aksi')->whereNull('dihapus_pada');
     }
 
     /** Unit scope otorisasi header (unit pemilik indikator saat penyusunan). */

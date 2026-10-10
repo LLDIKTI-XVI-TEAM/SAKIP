@@ -12,7 +12,6 @@ export function WorkReadinessList({ readiness }: { readiness: WorkReadiness }) {
         <ul className="divide-y divide-border" aria-label="Kelengkapan izin kerja">
             {readiness.permissions.map((item) => <li key={item.permission} className="flex flex-wrap items-start justify-between gap-2 py-3">
                 <div className="min-w-0"><p className="text-sm font-medium text-ink">{item.label}</p>
-                    <p className="break-all text-xs text-muted">{item.permission}</p>
                     {!item.allowed && <p className="mt-1 text-xs text-danger">{reasons[item.reason] ?? 'Izin belum tersedia'}</p>}
                 </div>
                 <Badge variant={item.allowed ? 'success' : 'warning'} size="sm">{item.allowed ? 'Tersedia' : 'Belum tersedia'}</Badge>

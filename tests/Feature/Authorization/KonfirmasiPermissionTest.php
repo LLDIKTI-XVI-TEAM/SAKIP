@@ -48,7 +48,7 @@ class KonfirmasiPermissionTest extends TestCase
 
     /**
      * §6 Dokumen Konfirmasi Permission:
-     * 7 permission dengan scope unit untuk form grant (ISS-01.04, Q32).
+     * 7 permission dengan scope unit untuk form grant (Q32).
      */
     public function test_7_unit_scoped_permissions_match_confirmation_document(): void
     {

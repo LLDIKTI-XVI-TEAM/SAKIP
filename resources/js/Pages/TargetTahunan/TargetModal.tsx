@@ -80,11 +80,13 @@ function LoadTargetModal({ indikatorId, initialYear, onClose, onSaved }: TargetM
     }, [indikatorId, request]);
 
     if (loaded) return <Editor key={`${loaded.editor.tahun}:${loaded.serial}`} editor={loaded.editor} loading={loading} loadError={error} loadRecovery={recovery} retryYear={request.year} onLoad={load} onClose={onClose} onSaved={onSaved} />;
-    return <Modal isOpen onClose={() => { if (!loading) onClose(); }} title="Baseline & target tahunan" size="2xl">
-        {loading ? <p role="status">Memuat data…</p> : <div className="space-y-4 text-sm">
-            {recovery ? <AuthRecoveryNotice recovery={recovery} /> : <p role="alert">{error}</p>}<div className="flex gap-3">
-            {!recovery && <Button type="button" variant="outline" onClick={() => load(request.year)}>Coba lagi</Button>}
-            <Button type="button" variant="outline" onClick={onClose}>Tutup</Button>
-        </div></div>}
+    return <Modal isOpen onClose={() => { if (!loading) onClose(); }} title="Baseline & target tahunan" size="xl" bodyClassName="p-4 sm:p-6">
+        {loading ? <p role="status" className="rounded-lg bg-soft p-3 text-sm text-muted">Memuat data…</p> : <div className="space-y-5">
+            {recovery ? <AuthRecoveryNotice recovery={recovery} /> : <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{error}</p>}
+            <div className="flex justify-end gap-3 border-t border-border pt-4">
+                <Button type="button" variant="outline" onClick={onClose}>Tutup</Button>
+                {!recovery && <Button type="button" onClick={() => load(request.year)}>Coba lagi</Button>}
+            </div>
+        </div>}
     </Modal>;
 }

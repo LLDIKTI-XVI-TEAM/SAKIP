@@ -25,6 +25,7 @@ Seluruh dokumentasi teknis dan bisnis telah dirapikan ke dalam folder [`document
 - **Frontend**: React 19 + TypeScript (via Vite)
 - **Adapter**: Inertia.js (`@inertiajs/react`)
 - **Database development/CI**: PostgreSQL 17 (sesuai `compose.yaml`)
+- **Versi minimum database**: PostgreSQL ≥ 15 untuk seluruh lingkungan, termasuk produksi (index `NULLS NOT DISTINCT` pada `rencana_aksi_target`)
 - **Styling**: Tailwind CSS v4 (Token `@theme`)
 - **Containerization**: Podman 5.8 & Podman-compose 1.6
 - **Testing**: PHPUnit (Backend) + Vitest / React Testing Library (Frontend)

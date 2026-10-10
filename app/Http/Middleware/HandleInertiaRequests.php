@@ -113,50 +113,60 @@ class HandleInertiaRequests extends Middleware
             return $request->attributes->get('inertia_capabilities_'.$user->id);
         }
 
-        $resolver = app(PermissionResolver::class);
-        $regulasiRead = $resolver->allows($user, 'regulasi:read');
-        $renstraRead = $resolver->allows($user, 'renstra:read');
-        $pengaturanUpdate = $resolver->allows($user, 'pengaturan:update');
-        $jenisBerkasRead = $resolver->allows($user, 'jenis_berkas:read');
+        // Satu keputusan batch untuk seluruh izin langsung; capability berbasis
+        // Policy tetap memakai Policy masing-masing.
+        $izin = app(PermissionResolver::class)->decideMany($user, [
+            'dashboard:read', 'pengukuran:read', 'pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan',
+            'pengguna:read', 'akses:update', 'unit:read', 'delegasi:update',
+            'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
+            'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
+            'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
+            'periode:create', 'periode:update', 'pk:create', 'pk:update',
+        ]);
+        $boleh = fn (string $kode): bool => $izin[$kode]['allowed'];
+        $regulasiRead = $boleh('regulasi:read');
+        $renstraRead = $boleh('renstra:read');
+        $pengaturanUpdate = $boleh('pengaturan:update');
+        $jenisBerkasRead = $boleh('jenis_berkas:read');
 
         $computed = [
-            'dashboard' => $resolver->allows($user, 'dashboard:read'),
-            'pengukuran' => $resolver->allows($user, 'pengukuran:read'),
-            'verifikasi' => $resolver->allows($user, 'pengukuran:read')
-                && ($resolver->allows($user, 'pengukuran:verifikasi')
-                    || $resolver->allows($user, 'pengukuran:sahkan')
-                    || $resolver->allows($user, 'pengukuran:kembalikan')),
-            'aktivasi' => $resolver->allows($user, 'pengguna:read'),
-            'assignRole' => $resolver->allows($user, 'pengguna:read')
-                && $resolver->allows($user, 'akses:update'),
-            'manageDeny' => $resolver->allows($user, 'akses:update'),
-            'unit' => $resolver->allows($user, 'unit:read'),
-            'grant' => $resolver->allows($user, 'delegasi:update'),
+            'dashboard' => $boleh('dashboard:read'),
+            'pengukuran' => $boleh('pengukuran:read'),
+            'verifikasi' => $boleh('pengukuran:read')
+                && ($boleh('pengukuran:verifikasi')
+                    || $boleh('pengukuran:sahkan')
+                    || $boleh('pengukuran:kembalikan')),
+            'aktivasi' => $boleh('pengguna:read'),
+            'assignRole' => $boleh('pengguna:read')
+                && $boleh('akses:update'),
+            'manageDeny' => $boleh('akses:update'),
+            'unit' => $boleh('unit:read'),
+            'grant' => $boleh('delegasi:update'),
             'viewRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
-            'viewEffectivePermissions' => $resolver->allows($user, 'pengguna:read'),
+            'viewEffectivePermissions' => $boleh('pengguna:read'),
             'regulasi' => $regulasiRead,
-            'regulasi:create' => $resolver->allows($user, 'regulasi:create'),
+            'regulasi:create' => $boleh('regulasi:create'),
             'regulasi:read' => $regulasiRead,
-            'regulasi:update' => $resolver->allows($user, 'regulasi:update'),
-            'regulasi:delete' => $resolver->allows($user, 'regulasi:delete'),
+            'regulasi:update' => $boleh('regulasi:update'),
+            'regulasi:delete' => $boleh('regulasi:delete'),
             'renstra' => $renstraRead,
-            'renstra:create' => $resolver->allows($user, 'renstra:create'),
+            'renstra:create' => $boleh('renstra:create'),
             'renstra:read' => $renstraRead,
-            'renstra:update' => $resolver->allows($user, 'renstra:update'),
-            'renstra:delete' => $resolver->allows($user, 'renstra:delete'),
-            'berkas:delete' => $resolver->allows($user, 'berkas:delete'),
+            'renstra:update' => $boleh('renstra:update'),
+            'renstra:delete' => $boleh('renstra:delete'),
+            'berkas:delete' => $boleh('berkas:delete'),
             'pengaturan' => $pengaturanUpdate,
             'pengaturan:update' => $pengaturanUpdate,
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
-            'sasaranIndikator' => $resolver->allows($user, 'indikator:read'),
+            'sasaranIndikator' => $boleh('indikator:read'),
             'rencanaAksi' => $user->can('viewAny', RencanaAksi::class),
             'pk' => $user->can('viewAny', RenstraPk::class),
-            'periode' => $resolver->allows($user, 'periode:create') || $resolver->allows($user, 'periode:update'),
+            'periode' => $boleh('periode:create') || $boleh('periode:update'),
             'jadwal' => $user->can('viewAny', JadwalTahunan::class),
-            'pk:create' => $resolver->allows($user, 'pk:create'),
-            'pk:update' => $resolver->allows($user, 'pk:update'),
+            'pk:create' => $boleh('pk:create'),
+            'pk:update' => $boleh('pk:update'),
         ];
 
         if ($request) {

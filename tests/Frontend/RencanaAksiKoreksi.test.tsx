@@ -102,7 +102,7 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('F2 lingkup koreksi di UI', () => {
+describe('lingkup koreksi di UI', () => {
     it('koreksi 1 dari 4 via UI: hanya periode tercakup terkirim, luar lingkup dinonaktifkan', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [P1] })} />);

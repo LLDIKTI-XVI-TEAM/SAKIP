@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { http } from '@inertiajs/core';
@@ -113,7 +113,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
 beforeEach(() => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
     vi.spyOn(router, 'get').mockImplementation(() => undefined);
-    // F5: pratinjau debounced tak boleh menyentuh jaringan di uji matriks lama.
+    // Pratinjau debounced tak boleh menyentuh jaringan di uji matriks lama.
     vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify({ periode: [], deviasi_pk: { dapat_dinilai: false, ada: false, alasan_diperlukan: false, alasan_terisi: false, skor_periode_terakhir: null, target_pk: null, periode_id: null } }), headers: {} });
 });
 afterEach(() => {
@@ -122,7 +122,7 @@ afterEach(() => {
 });
 
 describe('Rencana aksi matriks target', () => {
-    it('11.2 reaktif dari payload server tanpa hitung ulang di React', async () => {
+    it('reaktif dari payload server tanpa hitung ulang di React', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
 
@@ -147,7 +147,7 @@ describe('Rencana aksi matriks target', () => {
         expect(vi.mocked(router.post).mock.calls[0][0]).toBe('/rencana-aksi/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/target');
     });
 
-    it('11.5 peringatan turun tampil tanpa memblokir penyimpanan', async () => {
+    it('peringatan turun tampil tanpa memblokir penyimpanan', async () => {
         const user = userEvent.setup();
         const payload = buatPayload({
             periode: [
@@ -300,7 +300,58 @@ describe('Rencana aksi matriks target', () => {
         );
     });
 
-    it('T6 simpan berurutan tanpa reload memakai token versi terbaru', async () => {
+    it('nilai tersimpan tampil tanpa nol di belakang koma tanpa pembulatan, dan simpan ulang mengirim nilai setara', async () => {
+        const user = userEvent.setup();
+        const awal = buatPayload();
+        const isi = (periode: number, pembilang: string, penyebut: string) => ({
+            ...awal.periode[periode],
+            nilai: [
+                { ...awal.periode[periode].nilai[0], nilai: pembilang },
+                { ...awal.periode[periode].nilai[1], nilai: penyebut },
+            ],
+        });
+        render(<RencanaAksiShow rencanaAksi={{ ...awal, periode: [isi(0, '2.500000000000', '123456789012345678.000000000000'), isi(1, '-1.250000000000', '0.000000000000')] }} />);
+
+        const nilai = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).value;
+        expect([nilai('n · Pembilang · Triwulan I'), nilai('t · Penyebut · Triwulan I'), nilai('n · Pembilang · Triwulan II'), nilai('t · Penyebut · Triwulan II')]).toEqual([
+            '2.5',
+            '123456789012345678',
+            '-1.25',
+            '0',
+        ]);
+
+        await user.click(screen.getByRole('button', { name: 'Simpan Target' }));
+
+        const kirim = vi.mocked(router.post).mock.calls[0][1] as { targets: { nilai: string | null }[] };
+        expect(kirim.targets.map((sel) => sel.nilai)).toEqual(['2.5', '123456789012345678', '-1.25', '0']);
+    });
+
+    it('throttle saat simpan menampilkan pesan singkat tanpa modal dan tanpa mengunci tombol', async () => {
+        const user = userEvent.setup();
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        await user.click(screen.getByRole('button', { name: 'Simpan Target' }));
+        const opsi = vi.mocked(router.post).mock.calls[0][2] as { onHttpException: (response: { status: number }) => boolean | void };
+        let hasil: boolean | void = undefined;
+        act(() => {
+            hasil = opsi.onHttpException({ status: 429 });
+        });
+
+        expect(hasil).toBe(false);
+        const tombol = screen.getByRole('button', { name: 'Simpan Target' }) as HTMLButtonElement;
+        expect(tombol.disabled).toBe(false);
+        // Pesan tampil di samping tombol yang baru ditekan, bukan jauh di atas halaman.
+        expect(within(tombol.parentElement as HTMLElement).getByRole('alert').textContent).toBe('Terlalu sering menyimpan. Coba lagi sebentar.');
+    });
+
+    it('label alasan deviasi tanpa kode keputusan', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        expect(screen.getByRole('textbox', { name: 'Alasan deviasi terhadap target PK' })).toBeTruthy();
+        expect(screen.queryByText(/\(D5\)/)).toBeNull();
+    });
+
+    it('simpan berurutan tanpa reload memakai token versi terbaru', async () => {
         const user = userEvent.setup();
         const awal = buatPayload();
         const { rerender } = render(<RencanaAksiShow rencanaAksi={awal} />);

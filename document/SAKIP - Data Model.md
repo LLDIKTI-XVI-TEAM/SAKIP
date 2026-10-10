@@ -983,10 +983,11 @@ Riwayat assignment penanggung jawab per indikator. Baris tidak dihapus untuk men
 | `ditetapkan_oleh` | uuid | FK → users.id | Perencanaan/Superadmin sesuai permission |
 | `alasan` | text | nullable | wajib untuk pergantian setelah assignment pertama |
 | `created_at` | timestamp | not null | |
+| `urutan` | bigint | not null, generated always as identity | Urutan pencatatan penugasan, diisi database; penentu PJ efektif bila beberapa baris memiliki tanggal sama |
 
-**Kontrak dasar — Plan §4.3–4.4 / Issue #54:** PJ efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`; pergantian wajib alasan dan menambah histori tanpa overwrite.
+**Kontrak dasar — Plan §4.3–4.4 / Issue #54:** PJ efektif pada tanggal T adalah baris dengan `tanggal_mulai_berlaku` terbesar yang `<= T`, lalu `urutan` terbesar bila tanggalnya sama; pergantian wajib alasan dan menambah histori tanpa overwrite.
 
-**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break) digantikan butir 1: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan, bukan `created_at` saja. Hingga #70 selesai, constraint dan histori existing dipertahankan. Evidence dan dampak rekonsiliasi dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ dapat kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique(`indikator_id`, `tanggal_mulai_berlaku`) tanpa tie-break) digantikan butir 1: pergantian PJ pada tanggal yang sama diperbolehkan dengan tepat satu PJ efektif menurut tanggal efektif lalu urutan penugasan (`urutan`), bukan `created_at` atau UUID. Unique per tanggal dilepas dan diganti index non-unique; histori existing dipertahankan tanpa koreksi. Evidence dan dampak rekonsiliasi dirujuk pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
 **Kontrak final Q32:**
 
@@ -1145,7 +1146,7 @@ Target per periode di bawah satu `rencana_aksi`. Indikator nonmanual diinput per
 | `updated_by` | uuid | FK → users.id | |
 | `updated_at` | timestamp | not null | |
 
-**Constraint:** dua partial unique index — `unique(rencana_aksi_id, periode_id) WHERE komponen_id IS NULL` (manual: tepat satu baris per periode) dan `unique(rencana_aksi_id, periode_id, komponen_id) WHERE komponen_id IS NOT NULL` (nonmanual).
+**Constraint:** satu unique index `ra_target_unik (rencana_aksi_id, periode_id, komponen_id) NULLS NOT DISTINCT` — manual: tepat satu baris `komponen_id IS NULL` per periode; nonmanual: unik per komponen. Menggantikan dua partial unique index semula (ADR-0007 butir 2, amandemen 10 Oktober 2026); membutuhkan PostgreSQL ≥ 15.
 
 **Sifat nilai turunan:** perkiraan skor indikator pada tampilan rencana aksi dihitung dari nilai komponen memakai mesin perhitungan yang sama dengan pengukuran (lihat §2.28) — perkiraan itu tidak disimpan sebagai kolom, murni hasil tampilan.
 
@@ -1380,9 +1381,9 @@ Perjanjian Kinerja, salinan produk hukum) dalam mode apa pun.
 - lampiran `renstra_pk` **tidak dapat dihapus** setelah `jadwal_tahunan` tahun tersebut berstatus `aktif`;
 - lampiran `regulasi` **tidak dapat dihapus** selama regulasi yang bersangkutan masih dirujuk oleh `renstra.regulasi_id` atau `indikator.regulasi_id` yang aktif;
 - lampiran `kegiatan` **tidak dapat dihapus** setelah kegiatan yang bersangkutan berstatus `terlaksana`;
-- lampiran `rencana_aksi`/`pengukuran` **tidak dapat dihapus** setelah induknya berstatus `disahkan`.
+- lampiran `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya berstatus `draft`/`dikembalikan`; sejak `diajukan` **tidak dapat dihapus** (koreksi lewat pengembalian beralasan), dan imutabel setelah `disahkan` (Q36).
 
-Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (izin `berkas:delete` ber-scope unit lewat grant, untuk `rencana_aksi`/`pengukuran`/`kegiatan`) dapat menghapus lampiran; setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali` — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas.
+Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (untuk `rencana_aksi`/`pengukuran`/`kegiatan`; hak mutasi turun dari izin induk ber-scope unit, mis. `rencana_aksi:update` atau `pengukuran:update`; `berkas:*` bukan permission unit-scoped dan hanya berfungsi sebagai gerbang deny, Q32.3) dapat menghapus lampiran; setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali` — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas.
 
 **Penyimpanan mode `file`:** berkas mode file disimpan di disk VPS (`storage/app/berkas/...`) dan diakses lewat route ber-permission (streamed download) — **bukan** URL publik. Untuk induk `rencana_aksi`/`pengukuran`/`kegiatan`, jenis dan ukuran file divalidasi terhadap `jenis_berkas.format_diizinkan`/`ukuran_maks_kb`; nilai default (bila `jenis_berkas` tidak menetapkannya) diambil dari kunci grup `berkas` pada `pengaturan` (§2.22). Untuk induk `renstra`/`renstra_pk`/`regulasi` (lampiran bebas, tanpa `jenis_berkas`), validasi format/ukuran memakai langsung nilai default kunci grup `berkas` pada `pengaturan`.
 
@@ -1629,7 +1630,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `regulasi` | unique(`jenis`, `nomor`, `tahun`) |
 | `renstra_pk` | unique(`renstra_id`, `tahun`) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13) |
-| `penanggung_jawab` | unique(`indikator_id`, `tanggal_mulai_berlaku`) — dipertahankan sementara; Q34 butir 1 mengizinkan pergantian PJ pada tanggal yang sama, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70), lihat §2.19 |
+| `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat, dapat ditandai `tidak_dapat_dipenuhi` tanpa memblokir aktivasi bila unggahan file dimatikan) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |
@@ -1637,7 +1638,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`) |
 | `pengaturan` | unique(`kunci`) |
 | `rencana_aksi` | unique(`indikator_id`, `tahun`) |
-| `rencana_aksi_target` | partial unique (`rencana_aksi_id`, `periode_id`) `WHERE komponen_id IS NULL` dan (`rencana_aksi_id`, `periode_id`, `komponen_id`) `WHERE komponen_id IS NOT NULL` (§2.24) |
+| `rencana_aksi_target` | unique(`rencana_aksi_id`, `periode_id`, `komponen_id`) `NULLS NOT DISTINCT` — `komponen_id IS NULL` untuk manual tetap tepat satu baris per periode (§2.24, ADR-0007) |
 | `klaim_kegiatan` | unique(`rencana_aksi_id`, `kegiatan_id`, `komponen_id`) — implementasi index memakai `COALESCE(komponen_id, sentinel)` karena PostgreSQL memperlakukan `NULL` sebagai nilai berbeda antarbaris |
 | `indikator_komponen` | unique(`indikator_id`, `kode`) |
 | `pengukuran_komponen` | unique(`pengukuran_id`, `komponen_id`) |
@@ -1649,7 +1650,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `pengukuran` (level aplikasi) | pengajuan ditolak selama `rencana_aksi` (indikator × tahun) belum `disahkan`; ditolak bila ada komponen aktif bernilai `null` |
 | `rencana_aksi` (level aplikasi) | pengajuan ditolak bila ada komponen aktif tanpa `rencana_aksi_target` pada salah satu periode yang diharapkan |
 | `klaim_kegiatan` (level aplikasi) | ditolak bila `kegiatan.unit_id` berbeda dari unit rencana aksi/indikator yang diklaim |
-| `berkas` (level aplikasi) | imutabilitas per induk (enam nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`; `rencana_aksi`/`pengukuran` tidak dapat dihapus setelah induknya `disahkan` |
+| `berkas` (level aplikasi) | imutabilitas per induk (enam nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`; `rencana_aksi`/`pengukuran` hanya dapat ditambah/diganti/dihapus selama induk `draft`/`dikembalikan` (Q36) |
 | `jenis_berkas` (level aplikasi) | minimal satu dari `izinkan_file`/`izinkan_tautan`/`izinkan_teks` bernilai `true`; penyimpanan tanpa satu pun mode aktif ditolak |
 | `berkas` (level aplikasi) | mode wajib termasuk mode yang diizinkan pada `jenis_berkas` terkait, kecuali lampiran bebas (`jenis_berkas_id = null`); `tautan` wajib berskema `http`/`https` bila `mode = tautan`; `isi_teks` wajib terisi bila `mode = teks`; `nama_asli`/`path`/`mime`/`ukuran_bytes` wajib terisi bila `mode = file` |
 | `kegiatan` (level aplikasi) | transisi status `rencana → terlaksana` ditolak bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` yang belum terpenuhi |

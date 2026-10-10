@@ -25,11 +25,11 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Regresi N3 (T10 + T12).
+ * Regresi metadata payload baca dan kapasitas matriks.
  *
- * T10: metadata indikator pada payload baca wajib berasal dari
+ * Metadata indikator pada payload baca wajib berasal dari
  * jadwal_snapshot beku, bukan master berjalan.
- * T12: matriks sah 10 periode × 11 komponen (110 sel) wajib tersimpan
+ * Matriks sah 10 periode × 11 komponen (110 sel) wajib tersimpan
  * utuh dalam satu request (batas domain 600 = 50 komponen × 12 periode).
  */
 class RencanaAksiPayloadMatrixTest extends TestCase

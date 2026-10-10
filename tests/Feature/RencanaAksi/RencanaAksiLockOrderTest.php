@@ -28,13 +28,13 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Urutan kunci global RencanaAksi → Indikator → Jadwal (T5, lihat
+ * Urutan kunci global RencanaAksi → Indikator → Jadwal (lihat
  * `EnsureDraftRencanaAksi` dan `SimpanTargetPeriode`).
  *
  * Memakai DatabaseMigrations (bukan RefreshDatabase seperti tetangga
  * RencanaAksi lain) agar fixture ter-commit dan terlihat oleh dua koneksi
  * PDO eksternal pada test dua-koneksi; preseden pola:
- * `RegulasiIndikatorLockOrderTest` (R2-21).
+ * `RegulasiIndikatorLockOrderTest`.
  */
 class RencanaAksiLockOrderTest extends TestCase
 {
@@ -47,7 +47,7 @@ class RencanaAksiLockOrderTest extends TestCase
     /**
      * Rebuild via migrate:fresh (bukan rollback) agar teardown tak menyentuh
      * down() migrasi lifecycle yang menolak baris pasca-cutover tanpa backup
-     * (keterbatasan pre-existing, di luar scope N2). Fixture tetap
+     * (keterbatasan pre-existing). Fixture tetap
      * ter-commit dan terlihat oleh dua koneksi PDO eksternal.
      * Preseden pola: AccountConcurrencyTest.
      */
@@ -142,7 +142,7 @@ class RencanaAksiLockOrderTest extends TestCase
         $indikatorId = $fixture['indikator']->id;
 
         // Ronde 1: sisi Ensure pegang header via predikat indikator×tahun
-        // (cermin kunci ordering T5), sisi Simpan meminta header yang sama
+        // (cermin urutan kunci global), sisi Simpan meminta header yang sama
         // via id (cermin SimpanTargetPeriode) → menunggu, bukan deadlock.
         $pdoEnsure = $this->koneksiPengujian();
         $pdoSimpan = $this->koneksiPengujian();

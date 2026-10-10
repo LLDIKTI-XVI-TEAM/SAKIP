@@ -125,7 +125,7 @@ flowchart TB
 
 - **Backend:** Laravel 13.
 - **Frontend:** Inertia 3 + React 19 + TypeScript + Tailwind 4.
-- **Database:** PostgreSQL.
+- **Database:** PostgreSQL ≥ 15 untuk seluruh lingkungan (produksi, staging/QA, development, CI); development/CI memakai 17. Versi server produksi wajib diverifikasi pemilik infrastruktur sebelum deployment yang memuat migration `2026_10_09_100000_satukan_index_unik_target_rencana_aksi`; bila di bawah 15, deployment ditahan ([keputusan K1 PR #77](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/77#issuecomment-6096268634)).
 - **Authentication:** Keycloak/OIDC Authorization Code Flow berbasis session Laravel.
 - **Frontend toolchain:** Bun + Vite.
 - **Deployment target:** VPS LLDIKTI; detail domain, host, dan topology fisik mengikuti environment aktual dan tidak boleh ditebak dari dokumen ini.
@@ -300,7 +300,7 @@ Implementasi canonical berada pada:
 
 `App\Services\Authorization\PermissionResolver`
 
-`App\Services\PermissionResolver` adalah compatibility wrapper deprecated untuk consumer legacy yang belum dimigrasikan; wrapper tersebut bukan resolver kedua.
+Compatibility wrapper `App\Services\PermissionResolver` sudah dihapus; seluruh consumer runtime dan test memakai namespace canonical di atas, sehingga tidak ada resolver kedua.
 
 ### 8.2 Effective permission
 

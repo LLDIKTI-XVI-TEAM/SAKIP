@@ -23,8 +23,8 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Konsistensi baca T7: payload `expected_versi` + target berasal dari satu
- * transaksi baca yang sama (header dimuat ulang + versi diverifikasi), bukan
+ * Konsistensi baca: payload `expected_versi` + target berasal dari satu
+ * transaksi baca yang sama (header dimuat ulang dengan kunci baca), bukan
  * dari model pra-transaksi milik controller.
  */
 class RencanaAksiReadConsistencyTest extends TestCase
@@ -67,9 +67,9 @@ class RencanaAksiReadConsistencyTest extends TestCase
         $this->assertSame(3, $header->fresh()->versi);
         $this->assertSame(2, (int) $basi->versi);
 
-        // Aksi baca menerima model basi (seperti controller pra-transaksi)
-        // tetapi wajib mengembalikan versi segar + target segar yang konsisten.
-        $payload = app(IndexRencanaAksi::class)->handle($fixture['pic'], $basi);
+        // Model yang dimuat sebelum tulis lain sudah basi; aksi baca menerima
+        // ID dan wajib mengembalikan versi segar + target segar yang konsisten.
+        $payload = app(IndexRencanaAksi::class)->handle($fixture['pic'], $basi->id);
 
         $this->assertSame(3, $payload['versi']);
         $this->assertSame(3, $payload['expected_versi']);

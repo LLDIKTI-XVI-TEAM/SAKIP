@@ -606,26 +606,26 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 - [x] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
 - [x] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
-- [ ] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
+- [x] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
 - [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
 - [x] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
 - [x] **AC-6 (Q32):** Given target user aktif dengan role apa pun atau belum memiliki role, When ditetapkan sebagai PJ, Then assignment diperbolehkan tanpa memberi permission; kesiapan tujuh izin kerja dinilai terpisah melalui PermissionResolver.
 
 
-> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 berasal dari Q34 dan ditelusuri pada matriks provenance ISS-04.01; AC-3/AC-4 integrasi Modul 11 tetap terbuka.
+> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 berasal dari Q34 dan ditelusuri pada matriks provenance ISS-04.01. AC-3 terverifikasi untuk Rencana Aksi dan Pengukuran, termasuk pergantian pada tanggal yang sama; AC-4 tetap terbuka sampai versi pengajuan Rencana Aksi (ISS-05.03) tersedia.
 
 **Kontrak Final Q32**
 
 - `penanggung_jawab` tetap menjadi sumber histori assignment indikator.
 - Peran pengguna dan assignment `penanggung_jawab` merupakan dua data yang berbeda; tidak ada syarat role PIC.
 - Monitoring menampilkan izin tersedia dan kurang untuk semua tujuh permission scoped pada unit indikator menurut ACL saat ini. Explicit deny menang dan user nonaktif fail-closed. Diagnosis tidak menjadi gate pengganti resolver saat aksi dilakukan.
-- Bukti reuse Rencana Aksi pada AC-3/AC-4 dan Plan 4.4 tetap bergantung pada implementasi Modul 11.
+- Bukti reuse Rencana Aksi pada AC-4 tetap bergantung pada versi pengajuan Rencana Aksi (ISS-05.03); guard AC-3 dan reuse Plan 4.4 sudah memakai resolver PJ yang sama.
 
-**Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan.
+**Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan, lalu `urutan` penugasan terbesar pada tanggal yang sama.
 
-**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) belum diimplementasikan, dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal tanpa tie-break) digantikan butir 1 dan dipertahankan hingga #70 selesai. Detail evidence dan dampak berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
+**Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal tanpa tie-break) digantikan butir 1 dan diimplementasikan pada #70 dengan kolom `urutan`. Detail evidence dan dampak berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
-**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) **RESOLVED oleh Q34 (9 Oktober 2026)**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. PJ-02 digantikan Q34 butir 1 dan dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). AC-3/AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11; catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
+**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) **RESOLVED oleh Q34 (9 Oktober 2026)**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. PJ-02 digantikan Q34 butir 1 dan dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11 sampai versi pengajuan ISS-05.03 tersedia, sedangkan AC-3 terverifikasi melalui #70 (10 Oktober 2026); catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
 
 **Tindak lanjut review M-02/M-03:** audit penolakan aktor nonaktif dan continuation monitoring dengan batas kandidat telah diperbaiki serta diverifikasi lokal. Cakupan PJ efektif yang akunnya nonaktif (D-01) tetap **PENDING REQUIREMENT CLARIFICATION** dengan filter existing dipertahankan sementara; status dan pilihan keputusan berada pada bagian traceability ISS-04.01 di User Issues. Tidak ada perubahan AC atau keputusan bisnis dari tindak lanjut teknis ini.
 
@@ -681,11 +681,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
-- [ ] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
-- [ ] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
-- [ ] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut.
+- [x] **AC-1:** Given persyaratan tahap `rencana_aksi`, When bukti mode valid disimpan, Then `berkas` terhubung ke RA dan jenis persyaratan yang tepat.
+- [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
+- [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
+- [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
+- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: PR #76 membuktikan penghapusan bukti non-destruktif — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
+
+> **Status implementasi — PR #76 (ISS-05.02):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT maupun deployment.
 
 ### US-05.03 · Pengajuan Rencana Aksi & Pembekuan Versi
 
@@ -1415,7 +1417,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Story Points** | 8 |
 | **Modul** | Bukti Dukung Multi-Mode & Integritas Lampiran |
 | **Dependensi** | Berkas terkait salah satu induk yang didukung. |
-| **Otorisasi** | `berkas:delete` (sensitif) + guard status induk. |
+| **Otorisasi** | `berkas:delete` (sensitif) untuk induk dokumen dasar (`renstra`/`renstra_pk`/`regulasi`); untuk `rencana_aksi`/`pengukuran`/`kegiatan` hak hapus turun dari izin mutasi induk ber-scope unit, dengan `berkas:delete` sebagai gerbang deny (Q32.3); + guard status induk (Q36). |
 | **Dampak Data** | `berkas`, `audit_log`. |
 
 > **Sebagai** Sistem Integritas SAKIP,  

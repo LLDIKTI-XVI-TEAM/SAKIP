@@ -35,6 +35,7 @@ use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
 use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
 use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
 use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
+use App\Http\Controllers\Perencanaan\ShowIndikator;
 use App\Http\Controllers\Perencanaan\StoreIndikator;
 use App\Http\Controllers\Perencanaan\StoreSasaran;
 use App\Http\Controllers\Perencanaan\UpdateIndikator;
@@ -51,11 +52,13 @@ use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
 use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
+use App\Http\Controllers\RencanaAksi\DestroyBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
 use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowReviuRencanaAksi;
+use App\Http\Controllers\RencanaAksi\StoreBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreRencanaAksiDraft;
 use App\Http\Controllers\RencanaAksi\UpdateRencanaAksiTarget;
 use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
@@ -180,11 +183,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
-
-    // Pengesahan Rencana Aksi (ISS-05.05)
-    Route::get('/rencana-aksi/{id}/reviu', ShowReviuRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.reviu');
-    Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
-    Route::get('/rencana-aksi/{id}/bukti/{buktiId}', DownloadBuktiRencanaAksi::class)->whereUuid('id')->whereUuid('buktiId')->name('rencana-aksi.bukti');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 
@@ -211,13 +209,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
 
-    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    // Sasaran Strategis & Indikator Kinerja
     Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
     Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
     Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
     Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
 
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
+    Route::get('/perencanaan/indikator/{indikator}', ShowIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.show');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
     Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');
@@ -241,11 +240,16 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Rencana Aksi — penyusunan target per periode
     Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
     Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
+    Route::get('/rencana-aksi/{id}/reviu', ShowReviuRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.reviu');
+    Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
     // Tulis RA menambah audit append-only (matriks penuh); batasi per pengguna.
     // Pratinjau tidak menulis audit dan dipanggil tiap ketikan, jadi dikecualikan.
     Route::middleware('throttle:30,1,rencana-aksi-tulis')->group(function (): void {
         Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
         Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
+        Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');
+        Route::delete('/rencana-aksi/{rencanaAksi}/bukti/{bukti}', DestroyBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
     });
     Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');
+    Route::get('/rencana-aksi/{rencanaAksi}/bukti/{bukti}/unduh', DownloadBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.download');
 });

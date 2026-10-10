@@ -8,19 +8,19 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Jepit snapshot draf (F2 rekonsiliasi transisi + F3 bekukan snapshot draf).
+     * Jepit snapshot draf untuk rekonsiliasi transisi dan pembekuan snapshot draf.
      *
      * Kolom `rencana_aksi.snapshot_draf_id` adalah rujukan UUID nullable
-     * TANPA foreign key: revisi D7 yang sempit dan audit-safe. Kolom ini
+     * TANPA foreign key: revisi sempit yang audit-safe. Kolom ini
      * tidak dipakai otorisasi (izin tetap berbasis `unit_id` + resolver),
      * tidak diekspos ke klien, dan tidak divalidasi dari request — hanya
      * ditulis server (`EnsureDraftRencanaAksi` saat buat,
      * `SimpanTargetPeriode` tiap simpan) sebagai "terakhir direkonsiliasi
      * di bawah snapshot X". Kegunaannya ganda: (a) aplikasi menelusuri
      * versi antara jepit→terbaru untuk mendeteksi baris basi transisi
-     * (F2: v1→v2 tanpa simpan→v3 tak boleh bangkitkan nilai lama);
+     * (v1→v2 tanpa simpan→v3 tak boleh bangkitkan nilai lama);
      * (b) trigger `guard_referenced_schedule_snapshot()` menolak mutasi
-     * langsung snapshot yang masih dijepit draf (F3).
+     * langsung snapshot yang masih dijepit draf.
      *
      * Nilai NULL berarti "belum dijepit": dibaca fail-closed sebagai
      * "telusuri seluruh versi sejak awal" bila snapshot ada, dan diabaikan
@@ -61,9 +61,9 @@ return new class extends Migration
     }
 
     /**
-     * Kembalikan penjaga ke varian D7 (tanpa jepit draf) lalu lepas kolom.
+     * Kembalikan penjaga ke varian tanpa jepit draf lalu lepas kolom.
      *
-     * Aman tanpa tabel backup (pola R2-04b/R2-09 yang disederhanakan):
+     * Aman tanpa tabel backup (pola migrasi lifecycle sebelumnya yang disederhanakan):
      * kolom nullable dan NULL bermakna fail-closed ("telusuri seluruh
      * versi"), sehingga kehilangannya tidak merusak data pengguna —
      * migrasi ulang menghasilkan jepit baru lewat jalur tulis biasa.

@@ -25,6 +25,10 @@ class RencanaAksiPersistenceTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const INDEX_UNIK = 'CREATE UNIQUE INDEX ra_target_unik ON public.rencana_aksi_target USING btree (rencana_aksi_id, periode_id, komponen_id) NULLS NOT DISTINCT';
+
+    private const MIGRASI_INDEX_UNIK = 'migrations/2026_10_09_100000_satukan_index_unik_target_rencana_aksi.php';
+
     public function test_header_menolak_duplikat_indikator_tahun(): void
     {
         $this->assertTrue(Schema::hasColumn('rencana_aksi', 'alasan_deviasi_pk'));
@@ -125,6 +129,42 @@ class RencanaAksiPersistenceTest extends TestCase
         }
 
         $this->assertDatabaseCount('rencana_aksi_target', 2);
+    }
+
+    /**
+     * Satu index unik `NULLS NOT DISTINCT` menggantikan dua index unik parsial
+     * dan index biasa per `rencana_aksi_id`.
+     */
+    public function test_index_unik_target_tunggal_nulls_not_distinct(): void
+    {
+        $this->assertSame(['ra_target_unik' => self::INDEX_UNIK], $this->indexTarget());
+    }
+
+    public function test_migrasi_index_unik_target_dapat_dibalik(): void
+    {
+        $migrasi = require database_path(self::MIGRASI_INDEX_UNIK);
+
+        $migrasi->down();
+        $this->assertSame([
+            'ra_target_komponen_unik' => 'CREATE UNIQUE INDEX ra_target_komponen_unik ON public.rencana_aksi_target USING btree (rencana_aksi_id, periode_id, komponen_id) WHERE (komponen_id IS NOT NULL)',
+            'ra_target_manual_unik' => 'CREATE UNIQUE INDEX ra_target_manual_unik ON public.rencana_aksi_target USING btree (rencana_aksi_id, periode_id) WHERE (komponen_id IS NULL)',
+            'ra_target_rencana_aksi_idx' => 'CREATE INDEX ra_target_rencana_aksi_idx ON public.rencana_aksi_target USING btree (rencana_aksi_id)',
+        ], $this->indexTarget());
+
+        $migrasi->up();
+        $this->assertSame(['ra_target_unik' => self::INDEX_UNIK], $this->indexTarget());
+    }
+
+    /**
+     * Index pada `rencana_aksi_target` selain primary key, berurutan nama.
+     *
+     * @return array<string, string>
+     */
+    private function indexTarget(): array
+    {
+        return collect(DB::select("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'rencana_aksi_target' AND indexname <> 'rencana_aksi_target_pkey' ORDER BY indexname"))
+            ->mapWithKeys(fn (object $baris): array => [$baris->indexname => $baris->indexdef])
+            ->all();
     }
 
     private function aktor(): User

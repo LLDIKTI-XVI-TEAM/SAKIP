@@ -113,7 +113,7 @@ trait JadwalActivationFixtures
 
     /**
      * Sidik jari tanpa kolom `komposisi_final`. Aktivasi memang memfinalkan snapshot
-     * terbit (Review10 D1/D2), sehingga konten beku yang wajib identik adalah seluruh
+     * terbit, sehingga konten beku yang wajib identik adalah seluruh
      * kolom selain flag itu.
      *
      * @param  array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}  $fingerprint

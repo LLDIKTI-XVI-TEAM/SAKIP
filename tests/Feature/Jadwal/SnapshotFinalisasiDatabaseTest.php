@@ -12,7 +12,7 @@ use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
 /**
- * Finalisasi snapshot di level database (Review10 F4/F5).
+ * Finalisasi snapshot di level database.
  *
  * Trigger pada transisi jadwal ke `aktif` dan migrasi korektif backfill harus
  * bekerja tanpa bergantung pada kode aplikasi versi baru, sehingga aktivasi
@@ -61,7 +61,7 @@ class SnapshotFinalisasiDatabaseTest extends TestCase
         ];
     }
 
-    /** Komposisi yang sudah terbit tidak dapat disisipi komponen (guard Review9 W1). */
+    /** Komposisi yang sudah terbit tidak dapat disisipi komponen (guard insert komponen). */
     private function assertSisipanKomponenDitolak(): void
     {
         $komponen = IndikatorKomponen::create([

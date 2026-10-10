@@ -2,27 +2,29 @@
 
 namespace App\Policies;
 
-use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
-use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Support\AlasanAudit;
+use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
+/**
+ * Policy murni tanpa efek samping: penolakan dicatat pemanggil yang tahu
+ * konteksnya (FormRequest simpan/buat, atau Action di dalam transaksi),
+ * sehingga Gate yang sama dapat dipakai pratinjau tanpa tercatat sebagai
+ * percobaan simpan.
+ */
 class RencanaAksiPolicy
 {
     public function __construct(
         private readonly PermissionResolver $resolver,
-        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -60,15 +62,10 @@ class RencanaAksiPolicy
      *
      * PIC memakai grant unit + penugasan efektif (diperiksa Action/jendela);
      * Perencanaan lolos via peran global tanpa grant unit. Deny menang.
-     * Penolakan tepi dicatat agar selaras audit transaksi Action.
      */
     public function create(User $user, IndikatorKinerja $indikator): Response
     {
         $decision = $this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_CREATE, (string) $indikator->unit_id);
-
-        if (! $decision->allowed) {
-            $this->catatBuatDitolak($user, $decision);
-        }
 
         return $this->response($decision, 'Izin pembuatan rencana aksi tidak tersedia atau telah dicabut.');
     }
@@ -83,62 +80,32 @@ class RencanaAksiPolicy
     {
         $decision = $this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
 
-        if (! $decision->allowed) {
-            $this->catatUbahDitolak($user, $header, $decision);
-        }
-
         return $this->response($decision, 'Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.');
     }
 
-    public function sahkan(User $user, RencanaAksi $header): Response
-    {
-        return $this->capability($user, $header, PermissionCodes::RENCANA_AKSI_SAHKAN);
-    }
-
     /**
-     * Isi bukti (tautan/isi_teks) hanya dibuka bila baca ringkasan lolos dan
-     * akses berkas tidak ditolak. Deny berkas:read menang atas fallback kelola.
+     * Lihat/unduh bukti mengikuti akses induk (pola PengukuranKinerjaPolicy):
+     * allow `berkas:read` atau hak tulis unit; deny/katalog nonaktif menang.
      */
     public function viewEvidence(User $user, RencanaAksi $header): bool
     {
         if (! $this->view($user, $header)) {
             return false;
         }
-        $decision = $this->resolver->decide($user, PermissionCodes::BERKAS_READ, (string) $header->unit_id);
-        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true)) {
+        $unitId = (string) $header->unit_id;
+        $decision = $this->resolver->decide($user, PermissionCodes::BERKAS_READ, $unitId);
+        if (in_array($decision['reason'], GerbangBuktiRencanaAksi::ALASAN_TERTUTUP, true)) {
             return false;
         }
 
-        return $decision['allowed'] || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id) || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $header->unit_id);
+        return $decision['allowed']
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId)
+            || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
-    /**
-     * Guard bukti pasca-sah: status disahkan membeku semua; setelah buka-kembali
-     * (dikembalikan + versi tersahkan ada) hanya ID dalam snapshot resmi yang beku.
-     * Bukti baru pasca-buka-kembali (ID tidak ada di snapshot resmi) tetap bisa dihapus.
-     * FIX2: cek SEMUA versi dengan disahkan_at NOT NULL (satu query versions),
-     * bukan hanya ratifiedVersion terbaru — ID yang muncul di salah satu snapshot
-     * resmi tetap beku walau versi terbaru tidak merujuknya lagi.
-     */
-    public function deleteEvidence(User $user, RencanaAksi $header, BuktiDukung $bukti): Response
+    public function sahkan(User $user, RencanaAksi $header): Response
     {
-        if ($bukti->berkasable_type !== 'rencana_aksi' || $bukti->berkasable_id !== $header->id) {
-            return Response::deny('Bukti tidak terkait dengan rencana aksi ini.');
-        }
-        if ($header->status_alur === 'disahkan') {
-            return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
-        }
-        $frozenIds = $header->versions()->whereNotNull('disahkan_at')->get(['snapshot'])
-            ->flatMap(fn ($version) => is_array($version->snapshot) ? array_values($version->snapshot['bukti_dukungs'] ?? []) : [])
-            ->pluck('id')->filter()->unique()->values()->all();
-        if (in_array($bukti->id, $frozenIds, true)) {
-            return Response::deny('Bukti yang dirujuk versi resmi tidak boleh dihapus.');
-        }
-        if (! $this->resolver->allows($user, PermissionCodes::BERKAS_DELETE, (string) $header->unit_id)) {
-            return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
-        }
-
-        return Response::allow();
+        return $this->capability($user, $header, PermissionCodes::RENCANA_AKSI_SAHKAN);
     }
 
     /** Dipakai Gate sahkan: izin kanonis lalu gabungan aturan bisnis. */
@@ -251,30 +218,5 @@ class RencanaAksiPolicy
     private function response(PermissionDecision $decision, string $pesan): Response
     {
         return $decision->allowed ? Response::allow() : Response::deny($pesan);
-    }
-
-    private function catatBuatDitolak(User $user, PermissionDecision $decision): void
-    {
-        $this->audit->catat(
-            actor: $user,
-            tindakan: 'rencana_aksi.buat_ditolak',
-            objekTipe: 'rencana_aksi',
-            objekId: (string) Str::uuid(),
-            alasan: AlasanAudit::sanitasi(null, 'Percobaan pembuatan rencana aksi ditolak oleh sistem otorisasi.'),
-            dasarIzin: $decision->toAuditBasis(),
-        );
-    }
-
-    private function catatUbahDitolak(User $user, RencanaAksi $header, PermissionDecision $decision): void
-    {
-        $this->audit->catat(
-            actor: $user,
-            tindakan: 'rencana_aksi.ubah_ditolak',
-            objekTipe: 'rencana_aksi',
-            objekId: (string) $header->id,
-            nilaiLama: $header->withoutRelations()->toArray(),
-            alasan: AlasanAudit::sanitasi(null, 'Percobaan penyimpanan target rencana aksi ditolak oleh sistem otorisasi.'),
-            dasarIzin: $decision->toAuditBasis(),
-        );
     }
 }

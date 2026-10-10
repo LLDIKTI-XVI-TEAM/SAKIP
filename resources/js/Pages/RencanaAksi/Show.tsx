@@ -8,31 +8,40 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import BuktiPanel from './BuktiPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
-import type { RencanaAksiShow } from './types';
+import type { RencanaAksiBukti, RencanaAksiShow } from './types';
 import { dapatDisuntingPeriode, kunciSel } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
+    /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
+    bukti?: RencanaAksiBukti | null;
+}
+
+/** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
+function tanpaNolBelakang(nilai: string | number): string {
+    const teks = String(nilai);
+    return teks.includes('.') ? teks.replace(/\.?0+$/, '') : teks;
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
-    // T6: sertakan versi dalam key agar useForm remount saat Inertia
+    // Sertakan versi dalam key agar useForm remount saat Inertia
     // mengembalikan props versi baru pasca-simpan; tanpa ini expected_versi
     // tetap usang dan simpan ke-2 tanpa reload kena 409 palsu. Versi sama
-    // (mis. validasi gagal) mempertahankan draf. F4: token snapshot ikut
+    // (mis. validasi gagal) mempertahankan draf. Token snapshot ikut
     // dalam key agar token usang tak dipertahankan bila props disegarkan
-    // dengan snapshot koreksi baru pada versi header yang sama. F2: lingkup
+    // dengan snapshot koreksi baru pada versi header yang sama. Lingkup
     // koreksi ikut dalam key agar perubahan scope tanpa bump versi tetap
     // me-remount formulir (input luar lingkup tak dipertahankan).
     const koreksiKey = props.rencanaAksi.koreksi.aktif
         ? `koreksi:${props.rencanaAksi.koreksi.periode_ids.slice().sort().join(',')}`
         : 'tanpa-koreksi';
-    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id ?? 'tanpa-snapshot'}::${props.rencanaAksi.expected_snapshot_versi ?? 0}::${koreksiKey}`} {...props} />;
+    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}`} {...props} />;
 }
 
-function RencanaAksiForm({ rencanaAksi }: ShowProps) {
+function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const manual = rencanaAksi.tipe_perhitungan === 'manual';
@@ -40,6 +49,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     const satuan = rencanaAksi.indikator.satuan;
     const errorSummary = useRef<HTMLUListElement>(null);
     const [requestError, setRequestError] = useState('');
+    // Throttle menolak sebelum diproses, jadi hasilnya pasti tidak tersimpan:
+    // cukup diberi tahu dan boleh langsung mencoba lagi.
+    const [terlaluSering, setTerlaluSering] = useState(false);
 
     const periodeEfektif = useMemo(
         () => [...rencanaAksi.periode].sort((a, b) => a.urutan - b.urutan).filter((baris) => baris.efektif),
@@ -50,9 +62,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
         [rencanaAksi.komponen],
     );
 
-    // F2: saat koreksi aktif hanya periode dalam `periode_ids` yang
+    // Saat koreksi aktif hanya periode dalam `periode_ids` yang
     // disunting/dikirim (kosong = tidak ada); tanpa koreksi semua periode
-    // efektif boleh. Validasi fail-closed N1 tetap di backend.
+    // efektif boleh. Validasi fail-closed tetap di backend.
     const koreksi = rencanaAksi.koreksi;
     const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
     const periodeDapatDisunting = useMemo(
@@ -70,9 +82,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
             if (manual) {
                 const sel = baris.nilai.find((cell) => cell.komponen_id === null) ?? baris.nilai[0];
                 const key = kunciSel(baris.id, null);
-                nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
+                nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : tanpaNolBelakang(sel.nilai);
                 keterangan[key] = sel?.keterangan ?? null;
-                // F2: periode di luar lingkup koreksi tidak dikirim agar
+                // Periode di luar lingkup koreksi tidak dikirim agar
                 // koreksi parsial (mis. 1 dari 4) tersimpan via UI.
                 if (!terkunci) {
                     order.push({ periode_id: baris.id, komponen_id: null, key });
@@ -81,7 +93,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 for (const item of komponenTerurut) {
                     const sel = baris.nilai.find((cell) => cell.komponen_id === item.komponen_id);
                     const key = kunciSel(baris.id, item.komponen_id);
-                    nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : String(sel.nilai);
+                    nilai[key] = sel?.nilai === null || sel?.nilai === undefined ? '' : tanpaNolBelakang(sel.nilai);
                     keterangan[key] = sel?.keterangan ?? null;
                     if (!terkunci) {
                         order.push({ periode_id: baris.id, komponen_id: item.komponen_id, key });
@@ -95,7 +107,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
 
     const { data, setData, transform, post, processing, errors } = useForm({
         expected_versi: rencanaAksi.expected_versi,
-        // F4: token konkurensi snapshot dikembalikan apa adanya (tanpa
+        // Token konkurensi snapshot dikembalikan apa adanya (tanpa
         // logika formula di React); server menolak 409 bila snapshot
         // terbaru berubah sejak payload dibaca.
         expected_snapshot_id: rencanaAksi.expected_snapshot_id,
@@ -110,7 +122,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
     const canUpdate = rencanaAksi.can.update;
     const formDisabled = !canUpdate || processing;
     const kosong = periodeEfektif.length === 0 || (!manual && komponenTerurut.length === 0);
-    // F2: koreksi aktif dengan lingkup menyisakan sebagian periode — hanya
+    // Koreksi aktif dengan lingkup menyisakan sebagian periode — hanya
     // yang tercakup yang dikirim; bila tak ada yang tercakup, simpan
     // dinonaktifkan (backend menolak targets kosong).
     const terkunciSemua = !kosong && periodeDapatDisunting.length === 0;
@@ -161,6 +173,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
             return;
         }
         setRequestError('');
+        setTerlaluSering(false);
         const targets = urutanKirim.map((item) => ({
             periode_id: item.periode_id,
             komponen_id: item.komponen_id,
@@ -188,7 +201,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                 return false;
             },
             onHttpException: (response) => {
-                if (response.status === 403) {
+                if (response.status === 429) {
+                    setTerlaluSering(true);
+                } else if (response.status === 403) {
                     setRequestError('Izin penyimpanan ditolak. Periksa akses sebelum mencoba kembali.');
                 } else {
                     setRequestError('Hasil penyimpanan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
@@ -204,11 +219,11 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
 
     const deviasi = rencanaAksi.deviasi_pk;
 
-    // F5: pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
+    // Pratinjau reaktif server-side (tanpa persistensi, tanpa formula di
     // React). Dibangun dari nilai formulir saat ini untuk periode yang
     // dikirim (di luar lingkup koreksi tak ikut), dipanggil debounce oleh
     // `TargetPreview` mengikuti pola `CalculationPreview` pengukuran.
-    // F1+F2: versi header + token snapshot halaman ikut dikirim ke preview
+    // Versi header + token snapshot halaman ikut dikirim ke preview
     // agar konteks usang ditolak 409 — yang ditampilkan = yang dipakai
     // simpan.
     const targetsPreview = useMemo(
@@ -312,7 +327,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                                     Skor {deviasi.skor_periode_terakhir !== null ? `${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan}` : '—'}
                                     {' vs '}
                                     target PK {deviasi.target_pk !== null ? `${formatNilai(deviasi.target_pk, desimal)} ${satuan}` : '—'}.
-                                    Alasan deviasi diperlukan dan disimpan pada kolom alasan (D5); peringatan ini tidak memblokir penyimpanan.
+                                    Alasan deviasi diperlukan dan disimpan pada kolom alasan; peringatan ini tidak memblokir penyimpanan.
                                 </p>
                                 {!deviasi.alasan_terisi && (
                                     <p className="mt-2">Alasan belum terisi; lengkapi kolom alasan deviasi sebelum pengajuan.</p>
@@ -446,7 +461,7 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                             />
                             <Textarea
                                 name="alasan_deviasi_pk"
-                                label="Alasan deviasi terhadap target PK (D5)"
+                                label="Alasan deviasi terhadap target PK"
                                 value={data.alasan_deviasi_pk}
                                 onChange={(event) => {
                                     setData('alasan_deviasi_pk', event.target.value);
@@ -468,7 +483,10 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                     </Card>
 
                     {canUpdate && !kosong && !terkunciSemua && (
-                        <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
+                        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+                            {terlaluSering && (
+                                <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
+                            )}
                             <Button type="submit" variant="primary" isLoading={processing} disabled={processing || requestError !== ''}>
                                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />
                                 Simpan Target
@@ -476,6 +494,9 @@ function RencanaAksiForm({ rencanaAksi }: ShowProps) {
                         </div>
                     )}
                 </form>
+
+                {/* Di luar form target agar form modal bukti tidak bersarang. */}
+                {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} />}
             </div>
         </AuthenticatedLayout>
     );

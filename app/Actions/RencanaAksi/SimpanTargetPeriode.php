@@ -4,9 +4,6 @@ namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\IndikatorKinerja;
-use App\Models\IndikatorKomponen;
-use App\Models\JadwalSnapshot;
-use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -19,6 +16,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
+use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
@@ -38,6 +36,7 @@ class SimpanTargetPeriode
         private readonly AuditLogger $audit,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
         private readonly JendelaTulisRencanaAksi $jendela,
+        private readonly KonteksBekuRencanaAksi $konteks,
     ) {}
 
     /**
@@ -45,7 +44,7 @@ class SimpanTargetPeriode
      *
      * Urutan kunci deterministik di dalam transaksi (anti-deadlock, sama
      * dengan `EnsureDraftRencanaAksi`): pengguna beserta baris ACL, header
-     * rencana aksi, indikator, jadwal tahunan, snapshot beserta
+     * rencana aksi, indikator, jadwal tahunan, unit header (berbagi), snapshot beserta
      * komponennya, jendela periode jadwal, lalu baris target. Tanpa retry:
      * antrean kunci menserialkan transaksi bersamaan, bukan 40P01. Bacaan
      * tanpa kunci (`Periode::exists`, PIC efektif jalur tulis) tidak ikut
@@ -55,7 +54,7 @@ class SimpanTargetPeriode
      * ulang memakai state terkunci, jendela PIC/Perencanaan diperiksa memakai
      * tanggal Asia/Makassar, nilai turunan dihitung server tanpa disimpan,
      * dan versi bertambah satu dengan penolakan stale memakai status 409
-     * (F4: token `expected_snapshot_id`/`expected_snapshot_versi` ikut
+     * (token `expected_snapshot_id`/`expected_snapshot_versi` ikut
      * ditolak 409 bila snapshot terbaru berubah sejak payload dibaca).
      *
      * @param  array<string, mixed>  $data
@@ -101,53 +100,44 @@ class SimpanTargetPeriode
                     throw ValidationException::withMessages(['expected_versi' => 'Data telah berubah. Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
-                $snapshotWajib = $this->jadwalPernahDiaktifkan($jadwal);
-                $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
-                    ->where('indikator_id', $indikator->id)
-                    ->orderByDesc('nomor_versi')
-                    ->lockForUpdate()
-                    ->first();
-                if ($snapshotWajib && ! $snapshot instanceof JadwalSnapshot) {
-                    throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
-                }
+                // Target selalu ditulis di bawah snapshot beku; header yang
+                // jadwalnya belum pernah aktif (tanpa snapshot) ditolak
+                // fail-closed, bukan dihitung dari master berjalan.
+                $snapshot = $this->konteks->snapshotTerbaru($jadwal->id, $indikator->id, kunci: true)
+                    ?? throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
 
-                // F1: guard keselarasan unit jalur update (lanjutan T9/N1 yang
+                // Guard keselarasan unit jalur update (lanjutan guard unit yang
                 // hanya di create). Auth dievaluasi terhadap header.unit_id,
                 // sementara konteks efektif berasal dari snapshot terbaru —
                 // bila keduanya berbeda, tolak fail-closed agar RA tidak lolos
                 // tulis di sini lalu ditolak SubmissionPrerequisites.
-                if ($snapshot instanceof JadwalSnapshot) {
-                    $unitBeku = (string) ($snapshot->unit_id ?? '');
-                    if ($unitBeku !== '' && $unitBeku !== (string) $header->unit_id) {
-                        throw ValidationException::withMessages(['snapshot' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; penyimpanan ditolak sampai snapshot koreksi tersedia.']);
-                    }
+                if ((string) $snapshot->unit_id !== (string) $header->unit_id) {
+                    throw ValidationException::withMessages(['snapshot' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; penyimpanan ditolak sampai snapshot koreksi tersedia.']);
                 }
 
-                // F1 (Review4 Q1) + F4: token konkurensi snapshot (eksplisit,
+                // Token konkurensi snapshot (eksplisit,
                 // tanpa bump semu versi header) WAJIB pada setiap penyimpanan.
                 // Snapshot koreksi baru yang terbit antara baca-simpan mengubah
                 // konteks diam-diam (tipe/bobot/presisi/periode-mulai)
                 // sementara ID komponen sama — simpan dengan token lama/usang
                 // (termasuk kunci hilang yang dinormalisasi menjadi null, atau
-                // null eksplisit saat snapshot ada) ditolak 409 agar nilai tak
-                // diterima dengan konteks yang tak pernah dilihat pengguna.
-                // Null hanya sah bila konteks memang tanpa snapshot (jadwal
-                // belum pernah aktif → snapshot null). Tanpa jalur bypass:
+                // null eksplisit) ditolak 409 agar nilai tak diterima dengan
+                // konteks yang tak pernah dilihat pengguna. Tanpa jalur bypass:
                 // perbandingan selalu dijalankan, bukan hanya bila kunci ada.
                 $tokenId = $data['expected_snapshot_id'] ?? null;
                 $tokenVersi = $data['expected_snapshot_versi'] ?? null;
                 $tokenId = $tokenId === null ? null : (string) $tokenId;
                 $tokenVersi = $tokenVersi === null ? null : (int) $tokenVersi;
-                $aktualId = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->id : null;
-                $aktualVersi = $snapshot instanceof JadwalSnapshot ? (int) $snapshot->nomor_versi : null;
+                $aktualId = (string) $snapshot->id;
+                $aktualVersi = (int) $snapshot->nomor_versi;
                 if ($tokenId !== $aktualId || $tokenVersi !== $aktualVersi) {
                     throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang sebelum mengulangi penyimpanan.'])->status(409);
                 }
 
-                $tipe = $snapshot instanceof JadwalSnapshot ? (string) $snapshot->tipe_perhitungan : (string) $indikator->tipe_perhitungan;
-                $presisi = (int) ($snapshot instanceof JadwalSnapshot ? $snapshot->presisi : ($indikator->presisi ?? 2));
-                $definisi = $this->definisiEfektif($indikator, $snapshot, $snapshotWajib);
-                $periodeEfektif = $this->periodeEfektif($header, $indikator, $jadwal, $snapshot);
+                $tipe = (string) $snapshot->tipe_perhitungan;
+                $presisi = (int) $snapshot->presisi;
+                $definisi = $this->konteks->komponen($snapshot, kunci: true);
+                $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $this->konteks->jendela($jadwal->id, kunci: true));
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
@@ -157,12 +147,12 @@ class SimpanTargetPeriode
                 }
                 $this->pastikanTargetsSah($tipe, $presisi, $definisi, $periodeEfektif, $anggotaJadwal, $targets);
 
-                // F2 (Review6 T2) + F1 (Review7 U1): rekonsiliasi transisi —
+                // Rekonsiliasi transisi:
                 // baris yang tak efektif pada satu pun versi antara
                 // jepit→terbaru (mis. v1 → v2 tanpa simpan → v3) ditandai
                 // basi. Dihapus setelah upsert berdasarkan kunci dimensi,
                 // KECUALI dimensi yang eksplisit dikirim bernilai dalam
-                // konteks terbaru (keputusan U1: kecualikan-kiriman, bukan
+                // konteks terbaru (keputusan kecualikan-kiriman, bukan
                 // purge-sebelum-upsert — agar nilai baru 200 untuk dimensi
                 // yang pulih di v3 tidak ikut terhapus, sementara kiriman
                 // kosong (null+null) tetap dibersihkan bagai tak ada dan
@@ -171,33 +161,50 @@ class SimpanTargetPeriode
                 // efektif-kini tetap milik `bersihkanDimensiTakEfektif`.
                 $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
 
-                $sebelum = $this->auditState($header);
+                // Satu baca terkunci matriks tersimpan menjadi dasar audit
+                // "sebelum" dan mengunci baris yang akan di-upsert. Header
+                // FOR UPDATE menyerialkan simpan, jadi sel yang belum ada aman
+                // dibuat baru (index unik tetap menjaga duplikasi).
+                $terkunci = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
+                    ->orderBy('periode_id')
+                    ->orderBy('komponen_id')
+                    ->lockForUpdate()
+                    ->get();
+                $sebelum = $this->auditState($header, $terkunci);
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
-                    // F2/F3: majukan jepit ke snapshot terbaru yang dipakai
-                    // simpan ini (null bila konteks tanpa snapshot).
+                    // Majukan jepit ke snapshot terbaru yang dipakai simpan ini.
                     'snapshot_draf_id' => $aktualId,
                 ]);
                 $header->versi++;
                 $header->save();
 
-                // Header FOR UPDATE menyerialkan simpan, jadi sel yang belum ada
-                // di sini aman dibuat baru (index unik tetap menjaga duplikasi).
-                $tersimpan = RencanaAksiTarget::where('rencana_aksi_id', $header->id)->lockForUpdate()->get()
-                    ->keyBy(fn (RencanaAksiTarget $row): string => $this->rekonsiliasi->kunciDimensi($row->periode_id, $row->komponen_id));
-                foreach ($targets as $baris) {
-                    ($tersimpan->get($this->rekonsiliasi->kunciDimensi($baris['periode_id'], $baris['komponen_id']))
-                        ?? new RencanaAksiTarget(['rencana_aksi_id' => $header->id, 'periode_id' => $baris['periode_id'], 'komponen_id' => $baris['komponen_id']]))
-                        ->fill(['nilai' => $baris['nilai'], 'keterangan' => $baris['keterangan'], 'updated_by' => $pengunci->id, 'updated_at' => now()])
-                        ->save();
-                }
+                // Satu statement untuk seluruh sel terkirim. Index unik
+                // `NULLS NOT DISTINCT` menjadi arbiter konflik sehingga baris
+                // manual (komponen NULL) juga diperbarui di tempat; pasangan
+                // ganda sudah ditolak pastikanTargetsSah, jadi ON CONFLICT
+                // tidak pernah mengenai baris yang sama dua kali.
+                $waktu = now();
+                RencanaAksiTarget::upsert(
+                    array_map(fn (array $baris): array => [
+                        'rencana_aksi_id' => $header->id,
+                        'periode_id' => $baris['periode_id'],
+                        'komponen_id' => $baris['komponen_id'],
+                        'nilai' => $baris['nilai'],
+                        'keterangan' => $baris['keterangan'],
+                        'updated_by' => $pengunci->id,
+                        'updated_at' => $waktu,
+                    ], $targets),
+                    ['rencana_aksi_id', 'periode_id', 'komponen_id'],
+                    ['nilai', 'keterangan', 'updated_by', 'updated_at'],
+                );
 
                 // Hanya sel yang efektif KEMBALI di bawah konteks terbaru
-                // yang dibuang di sini (kandidat bangkit F2); sel yang tak
+                // yang dibuang di sini (kandidat bangkit); sel yang tak
                 // efektif di bawah konteks terbaru tetap milik
-                // `bersihkanDimensiTakEfektif` (kontrak Review5 S2 utuh).
-                // F1 (Review7 U1): kecualikan dimensi terkirim bernilai —
+                // `bersihkanDimensiTakEfektif` (kontrak pembersihan dimensi tetap utuh).
+                // Kecualikan dimensi terkirim bernilai:
                 // jangan hapus input baru untuk dimensi yang pulih di v3.
                 $kunciPurge = array_values(array_diff(
                     $this->kunciBasiEfektifKini($jejak['kunci'], $tipe, $definisi, $periodeEfektif),
@@ -205,7 +212,7 @@ class SimpanTargetPeriode
                 ));
                 $barisBasi = $this->buangKunciBasi($header->id, $kunciPurge);
 
-                // F3 (Review5 S2, opsi a): singkirkan baris draf yang tak
+                // Singkirkan baris draf yang tak
                 // lagi efektif di bawah konteks snapshot terbaru (komponen
                 // dihapus, tipe manual↔nonmanual, periode pra-berlaku).
                 // Upsert hanya menyentuh sel terkirim sehingga baris lama
@@ -215,7 +222,7 @@ class SimpanTargetPeriode
                 // nilai_lama/nilai_baru + jumlah pada alasan.
                 $barisDisingkirkan = $this->bersihkanDimensiTakEfektif($header->id, $tipe, $definisi, $periodeEfektif);
 
-                $sesudah = $this->auditState($header->fresh());
+                $sesudah = $this->auditState($header);
                 // Batas total pada matriks tersimpan hasil gabungan simpan
                 // parsial, bukan payload; lewat batas berarti rollback.
                 if (collect($sesudah['targets'])->sum(fn (array $baris): int => mb_strlen((string) $baris['keterangan'])) > 10000) {
@@ -239,7 +246,7 @@ class SimpanTargetPeriode
                     dasarIzin: $dasarIzin,
                 );
 
-                return $header->fresh();
+                return $header;
             });
         } catch (Throwable $exception) {
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException)
@@ -256,102 +263,6 @@ class SimpanTargetPeriode
 
             throw $exception;
         }
-    }
-
-    /**
-     * Jadwal dianggap pernah diaktifkan bila terkunci (aktif/ditutup atau
-     * activated_at terisi). RA yang terikat padanya wajib memakai frozen
-     * snapshot versi resmi terbaru, bukan live master.
-     */
-    private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool
-    {
-        return $jadwal->is_terkunci
-            || $jadwal->activated_at !== null
-            || in_array($jadwal->status, ['aktif', 'ditutup'], true);
-    }
-
-    /**
-     * Himpunan komponen efektif selalu memakai frozen snapshot bila RA terikat
-     * pada jadwal yang pernah diaktifkan; snapshot wajib-tapi-hilang ditolak
-     * di pemanggil (fail-closed), bukan fallback ke master live.
-     */
-    private function definisiEfektif(IndikatorKinerja $indikator, ?JadwalSnapshot $snapshot, bool $snapshotWajib): Collection
-    {
-        if ($snapshot instanceof JadwalSnapshot) {
-            $rows = JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshot->id)
-                ->orderBy('urutan')
-                ->orderBy('kode')
-                ->lockForUpdate()
-                ->get();
-
-            return $rows->map(fn (JadwalSnapshotKomponen $row): array => [
-                'komponen_id' => (string) $row->komponen_id,
-                'kode' => (string) $row->kode,
-                'label' => (string) $row->label,
-                'peran' => (string) $row->peran,
-                'bobot' => (string) $row->bobot,
-                'urutan' => (int) $row->urutan,
-            ])->values();
-        }
-
-        if ($snapshotWajib) {
-            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; penyimpanan ditolak.']);
-        }
-
-        $rows = IndikatorKomponen::where('indikator_id', $indikator->id)
-            ->where('aktif', true)
-            ->orderBy('urutan')
-            ->orderBy('kode')
-            ->lockForUpdate()
-            ->get();
-
-        return $rows->map(fn (IndikatorKomponen $row): array => [
-            'komponen_id' => (string) $row->id,
-            'kode' => (string) $row->kode,
-            'label' => (string) $row->label,
-            'peran' => (string) $row->peran,
-            'bobot' => (string) $row->bobot,
-            'urutan' => (int) $row->urutan,
-        ])->values();
-    }
-
-    /**
-     * Himpunan periode efektif memakai jendela jadwal minus periode pra-berlaku.
-     *
-     * F4 (Review6 T3): bila snapshot ada, `periode_mulai_id` snapshot
-     * adalah satu-satunya sumber efektivitas — tahun master diabaikan
-     * agar koreksi master ke atas pasca-aktivasi tak membuat semua
-     * periode tak efektif. Tahun master hanya untuk konteks tanpa
-     * snapshot (cermin Index/Preview/Rekonsiliasi).
-     */
-    private function periodeEfektif(RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?JadwalSnapshot $snapshot): Collection
-    {
-        $jendela = PeriodeJadwal::where('jadwal_id', $jadwal->id)
-            ->with('periode')
-            ->lockForUpdate()
-            ->get()
-            ->sortBy(fn (PeriodeJadwal $row): int => $row->periode?->urutan ?? 0)
-            ->values();
-
-        if ($snapshot instanceof JadwalSnapshot) {
-            if (is_string($snapshot->periode_mulai_id)) {
-                $mulai = Periode::whereKey($snapshot->periode_mulai_id)->first();
-                if ($mulai instanceof Periode) {
-                    return $jendela
-                        ->filter(fn (PeriodeJadwal $row): bool => ($row->periode?->urutan ?? 0) >= $mulai->urutan)
-                        ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)
-                        ->values();
-                }
-            }
-
-            return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
-        }
-
-        if ((int) $indikator->tahun_mulai_berlaku > (int) $header->tahun) {
-            return collect();
-        }
-
-        return $jendela->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->values();
     }
 
     /**
@@ -385,7 +296,7 @@ class SimpanTargetPeriode
             throw ValidationException::withMessages(['targets' => 'Daftar target wajib diisi.']);
         }
 
-        // F3 (Review4 Q2): validasi periode set-based — satu query untuk
+        // Validasi periode set-based: satu query untuk
         // seluruh ID unik, bukan `exists()` per-sel (s/d 600 query) yang
         // menahan lock transaksi lebih lama dari perlu.
         $periodeIds = collect($targets)->pluck('periode_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
@@ -482,7 +393,7 @@ class SimpanTargetPeriode
      *
      * Dijalankan SETELAH upsert agar kiriman basi yang dikosongkan
      * (null+null dari baca basi maupun klien nakal) ikut terbuang, bukan
-     * malah menghidupkan kembali nilai lama. F1 (Review7 U1): dimensi yang
+     * malah menghidupkan kembali nilai lama. Dimensi yang
      * eksplisit dikirim bernilai (nilai/keterangan non-null) dalam konteks
      * terbaru sudah dikeluarkan dari `$kunci` oleh pemanggil sehingga input
      * baru untuk dimensi yang pulih di v3 tidak ikut terhapus. Selisihnya
@@ -550,11 +461,10 @@ class SimpanTargetPeriode
     }
 
     /**
-     * Kunci dimensi terkirim bernilai yang efektif di bawah konteks terbaru
-     * (F1 Review7 U1).
+     * Kunci dimensi terkirim bernilai yang efektif di bawah konteks terbaru.
      *
      * Bernilai = `nilai` non-null ATAU `keterangan` non-null (baris kosong
-     * ganda-null tetap boleh dibersihkan bagai tak ada, cermin T2). Efektif
+     * ganda-null tetap boleh dibersihkan bagai tak ada). Efektif
      * = periode anggota himpunan efektif + komponen cocok tipe/definisi
      * terbaru, sehingga kiriman basi yang sengaja tak efektif-kini tidak
      * dikecualikan (tetap milik `bersihkanDimensiTakEfektif`) dan koreksi
@@ -655,16 +565,21 @@ class SimpanTargetPeriode
     }
 
     /**
+     * Header terpilih + seluruh matriks terurut periode lalu komponen.
+     *
+     * @param  Collection<int, RencanaAksiTarget>|null  $targets  Matriks yang sudah dibaca terurut; null untuk membaca ulang.
      * @return array<string, mixed>
      */
-    private function auditState(RencanaAksi $header): array
+    private function auditState(RencanaAksi $header, ?Collection $targets = null): array
     {
-        $targets = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
+        $targets ??= RencanaAksiTarget::where('rencana_aksi_id', $header->id)
             ->orderBy('periode_id')
             ->orderBy('komponen_id')
-            ->get(['periode_id', 'komponen_id', 'nilai', 'keterangan'])
-            ->toArray();
+            ->get(['periode_id', 'komponen_id', 'nilai', 'keterangan']);
 
-        return [...$header->only(['status_alur', 'versi', 'snapshot_draf_id', 'uraian', 'alasan_deviasi_pk']), 'targets' => $targets];
+        return [
+            ...$header->only(['status_alur', 'versi', 'snapshot_draf_id', 'uraian', 'alasan_deviasi_pk']),
+            'targets' => $targets->map(fn (RencanaAksiTarget $row): array => $row->only(['periode_id', 'komponen_id', 'nilai', 'keterangan']))->all(),
+        ];
     }
 }

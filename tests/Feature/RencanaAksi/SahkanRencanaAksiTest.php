@@ -192,14 +192,12 @@ class SahkanRencanaAksiTest extends TestCase
         $bukti = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $this->ra->id,
             'mode' => 'teks', 'isi_teks' => 'Bukti rujukan versi resmi.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
 
-        // Sebelum sah: pemegang berkas:delete masih boleh menghapus.
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('deleteEvidence', [$this->ra->fresh(), $bukti])->allowed());
-
         $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
 
-        $denied = Gate::forUser($this->perencana)->inspect('deleteEvidence', [$this->ra->fresh(), $bukti]);
-        $this->assertTrue($denied->denied());
-        $this->assertStringContainsString('tidak boleh dihapus', (string) $denied->message());
+        // Q36: bukti induk disahkan imutabel; penolakan adalah validasi bisnis, bukan izin.
+        $this->actingAs($this->perencana)->delete('/rencana-aksi/'.$this->ra->id.'/bukti/'.$bukti->id, ['alasan' => 'Coba hapus bukti resmi.'])
+            ->assertSessionHasErrors('status_alur');
+        $this->assertNull($bukti->fresh()->dihapus_pada);
     }
 
     public function test_regression_provenance_beku_setelah_perubahan_role(): void

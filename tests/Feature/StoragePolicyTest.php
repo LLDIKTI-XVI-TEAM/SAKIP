@@ -1205,7 +1205,7 @@ class StoragePolicyTest extends TestCase
 
     /**
      * TEST-17: Urutan cepat nonaktif -> aktif -> nonaktif -> aktif dengan timestamp identik (frozen clock)
-     * mencatat pencabutan lengkap tanpa gagal mendeteksi penandaan aktif (Temuan Codex).
+     * mencatat pencabutan lengkap tanpa gagal mendeteksi penandaan aktif.
      */
     public function test_rapid_toggle_with_frozen_clock_correctly_tracks_lifecycle(): void
     {
