@@ -8,16 +8,19 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 
 class SimpanTargetPeriodeRequest extends FormRequest
 {
     private ?RencanaAksi $header = null;
 
+    private ?PermissionDecision $keputusan = null;
+
     public function authorize(): bool
     {
-        if ($this->user() === null) {
+        $user = $this->user();
+        if (! $user instanceof User) {
             return false;
         }
 
@@ -39,20 +42,25 @@ class SimpanTargetPeriodeRequest extends FormRequest
         }
         $this->header = $header;
 
-        return Gate::allows('update', $header);
+        // Satu keputusan izin (setara `RencanaAksiPolicy::update`) dipakai
+        // untuk otorisasi sekaligus dasar audit penolakan.
+        $this->keputusan = app(PermissionResolver::class)->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
+
+        return $this->keputusan->allowed;
     }
 
     /**
      * Percobaan simpan yang ditolak otorisasi dicatat di sini, bukan di
      * Policy, agar pratinjau yang juga memakai Gate `update` tidak tercatat
-     * sebagai percobaan simpan. Izin dihitung ulang hanya untuk dasar audit;
-     * respons tetap 403. Penolakan di dalam transaksi `SimpanTargetPeriode`
+     * sebagai percobaan simpan. Dasar audit memakai keputusan izin yang sama
+     * dengan `authorize()`, bukan hasil resolve ulang; respons tetap 403.
+     * Penolakan di dalam transaksi `SimpanTargetPeriode`
      * diaudit Action itu sendiri, sehingga setiap jalur tercatat tepat sekali.
      */
     protected function failedAuthorization(): void
     {
         $user = $this->user();
-        if ($user instanceof User && $this->header instanceof RencanaAksi) {
+        if ($user instanceof User && $this->header instanceof RencanaAksi && $this->keputusan instanceof PermissionDecision) {
             app(AuditLogger::class)->catat(
                 actor: $user,
                 tindakan: 'rencana_aksi.ubah_ditolak',
@@ -60,7 +68,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
                 objekId: (string) $this->header->id,
                 nilaiLama: $this->header->withoutRelations()->toArray(),
                 alasan: AlasanAudit::sanitasi(null, 'Percobaan penyimpanan target rencana aksi ditolak oleh sistem otorisasi.'),
-                dasarIzin: app(PermissionResolver::class)->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $this->header->unit_id)->toAuditBasis(),
+                dasarIzin: $this->keputusan->toAuditBasis(),
             );
         }
 

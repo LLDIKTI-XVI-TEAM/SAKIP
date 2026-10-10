@@ -16,6 +16,8 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionDecision;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +113,51 @@ class RencanaAksiAuthorizationTest extends TestCase
         $this->assertSame(1, $audit->nilai_lama['versi']);
         $this->assertSame('rencana_aksi:update', $audit->dasar_izin['permission']);
         $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+    }
+
+    /**
+     * `dasar_izin` audit penolakan request memakai keputusan yang dipakai
+     * `authorize()`, bukan hasil resolve ulang. Resolver uji menolak pada
+     * panggilan pertama lalu mengizinkan (meniru grant yang commit di antara
+     * keduanya); audit harus tetap mencatat `ditolak`.
+     */
+    #[DataProvider('jalurPenolakanRequest')]
+    public function test_audit_penolakan_request_memakai_keputusan_authorize(string $jalur): void
+    {
+        $header = $this->buatHeader($fixture = $this->buatFixtureManual());
+        $kode = $jalur === 'simpan' ? 'rencana_aksi:update' : 'rencana_aksi:create';
+        $this->app->instance(PermissionResolver::class, new class($kode) extends PermissionResolver
+        {
+            private int $panggilan = 0;
+
+            public function __construct(private readonly string $kode) {}
+
+            public function resolve(User $user, string $permissionCode, ?string $unitId = null): PermissionDecision
+            {
+                if ($permissionCode === $this->kode && $this->panggilan++ > 0) {
+                    return new PermissionDecision(true, $permissionCode, ['alasan' => 'allow']);
+                }
+
+                return parent::resolve($user, $permissionCode, $unitId);
+            }
+        });
+
+        $permintaan = $this->actingAs($this->penggunaDenganPeran('pegawai'));
+        $respons = $jalur === 'simpan'
+            ? $permintaan->post("/rencana-aksi/{$header->id}/target", ['expected_versi' => 1, 'expected_snapshot_id' => $fixture['snapshot']->id, 'expected_snapshot_versi' => 1, 'targets' => []])
+            : $permintaan->post('/rencana-aksi/ensure-draft', ['indikator_id' => $fixture['indikator']->id, 'tahun' => 2026]);
+
+        $respons->assertForbidden();
+        $audit = AuditLog::where('tindakan', $jalur === 'simpan' ? 'rencana_aksi.ubah_ditolak' : 'rencana_aksi.buat_ditolak')->sole();
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function jalurPenolakanRequest(): array
+    {
+        return ['simpan' => ['simpan'], 'buat' => ['buat']];
     }
 
     /**
