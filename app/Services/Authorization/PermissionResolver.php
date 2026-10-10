@@ -5,9 +5,20 @@ namespace App\Services\Authorization;
 use App\Models\Permission;
 use App\Models\User;
 use App\Support\PermissionDecision;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * Resolver izin kanonis SAKIP: keputusan hidup per pengguna, izin, dan unit
+ * dengan deny menang atas allow peran maupun grant.
+ *
+ * Dipisah sebagai satu-satunya sumber keputusan izin yang dipakai Policy,
+ * FormRequest, Action, middleware Inertia, dan Explorer izin, sehingga semua
+ * jalur memakai aturan yang sama. Resolver hanya membaca data ACL tanpa
+ * kunci; kunci baris aktor dan otorisasi ulang di dalam transaksi tetap
+ * milik pemanggil (mis. `ResolveLockedActor`), begitu pula audit penolakan.
+ */
 class PermissionResolver
 {
     /**
@@ -107,6 +118,21 @@ class PermissionResolver
         }
 
         return $results;
+    }
+
+    /**
+     * Subquery `unit_id` yang di-deny ber-unit untuk pengguna dan izin ini,
+     * untuk filter daftar `whereNotIn`. Deny global (unit NULL) tidak ikut
+     * karena sudah ditolak gerbang izin halaman.
+     */
+    public function unitDitolak(User $user, string $kode): Builder
+    {
+        return DB::table('user_permission_denied')
+            ->join('permissions', 'permissions.id', '=', 'user_permission_denied.permission_id')
+            ->where('user_permission_denied.user_id', $user->id)
+            ->where('permissions.kode', $kode)
+            ->whereNotNull('user_permission_denied.unit_id')
+            ->select('user_permission_denied.unit_id');
     }
 
     public function allows(User $user, string $kode, ?string $unitId = null): bool

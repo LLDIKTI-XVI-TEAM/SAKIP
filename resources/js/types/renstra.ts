@@ -1,15 +1,8 @@
 import type { RegulasiJenis } from '@/types/regulasi';
+import type { LampiranDraft, LampiranMode } from './lampiran';
 
 export type RenstraStatus = 'draft' | 'aktif' | 'nonaktif' | 'diarsipkan';
-export type LampiranMode = 'file' | 'tautan' | 'teks';
-
-export interface LampiranDraft {
-    clientId: string;
-    mode: LampiranMode;
-    file: File | null;
-    tautan: string;
-    isi_teks: string;
-}
+export type { LampiranDraft, LampiranMode };
 
 export interface BerkasRenstra {
     id: string;

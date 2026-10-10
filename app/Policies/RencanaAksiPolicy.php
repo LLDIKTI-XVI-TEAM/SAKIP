@@ -8,21 +8,23 @@ use App\Models\JadwalSnapshot;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
-use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
+/**
+ * Policy murni tanpa efek samping: penolakan dicatat pemanggil yang tahu
+ * konteksnya (FormRequest simpan/buat, atau Action di dalam transaksi),
+ * sehingga Gate yang sama dapat dipakai pratinjau tanpa tercatat sebagai
+ * percobaan simpan.
+ */
 class RencanaAksiPolicy
 {
     public function __construct(
         private readonly PermissionResolver $resolver,
-        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -60,15 +62,10 @@ class RencanaAksiPolicy
      *
      * PIC memakai grant unit + penugasan efektif (diperiksa Action/jendela);
      * Perencanaan lolos via peran global tanpa grant unit. Deny menang.
-     * Penolakan tepi dicatat agar selaras audit transaksi Action.
      */
     public function create(User $user, IndikatorKinerja $indikator): Response
     {
         $decision = $this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_CREATE, (string) $indikator->unit_id);
-
-        if (! $decision->allowed) {
-            $this->catatBuatDitolak($user, $decision);
-        }
 
         return $this->response($decision, 'Izin pembuatan rencana aksi tidak tersedia atau telah dicabut.');
     }
@@ -82,10 +79,6 @@ class RencanaAksiPolicy
     public function update(User $user, RencanaAksi $header): Response
     {
         $decision = $this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $header->unit_id);
-
-        if (! $decision->allowed) {
-            $this->catatUbahDitolak($user, $header, $decision);
-        }
 
         return $this->response($decision, 'Izin penyimpanan target rencana aksi tidak tersedia atau telah dicabut.');
     }
@@ -251,30 +244,5 @@ class RencanaAksiPolicy
     private function response(PermissionDecision $decision, string $pesan): Response
     {
         return $decision->allowed ? Response::allow() : Response::deny($pesan);
-    }
-
-    private function catatBuatDitolak(User $user, PermissionDecision $decision): void
-    {
-        $this->audit->catat(
-            actor: $user,
-            tindakan: 'rencana_aksi.buat_ditolak',
-            objekTipe: 'rencana_aksi',
-            objekId: (string) Str::uuid(),
-            alasan: AlasanAudit::sanitasi(null, 'Percobaan pembuatan rencana aksi ditolak oleh sistem otorisasi.'),
-            dasarIzin: $decision->toAuditBasis(),
-        );
-    }
-
-    private function catatUbahDitolak(User $user, RencanaAksi $header, PermissionDecision $decision): void
-    {
-        $this->audit->catat(
-            actor: $user,
-            tindakan: 'rencana_aksi.ubah_ditolak',
-            objekTipe: 'rencana_aksi',
-            objekId: (string) $header->id,
-            nilaiLama: $header->withoutRelations()->toArray(),
-            alasan: AlasanAudit::sanitasi(null, 'Percobaan penyimpanan target rencana aksi ditolak oleh sistem otorisasi.'),
-            dasarIzin: $decision->toAuditBasis(),
-        );
     }
 }

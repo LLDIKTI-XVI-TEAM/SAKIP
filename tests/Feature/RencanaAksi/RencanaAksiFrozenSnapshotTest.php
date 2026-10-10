@@ -234,7 +234,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $fixture['pembilang']->update(['kode' => 'n_baru', 'label' => 'Pembilang Diubah Master']);
         $fixture['penyebut']->update(['label' => 'Penyebut Diubah Master']);
 
-        // F3 (Review6 T2): snapshot yang dijepit draf beku di basis data —
+        // Snapshot yang dijepit draf beku di basis data —
         // mutasi langsung ditolak trigger 23514 (bukti temuan: sebelumnya
         // update langsung lolos diam-diam). Savepoint bersarang memulihkan
         // transaksi uji pasca-abort PG.
@@ -479,7 +479,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
             'jadwal_id' => $jadwal->id,
             'indikator_id' => $indikator->id,
             'nomor_versi' => 1,
-            // U1 immutable: buat langsung dengan periode-mulai benar (tanpa
+            // Snapshot immutable sejak terbit: buat langsung dengan periode-mulai benar (tanpa
             // UPDATE in-place yang kini ditolak trigger).
             'periode_mulai_id' => $mulaiKedua ? $periode2->id : $periode1->id,
             'unit_id' => $unit->id,
@@ -539,7 +539,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
      */
     private function buatFixtureRasioMulaiKedua(): array
     {
-        // U1 immutable: buat langsung mulai-kedua (tanpa UPDATE in-place).
+        // Snapshot immutable sejak terbit: buat langsung mulai-kedua (tanpa UPDATE in-place).
         $fixture = $this->buatFixtureManualRasio('mulai_kedua', true);
 
         return $fixture;

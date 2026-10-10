@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers\Pengaturan;
 
+use App\Actions\Pengaturan\UpdatePengaturan as Update;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pengaturan\UpdatePengaturanRequest;
 use App\Models\User;
-use App\Services\PengaturanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 
 class UpdatePengaturan extends Controller
 {
-    public function __construct(
-        private readonly PengaturanService $pengaturanService,
-    ) {}
-
-    public function __invoke(UpdatePengaturanRequest $request): RedirectResponse
+    public function __invoke(UpdatePengaturanRequest $request, Update $action): RedirectResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -35,7 +31,7 @@ class UpdatePengaturan extends Controller
             $values[$key] = $val;
         }
 
-        $changed = $this->pengaturanService->update($actor, $values, $alasan, $expectedUpdatedAt);
+        $changed = $action->handle($actor, $values, $alasan, $expectedUpdatedAt);
 
         $message = $changed > 0
             ? 'Pengaturan sistem berhasil diperbarui dan dicatat dalam audit trail.'

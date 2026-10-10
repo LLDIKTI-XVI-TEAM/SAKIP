@@ -5,7 +5,7 @@ namespace App\Http\Requests\Access;
 use App\Models\Permission;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;

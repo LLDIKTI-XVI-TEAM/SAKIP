@@ -6,6 +6,7 @@ import { definition } from './indikatorFixtures';
 import { router } from '@inertiajs/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
+import Show from '@/Pages/Perencanaan/Indikator/Show';
 import type {
     IndikatorKinerjaItem,
     SasaranIndikatorCapabilities,
@@ -90,17 +91,22 @@ function renderIndex(can: SasaranIndikatorCapabilities = fullCan) {
 }
 
 describe('Pindah Unit Indikator (R2-03)', () => {
-    it('menampilkan tombol Pindah Unit per baris bila can.indikator_update', () => {
+    it('menampilkan aksi Pindah Unit pada menu baris bila can.indikator_update', async () => {
+        const user = userEvent.setup();
         renderIndex();
+        await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
         expect(
-            screen.getByRole('button', { name: 'Pindah unit indikator IKU-01' })
+            screen.getByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
         ).toBeTruthy();
     });
 
-    it('menyembunyikan tombol Pindah Unit bila can.indikator_update false', () => {
+    it('menyembunyikan aksi Pindah Unit bila can.indikator_update false', async () => {
+        const user = userEvent.setup();
         renderIndex({ ...fullCan, indikator_update: false });
+        const aksi = screen.queryByRole('button', { name: 'Aksi IKU-01' });
+        if (aksi) await user.click(aksi);
         expect(
-            screen.queryByRole('button', { name: 'Pindah unit indikator IKU-01' })
+            screen.queryByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
         ).toBeNull();
     });
 
@@ -108,8 +114,9 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         const user = userEvent.setup();
         renderIndex();
 
+        await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
         await user.click(
-            screen.getByRole('button', { name: 'Pindah unit indikator IKU-01' })
+            screen.getByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
         );
 
         expect(
@@ -130,8 +137,9 @@ describe('Pindah Unit Indikator (R2-03)', () => {
             .mockImplementation((() => undefined) as unknown as typeof router.patch);
         renderIndex();
 
+        await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
         await user.click(
-            screen.getByRole('button', { name: 'Pindah unit indikator IKU-01' })
+            screen.getByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
         );
         await user.click(screen.getByRole('button', { name: 'Pindahkan Unit' }));
 
@@ -151,8 +159,9 @@ describe('Pindah Unit Indikator (R2-03)', () => {
             .mockImplementation((() => undefined) as unknown as typeof router.patch);
         renderIndex();
 
+        await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
         await user.click(
-            screen.getByRole('button', { name: 'Pindah unit indikator IKU-01' })
+            screen.getByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
         );
         await user.selectOptions(screen.getByLabelText(/unit tujuan/i), 'unit-b');
         await user.type(
@@ -175,11 +184,21 @@ describe('Pindah Unit Indikator (R2-03)', () => {
     it('modal edit menampilkan unit read-only tanpa field alasan pindah', async () => {
         vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, headers: {}, data: JSON.stringify(definition({ indikator })) });
         const user = userEvent.setup();
-        renderIndex();
-
-        await user.click(
-            screen.getByRole('button', { name: 'Ubah indikator IKU-01' })
+        // Ubah indikator kini dibuka dari halaman detail.
+        render(
+            <Show
+                indikator={indikator}
+                sasaran={{ id: sasaran.id, kode: sasaran.kode, deskripsi: sasaran.deskripsi }}
+                renstra={{ id: 'ren-1', kode: 'REN-2025', nama: 'Renstra 2025-2029', tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: true }}
+                jumlahKomponenAktif={0}
+                sasarans={[{ ...sasaran, indikator_kinerjas: [] }]}
+                units={[{ id: 'unit-a', nama: 'Unit A' }, { id: 'unit-b', nama: 'Unit B' }]}
+                regulasis={[]}
+                can={fullCan}
+            />
         );
+
+        await user.click(screen.getByRole('button', { name: 'Ubah Indikator' }));
 
         expect(
             await screen.findByRole('heading', { name: 'Ubah Indikator Kinerja' })

@@ -115,7 +115,7 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('F5 pratinjau reaktif rencana aksi', () => {
+describe('pratinjau reaktif rencana aksi', () => {
     it('memetakan galat HTTP pratinjau tanpa formula di React', async () => {
         const request = vi.spyOn(http.getClient(), 'request');
         request.mockRejectedValueOnce(new HttpResponseError('Ditolak', { status: 403, data: '', headers: {} }));
@@ -148,7 +148,7 @@ describe('F5 pratinjau reaktif rencana aksi', () => {
     it('edit nilai memicu preview debounce tanpa POST simpan dan tanpa draf', async () => {
         const user = userEvent.setup();
         const request = vi.spyOn(http.getClient(), 'request');
-        // F5: pratinjau dinamis mengikuti nilai yang dikirim (tanpa formula di React).
+        // Pratinjau dinamis mengikuti nilai yang dikirim (tanpa formula di React).
         request.mockImplementation(async (args) => {
             const body = JSON.parse(String((args as { data: string }).data));
             const nilai = body.targets?.[0]?.nilai ?? null;

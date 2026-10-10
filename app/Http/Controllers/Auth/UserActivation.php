@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\ActivateUser;
+use App\Actions\Auth\GetActivationPage;
 use App\Http\Requests\Auth\ActivateUserRequest;
-use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,13 +13,12 @@ use Inertia\Response;
 
 class UserActivation
 {
-    public function index(Request $request, PermissionResolver $permissions): Response
+    public function index(Request $request, PermissionResolver $permissions, GetActivationPage $getPage): Response
     {
         abort_unless($permissions->allows($request->user(), 'pengguna:read'), 403);
 
         return Inertia::render('Auth/ActivationIndex', [
-            'users' => User::where('status', 'nonaktif')->select(['id', 'nama', 'email', 'created_at'])->orderBy('created_at')->orderBy('id')->paginate(20),
-            'canActivate' => $permissions->allows($request->user(), 'akses:update'),
+            ...$getPage->handle($request->user()),
             'activationResult' => $request->session()->get('activationResult'),
         ]);
     }

@@ -9,6 +9,8 @@ use App\Support\PermissionCodes;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 
 class AntreanRencanaAksi
 {
@@ -17,15 +19,24 @@ class AntreanRencanaAksi
     /**
      * Data halaman antrean/disahkan pengesahan rencana aksi siap dirender.
      *
-     * Konteks beku dibaca dari snapshot versi pengajuan terbaru (header tidak
-     * lagi menyimpan rujukan snapshot); baris dengan unit snapshot ≠ unit
-     * header tidak konsisten dan disaring di database.
+     * Otorisasi `viewAny` dijalankan sebelum validasi `status`/`page` (pola
+     * `DaftarRencanaAksi`), sehingga tanpa izin selalu 403. Konteks beku
+     * dibaca dari snapshot versi pengajuan terbaru (header tidak lagi
+     * menyimpan rujukan snapshot); baris dengan unit snapshot ≠ unit header
+     * tidak konsisten dan disaring di database.
      *
+     * @param  array<string, mixed>  $query  Query string halaman; `page` tervalidasi diteruskan ke paginator.
      * @return array{rencanaAksis: list<array<string, mixed>>, pagination: array<string, mixed>, status: string}
      */
-    public function handle(User $actor, string $status): array
+    public function handle(User $actor, array $query): array
     {
-        $status = $status === 'disahkan' ? 'disahkan' : 'antrean';
+        Gate::forUser($actor)->authorize('viewAny', RencanaAksi::class);
+        $query = Validator::make($query, [
+            'status' => ['nullable', 'in:draf,antrean,disahkan'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ])->validate();
+
+        $status = ($query['status'] ?? 'antrean') === 'disahkan' ? 'disahkan' : 'antrean';
         $page = RencanaAksi::with(['indikator', 'unit', 'penanggungJawab:id,nama', 'latestVersion.jadwalSnapshot', 'ratifiedVersion'])
             ->whereIn('status_alur', $status === 'disahkan' ? ['disahkan'] : ['diajukan', 'diverifikasi'])
             // Record dengan unit header ≠ unit snapshot versi TERBARU tidak konsisten dan ditolak
@@ -43,7 +54,7 @@ class AntreanRencanaAksi
                     ->orderByDesc('nomor')
                     ->limit(1)
             )
-            ->orderBy('id')->withCount('buktiDukungs')->paginate(20)->withQueryString();
+            ->orderBy('id')->withCount('buktiDukungs')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
 
         return [
             'rencanaAksis' => $page->getCollection()->map(fn ($item) => $this->present->handle($item, $actor))->all(),

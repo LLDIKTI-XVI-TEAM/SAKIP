@@ -35,6 +35,7 @@ use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
 use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
 use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
 use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
+use App\Http\Controllers\Perencanaan\ShowIndikator;
 use App\Http\Controllers\Perencanaan\StoreIndikator;
 use App\Http\Controllers\Perencanaan\StoreSasaran;
 use App\Http\Controllers\Perencanaan\UpdateIndikator;
@@ -211,13 +212,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
 
-    // Sasaran Strategis & Indikator Kinerja (ISS-02.04)
+    // Sasaran Strategis & Indikator Kinerja
     Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
     Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
     Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
     Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
 
     Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
+    Route::get('/perencanaan/indikator/{indikator}', ShowIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.show');
     Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
     Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
     Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');

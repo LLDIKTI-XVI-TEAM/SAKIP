@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * Serialisasi INSERT vs finalisasi komposisi snapshot (Review9 W1 F1).
+     * Serialisasi INSERT vs finalisasi komposisi snapshot.
      *
      * Masalah: guard INSERT lama membaca induk via SELECT biasa tanpa kunci
      * sehingga finalisasi konkuren (`komposisi_final=false→true`) vs INSERT
@@ -23,7 +23,7 @@ return new class extends Migration
      * commit terbaru: INSERT setelah final → 23514; finalisasi setelah INSERT
      * ter-commit → mencakup komponen tersebut (serial, bukan hilang).
      * Koreksi berversi (snapshot baru + komponen selagi belum final) tetap
-     * terbuka; UPDATE/DELETE komponen dan guard rujukan U1 tak berubah.
+     * terbuka; UPDATE/DELETE komponen dan guard rujukan immutable-sejak-terbit tak berubah.
      */
     public function up(): void
     {
@@ -92,7 +92,7 @@ return new class extends Migration
     }
 
     /**
-     * Kembalikan penjaga ke varian Review8 V2 (tanpa kunci FOR UPDATE).
+     * Kembalikan penjaga ke varian pembekuan komposisi tanpa kunci FOR UPDATE.
      *
      * Aman non-destruktif: hanya definisi fungsi yang dipulihkan (tanpa
      * perubahan data/kolom); teks disalin persis dari up() migrasi

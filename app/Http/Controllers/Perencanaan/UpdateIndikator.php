@@ -20,16 +20,21 @@ class UpdateIndikator extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
+        $data = $request->validated();
+        $kembaliKeDetail = ($data['kembali'] ?? null) === 'detail';
+        unset($data['kembali']);
+
         $hasil = $action->handle(
             $actor,
             $indikator,
-            [...$request->validated(), 'return_to' => 'sasaran-indikator'],
+            [...$data, 'return_to' => 'sasaran-indikator'],
         );
         $indikator = $hasil['indikator'];
         Inertia::flash('indikatorMutation', ['request_id' => $request->input('request_id'), 'status' => $hasil['status'], 'indikator_id' => $indikator->id, 'revision' => $indikator->updated_at?->toISOString()]);
 
-        return redirect()
-            ->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $hasil['renstraId']])
+        return ($kembaliKeDetail
+            ? redirect()->route('perencanaan.indikator.show', $indikator)
+            : redirect()->route('perencanaan.sasaran-indikator.index', ['renstra_id' => $hasil['renstraId']]))
             ->with($hasil['status'] === 'unchanged' ? 'message' : 'success', $hasil['status'] === 'unchanged' ? 'Tidak ada perubahan.' : "Indikator kinerja '{$indikator->kode}' berhasil diperbarui.");
     }
 }

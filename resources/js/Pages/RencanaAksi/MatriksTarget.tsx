@@ -11,7 +11,7 @@ interface MatriksTargetProps {
     satuan: string;
     /** True bila seluruh matriks hanya-baca (can.update false atau sedang menyimpan). */
     disabled: boolean;
-    /** F2: penentu per-periode boleh disunting (koreksi parsial). Default semua efektif boleh. */
+    /** Penentu per-periode boleh disunting (koreksi parsial). Default semua efektif boleh. */
     dapatDisunting?: (periodeId: string) => boolean;
     /** Nilai input mentah per sel (`""` = belum diisi/null, `"0"` = nol eksplisit). */
     values: Record<string, string>;
@@ -34,9 +34,9 @@ function labelSkor(nilai: string | null, status: string, formatNilai: (n: string
  * Skor turunan selalu berasal dari payload server (`periode.skor`)
  * dan tidak pernah dihitung ulang di React. Perubahan input hanya
  * mengubah `values` formulir; kolom skor tetap menampilkan hasil
- * tersimpan sampai server menyimpan ulang. F2: baris di luar lingkup
+ * tersimpan sampai server menyimpan ulang. Baris di luar lingkup
  * koreksi dinonaktifkan dan tidak dikirim (validasi fail-closed tetap
- * di backend); F5: skor reaktif ditampilkan komponen pratinjau terpisah.
+ * di backend); skor reaktif ditampilkan komponen pratinjau terpisah.
  */
 export default function MatriksTarget({
     tipePerhitungan,
@@ -112,7 +112,7 @@ export default function MatriksTarget({
                         const selList = manual
                             ? [{ komponen_id: null as string | null, kode: null as string | null, label: null as string | null }]
                             : komponen.map((item) => ({ komponen_id: item.komponen_id as string | null, kode: item.kode, label: item.label }));
-                        // F2: periode efektif di luar lingkup koreksi dikunci di UI
+                        // Periode efektif di luar lingkup koreksi dikunci di UI
                         // (tak dikirim saat simpan); backend tetap menolak fail-closed.
                         const terkunciKoreksi = dapatDisunting ? !dapatDisunting(baris.id) : false;
                         const selDisabled = disabled || terkunciKoreksi;

@@ -14,6 +14,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
+use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -30,6 +31,7 @@ class EnsureDraftRencanaAksi
         private readonly IndikatorArsipGuard $arsipGuard,
         private readonly AuditLogger $audit,
         private readonly JendelaTulisRencanaAksi $jendela,
+        private readonly KonteksBekuRencanaAksi $konteks,
     ) {}
 
     /**
@@ -47,7 +49,7 @@ class EnsureDraftRencanaAksi
      * Unit disalin dari indikator terkunci, jadwal diambil dari jadwal aktif
      * tahun tersebut, dan penanggung jawab diisi PIC efektif pada hari ini
      * zona Asia/Makassar. Indikator arsip dan ketiadaan jadwal aktif ditolak
-     * validasi. Snapshot beku wajib ada untuk jadwal pernah-aktif; tanpanya
+     * validasi. Snapshot beku jadwal aktif wajib ada; tanpanya
      * pembuatan ditolak fail-closed. Jalur unit-scoped PIC mensyaratkan pemanggil adalah PIC
      * efektif hari ini dan hari ini di dalam jendela rencana aksi; jalur
      * Perencanaan global mengikuti kewenangan resmi tanpa syarat PIC/jendela
@@ -70,7 +72,7 @@ class EnsureDraftRencanaAksi
                     throw new AuthorizationException('Akun pengguna tidak aktif.');
                 }
 
-                // T5: kunci calon header lebih dulu (mungkin nihil) agar urutan
+                // Kunci calon header lebih dulu (mungkin nihil) agar urutan
                 // akuisisi RencanaAksi → Indikator → Jadwal sama dengan
                 // SimpanTargetPeriode (header → indikator → jadwal). Tanpa ini,
                 // Ensure (Indikator → Header) vs Simpan (Header → Indikator)
@@ -138,9 +140,8 @@ class EnsureDraftRencanaAksi
                     'tahun' => $tahun,
                     'unit_id' => $unitId,
                     'jadwal_tahunan_id' => $jadwal->id,
-                    // Jepit konteks awal draf; null bila jadwal belum pernah
-                    // aktif (tanpa snapshot).
-                    'snapshot_draf_id' => $snapshotDraf?->id,
+                    // Jepit konteks awal draf.
+                    'snapshot_draf_id' => $snapshotDraf->id,
                     'penanggung_jawab_id' => $pic->user_id,
                     'uraian' => null,
                     'status_alur' => RencanaAksi::STATUS_DRAFT,
@@ -170,6 +171,8 @@ class EnsureDraftRencanaAksi
                     tindakan: 'rencana_aksi.buat_ditolak',
                     objekTipe: 'rencana_aksi',
                     objekId: (string) Str::uuid(),
+                    // UUID huruf besar sah sebagai input; audit memakai bentuk kanonis PostgreSQL.
+                    nilaiBaru: ['indikator_id' => strtolower($indikatorId), 'tahun' => $tahun],
                     alasan: AlasanAudit::sanitasi($exception->getMessage(), 'Pembuatan draf rencana aksi ditolak.'),
                     dasarIzin: is_array($dasarIzin) ? $dasarIzin : null,
                 );
@@ -180,7 +183,7 @@ class EnsureDraftRencanaAksi
     }
 
     /**
-     * Snapshot beku wajib ada begitu jadwal pernah diaktifkan; tanpanya
+     * Snapshot beku wajib ada (jadwal di sini selalu aktif); tanpanya
      * pembuatan draf ditolak fail-closed (audit buat_ditolak di pemanggil).
      * Bila snapshot tersedia tetapi unit bekunya berbeda dari unit master
      * indikator saat ini (indikator pindah unit pasca-aktivasi), pembuatan
@@ -190,38 +193,19 @@ class EnsureDraftRencanaAksi
      * `jadwal_snapshot.unit_id`) dan prasyarat pengajuan yang mensyaratkan
      * `rencana_aksi.unit_id` cocok dengan unit snapshot pengukuran.
      *
-     * Mengembalikan snapshot terbaru (null bila jadwal belum pernah aktif)
-     * agar pemanggil dapat menjepit konteks awal draf (F2/F3 Review6 T2).
+     * Mengembalikan snapshot terbaru agar pemanggil dapat menjepit konteks
+     * awal draf.
      */
-    private function pastikanSnapshotTersedia(JadwalTahunan $jadwal, IndikatorKinerja $indikator): ?JadwalSnapshot
+    private function pastikanSnapshotTersedia(JadwalTahunan $jadwal, IndikatorKinerja $indikator): JadwalSnapshot
     {
-        if (! $this->jadwalPernahDiaktifkan($jadwal)) {
-            return null;
-        }
+        $snapshot = $this->konteks->snapshotTerbaru($jadwal->id, $indikator->id, kunci: true)
+            ?? throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; pembuatan draf ditolak.']);
 
-        $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal->id)
-            ->where('indikator_id', $indikator->id)
-            ->orderByDesc('nomor_versi')
-            ->lockForUpdate()
-            ->first();
-
-        if (! $snapshot instanceof JadwalSnapshot) {
-            throw ValidationException::withMessages(['snapshot' => 'Konteks indikator beku untuk jadwal ini tidak tersedia; pembuatan draf ditolak.']);
-        }
-
-        $unitBeku = (string) ($snapshot->unit_id ?? '');
-        if ($unitBeku !== '' && $unitBeku !== (string) $indikator->unit_id) {
+        if ((string) $snapshot->unit_id !== (string) $indikator->unit_id) {
             throw ValidationException::withMessages(['snapshot' => 'Unit pemilik indikator telah berpindah setelah aktivasi jadwal; pembuatan draf ditolak sampai snapshot koreksi tersedia.']);
         }
 
         return $snapshot;
-    }
-
-    private function jadwalPernahDiaktifkan(JadwalTahunan $jadwal): bool
-    {
-        return $jadwal->is_terkunci
-            || $jadwal->activated_at !== null
-            || in_array($jadwal->status, ['aktif', 'ditutup'], true);
     }
 
     /**

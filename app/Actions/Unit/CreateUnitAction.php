@@ -5,7 +5,7 @@ namespace App\Actions\Unit;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
-use App\Services\PermissionResolver;
+use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
