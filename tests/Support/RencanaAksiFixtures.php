@@ -218,8 +218,9 @@ trait RencanaAksiFixtures
      * Snapshot koreksi v2 terbit setelah draf dijepit ke v1.
      *
      * @param  array<string, mixed>  $fixture
+     * @param  array<string, mixed>  $tambahan  Kolom snapshot yang ditimpa, mis. `unit_id`.
      */
-    private function terbitkanSnapshotKoreksi(array $fixture): JadwalSnapshot
+    private function terbitkanSnapshotKoreksi(array $fixture, array $tambahan = []): JadwalSnapshot
     {
         return JadwalSnapshot::create([
             'jadwal_id' => $fixture['jadwal']->id,
@@ -239,6 +240,7 @@ trait RencanaAksiFixtures
             'arah' => 'naik_baik',
             'tipe_perhitungan' => 'manual',
             'target' => 100,
+            ...$tambahan,
         ]);
     }
 

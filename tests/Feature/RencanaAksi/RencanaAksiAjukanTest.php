@@ -5,7 +5,6 @@ namespace Tests\Feature\RencanaAksi;
 use App\Actions\RencanaAksi\AjukanRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
-use App\Models\JadwalSnapshot;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -355,14 +354,7 @@ class RencanaAksiAjukanTest extends TestCase
         // Unit snapshot diperiksa sebelum jepit, sehingga pesannya spesifik walau jepit juga usang.
         $tidakSelaras = 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; pengajuan ditolak sampai snapshot koreksi tersedia.';
         $unitLain = Unit::create(['nama' => 'Unit Lain Pengajuan RA', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
-        JadwalSnapshot::create([
-            ...$fixture['snapshot']->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
-            'nomor_versi' => 2,
-            'menggantikan_id' => $fixture['snapshot']->id,
-            'alasan_koreksi' => 'Koreksi unit setelah indikator pindah.',
-            'rujukan_koreksi' => 'SK-UJI-UNIT-RA',
-            'unit_id' => $unitLain->id,
-        ]);
+        $this->terbitkanSnapshotKoreksi($fixture, ['unit_id' => $unitLain->id]);
         $this->ajukan($perencanaan, $header, 2)->assertSessionHasErrors(['snapshot' => $tidakSelaras]);
 
         $this->assertDatabaseCount('rencana_aksi_versi', 0);
