@@ -16,6 +16,9 @@ const BORDER = '#E2E8F0';
 // Tabel data ringkas di dalam kartu grafik: header huruf biasa agar tujuh kolom muat tanpa scroll di desktop.
 const dataHead = 'px-3 normal-case tracking-normal';
 
+// Judul tooltip ApexCharts ditulis lewat innerHTML; nama periode adalah input pengguna.
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 const reduceMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const baseOptions = (): ApexOptions => ({
@@ -74,7 +77,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
             labels: { style: { colors: MUTED, fontSize: '12px' }, formatter: (value: number) => `${Math.round(value)}` },
         },
         grid: { borderColor: BORDER, strokeDashArray: 4, padding: { left: 4, right: 4 } },
-        tooltip: { ...base.tooltip, shared: true, intersect: false },
+        tooltip: { ...base.tooltip, shared: true, intersect: false, x: { formatter: (value) => escapeHtml(String(value)) } },
         // Layar sempit: nama periode dimiringkan agar tidak saling menimpa.
         responsive: [{ breakpoint: 640, options: { xaxis: { labels: { rotate: -45, rotateAlways: true } } } }],
     };

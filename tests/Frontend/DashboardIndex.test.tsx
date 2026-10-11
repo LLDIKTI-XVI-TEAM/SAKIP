@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { ApexOptions } from 'apexcharts';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Dashboard/Index';
@@ -14,9 +15,13 @@ vi.mock('@inertiajs/react', async (original) => ({
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
-// ApexCharts butuh API SVG yang tidak ada di jsdom; yang diuji di sini data yang dikirim ke grafik.
+// ApexCharts butuh API SVG yang tidak ada di jsdom; yang diuji di sini data dan opsi yang dikirim ke grafik.
+const chartProps = vi.hoisted(() => new Map<string, { options: ApexOptions }>());
 vi.mock('react-apexcharts/core', () => ({
-    default: ({ type, series }: { type: string; series: unknown }) => <div data-testid={`chart-${type}`} data-series={JSON.stringify(series)} />,
+    default: ({ type, series, options }: { type: string; series: unknown; options: ApexOptions }) => {
+        chartProps.set(type, { options });
+        return <div data-testid={`chart-${type}`} data-series={JSON.stringify(series)} />;
+    },
 }));
 vi.mock('apexcharts/bar', () => ({}));
 vi.mock('apexcharts/donut', () => ({}));
@@ -106,4 +111,20 @@ it('menampilkan satu pemberitahuan dengan alasan bila belum ada periode', () => 
     expect(screen.getByRole('status').textContent).toContain('Belum ada Jadwal Tahunan 2026 untuk Renstra aktif.');
     expect(screen.queryByText('Total')).toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
+});
+
+it('meng-escape nama periode pada judul tooltip grafik progres tanpa mengubah label sumbu', async () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    render(<Index {...props({ progresPeriode: [{ periode_id: 'p1', nama: payload, ...zero, total: 1, disahkan: 1 }] })} />);
+    await screen.findByTestId('chart-bar');
+
+    // ApexCharts menulis judul tooltip lewat innerHTML; hasil formatter harus berupa teks, bukan markup.
+    const options = chartProps.get('bar')!.options;
+    const format = options.tooltip?.x?.formatter;
+    expect(format).toBeTypeOf('function');
+    const title = format!(payload);
+    expect(title).not.toMatch(/[<>]/);
+    expect(title).toBe('&#60;img src=x onerror=alert(1)&#62;');
+    // Label sumbu dirender sebagai text node, jadi kategori tetap nama asli.
+    expect(options.xaxis?.categories).toEqual([payload]);
 });
