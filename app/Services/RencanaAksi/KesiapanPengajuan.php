@@ -169,11 +169,7 @@ class KesiapanPengajuan
         try {
             $hitung = $tipe === 'manual'
                 ? $this->calculator->handle($tipe, $presisi, [], [], $nilai['manual'] ?? null)
-                : $this->calculator->handle($tipe, $presisi, $definisi->map(fn (array $item): array => [
-                    'komponen_id' => $item['komponen_id'],
-                    'peran' => $item['peran'],
-                    'bobot' => $item['bobot'],
-                ])->all(), $nilai, null);
+                : $this->calculator->handle($tipe, $presisi, $definisi->all(), $nilai, null);
         } catch (InvalidArgumentException|ValidationException) {
             return ['nilai' => null, 'status_perhitungan' => 'tidak_dapat_dihitung'];
         }
