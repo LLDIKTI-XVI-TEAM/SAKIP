@@ -25,7 +25,8 @@ use Carbon\CarbonInterface;
  * karena writer PJ juga mengunci indikator, yang sudah dikunci pemanggil
  * tulis. `DaftarRencanaAksi` meneruskan PIC efektif yang sudah di-join dari
  * scope `PenugasanIndikator::effectiveOn` yang sama agar tidak membaca ulang
- * penugasan per baris.
+ * penugasan per baris; `AjukanRencanaAksi` meneruskan PJ yang dibacanya
+ * setelah mengunci indikator agar gerbang dan provenance memakai PJ yang sama.
  */
 class JendelaTulisRencanaAksi
 {
@@ -38,10 +39,12 @@ class JendelaTulisRencanaAksi
      *                                    Pengajuan selalu kosong karena menyentuh seluruh RA;
      *                                    periode sudah dijaga lingkup koreksi saat simpan.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
-     *                                  null berarti dibaca di sini. Hanya capability baca
-     *                                  (`DaftarRencanaAksi`) yang boleh mengisinya; gerbang
-     *                                  tulis wajib membiarkannya null agar PIC dibaca
-     *                                  setelah indikator dikunci, bukan dipercaya dari pemanggil.
+     *                                  null berarti dibaca di sini. Capability baca
+     *                                  (`DaftarRencanaAksi`) mengisinya dari join. Gerbang
+     *                                  tulis hanya boleh mengisinya dengan PJ yang dibacanya
+     *                                  sendiri setelah indikator dikunci (`AjukanRencanaAksi`,
+     *                                  agar provenance memakai PJ yang sama), tidak pernah
+     *                                  dari input klien.
      */
     public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null): ?string
     {

@@ -203,15 +203,55 @@ class RencanaAksiAjukanTest extends TestCase
 
         // Unggahan file dinonaktifkan: persyaratan file-only dikecualikan (anti-macet).
         $kedua = $this->buatFixtureManual();
-        $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
+        $jenisKedua = $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
         $headerKedua = $this->drafManual($kedua);
 
         $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasNoErrors();
 
-        $pemenuhan = RencanaAksiVersi::where('rencana_aksi_id', $headerKedua->id)->sole()->snapshot['persyaratan_bukti'][0]['pemenuhan'];
+        $versiKedua = RencanaAksiVersi::where('rencana_aksi_id', $headerKedua->id)->sole();
+        $pemenuhan = $versiKedua->snapshot['persyaratan_bukti'][0]['pemenuhan'];
         $this->assertSame(['file'], $pemenuhan['mode_dikecualikan']);
         $this->assertTrue($pemenuhan['tidak_dapat_dipenuhi']);
+
+        // PRD §18.7: penanda waiver tercatat di audit_log bersama versi, seperti pengajuan Pengukuran.
+        $waiver = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_tipe', 'rencana_aksi')->sole();
+        $this->assertSame($headerKedua->id, $waiver->objek_id);
+        $this->assertEquals([
+            'versi_pengajuan_id' => $versiKedua->id,
+            'nomor_pengajuan' => 1,
+            'pengecualian' => [['jenis_berkas_id' => $jenisKedua->id, 'nama' => 'KAK', 'mode' => ['file'], 'alasan' => 'Unggahan file dinonaktifkan pada setelan aplikasi.']],
+        ], $waiver->nilai_baru);
+    }
+
+    /**
+     * Gerbang jendela dan provenance memakai satu pembacaan PJ efektif.
+     * Tunggu kunci yang melewati tengah malam WITA tidak boleh membekukan PJ
+     * hari berikutnya sementara izin dan jalur berasal dari PJ yang lolos gerbang.
+     */
+    public function test_provenance_pic_sama_dengan_pic_yang_lolos_gerbang_walau_melewati_tengah_malam(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $this->travelTo(Carbon::parse('2026-03-10 23:59:50', 'Asia/Makassar'));
+        PenugasanIndikator::create([
+            'indikator_id' => $fixture['indikator']->id,
+            'user_id' => $this->penggunaDenganPeran('pegawai')->id,
+            'tanggal_mulai_berlaku' => '2026-03-11',
+            'ditetapkan_oleh' => $fixture['perencanaan']->id,
+            'created_at' => now(),
+        ]);
+        DB::listen(function ($query): void {
+            if (str_contains($query->sql, '"rencana_aksi_target"') && str_contains($query->sql, 'for update')) {
+                $this->travelTo(Carbon::parse('2026-03-11 00:00:10', 'Asia/Makassar'));
+            }
+        });
+
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
+
+        $versi = RencanaAksiVersi::sole();
+        $this->assertSame($fixture['pic']->id, $versi->dasar_izin_pengajuan['pic_id']);
+        $this->assertSame($fixture['pic']->id, $versi->snapshot['pic']['id']);
     }
 
     public function test_pic_di_luar_jendela_tanpa_pj_tanpa_grant_atau_deny_ditolak(): void
@@ -441,6 +481,28 @@ class RencanaAksiAjukanTest extends TestCase
         ]);
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $header->fresh()->status_alur);
+    }
+
+    /**
+     * Keputusan Q18/Q19: sesi koreksi tidak otomatis membuka jendela PIC.
+     * Setelah `rencana_aksi_selesai`, PIC menunggu Perencanaan mengubah jendela
+     * resminya; jalur Perencanaan tetap dapat mengajukan dalam sesi koreksi.
+     */
+    public function test_sesi_koreksi_tidak_membuka_jendela_pic_yang_sudah_lewat(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $fixture['jadwal']->update([
+            'penutupan' => '2026-04-05',
+            'koreksi_mulai' => '2026-04-06 00:00:00',
+            'koreksi_sampai' => '2026-04-30 23:59:59',
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$fixture['indikator']->id], 'periode_ids' => [$fixture['periode2']->id]],
+        ]);
+        $this->travelTo(Carbon::parse('2026-04-10 09:00', 'Asia/Makassar'));
+
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors(['jendela' => self::JENDELA_TUTUP]);
+        $this->ajukan($fixture['perencanaan'], $header, 2)->assertSessionHasNoErrors();
+        $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
     }
 
     public function test_uuid_asing_404_dan_tanpa_izin_403_sebelum_validasi(): void

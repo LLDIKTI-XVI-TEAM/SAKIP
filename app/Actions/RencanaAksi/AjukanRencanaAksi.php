@@ -117,7 +117,15 @@ class AjukanRencanaAksi
                     throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang dan simpan target sebelum mengajukan.'])->status(409);
                 }
 
-                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', []);
+                // PJ efektif dibaca sekali setelah indikator dikunci (writer PJ ikut
+                // mengunci indikator), lalu dipakai gerbang jendela dan provenance:
+                // tunggu kunci berikutnya yang melewati tengah malam tidak boleh
+                // membekukan PJ hari lain. Boleh null pada jalur Perencanaan;
+                // pergantian PJ, peran, atau grant setelahnya tidak menulis ulang versi.
+                $penugasan = PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
+                    ->where('indikator_id', $indikator->id)
+                    ->first();
+                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id);
                 if ($alasanJendela !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasanJendela]);
                 }
@@ -147,12 +155,6 @@ class AjukanRencanaAksi
                     throw ValidationException::withMessages(['pengajuan' => $alasan]);
                 }
 
-                // PJ efektif hari ini (zona bisnis) dibekukan sebagai provenance;
-                // boleh null pada jalur Perencanaan. Pergantian PJ, peran, atau
-                // grant setelahnya tidak menulis ulang versi ini.
-                $penugasan = PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
-                    ->where('indikator_id', $indikator->id)
-                    ->first();
                 $sebelum = $header->only(['status_alur', 'versi', 'snapshot_draf_id']);
 
                 $versi = RencanaAksiVersi::create([
@@ -183,6 +185,26 @@ class AjukanRencanaAksi
                         ]))->values()->all(),
                     ],
                 ]);
+
+                // PRD §18.7: waiver file tercatat di audit_log bersama versi (format sama
+                // dengan pengajuan Pengukuran); kegagalan audit membatalkan pengajuan.
+                $pengecualian = collect($persyaratan)
+                    ->filter(fn (array $item): bool => $item['wajib'] && $item['pemenuhan']['mode_dikecualikan'] !== [])
+                    ->map(fn (array $item): array => ['jenis_berkas_id' => $item['id'], 'nama' => $item['nama'],
+                        'mode' => $item['pemenuhan']['mode_dikecualikan'], 'alasan' => $item['pemenuhan']['alasan_pengecualian']])
+                    ->values()
+                    ->all();
+                if ($pengecualian !== []) {
+                    $this->audit->catat(
+                        actor: $pengunci,
+                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
+                        objekTipe: 'rencana_aksi',
+                        objekId: (string) $header->id,
+                        nilaiBaru: ['versi_pengajuan_id' => $versi->id, 'nomor_pengajuan' => $versi->nomor, 'pengecualian' => $pengecualian],
+                        alasan: 'Kewajiban mode file dikecualikan karena unggahan dinonaktifkan.',
+                        dasarIzin: $dasarIzin,
+                    );
+                }
 
                 $header->status_alur = RencanaAksi::STATUS_DIAJUKAN;
                 $header->versi++;
