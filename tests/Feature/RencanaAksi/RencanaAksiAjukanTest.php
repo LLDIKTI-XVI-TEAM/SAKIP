@@ -2,14 +2,19 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\RencanaAksi\AjukanRencanaAksi;
 use App\Models\AuditLog;
+use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
+use App\Models\Unit;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -312,6 +317,62 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('pic', $versi->jalur_pengajuan);
     }
 
+    /**
+     * Gerbang yang ditulis langsung di Action: akun nonaktif setelah request
+     * lolos middleware, unit pemilik nonaktif, indikator diarsipkan, dan unit
+     * snapshot terbaru yang tidak selaras dengan header. Aktor Perencanaan
+     * dipakai agar resolver mengizinkan, sehingga yang menolak adalah gerbang
+     * Action. Penolakan tidak membekukan versi (baris versi tidak dapat
+     * dihapus) dan tetap diaudit; `can.submit` tidak menawarkan aksi itu.
+     */
+    public function test_gerbang_aktor_unit_indikator_dan_unit_snapshot_menolak_tanpa_versi(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $perencanaan = $fixture['perencanaan'];
+        $this->assertCanSubmit(true, $perencanaan, $header);
+
+        DB::table('users')->where('id', $perencanaan->id)->update(['status' => 'nonaktif']);
+        $this->assertThrows(
+            fn () => app(AjukanRencanaAksi::class)->handle($perencanaan, $header->id, ['expected_versi' => 2]),
+            AuthorizationException::class,
+            'Akun pengguna tidak aktif.',
+        );
+        DB::table('users')->where('id', $perencanaan->id)->update(['status' => 'aktif']);
+
+        $unitNonaktif = 'Unit pemilik rencana aksi berstatus nonaktif.';
+        Unit::whereKey($fixture['unit']->id)->update(['status' => 'nonaktif']);
+        $this->assertCanSubmit(false, $perencanaan, $header);
+        $this->ajukan($perencanaan, $header, 2)->assertSessionHasErrors(['unit_id' => $unitNonaktif]);
+        Unit::whereKey($fixture['unit']->id)->update(['status' => 'aktif']);
+
+        $arsip = "Indikator '{$fixture['indikator']->kode}' telah diarsipkan sehingga tidak dapat dibuatkan rencana aksi baru.";
+        $fixture['indikator']->update(['status' => IndikatorKinerja::STATUS_ARSIP]);
+        $this->assertCanSubmit(false, $perencanaan, $header);
+        $this->ajukan($perencanaan, $header, 2)->assertSessionHasErrors(['indikator_id' => $arsip]);
+        $fixture['indikator']->update(['status' => IndikatorKinerja::STATUS_AKTIF]);
+
+        // Unit snapshot diperiksa sebelum jepit, sehingga pesannya spesifik walau jepit juga usang.
+        $tidakSelaras = 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru; pengajuan ditolak sampai snapshot koreksi tersedia.';
+        $unitLain = Unit::create(['nama' => 'Unit Lain Pengajuan RA', 'status' => 'aktif', 'created_by' => $perencanaan->id]);
+        JadwalSnapshot::create([
+            ...$fixture['snapshot']->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
+            'nomor_versi' => 2,
+            'menggantikan_id' => $fixture['snapshot']->id,
+            'alasan_koreksi' => 'Koreksi unit setelah indikator pindah.',
+            'rujukan_koreksi' => 'SK-UJI-UNIT-RA',
+            'unit_id' => $unitLain->id,
+        ]);
+        $this->ajukan($perencanaan, $header, 2)->assertSessionHasErrors(['snapshot' => $tidakSelaras]);
+
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+        $this->assertSame('draft', $header->fresh()->status_alur);
+        $this->assertEqualsCanonicalizing(
+            ['Akun pengguna tidak aktif.', $unitNonaktif, $arsip, $tidakSelaras],
+            AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->pluck('alasan')->all(),
+        );
+    }
+
     public function test_double_submit_dan_stale_versi_ditolak(): void
     {
         $fixture = $this->buatFixtureManual();
@@ -423,5 +484,11 @@ class RencanaAksiAjukanTest extends TestCase
     private function ajukan(User $aktor, RencanaAksi $header, int $versi, array $tambahan = []): TestResponse
     {
         return $this->actingAs($aktor)->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $versi, ...$tambahan]);
+    }
+
+    private function assertCanSubmit(bool $diharapkan, User $aktor, RencanaAksi $header): void
+    {
+        $this->actingAs($aktor)->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.submit', $diharapkan));
     }
 }
