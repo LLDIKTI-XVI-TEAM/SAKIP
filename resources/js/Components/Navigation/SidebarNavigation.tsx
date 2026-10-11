@@ -6,6 +6,7 @@ import {
     getSidebarNavEntries,
     normalizePath,
 } from '@/lib/navigation/sidebarNavigation';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { SidebarGroup } from '@/Components/Navigation/SidebarGroup';
 
 export interface SidebarNavigationProps {
@@ -82,7 +83,7 @@ export function SidebarNavigation({
                                     isActive ? 'text-white' : 'text-white/75 group-hover:text-white'
                                 }`}
                             />
-                            <span className="truncate">{entry.item.label}</span>
+                            <HoverScrollText>{entry.item.label}</HoverScrollText>
                         </Link>
                     );
                 }
