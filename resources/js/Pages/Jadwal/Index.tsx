@@ -103,7 +103,7 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
                     >
                         <Input
                             label="Cari Renstra"
-                            placeholder="Cari nama atau kode Renstra..."
+                            placeholder="Cari nama Renstra..."
                             value={query}
                             maxLength={100}
                             error={errors.q}

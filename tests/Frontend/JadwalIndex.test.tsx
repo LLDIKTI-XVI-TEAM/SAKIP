@@ -75,7 +75,7 @@ it('tanggal penutupan ditampilkan terformat, bukan ISO mentah', () => {
 
 it('menampilkan placeholder pencarian dan tombol reset filter ketika filter aktif', () => {
     render(<Index {...props} />);
-    expect(screen.getByPlaceholderText('Cari nama atau kode Renstra...')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Cari nama Renstra...')).toBeTruthy();
     expect(screen.getByPlaceholderText('Contoh: 2026')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
 

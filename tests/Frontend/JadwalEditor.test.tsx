@@ -257,7 +257,7 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
     const renstra = screen.getByLabelText<HTMLSelectElement>(/^Renstra/);
     expect(renstra.value).toBe('renstra-1');
     expect(renstra.disabled).toBe(true);
-    expect(screen.getByRole('option', { name: /^Renstra pengujian · (Nonaktif|Diarsipkan)$/ })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /^Renstra pengujian \(2025–2029\) · (Nonaktif|Diarsipkan)$/ })).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review').disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: 'Pilih periode' })).toBeNull();
@@ -369,13 +369,22 @@ it('mode create aman dirender server tanpa hardcode tahun atau tanggal', () => {
     expect(screen.getByText(/Belum ada periode dipilih/)).toBeTruthy();
 });
 
+it('dua Renstra bernama dan berstatus sama dibedakan oleh rentang tahun pada pilihan', () => {
+    const kembar = { ...jadwal.renstra, id: 'renstra-2', tahun_mulai: 2030, tahun_selesai: 2034 };
+    render(<Editor {...createProps} renstra_options={[jadwal.renstra, kembar]} />);
+    const teks = Array.from(screen.getByLabelText<HTMLSelectElement>(/^Renstra/).options)
+        .slice(1)
+        .map((option) => option.textContent);
+    expect(teks).toEqual(['Renstra pengujian (2025–2029) · Aktif', 'Renstra pengujian (2030–2034) · Aktif']);
+});
+
 it('pilihan Renstra pada create memperbarui identitas tanpa mengisi tanggal atau membuat jadwal otomatis', () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
     render(<Editor {...createProps} />);
     const renstra = screen.getByLabelText<HTMLSelectElement>(/^Renstra/);
     expect(renstra.value).toBe('');
-    expect(screen.getByRole('option', { name: 'Renstra pengujian · Aktif' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Renstra pengujian (2025–2029) · Aktif' })).toBeTruthy();
     fireEvent.change(renstra, { target: { value: 'renstra-1' } });
     expect(screen.getByText('Rentang Renstra 2025–2029')).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();

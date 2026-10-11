@@ -260,7 +260,8 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                                     </option>
                                     {renstraOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.nama} · {kapital(option.status)}
+                                            {option.nama} ({option.tahun_mulai}–{option.tahun_selesai}) ·{' '}
+                                            {kapital(option.status)}
                                         </option>
                                     ))}
                                 </Select>
