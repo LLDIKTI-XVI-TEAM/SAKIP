@@ -4,21 +4,24 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Form from '@/Pages/Kegiatan/Form';
 import Index from '@/Pages/Kegiatan/Index';
+import type { KegiatanIndexProps } from '@/types/kegiatan';
+
+let mockPengaturan: Record<string, string> = {};
 
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
     Head: () => null,
-    usePage: () => ({ props: { auth: { can: { kegiatan: true } }, pengaturan: {}, flash: {} } }),
+    usePage: () => ({ props: { auth: { can: { kegiatan: true } }, pengaturan: mockPengaturan, flash: {} } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
 const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
 const props = { kegiatan: null, tahunDefault: 2026, unitOptions, periodeOptions };
 
-beforeEach(() => { vi.spyOn(router, 'post').mockImplementation(() => undefined); });
+beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 it('mengirim field rencana melalui submit keyboard tanpa anggaran atau status', () => {
@@ -68,4 +71,46 @@ it('mempertahankan input dan menawarkan pemulihan sesi tanpa replay otomatis', a
     expect(screen.getByRole('link', { name: 'Masuk ulang' }).getAttribute('href')).toBe('/login?recovery=1');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);
     expect(router.post).toHaveBeenCalledTimes(1);
+});
+
+it('menghubungkan error unit dan periode ke pesan terlihat tanpa duplikasi', async () => {
+    render(<Form {...props} />);
+    fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { options?.onError?.({ unit_id: 'Unit sudah nonaktif.', periode_id: 'Periode sudah nonaktif.' }); });
+
+    for (const [label, message] of [['Unit', 'Unit sudah nonaktif.'], ['Periode', 'Periode sudah nonaktif.']]) {
+        const field = screen.getByLabelText(new RegExp(`^${label}`));
+        const description = document.getElementById(field.getAttribute('aria-describedby') ?? '');
+        expect(field.getAttribute('aria-invalid')).toBe('true');
+        expect(description?.getAttribute('role')).toBe('alert');
+        expect(description?.textContent).toBe(message);
+        expect(screen.getAllByText(message)).toHaveLength(1);
+    }
+});
+
+const indexProps: KegiatanIndexProps = {
+    kegiatan: {
+        data: [{ id: 'kegiatan-1', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: '2026-10-11', can: { update: true } }],
+        links: [], from: 1, to: 1, total: 1,
+    },
+    filters: { tahun: '', periode_id: '', unit_id: '', status: '' },
+    unitOptions, periodeOptions, can: { create: true },
+};
+
+it('menampilkan tanggal rencana sesuai preferensi tampilan pada tabel berlabel', () => {
+    mockPengaturan = { 'tampilan.format_tanggal': 'd/m/Y', 'tampilan.zona_waktu': 'Asia/Makassar' };
+    render(<Index {...indexProps} />);
+    expect(screen.getByRole('table', { name: 'Daftar kegiatan' })).toBeTruthy();
+    expect(screen.getByText('11/10/2026')).toBeTruthy();
+    expect(screen.queryByText('2026-10-11')).toBeNull();
+});
+
+it('menyediakan tautan buat dan ubah sesuai capability tanpa elemen interaktif bersarang', () => {
+    render(<Index {...indexProps} />);
+    const createLink = screen.getByRole('link', { name: 'Buat kegiatan' });
+    expect(createLink.getAttribute('href')).toBe('/kegiatan/buat');
+    expect(createLink.querySelector('button')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi kegiatan Fasilitasi unit' }));
+    expect(screen.getByRole('menuitem', { name: 'Ubah' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
 });
