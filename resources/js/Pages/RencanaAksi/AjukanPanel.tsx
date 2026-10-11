@@ -59,7 +59,9 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
                 if (response.status === 429) {
                     gagal('Terlalu sering mengajukan. Coba lagi sebentar.');
                 } else if (response.status === 403) {
-                    gagal('Izin pengajuan ditolak. Periksa akses sebelum mencoba kembali.');
+                    // 403 juga muncul bila pengajuan sukses lalu GET redirect ditolak (izin baca dicabut),
+                    // jadi status ini tidak membuktikan pengajuan ditolak.
+                    gagal('Akses ditolak; hasil pengajuan belum dapat dipastikan. Muat ulang halaman untuk memeriksa status rencana aksi sebelum mencoba kembali.');
                 } else {
                     gagal('Hasil pengajuan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
                 }
@@ -95,8 +97,8 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
                     <div ref={galatRef} tabIndex={-1} className="space-y-3 outline-none">
                         {konflik && (
                             <div role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-4">
-                                <p className="font-semibold text-danger">Data telah berubah di server</p>
-                                <p className="mt-1 text-danger">{konflik}</p>
+                                <p className="font-semibold text-danger-dark">Data telah berubah di server</p>
+                                <p className="mt-1 text-danger-dark">{konflik}</p>
                                 <Button type="button" variant="outline" onClick={onMuatUlang} disabled={processing} className="mt-3">
                                     Muat ulang data terbaru
                                 </Button>

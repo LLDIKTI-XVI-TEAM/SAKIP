@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { http } from '@inertiajs/core';
@@ -208,6 +208,21 @@ describe('pengajuan rencana aksi di halaman Show', () => {
         render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
 
         expect(screen.queryByText('Data telah berubah di server')).toBeNull();
+    });
+
+    it('403 tidak diklaim sebagai penolakan karena redirect setelah pengajuan sukses juga dapat berakhir 403', async () => {
+        const user = userEvent.setup();
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        await user.click(screen.getByRole('button', { name: TOMBOL_AJUKAN }));
+        await user.click(screen.getByRole('button', { name: 'Ajukan' }));
+        const options = vi.mocked(router.post).mock.calls[0][2];
+        await act(async () => { options?.onHttpException?.({ status: 403, data: '', headers: {} }); });
+
+        const galat = screen.getByRole('alert').textContent;
+        expect(galat).toContain('hasil pengajuan belum dapat dipastikan');
+        expect(galat).not.toContain('Izin pengajuan ditolak');
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('mengirim dengan errorBag ajukan', async () => {
