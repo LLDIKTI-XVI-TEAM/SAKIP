@@ -21,48 +21,48 @@ export function FinalPeriodeReplacement({
     return (
         <>
             <div>
-                <p className="mb-1.5 text-sm font-medium">Periode final saat ini</p>
+                <p className="mb-1.5 text-sm font-medium">Periode nilai akhir saat ini</p>
                 <div className="rounded-lg border border-border p-3">
                     <strong className="text-sm">{current.nama}</strong>
-                    <p className="mt-1 text-xs text-muted">
-                        Dinonaktifkan dalam pergantian; penanda nilai akhir lama tetap untuk riwayat.
-                    </p>
+                    <p className="mt-1 text-xs text-muted">Akan dinonaktifkan dan tetap tercatat sebagai riwayat.</p>
                 </div>
             </div>
-            <Select
-                id="periode-pengganti"
-                label="Periode pengganti"
-                value={value}
-                required
-                aria-invalid={Boolean(errors.periode_pengganti_id || errors.revisi_pengganti)}
-                aria-describedby={
-                    errors.periode_pengganti_id || errors.revisi_pengganti ? 'periode-pengganti-error' : undefined
-                }
-                disabled={disabled}
-                onChange={(event) => onChange(event.target.value)}
-                options={candidates.map((item) => ({
-                    value: item.id,
-                    label: `${item.nama} · ${item.aktif ? 'Aktif' : 'Nonaktif'}`,
-                }))}
-            />
-            {(errors.periode_pengganti_id || errors.revisi_pengganti) && (
-                <p id="periode-pengganti-error" className="text-xs text-danger">
-                    {errors.periode_pengganti_id || errors.revisi_pengganti}
+            {candidates.length === 0 ? (
+                <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                    Tidak ada periode pada daftar yang sedang tampil yang dapat menjadi pengganti. Pengganti harus
+                    periode yang belum dipakai jadwal aktif atau ditutup; tambahkan periode baru atau ubah pencarian.
                 </p>
+            ) : (
+                <>
+                    <Select
+                        id="periode-pengganti"
+                        label="Periode pengganti"
+                        value={value}
+                        required
+                        aria-invalid={Boolean(errors.periode_pengganti_id || errors.revisi_pengganti)}
+                        aria-describedby={
+                            errors.periode_pengganti_id || errors.revisi_pengganti
+                                ? 'periode-pengganti-error'
+                                : undefined
+                        }
+                        disabled={disabled}
+                        onChange={(event) => onChange(event.target.value)}
+                        options={candidates.map((item) => ({
+                            value: item.id,
+                            label: `${item.nama} · ${item.aktif ? 'Aktif' : 'Nonaktif'}`,
+                        }))}
+                    />
+                    {(errors.periode_pengganti_id || errors.revisi_pengganti) && (
+                        <p id="periode-pengganti-error" className="text-xs text-danger">
+                            {errors.periode_pengganti_id || errors.revisi_pengganti}
+                        </p>
+                    )}
+                    <p className="text-xs text-muted">
+                        Pengganti otomatis menjadi aktif dan periode nilai akhir. Pilihan hanya dari daftar yang sedang
+                        tampil; ubah pencarian atau halaman untuk periode lain.
+                    </p>
+                </>
             )}
-            <p className="text-xs text-muted">
-                Kandidat diambil dari halaman dan hasil pencarian master saat ini. Tutup dialog lalu ubah pencarian atau
-                halaman untuk memilih periode lainnya.
-            </p>
-            {candidates.length === 0 && (
-                <p role="status" className="text-sm text-warning-dark">
-                    Tidak ada kandidat yang dapat dipilih pada halaman ini.
-                </p>
-            )}
-            <p className="rounded-lg bg-soft p-3 text-sm">
-                Periode lama dan pengganti berubah sekaligus. Pengganti menjadi aktif dan nilai akhir. Riwayat tetap
-                dipertahankan.
-            </p>
         </>
     );
 }

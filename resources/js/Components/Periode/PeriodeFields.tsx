@@ -21,9 +21,7 @@ export function PeriodeFields({ values, errors, editing, currentFinal, disabled,
     return (
         <>
             {editing?.metadata_locked && (
-                <p className="rounded-lg bg-soft p-3 text-sm">
-                    {editing.metadata_locked_reason} Urutan dan penanda nilai akhir tetap. Nama masih dapat dikoreksi.
-                </p>
+                <p className="rounded-lg bg-soft p-3 text-sm">{editing.metadata_locked_reason}</p>
             )}
             <Input
                 name="nama"
@@ -67,8 +65,8 @@ export function PeriodeFields({ values, errors, editing, currentFinal, disabled,
                     </p>
                 )}
                 <p className="mt-2 text-xs text-muted">
-                    Periode final aktif tidak dinonaktifkan sendiri. Gunakan pergantian nilai akhir. Penonaktifan tidak
-                    menghapus referensi dan riwayat.
+                    Penonaktifan tidak menghapus riwayat. Periode nilai akhir yang aktif diganti lewat tombol Ganti
+                    periode nilai akhir.
                 </p>
             </div>
             <div>
@@ -82,7 +80,7 @@ export function PeriodeFields({ values, errors, editing, currentFinal, disabled,
                         disabled={disabled || !editing || editing.metadata_locked || values.aktif}
                         className="h-4 w-4 accent-primary"
                     />
-                    Nilai akhir · Diisi manual
+                    Periode nilai akhir
                 </label>
                 {errors.is_nilai_akhir && (
                     <p id="periode-final-error" className="mt-1 text-xs text-danger">
@@ -91,8 +89,9 @@ export function PeriodeFields({ values, errors, editing, currentFinal, disabled,
                 )}
                 <p className="mt-2 text-xs text-muted">
                     {currentFinal
-                        ? 'Periode aktif menggunakan pergantian nilai akhir. Penanda periode nonaktif dapat dikoreksi selama metadata belum terkunci.'
-                        : 'Periode pertama menjadi nilai akhir aktif untuk memulai konfigurasi.'}
+                        ? 'Untuk periode aktif, gunakan tombol Ganti periode nilai akhir.'
+                        : 'Periode pertama otomatis menjadi periode nilai akhir.'}{' '}
+                    Nilainya diisi manual, bukan dijumlahkan dari periode lain.
                 </p>
             </div>
         </>

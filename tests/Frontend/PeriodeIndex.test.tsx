@@ -13,7 +13,7 @@ vi.mock('@inertiajs/react', async (original) => ({
     usePage: () => ({ props: { auth: { can: { periode: true, jadwal: true } } } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
 
 const props: PeriodeIndexProps = {
@@ -70,7 +70,7 @@ it('pergantian final memakai singleton lintas halaman serta kedua revisi koheren
     render(<Index {...props} />);
     const trigger = screen.getByRole('button', { name: 'Ganti periode nilai akhir' });
     await user.click(trigger);
-    expect(screen.getByText('Triwulan IV')).toBeTruthy();
+    expect(within(screen.getByRole('dialog')).getByText('Triwulan IV')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
     expect(router.post).toHaveBeenCalledWith(
         '/periode/ganti-nilai-akhir',
@@ -88,6 +88,16 @@ it('pergantian final memakai singleton lintas halaman serta kedua revisi koheren
     });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(trigger);
+});
+
+it('pergantian tanpa kandidat menjelaskan kunci jadwal alih-alih menampilkan pilihan kosong', async () => {
+    const user = userEvent.setup();
+    render(<Index {...props} periode={{ ...props.periode, data: [{ ...props.periode.data[0], metadata_locked: true }] }} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti periode nilai akhir' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('combobox', { name: /Periode pengganti/ })).toBeNull();
+    expect(within(dialog).getByRole('status').textContent).toContain('belum dipakai jadwal aktif atau ditutup');
+    expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan pergantian' }).disabled).toBe(true);
 });
 
 it('koreksi nama mengirim metadata terkunci tetap dan mempertahankan input pada penolakan', async () => {
@@ -111,7 +121,7 @@ it('koreksi nama mengirim metadata terkunci tetap dan mempertahankan input pada 
     );
     fireEvent.click(screen.getByRole('button', { name: 'Koreksi nama Triwulan I' }));
     expect(screen.getByLabelText<HTMLInputElement>(/^Urutan/).disabled).toBe(true);
-    expect(screen.getByLabelText<HTMLInputElement>('Nilai akhir · Diisi manual').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
     fireEvent.change(screen.getByLabelText(/^Nama periode/), { target: { value: 'Triwulan Pertama' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
     expect(vi.mocked(router.put).mock.calls[0][1]).toEqual({
@@ -153,7 +163,7 @@ it('filter mengikuti props daftar hasil redirect hanya setelah penyimpanan terko
     expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('');
     expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('');
     expect(document.activeElement).toBe(trigger);
-    await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
+    await user.click(screen.getByRole('button', { name: 'Terapkan' }));
     expect(router.get).toHaveBeenCalledWith(
         '/periode',
         { q: '', status: '', sort: 'urutan' },
@@ -185,11 +195,21 @@ it('403 respons akhir tanpa bukti penolakan sebelum mutasi mempertahankan input 
 
 it('konfigurasi kosong menawarkan satu periode pertama aktif dan final', () => {
     render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} current_final={null} />);
+    expect(screen.getByText('belum ditetapkan')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tambah periode' }));
-    expect(screen.getByLabelText<HTMLInputElement>('Nilai akhir · Diisi manual').checked).toBe(true);
-    expect(screen.getByLabelText<HTMLInputElement>('Nilai akhir · Diisi manual').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').checked).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
     expect(screen.getByLabelText<HTMLInputElement>('Aktif').checked).toBe(true);
     expect(screen.queryByRole('button', { name: 'Ganti periode nilai akhir' })).toBeNull();
+});
+
+it('pesan tabel kosong mengikuti filter yang diterapkan, bukan ketikan yang belum diterapkan', () => {
+    render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} />);
+    fireEvent.change(screen.getByLabelText('Cari periode'), { target: { value: 'abc' } });
+    expect(screen.getByText('Belum ada periode pelaporan yang dicatat.')).toBeTruthy();
+    cleanup();
+    render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} filters={{ ...props.filters, q: 'abc' }} />);
+    expect(screen.getByText('Coba ubah kata kunci atau status pada filter.')).toBeTruthy();
 });
 
 it('flag final periode nonaktif yang belum terkunci dapat dikoreksi sebelum diaktifkan sebagai periode biasa', async () => {
@@ -201,7 +221,7 @@ it('flag final periode nonaktif yang belum terkunci dapat dikoreksi sebelum diak
         />,
     );
     await user.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
-    const final = screen.getByLabelText<HTMLInputElement>('Nilai akhir · Diisi manual');
+    const final = screen.getByLabelText<HTMLInputElement>('Periode nilai akhir');
     expect(final.disabled).toBe(false);
     await user.click(final);
     await user.click(screen.getByLabelText('Aktif'));
@@ -216,7 +236,7 @@ it('periode final aktif tetap memakai pergantian utuh', () => {
         <Index {...props} periode={{ ...props.periode, data: [{ ...props.periode.data[0], is_nilai_akhir: true }] }} />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
-    expect(screen.getByLabelText<HTMLInputElement>('Nilai akhir · Diisi manual').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
     expect(screen.getByLabelText<HTMLInputElement>('Aktif').disabled).toBe(true);
 });
 
@@ -247,7 +267,7 @@ it('izin create-only tidak menampilkan edit atau pergantian final', () => {
 it('menampilkan placeholder pencarian dan dapat mereset filter ketika filter aktif', () => {
     render(<Index {...props} filters={{ ...props.filters, q: 'Triwulan', status: 'aktif' }} />);
     expect(screen.getByPlaceholderText('Cari nama periode pelaporan...')).toBeTruthy();
-    const resetButton = screen.getByRole('button', { name: 'Reset filter' });
+    const resetButton = screen.getByRole('button', { name: 'Reset' });
     fireEvent.click(resetButton);
 
     expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('');
@@ -268,7 +288,6 @@ it('tabel ringkas hanya menampilkan kolom penting tanpa metadata dan nilai akhir
     expect(within(table).queryByText('Metadata')).toBeNull();
     expect(within(table).queryByText('Terkunci')).toBeNull();
     expect(within(table).queryByText('Dapat diubah')).toBeNull();
-    expect(within(table).queryByText('Ya · Manual')).toBeNull();
     const aksiHeader = columns.find((cell) => cell.textContent === 'Aksi');
     expect(aksiHeader?.className).toContain('text-right');
     const detailButton = screen.getByRole('button', { name: 'Lihat detail Triwulan I' });
@@ -380,7 +399,7 @@ it('tabel periode tidak memicu scroll horizontal di semua lebar layar', () => {
     }
 });
 
-it('tombol detail membuka rincian metadata, nilai akhir, dan revisi lalu dapat ditutup', async () => {
+it('tombol detail membuka rincian nilai akhir dan kunci urutan tanpa angka revisi lalu dapat ditutup', async () => {
     const user = userEvent.setup();
     render(
         <Index
@@ -405,12 +424,12 @@ it('tombol detail membuka rincian metadata, nilai akhir, dan revisi lalu dapat d
     const trigger = screen.getByRole('button', { name: 'Lihat detail Triwulan I' });
     await user.click(trigger);
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('Nilai akhir · Diisi manual')).toBeTruthy();
-    expect(within(dialog).getByText('Ya · Riwayat')).toBeTruthy();
-    expect(within(dialog).getByText('Metadata')).toBeTruthy();
+    expect(within(dialog).getByText('Periode nilai akhir')).toBeTruthy();
+    expect(within(dialog).getByText('Ya (riwayat)')).toBeTruthy();
+    expect(within(dialog).getByText('Urutan & nilai akhir')).toBeTruthy();
     expect(within(dialog).getByText('Terkunci')).toBeTruthy();
     expect(within(dialog).getByText('Dipakai jadwal aktif/ditutup.')).toBeTruthy();
-    expect(within(dialog).getByText('Revisi')).toBeTruthy();
+    expect(within(dialog).queryByText('Revisi')).toBeNull();
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
