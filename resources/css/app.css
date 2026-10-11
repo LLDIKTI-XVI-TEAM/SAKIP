@@ -98,15 +98,37 @@ body {
     scrollbar-width: none !important; /* Firefox */
 }
 
-@keyframes tickerLoop {
-    0%, 15% {
-        transform: translateX(0);
+/* HoverScrollText: teks satu baris terpotong yang bergeser saat link/tombol induk di-hover atau difokus.
+   Di layer components agar utility dari prop className tetap dapat menimpanya. */
+@layer components {
+    .hover-scroll-text {
+        display: block;
+        flex: 1 1 0%;
+        min-width: 0;
+        overflow: hidden;
+        text-align: start;
+        /* Lebar kontainer menjadi acuan 100cqw untuk menghitung jarak geser. */
+        container-type: inline-size;
     }
-    75%, 90% {
-        transform: translateX(var(--ticker-offset, -100px));
+
+    .hover-scroll-text > span {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        transition: translate 300ms ease-out;
     }
-    100% {
-        transform: translateX(0);
+
+    @media (prefers-reduced-motion: no-preference) {
+        /* Dipicu link/tombol induk, atau teks itu sendiri bila berada di luar elemen interaktif. */
+        :is(a, button):is(:hover, :focus-visible) .hover-scroll-text > span,
+        .hover-scroll-text:hover > span {
+            width: max-content;
+            overflow: visible;
+            /* Geser sejauh kelebihan teks (lebar kontainer − lebar teks); teks yang muat tidak bergeser. */
+            translate: min(0px, calc(100cqw - 100%));
+            transition: translate 2.5s linear 300ms;
+        }
     }
 }
 
