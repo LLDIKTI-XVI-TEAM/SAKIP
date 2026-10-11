@@ -1123,7 +1123,7 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 **Versi pengajuan beku:** setiap pengajuan tersimpan sebagai baris `rencana_aksi_versi` (§2.34) berisi provenance beku dan snapshot isi pengajuan; yang disahkan pada transisi akhir adalah snapshot versi tersebut, bukan header.
 
-**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`) **ditolak** bila ada `indikator_komponen` aktif yang belum memiliki `rencana_aksi_target` pada salah satu periode yang diharapkan menurut `jadwal_periode` — ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
+**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`, atau `dikembalikan → diajukan` sebagai revisi langsung tanpa kembali ke `draft`) **ditolak** bila ada periode efektif yang targetnya belum berstatus `terhitung`. Periode efektif adalah periode `jadwal_periode` mulai `periode_mulai_id` pada `jadwal_snapshot` terbaru (§2.17). Status `belum_diisi` (nonmanual: ada komponen `jadwal_snapshot_komponen` yang belum bernilai; manual: nilai belum diisi) dan `tidak_dapat_dihitung` (mis. penyebut nol) sama-sama menolak; angka `0` sah. Ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
 
 **Pemisahan tugas pada jalur verifikasi/pengesahan:** aturan yang sama seperti pengukuran (§2.20) berlaku di sini — bila rencana aksi diajukan lewat jalur PIC ber-scope unit, aktor pengaju tidak boleh melanjutkan sendiri transisi verifikasi/pengesahannya. Rinciannya di §4.
 
