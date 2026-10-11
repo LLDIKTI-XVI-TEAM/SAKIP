@@ -333,6 +333,11 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                     editable={editable}
                     disabled={disabled}
                     options={pilihanPeriode}
+                    emptyMessage={
+                        periode_options.length === 0
+                            ? 'Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.'
+                            : 'Semua periode aktif sudah dipilih.'
+                    }
                     onAdd={addPeriode}
                     onRemove={removePeriode}
                     onChange={(periodeId, field, value) =>

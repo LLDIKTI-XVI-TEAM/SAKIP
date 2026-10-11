@@ -1,7 +1,7 @@
 import type { Page, PendingVisit } from '@inertiajs/core';
 import type { ReactNode } from 'react';
 import { router } from '@inertiajs/react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -185,7 +185,7 @@ it('penghapusan hubungan periode menjaga fokus pada baris berikutnya dan lalu to
     await user.click(screen.getByRole('button', { name: 'Hapus Triwulan I dari draft' }));
     expect(document.activeElement).toBe(screen.getByLabelText('Triwulan IV: Mulai pengisian'));
     await user.click(screen.getByRole('button', { name: 'Hapus Triwulan IV dari draft' }));
-    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Tambah periode' }));
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Pilih periode' }));
 });
 
 it('menonaktifkan input dan aksi selama penyimpanan berjalan', async () => {
@@ -225,7 +225,8 @@ it('menonaktifkan input dan aksi selama penyimpanan berjalan', async () => {
         vi.mocked(router.put).mock.calls[0][2]?.onStart?.(visit);
     });
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').disabled).toBe(true);
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pilih periode' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' }).disabled).toBe(true);
     expect(router.put).toHaveBeenCalledTimes(1);
 });
@@ -259,7 +260,8 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
     expect(screen.getByRole('option', { name: /^Renstra pengujian · (Nonaktif|Diarsipkan)$/ })).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review').disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
-    expect(screen.queryByRole('combobox', { name: 'Tambah periode' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Pilih periode' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe('/jadwal');
     expect(screen.queryByRole('link', { name: 'Batal' })).toBeNull();
 });
@@ -313,30 +315,48 @@ it('403 respons akhir tanpa bukti penolakan sebelum mutasi mempertahankan draft 
     expect(router.get).not.toHaveBeenCalled();
 });
 
-it('tambah periode lewat dropdown tanpa request, hanya periode yang belum dipilih, dan membawa revisi', () => {
+it('mengubah pilihan periode (panah/type-ahead) tidak menambah baris; hanya tombol Tambah yang menambah dan revisi ikut terkirim', async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
     render(<Editor {...props} />);
-    const tambah = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' });
-    const pilihan = () => Array.from(tambah.options).map((option) => option.textContent);
-    expect(pilihan()).toEqual(['+ Tambah periode', 'Triwulan II', 'Triwulan III']);
-    fireEvent.change(tambah, { target: { value: 'periode-3' } });
-    expect(tambah.value).toBe('');
-    expect(pilihan()).toEqual(['+ Tambah periode', 'Triwulan II']);
+    const pilih = document.getElementById('tambah-periode') as HTMLSelectElement;
+    fireEvent.change(pilih, { target: { value: 'periode-2' } });
+    fireEvent.change(pilih, { target: { value: 'periode-3' } });
+    expect(screen.queryByLabelText('Triwulan II: Mulai Review')).toBeNull();
+    expect(screen.queryByLabelText('Triwulan III: Mulai Review')).toBeNull();
+    expect(pilih).toBe(screen.getByRole('combobox', { name: 'Pilih periode' }));
+    const pilihan = () => Array.from(pilih.options).map((option) => option.textContent);
+    expect(pilihan()).toEqual(['Pilih periode', 'Triwulan II', 'Triwulan III']);
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah' }));
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan III: Mulai Review').value).toBe('');
+    expect(screen.queryByLabelText('Triwulan II: Mulai Review')).toBeNull();
+    expect(pilih.value).toBe('');
+    expect(pilihan()).toEqual(['Pilih periode', 'Triwulan II']);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah' }).disabled).toBe(true);
+    await waitFor(() => expect(document.activeElement).toBe(pilih));
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Simpan draft' }));
     expect(vi.mocked(router.put).mock.calls[0][1]).toHaveProperty('periode.1.periode_revisi', 6);
 });
 
-it('dropdown tambah periode menandai nilai akhir dan nonaktif bila semua periode sudah dipilih', () => {
-    const { unmount } = render(<Editor {...createProps} />);
-    expect(screen.getByRole('option', { name: 'Triwulan IV · Periode nilai akhir' })).toBeTruthy();
+it('katalog periode kosong dijelaskan berbeda dari semua periode aktif sudah dipilih', () => {
+    const { unmount } = render(<Editor {...createProps} periode_options={[]} />);
+    expect(screen.getByText('Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.')).toBeTruthy();
+    const pilih = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pilih periode' });
+    expect(pilih.disabled).toBe(true);
+    expect(document.getElementById(pilih.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+        'Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.',
+    );
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah' }).disabled).toBe(true);
     unmount();
     render(<Editor {...props} periode_options={[periodeOptions[0], periodeOptions[3]]} />);
-    const tambah = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' });
-    expect(tambah.disabled).toBe(true);
-    expect(tambah.options[0].textContent).toBe('Semua periode sudah dipilih');
+    expect(screen.getByText('Semua periode aktif sudah dipilih.')).toBeTruthy();
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pilih periode' }).disabled).toBe(true);
+});
+
+it('pilihan periode menandai periode nilai akhir', () => {
+    render(<Editor {...createProps} />);
+    expect(screen.getByRole('option', { name: 'Triwulan IV · Periode nilai akhir' })).toBeTruthy();
 });
 
 it('mode create aman dirender server tanpa hardcode tahun atau tanggal', () => {

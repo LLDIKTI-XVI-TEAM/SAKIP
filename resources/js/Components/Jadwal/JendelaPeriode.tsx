@@ -1,5 +1,7 @@
-import { Info, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Info, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
+import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
@@ -20,6 +22,8 @@ interface JendelaPeriodeProps {
     disabled: boolean;
     /** Periode aktif yang belum dipilih. */
     options: PeriodeOption[];
+    /** Penjelasan saat `options` kosong (katalog kosong atau semua sudah dipilih). */
+    emptyMessage: string;
     onAdd: (periodeId: string) => void;
     onRemove: (periodeId: string) => void;
     onChange: (periodeId: string, field: (typeof windowFields)[number]['key'], value: string) => void;
@@ -31,34 +35,57 @@ export function JendelaPeriode({
     editable,
     disabled,
     options,
+    emptyMessage,
     onAdd,
     onRemove,
     onChange,
 }: JendelaPeriodeProps) {
+    const [pilihan, setPilihan] = useState('');
+    const tambah = () => {
+        const target = options.length > 1 ? 'tambah-periode' : `periode-${pilihan}-pengisian_mulai`;
+        onAdd(pilihan);
+        setPilihan('');
+        // Fokus kembali ke pilihan untuk penambahan beruntun; pilihan terakhir menonaktifkan select, jadi fokus ke baris baru.
+        requestAnimationFrame(() => document.getElementById(target)?.focus());
+    };
+
     return (
         <Card>
             <CardHeader>
                 <h2 className="font-semibold">Jendela periode</h2>
                 {editable && (
-                    <div className="w-full sm:w-60">
-                        {/* Nilai selalu kosong: memilih langsung menambah baris lalu dropdown kembali ke placeholder. */}
-                        <Select
-                            id="tambah-periode"
-                            aria-label="Tambah periode"
-                            value=""
-                            disabled={disabled || options.length === 0}
-                            onChange={(event) => onAdd(event.target.value)}
-                        >
-                            <option value="" disabled>
-                                {options.length > 0 ? '+ Tambah periode' : 'Semua periode sudah dipilih'}
-                            </option>
-                            {options.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.nama}
-                                    {option.is_nilai_akhir ? ' · Periode nilai akhir' : ''}
+                    <div className="flex w-full items-start gap-2 sm:w-auto">
+                        <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+                            <Select
+                                id="tambah-periode"
+                                aria-label="Pilih periode"
+                                value={pilihan}
+                                helperText={options.length === 0 ? emptyMessage : undefined}
+                                disabled={disabled || options.length === 0}
+                                onChange={(event) => setPilihan(event.target.value)}
+                            >
+                                <option value="" disabled>
+                                    Pilih periode
                                 </option>
-                            ))}
-                        </Select>
+                                {options.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                        {option.nama}
+                                        {option.is_nilai_akhir ? ' · Periode nilai akhir' : ''}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-[42px] shrink-0"
+                            disabled={disabled || !pilihan}
+                            onClick={tambah}
+                        >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            Tambah
+                        </Button>
                     </div>
                 )}
             </CardHeader>
