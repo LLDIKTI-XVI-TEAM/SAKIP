@@ -42,7 +42,7 @@ const rencanaAksi: ReviewRencanaAksi = {
     indikator: { kode: 'IKU-1', nama: 'Label indikator dibekukan' },
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
-    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, komponen: [] }],
+    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
     can: { verifikasi: true, kembalikan: true, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [] },
     histori: [{ id: 'versi-1', nomor: 1, diajukan_at: '2026-09-01T01:00:00Z', jalur_pengajuan: 'pic' }, { id: 'versi-2', nomor: 2, diajukan_at: '2026-10-01T01:00:00Z', jalur_pengajuan: 'pic' }], pagination,
@@ -51,6 +51,16 @@ const renderReview = (override: Partial<ReviewRencanaAksi> = {}) => render(<Revi
 const page = (props: Record<string, unknown> = {}): Page => ({ component: 'RencanaAksi/Review', url: '/rencana-aksi/ra-1/review', version: null, clearHistory: false, encryptHistory: false, rescuedProps: [], rememberedState: {}, flash: {}, props: { errors: {}, ...props } });
 
 describe('Review Rencana Aksi', () => {
+    it('menampilkan keterangan target dan komponen serta menjelaskan berkas yang tidak dapat diunduh', () => {
+        renderReview({
+            target_periode: [{ ...rencanaAksi.target_periode[0], keterangan: 'Penjelasan target manual.', komponen: [{ komponen_id: 'k-1', kode: 'n', label: 'Pembilang', nilai: '1', keterangan: 'Penjelasan komponen beku.' }] }],
+            bukti_dukungs: [{ ...rencanaAksi.bukti_dukungs[0], download_url: null }],
+        });
+        expect(screen.getByText('Penjelasan target manual.')).toBeTruthy();
+        expect(screen.getByText('Penjelasan komponen beku.')).toBeTruthy();
+        expect(screen.getByText('Berkas ini sudah tidak berlaku pada rencana aksi; unduhan tidak tersedia.')).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Unduh file' })).toBeNull();
+    });
     it('menampilkan substansi beku, provenance, histori, dan unduhan versi yang dikirim server', () => {
         renderReview();
         expect(screen.getByText('Substansi versi pengajuan')).toBeTruthy();

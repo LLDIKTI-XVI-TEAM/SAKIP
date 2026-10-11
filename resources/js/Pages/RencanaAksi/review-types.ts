@@ -39,7 +39,8 @@ export interface ReviewRencanaAksi {
         periode_urutan: number;
         nilai: string | null;
         status_perhitungan: string | null;
-        komponen: { komponen_id: string; kode: string; label: string; nilai: string | null }[];
+        keterangan: string | null;
+        komponen: { komponen_id: string; kode: string; label: string; nilai: string | null; keterangan: string | null }[];
     }[];
     bukti_dukungs: {
         id: string;

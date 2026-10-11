@@ -55,7 +55,7 @@ class ReviewRencanaAksiTest extends TestCase
     {
         $this->actingAs($this->actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $this->tokens())->assertUnprocessable()->assertJsonValidationErrors('businessErrors');
         $this->assertSame('diajukan', $this->rencanaAksi->fresh()->status_alur);
-        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.verifikasi.ditolak')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.verifikasi_ditolak')->count());
         $this->actingAs($this->actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/kembalikan", $this->tokens() + ['alasan' => 'Perbaiki target.'])->assertSuccessful();
         $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
     }
@@ -93,7 +93,7 @@ class ReviewRencanaAksiTest extends TestCase
     {
         $this->denyPermission($this->reviewer, 'rencana_aksi:verifikasi', $this->unit->id);
         $this->actingAs($this->reviewer)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $this->tokens())->assertForbidden();
-        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.verifikasi.ditolak')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.verifikasi_ditolak')->count());
     }
 
     public function test_alasan_pengembalian_divalidasi_juga_pada_action_langsung(): void
@@ -127,7 +127,7 @@ class ReviewRencanaAksiTest extends TestCase
         $url = "/rencana-aksi/{$this->rencanaAksi->id}/verifikasi";
         $this->actingAs($this->reviewer)->postJson($url, $this->tokens())->assertUnprocessable();
         $this->jadwal->update(['koreksi_mulai' => now()->subHour(), 'koreksi_sampai' => now()->addHour(),
-            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$this->indikator->id], 'periode_ids' => []]]);
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [], 'periode_ids' => []]]);
         $this->postJson($url, $this->tokens())->assertUnprocessable();
         $this->jadwal->update(['lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$this->indikator->id], 'periode_ids' => [$this->snapshot->periode_mulai_id]]]);
         $this->postJson($url, $this->tokens())->assertSuccessful();
@@ -157,11 +157,16 @@ class ReviewRencanaAksiTest extends TestCase
         $beku = $this->versiPengajuan->snapshot;
         $beku['bukti_dukungs'] = [['id' => $bukti->id, 'mode' => 'file', 'nama_asli' => 'beku.pdf', 'path' => 'rahasia/internal']];
         $versi = $this->rencanaAksi->versions()->create(array_merge($this->versiPengajuan->only(['jadwal_snapshot_id', 'dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']), ['nomor' => 2, 'snapshot' => $beku]));
-        $bukti->update(['dihapus_pada' => now(), 'dihapus_oleh' => $this->actor->id]);
         $url = route('rencana-aksi.versi.bukti.download', [$this->rencanaAksi->id, $versi->id, $bukti->id]);
         $this->actingAs($this->reviewer)->get($url)->assertOk()->assertDownload('beku.pdf');
+        $pengganti = $this->createBuktiDukung(['menggantikan_id' => $bukti->id]);
+        $this->get($url)->assertNotFound();
+        $pengganti->update(['dihapus_pada' => now(), 'dihapus_oleh' => $this->actor->id]);
+        $this->get($url)->assertOk();
+        $bukti->update(['dihapus_pada' => now(), 'dihapus_oleh' => $this->actor->id]);
+        $this->get($url)->assertNotFound();
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertInertia(fn (Assert $p) => $p
-            ->has('rencanaAksi.bukti_dukungs', 1)->missing('rencanaAksi.bukti_dukungs.0.path'));
+            ->has('rencanaAksi.bukti_dukungs', 1)->where('rencanaAksi.bukti_dukungs.0.download_url', null)->missing('rencanaAksi.bukti_dukungs.0.path'));
         $this->get(route('rencana-aksi.versi.bukti.download', [$this->rencanaAksi->id, $this->versiPengajuan->id, $bukti->id]))->assertNotFound();
         $this->denyPermission($this->reviewer, 'berkas:read', $this->unit->id);
         $this->get($url)->assertForbidden();

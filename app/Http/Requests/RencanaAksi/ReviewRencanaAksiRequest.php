@@ -6,6 +6,7 @@ use App\Models\RencanaAksi;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\GerbangReviewRencanaAksi;
 use App\Support\AuditReason;
+use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -19,7 +20,8 @@ class ReviewRencanaAksiRequest extends FormRequest
     public function authorize(): bool
     {
         $header = RencanaAksi::findOrFail($this->route('rencanaAksi'));
-        $decision = app(PermissionResolver::class)->resolve($this->user(), 'rencana_aksi:'.$this->aksi(), (string) $header->unit_id);
+        $permission = $this->aksi() === 'kembalikan' ? PermissionCodes::RENCANA_AKSI_KEMBALIKAN : PermissionCodes::RENCANA_AKSI_VERIFIKASI;
+        $decision = app(PermissionResolver::class)->resolve($this->user(), $permission, (string) $header->unit_id);
         $this->dasarIzin = $decision->toAuditBasis();
 
         return $decision->allowed;

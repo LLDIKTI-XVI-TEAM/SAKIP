@@ -24,20 +24,19 @@ class DaftarReviewRencanaAksi
         $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', Rule::in(['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan', 'semua'])]])->validate();
         $status = $query['status'] ?? 'diajukan';
-        $terbaru = RencanaAksiVersi::query()->selectRaw('DISTINCT ON (rencana_aksi_id) rencana_aksi_id, nomor, snapshot')
+        $terbaru = RencanaAksiVersi::query()->selectRaw('DISTINCT ON (rencana_aksi_id) rencana_aksi_id, nomor')
+            ->addSelect('snapshot->indikator->kode as indikator_kode', 'snapshot->indikator->nama as indikator_nama', 'snapshot->unit_kerja->nama as unit_nama')
             ->orderBy('rencana_aksi_id')->orderByDesc('nomor');
-        $halaman = RencanaAksi::query()->select('rencana_aksi.*', 'v.nomor as nomor_pengajuan', 'v.snapshot as snapshot_pengajuan')
+        $halaman = RencanaAksi::query()->select('rencana_aksi.*', 'v.nomor as nomor_pengajuan', 'v.indikator_kode', 'v.indikator_nama', 'v.unit_nama')
             ->joinSub($terbaru, 'v', 'v.rencana_aksi_id', '=', 'rencana_aksi.id')
             ->whereNotIn('rencana_aksi.unit_id', $this->resolver->unitDitolak($actor, PermissionCodes::RENCANA_AKSI_READ))
             ->when($status !== 'semua', fn ($q) => $q->where('rencana_aksi.status_alur', $status))
             ->orderByDesc('rencana_aksi.updated_at')->orderBy('rencana_aksi.id')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
 
         return ['daftar' => $halaman->getCollection()->map(function (RencanaAksi $header): array {
-            $beku = json_decode((string) $header->getAttribute('snapshot_pengajuan'), true) ?? [];
-
             return ['id' => $header->id, 'tahun' => $header->tahun, 'status_alur' => $header->status_alur,
-                'nomor_pengajuan' => (int) $header->getAttribute('nomor_pengajuan'), 'indikator' => ['kode' => $beku['indikator']['kode'] ?? '—',
-                    'nama' => $beku['indikator']['nama'] ?? 'Konteks versi belum lengkap'], 'unit_nama' => $beku['unit_kerja']['nama'] ?? 'Konteks versi belum lengkap'];
+                'nomor_pengajuan' => (int) $header->getAttribute('nomor_pengajuan'), 'indikator' => ['kode' => $header->getAttribute('indikator_kode') ?? '—',
+                    'nama' => $header->getAttribute('indikator_nama') ?? 'Konteks versi belum lengkap'], 'unit_nama' => $header->getAttribute('unit_nama') ?? 'Konteks versi belum lengkap'];
         })->all(), 'filters' => ['status' => $status],
             'pagination' => ['current_page' => $halaman->currentPage(), 'last_page' => $halaman->lastPage(), 'total' => $halaman->total(),
                 'prev_page_url' => $halaman->previousPageUrl(), 'next_page_url' => $halaman->nextPageUrl()]];

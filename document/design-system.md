@@ -374,7 +374,7 @@ export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; lab
 
 ### 3. Modal Alasan Wajib (`resources/js/components/ui/ModalAlasan.tsx`)
 
-Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain** — termasuk pengembalian pengukuran/rencana aksi, koreksi PK, buka kembali jadwal/pengukuran, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan setelan aplikasi. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q36 §36.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
+Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain** — termasuk pengembalian pengukuran/rencana aksi, koreksi PK, buka kembali jadwal/pengukuran, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan setelan aplikasi. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
 
 ```tsx
 import React, { useState } from 'react';
@@ -680,7 +680,7 @@ Prinsip yang sama berlaku pada tombol **Tambah**, **Edit**, **Ajukan**, **Verifi
 
 `canUpdate` harus berasal dari server. React tidak menghitung sendiri kombinasi role, unit, grant, deny, Penanggung Jawab efektif, jendela waktu, status record, atau F1/F2.
 
-**Review RA (Q36):** verifikasi memakai dialog konfirmasi; pengembalian memakai modal alasan wajib. Capability dan alasan penolakan indikator `arsip`/unit `nonaktif` berasal dari `businessErrors` server yang sama untuk verifikasi, pengembalian, dan pengesahan. Detail/histori tetap dapat dibaca sesuai otorisasi; UI menampilkan alasan aksi tidak tersedia, dan request langsung tetap ditolak backend. Pengiriman notifikasi in-app menunggu ISS-12.02; event setelah commit pada ISS-05.04 bukan bukti notifikasi sudah terkirim.
+**Review RA (Q37):** verifikasi memakai dialog konfirmasi; pengembalian memakai modal alasan wajib. Capability dan alasan penolakan indikator `arsip`/unit `nonaktif` berasal dari `businessErrors` server yang sama untuk verifikasi, pengembalian, dan pengesahan. Detail/histori tetap dapat dibaca sesuai otorisasi; UI menampilkan alasan aksi tidak tersedia, dan request langsung tetap ditolak backend. Pengiriman notifikasi in-app menunggu ISS-12.02; event setelah commit pada ISS-05.04 bukan bukti notifikasi sudah terkirim.
 
 ### UI Assign Peran
 
@@ -749,7 +749,7 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
-- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain memicu modal input alasan dengan validasi backend; `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q36)
+- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain memicu modal input alasan dengan validasi backend; `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
 
 - [ ] **Lima Role Q32**: UI yang menampilkan pilihan/label role hanya mengenal `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`

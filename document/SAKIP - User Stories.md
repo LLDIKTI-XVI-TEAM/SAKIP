@@ -723,20 +723,22 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Prioritas** | 🔴 P0 |
 | **Story Points** | 8 |
 | **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman in-app menunggu ISS-12.02 (Q36). |
+| **Dependensi** | ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman in-app menunggu ISS-12.02 (Q37). |
 | **Otorisasi** | `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`. |
 | **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit. |
-| **Keputusan terkait** | Q36 §36.1–§36.3. |
+| **Keputusan terkait** | Q37 §37.1–§37.3. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** memverifikasi versi RA atau mengembalikannya dengan alasan,  
 > **Sehingga** substansi RA diperiksa tanpa membuka celah self-review jalur PIC.
 
+**Status verifikasi lokal (12 Oktober 2026):** consumer #58 telah diselaraskan dengan producer #57/PR #92; test PostgreSQL membuktikan verifikasi, pengembalian, revisi dan pengajuan versi baru tanpa mengubah snapshot lama, termasuk koreksi satu periode dan F1 setelah perubahan role. Bukti TEST-1–TEST-7 tercatat pada ISS-05.04. Checklist di bawah tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
+
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
 - [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q36:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
 - [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
 - [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
@@ -753,7 +755,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Dependensi** | RA berstatus `diverifikasi`; versi yang direviu adalah versi terbaru dan tidak stale. |
 | **Otorisasi** | `rencana_aksi:sahkan` (sensitif). |
 | **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`. |
-| **Keputusan terkait** | Q36 §36.1. |
+| **Keputusan terkait** | Q37 §37.1. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mengesahkan versi RA yang telah diverifikasi,  

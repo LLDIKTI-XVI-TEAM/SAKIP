@@ -139,14 +139,14 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                 </Card>
                 <Card>
                     <CardHeader><CardTitle>Target per periode pada versi {versi.nomor}</CardTitle></CardHeader>
-                    <Table>
+                    <Table className="table-fixed [&_th]:whitespace-normal [&_th]:break-words [&_td]:break-words">
                         <TableHeader><TableRow><TableHead>Periode</TableHead><TableHead>Target tersimpan</TableHead><TableHead>Komponen</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {rencanaAksi.target_periode.length === 0 ? <TableRow><TableCell colSpan={3} className="py-8 text-center text-muted">Target periode tidak tersedia pada versi ini.</TableCell></TableRow> : rencanaAksi.target_periode.map((periode) => (
                                 <TableRow key={periode.periode_id}>
-                                    <TableCell>{periode.periode_nama || konteksTidakLengkap}</TableCell>
+                                    <TableCell>{periode.periode_nama || konteksTidakLengkap}{periode.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{periode.keterangan}</p>}</TableCell>
                                     <TableCell className="font-mono tabular-nums">{periode.nilai ?? 'Belum tersedia'}{periode.status_perhitungan && <p className="mt-1 font-sans text-xs text-muted">{periode.status_perhitungan.replaceAll('_', ' ')}</p>}</TableCell>
-                                    <TableCell>{periode.komponen.length === 0 ? '—' : <ul className="space-y-1">{periode.komponen.map((komponen) => <li key={komponen.komponen_id}><span>{komponen.kode} · {komponen.label || konteksTidakLengkap}: </span><span className="font-mono tabular-nums">{komponen.nilai ?? 'Belum tersedia'}</span></li>)}</ul>}</TableCell>
+                                    <TableCell>{periode.komponen.length === 0 ? '—' : <ul className="space-y-1">{periode.komponen.map((komponen) => <li key={komponen.komponen_id}><span>{komponen.kode} · {komponen.label || konteksTidakLengkap}: </span><span className="font-mono tabular-nums">{komponen.nilai ?? 'Belum tersedia'}</span>{komponen.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{komponen.keterangan}</p>}</li>)}</ul>}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -154,7 +154,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                 </Card>
                 {rencanaAksi.can.evidence && <Card>
                     <CardHeader><CardTitle>Bukti dukung pada versi {versi.nomor}</CardTitle></CardHeader>
-                    <CardContent>{rencanaAksi.bukti_dukungs.length === 0 ? <p className="text-sm text-muted">Tidak ada bukti dukung pada versi ini.</p> : <ul className="space-y-3">{rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={{ ...bukti, mime: null, ukuran_bytes: null }} />)}</ul>}</CardContent>
+                    <CardContent>{rencanaAksi.bukti_dukungs.length === 0 ? <p className="text-sm text-muted">Tidak ada bukti dukung pada versi ini.</p> : <ul className="space-y-3">{rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={{ ...bukti, mime: null, ukuran_bytes: null }} meta={bukti.mode === 'file' && !bukti.download_url ? 'Berkas ini sudah tidak berlaku pada rencana aksi; unduhan tidak tersedia.' : undefined} />)}</ul>}</CardContent>
                 </Card>}
                 <Card>
                     <CardHeader><CardTitle>Histori pengajuan</CardTitle></CardHeader>

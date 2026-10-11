@@ -18,8 +18,7 @@ class UnduhBuktiVersiRencanaAksi
         $pengajuan = $header->versions()->whereKey($versi)->firstOrFail();
         $beku = collect($pengajuan->snapshot['bukti_dukungs'] ?? [])->first(fn ($row) => is_array($row) && ($row['id'] ?? null) === $bukti && ($row['mode'] ?? null) === 'file');
         abort_unless($beku, 404);
-        // Bukti historis boleh soft-deleted; path berasal dari berkas milik induk, bukan JSON kiriman.
-        $berkas = $header->buktiDukungs()->whereKey($bukti)->where('mode', 'file')->first();
+        $berkas = $header->buktiDukungs()->current()->whereKey($bukti)->where('mode', 'file')->first();
         abort_unless($berkas && is_string($berkas->path) && Storage::disk('local')->exists($berkas->path), 404);
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('local');

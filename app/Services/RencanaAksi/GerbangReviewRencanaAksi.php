@@ -87,7 +87,6 @@ class GerbangReviewRencanaAksi
         }
         $snapshot = $versi?->jadwalSnapshot;
         $beku = $versi?->snapshot ?? [];
-        $target = $beku['target_periode'] ?? null;
         $bentukSah = Validator::make($beku, [
             'indikator.kode' => ['required', 'string'], 'indikator.nama' => ['required', 'string'],
             'unit_kerja.id' => ['required', 'uuid'], 'unit_kerja.nama' => ['required', 'string'],
@@ -109,12 +108,9 @@ class GerbangReviewRencanaAksi
         }
         if (! $jadwal || $jadwal->status !== 'aktif') {
             $errors[] = 'Jadwal tahunan tidak aktif.';
-        } elseif ($indikator && $this->jendela->tahunDitutup($jadwal)) {
-            $periodeIds = $bentukSah ? array_column($target, 'periode_id') : [];
-            if (! $this->jendela->sesiKoreksiAktif($indikator, $jadwal) || $periodeIds === []
-                || array_diff($periodeIds, $this->jendela->periodeLingkupKoreksi($jadwal)) !== []) {
-                $errors[] = 'Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi yang mencakup versi ini.';
-            }
+        } elseif ($indikator && $this->jendela->tahunDitutup($jadwal) && ! $this->jendela->sesiKoreksiAktif($indikator, $jadwal)) {
+            // Lingkup periode dijaga saat simpan; producer membekukan seluruh periode efektif.
+            $errors[] = 'Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi untuk indikator ini.';
         }
         // F1 mengikuti provenance immutable, bukan peran atau PJ berjalan; pengembalian dikecualikan.
         if ($aksi !== 'kembalikan' && $versi?->jalur_pengajuan === 'pic' && $versi->diajukan_by === $actor->id) {
@@ -144,7 +140,7 @@ class GerbangReviewRencanaAksi
     public function catatPenolakan(User $actor, string $id, string $aksi, array $jejak, AuthorizationException|ValidationException $error): void
     {
         $pesan = $error instanceof ValidationException ? implode(' ', array_merge(...array_values($error->errors()))) : $error->getMessage();
-        $this->audit->catat($actor, "rencana_aksi.{$aksi}.ditolak", 'rencana_aksi', $id,
+        $this->audit->catat($actor, "rencana_aksi.{$aksi}_ditolak", 'rencana_aksi', $id,
             $jejak['sebelum'] ?? null, null, mb_substr($pesan, 0, 1000), $jejak['dasar_izin'] ?? null);
     }
 }

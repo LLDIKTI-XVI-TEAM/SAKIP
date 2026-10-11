@@ -89,7 +89,7 @@ class ReviewRencanaAksiTransactionTest extends TestCase
         $this->assertCount(1, array_intersect($hasil, ['diverifikasi', 'dikembalikan']));
         $this->assertSame(2, $this->rencanaAksi->fresh()->versi);
         $this->assertSame(1, AuditLog::whereIn('tindakan', ['rencana_aksi.verifikasi', 'rencana_aksi.kembalikan'])->count());
-        $this->assertSame(1, AuditLog::whereIn('tindakan', ['rencana_aksi.verifikasi.ditolak', 'rencana_aksi.kembalikan.ditolak'])->count());
+        $this->assertSame(1, AuditLog::whereIn('tindakan', ['rencana_aksi.verifikasi_ditolak', 'rencana_aksi.kembalikan_ditolak'])->count());
     }
 
     public function test_deny_yang_commit_saat_menunggu_lock_tetap_menang(): void
@@ -104,7 +104,7 @@ class ReviewRencanaAksiTransactionTest extends TestCase
             fn () => $this->denyPermission($reviewer, 'rencana_aksi:verifikasi', $this->unit->id));
         $this->assertSame(['denied'], $hasil);
         $this->assertSame('diajukan', $this->rencanaAksi->fresh()->status_alur);
-        $this->assertSame('explicit_deny', AuditLog::where('tindakan', 'rencana_aksi.verifikasi.ditolak')->sole()->dasar_izin['alasan']);
+        $this->assertSame('explicit_deny', AuditLog::where('tindakan', 'rencana_aksi.verifikasi_ditolak')->sole()->dasar_izin['alasan']);
     }
 
     /** @param list<array<string, mixed>> $jobs

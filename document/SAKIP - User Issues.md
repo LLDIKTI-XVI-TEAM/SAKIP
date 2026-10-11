@@ -1774,7 +1774,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **Workflow:** §7, §20  
 **Data Model/Entitas:** RA + versi
 
-**Keputusan terkait:** Q36 §36.1–§36.3
+**Keputusan terkait:** Q37 §37.1–§37.3
 
 #### User Story
 
@@ -1784,7 +1784,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Kontrak Teknis
 
-- **Dependensi:** ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman notifikasi in-app menunggu ISS-12.02 (Q36).
+- **Dependensi:** ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman notifikasi in-app menunggu ISS-12.02 (Q37).
 - **Otorisasi:** `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`.
 - **Dampak Data:** `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit.
 
@@ -1792,7 +1792,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
 - [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q36:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
 - [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
 - [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
@@ -1822,20 +1822,22 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 - [ ] Verifikasi memakai dialog konfirmasi tanpa input alasan; pengembalian memakai **Modal Alasan Audit** dengan validasi backend. Detail/histori tetap dapat dibaca sesuai otorisasi dan alasan guard yang menolak ditampilkan dari server.
 
+**Status verifikasi lokal (12 Oktober 2026):** consumer diselaraskan dengan producer #57/PR #92. `ReviewRencanaAksiTest`, `RencanaAksiProducerReviewTest`, dan `ReviewRencanaAksiTransactionTest` membuktikan TEST-1–TEST-7 serta regresi di bawah pada PostgreSQL disposable; frontend Rencana Aksi lulus. Alur koreksi parsial mempertahankan batas periode saat simpan dan membentuk versi pengajuan baru. Checklist Acceptance Criteria tetap untuk QA/UAT; verifikasi otomatis ini bukan persetujuan stakeholder, merge atau deployment.
+
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] TEST-3: Uji pengembalian beralasan, audit, dan penerima PJ efektif saat pengembalian (termasuk PJ berubah setelah pengajuan); event hanya dipancarkan setelah commit dan tidak pada rollback. Pengaju historis tetap utuh. Pengiriman in-app diuji pada ISS-12.02, bukan diklaim lulus dari event saja.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, When submit, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
-- [ ] TEST-6: Uji penolakan verifikasi/pengembalian pada indikator arsip/unit nonaktif, audit penolakan, dan tidak berubahnya status/payload; baca detail/histori serta alasan UI tetap sesuai otorisasi.
-- [ ] TEST-7: Uji verifikasi tanpa alasan pengguna memakai alasan baku server dan `dasar_izin`; pengembalian tanpa alasan/beralasan tidak valid tetap ditolak.
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
+- [x] TEST-3: Uji pengembalian beralasan, audit, dan penerima PJ efektif saat pengembalian (termasuk PJ berubah setelah pengajuan); event hanya dipancarkan setelah commit dan tidak pada rollback. Pengaju historis tetap utuh. Pengiriman in-app diuji pada ISS-12.02, bukan diklaim lulus dari event saja.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, When submit, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [x] TEST-6: Uji penolakan verifikasi/pengembalian pada indikator arsip/unit nonaktif, audit penolakan, dan tidak berubahnya status/payload; baca detail/histori serta alasan UI tetap sesuai otorisasi.
+- [x] TEST-7: Uji verifikasi tanpa alasan pengguna memakai alasan baku server dan `dasar_izin`; pengembalian tanpa alasan/beralasan tidak valid tetap ditolak.
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test dalam cakupan issue ini lulus; AC-3 membuktikan penerima/event setelah commit, sedangkan pengiriman in-app menunggu ISS-12.02 sesuai Q36.
+- [ ] Semua Acceptance Criteria dan test dalam cakupan issue ini lulus; AC-3 membuktikan penerima/event setelah commit, sedangkan pengiriman in-app menunggu ISS-12.02 sesuai Q37.
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
@@ -1853,7 +1855,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **Workflow:** §7, §20  
 **Data Model/Entitas:** RA + versi
 
-**Keputusan terkait:** Q36 §36.1
+**Keputusan terkait:** Q37 §37.1
 
 #### User Story
 
