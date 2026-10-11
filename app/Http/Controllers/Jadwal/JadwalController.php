@@ -6,7 +6,6 @@ use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\Jadwal\ListJadwal;
 use App\Actions\Jadwal\ReadJadwalActivation;
 use App\Actions\Jadwal\SaveJadwalDraft;
-use App\Actions\Jadwal\SearchJadwalOptions;
 use App\Actions\Jadwal\ShowJadwalEditor;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
@@ -34,11 +33,6 @@ class JadwalController extends Controller
     public function show(Request $request, string $jadwal, ShowJadwalEditor $action): Response
     {
         return Inertia::render('Jadwal/Editor', $action->handle($request->user(), (new JadwalTahunan)->forceFill(['id' => $jadwal])));
-    }
-
-    public function options(Request $request, string $jenis, SearchJadwalOptions $action): JsonResponse
-    {
-        return response()->json($action->handle($request->user(), $jenis, $request->query()));
     }
 
     public function readiness(Request $request, string $jadwal, ReadJadwalActivation $action): JsonResponse
