@@ -121,6 +121,14 @@ describe('pengajuan rencana aksi di halaman Show', () => {
         expect(screen.getByText('Target periode Triwulan II belum lengkap.')).toBeTruthy();
     });
 
+    it('isi lengkap tanpa can.submit tidak mengklaim siap diajukan', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ can: { view: true, update: true, submit: false } })} />);
+
+        expect(screen.getByText('Isi sudah lengkap. Pengajuan belum tersedia untuk akun Anda saat ini.')).toBeTruthy();
+        expect(screen.queryByText('Semua syarat pengajuan terpenuhi.')).toBeNull();
+        expect(screen.queryByRole('button', { name: TOMBOL_AJUKAN })).toBeNull();
+    });
+
     it('menampilkan alasan dan menonaktifkan tombol saat belum siap', () => {
         render(<RencanaAksiShow rencanaAksi={buatPayload({ pengajuan: { siap: false, alasan: ['Target periode Triwulan II belum lengkap.'] } })} />);
 

@@ -109,6 +109,31 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
         $this->assertCanSubmit(false, $fixture['pic'], $header);
     }
 
+    public function test_jepit_usang_menjadi_alasan_yang_dapat_ditindaklanjuti_sampai_target_disimpan_ulang(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $v2 = $this->terbitkanSnapshotKoreksi($fixture);
+
+        // Isi lengkap, tetapi gerbang menolak sampai target disimpan di konteks v2.
+        $this->tampil($fixture['pic'], $header)->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.can.submit', false)
+            ->where('rencanaAksi.pengajuan.siap', false)
+            ->where('rencanaAksi.pengajuan.alasan', ['Konteks indikator berubah (snapshot koreksi baru terbit). Simpan target sebelum mengajukan.']));
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 2,
+            'expected_snapshot_id' => $v2->id,
+            'expected_snapshot_versi' => 2,
+            'targets' => [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)],
+        ])->assertSessionHasNoErrors();
+
+        $this->tampil($fixture['pic'], $header)->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.can.submit', true)
+            ->where('rencanaAksi.pengajuan.siap', true)
+            ->where('rencanaAksi.pengajuan.alasan', []));
+    }
+
     public function test_penyebut_nol_menjadi_alasan_tolak(): void
     {
         $fixture = $this->buatFixtureRasio();

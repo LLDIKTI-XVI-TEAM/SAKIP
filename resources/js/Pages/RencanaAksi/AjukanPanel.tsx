@@ -75,8 +75,11 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
                     <CardTitle>Kesiapan pengajuan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
+                    {/* Isi lengkap tanpa eligibility (izin/jendela) tidak boleh terbaca "siap" tanpa tombol. */}
                     {pengajuan.siap ? (
-                        <p className="text-muted">Semua syarat pengajuan terpenuhi.</p>
+                        <p className="text-muted">
+                            {canSubmit ? 'Semua syarat pengajuan terpenuhi.' : 'Isi sudah lengkap. Pengajuan belum tersedia untuk akun Anda saat ini.'}
+                        </p>
                     ) : (
                         <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-warning-dark">
                             <p className="font-semibold">Pengajuan belum dapat dilakukan</p>

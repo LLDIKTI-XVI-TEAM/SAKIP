@@ -122,6 +122,12 @@ class IndexRencanaAksi
             $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
             $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
+            // Jepit draf tertinggal dari snapshot koreksi terbaru: gerbang
+            // pengajuan menolak 409 sampai target disimpan di konteks baru, jadi
+            // halaman menunjukkan tindakannya alih-alih "siap" tanpa tombol.
+            if ((string) $segel->snapshot_draf_id !== (string) $snapshot->id) {
+                array_unshift($alasanPengajuan, 'Konteks indikator berubah (snapshot koreksi baru terbit). Simpan target sebelum mengajukan.');
+            }
 
             $periode = $this->susunPeriode($tipe, $definisi, $jendela, $efektifIds, $baris, collect($barisBeku)->keyBy('periode_id'));
             $koreksi = $this->statusKoreksi($jadwal, $indikator);
