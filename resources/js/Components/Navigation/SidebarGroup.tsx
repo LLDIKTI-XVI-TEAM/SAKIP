@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import { Link } from '@inertiajs/react';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import type { SidebarNavGroup } from '@/lib/navigation/sidebarNavigation';
 
 export interface SidebarGroupProps {
@@ -27,6 +28,7 @@ export function SidebarGroup({
             <button
                 type="button"
                 id={buttonId}
+                title={group.label}
                 aria-expanded={isExpanded}
                 aria-controls={panelId}
                 onClick={onToggle}
@@ -36,14 +38,14 @@ export function SidebarGroup({
                         : 'text-white/80 hover:bg-surface/10 hover:text-white'
                 }`}
             >
-                <div className="flex min-w-0 items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     <Icon
                         aria-hidden="true"
                         className={`h-[18px] w-[18px] shrink-0 transition-colors ${
                             hasActiveChild ? 'text-white' : 'text-white/75 group-hover/btn:text-white'
                         }`}
                     />
-                    <span className="truncate">{group.label}</span>
+                    <HoverScrollText>{group.label}</HoverScrollText>
                 </div>
                 <ChevronRight
                     aria-hidden="true"
@@ -84,7 +86,7 @@ export function SidebarGroup({
                                     isActive ? 'text-white' : 'text-white/60 group-hover/child:text-white'
                                 }`}
                             />
-                            <span className="truncate">{child.label}</span>
+                            <HoverScrollText>{child.label}</HoverScrollText>
                         </Link>
                     );
                 })}

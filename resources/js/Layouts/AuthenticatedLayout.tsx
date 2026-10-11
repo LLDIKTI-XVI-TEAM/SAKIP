@@ -1,4 +1,5 @@
 import { UserProfileDropdown } from '@/Components/Auth/UserProfileDropdown';
+import { HoverScrollText } from '@/Components/HoverScrollText';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
@@ -227,9 +228,9 @@ export function AuthenticatedLayout({
                         )}
                         <div className="min-w-0 flex-1">
                             <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
-                            <p className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight truncate">
+                            <HoverScrollText className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight">
                                 {instansiNama}
-                            </p>
+                            </HoverScrollText>
                         </div>
                     </div>
                     <button
