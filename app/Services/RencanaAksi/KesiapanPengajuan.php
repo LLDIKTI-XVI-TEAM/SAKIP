@@ -17,12 +17,12 @@ use InvalidArgumentException;
  * daftar alasan tolak (target belum lengkap/tidak dapat dihitung, deviasi PK
  * tanpa alasan, bukti wajib belum terpenuhi).
  *
- * Dipisah karena dipakai dua caller dengan mode berbeda: `IndexRencanaAksi`
- * menampilkan kesiapan tanpa kunci, sedangkan `AjukanRencanaAksi`
- * mengevaluasi ulang di bawah kunci tepat sebelum membekukan versi. Dengan
- * satu sumber, alasan yang tampil di halaman sama dengan alasan penolakan
- * server, dan skor yang tampil (`IndexRencanaAksi`, `PreviewTargetPeriode`
- * lewat `skor`) sama dengan skor yang dibekukan. Service ini tidak membuka
+ * Dipisah karena dipakai tiga caller: `IndexRencanaAksi` menampilkan
+ * kesiapan tanpa kunci, `AjukanRencanaAksi` mengevaluasi ulang di bawah kunci
+ * tepat sebelum membekukan versi, dan `PreviewTargetPeriode` memakai
+ * `petaTarget` serta `skor` untuk pratinjau. Dengan satu sumber, alasan yang
+ * tampil di halaman sama dengan alasan penolakan server, dan skor yang tampil
+ * sama dengan skor yang dibekukan. Service ini tidak membuka
  * transaksi, tidak mengunci, tidak mengaudit, dan tidak membaca database:
  * semua state (definisi snapshot, jendela, target, hasil evaluator bukti)
  * diberikan caller, yang menentukan mode kunci.
