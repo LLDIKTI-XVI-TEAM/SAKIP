@@ -36,8 +36,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         $jenis = $this->buatPersyaratanWajib($fixture);
-        $header = $this->buatDraf($fixture);
-        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)]);
+        $header = $this->drafManual($fixture);
 
         $this->tampil($fixture['pic'], $header)->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.pengajuan.siap', false)
@@ -57,15 +56,13 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
     public function test_deviasi_tanpa_alasan_menjadi_alasan_tolak_dan_target_pk_null_tidak(): void
     {
         $fixture = $this->buatFixtureManual();
-        $header = $this->buatDraf($fixture);
-        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 90)]);
+        $header = $this->drafManual($fixture, 100, 90);
 
         $this->tampil($fixture['pic'], $header)->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.pengajuan.alasan', [self::ALASAN_DEVIASI]));
 
         $tanpaPk = $this->buatFixtureManual(targetPk: null);
-        $headerTanpaPk = $this->buatDraf($tanpaPk);
-        $this->simpan($tanpaPk, $headerTanpaPk, 1, [$this->manual($tanpaPk['periode1'], 100), $this->manual($tanpaPk['periode2'], 90)]);
+        $headerTanpaPk = $this->drafManual($tanpaPk, 100, 90);
 
         $this->tampil($tanpaPk['pic'], $headerTanpaPk)->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.deviasi_pk.dapat_dinilai', false)
@@ -76,8 +73,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
     public function test_deviasi_props_memakai_half_up_dua_sisi(): void
     {
         $fixture = $this->buatFixtureManual(targetPk: '76.255');
-        $header = $this->buatDraf($fixture);
-        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], '76.26'), $this->manual($fixture['periode2'], '76.26')]);
+        $header = $this->drafManual($fixture, '76.26', '76.26');
 
         $this->tampil($fixture['pic'], $header)->assertInertia(fn ($page) => $page
             ->where('rencanaAksi.deviasi_pk.ada', false)
