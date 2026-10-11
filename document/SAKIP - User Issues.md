@@ -1709,7 +1709,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan).
 - **Dampak Data:** `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
 
-> **Status implementasi — PR #57:** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiAjukanTest`, `RencanaAksiKesiapanPengajuanTest`, `RencanaAksiVersiBekuTest`, `tests/Unit/RencanaAksi/DeviasiTargetPkTest`, serta race dua koneksi `tests/Integration/Concurrency/MutationConcurrencyTest`) dan test frontend `tests/Frontend/RencanaAksiAjukan.test.tsx`; SHA dan CI exact-HEAD dicatat pada PR, bukan persetujuan UAT/deployment. AC-7/TEST-7 diubah oleh keputusan PM L3 (10 Oktober 2026): ISS-05.03 tidak membuat notifikasi, inbox, atau antrean; antrean berbasis status milik ISS-05.04/ISS-05.05 dan item notifikasi in-app milik ISS-12.02 AC-2. Klaim kegiatan belum dibekukan pada versi karena belum ada writer klaim rencana aksi. Provenance saat PJ berganti terbukti melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`; bagian REGRESSION tentang F1 diverifikasi bersama ISS-05.04/ISS-05.05. Kontrak `rencana_aksi_versi` dan isi `snapshot` ada di Data Model §2.34.
+> **Status implementasi — PR #92 (ISS-05.03):** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiAjukanTest`, `RencanaAksiKesiapanPengajuanTest`, `RencanaAksiVersiBekuTest`, `tests/Unit/RencanaAksi/DeviasiTargetPkTest`, serta race dua koneksi `tests/Integration/Concurrency/MutationConcurrencyTest`) dan test frontend `tests/Frontend/RencanaAksiAjukan.test.tsx`; SHA dan CI exact-HEAD dicatat pada PR, bukan persetujuan UAT/deployment. AC-7/TEST-7 diubah oleh keputusan PM L3 (10 Oktober 2026): ISS-05.03 tidak membuat notifikasi, inbox, atau antrean; antrean berbasis status milik ISS-05.04/ISS-05.05 dan item notifikasi in-app milik ISS-12.02 AC-2. Klaim kegiatan belum dibekukan pada versi karena belum ada writer klaim rencana aksi. Provenance saat PJ berganti terbukti melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`; bagian REGRESSION tentang F1 diverifikasi bersama ISS-05.04/ISS-05.05. Kontrak `rencana_aksi_versi` dan isi `snapshot` ada di Data Model §2.34.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -1717,7 +1717,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
 - [x] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
 - [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
+- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
 - [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 
@@ -1730,7 +1730,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 **B. Backend / Domain**
 - [x] Submit RA harus berjalan atomik, memvalidasi target/bukti/deviasi PK/waktu/scope/PIC, lalu membuat `rencana_aksi_versi` baru.
-- [x] Bekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi, dan konteks snapshot.
+- [x] Bekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi, dan konteks snapshot. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] `created_by` hanya pembuat draft; jangan gunakan untuk F1/F2.
 
 **C. Authorization & Audit**
@@ -1749,7 +1749,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
 - [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 - [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.

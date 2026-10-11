@@ -1533,7 +1533,7 @@ Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada s
 |---|---|---|
 | `indikator` | object | `{kode, nama}`; `nama` dari snapshot beku, `kode` dari master |
 | `unit_kerja` | object | `{id, nama}` unit header |
-| `pic` | object\|null | `{id, nama}` PJ efektif hari ini; null pada jalur Perencanaan tanpa PJ |
+| `pic` | object\|null | `{id, nama}` PJ efektif pada tanggal submit (zona Asia/Makassar), sama dengan `dasar_izin_pengajuan.pic_id`; null pada jalur Perencanaan tanpa PJ |
 | `uraian` | string\|null | `rencana_aksi.uraian` |
 | `alasan_deviasi_pk` | string\|null | `rencana_aksi.alasan_deviasi_pk` saat submit |
 | `deviasi_pk` | object | `{status, skor, target_pk, presisi}`: skor periode efektif terakhir dibandingkan target PK beku setelah keduanya dibulatkan HALF_UP pada presisi snapshot; `status` ∈ `setara`, `deviasi`, `tidak_dapat_dinilai` (target PK atau skor null); `skor`/`target_pk` adalah angka hasil pembulatan |

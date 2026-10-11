@@ -711,7 +711,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
 - [x] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
 - [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
+- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
 - [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 
