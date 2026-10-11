@@ -15,7 +15,7 @@ vi.mock('@inertiajs/react', async (original) => ({
     usePage: () => ({ props: { auth: { can: { periode: true, jadwal: true } } } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
 }));
 
 const jadwal: JadwalDetail = {
@@ -55,7 +55,26 @@ const jadwal: JadwalDetail = {
         },
     ],
 };
-const props: JadwalEditorProps = { jadwal, can: { create: true, update: true, activate: false }, read_only_reason: null };
+const periodeOptions = [
+    { id: 'periode-1', nama: 'Triwulan I', urutan: 1, aktif: true, is_nilai_akhir: false, revisi: 2 },
+    { id: 'periode-2', nama: 'Triwulan II', urutan: 2, aktif: true, is_nilai_akhir: false, revisi: 3 },
+    { id: 'periode-3', nama: 'Triwulan III', urutan: 3, aktif: true, is_nilai_akhir: false, revisi: 6 },
+    { id: 'periode-4', nama: 'Triwulan IV', urutan: 4, aktif: true, is_nilai_akhir: true, revisi: 7 },
+];
+const props: JadwalEditorProps = {
+    jadwal,
+    can: { create: true, update: true, activate: false },
+    read_only_reason: null,
+    renstra_options: [jadwal.renstra],
+    periode_options: periodeOptions,
+};
+const createProps: JadwalEditorProps = {
+    jadwal: null,
+    can: { create: true, update: false, activate: false },
+    read_only_reason: null,
+    renstra_options: [jadwal.renstra],
+    periode_options: periodeOptions,
+};
 const page = (flash: Page['flash'] = {}): Page => ({
     component: 'Jadwal/Editor',
     props: { errors: {}, jadwal },
@@ -94,7 +113,8 @@ afterEach(() => {
 
 it('menampilkan seluruh jendela dalam desain A dan label Review yang disetujui', () => {
     render(<Editor {...props} />);
-    expect(screen.getByRole('columnheader', { name: 'Jendela Review' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Review' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Target selesai' })).toBeTruthy();
     for (const item of jadwal.periode) {
         expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Mulai Review`).value).toBe(item.reviu_mulai);
         expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Target Selesai Review`).value).toBe(
@@ -165,7 +185,7 @@ it('penghapusan hubungan periode menjaga fokus pada baris berikutnya dan lalu to
     await user.click(screen.getByRole('button', { name: 'Hapus Triwulan I dari draft' }));
     expect(document.activeElement).toBe(screen.getByLabelText('Triwulan IV: Mulai pengisian'));
     await user.click(screen.getByRole('button', { name: 'Hapus Triwulan IV dari draft' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tambah periode' }));
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Tambah periode' }));
 });
 
 it('menonaktifkan input dan aksi selama penyimpanan berjalan', async () => {
@@ -205,7 +225,7 @@ it('menonaktifkan input dan aksi selama penyimpanan berjalan', async () => {
         vi.mocked(router.put).mock.calls[0][2]?.onStart?.(visit);
     });
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').disabled).toBe(true);
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah periode' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' }).disabled).toBe(true);
     expect(router.put).toHaveBeenCalledTimes(1);
 });
@@ -229,12 +249,19 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
             jadwal={{ ...jadwal, renstra: { ...jadwal.renstra, status } }}
             can={{ create: true, update: false, activate: false }}
             read_only_reason={`Renstra ${status}.`}
+            renstra_options={[]}
         />,
     );
     expect(screen.getByText('Kalender hanya dapat dibaca')).toBeTruthy();
+    const renstra = screen.getByLabelText<HTMLSelectElement>(/^Renstra/);
+    expect(renstra.value).toBe('renstra-1');
+    expect(renstra.disabled).toBe(true);
+    expect(screen.getByRole('option', { name: /^Renstra pengujian · (Nonaktif|Diarsipkan)$/ })).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review').disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tambah periode' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Tambah periode' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe('/jadwal');
+    expect(screen.queryByRole('link', { name: 'Batal' })).toBeNull();
 });
 
 it('hasil jaringan unknown mempertahankan input dan memberi pemeriksaan otoritatif tanpa replay', async () => {
@@ -286,92 +313,52 @@ it('403 respons akhir tanpa bukti penolakan sebelum mutasi mempertahankan draft 
     expect(router.get).not.toHaveBeenCalled();
 });
 
-it('pilihan periode dipaginasi, dipilih lewat keyboard, dan fokus kembali ke pemicu', async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    data: [
-                        {
-                            id: 'periode-2',
-                            nama: 'Triwulan II',
-                            urutan: 2,
-                            aktif: true,
-                            is_nilai_akhir: false,
-                            revisi: 3,
-                        },
-                    ],
-                    has_more: true,
-                }),
-            ),
-        )
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    data: [
-                        {
-                            id: 'periode-3',
-                            nama: 'Triwulan III',
-                            urutan: 3,
-                            aktif: true,
-                            is_nilai_akhir: false,
-                            revisi: 6,
-                        },
-                    ],
-                    has_more: false,
-                }),
-            ),
-        );
+it('tambah periode lewat dropdown tanpa request, hanya periode yang belum dipilih, dan membawa revisi', () => {
+    const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
     render(<Editor {...props} />);
-    const trigger = screen.getByRole('button', { name: 'Tambah periode' });
-    await user.click(trigger);
-    await screen.findByRole('button', { name: /Triwulan II/ });
-    await user.click(screen.getByRole('button', { name: 'Berikutnya' }));
-    const option = await screen.findByRole('button', { name: /Triwulan III/ });
-    option.focus();
-    await user.keyboard('{Enter}');
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    const tambah = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' });
+    const pilihan = () => Array.from(tambah.options).map((option) => option.textContent);
+    expect(pilihan()).toEqual(['+ Tambah periode', 'Triwulan II', 'Triwulan III']);
+    fireEvent.change(tambah, { target: { value: 'periode-3' } });
+    expect(tambah.value).toBe('');
+    expect(pilihan()).toEqual(['+ Tambah periode', 'Triwulan II']);
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan III: Mulai Review').value).toBe('');
-    expect(fetchMock.mock.calls[1][0]).toBe('/jadwal/opsi/periode?q=&page=2');
+    expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Simpan draft' }));
     expect(vi.mocked(router.put).mock.calls[0][1]).toHaveProperty('periode.1.periode_revisi', 6);
 });
 
-it('kegagalan lookup dapat ditutup dengan keyboard tanpa menghapus draft', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 403 })));
-    render(<Editor {...props} />);
-    await user.click(screen.getByRole('button', { name: 'Tambah periode' }));
-    await screen.findByText('Pilihan belum dapat dimuat. Coba lagi.');
-    await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').value).toBe('2026-04-08');
+it('dropdown tambah periode menandai nilai akhir dan nonaktif bila semua periode sudah dipilih', () => {
+    const { unmount } = render(<Editor {...createProps} />);
+    expect(screen.getByRole('option', { name: 'Triwulan IV · Periode nilai akhir' })).toBeTruthy();
+    unmount();
+    render(<Editor {...props} periode_options={[periodeOptions[0], periodeOptions[3]]} />);
+    const tambah = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Tambah periode' });
+    expect(tambah.disabled).toBe(true);
+    expect(tambah.options[0].textContent).toBe('Semua periode sudah dipilih');
 });
 
 it('mode create aman dirender server tanpa hardcode tahun atau tanggal', () => {
-    const html = renderToString(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
+    const html = renderToString(<Editor {...createProps} />);
     expect(html).toContain('Informasi tahunan');
-    render(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
+    render(<Editor {...createProps} />);
+    expect(screen.queryByText('Draft')).toBeNull();
     expect(screen.getByLabelText<HTMLInputElement>(/^Tahun/).value).toBe('');
     expect(screen.getByLabelText<HTMLInputElement>(/^Penutupan/).value).toBe('');
     expect(screen.getByText(/Belum ada periode dipilih/)).toBeTruthy();
 });
 
-it('pilihan Renstra pada create memperbarui identitas tanpa mengisi tanggal atau membuat jadwal otomatis', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-        'fetch',
-        vi
-            .fn<typeof fetch>()
-            .mockResolvedValue(new Response(JSON.stringify({ data: [jadwal.renstra], has_more: false }))),
-    );
-    render(<Editor jadwal={null} can={{ create: true, update: false, activate: false }} read_only_reason={null} />);
-    await user.click(screen.getByRole('button', { name: 'Pilih Renstra' }));
-    await user.click(await screen.findByRole('button', { name: /Renstra pengujian/ }));
+it('pilihan Renstra pada create memperbarui identitas tanpa mengisi tanggal atau membuat jadwal otomatis', () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Editor {...createProps} />);
+    const renstra = screen.getByLabelText<HTMLSelectElement>(/^Renstra/);
+    expect(renstra.value).toBe('');
+    expect(screen.getByRole('option', { name: 'Renstra pengujian · Aktif' })).toBeTruthy();
+    fireEvent.change(renstra, { target: { value: 'renstra-1' } });
+    expect(screen.getByText('Rentang Renstra 2025–2029')).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText(/^Tahun/), { target: { value: '2028' } });
     expect(screen.getByRole('link', { name: 'Periksa jadwal Renstra dan tahun ini' }).getAttribute('href')).toBe(
         '/jadwal?renstra_id=renstra-1&tahun=2028',
@@ -404,7 +391,7 @@ it('pasangan Renstra dan tahun existing ditautkan ke kalender tanpa menawarkan c
         />,
     );
     expect(screen.getByText('Jadwal tahun ini sudah tersedia')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Edit jadwal' }).getAttribute('href')).toBe('/jadwal/jadwal-1');
+    expect(screen.getByRole('link', { name: 'Edit jadwal Renstra pengujian 2026' }).getAttribute('href')).toBe('/jadwal/jadwal-1');
     expect(screen.queryByRole('link', { name: 'Susun jadwal' })).toBeNull();
 });
 

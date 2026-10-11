@@ -43,8 +43,6 @@ class JadwalActivationReadinessTest extends TestCase
             ->where('can.update', false)->where('can.activate', true)->where('can.create', false));
         $this->readiness()->assertOk()->assertJsonPath('allowed', true);
         $this->get('/jadwal/create')->assertForbidden();
-        $this->getJson('/jadwal/opsi/renstra')->assertForbidden();
-        $this->getJson('/jadwal/opsi/periode')->assertForbidden();
         $this->put('/jadwal/'.$this->ready['jadwal']->id, [])->assertForbidden();
     }
 
@@ -52,9 +50,9 @@ class JadwalActivationReadinessTest extends TestCase
     {
         $this->readyJadwal();
         $editor = $this->activator(['jadwal:update']);
-        $this->actingAs($editor)->get('/jadwal/'.$this->ready['jadwal']->id)->assertInertia(fn (Assert $page) => $page->where('can.activate', false)->where('can.update', true));
+        $this->actingAs($editor)->get('/jadwal/'.$this->ready['jadwal']->id)->assertInertia(fn (Assert $page) => $page->where('can.activate', false)->where('can.update', true)
+            ->where('periode_options', fn ($options): bool => collect($options)->isNotEmpty()));
         $this->readiness()->assertForbidden();
-        $this->getJson('/jadwal/opsi/renstra')->assertOk();
     }
 
     public function test_missing_permission_or_deny_is_forbidden_before_lookup(): void

@@ -83,7 +83,10 @@ it('menampilkan empat gerbang, jumlah agregat, dan periode lampau dari server', 
         expect(el.className).toContain('text-success-dark');
     }
     expect(screen.getByText(/Triwulan I sudah lewat/)).toBeTruthy();
-    expect(screen.getByText(/snapshot baru/).closest('p')?.textContent).toContain('12 indikator12 snapshot baru9 komponen');
+    expect(screen.getByText(/Aktivasi mengunci target dan formula/).textContent).toBe(
+        'Aktivasi mengunci target dan formula 12 indikator.',
+    );
+    expect(screen.queryByText(/snapshot/)).toBeNull();
     expect(fetch).toHaveBeenCalledWith('/jadwal/jadwal-1/kesiapan-aktivasi', expect.objectContaining({ headers: { Accept: 'application/json' } }));
 });
 

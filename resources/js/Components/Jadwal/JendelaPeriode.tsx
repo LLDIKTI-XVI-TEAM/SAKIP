@@ -1,10 +1,10 @@
-import { Info, Plus, Trash2 } from 'lucide-react';
+import { Info, Trash2 } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
-import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
-import { Table } from '@/Components/Table';
-import type { JadwalPeriode } from '@/types/periode-jadwal';
+import { Select } from '@/Components/Select';
+import { Table, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import type { JadwalPeriode, PeriodeOption } from '@/types/periode-jadwal';
 
 const windowFields = [
     { key: 'pengisian_mulai', label: 'Mulai pengisian' },
@@ -18,7 +18,9 @@ interface JendelaPeriodeProps {
     errors: Record<string, string | undefined>;
     editable: boolean;
     disabled: boolean;
-    onAdd: () => void;
+    /** Periode aktif yang belum dipilih. */
+    options: PeriodeOption[];
+    onAdd: (periodeId: string) => void;
     onRemove: (periodeId: string) => void;
     onChange: (periodeId: string, field: (typeof windowFields)[number]['key'], value: string) => void;
 }
@@ -28,6 +30,7 @@ export function JendelaPeriode({
     errors,
     editable,
     disabled,
+    options,
     onAdd,
     onRemove,
     onChange,
@@ -35,58 +38,53 @@ export function JendelaPeriode({
     return (
         <Card>
             <CardHeader>
-                <div>
-                    <h2 className="font-semibold">Jendela periode</h2>
-                    <p className="mt-1 text-xs text-muted">
-                        Periksa pengisian dan review seluruh periode dalam satu tampilan.
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <Badge>{periode.length} periode</Badge>
-                    {editable && (
-                        <Button
+                <h2 className="font-semibold">Jendela periode</h2>
+                {editable && (
+                    <div className="w-full sm:w-60">
+                        {/* Nilai selalu kosong: memilih langsung menambah baris lalu dropdown kembali ke placeholder. */}
+                        <Select
                             id="tambah-periode"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={disabled}
-                            onClick={onAdd}
+                            aria-label="Tambah periode"
+                            value=""
+                            disabled={disabled || options.length === 0}
+                            onChange={(event) => onAdd(event.target.value)}
                         >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            Tambah periode
-                        </Button>
-                    )}
-                </div>
+                            <option value="" disabled>
+                                {options.length > 0 ? '+ Tambah periode' : 'Semua periode sudah dipilih'}
+                            </option>
+                            {options.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.nama}
+                                    {option.is_nilai_akhir ? ' · Periode nilai akhir' : ''}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
+                )}
             </CardHeader>
             <Table className="block w-full text-left text-sm lg:table lg:table-fixed">
                 <caption className="sr-only">Jendela pengisian dan review setiap periode</caption>
-                <thead className="hidden text-xs text-muted lg:table-header-group">
-                    <tr className="bg-soft">
-                        <th scope="col" rowSpan={2} className="w-[19%] px-5 py-3 font-medium">
+                <TableHeader className="hidden lg:table-header-group">
+                    <TableRow>
+                        <TableHead rowSpan={2} className="w-[19%] whitespace-normal px-5">
                             Periode
-                        </th>
-                        <th scope="colgroup" colSpan={2} className="px-3 py-3 font-medium">
+                        </TableHead>
+                        <TableHead scope="colgroup" colSpan={2} className="whitespace-normal px-3">
                             Pengisian
-                        </th>
-                        <th scope="colgroup" colSpan={2} className="px-3 py-3 font-medium">
-                            Jendela Review
-                        </th>
-                    </tr>
-                    <tr className="border-b border-border">
-                        <th scope="col" className="px-3 py-2 font-medium">
-                            Mulai
-                        </th>
-                        <th scope="col" className="px-3 py-2 font-medium">
-                            Selesai
-                        </th>
-                        <th scope="col" className="px-3 py-2 font-medium">
-                            Mulai Review
-                        </th>
-                        <th scope="col" className="px-3 py-2 font-medium">
-                            Target Selesai Review
-                        </th>
-                    </tr>
-                </thead>
+                        </TableHead>
+                        <TableHead scope="colgroup" colSpan={2} className="whitespace-normal px-3">
+                            Review
+                        </TableHead>
+                    </TableRow>
+                    <TableRow>
+                        {/* Label input per sel tetap lengkap ("Mulai Review") untuk pembaca layar dan tampilan HP. */}
+                        {['Mulai', 'Selesai', 'Mulai', 'Target selesai'].map((label, index) => (
+                            <TableHead key={index} className="h-auto whitespace-normal px-3 py-2">
+                                {label}
+                            </TableHead>
+                        ))}
+                    </TableRow>
+                </TableHeader>
                 <tbody className="block divide-y divide-border lg:table-row-group">
                     {periode.length === 0 && (
                         <tr className="block lg:table-row">

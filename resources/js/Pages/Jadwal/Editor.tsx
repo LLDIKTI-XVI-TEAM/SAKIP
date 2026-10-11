@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Check } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -9,15 +9,10 @@ import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
-import { OptionPicker } from '@/Components/Jadwal/OptionPicker';
+import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type {
-    JadwalEditorProps,
-    JadwalPeriode,
-    JadwalPeriodeInput,
-    JadwalRenstraOption,
-    PeriodeOption,
-} from '@/types/periode-jadwal';
+import { statusJadwal } from '@/lib/jadwal';
+import type { JadwalEditorProps, JadwalPeriode, JadwalPeriodeInput } from '@/types/periode-jadwal';
 
 interface JadwalForm {
     renstra_id: string;
@@ -31,12 +26,15 @@ interface JadwalForm {
 
 const linkClass =
     'rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30';
+// Padding rapat hanya di HP agar tanggal muat di setengah lebar kartu.
+const dateClass = 'min-w-0 px-2 text-xs sm:px-3.5 sm:text-sm';
+const kapital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 export default function Editor(props: JadwalEditorProps) {
     return <JadwalEditor key={props.jadwal?.id ?? 'create'} {...props} />;
 }
 
-function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
+function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_options }: JadwalEditorProps) {
     const form = useForm<JadwalForm>({
         renstra_id: jadwal?.renstra_id ?? '',
         tahun: jadwal ? String(jadwal.tahun) : '',
@@ -46,8 +44,15 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
         ...(jadwal ? { revisi: jadwal.revisi } : {}),
         periode: jadwal?.periode ?? [],
     });
-    const [renstra, setRenstra] = useState(jadwal?.renstra ?? null);
-    const [picker, setPicker] = useState<'renstra' | 'periode' | null>(null);
+    // Renstra milik jadwal tetap tampil walau bukan pilihan lagi (kalender hanya dapat dibaca).
+    const renstraOptions =
+        jadwal && !renstra_options.some((option) => option.id === jadwal.renstra.id)
+            ? [jadwal.renstra, ...renstra_options]
+            : renstra_options;
+    const renstra = renstraOptions.find((option) => option.id === form.data.renstra_id) ?? null;
+    const pilihanPeriode = periode_options.filter(
+        (option) => !form.data.periode.some((item) => item.periode_id === option.id),
+    );
     const [failure, setFailure] = useState('');
     const recovery = useAuthRecovery();
     const submitting = useRef(false);
@@ -56,7 +61,7 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
     const editable = !read_only_reason && (jadwal ? can.update : can.create);
     const blocked = Boolean(failure || recovery.recovery);
     const disabled = !editable || form.processing || blocked;
-    const title = jadwal ? `Jadwal tahunan ${jadwal.tahun}` : 'Susun jadwal tahunan';
+    const title = jadwal ? `Jadwal Tahunan ${jadwal.tahun}` : 'Susun Jadwal Tahunan';
     const authoritativeUrl = jadwal
         ? `/jadwal/${jadwal.id}`
         : `/jadwal?${new URLSearchParams({ renstra_id: form.data.renstra_id, tahun: form.data.tahun })}`;
@@ -133,7 +138,9 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
         });
     };
 
-    const addPeriode = (option: PeriodeOption) => {
+    const addPeriode = (periodeId: string) => {
+        const option = periode_options.find((item) => item.id === periodeId);
+        if (!option) return;
         form.clearErrors();
         form.setData((data) => ({
             ...data,
@@ -153,7 +160,6 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                 },
             ].sort((a, b) => a.urutan - b.urutan || a.periode_id.localeCompare(b.periode_id)),
         }));
-        setPicker(null);
     };
     const removePeriode = (id: string) => {
         const index = form.data.periode.findIndex((item) => item.periode_id === id);
@@ -172,7 +178,12 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
             ]}
         >
             <Head title={title} />
-            <p className="mb-5 text-sm text-muted">Tetapkan kalender pengisian dan review untuk tahun pelaporan.</p>
+            <div className="mb-5">
+                <Link href="/jadwal" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali ke daftar
+                </Link>
+            </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {failure && !recovery.recovery && (
                 <div
@@ -201,19 +212,6 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                     </p>
                 </div>
             )}
-            {jadwal && can.activate && (
-                <div className="mb-5">
-                    <ActivationPanel
-                        jadwalId={jadwal.id}
-                        tahun={jadwal.tahun}
-                        // Revisi kalender yang benar-benar tampil; props bisa lebih baru saat state dipertahankan sesudah POST gagal.
-                        revisi={form.data.revisi ?? jadwal.revisi}
-                        status={jadwal.status}
-                        dirtyCalendar={form.isDirty}
-                        periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
-                    />
-                </div>
-            )}
             <form onSubmit={submit} noValidate className="space-y-5">
                 {form.hasErrors && (
                     <div
@@ -235,52 +233,37 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                 )}
                 <Card>
                     <CardHeader>
-                        <div>
-                            <h2 className="font-semibold">Informasi tahunan</h2>
-                            <p className="mt-1 text-xs text-muted">
-                                Kalender resmi untuk satu Renstra dan tahun pelaporan.
-                            </p>
-                        </div>
-                        <Badge variant={jadwal?.status === 'aktif' ? 'success' : 'muted'}>
-                            {jadwal?.status === 'aktif' ? 'Aktif' : jadwal?.status === 'ditutup' ? 'Ditutup' : 'Draft'}
-                        </Badge>
+                        <h2 className="font-semibold">Informasi tahunan</h2>
+                        {jadwal && (
+                            <Badge variant={statusJadwal[jadwal.status].variant}>
+                                {statusJadwal[jadwal.status].label}
+                            </Badge>
+                        )}
                     </CardHeader>
                     <CardContent className="p-4 sm:p-6">
-                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(90px,.4fr)_minmax(0,1fr)]">
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
                             <div className="col-span-2 min-w-0 lg:col-span-1">
-                                <label htmlFor="pilih-renstra" className="mb-1.5 block text-sm font-medium">
-                                    Renstra{' '}
-                                    <span className="text-danger" aria-hidden="true">
-                                        *
-                                    </span>
-                                </label>
-                                <button
+                                <Select
                                     id="pilih-renstra"
-                                    type="button"
-                                    aria-label={
-                                        renstra ? `Renstra: ${renstra.nama} · ${renstra.status}` : 'Pilih Renstra'
+                                    label="Renstra"
+                                    required
+                                    value={form.data.renstra_id}
+                                    error={errors.renstra_id}
+                                    helperText={
+                                        renstra ? `Rentang Renstra ${renstra.tahun_mulai}–${renstra.tahun_selesai}` : undefined
                                     }
                                     disabled={disabled}
-                                    onClick={() => setPicker('renstra')}
-                                    aria-invalid={Boolean(errors.renstra_id)}
-                                    aria-describedby={
-                                        errors.renstra_id ? 'renstra-error' : renstra ? 'renstra-context' : undefined
-                                    }
-                                    className="min-h-[42px] w-full rounded-lg border border-border bg-surface px-3.5 py-2 text-left text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:bg-soft"
+                                    onChange={(event) => form.setData('renstra_id', event.target.value)}
                                 >
-                                    {renstra ? `${renstra.nama} · ${renstra.status}` : 'Pilih Renstra'}
-                                </button>
-                                {errors.renstra_id ? (
-                                    <p id="renstra-error" className="mt-1 text-xs text-danger">
-                                        {errors.renstra_id}
-                                    </p>
-                                ) : (
-                                    renstra && (
-                                        <p id="renstra-context" className="mt-1 text-xs text-muted">
-                                            Rentang Renstra {renstra.tahun_mulai}–{renstra.tahun_selesai}
-                                        </p>
-                                    )
-                                )}
+                                    <option value="" disabled>
+                                        Pilih Renstra
+                                    </option>
+                                    {renstraOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.nama} · {kapital(option.status)}
+                                        </option>
+                                    ))}
+                                </Select>
                                 {!jadwal && renstra && form.data.tahun && (
                                     <Link
                                         href={authoritativeUrl}
@@ -296,30 +279,21 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                                 type="number"
                                 required
                                 autoComplete="off"
+                                placeholder="Contoh: 2026"
                                 value={form.data.tahun}
                                 onChange={(event) => form.setData('tahun', event.target.value)}
                                 error={errors.tahun}
                                 disabled={disabled}
                             />
-                            <Input
-                                name="penutupan"
-                                label="Penutupan"
-                                type="date"
-                                required
-                                className="min-w-0 px-2 text-xs sm:text-sm"
-                                value={form.data.penutupan}
-                                onChange={(event) => form.setData('penutupan', event.target.value)}
-                                error={errors.penutupan}
-                                disabled={disabled}
-                            />
                         </div>
-                        <div className="mt-5 grid grid-cols-2 items-end gap-4 border-t border-border pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+                        {/* Urut waktu: Rencana Aksi lebih dulu, penutupan paling akhir. */}
+                        <div className="mt-5 grid grid-cols-2 items-end gap-4 border-t border-border pt-5 lg:grid-cols-3">
                             <Input
                                 name="rencana_aksi_mulai"
                                 label="Rencana Aksi mulai"
                                 type="date"
                                 required
-                                className="min-w-0 px-2 text-xs sm:text-sm"
+                                className={dateClass}
                                 value={form.data.rencana_aksi_mulai}
                                 onChange={(event) => form.setData('rencana_aksi_mulai', event.target.value)}
                                 error={errors.rencana_aksi_mulai}
@@ -330,18 +304,27 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                                 label="Rencana Aksi selesai"
                                 type="date"
                                 required
-                                className="min-w-0 px-2 text-xs sm:text-sm"
+                                className={dateClass}
                                 value={form.data.rencana_aksi_selesai}
                                 onChange={(event) => form.setData('rencana_aksi_selesai', event.target.value)}
                                 error={errors.rencana_aksi_selesai}
                                 disabled={disabled}
                             />
-                            <p className="col-span-2 text-xs leading-relaxed text-muted lg:col-span-1">
-                                <strong className="font-medium text-ink">Lengkapi kalender sebelum menyimpan.</strong>
-                                <br />
-                                RA selesai sebelum pengisian pertama. Penutupan setelah seluruh jendela.
-                            </p>
+                            <Input
+                                name="penutupan"
+                                label="Penutupan"
+                                type="date"
+                                required
+                                className={dateClass}
+                                value={form.data.penutupan}
+                                onChange={(event) => form.setData('penutupan', event.target.value)}
+                                error={errors.penutupan}
+                                disabled={disabled}
+                            />
                         </div>
+                        <p className="mt-3 text-xs leading-relaxed text-muted">
+                            Rencana Aksi selesai sebelum pengisian pertama; penutupan setelah seluruh jendela.
+                        </p>
                     </CardContent>
                 </Card>
                 <JendelaPeriode
@@ -349,7 +332,8 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                     errors={errors}
                     editable={editable}
                     disabled={disabled}
-                    onAdd={() => setPicker('periode')}
+                    options={pilihanPeriode}
+                    onAdd={addPeriode}
                     onRemove={removePeriode}
                     onChange={(periodeId, field, value) =>
                         form.setData((data) => ({
@@ -360,43 +344,34 @@ function JadwalEditor({ jadwal, can, read_only_reason }: JadwalEditorProps) {
                         }))
                     }
                 />
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-muted">Seluruh periode yang dipilih harus lengkap.</p>
+                {editable && (
                     <div className="flex items-center justify-end gap-3">
-                        <Link href="/jadwal" className={linkClass}>
-                            Kembali
+                        <Link
+                            href="/jadwal"
+                            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                            Batal
                         </Link>
-                        {editable && (
-                            <Button type="submit" disabled={disabled} isLoading={form.processing}>
-                                <Check className="h-4 w-4" aria-hidden="true" />
-                                Simpan draft
-                            </Button>
-                        )}
+                        <Button type="submit" disabled={disabled} isLoading={form.processing}>
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                            Simpan draft
+                        </Button>
                     </div>
-                </div>
+                )}
             </form>
-            {picker === 'renstra' && (
-                <OptionPicker<JadwalRenstraOption>
-                    kind="renstra"
-                    onClose={() => setPicker(null)}
-                    describe={(option) => `${option.tahun_mulai}–${option.tahun_selesai} · ${option.status}`}
-                    onSelect={(option) => {
-                        setRenstra(option);
-                        form.setData('renstra_id', option.id);
-                        setPicker(null);
-                    }}
-                />
-            )}
-            {picker === 'periode' && (
-                <OptionPicker<PeriodeOption>
-                    kind="periode"
-                    onClose={() => setPicker(null)}
-                    describe={(option) =>
-                        `Urutan ${option.urutan}${option.is_nilai_akhir ? ' · Nilai akhir, diisi manual' : ''}`
-                    }
-                    selectedIds={form.data.periode.map((item) => item.periode_id)}
-                    onSelect={addPeriode}
-                />
+            {/* Aktivasi langkah terakhir: setelah kalender diisi dan disimpan. */}
+            {jadwal && can.activate && (
+                <div className="mt-5">
+                    <ActivationPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        // Revisi kalender yang benar-benar tampil; props bisa lebih baru saat state dipertahankan sesudah POST gagal.
+                        revisi={form.data.revisi ?? jadwal.revisi}
+                        status={jadwal.status}
+                        dirtyCalendar={form.isDirty}
+                        periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
+                    />
+                </div>
             )}
         </AuthenticatedLayout>
     );
