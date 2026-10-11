@@ -13,6 +13,8 @@ import type { DashboardStats, ProgresPeriode } from '@/types/dashboard';
 const INK = '#0F172A';
 const MUTED = '#64748B';
 const BORDER = '#E2E8F0';
+// Tabel data ringkas di dalam kartu grafik: header huruf biasa agar tujuh kolom muat tanpa scroll di desktop.
+const dataHead = 'px-3 normal-case tracking-normal';
 
 const reduceMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -126,28 +128,28 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
                                 <caption className="sr-only">Progres pengukuran per periode Jadwal Tahunan {tahun}</caption>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Periode</TableHead>
+                                        <TableHead className={dataHead}>Periode</TableHead>
                                         {STATUS_ALUR.map((status) => (
-                                            <TableHead key={status.key} className="text-right">
+                                            <TableHead key={status.key} className={`${dataHead} text-right`}>
                                                 <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} aria-hidden="true" />
                                                 {status.label}
                                             </TableHead>
                                         ))}
-                                        <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className={`${dataHead} text-right`}>Total</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {progres.map((item) => (
                                         <TableRow key={item.periode_id}>
-                                            <TableHead scope="row" className="font-medium normal-case tracking-normal">
+                                            <TableHead scope="row" className="px-3 font-medium normal-case tracking-normal">
                                                 {item.nama}
                                             </TableHead>
                                             {STATUS_ALUR.map((status) => (
-                                                <TableCell key={status.key} className="text-right tabular-nums">
+                                                <TableCell key={status.key} className="px-3 text-right tabular-nums">
                                                     {item[status.key]}
                                                 </TableCell>
                                             ))}
-                                            <TableCell className="text-right font-semibold tabular-nums">{item.total}</TableCell>
+                                            <TableCell className="px-3 text-right font-semibold tabular-nums">{item.total}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
