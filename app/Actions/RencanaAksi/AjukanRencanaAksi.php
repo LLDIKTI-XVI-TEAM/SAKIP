@@ -117,12 +117,15 @@ class AjukanRencanaAksi
                     throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang dan simpan target sebelum mengajukan.'])->status(409);
                 }
 
-                // PJ efektif dibaca sekali setelah indikator dikunci (writer PJ ikut
-                // mengunci indikator), lalu dipakai gerbang jendela dan provenance:
-                // tunggu kunci berikutnya yang melewati tengah malam tidak boleh
-                // membekukan PJ hari lain. Boleh null pada jalur Perencanaan;
-                // pergantian PJ, peran, atau grant setelahnya tidak menulis ulang versi.
-                $penugasan = PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
+                // Titik keputusan pengajuan: satu waktu untuk PJ efektif dan
+                // `diajukan_at` (Data Model §2.34: PJ pada tanggal submit), diambil
+                // sebelum tunggu kunci berikutnya yang dapat melewati tengah malam.
+                // PJ dibaca sekali setelah indikator dikunci (writer PJ ikut mengunci
+                // indikator) dan dipakai gerbang jendela serta provenance. Boleh null
+                // pada jalur Perencanaan; pergantian PJ, peran, atau grant setelahnya
+                // tidak menulis ulang versi.
+                $waktuAjukan = now();
+                $penugasan = PenugasanIndikator::effectiveOn($waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $indikator->id)
                     ->first();
                 $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id);
@@ -162,7 +165,7 @@ class AjukanRencanaAksi
                     'jadwal_snapshot_id' => $snapshot->id,
                     'nomor' => (int) RencanaAksiVersi::where('rencana_aksi_id', $header->id)->max('nomor') + 1,
                     'diajukan_by' => $pengunci->id,
-                    'diajukan_at' => now(),
+                    'diajukan_at' => $waktuAjukan,
                     'jalur_pengajuan' => $this->jendela->jalurPerencanaan($keputusan) ? 'perencanaan' : 'pic',
                     'dasar_izin_pengajuan' => [
                         ...$keputusan->toAuditBasis(),

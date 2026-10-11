@@ -252,6 +252,8 @@ class RencanaAksiAjukanTest extends TestCase
         $versi = RencanaAksiVersi::sole();
         $this->assertSame($fixture['pic']->id, $versi->dasar_izin_pengajuan['pic_id']);
         $this->assertSame($fixture['pic']->id, $versi->snapshot['pic']['id']);
+        // Data Model §2.34: `pic_id` = PJ efektif pada tanggal submit, jadi `diajukan_at` berada di tanggal WITA yang sama.
+        $this->assertSame('2026-03-10', $versi->diajukan_at->setTimezone('Asia/Makassar')->toDateString());
     }
 
     public function test_pic_di_luar_jendela_tanpa_pj_tanpa_grant_atau_deny_ditolak(): void
