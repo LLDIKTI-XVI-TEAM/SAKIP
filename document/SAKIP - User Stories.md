@@ -794,6 +794,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-06.01 · Pencatatan Rencana Kegiatan Unit
 
+**Status implementasi (2026-10-11):** Diimplementasikan dan diverifikasi lokal. Checklist mencerminkan automated test dan smoke browser, bukan penerimaan UAT. CI GitHub untuk perubahan ini, merge, UAT, dan deployment belum dilakukan.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-06.01` |
@@ -810,10 +812,10 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 ### US-06.02 · Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
 

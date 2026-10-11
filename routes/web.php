@@ -18,6 +18,7 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\Kegiatan\KegiatanController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
@@ -167,6 +168,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
     Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
 
+    // Rencana kegiatan unit.
+    Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
+    Route::get('/kegiatan/buat', [KegiatanController::class, 'create'])->name('kegiatan.create');
+    Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
+    Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
+    Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');

@@ -28,6 +28,7 @@ class HandleInertiaRequests extends Middleware
                     'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status, 'role' => $user->status === 'aktif' ? $user->roles()->value('kode') : null] : null,
                     'can' => [
                         'dashboard' => $can['dashboard'],
+                        'kegiatan' => $can['kegiatan'],
                         'pengukuran' => $can['pengukuran'],
                         'verifikasi' => $can['verifikasi'],
                         'aktivasi' => $can['aktivasi'],
@@ -70,6 +71,7 @@ class HandleInertiaRequests extends Middleware
     {
         $defaultCapabilities = [
             'dashboard' => false,
+            'kegiatan' => false,
             'pengukuran' => false,
             'verifikasi' => false,
             'aktivasi' => false,
@@ -116,7 +118,7 @@ class HandleInertiaRequests extends Middleware
         // Satu keputusan batch untuk seluruh izin langsung; capability berbasis
         // Policy tetap memakai Policy masing-masing.
         $izin = app(PermissionResolver::class)->decideMany($user, [
-            'dashboard:read', 'pengukuran:read', 'pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan',
+            'kegiatan:read', 'dashboard:read', 'pengukuran:read', 'pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan',
             'pengguna:read', 'akses:update', 'unit:read', 'delegasi:update',
             'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
             'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
@@ -131,6 +133,7 @@ class HandleInertiaRequests extends Middleware
 
         $computed = [
             'dashboard' => $boleh('dashboard:read'),
+            'kegiatan' => $boleh('kegiatan:read'),
             'pengukuran' => $boleh('pengukuran:read'),
             'verifikasi' => $boleh('pengukuran:read')
                 && ($boleh('pengukuran:verifikasi')

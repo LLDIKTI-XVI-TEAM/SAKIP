@@ -1982,6 +1982,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 ### ISS-06.01 · [Feature] Pencatatan Rencana Kegiatan Unit
 
+**Status implementasi (2026-10-11):** Diimplementasikan dan diverifikasi lokal. Checklist mencerminkan automated test dan smoke browser, bukan penerimaan UAT. CI GitHub untuk perubahan ini, merge, UAT, dan deployment belum dilakukan.
+
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -2005,44 +2007,44 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut.
+- [x] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama, tujuan, sasaran peserta, lokasi, dan tanggal valid, When disimpan, Then kegiatan terbentuk dengan status `rencana`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.02 · [Feature] Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
 
