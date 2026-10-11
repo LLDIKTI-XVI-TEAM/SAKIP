@@ -5,6 +5,7 @@ import 'apexcharts/features/legend';
 import type { ApexOptions } from 'apexcharts';
 import { BarChart3, PieChart } from 'lucide-react';
 import { Card } from '@/Components/Card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { STATUS_ALUR, persenDisahkan } from '@/Components/Dashboard/statusAlur';
 import type { DashboardStats, ProgresPeriode } from '@/types/dashboard';
 
@@ -46,7 +47,7 @@ interface DashboardChartsProps {
 /**
  * Grafik dashboard: progres status per periode jadwal (batang bertumpuk) dan komposisi status periode berjalan (donat).
  * Dimuat terpisah (React.lazy) agar pustaka grafik tidak membebani halaman lain. Grafik disembunyikan dari pembaca layar;
- * datanya tersedia sebagai tabel tersembunyi dan kartu ringkasan.
+ * datanya tersedia sebagai tabel yang dapat dibuka di bawah grafik progres dan pada kartu ringkasan.
  */
 export default function DashboardCharts({ stats, progres, periodeNama, tahun }: DashboardChartsProps) {
     const progresKosong = progres.every((item) => item.total === 0);
@@ -116,32 +117,42 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
                                 series={STATUS_ALUR.map((status) => ({ name: status.label, data: progres.map((item) => item[status.key]) }))}
                             />
                         </div>
-                        {/* Tabel tidak dapat menyusut ke 1px; pembungkus sr-only yang memotongnya agar tidak memicu scroll horizontal. */}
-                        <div className="sr-only">
-                            <table>
-                                <caption>Progres pengukuran per periode Jadwal Tahunan {tahun}</caption>
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Periode</th>
+                        {/* Alternatif grafik yang terlihat dan dapat dibuka dengan keyboard; tidak bergantung pada warna. */}
+                        <details className="border-t border-border">
+                            <summary className="cursor-pointer px-5 py-3 text-xs font-semibold text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30">
+                                Lihat data dalam tabel
+                            </summary>
+                            <Table>
+                                <caption className="sr-only">Progres pengukuran per periode Jadwal Tahunan {tahun}</caption>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Periode</TableHead>
                                         {STATUS_ALUR.map((status) => (
-                                            <th key={status.key} scope="col">{status.label}</th>
+                                            <TableHead key={status.key} className="text-right">
+                                                <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} aria-hidden="true" />
+                                                {status.label}
+                                            </TableHead>
                                         ))}
-                                        <th scope="col">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                                        <TableHead className="text-right">Total</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {progres.map((item) => (
-                                        <tr key={item.periode_id}>
-                                            <th scope="row">{item.nama}</th>
+                                        <TableRow key={item.periode_id}>
+                                            <TableHead scope="row" className="font-medium normal-case tracking-normal">
+                                                {item.nama}
+                                            </TableHead>
                                             {STATUS_ALUR.map((status) => (
-                                                <td key={status.key}>{item[status.key]}</td>
+                                                <TableCell key={status.key} className="text-right tabular-nums">
+                                                    {item[status.key]}
+                                                </TableCell>
                                             ))}
-                                            <td>{item.total}</td>
-                                        </tr>
+                                            <TableCell className="text-right font-semibold tabular-nums">{item.total}</TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                </TableBody>
+                            </Table>
+                        </details>
                     </>
                 )}
             </Card>

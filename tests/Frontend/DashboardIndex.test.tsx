@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import Index from '@/Pages/Dashboard/Index';
 import type { DashboardProps } from '@/types/dashboard';
@@ -69,6 +69,10 @@ it('menampilkan ringkasan, grafik, dan pengukuran terbaru tanpa header dan kartu
     const bar = await screen.findByTestId('chart-bar');
     expect(JSON.parse(bar.dataset.series ?? '[]')).toContainEqual({ name: 'Disahkan', data: [3, 199] });
     expect(JSON.parse(screen.getByTestId('chart-donut').dataset.series ?? '[]')).toEqual([0, 0, 1, 0, 199]);
+    // Data grafik tersedia sebagai tabel yang terlihat setelah dibuka, tanpa bergantung pada warna atau pointer.
+    const toggle = screen.getByText('Lihat data dalam tabel');
+    fireEvent.click(toggle);
+    expect(toggle.closest('details')?.open).toBe(true);
     const progres = screen.getByRole('table', { name: /Progres pengukuran per periode/ });
     expect(within(progres).getByRole('row', { name: /Triwulan II 0 0 1 0 199 200/ })).toBeTruthy();
 
