@@ -15,8 +15,8 @@ use Carbon\CarbonInterface;
  * sampai `rencana_aksi_selesai` pada tanggal Asia/Makassar.
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
- * `SimpanTargetPeriode`) dan capability baca (`IndexRencanaAksi`,
- * `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
+ * `SimpanTargetPeriode`, `AjukanRencanaAksi`) dan capability baca
+ * (`IndexRencanaAksi`, `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
  * menawarkan aksi yang pasti ditolak. Service ini hanya menilai; izin dasar
  * (`PermissionDecision`) diputuskan pemanggil lewat resolver, sedangkan
  * transaksi, kunci baris, pelemparan error, dan audit tetap milik Action.
@@ -25,25 +25,35 @@ use Carbon\CarbonInterface;
  * karena writer PJ juga mengunci indikator, yang sudah dikunci pemanggil
  * tulis. `DaftarRencanaAksi` meneruskan PIC efektif yang sudah di-join dari
  * scope `PenugasanIndikator::effectiveOn` yang sama agar tidak membaca ulang
- * penugasan per baris.
+ * penugasan per baris; `AjukanRencanaAksi` meneruskan PJ yang dibacanya
+ * setelah mengunci indikator agar gerbang dan provenance memakai PJ yang sama.
  */
 class JendelaTulisRencanaAksi
 {
     /**
      * Alasan penolakan tulis dalam Bahasa Indonesia, atau null bila boleh.
      *
-     * @param  'pembuatan'|'penyimpanan'  $tindakan
+     * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
+     *                                    Pengajuan selalu kosong karena menyentuh seluruh RA;
+     *                                    periode sudah dijaga lingkup koreksi saat simpan.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
-     *                                  null berarti dibaca di sini. Hanya capability baca
-     *                                  (`DaftarRencanaAksi`) yang boleh mengisinya; gerbang
-     *                                  tulis wajib membiarkannya null agar PIC dibaca
-     *                                  setelah indikator dikunci, bukan dipercaya dari pemanggil.
+     *                                  null berarti dibaca di sini. Capability baca
+     *                                  (`DaftarRencanaAksi`) mengisinya dari join. Gerbang
+     *                                  tulis hanya boleh mengisinya dengan PJ yang dibacanya
+     *                                  sendiri setelah indikator dikunci (`AjukanRencanaAksi`,
+     *                                  agar provenance memakai PJ yang sama), tidak pernah
+     *                                  dari input klien.
+     * @param  CarbonInterface|null  $pada  Waktu keputusan; null berarti sekarang. Pengajuan
+     *                                      meneruskan waktu yang juga dibekukan sebagai
+     *                                      `diajukan_at` agar jendela, penutupan, sesi koreksi,
+     *                                      dan PJ dinilai pada satu waktu.
      */
-    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null): ?string
+    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): ?string
     {
-        if ($this->tahunDitutup($jadwal) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds)) {
+        $pada ??= now();
+        if ($this->tahunDitutup($jadwal, $pada) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)) {
             return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
         }
 
@@ -51,7 +61,7 @@ class JendelaTulisRencanaAksi
             return null;
         }
 
-        $hariIni = today(config('app.business_timezone'))->toDateString();
+        $hariIni = $this->tanggalBisnis($pada);
         $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
         if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
             return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
@@ -67,25 +77,26 @@ class JendelaTulisRencanaAksi
     }
 
     /**
-     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis hari ini.
+     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis `$pada`
+     * (default sekarang).
      */
-    public function tahunDitutup(JadwalTahunan $jadwal): bool
+    public function tahunDitutup(JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
         $penutupan = $jadwal->penutupan?->toDateString();
 
-        return is_string($penutupan) && today(config('app.business_timezone'))->toDateString() > $penutupan;
+        return is_string($penutupan) && $this->tanggalBisnis($pada ?? now()) > $penutupan;
     }
 
     /**
-     * Sesi koreksi sah bila jendela waktunya berjalan, `jenis_objek` memuat
-     * `rencana_aksi`, dan indikator tercakup.
+     * Sesi koreksi sah bila jendela waktunya berjalan pada `$pada` (default
+     * sekarang), `jenis_objek` memuat `rencana_aksi`, dan indikator tercakup.
      */
-    public function sesiKoreksiAktif(IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    public function sesiKoreksiAktif(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
         if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
             return false;
         }
-        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
+        if (! ($pada ?? now())->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
             return false;
         }
         $lingkup = $jadwal->lingkup_koreksi ?? [];
@@ -111,9 +122,10 @@ class JendelaTulisRencanaAksi
     /**
      * Jalur global bila allow berasal dari peran, bukan hanya grant unit
      * (Data Model §2.23; ADR-0002). Allow yang hanya dari grant adalah jalur
-     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela.
+     * PIC ber-scope unit yang tunduk pada PJ efektif dan jendela. Publik agar
+     * pengajuan membekukan `jalur_pengajuan` dari aturan yang sama.
      */
-    private function jalurPerencanaan(PermissionDecision $keputusan): bool
+    public function jalurPerencanaan(PermissionDecision $keputusan): bool
     {
         return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
     }
@@ -125,9 +137,14 @@ class JendelaTulisRencanaAksi
      *
      * @param  list<string>  $periodeIds
      */
-    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds): bool
+    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds, CarbonInterface $pada): bool
     {
-        return $this->sesiKoreksiAktif($indikator, $jadwal)
+        return $this->sesiKoreksiAktif($indikator, $jadwal, $pada)
             && array_diff($periodeIds, $this->periodeLingkupKoreksi($jadwal)) === [];
+    }
+
+    private function tanggalBisnis(CarbonInterface $pada): string
+    {
+        return $pada->copy()->setTimezone(config('app.business_timezone'))->toDateString();
     }
 }

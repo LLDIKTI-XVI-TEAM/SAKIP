@@ -1121,7 +1121,9 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 **Status alur:** mengikuti pola pengukuran — `draft → diajukan → diverifikasi → disahkan`, dengan `dikembalikan` (alasan wajib) sebagai jalur revisi. Permission `rencana_aksi:buka_kembali` (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) menangani transisi `disahkan → dikembalikan`, sepenuhnya paralel dengan `pengukuran:buka_kembali` (§2.20).
 
-**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`) **ditolak** bila ada `indikator_komponen` aktif yang belum memiliki `rencana_aksi_target` pada salah satu periode yang diharapkan menurut `jadwal_periode` — ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
+**Versi pengajuan beku:** setiap pengajuan tersimpan sebagai baris `rencana_aksi_versi` (§2.34) berisi provenance beku dan snapshot isi pengajuan; yang disahkan pada transisi akhir adalah snapshot versi tersebut, bukan header.
+
+**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`, atau `dikembalikan → diajukan` sebagai revisi langsung tanpa kembali ke `draft`) **ditolak** bila ada periode efektif yang targetnya belum berstatus `terhitung`. Periode efektif adalah periode `jadwal_periode` mulai `periode_mulai_id` pada `jadwal_snapshot` terbaru (§2.17). Status `belum_diisi` (nonmanual: ada komponen `jadwal_snapshot_komponen` yang belum bernilai; manual: nilai belum diisi) dan `tidak_dapat_dihitung` (mis. penyebut nol) sama-sama menolak; angka `0` sah. Ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
 
 **Pemisahan tugas pada jalur verifikasi/pengesahan:** aturan yang sama seperti pengukuran (§2.20) berlaku di sini — bila rencana aksi diajukan lewat jalur PIC ber-scope unit, aktor pengaju tidak boleh melanjutkan sendiri transisi verifikasi/pengesahannya. Rinciannya di §4.
 
@@ -1500,6 +1502,46 @@ diisi.
 perubahan pada baris `renstra`/`indikator` yang bersangkutan (lihat §2.32).
 
 ---
+
+### 2.34 `rencana_aksi_versi`
+
+Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada sebuah rencana aksi, menyimpan provenance beku (siapa mengajukan, lewat jalur apa, dengan dasar izin apa) beserta `snapshot` isi pengajuan saat itu. Transisi `diverifikasi → disahkan` mengesahkan **snapshot versi ini**, bukan header; `rencana_aksi.disahkan_at`/`disahkan_by` hanya ringkasan status terkini.
+
+> **Kepemilikan kontrak:** ISS-05.03 (final) adalah pemilik dan satu-satunya pembentuk versi, lewat `POST /rencana-aksi/{id}/ajukan`; ISS-05.04 (verifikasi) dan ISS-05.05 (pengesahan) adalah konsumen. Konfirmasi pemilik tercatat di [PR #66 · issuecomment-6084316378](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/66#issuecomment-6084316378). Perubahan bentuk `snapshot` wajib dicatat di Data Model lebih dahulu dan diselaraskan dengan produsen maupun konsumennya.
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `rencana_aksi_id` | uuid | FK → rencana_aksi.id, not null | |
+| `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id, not null | Snapshot terbaru yang dipakai saat pengajuan, sama dengan `rencana_aksi.snapshot_draf_id`. Karena `jadwal_snapshot` beku sejak terbit (Q35), target PK, baseline, nama/satuan/arah/tipe/presisi, periode mulai, dan definisi komponen (kode/label/peran/bobot) ikut beku lewat relasi ini |
+| `nomor` | int | not null | Nomor urut pengajuan (nomor terbesar + 1 di bawah kunci header); `unique(rencana_aksi_id, nomor)`; versi terbaru = `nomor` terbesar |
+| `diajukan_by` | uuid | FK → users.id, not null | Pengaju; dasar keras F1/F2 (§4) — bukan `rencana_aksi.created_by` |
+| `diajukan_at` | timestamp | not null | Waktu pengajuan; sekaligus kunci urutan antrean pengesahan |
+| `jalur_pengajuan` | enum(`pic`,`perencanaan`) | not null | `perencanaan` bila allow `rencana_aksi:ajukan` berasal dari peran (termasuk Superadmin), selain itu `pic`; dibekukan saat submit |
+| `dasar_izin_pengajuan` | jsonb | not null | Dasar keputusan izin saat submit — bentuk di bawah |
+| `disahkan_by` | uuid | FK → users.id, nullable | Diisi sekali saat pengesahan |
+| `disahkan_at` | timestamp | nullable | Diisi sekali saat pengesahan |
+| `snapshot` | jsonb | not null | Isi pengajuan beku — kontrak di bawah |
+
+**Sifat beku:** `UPDATE`/`DELETE` baris versi ditolak trigger basis data `rencana_aksi_versi_immutable` (fungsi `reject_submission_version_mutation`) dan `TRUNCATE` ditolak `rencana_aksi_versi_no_truncate`; satu-satunya pengecualian adalah pengisian sekali `disahkan_by` + `disahkan_at` dari `NULL` saat pengesahan. Perbaikan pengajuan dilakukan dengan membuat versi baru — bukan menimpa snapshot lama. Perubahan peran, grant, atau penanggung jawab setelah submit tidak menulis ulang provenance versi.
+
+**Bentuk `dasar_izin_pengajuan`:** keputusan resolver `rencana_aksi:ajukan` pada unit header saat submit (`permission`, `keputusan`, `sumber_allow`, `deny`, dan kunci basis resolver lainnya), ditambah `unit_id` (unit header), `penugasan_id`, dan `pic_id` (penugasan penanggung jawab efektif pada tanggal submit, zona Asia/Makassar; boleh `null` pada jalur Perencanaan).
+
+**Kontrak isi `snapshot` (jsonb):** semua nilai desimal berupa string dan UUID berhuruf kecil.
+
+| Key | Tipe | Isi |
+|---|---|---|
+| `indikator` | object | `{kode, nama}`; `nama` dari snapshot beku, `kode` dari master |
+| `unit_kerja` | object | `{id, nama}` unit header |
+| `pic` | object\|null | `{id, nama}` PJ efektif pada tanggal submit (zona Asia/Makassar), sama dengan `dasar_izin_pengajuan.pic_id`; null pada jalur Perencanaan tanpa PJ |
+| `uraian` | string\|null | `rencana_aksi.uraian` |
+| `alasan_deviasi_pk` | string\|null | `rencana_aksi.alasan_deviasi_pk` saat submit |
+| `deviasi_pk` | object | `{status, skor, target_pk, presisi}`: skor periode efektif terakhir dibandingkan target PK beku setelah keduanya dibulatkan HALF_UP pada presisi snapshot; `status` ∈ `setara`, `deviasi`, `tidak_dapat_dinilai` (target PK atau skor null); `skor`/`target_pk` adalah angka hasil pembulatan |
+| `target_periode` | array | Hanya periode efektif, urut `periode_urutan`: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, keterangan, komponen[]}`. `nilai` = keluaran mesin hitung sehingga pembaca yang menghitung ulang memperoleh angka sama; `status_perhitungan` = `terhitung` pada versi yang berhasil. Manual: `komponen = []`, `keterangan` = keterangan sel manual. Nonmanual: `keterangan = null` di baris, `komponen[] = {komponen_id, kode, label, nilai, keterangan}` seluruh komponen snapshot |
+| `persyaratan_bukti` | array | Keluaran evaluator bukti bersama tahap `rencana_aksi` apa adanya (definisi persyaratan + `pemenuhan`), dibekukan saat submit (Q24) |
+| `bukti_dukungs` | array | Bukti berlaku saat submit: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`; `path` privat hanya dipakai server untuk unduhan beku, tidak pernah dikirim ke props |
+
+Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti hanya melayani bukti yang masih berlaku pada induknya; karena bukti tidak dapat diubah sejak induk diajukan (Q36), bukti versi yang sedang direviu dan versi resmi terakhir selalu termasuk di dalamnya. Akses bukti versi resmi lama setelah buka-kembali menjadi bagian ISS-05.06.
 
 ---
 

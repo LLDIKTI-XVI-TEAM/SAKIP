@@ -105,7 +105,9 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             periode_id: PERIODE_2,
         },
         koreksi: { aktif: false, periode_ids: [] },
-        can: { view: true, update: true },
+        pengajuan: { siap: true, alasan: [] },
+        versi_pengajuan: null,
+        can: { view: true, update: true, submit: false },
         ...overrides,
     };
 }

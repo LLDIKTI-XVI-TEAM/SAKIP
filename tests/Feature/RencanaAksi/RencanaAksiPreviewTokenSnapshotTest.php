@@ -93,7 +93,7 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
             'expected_snapshot_id' => $v2->id,
             'expected_snapshot_versi' => 2,
             'targets' => $payloadUsang['targets'],
-        ])->assertOk()->assertJsonPath('deviasi_pk.target_pk', '150.000000000000');
+        ])->assertOk()->assertJsonPath('deviasi_pk.target_pk', '150.00');
 
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertSame(0, RencanaAksiTarget::where('rencana_aksi_id', $header->id)->count());
