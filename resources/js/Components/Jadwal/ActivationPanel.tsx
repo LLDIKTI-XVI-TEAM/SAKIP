@@ -199,13 +199,8 @@ export function ActivationPanel({ jadwalId, tahun, revisi, status, dirtyCalendar
                                     );
                                 })}
                             </ul>
-                            <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                                <span><b className="font-mono text-ink">{readiness.counts.indikator_berlaku}</b> indikator</span>
-                                <span><b className="font-mono text-ink">{readiness.counts.snapshot_baru}</b> snapshot baru</span>
-                                <span><b className="font-mono text-ink">{readiness.counts.komponen_baru}</b> komponen</span>
-                                {readiness.counts.snapshot_existing > 0 && (
-                                    <span><b className="font-mono text-ink">{readiness.counts.snapshot_existing}</b> sudah dibekukan sebelumnya</span>
-                                )}
+                            <p className="text-xs text-muted">
+                                Aktivasi mengunci target dan formula <b className="font-mono text-ink">{readiness.counts.indikator_berlaku}</b> indikator.
                             </p>
                             </>
                         )}

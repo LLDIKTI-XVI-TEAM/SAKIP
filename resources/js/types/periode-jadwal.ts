@@ -86,6 +86,10 @@ export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
     can: { create: boolean; update: boolean; activate: boolean };
     read_only_reason: string | null;
+    /** Renstra draft/aktif; kosong bila kalender hanya dapat dibaca. */
+    renstra_options: JadwalRenstraOption[];
+    /** Periode aktif untuk ditambahkan; kosong bila kalender hanya dapat dibaca. */
+    periode_options: PeriodeOption[];
 }
 
 /** Pratinjau server yang advisory; hanya agregat, tanpa nama/nilai indikator atau identitas lampiran. */
