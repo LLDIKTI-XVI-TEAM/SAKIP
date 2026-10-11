@@ -256,6 +256,31 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('2026-03-10', $versi->diajukan_at->setTimezone('Asia/Makassar')->toDateString());
     }
 
+    /**
+     * Gerbang jendela menilai waktu keputusan yang sama dengan PJ dan
+     * `diajukan_at`, bukan jam sendiri: tengah malam yang jatuh selama
+     * pembacaan PJ tidak boleh membuat gerbang menilai hari berikutnya.
+     */
+    public function test_gerbang_jendela_memakai_waktu_keputusan_yang_sama(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $this->travelTo(Carbon::parse('2026-03-31 23:59:59', 'Asia/Makassar'));
+        $siaga = false;
+        DB::listen(function ($query) use (&$siaga): void {
+            if (str_contains($query->sql, '"jadwal_snapshot"') && str_contains($query->sql, 'for update')) {
+                $siaga = true;
+            } elseif ($siaga && str_contains($query->sql, '"penanggung_jawab"')) {
+                $siaga = false;
+                $this->travelTo(Carbon::parse('2026-04-01 00:00:01', 'Asia/Makassar'));
+            }
+        });
+
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
+
+        $this->assertSame('2026-03-31', RencanaAksiVersi::sole()->diajukan_at->setTimezone('Asia/Makassar')->toDateString());
+    }
+
     public function test_pic_di_luar_jendela_tanpa_pj_tanpa_grant_atau_deny_ditolak(): void
     {
         $fixture = $this->buatFixtureManual();

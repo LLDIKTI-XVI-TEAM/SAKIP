@@ -117,18 +117,19 @@ class AjukanRencanaAksi
                     throw ValidationException::withMessages(['expected_snapshot_id' => 'Konteks indikator berubah (snapshot koreksi baru terbit). Muat ulang dan simpan target sebelum mengajukan.'])->status(409);
                 }
 
-                // Titik keputusan pengajuan: satu waktu untuk PJ efektif dan
+                // Titik keputusan pengajuan: satu waktu untuk gerbang jendela
+                // (penutupan, sesi koreksi, jendela PIC), PJ efektif, dan
                 // `diajukan_at` (Data Model §2.34: PJ pada tanggal submit), diambil
                 // sebelum tunggu kunci berikutnya yang dapat melewati tengah malam.
                 // PJ dibaca sekali setelah indikator dikunci (writer PJ ikut mengunci
-                // indikator) dan dipakai gerbang jendela serta provenance. Boleh null
-                // pada jalur Perencanaan; pergantian PJ, peran, atau grant setelahnya
+                // indikator) dan dipakai gerbang serta provenance. Boleh null pada
+                // jalur Perencanaan; pergantian PJ, peran, atau grant setelahnya
                 // tidak menulis ulang versi.
                 $waktuAjukan = now();
                 $penugasan = PenugasanIndikator::effectiveOn($waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $indikator->id)
                     ->first();
-                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id);
+                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id, pada: $waktuAjukan);
                 if ($alasanJendela !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasanJendela]);
                 }

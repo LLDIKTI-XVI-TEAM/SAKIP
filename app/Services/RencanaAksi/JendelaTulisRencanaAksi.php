@@ -45,10 +45,15 @@ class JendelaTulisRencanaAksi
      *                                  sendiri setelah indikator dikunci (`AjukanRencanaAksi`,
      *                                  agar provenance memakai PJ yang sama), tidak pernah
      *                                  dari input klien.
+     * @param  CarbonInterface|null  $pada  Waktu keputusan; null berarti sekarang. Pengajuan
+     *                                      meneruskan waktu yang juga dibekukan sebagai
+     *                                      `diajukan_at` agar jendela, penutupan, sesi koreksi,
+     *                                      dan PJ dinilai pada satu waktu.
      */
-    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null): ?string
+    public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): ?string
     {
-        if ($this->tahunDitutup($jadwal) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds)) {
+        $pada ??= now();
+        if ($this->tahunDitutup($jadwal, $pada) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)) {
             return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
         }
 
@@ -56,7 +61,7 @@ class JendelaTulisRencanaAksi
             return null;
         }
 
-        $hariIni = today(config('app.business_timezone'))->toDateString();
+        $hariIni = $this->tanggalBisnis($pada);
         $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
         if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
             return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
@@ -72,25 +77,26 @@ class JendelaTulisRencanaAksi
     }
 
     /**
-     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis hari ini.
+     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis `$pada`
+     * (default sekarang).
      */
-    public function tahunDitutup(JadwalTahunan $jadwal): bool
+    public function tahunDitutup(JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
         $penutupan = $jadwal->penutupan?->toDateString();
 
-        return is_string($penutupan) && today(config('app.business_timezone'))->toDateString() > $penutupan;
+        return is_string($penutupan) && $this->tanggalBisnis($pada ?? now()) > $penutupan;
     }
 
     /**
-     * Sesi koreksi sah bila jendela waktunya berjalan, `jenis_objek` memuat
-     * `rencana_aksi`, dan indikator tercakup.
+     * Sesi koreksi sah bila jendela waktunya berjalan pada `$pada` (default
+     * sekarang), `jenis_objek` memuat `rencana_aksi`, dan indikator tercakup.
      */
-    public function sesiKoreksiAktif(IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    public function sesiKoreksiAktif(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
         if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
             return false;
         }
-        if (! now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
+        if (! ($pada ?? now())->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
             return false;
         }
         $lingkup = $jadwal->lingkup_koreksi ?? [];
@@ -131,9 +137,14 @@ class JendelaTulisRencanaAksi
      *
      * @param  list<string>  $periodeIds
      */
-    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds): bool
+    private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds, CarbonInterface $pada): bool
     {
-        return $this->sesiKoreksiAktif($indikator, $jadwal)
+        return $this->sesiKoreksiAktif($indikator, $jadwal, $pada)
             && array_diff($periodeIds, $this->periodeLingkupKoreksi($jadwal)) === [];
+    }
+
+    private function tanggalBisnis(CarbonInterface $pada): string
+    {
+        return $pada->copy()->setTimezone(config('app.business_timezone'))->toDateString();
     }
 }
