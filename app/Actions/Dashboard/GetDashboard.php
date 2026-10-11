@@ -77,10 +77,6 @@ class GetDashboard
                 'id' => $window->periode_id,
                 'nama_periode' => $window->periode->nama.' '.$jadwal->tahun,
                 'status' => $activeWindow ? 'aktif' : 'terakhir',
-                'pengisian_mulai' => $window->pengisian_mulai->toDateString(),
-                'pengisian_selesai' => $window->pengisian_selesai->toDateString(),
-                // Hari kalender zona bisnis hingga batas pengisian (inklusif); 0 berarti hari terakhir.
-                'sisa_hari' => $activeWindow ? (int) $today->diffInDays($today->copy()->setDateFrom($window->pengisian_selesai)) : null,
             ] : null,
             'stats' => $tally($window?->periode_id),
             'progresPeriode' => $schedule->map(fn (PeriodeJadwal $item) => ['periode_id' => $item->periode_id, 'nama' => $item->periode->nama, ...$tally($item->periode_id)])->values()->all(),

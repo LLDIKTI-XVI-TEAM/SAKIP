@@ -13,14 +13,7 @@ export interface DashboardProps {
     tahun: number;
     activeRenstra: { id: string; nama: string; tahun_mulai: number; tahun_selesai: number } | null;
     activeJadwal: { tahun: number; status: string } | null;
-    activePeriode: {
-        id: string;
-        nama_periode: string;
-        status: 'aktif' | 'terakhir';
-        pengisian_mulai: string;
-        pengisian_selesai: string;
-        sisa_hari: number | null;
-    } | null;
+    activePeriode: { id: string; nama_periode: string; status: 'aktif' | 'terakhir' } | null;
     stats: DashboardStats;
     progresPeriode: ProgresPeriode[];
     pengukurans: {

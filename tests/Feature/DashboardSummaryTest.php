@@ -55,8 +55,7 @@ class DashboardSummaryTest extends TestCase
             'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
         $this->travelTo(now()->setDate(2026, 4, 1));
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('activePeriode.sisa_hari', null)
-            ->where('stats.total', 1)->has('pengukurans', 1));
+            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('stats.total', 1)->has('pengukurans', 1));
 
         $this->travelTo(now()->setDate(2026, 2, 15));
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
@@ -67,7 +66,7 @@ class DashboardSummaryTest extends TestCase
             ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'aktif')->where('stats.total', 1));
     }
 
-    public function test_dashboard_reports_filling_window_and_progress_for_every_schedule_period(): void
+    public function test_dashboard_reports_progress_for_every_schedule_period(): void
     {
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => true]);
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
@@ -81,14 +80,10 @@ class DashboardSummaryTest extends TestCase
 
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('tahun', 2026)->where('activeJadwal.tahun', 2026)->where('activeJadwal.status', 'aktif')
-            ->where('activePeriode.pengisian_mulai', '2026-03-01')->where('activePeriode.pengisian_selesai', '2026-03-15')->where('activePeriode.sisa_hari', 5)
             ->where('stats.total', 1)->where('stats.draft', 1)->where('stats.disahkan', 0)
             ->has('progresPeriode', 2)
             ->where('progresPeriode.0.nama', 'Triwulan I')->where('progresPeriode.0.total', 1)->where('progresPeriode.0.draft', 1)
             ->where('progresPeriode.1.nama', 'Triwulan II')->where('progresPeriode.1.total', 1)->where('progresPeriode.1.disahkan', 1));
-
-        $this->travelTo(now()->setDate(2026, 3, 15));
-        $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page->where('activePeriode.sisa_hari', 0));
     }
 
     public function test_dashboard_does_not_fall_back_to_old_data_without_an_active_renstra_schedule(): void

@@ -1,21 +1,6 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    ArrowRight,
-    BarChart2,
-    CalendarRange,
-    Check,
-    ClipboardCheck,
-    ClipboardList,
-    Eye,
-    FileText,
-    Info,
-    RotateCcw,
-    Send,
-    ShieldCheck,
-    Target,
-    Timer,
-} from 'lucide-react';
+import { ArrowRight, BarChart2, Check, ClipboardList, Eye, FileText, Info, RotateCcw, Send, ShieldCheck } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
@@ -23,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip } from '@/Components/Tooltip';
 import { STATUS_ALUR, persenDisahkan } from '@/Components/Dashboard/statusAlur';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
-import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { statusPerhitungan } from '@/Pages/Pengukuran/types';
 import type { DashboardProps, StatusAlur } from '@/types/dashboard';
 import type { SharedPageProps } from '@/types/auth';
@@ -54,7 +38,6 @@ export default function DashboardIndex({
 }: DashboardProps) {
     const { auth } = usePage<SharedPageProps>().props;
     const formatNilai = useFormatNilai();
-    const formatTanggal = useFormatTanggal();
     const persen = persenDisahkan(stats.disahkan, stats.total);
 
     const alasanKosong = !activeRenstra
@@ -63,74 +46,13 @@ export default function DashboardIndex({
           ? `Belum ada Jadwal Tahunan ${tahun} untuk Renstra aktif.`
           : `Jendela pengisian pertama Jadwal Tahunan ${tahun} belum dimulai.`;
 
-    const sisaHari = activePeriode?.sisa_hari ?? null;
-    const keteranganJendela =
-        sisaHari === null ? 'Pengisian periode ini telah ditutup' : sisaHari === 0 ? 'Hari terakhir pengisian' : `Sisa ${sisaHari} hari`;
-
     return (
-        <AuthenticatedLayout
-            title="Dashboard"
-            breadcrumbs={[{ label: 'Dashboard' }]}
-            headerActions={
-                auth.can.verifikasi && (
-                    <Link href="/verifikasi" className={outlineLink}>
-                        <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                        Antrean verifikasi
-                    </Link>
-                )
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Dashboard" />
+            {/* Tanpa judul tampak; heading tetap ada untuk navigasi pembaca layar. */}
+            <h1 className="sr-only">Dashboard</h1>
 
             <div className="space-y-5">
-                <Card>
-                    <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
-                        <KonteksItem icon={Target} label="Renstra aktif">
-                            {activeRenstra ? (
-                                <>
-                                    <p className="break-words text-sm font-semibold text-ink">{activeRenstra.nama}</p>
-                                    <p className="mt-0.5 text-xs text-muted">
-                                        Periode {activeRenstra.tahun_mulai}–{activeRenstra.tahun_selesai}
-                                    </p>
-                                </>
-                            ) : (
-                                <p className="text-sm font-semibold text-muted">Belum ada Renstra aktif</p>
-                            )}
-                        </KonteksItem>
-                        <KonteksItem icon={CalendarRange} label="Periode pelaporan">
-                            {activePeriode ? (
-                                <>
-                                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
-                                        {activePeriode.nama_periode}
-                                        <Badge variant={activePeriode.status === 'aktif' ? 'success' : 'muted'} size="sm" dot>
-                                            {activePeriode.status === 'aktif' ? 'Berjalan' : 'Terakhir'}
-                                        </Badge>
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-muted">Jadwal Tahunan {activeJadwal?.tahun}</p>
-                                </>
-                            ) : (
-                                <p className="text-sm font-semibold text-muted">Belum ada periode berjalan</p>
-                            )}
-                        </KonteksItem>
-                        <KonteksItem icon={Timer} label="Jendela pengisian">
-                            {activePeriode ? (
-                                <>
-                                    <p className="text-sm font-semibold text-ink">
-                                        {formatTanggal(activePeriode.pengisian_mulai)} – {formatTanggal(activePeriode.pengisian_selesai)}
-                                    </p>
-                                    <p
-                                        className={`mt-0.5 text-xs font-medium ${sisaHari !== null && sisaHari <= 7 ? 'text-warning-dark' : 'text-muted'}`}
-                                    >
-                                        {keteranganJendela}
-                                    </p>
-                                </>
-                            ) : (
-                                <p className="text-sm font-semibold text-muted">—</p>
-                            )}
-                        </KonteksItem>
-                    </div>
-                </Card>
-
                 {!activePeriode ? (
                     <Card>
                         <div className="flex items-start gap-3 p-5" role="status">
@@ -289,20 +211,6 @@ export default function DashboardIndex({
     );
 }
 
-function KonteksItem({ icon: Icon, label, children }: { icon: typeof Target; label: string; children: ReactNode }) {
-    return (
-        <div className="flex min-w-0 items-start gap-3 p-4 sm:px-5">
-            <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Icon className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-muted">{label}</p>
-                <div className="mt-1">{children}</div>
-            </div>
-        </div>
-    );
-}
-
 function KartuRingkasan({
     icon: Icon,
     tone,
@@ -310,7 +218,7 @@ function KartuRingkasan({
     value,
     desc,
 }: {
-    icon: typeof Target;
+    icon: typeof FileText;
     tone: string;
     label: string;
     value: number;
