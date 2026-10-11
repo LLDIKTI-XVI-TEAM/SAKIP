@@ -67,7 +67,8 @@ class ShowJadwalEditor
     {
         $fields = ['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi'];
 
-        // shortcut: tanpa paginasi karena periode aktif hanya segelintir (satu jadwal maks. 12); ganti ke pencarian bila tumbuh.
+        // shortcut: tanpa paginasi karena master periode global dan tidak bertambah per tahun (Data Model §2.14;
+        // seed Triwulan I–IV), hanya yang aktif dikirim; ganti ke pencarian bila periode aktif melebihi ±50.
         return Periode::query()->select($fields)->where('aktif', true)->orderBy('urutan')->orderBy('id')->get()
             ->map(fn (Periode $periode): array => $periode->only($fields))->values()->all();
     }
@@ -81,7 +82,8 @@ class ShowJadwalEditor
     {
         $fields = ['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai'];
 
-        // shortcut: tanpa paginasi karena Renstra draft/aktif hanya segelintir; ganti ke pencarian bila jumlahnya tumbuh.
+        // shortcut: tanpa paginasi karena Renstra berjangka lima tahun, hanya draft/aktif dikirim, dan rentang aktif
+        // tidak boleh tumpang tindih; ganti ke pencarian bila pilihan melebihi ±50.
         return Renstra::query()->select($fields)->whereIn('status', ['draft', 'aktif'])
             ->orderByDesc('tahun_mulai')->orderBy('id')->get()
             ->map(fn (Renstra $renstra): array => $renstra->only($fields))->values()->all();
