@@ -6,13 +6,9 @@ import type { ApexOptions } from 'apexcharts';
 import { BarChart3, PieChart } from 'lucide-react';
 import { Card } from '@/Components/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
-import { STATUS_ALUR, persenDisahkan } from '@/Components/Dashboard/statusAlur';
+import { STATUS_ALUR, persenDisahkan, warnaToken } from '@/Components/Dashboard/statusAlur';
 import type { DashboardStats, ProgresPeriode } from '@/types/dashboard';
 
-// Token @theme di app.css: ink, muted, border.
-const INK = '#0F172A';
-const MUTED = '#64748B';
-const BORDER = '#E2E8F0';
 // Tabel data ringkas di dalam kartu grafik: header huruf biasa agar tujuh kolom muat tanpa scroll di desktop.
 const dataHead = 'px-3 normal-case tracking-normal';
 
@@ -21,7 +17,7 @@ const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.char
 
 const reduceMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const baseOptions = (): ApexOptions => ({
+const baseOptions = (muted: string): ApexOptions => ({
     chart: {
         fontFamily: 'Poppins, ui-sans-serif, system-ui, sans-serif',
         toolbar: { show: false },
@@ -29,12 +25,12 @@ const baseOptions = (): ApexOptions => ({
         animations: { enabled: !reduceMotion() },
         parentHeightOffset: 0,
     },
-    colors: STATUS_ALUR.map((status) => status.color),
+    colors: STATUS_ALUR.map((status) => warnaToken(status.token)),
     dataLabels: { enabled: false },
     legend: {
         position: 'bottom',
         fontSize: '12px',
-        labels: { colors: MUTED },
+        labels: { colors: muted },
         markers: { size: 5, shape: 'circle', offsetX: -2 },
         itemMargin: { horizontal: 8, vertical: 4 },
     },
@@ -57,7 +53,8 @@ interface DashboardChartsProps {
 export default function DashboardCharts({ stats, progres, periodeNama, tahun }: DashboardChartsProps) {
     const progresKosong = progres.every((item) => item.total === 0);
     const persen = persenDisahkan(stats.disahkan, stats.total);
-    const base = baseOptions();
+    const muted = warnaToken('muted');
+    const base = baseOptions(muted);
 
     const progresOptions: ApexOptions = {
         ...base,
@@ -67,16 +64,16 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
         },
         xaxis: {
             categories: progres.map((item) => item.nama),
-            labels: { style: { colors: MUTED, fontSize: '12px' } },
+            labels: { style: { colors: muted, fontSize: '12px' } },
             axisBorder: { show: false },
             axisTicks: { show: false },
         },
         yaxis: {
             min: 0,
             forceNiceScale: true,
-            labels: { style: { colors: MUTED, fontSize: '12px' }, formatter: (value: number) => `${Math.round(value)}` },
+            labels: { style: { colors: muted, fontSize: '12px' }, formatter: (value: number) => `${Math.round(value)}` },
         },
-        grid: { borderColor: BORDER, strokeDashArray: 4, padding: { left: 4, right: 4 } },
+        grid: { borderColor: warnaToken('border'), strokeDashArray: 4, padding: { left: 4, right: 4 } },
         tooltip: { ...base.tooltip, shared: true, intersect: false, x: { formatter: (value) => escapeHtml(String(value)) } },
         // Layar sempit: nama periode dimiringkan agar tidak saling menimpa.
         responsive: [{ breakpoint: 640, options: { xaxis: { labels: { rotate: -45, rotateAlways: true } } } }],
@@ -85,7 +82,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
     const komposisiOptions: ApexOptions = {
         ...base,
         labels: STATUS_ALUR.map((status) => status.label),
-        stroke: { width: 2, colors: ['#FFFFFF'] },
+        stroke: { width: 2, colors: [warnaToken('surface')] },
         plotOptions: {
             pie: {
                 expandOnClick: false,
@@ -93,9 +90,9 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
                     size: '72%',
                     labels: {
                         show: true,
-                        name: { fontSize: '12px', color: MUTED, offsetY: 20 },
-                        value: { fontSize: '26px', fontWeight: 700, color: INK, offsetY: -12 },
-                        total: { show: true, showAlways: true, label: 'Disahkan', fontSize: '12px', color: MUTED, formatter: () => `${persen}%` },
+                        name: { fontSize: '12px', color: muted, offsetY: 20 },
+                        value: { fontSize: '26px', fontWeight: 700, color: warnaToken('ink'), offsetY: -12 },
+                        total: { show: true, showAlways: true, label: 'Disahkan', fontSize: '12px', color: muted, formatter: () => `${persen}%` },
                     },
                 },
             },
@@ -134,7 +131,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun }: 
                                         <TableHead className={dataHead}>Periode</TableHead>
                                         {STATUS_ALUR.map((status) => (
                                             <TableHead key={status.key} className={`${dataHead} text-right`}>
-                                                <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} aria-hidden="true" />
+                                                <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: `var(--color-${status.token})` }} aria-hidden="true" />
                                                 {status.label}
                                             </TableHead>
                                         ))}

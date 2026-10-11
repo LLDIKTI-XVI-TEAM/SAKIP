@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ApexOptions } from 'apexcharts';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest';
 import Index from '@/Pages/Dashboard/Index';
 import type { DashboardProps } from '@/types/dashboard';
 
@@ -127,4 +127,15 @@ it('meng-escape nama periode pada judul tooltip grafik progres tanpa mengubah la
     expect(title).toBe('&#60;img src=x onerror=alert(1)&#62;');
     // Label sumbu dirender sebagai text node, jadi kategori tetap nama asli.
     expect(options.xaxis?.categories).toEqual([payload]);
+});
+
+it('mengambil warna seri grafik dari token design system', async () => {
+    const root = document.documentElement;
+    for (const token of ['muted', 'warning', 'info', 'danger', 'success']) root.style.setProperty(`--color-${token}`, `token-${token}`);
+    onTestFinished(() => root.removeAttribute('style'));
+    render(<Index {...props()} />);
+    await screen.findByTestId('chart-bar');
+
+    // Urutan seri mengikuti STATUS_ALUR: Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan.
+    expect(chartProps.get('bar')!.options.colors).toEqual(['token-muted', 'token-warning', 'token-info', 'token-danger', 'token-success']);
 });
