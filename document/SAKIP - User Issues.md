@@ -1741,7 +1741,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **D. Frontend / UX**
 - [x] Buat/rapikan page dan reusable component React untuk **Pengajuan Rencana Aksi & Pembekuan Versi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
