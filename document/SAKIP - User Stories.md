@@ -732,7 +732,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** memverifikasi versi RA atau mengembalikannya dengan alasan,  
 > **Sehingga** substansi RA diperiksa tanpa membuka celah self-review jalur PIC.
 
-**Status verifikasi lokal (12 Oktober 2026):** consumer #58 telah diselaraskan dengan producer #57/PR #92; test PostgreSQL membuktikan verifikasi, pengembalian, revisi dan pengajuan versi baru tanpa mengubah snapshot lama, termasuk koreksi satu periode dan F1 setelah perubahan role. Bukti TEST-1–TEST-7 tercatat pada ISS-05.04. Checklist di bawah tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
+**Bukti verifikasi:** hasil pengujian dan batas QA/UAT dicatat pada [PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93); TEST-1–TEST-7 tercatat pada ISS-05.04. Checklist di bawah tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
 
 **Acceptance Criteria**
 

@@ -2,6 +2,7 @@
 
 Tanggal baseline awal: **18 September 2026**  
 Pembaruan terakhir: **12 Oktober 2026**
+
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
 Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`  
@@ -802,7 +803,7 @@ Q36 menutup ketidakselarasan antara PRD §18.8, Workflow §10.3/§10.6a, dan Dat
 
 **Keputusan pengguna, 9 Oktober 2026**, melalui jawaban Q1–Q3 dalam percakapan analisis lokal untuk [ISS-05.04 / Issue #58](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/58).
 
-Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6110484512), agar Q36 tetap menunjuk keputusan jendela mutasi bukti. Sumber persetujuan substansi adalah jawaban pengguna dalam percakapan, bukan komentar persetujuan pada issue GitHub atau ratifikasi PM/UAT. Ketiga keputusan tersebut dicatat utuh pada §37.1–§37.3; penomoran ini tidak mengubah substansinya.
+Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6110484512), agar Q36 tetap menunjuk keputusan jendela mutasi bukti. Persetujuan awal substansi berasal dari jawaban pengguna dalam percakapan. Pada 12 Oktober 2026, pemilik keputusan SAKIP mengonfirmasi kewenangannya dan meratifikasi Q37 melalui [komentar keputusan D1 dan ratifikasi Q37 pada PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6113303169). Ketiga keputusan tersebut dicatat utuh pada §37.1–§37.3; penomoran dan ratifikasi tidak mengubah substansinya serta tidak mengesahkan UAT atau deployment.
 
 ## 37.1 Guard Konteks Operasional Review
 
@@ -832,6 +833,15 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 - ISS-05.05/US-05.05: pengesahan memakai `businessErrors` yang sama dan menolak konteks indikator arsip/unit nonaktif, termasuk pada jalur F2.
 - Data Model §2.23, §2.32, dan §3.5 serta pola modal/checklist design system diselaraskan. Rujukan Renstra menggunakan §2.9 sesuai struktur file yang diverifikasi.
 - Q37 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test. Dependency ISS-05.03 / #57 telah merged ke `development` melalui PR #92 pada 11 Oktober 2026; penyelarasan dan verifikasi consumer #58 tetap dibuktikan terpisah.
+
+## 37.5 Keputusan Integrasi Antrean dan Guard Review (D1)
+
+[Keputusan D1 pada PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6113303169), disahkan pemilik keputusan SAKIP pada 12 Oktober 2026:
+
+1. ISS-05.04 / PR #93 menjadi pemilik antrean `/rencana-aksi/review`, detail `/rencana-aksi/{id}/review`, `GerbangReviewRencanaAksi`, dan delegasi `RencanaAksiPolicy::businessErrors`.
+2. ISS-05.05 / PR #66 diselaraskan setelah #93 merged ke `development`: gunakan antrean, halaman review, dan guard yang sama, hapus implementasi paralel yang tumpang tindih, lalu tambahkan aksi Sahkan dan capability-nya pada surface tersebut.
+3. Pengesahan tetap memeriksa izin, F1/F2, versi terbaru, status, konteks dan audit pada mutation boundary; F2 tidak melewati business guard konteks. Hasil integrasi #66 perlu direview dan diuji ulang untuk konflik, method ganda, pengesahan, F1/F2, transaksi/audit dan concurrency.
+4. D1 menetapkan arah integrasi, bukan bukti #66 sudah diperbaiki atau persetujuan merge, QA/UAT, maupun deployment. Pengesahan dan buka-kembali tetap di luar scope #58; pengiriman in-app tetap ISS-12.02.
 
 ---
 

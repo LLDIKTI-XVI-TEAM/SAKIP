@@ -1822,7 +1822,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 - [ ] Verifikasi memakai dialog konfirmasi tanpa input alasan; pengembalian memakai **Modal Alasan Audit** dengan validasi backend. Detail/histori tetap dapat dibaca sesuai otorisasi dan alasan guard yang menolak ditampilkan dari server.
 
-**Status verifikasi lokal (12 Oktober 2026):** consumer diselaraskan dengan producer #57/PR #92. `ReviewRencanaAksiTest`, `RencanaAksiProducerReviewTest`, dan `ReviewRencanaAksiTransactionTest` membuktikan TEST-1–TEST-7 serta regresi di bawah pada PostgreSQL disposable; frontend Rencana Aksi lulus. Alur koreksi parsial mempertahankan batas periode saat simpan dan membentuk versi pengajuan baru. Checklist Acceptance Criteria tetap untuk QA/UAT; verifikasi otomatis ini bukan persetujuan stakeholder, merge atau deployment.
+**Bukti verifikasi:** hasil pengujian dan batas QA/UAT dicatat pada [PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93). Checklist Acceptance Criteria tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
 
 #### Automated Tests / Verification
 
