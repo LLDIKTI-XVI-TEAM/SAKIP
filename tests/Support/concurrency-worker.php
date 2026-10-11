@@ -12,6 +12,8 @@ use App\Actions\PenanggungJawab\ReadPenanggungJawab;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
+use App\Actions\RencanaAksi\KembalikanRencanaAksi;
+use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
@@ -74,6 +76,9 @@ try {
             'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
             'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment' => performRenstraMutation($argv[1], $assignment),
             'ra-ensure-draft', 'ra-simpan' => performRencanaAksiMutation($argv[1], $assignment),
+            'ra-verifikasi', 'ra-kembalikan' => $argv[1] === 'ra-verifikasi'
+                ? app(VerifikasiRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur
+                : app(KembalikanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur,
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),
             'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical' => performJenisBerkasMutation($argv[1], $assignment),
@@ -97,7 +102,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -119,6 +124,7 @@ try {
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
+            'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {

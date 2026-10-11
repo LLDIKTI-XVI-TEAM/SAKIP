@@ -8,6 +8,8 @@ Basis commit sebelum pembaruan Q34: `365688b4faaecb0d904b6e12d314fe25b9a30b75`
 Basis commit sebelum pembaruan Q35: `405fac1e16b768046879b7e6a418fa6d14d9af77`  
 Basis commit sebelum pembaruan Q36: `db0a887923127dc7af4b667bdf98c5d91e9a06b1`
 
+Basis commit sebelum pembaruan Q36: `bba499436be3f919b24cea9ffbf6295ba1bc00bc`
+
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
 ---
@@ -34,6 +36,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Keputusan 9 Oktober 2026 (Q35)** menetapkan bahwa snapshot jadwal yang sudah terbit tidak pernah diubah in-place (koreksi selalu lewat versi baru), bahwa `lingkup_koreksi` tanpa `periode_ids` berarti tidak ada periode tercakup (gagal tertutup) untuk Rencana Aksi dan Pengukuran, dan bahwa satu jadwal tahunan memuat paling banyak 12 periode.
 
 **Keputusan 10 Oktober 2026 (Q36)** menetapkan bahwa bukti dukung `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya `draft`/`dikembalikan`; sejak `diajukan` koreksi bukti lewat pengembalian beralasan, dan setelah `disahkan` bukti imutabel.
+
+**Keputusan 9 Oktober 2026 (Q36)** menetapkan guard review Rencana Aksi pada indikator arsip/unit nonaktif, memisahkan audit permission sensitif dari kewajiban alasan pengguna, serta menetapkan PJ efektif sebagai penerima event pengembalian setelah commit. Pengiriman in-app menunggu ISS-12.02.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -793,6 +797,39 @@ Q36 menutup ketidakselarasan antara PRD §18.8, Workflow §10.3/§10.6a, dan Dat
 - User Stories US-11.04 dan User Issues ISS-11.04: kontrak otorisasi hapus bukti diselaraskan dengan Q32.3 dan guard status induk Q36.
 - User Issues ISS-05.02: catatan "Keputusan terbuka (D1)" diganti rujukan Q36, dan butir DoD dokumentasi diperbarui.
 - Q24, Q25, Q32, dan Q35 tidak berubah.
+
+# Keputusan Q36 — Guard Review, Alasan Verifikasi, dan Penerima Pengembalian Rencana Aksi
+
+**Keputusan pengguna, 9 Oktober 2026**, melalui jawaban Q1–Q3 pada analisis [ISS-05.04 / Issue #58](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/58).
+
+## 36.1 Guard Konteks Operasional Review
+
+1. Verifikasi dan pengembalian Rencana Aksi ditolak bila indikator berstatus `arsip` atau unit konteks Rencana Aksi berstatus `nonaktif`. Detail dan histori existing tetap dapat dibaca sesuai otorisasi; penolakan tidak mengubah status atau payload versi lama.
+2. Guard dipusatkan pada `businessErrors` yang sama untuk verifikasi, pengembalian (ISS-05.04), dan pengesahan (ISS-05.05), ditegakkan server-side termasuk untuk request langsung dan diperiksa ulang pada mutation boundary. F2 tidak melewati guard ini.
+3. Penolakan diaudit; UI menerima capability dan alasan dari server agar alasan aksi tidak tersedia dapat ditampilkan.
+4. Renstra `diarsipkan` sudah tertutup oleh guard jadwal: Renstra tidak dapat keluar dari `aktif` selama masih mempunyai jadwal aktif (Data Model §2.9 pada baseline ini). Keputusan ini tidak menambahkan guard Renstra arsip terpisah.
+5. Aturan unit nonaktif selaras dengan Pengukuran. Pengecekan indikator arsip pada verifikasi Pengukuran menjadi tindak lanjut untuk keseragaman kedua modul; Q36 tidak mengklaim perubahan tersebut sudah diimplementasikan.
+
+## 36.2 Konfirmasi Verifikasi dan Alasan Pengembalian
+
+1. Verifikasi Rencana Aksi cukup konfirmasi; tidak mewajibkan alasan dari pengguna. Audit verifikasi memakai alasan baku yang ditentukan server dan mencatat `dasar_izin`.
+2. Di antara verifikasi dan pengembalian, alasan pengguna wajib hanya untuk pengembalian; alasan divalidasi dan disanitasi di backend memakai helper canonical sebelum dicatat.
+3. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Kewajiban alasan mengikuti daftar aksi/aturan domain dalam PRD prinsip 6 dan Data Model §2.32; alasan untuk aksi lain yang sudah diwajibkan tetap berlaku.
+4. Checklist dan pola modal `design-system.md` diselaraskan agar permission sensitif tidak disamakan dengan kewajiban input alasan.
+
+## 36.3 PJ Efektif dan Event Setelah Commit
+
+1. Penerima pengembalian adalah PJ efektif pada saat pengembalian, menggunakan `PenugasanIndikator::effectiveOn()`; penerima tidak ditentukan dari pembuat draf, `penanggung_jawab_id` historis pada header, atau pengaju historis.
+2. Pengaju historis tetap tercatat pada `rencana_aksi_versi.diajukan_by` dan audit. Pergantian PJ tidak mengubah provenance versi yang direview.
+3. ISS-05.04 menetapkan penentuan penerima dan event pengembalian setelah commit; transaksi yang rollback tidak memancarkan event tersebut. Tautan ke Rencana Aksi tetap diperiksa otorisasinya ketika dibuka.
+4. Infrastruktur notifikasi belum tersedia pada baseline ini. Pengiriman in-app menunggu ISS-12.02; AC-3 ISS-05.04/US-05.04 diberi catatan pemisahan cakupan ini, tanpa mengklaim delivery sudah tersedia.
+
+## 36.4 Dampak dan Traceability
+
+- ISS-05.04/US-05.04: guard verifikasi/pengembalian, konfirmasi verifikasi, audit penolakan, serta AC-3 dan test penerima/event setelah commit diselaraskan.
+- ISS-05.05/US-05.05: pengesahan memakai `businessErrors` yang sama dan menolak konteks indikator arsip/unit nonaktif, termasuk pada jalur F2.
+- Data Model §2.23, §2.32, dan §3.5 serta pola modal/checklist design system diselaraskan. Rujukan Renstra menggunakan §2.9 sesuai struktur file yang diverifikasi.
+- Q36 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test. Gate ISS-05.03 / #57 harus merged ke `development` sebelum implementasi #58 tetap berlaku.
 
 ---
 

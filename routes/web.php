@@ -54,11 +54,16 @@ use App\Http\Controllers\Regulasi\UpdateRegulasi;
 use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DestroyBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksi;
+use App\Http\Controllers\RencanaAksi\DownloadBuktiVersiRencanaAksi;
+use App\Http\Controllers\RencanaAksi\IndexReviewRencanaAksi;
+use App\Http\Controllers\RencanaAksi\KembalikanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
 use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
+use App\Http\Controllers\RencanaAksi\ShowReviewRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreRencanaAksiDraft;
 use App\Http\Controllers\RencanaAksi\UpdateRencanaAksiTarget;
+use App\Http\Controllers\RencanaAksi\VerifikasiRencanaAksi;
 use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
 use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
@@ -237,10 +242,15 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rencana Aksi — penyusunan target per periode
     Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
+    Route::get('/rencana-aksi/review', IndexReviewRencanaAksi::class)->name('rencana-aksi.review.index');
+    Route::get('/rencana-aksi/{rencanaAksi}/review', ShowReviewRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.review');
+    Route::get('/rencana-aksi/{rencanaAksi}/versi/{versi}/bukti/{bukti}/unduh', DownloadBuktiVersiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('versi')->whereUuid('bukti')->name('rencana-aksi.versi.bukti.download');
     Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
     // Tulis RA menambah audit append-only (matriks penuh); batasi per pengguna.
     // Pratinjau tidak menulis audit dan dipanggil tiap ketikan, jadi dikecualikan.
     Route::middleware('throttle:30,1,rencana-aksi-tulis')->group(function (): void {
+        Route::post('/rencana-aksi/{rencanaAksi}/verifikasi', VerifikasiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.verifikasi');
+        Route::post('/rencana-aksi/{rencanaAksi}/kembalikan', KembalikanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kembalikan');
         Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
         Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
         Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');

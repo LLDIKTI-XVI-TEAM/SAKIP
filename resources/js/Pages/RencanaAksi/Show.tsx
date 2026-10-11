@@ -244,26 +244,26 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
             breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}` }]}
         >
             <Head title={`Rencana Aksi ${rencanaAksi.indikator.kode}`} />
-            <div className="mx-auto max-w-4xl space-y-6">
+            <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/rencana-aksi" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    <Link href="/rencana-aksi" className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         Kembali ke daftar
                     </Link>
-                    <div className="flex items-center gap-2">
-                        <Badge status={rencanaAksi.status_alur} />
-                        <span className="text-xs text-muted">Versi {rencanaAksi.versi}</span>
-                    </div>
                 </div>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>
-                            {rencanaAksi.indikator.kode} · {rencanaAksi.indikator.nama}
-                        </CardTitle>
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                            <CardTitle className="break-words">
+                                {rencanaAksi.indikator.kode} · {rencanaAksi.indikator.nama}
+                            </CardTitle>
+                            <p className="text-xs text-muted">Tahun {rencanaAksi.tahun} · Versi {rencanaAksi.versi}</p>
+                        </div>
+                        <Badge status={rencanaAksi.status_alur} />
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                        <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
                             <div>
                                 <dt className="text-muted">Unit penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.unit?.nama ?? '—'}</dd>
@@ -280,7 +280,7 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                                 </dd>
                             </div>
                         </dl>
-                        <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                        <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
                             <div>
                                 <dt className="text-muted">Penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.penanggung_jawab?.nama ?? '—'}</dd>
@@ -487,8 +487,8 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                             {terlaluSering && (
                                 <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
                             )}
-                            <Button type="submit" variant="primary" isLoading={processing} disabled={processing || requestError !== ''}>
-                                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                            <Button type="submit" variant="primary" size="sm" isLoading={processing} disabled={processing || requestError !== ''}>
+                                <Save className="h-4 w-4" aria-hidden="true" />
                                 Simpan Target
                             </Button>
                         </div>
