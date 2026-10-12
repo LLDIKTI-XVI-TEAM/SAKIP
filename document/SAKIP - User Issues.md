@@ -1774,6 +1774,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **Workflow:** §7, §20  
 **Data Model/Entitas:** RA + versi
 
+**Keputusan terkait:** Q37 §37.1–§37.3
+
 #### User Story
 
 > **Sebagai** Tim Perencanaan,  
@@ -1782,51 +1784,60 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Kontrak Teknis
 
-- **Dependensi:** RA berstatus `diajukan` dan versi terbaru tersedia.
+- **Dependensi:** ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman notifikasi in-app menunggu ISS-12.02 (Q37).
 - **Otorisasi:** `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`.
-- **Dampak Data:** `rencana_aksi`, versi terkait, `audit_log`, notifikasi.
+- **Dampak Data:** `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit.
 
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
 - [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`, audit mencatat alasan, dan PIC menerima notifikasi.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
 - [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
+- [ ] **AC-7:** Given versi/status valid, aktor berwenang, dan seluruh business guard lolos, When verifikasi dikonfirmasi tanpa alasan pengguna, Then verifikasi berhasil dan audit memuat alasan baku server serta `dasar_izin`.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi terkait, `audit_log`, notifikasi.
+- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi terkait, `audit_log`; penyimpanan/pengiriman notifikasi in-app menunggu ISS-12.02.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
 - [ ] F1 wajib diterapkan pada **verifikasi**: pengaju versi jalur PIC tidak boleh memverifikasi versi yang diajukan sendiri.
 - [ ] Perubahan substansi saat review harus melalui kembalikan → edit → submit versi baru; jangan menambal snapshot versi.
+- [ ] Gunakan `businessErrors` bersama untuk verifikasi, pengembalian, dan pengesahan (ISS-05.05): tolak indikator `arsip`/unit nonaktif; guard jadwal menangani Renstra yang sudah diarsipkan (Data Model §2.9). Periksa ulang state di mutation boundary.
+- [ ] Tentukan penerima pengembalian dari `PenugasanIndikator::effectiveOn()` pada saat pengembalian dan pancarkan event hanya setelah commit; pengaju historis tetap pada versi/audit dan tautan tetap diotorisasi saat dibuka. Pengiriman in-app menjadi cakupan ISS-12.02.
 
 **C. Authorization & Audit**
 - [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`.
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [ ] Verifikasi memakai alasan baku server dan `dasar_izin`, tanpa mewajibkan alasan pengguna. Pengembalian wajib alasan pengguna yang divalidasi/disanitasi di backend; audit penolakan guard tetap tersimpan walaupun mutasi dibatalkan.
 
 **D. Frontend / UX**
 - [ ] Buat/rapikan page dan reusable component React untuk **Verifikasi & Pengembalian Rencana Aksi dengan F1**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [ ] Verifikasi memakai dialog konfirmasi tanpa input alasan; pengembalian memakai **Modal Alasan Audit** dengan validasi backend. Detail/histori tetap dapat dibaca sesuai otorisasi dan alasan guard yang menolak ditampilkan dari server.
+
+**Bukti verifikasi:** hasil pengujian dan batas QA/UAT dicatat pada [PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93). Checklist Acceptance Criteria tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perbaikan dibutuhkan, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`, audit mencatat alasan, dan PIC menerima notifikasi.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, When submit, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
+- [x] TEST-3: Uji pengembalian beralasan, audit, dan penerima PJ efektif saat pengembalian (termasuk PJ berubah setelah pengajuan); event hanya dipancarkan setelah commit dan tidak pada rollback. Pengaju historis tetap utuh. Pengiriman in-app diuji pada ISS-12.02, bukan diklaim lulus dari event saja.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, When submit, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [x] TEST-6: Uji penolakan verifikasi/pengembalian pada indikator arsip/unit nonaktif, audit penolakan, dan tidak berubahnya status/payload; baca detail/histori serta alasan UI tetap sesuai otorisasi.
+- [x] TEST-7: Uji verifikasi tanpa alasan pengguna memakai alasan baku server dan `dasar_izin`; pengembalian tanpa alasan/beralasan tidak valid tetap ditolak.
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Semua Acceptance Criteria dan test dalam cakupan issue ini lulus; AC-3 membuktikan penerima/event setelah commit, sedangkan pengiriman in-app menunggu ISS-12.02 sesuai Q37.
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
@@ -1843,6 +1854,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **PRD:** §7.6, §14.6  
 **Workflow:** §7, §20  
 **Data Model/Entitas:** RA + versi
+
+**Keputusan terkait:** Q37 §37.1
 
 #### User Story
 
@@ -1864,6 +1877,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
 - [ ] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
 - [ ] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [ ] **AC-7:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When pengesahan dicoba termasuk pada jalur F2 dan request langsung, Then `businessErrors` yang sama dengan verifikasi/pengembalian menolak, penolakan diaudit, dan header/metadata versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
 
 #### Implementation Tasks
 
@@ -1876,16 +1890,19 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] F1/F2 harus membaca `rencana_aksi_versi.diajukan_by` dan `jalur_pengajuan`; perubahan role/PIC/grant setelah submit tidak mengubah provenance.
 - [ ] Pengesahan wajib mengunci versi terbaru yang sedang direviu dan menolak versi stale.
 - [ ] F2 self-approval jalur Perencanaan tetap wajib lolos resolver permission/deny dan dicatat sebagai `self_approval`.
+- [ ] Gunakan `businessErrors` yang sama dengan verifikasi/pengembalian ISS-05.04: tolak indikator `arsip` atau unit konteks RA nonaktif, termasuk jalur F2; periksa ulang pada mutation boundary. Renstra diarsipkan tertutup oleh guard jadwal (Data Model §2.9).
 
 **C. Authorization & Audit**
 - [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:sahkan` (sensitif).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [ ] Audit penolakan guard indikator arsip/unit nonaktif tanpa mengubah header/metadata versi; penolakan tidak hilang akibat rollback mutasi.
 
 **D. Frontend / UX**
 - [ ] Buat/rapikan page dan reusable component React untuk **Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [ ] Detail/histori tetap dapat dibaca sesuai otorisasi; tampilkan alasan aksi tidak tersedia dari server untuk indikator arsip/unit nonaktif.
 - [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
@@ -1896,6 +1913,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [ ] TEST-7: Uji guard bersama pada indikator arsip/unit nonaktif termasuk F2/direct HTTP, audit penolakan, header/metadata versi tetap utuh, serta akses detail/histori dan alasan UI sesuai otorisasi.
 - [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
 #### Definition of Done

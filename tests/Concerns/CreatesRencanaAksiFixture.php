@@ -12,6 +12,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
@@ -162,6 +163,29 @@ trait CreatesRencanaAksiFixture
         ]);
 
         return $user;
+    }
+
+    /** Versi review sintetis mengikuti bentuk snapshot immutable; bukan pengganti Action submit #57. */
+    protected function createRencanaAksiSubmission(): RencanaAksiVersi
+    {
+        $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+
+        return $this->rencanaAksi->versions()->create([
+            'jadwal_snapshot_id' => $this->snapshot->id, 'nomor' => 1,
+            'diajukan_by' => $this->actor->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
+            'dasar_izin_pengajuan' => ['permission' => 'rencana_aksi:ajukan'],
+            'snapshot' => [
+                'indikator' => ['kode' => 'BEKU', 'nama' => 'Nama beku'],
+                'unit_kerja' => ['id' => $this->unit->id, 'nama' => 'Unit beku'],
+                'pic' => ['id' => $this->actor->id, 'nama' => 'PJ historis'],
+                'uraian' => 'Narasi beku', 'alasan_deviasi_pk' => null,
+                'target_periode' => [[
+                    'periode_id' => $this->snapshot->periode_mulai_id,
+                    'periode_nama' => 'Triwulan beku', 'periode_urutan' => 1,
+                    'nilai' => '0', 'status_perhitungan' => null, 'komponen' => [],
+                ]], 'bukti_dukungs' => [], 'path' => 'rahasia/internal',
+            ],
+        ]);
     }
 
     /**
