@@ -50,14 +50,14 @@ it('menampilkan error server yang terhubung ke field dan mempertahankan koreksi 
     expect(document.getElementById(tujuan.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Tujuan wajib diisi.');
 });
 
-it('tidak menawarkan ubah atau hapus ketika server tidak memberi capability', () => {
+it('tidak menawarkan edit atau hapus ketika server tidak memberi capability', () => {
     render(<Index
         kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: 'Layanan unit', unit: { id: 'unit-a', nama: 'Unit A' }, periode: { id: 'periode-4', nama: 'Triwulan IV' }, tahun: 2026, status: 'rencana', tanggal_rencana: null, can: { update: false } }], links: [], from: 1, to: 1, total: 1 }}
         filters={{ tahun: '', periode_id: '', unit_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} can={{ create: false }}
     />);
     expect(screen.getByText('Kegiatan pembaca')).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /Buat kegiatan/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Aksi kegiatan/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Buat kegiatan/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Edit kegiatan/i })).toBeNull();
     expect(screen.queryByText(/Hapus/)).toBeNull();
 });
 
@@ -91,7 +91,7 @@ it('menghubungkan error unit dan periode ke pesan terlihat tanpa duplikasi', asy
 
 const indexProps: KegiatanIndexProps = {
     kegiatan: {
-        data: [{ id: 'kegiatan-1', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: '2026-10-11', can: { update: true } }],
+        data: [{ id: 'kegiatan-1', unit_id: 'unit-a', periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, keterangan_peserta: null, lokasi: null, unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: '2026-10-11', version_token: 'token-1', can: { update: true } }],
         links: [], from: 1, to: 1, total: 1,
     },
     filters: { tahun: '', periode_id: '', unit_id: '', status: '' },
@@ -106,11 +106,25 @@ it('menampilkan tanggal rencana sesuai preferensi tampilan pada tabel berlabel',
     expect(screen.queryByText('2026-10-11')).toBeNull();
 });
 
-it('menyediakan tautan buat dan ubah sesuai capability tanpa elemen interaktif bersarang', () => {
+it('menyediakan tombol buat dan edit sesuai capability dengan modal pop-up', () => {
     render(<Index {...indexProps} />);
-    const createLink = screen.getByRole('link', { name: 'Buat kegiatan' });
-    expect(createLink.getAttribute('href')).toBe('/kegiatan/buat');
-    expect(createLink.querySelector('button')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Aksi kegiatan Fasilitasi unit' }));
-    expect(screen.getByRole('menuitem', { name: 'Ubah' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
+    const createBtn = screen.getByRole('button', { name: 'Buat kegiatan' });
+    expect(createBtn).toBeTruthy();
+    fireEvent.click(createBtn);
+    expect(screen.getByRole('dialog', { name: 'Buat rencana kegiatan' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit kegiatan Fasilitasi unit' }));
+    expect(screen.getByRole('dialog', { name: 'Edit rencana kegiatan' })).toBeTruthy();
+});
+it('menginisialisasi filter tahun dengan nilai default serta menyediakan placeholder', () => {
+    const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);
+    render(<Index {...indexProps} tahunDefault={2026} />);
+    const inputTahun = screen.getByLabelText<HTMLInputElement>('Tahun');
+    expect(inputTahun.value).toBe('2026');
+    expect(inputTahun.placeholder).toBe('Contoh: 2026');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(getSpy).toHaveBeenCalledWith('/kegiatan', { tahun: 2026 }, expect.any(Object));
 });

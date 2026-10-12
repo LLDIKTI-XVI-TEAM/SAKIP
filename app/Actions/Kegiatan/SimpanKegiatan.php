@@ -14,11 +14,25 @@ use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SimpanKegiatan
 {
     public function __construct(private readonly ResolveLockedActor $pengunci, private readonly KegiatanPolicy $policy, private readonly AuditLogger $audit) {}
+
+    /** Audit penolakan awal memakai keputusan asli; target update dari binding, target create diverifikasi di DB. */
+    public function catatPenolakan(User $actor, ?Kegiatan $kegiatan, mixed $unitId, string $alasan, ?PermissionDecision $decision = null): void
+    {
+        $unit = ! $kegiatan && is_string($unitId) && Str::isUuid($unitId) ? Unit::find($unitId) : null;
+        $decision ??= $this->policy->keputusanSimpan($actor, $kegiatan, (string) ($kegiatan?->unit_id ?? $unit?->id ?? ''));
+        $this->audit->catat(
+            actor: $actor, tindakan: $kegiatan ? 'kegiatan.ubah_ditolak' : 'kegiatan.buat_ditolak',
+            objekTipe: $kegiatan ? 'kegiatan' : ($unit ? 'unit' : 'pengguna'),
+            objekId: (string) ($kegiatan?->id ?? $unit?->id ?? $actor->id),
+            alasan: $alasan, dasarIzin: $decision->toAuditBasis(),
+        );
+    }
 
     /**
      * Satu use case simpan rencana; aktor/ACL, objek dan master diperiksa ulang di bawah lock.
@@ -34,14 +48,14 @@ class SimpanKegiatan
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $data, $id, &$decision): Kegiatan {
-                // Selaras writer katalog periode: lock konfigurasi mendahului aktor dan objek domain.
-                Periode::lockConfiguration();
                 $locked = $this->pengunci->handle($actor, $id ? 'kegiatan:update' : 'kegiatan:create');
                 $currentActor = $locked['aktor'];
                 $decision = $locked['keputusan'];
                 if (! $currentActor instanceof User || $currentActor->status !== 'aktif') {
                     throw new AuthorizationException('Akun tidak aktif.');
                 }
+                // Selaras writer periode: aktor/ACL sebelum konfigurasi, lalu objek domain.
+                Periode::lockConfiguration();
                 $kegiatan = $id ? Kegiatan::whereKey($id)->lockForUpdate()->firstOrFail() : null;
                 $unitId = (string) $data['unit_id'];
                 $decision = $this->policy->keputusanSimpan($currentActor, $kegiatan, $unitId);

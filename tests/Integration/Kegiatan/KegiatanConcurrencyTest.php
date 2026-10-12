@@ -108,6 +108,22 @@ class KegiatanConcurrencyTest extends TestCase
         return [$admin, $actor, ['unit_id' => $unit->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Rencana awal', 'tujuan' => 'Tujuan race', 'sasaran_peserta' => null, 'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null]];
     }
 
+    public function test_simpan_tidak_menahan_konfigurasi_periode_saat_menunggu_aktor_writer_periode(): void
+    {
+        [, $actor, $data] = $this->fixture();
+        DB::beginTransaction();
+        // Writer periode mengunci aktor bersama lebih dahulu, baru konfigurasi eksklusif.
+        User::whereKey($actor->id)->sharedLock()->firstOrFail();
+        $worker = $this->start(['actor_id' => $actor->id, 'data' => $data]);
+        $worker['input']->write("GO\n");
+        $this->blockedBy($worker, (int) DB::selectOne('select pg_backend_pid() as pid')->pid);
+        DB::statement("SET LOCAL lock_timeout = '500ms'");
+        Periode::lockConfiguration(exclusive: true);
+        DB::commit();
+        $this->assertSame(['outcome' => 'saved'], $this->workerResult($worker));
+        $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.buat')->count());
+    }
+
     private function actor(string $role): User
     {
         $user = User::factory()->create(['status' => 'aktif']);
@@ -119,7 +135,8 @@ class KegiatanConcurrencyTest extends TestCase
     private function start(array $payload): array
     {
         $input = new InputStream;
-        $process = new Process([PHP_BINARY, base_path('tests/Support/kegiatan-worker.php'), json_encode($payload, JSON_THROW_ON_ERROR)], base_path(), timeout: 30);
+        // Dua boot PHP di bind mount Windows dapat melewati 30 detik; batas tunggu SQL tetap ketat.
+        $process = new Process([PHP_BINARY, base_path('tests/Support/kegiatan-worker.php'), json_encode($payload, JSON_THROW_ON_ERROR)], base_path(), timeout: 60);
         $process->setInput($input)->start();
         $this->workers[] = ['process' => $process, 'input' => $input];
         $this->until(fn () => str_contains($process->getOutput(), 'READY:'));

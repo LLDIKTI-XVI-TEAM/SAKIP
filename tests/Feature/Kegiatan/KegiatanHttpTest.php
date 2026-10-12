@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Kegiatan;
 
+use App\Actions\Kegiatan\DaftarKegiatan;
+use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Models\AuditLog;
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
@@ -162,6 +164,104 @@ class KegiatanHttpTest extends TestCase
         $kegiatan->update(['nama' => 'Perubahan pengguna lain']);
         $this->actingAs($this->pegawai)->postJson("/kegiatan/{$kegiatan->id}", $this->payload() + ['expected_state' => $token])->assertUnprocessable()->assertJsonValidationErrors('expected_state');
         $this->assertSame('Perubahan pengguna lain', $kegiatan->fresh()->nama);
+    }
+
+    public function test_akun_yang_dinonaktifkan_sebelum_submit_ditolak_dan_diaudit_sekali(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->pegawai->update(['status' => 'nonaktif']);
+        $this->actingAs($this->pegawai)->withHeader('X-Inertia', 'true')
+            ->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['unit_id' => 'payload-rusak']))->assertForbidden();
+        $this->assertDatabaseCount('kegiatan', 1);
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+        foreach (['kegiatan.buat_ditolak' => $this->unit->id, 'kegiatan.ubah_ditolak' => $kegiatan->id] as $event => $target) {
+            $audit = AuditLog::where('tindakan', $event)->sole();
+            $this->assertSame($target, $audit->objek_id);
+            $this->assertSame($this->pegawai->id, $audit->actor_id);
+            $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
+        }
+    }
+
+    public function test_get_daftar_dan_form_yang_ditolak_mencatat_keputusan_resolver(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->deny($this->pegawai, 'kegiatan:read', null);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertForbidden();
+        $this->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
+        $this->assertSame('explicit_deny', AuditLog::where('tindakan', 'kegiatan.baca_ditolak')->sole()->dasar_izin['alasan']);
+        $audit = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole();
+        $this->assertSame($kegiatan->id, $audit->objek_id);
+        $this->assertSame('kegiatan:read', $audit->dasar_izin['permission']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+    }
+
+    public function test_action_simpan_mengaudit_penolakan_dengan_target_tepercaya_dan_keputusan_asli(): void
+    {
+        $kegiatan = $this->kegiatan($this->unitLain);
+        $this->deny($this->pegawai, 'kegiatan:update', $this->unitLain->id);
+        $decision = app(PermissionResolver::class)->resolve($this->pegawai, 'kegiatan:update', $this->unitLain->id);
+        // Keputusan baru berbeda; audit harus mempertahankan keputusan yang menolak request.
+        $this->pegawai->update(['status' => 'nonaktif']);
+        $action = app(SimpanKegiatan::class);
+        $action->catatPenolakan($this->pegawai, $kegiatan, $this->unit->id, 'Izin ditolak.', $decision);
+        $audit = AuditLog::where('tindakan', 'kegiatan.ubah_ditolak')->sole();
+        $this->assertSame($kegiatan->id, $audit->objek_id);
+        $this->assertSame('kegiatan', $audit->objek_tipe);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+
+        foreach ([strtoupper($this->unit->id), 'rusak', ['id' => $this->unit->id], (string) Str::uuid(), null] as $unitId) {
+            $action->catatPenolakan($this->pegawai, null, $unitId, 'Akun tidak aktif.');
+        }
+        $audits = AuditLog::where('tindakan', 'kegiatan.buat_ditolak')->get();
+        $this->assertCount(5, $audits);
+        $this->assertSame(1, $audits->where('objek_tipe', 'unit')->where('objek_id', $this->unit->id)->count());
+        $this->assertSame(4, $audits->where('objek_tipe', 'pengguna')->where('objek_id', $this->pegawai->id)->count());
+        foreach ($audits as $audit) {
+            $this->assertSame($this->pegawai->id, $audit->actor_id);
+            $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
+            $this->assertSame('kegiatan:create', $audit->dasar_izin['permission']);
+            $this->assertNull($audit->nilai_baru);
+        }
+        $this->assertDatabaseCount('kegiatan', 1);
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+    }
+
+    public function test_action_daftar_mengaudit_penolakan_dengan_keputusan_asli_tanpa_mutasi(): void
+    {
+        $this->deny($this->pegawai, 'kegiatan:read', null);
+        $decision = app(PermissionResolver::class)->resolve($this->pegawai, 'kegiatan:read');
+        $this->pegawai->update(['status' => 'nonaktif']);
+        app(DaftarKegiatan::class)->catatPenolakan($this->pegawai, $decision);
+        $audit = AuditLog::where('tindakan', 'kegiatan.baca_ditolak')->sole();
+        $this->assertSame($this->pegawai->id, $audit->actor_id);
+        $this->assertSame($this->pegawai->id, $audit->objek_id);
+        $this->assertSame('pengguna', $audit->objek_tipe);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+        $this->assertSame('kegiatan:read', $audit->dasar_izin['permission']);
+        $this->assertNull($audit->nilai_baru);
+        $this->assertDatabaseCount('kegiatan', 0);
+    }
+
+    public function test_get_form_create_dan_update_yang_tanpa_izin_diaudit_tanpa_mutasi(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->deny($this->pegawai, 'kegiatan:update', $this->unit->id);
+        $this->actingAs($this->pegawai)->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
+        $this->assertSame('kegiatan:update', AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin['permission']);
+        $this->actingAs($this->user('pegawai'))->get('/kegiatan/buat')->assertForbidden();
+        $this->assertSame(2, AuditLog::where('tindakan', 'kegiatan.form_ditolak')->count());
+        $this->assertDatabaseCount('kegiatan', 1);
+    }
+
+    public function test_opsi_modal_create_dan_update_terpisah_dan_periode_nonaktif_tidak_ditawarkan(): void
+    {
+        UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
+        $this->periode->update(['aktif' => false]);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page
+            ->has('creatableUnitOptions', 1)->where('creatableUnitOptions.0.id', $this->unit->id)
+            ->has('editableUnitOptions', 2)->where('editableUnitOptions.1.id', $this->unitLain->id)
+            ->has('activePeriodeOptions', 0)->has('periodeOptions', 1));
     }
 
     public function test_gagal_audit_membatalkan_pembuatan(): void

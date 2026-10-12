@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Kegiatan;
 
+use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Models\Kegiatan;
 use App\Policies\KegiatanPolicy;
-use App\Services\AuditLogger;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -43,13 +43,9 @@ class SimpanKegiatanRequest extends FormRequest
     {
         $kegiatan = $this->route('kegiatan');
         if ($this->keputusan) {
-            app(AuditLogger::class)->catat(
-                actor: $this->user(),
-                tindakan: $kegiatan instanceof Kegiatan ? 'kegiatan.ubah_ditolak' : 'kegiatan.buat_ditolak',
-                objekTipe: $kegiatan instanceof Kegiatan ? 'kegiatan' : 'unit',
-                objekId: $kegiatan instanceof Kegiatan ? (string) $kegiatan->id : (string) $this->input('unit_id'),
-                alasan: 'Izin pencatatan rencana kegiatan tidak tersedia atau telah dicabut.',
-                dasarIzin: $this->keputusan->toAuditBasis(),
+            app(SimpanKegiatan::class)->catatPenolakan(
+                $this->user(), $kegiatan instanceof Kegiatan ? $kegiatan : null, $this->input('unit_id'),
+                'Izin pencatatan rencana kegiatan tidak tersedia atau telah dicabut.', $this->keputusan,
             );
         }
         parent::failedAuthorization();
