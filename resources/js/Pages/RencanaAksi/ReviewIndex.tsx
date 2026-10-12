@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, ClipboardCheck, Eye } from 'lucide-react';
+import { ClipboardCheck, Eye } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
-import { Card, CardHeader } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import Pagination from '@/Pages/Pengukuran/Pagination';
@@ -13,19 +13,9 @@ export default function ReviewIndex({ daftar, pagination, filters }: ReviewIndex
         <AuthenticatedLayout title="Review Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review' }]}>
             <Head title="Review Rencana Aksi" />
             <div className="space-y-5">
-                <Link href="/rencana-aksi" className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke daftar rencana aksi
-                </Link>
-                <Card>
-                    <CardHeader>
-                        <div className="space-y-1.5">
-                            <p className="text-sm text-muted">Periksa versi pengajuan yang telah dibekukan sebelum memverifikasi atau mengembalikan rencana aksi.</p>
-                            <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> rencana aksi pada status yang dipilih</p>
-                        </div>
-                    </CardHeader>
-                    <div className="bg-soft/30 p-4 sm:px-6">
-                        <div className="w-full sm:w-56">
+                <Card className="overflow-visible">
+                    <div className="flex flex-wrap items-end justify-between gap-3 p-4">
+                        <div className="w-full sm:w-72">
                             <Select label="Status rencana aksi" value={filters.status} onChange={(event) => router.get('/rencana-aksi/review', { status: event.target.value }, { preserveScroll: true })}>
                                 <option value="diajukan">Diajukan</option>
                                 <option value="diverifikasi">Diverifikasi</option>
@@ -34,45 +24,63 @@ export default function ReviewIndex({ daftar, pagination, filters }: ReviewIndex
                                 <option value="semua">Semua status</option>
                             </Select>
                         </div>
+                        {/* Pagination tidak tampil bila hanya satu halaman, jadi jumlah antrean ditampilkan di sini. */}
+                        <p className="text-sm text-muted"><span className="font-semibold text-ink">{pagination.total}</span> rencana aksi</p>
                     </div>
                 </Card>
                 <Card>
-                    <Table className="table-fixed xl:table-auto">
+                    {/* Grid mobile: unit, tahun, dan versi tampil berpasangan tanpa scroll horizontal. */}
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
                         <caption className="sr-only">Antrean review versi pengajuan rencana aksi</caption>
-                        <TableHeader>
+                        <TableHeader className="hidden md:table-header-group">
                             <TableRow>
-                                <TableHead>Indikator</TableHead>
-                                <TableHead className="hidden xl:table-cell">Unit</TableHead>
-                                <TableHead className="hidden xl:table-cell">Tahun</TableHead>
-                                <TableHead className="hidden xl:table-cell">Pengajuan</TableHead>
-                                <TableHead className="hidden xl:table-cell">Status</TableHead>
-                                <TableHead className="w-28 text-right xl:w-auto">Aksi</TableHead>
+                                {['Indikator', 'Unit', 'Tahun', 'Pengajuan', 'Status', 'Aksi'].map((label) => (
+                                    <TableHead key={label} className={`whitespace-normal ${label === 'Aksi' ? 'text-right' : ''}`}>
+                                        {label}
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
-                        <TableBody>
-                            {daftar.length === 0 ? (
-                                <TableRow><TableCell colSpan={6} className="py-12 text-center text-sm text-muted">
-                                    <ClipboardCheck className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                    <p className="mt-2 font-semibold text-ink">Belum ada rencana aksi pada status yang dipilih.</p>
-                                    <p className="mt-1 text-xs text-muted">Pilih status lain untuk melihat pengajuan yang tersedia.</p>
-                                </TableCell></TableRow>
-                            ) : daftar.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="max-w-sm break-words">
-                                        <p className="font-semibold">{item.indikator.kode}<span className="font-normal text-muted xl:hidden"> · {item.tahun}</span></p>
-                                        <p className="mt-0.5 text-muted">{item.indikator.nama}</p>
-                                        <p className="mt-1 text-xs text-muted xl:hidden">{item.unit_nama ?? 'Konteks versi belum lengkap'}</p>
-                                        <div className="mt-2 flex flex-wrap items-center gap-2 xl:hidden">
-                                            <span className="text-xs text-muted">Versi {item.nomor_pengajuan}</span>
-                                            <Badge status={item.status_alur} size="sm" />
-                                        </div>
+                        <TableBody className="block md:table-row-group">
+                            {daftar.length === 0 && (
+                                <TableRow className="block md:table-row">
+                                    <TableCell colSpan={6} className="block py-12 text-center md:table-cell">
+                                        <ClipboardCheck className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                        <p className="mt-2 text-sm font-semibold text-ink">Belum ada rencana aksi pada status yang dipilih.</p>
+                                        <p className="mt-1 text-xs text-muted">Pilih status lain untuk melihat pengajuan yang tersedia.</p>
                                     </TableCell>
-                                    <TableCell className="hidden xl:table-cell">{item.unit_nama ?? 'Konteks versi belum lengkap'}</TableCell>
-                                    <TableCell className="hidden xl:table-cell">{item.tahun}</TableCell>
-                                    <TableCell className="hidden xl:table-cell">Versi {item.nomor_pengajuan}</TableCell>
-                                    <TableCell className="hidden xl:table-cell"><Badge status={item.status_alur} size="sm" /></TableCell>
-                                    <TableCell className="text-right">
-                                        <Link href={`/rencana-aksi/${item.id}/review`} aria-label={`Review ${item.indikator.kode} ${item.tahun}`} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"><Eye className="h-3.5 w-3.5" aria-hidden="true" />Review</Link>
+                                </TableRow>
+                            )}
+                            {daftar.map((item) => (
+                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                    <TableCell className="col-span-2 min-w-0 break-words p-0 md:max-w-sm md:px-4 md:py-3.5">
+                                        <p className="text-sm font-semibold text-ink">{item.indikator.kode}</p>
+                                        <p className="mt-0.5 text-xs text-muted">{item.indikator.nama}</p>
+                                    </TableCell>
+                                    <TableCell className="col-span-2 min-w-0 break-words p-0 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Unit</span>
+                                        {item.unit_nama ?? 'Konteks versi belum lengkap'}
+                                    </TableCell>
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Tahun</span>
+                                        {item.tahun}
+                                    </TableCell>
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Pengajuan</span>
+                                        Versi {item.nomor_pengajuan}
+                                    </TableCell>
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <Badge status={item.status_alur} size="sm" />
+                                    </TableCell>
+                                    <TableCell className="min-w-0 p-0 text-right md:px-4 md:py-3.5">
+                                        <Link
+                                            href={`/rencana-aksi/${item.id}/review`}
+                                            aria-label={`Review ${item.indikator.kode} ${item.tahun}`}
+                                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                        >
+                                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                                            Review
+                                        </Link>
                                     </TableCell>
                                 </TableRow>
                             ))}

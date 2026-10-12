@@ -171,14 +171,23 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                     <Pagination pagination={rencanaAksi.pagination} label="versi pengajuan" />
                 </Card>
             </div>
-            <Modal isOpen={decision === 'verifikasi'} onClose={tutup} title="Verifikasi rencana aksi" description={`Konfirmasi hasil pemeriksaan versi pengajuan ${versi.nomor}.`} size="lg" showCloseButton={!form.processing}>
-                <form onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); kirim('verifikasi'); }} className="space-y-4" aria-busy={form.processing}>
+            <Modal
+                isOpen={decision === 'verifikasi'}
+                onClose={tutup}
+                title="Verifikasi rencana aksi"
+                description={`Konfirmasi hasil pemeriksaan versi pengajuan ${versi.nomor}.`}
+                size="lg"
+                showCloseButton={!form.processing}
+                footer={
+                    <>
+                        <Button type="button" variant="outline" disabled={form.processing} onClick={tutup}>Batal</Button>
+                        <Button type="submit" form="verifikasi-rencana-aksi" isLoading={form.processing} disabled={blocked || !rencanaAksi.can.verifikasi}>Konfirmasi verifikasi</Button>
+                    </>
+                }
+            >
+                <form id="verifikasi-rencana-aksi" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); kirim('verifikasi'); }} className="space-y-4" aria-busy={form.processing}>
                     <p className="text-sm text-muted">Verifikasi dicatat dalam audit dengan alasan baku server. Substansi versi pengajuan tetap dibekukan.</p>
                     {notice}
-                    <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
-                        <Button type="button" variant="outline" disabled={form.processing} onClick={tutup}>Batal</Button>
-                        <Button type="submit" isLoading={form.processing} disabled={blocked || !rencanaAksi.can.verifikasi}>Konfirmasi verifikasi</Button>
-                    </div>
                 </form>
             </Modal>
             <AuditReasonModal open={decision === 'kembalikan'} title="Kembalikan rencana aksi" description={`Tuliskan perbaikan versi ${versi.nomor} yang harus ditindaklanjuti penanggung jawab.`} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.kembalikan || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi pengembalian" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('kembalikan')} />

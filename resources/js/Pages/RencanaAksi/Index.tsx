@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ClipboardList, Eye, Plus, ShieldCheck } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardHeader } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
@@ -70,20 +70,22 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
 
 export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiIndexProps) {
     return (
-        <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
-            <Head title="Rencana Aksi" />
-
-            <Card>
-                <CardHeader className="flex-col items-stretch sm:flex-row sm:items-center">
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                        <p className="text-sm text-muted">Susun target per periode dan lengkapi rencana aksi pada jadwal aktif.</p>
-                        <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> indikator</p>
-                    </div>
-                    <Link href="/rencana-aksi/review" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
+        <AuthenticatedLayout
+            title="Rencana Aksi"
+            breadcrumbs={[{ label: 'Rencana Aksi' }]}
+            headerActions={
+                <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> indikator</p>
+                    <Link href="/rencana-aksi/review" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
                         <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                         Review Rencana Aksi
                     </Link>
-                </CardHeader>
+                </div>
+            }
+        >
+            <Head title="Rencana Aksi" />
+
+            <Card>
                 <Table className="table-fixed xl:table-auto">
                     <caption className="sr-only">Daftar indikator dan rencana aksi pada jadwal aktif</caption>
                     <TableHeader>
