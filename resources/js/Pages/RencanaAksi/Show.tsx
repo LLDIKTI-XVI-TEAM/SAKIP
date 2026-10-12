@@ -7,24 +7,20 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import { arahLabel, tipePerhitunganLabel } from '@/lib/indikator';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import type { IndikatorArah, IndikatorTipePerhitungan } from '@/types/sasaran-indikator';
 import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
 import type { RencanaAksiBukti, RencanaAksiShow } from './types';
-import { dapatDisuntingPeriode, kunciSel } from './types';
+import { dapatDisuntingPeriode, kunciSel, tanpaNolBelakang } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
     /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
     bukti?: RencanaAksiBukti | null;
-}
-
-/** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
-function tanpaNolBelakang(nilai: string | number): string {
-    const teks = String(nilai);
-    return teks.includes('.') ? teks.replace(/\.?0+$/, '') : teks;
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
@@ -262,11 +258,12 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                             <CardTitle className="break-words">
                                 {rencanaAksi.indikator.kode} · {rencanaAksi.indikator.nama}
                             </CardTitle>
-                            <p className="text-xs text-muted">Tahun {rencanaAksi.tahun} · Versi {rencanaAksi.versi}</p>
+                            {/* `versi` adalah token konkurensi header, bukan nomor pengajuan; tidak ditampilkan. */}
+                            <p className="text-xs text-muted">Tahun {rencanaAksi.tahun}</p>
                         </div>
                         <Badge status={rencanaAksi.status_alur} />
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent>
                         <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
                             <div>
                                 <dt className="text-muted">Unit penanggung jawab</dt>
@@ -274,8 +271,10 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                             </div>
                             <div>
                                 <dt className="text-muted">Cara hitung</dt>
-                                <dd className="mt-1 font-medium">{rencanaAksi.tipe_perhitungan.replaceAll('_', ' ')}</dd>
-                                <dd className="text-xs text-muted">{rencanaAksi.indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd>
+                                <dd className="mt-1 font-medium">
+                                    {tipePerhitunganLabel[rencanaAksi.tipe_perhitungan as IndikatorTipePerhitungan] ?? rencanaAksi.tipe_perhitungan}
+                                </dd>
+                                <dd className="text-xs text-muted">{arahLabel[rencanaAksi.indikator.arah as IndikatorArah] ?? rencanaAksi.indikator.arah}</dd>
                             </div>
                             <div>
                                 <dt className="text-muted">Target PK tahunan</dt>
@@ -283,8 +282,6 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                                     {rencanaAksi.target_pk === null ? 'Belum tersedia' : `${formatNilai(rencanaAksi.target_pk, desimal)} ${satuan}`}
                                 </dd>
                             </div>
-                        </dl>
-                        <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
                             <div>
                                 <dt className="text-muted">Penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.penanggung_jawab?.nama ?? '—'}</dd>
@@ -307,8 +304,7 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
 
                 {/* Status beku: isi yang direviu adalah versi pengajuan, bukan draf hidup. */}
                 {!dapatDiajukan && rencanaAksi.versi_pengajuan && (
-                    <div role="status" className="flex flex-wrap items-start gap-3 rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
-                        <Badge status={rencanaAksi.status_alur} />
+                    <div role="status" className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
                         <p>
                             Diajukan sebagai versi {rencanaAksi.versi_pengajuan.nomor} oleh {rencanaAksi.versi_pengajuan.diajukan_oleh ?? '—'} pada{' '}
                             {formatTanggal(rencanaAksi.versi_pengajuan.diajukan_at)}.
@@ -328,36 +324,6 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         disunting; baris lain dikunci dan tidak dikirim.
                     </p>
                 )}
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Deviasi terhadap target PK</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                        {!deviasi.dapat_dinilai ? (
-                            <p className="text-muted">Deviasi belum dapat dinilai; skor periode terakhir atau target PK belum tersedia.</p>
-                        ) : deviasi.ada ? (
-                            <div role="note" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark">
-                                <p className="font-semibold">Skor periode terakhir berbeda dari target PK</p>
-                                <p className="mt-1">
-                                    Skor {deviasi.skor_periode_terakhir !== null ? `${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan}` : '—'}
-                                    {' vs '}
-                                    target PK {deviasi.target_pk !== null ? `${formatNilai(deviasi.target_pk, desimal)} ${satuan}` : '—'}.
-                                    Alasan deviasi diperlukan dan disimpan pada kolom alasan; peringatan ini tidak memblokir penyimpanan.
-                                </p>
-                                {!deviasi.alasan_terisi && (
-                                    <p className="mt-2">Alasan belum terisi; lengkapi kolom alasan deviasi sebelum pengajuan.</p>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-muted">
-                                Skor periode terakhir setara dengan target PK
-                                {deviasi.skor_periode_terakhir !== null ? ` (${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan})` : ''};
-                                alasan deviasi tidak diperlukan.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
 
                 <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
                     {ringkasanGalat.length > 0 && (
@@ -382,30 +348,29 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Matriks target per periode</CardTitle>
+                            <CardTitle>Target per periode</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {kosong ? (
+                        {kosong ? (
+                            <CardContent>
                                 <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
                                     {manual && periodeEfektif.length === 0
                                         ? 'Tidak ada periode efektif untuk indikator ini pada tahun berjalan.'
                                         : 'Definisi komponen efektif belum tersedia untuk indikator nonmanual.'}
                                 </p>
-                            ) : (
-                                <>
-                                    {/* Saat semua periode terkunci, nilai tersimpan tetap terbaca; hanya petunjuk isian yang diganti. */}
-                                    {terkunciSemua ? (
-                                        <p className="rounded-lg border border-border bg-soft p-4 text-sm text-muted">
-                                            Tidak ada periode yang dapat dikoreksi.
-                                        </p>
-                                    ) : (
-                                        <p className="text-sm text-muted">
-                                            Isi setiap sel periode yang berlaku. Kolom skor menampilkan hasil tersimpan dari server dan tidak dihitung ulang di peramban.
-                                            {koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
-                                            {kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
-                                        </p>
-                                    )}
-                                    <MatriksTarget
+                            </CardContent>
+                        ) : (
+                            <>
+                                {/* Saat semua periode terkunci, nilai tersimpan tetap terbaca; hanya petunjuk isian yang diganti. */}
+                                <p className="px-6 pt-4 pb-3 text-sm text-muted">
+                                    {terkunciSemua
+                                        ? 'Tidak ada periode yang dapat dikoreksi.'
+                                        : canUpdate
+                                          ? 'Isi target setiap periode yang berlaku. Skor di tabel adalah hasil tersimpan; pratinjau di bawah tabel menghitung perubahan sebelum disimpan.'
+                                          : 'Skor di tabel adalah hasil tersimpan.'}
+                                    {!terkunciSemua && koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
+                                    {!terkunciSemua && kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
+                                </p>
+                                <MatriksTarget
                                         tipePerhitungan={rencanaAksi.tipe_perhitungan}
                                         komponen={komponenTerurut}
                                         periode={[...rencanaAksi.periode].sort((a, b) => a.urutan - b.urutan)}
@@ -416,9 +381,10 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                                         values={data.nilai}
                                         onValueChange={handleNilai}
                                         galatSel={galatSel}
-                                        formatNilai={formatNilai}
-                                    />
-                                    {canUpdate && !terkunciSemua && (
+                                    formatNilai={formatNilai}
+                                />
+                                {canUpdate && !terkunciSemua && (
+                                    <div className="border-t border-border p-6">
                                         <TargetPreview
                                             id={rencanaAksi.id}
                                             targets={targetsPreview}
@@ -432,26 +398,10 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                                             expectedSnapshotVersi={rencanaAksi.expected_snapshot_versi}
                                             disabled={formDisabled || kosong || terkunciSemua}
                                         />
-                                    )}
-                                    <div className="rounded-lg border border-border bg-soft p-4">
-                                        <p className="text-xs font-medium text-muted">Skor tersimpan per periode (server)</p>
-                                        <ul className="mt-2 space-y-1 text-sm">
-                                            {periodeEfektif.map((baris) => (
-                                                <li key={baris.id} className="flex flex-wrap items-center justify-between gap-2">
-                                                    <span>{baris.nama}</span>
-                                                    <span className="font-mono font-semibold">
-                                                        {baris.skor.nilai === null
-                                                            ? (baris.skor.status_perhitungan === 'tidak_dapat_dihitung' ? 'Tidak dapat dihitung' : 'Belum diisi')
-                                                            : `${formatNilai(baris.skor.nilai, desimal)} ${satuan}`}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <p className="mt-2 text-xs text-muted">Perubahan input belum mengubah hasil ini.</p>
                                     </div>
-                                </>
-                            )}
-                        </CardContent>
+                                )}
+                            </>
+                        )}
                     </Card>
 
                     <Card>
@@ -459,6 +409,29 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                             <CardTitle>Uraian dan alasan deviasi</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {/* Catatan deviasi diletakkan di samping kolom alasannya agar tindakan dan informasinya berdekatan. */}
+                            {!deviasi.dapat_dinilai ? (
+                                <p className="text-sm text-muted">Deviasi belum dapat dinilai; skor periode terakhir atau target PK belum tersedia.</p>
+                            ) : deviasi.ada ? (
+                                <div role="note" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark">
+                                    <p className="font-semibold">Skor periode terakhir berbeda dari target PK</p>
+                                    <p className="mt-1">
+                                        Skor {deviasi.skor_periode_terakhir !== null ? `${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan}` : '—'}
+                                        {' vs '}
+                                        target PK {deviasi.target_pk !== null ? `${formatNilai(deviasi.target_pk, desimal)} ${satuan}` : '—'}.
+                                        Isi alasan deviasi di bawah; peringatan ini tidak memblokir penyimpanan.
+                                    </p>
+                                    {!deviasi.alasan_terisi && (
+                                        <p className="mt-2">Alasan belum terisi; lengkapi sebelum pengajuan.</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted">
+                                    Skor periode terakhir setara dengan target PK
+                                    {deviasi.skor_periode_terakhir !== null ? ` (${formatNilai(deviasi.skor_periode_terakhir, desimal)} ${satuan})` : ''};
+                                    alasan deviasi tidak diperlukan.
+                                </p>
+                            )}
                             <Textarea
                                 name="uraian"
                                 label="Uraian rencana aksi"
