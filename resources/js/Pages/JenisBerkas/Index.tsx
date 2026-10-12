@@ -1,36 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { 
-    Plus, 
-    FileText, 
-    Layers, 
-    Globe, 
-    Target, 
-    Edit2, 
-    Trash2, 
-    Check, 
-    AlertCircle, 
-    SlidersHorizontal,
-    Search,
-    ShieldAlert
-} from 'lucide-react';
+import { FileText, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
-import { Button } from '@/Components/Button';
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableRow,
-    TableHead,
-    TableCell,
-} from '@/Components/Table';
-import { Badge } from '@/Components/Badge';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
-import { 
-    JenisBerkasModal, 
-    JenisBerkasFormData, 
-    IndikatorOption 
+import { Badge } from '@/Components/Badge';
+import { Button } from '@/Components/Button';
+import { Card } from '@/Components/Card';
+import { Input } from '@/Components/Input';
+import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
+import {
+    JenisBerkasModal,
+    JenisBerkasFormData,
+    IndikatorOption
 } from './Partials/JenisBerkasModal';
 
 export interface JenisBerkasItem {
@@ -86,13 +69,27 @@ const defaultFormData: JenisBerkasFormData = {
     aktif: true,
 };
 
+const TAHAP: Record<JenisBerkasItem['tahap'], string> = {
+    rencana_aksi: 'Rencana Aksi',
+    pengukuran: 'Pengukuran',
+    kegiatan: 'Kegiatan (SPJ)',
+};
+
+const modeBukti = (item: JenisBerkasItem) =>
+    [item.izinkan_file && 'File', item.izinkan_tautan && 'Tautan', item.izinkan_teks && 'Teks'].filter(Boolean).join(', ');
+
+const batasFile = (item: JenisBerkasItem) =>
+    `${item.format_diizinkan ? item.format_diizinkan.split(',').map((format) => format.trim()).join(', ') : 'Format bawaan'} · ${
+        item.ukuran_maks_kb ? `maks ${item.ukuran_maks_kb.toLocaleString('id-ID')} KB` : 'ukuran bawaan'
+    }`;
+
 export default function JenisBerkasIndex({
     jenisBerkasList = [],
     indikators = [],
     can = { create: false, update: false, delete: false },
     unggahanAktif = true,
 }: IndexProps) {
-    const [selectedTahap, setSelectedTahap] = useState<string>('semua');
+    const [selectedTahap, setSelectedTahap] = useState<'' | JenisBerkasItem['tahap']>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
 
     // Modal Form State
@@ -113,8 +110,8 @@ export default function JenisBerkasIndex({
     // Filter list
     const filteredList = useMemo(() => {
         return jenisBerkasList.filter((item) => {
-            const matchesTahap = selectedTahap === 'semua' || item.tahap === selectedTahap;
-            const matchesSearch = 
+            const matchesTahap = selectedTahap === '' || item.tahap === selectedTahap;
+            const matchesSearch =
                 item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (item.keterangan && item.keterangan.toLowerCase().includes(searchQuery.toLowerCase())) ||
                 (item.indikator && (
@@ -327,319 +324,170 @@ export default function JenisBerkasIndex({
         }
     };
 
-    const getTahapBadge = (tahap: string) => {
-        switch (tahap) {
-            case 'rencana_aksi':
-                return (
-                    <Badge variant="primary" size="sm">
-                        Rencana Aksi
-                    </Badge>
-                );
-            case 'pengukuran':
-                return (
-                    <Badge variant="success" size="sm">
-                        Pengukuran
-                    </Badge>
-                );
-            case 'kegiatan':
-                return (
-                    <Badge variant="warning" size="sm">
-                        Kegiatan (SPJ)
-                    </Badge>
-                );
-            default:
-                return <Badge variant="muted" size="sm">{tahap}</Badge>;
-        }
-    };
+    const showAksi = Boolean(can.update || can.delete || can.pengaturan_update);
+    const tahapOptions = [
+        { value: '', label: `Semua tahap (${jenisBerkasList.length})` },
+        ...(Object.keys(TAHAP) as JenisBerkasItem['tahap'][]).map((tahap) => ({
+            value: tahap,
+            label: `${TAHAP[tahap]} (${jenisBerkasList.filter((item) => item.tahap === tahap).length})`,
+        })),
+    ];
 
     return (
         <AuthenticatedLayout
-            title="Konfigurasi Persyaratan Jenis Berkas"
-            breadcrumbs={[
-                { label: 'Konfigurasi' },
-                { label: 'Persyaratan Jenis Berkas' }
-            ]}
-        >
-            <Head title="Konfigurasi Persyaratan Jenis Berkas" />
-
-            {/* Header & Deskripsi */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-sm font-semibold text-ink">
-                        Standar Bukti Dukung Kinerja & Kegiatan
-                    </h2>
-                    <p className="text-xs text-muted mt-0.5">
-                        Kelola persyaratan bukti dukung per tahap kepatuhan, batasan mode, dan verifikasi kelengkapan SAKIP.
-                    </p>
-                </div>
-
-                {can.create && (
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        data-testid="btn-tambah-persyaratan"
-                        onClick={handleOpenCreate}
-                        className="gap-1.5"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Tambah Persyaratan
+            title="Persyaratan Berkas"
+            breadcrumbs={[{ label: 'Persyaratan Berkas' }]}
+            headerActions={
+                can.create && (
+                    <Button type="button" size="sm" data-testid="btn-tambah-persyaratan" onClick={handleOpenCreate}>
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Tambah persyaratan
                     </Button>
-                )}
-            </div>
+                )
+            }
+        >
+            <Head title="Persyaratan Berkas" />
 
-            {/* Filter Tabs & Search */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-surface p-2.5 rounded-xl border border-border">
-                {/* Tabs Tahap */}
-                <div className="flex items-center gap-1.5 overflow-x-auto">
-                    {[
-                        { id: 'semua', label: 'Semua Tahap' },
-                        { id: 'rencana_aksi', label: 'Rencana Aksi' },
-                        { id: 'pengukuran', label: 'Pengukuran' },
-                        { id: 'kegiatan', label: 'Kegiatan (SPJ)' },
-                    ].map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setSelectedTahap(tab.id)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                                selectedTahap === tab.id
-                                    ? 'bg-primary text-white shadow-xs'
-                                    : 'text-muted hover:bg-soft hover:text-ink'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+            <div className="space-y-5">
+                <Card className="overflow-visible">
+                    <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+                        <Input
+                            id="pencarian-jenis-berkas"
+                            label="Cari persyaratan"
+                            placeholder="Cari nama, keterangan, atau indikator..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="off"
+                        />
+                        <Select
+                            label="Tahap"
+                            value={selectedTahap}
+                            onChange={(e) => setSelectedTahap(e.target.value as '' | JenisBerkasItem['tahap'])}
+                            options={tahapOptions}
+                        />
+                    </div>
+                </Card>
 
-                {/* Search */}
-                <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted" />
-                    <input
-                        id="pencarian-jenis-berkas"
-                        aria-label="Cari persyaratan berdasarkan nama atau indikator"
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Cari nama atau indikator..."
-                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border text-ink placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none bg-surface"
-                    />
-                </div>
-            </div>
-
-            {/* Main Data Table */}
-            <Card className="overflow-hidden border-border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-12 text-center whitespace-nowrap">NO</TableHead>
-                            <TableHead className="min-w-[220px] whitespace-nowrap">NAMA PERSYARATAN</TableHead>
-                            <TableHead className="whitespace-nowrap">TAHAP</TableHead>
-                            <TableHead className="min-w-[180px] whitespace-nowrap">LINGKUP</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">MODE DIIZINKAN</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">KEWAJIBAN</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">STATUS</TableHead>
-                            <TableHead className="whitespace-nowrap">BATAS TEKNIS</TableHead>
-                            {(can.update || can.delete || can.pengaturan_update) && (
-                                <TableHead className="text-center w-28 whitespace-nowrap">AKSI</TableHead>
-                            )}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredList.length === 0 ? (
+                <Card>
+                    {/* Grid mobile: ketentuan bukti tampil di bawah nama tanpa scroll horizontal. */}
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                        <caption className="sr-only">Persyaratan berkas</caption>
+                        <TableHeader className="hidden md:table-header-group">
                             <TableRow>
-                                <TableCell colSpan={can.update || can.delete ? 9 : 8} className="px-4 py-12 text-center text-muted">
-                                    <div className="flex flex-col items-center justify-center gap-2">
-                                        <FileText className="w-8 h-8 text-muted/60" />
-                                        <span className="font-medium text-ink">
-                                            Tidak ada persyaratan jenis berkas ditemukan
-                                        </span>
-                                        <p className="text-[11px] text-muted max-w-sm">
-                                            {searchQuery || selectedTahap !== 'semua'
-                                                ? 'Coba sesuaikan filter tahap atau kata kunci pencarian Anda.'
-                                                : 'Mulai dengan menambahkan standar persyaratan bukti dukung untuk instansi.'}
-                                        </p>
-                                        {can.create && !searchQuery && selectedTahap === 'semua' && (
-                                            <Button
-                                                variant="primary"
-                                                size="sm"
-                                                onClick={handleOpenCreate}
-                                                className="mt-2"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Tambah Persyaratan Sekarang
-                                            </Button>
-                                        )}
-                                    </div>
-                                </TableCell>
+                                {['Persyaratan', 'Tahap', 'Lingkup', 'Ketentuan bukti', 'Status', ...(showAksi ? ['Aksi'] : [])].map((label) => (
+                                    <TableHead key={label} className={`whitespace-normal ${label === 'Aksi' ? 'text-right' : ''}`}>
+                                        {label}
+                                    </TableHead>
+                                ))}
                             </TableRow>
-                        ) : (
-                            filteredList.map((item, index) => (
-                                <TableRow key={item.id}>
-                                    {/* No */}
-                                    <TableCell className="text-center font-mono text-muted">
-                                        {index + 1}
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {filteredList.length === 0 && (
+                                <TableRow className="block md:table-row">
+                                    <TableCell colSpan={showAksi ? 6 : 5} className="block py-12 text-center md:table-cell">
+                                        <FileText className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                        <p className="mt-2 text-sm font-semibold text-ink">
+                                            {jenisBerkasList.length === 0 ? 'Belum ada persyaratan' : 'Tidak ada persyaratan yang cocok'}
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted">
+                                            {jenisBerkasList.length === 0
+                                                ? 'Persyaratan menentukan bukti dukung yang harus dipenuhi PIC pada setiap tahap.'
+                                                : 'Coba ubah kata kunci atau tahap pada filter.'}
+                                        </p>
                                     </TableCell>
-
-                                    {/* Nama & Keterangan */}
-                                    <TableCell>
-                                        <div className="font-semibold text-ink text-xs">
-                                            {item.nama}
-                                        </div>
+                                </TableRow>
+                            )}
+                            {filteredList.map((item) => (
+                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                    <TableCell className="col-span-2 min-w-0 p-0 md:max-w-72 md:px-4 md:py-3.5">
+                                        <p className="break-words text-sm font-semibold text-ink">{item.nama}</p>
                                         {item.keterangan && (
-                                            <div className="text-[11px] text-muted mt-0.5 line-clamp-2">
-                                                {item.keterangan}
-                                            </div>
+                                            <p className="mt-0.5 line-clamp-2 break-words text-xs text-muted">{item.keterangan}</p>
                                         )}
                                     </TableCell>
-
-                                    {/* Tahap */}
-                                    <TableCell className="whitespace-nowrap">
-                                        {getTahapBadge(item.tahap)}
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Tahap</span>
+                                        {TAHAP[item.tahap] ?? item.tahap}
                                     </TableCell>
-
-                                    {/* Lingkup Indikator */}
-                                    <TableCell>
+                                    <TableCell className="min-w-0 p-0 md:max-w-56 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Lingkup</span>
                                         {item.indikator ? (
-                                            <div>
-                                                <span className="inline-flex items-center gap-1 font-semibold text-primary text-[11px]">
-                                                    <Target className="w-3 h-3" />
-                                                    {item.indikator.kode}
-                                                </span>
-                                                <div className="text-[11px] text-muted line-clamp-1 mt-0.5">
-                                                    {item.indikator.nama}
-                                                </div>
-                                            </div>
+                                            <>
+                                                <span className="font-semibold text-primary">{item.indikator.kode}</span>
+                                                <span className="mt-0.5 line-clamp-1 text-muted">{item.indikator.nama}</span>
+                                            </>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
-                                                <Globe className="w-3 h-3 text-muted" />
-                                                Global (Semua Indikator)
-                                            </span>
+                                            <span className="text-muted">Semua indikator</span>
                                         )}
                                     </TableCell>
-
-                                    {/* Mode yang Diizinkan */}
-                                    <TableCell className="text-center">
-                                        <div className="inline-flex items-center gap-1 flex-wrap justify-center">
-                                            {item.izinkan_file && (
-                                                <Badge variant="muted" size="sm">
-                                                    FILE
-                                                </Badge>
-                                            )}
-                                            {item.izinkan_tautan && (
-                                                <Badge variant="info" size="sm">
-                                                    TAUTAN
-                                                </Badge>
-                                            )}
-                                            {item.izinkan_teks && (
-                                                <Badge variant="secondary" size="sm">
-                                                    TEKS
-                                                </Badge>
-                                            )}
-                                        </div>
+                                    <TableCell className="col-span-2 min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Ketentuan</span>
+                                        <span className={item.wajib ? 'font-semibold text-ink' : 'text-muted'}>
+                                            {item.wajib ? 'Wajib' : 'Opsional'}
+                                        </span>
+                                        {item.semua_mode_wajib && <span className="text-muted"> · semua mode</span>}
+                                        <p className="mt-0.5 text-ink">{modeBukti(item)}</p>
+                                        {item.izinkan_file && <p className="mt-0.5 break-words text-muted">{batasFile(item)}</p>}
                                     </TableCell>
-
-                                    {/* Sifat Kewajiban */}
-                                    <TableCell className="text-center">
-                                        <div className="flex flex-col items-center gap-1">
-                                            {item.wajib ? (
-                                                <Badge variant="danger" size="sm">
-                                                    Wajib
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="muted" size="sm">
-                                                    Opsional
-                                                </Badge>
-                                            )}
-                                            {item.semua_mode_wajib && (
-                                                <Badge variant="warning" size="sm">
-                                                    Semua Mode
-                                                </Badge>
-                                            )}
-                                        </div>
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <Badge variant={item.aktif !== false ? 'success' : 'muted'}>
+                                            {item.aktif !== false ? 'Aktif' : 'Nonaktif'}
+                                        </Badge>
                                     </TableCell>
-
-                                    {/* Status */}
-                                    <TableCell className="text-center whitespace-nowrap">
-                                        {item.aktif !== false ? (
-                                            <Badge variant="success" size="sm">
-                                                Aktif
-                                            </Badge>
-                                        ) : (
-                                            <Badge variant="muted" size="sm">
-                                                Nonaktif
-                                            </Badge>
-                                        )}
-                                    </TableCell>
-
-                                    {/* Batas Teknis */}
-                                    <TableCell>
-                                        {item.izinkan_file ? (
-                                            <div className="text-[11px] space-y-0.5">
-                                                <div>
-                                                    <span className="text-muted">Format: </span>
-                                                    <span className="font-mono text-ink">
-                                                        {item.format_diizinkan || 'Default'}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-muted">Maks: </span>
-                                                    <span className="font-mono text-ink">
-                                                        {item.ukuran_maks_kb ? `${item.ukuran_maks_kb} KB` : 'Default'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <span className="text-muted text-[11px]">N/A</span>
-                                        )}
-                                    </TableCell>
-
-                                    {/* Aksi */}
-                                    {(can.update || can.delete || can.pengaturan_update) && (
-                                        <TableCell className="text-center">
-                                            <div className="inline-flex items-center gap-1 justify-center">
+                                    {showAksi && (
+                                        <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5 md:text-right">
+                                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 md:flex-nowrap">
                                                 {can.update && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenEdit(item, false)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 transition-colors cursor-pointer"
-                                                        title="Ubah Persyaratan"
-                                                        aria-label={`Ubah persyaratan ${item.nama}`}
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
+                                                    <Tooltip content="Edit" align="right">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleOpenEdit(item, false)}
+                                                            aria-label={`Edit ${item.nama}`}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
                                                 )}
-                                                {!can.update && can.pengaturan_update && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenEdit(item, true)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-info-dark hover:bg-info/10 focus:outline-none focus:ring-2 focus:ring-info/25 transition-colors cursor-pointer"
-                                                        title="Ubah Batas Teknis"
-                                                        aria-label={`Ubah batas teknis untuk ${item.nama}`}
-                                                    >
-                                                        <SlidersHorizontal className="w-4 h-4" />
-                                                    </button>
+                                                {!can.update && can.pengaturan_update && item.izinkan_file && (
+                                                    <Tooltip content="Ubah batas teknis" align="right">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleOpenEdit(item, true)}
+                                                            aria-label={`Ubah batas teknis ${item.nama}`}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
                                                 )}
                                                 {can.delete && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenDelete(item)}
-                                                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted hover:text-danger hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/25 transition-colors cursor-pointer"
-                                                        title="Hapus Persyaratan"
-                                                        aria-label={`Hapus persyaratan ${item.nama}`}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    <Tooltip content="Hapus" align="right">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleOpenDelete(item)}
+                                                            aria-label={`Hapus ${item.nama}`}
+                                                            className="h-8 w-8 border-danger/30 p-0 text-danger hover:bg-danger/10 focus:ring-danger/25"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
                                                 )}
                                             </div>
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </Card>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </Card>
+            </div>
 
             {/* Modal Tambah / Ubah */}
             <JenisBerkasModal
@@ -664,10 +512,10 @@ export default function JenisBerkasIndex({
                 open={isAuditModalOpen}
                 title={
                     auditAction === 'delete'
-                        ? 'Konfirmasi Hapus Persyaratan'
+                        ? `Hapus ${targetItem?.nama ?? 'persyaratan'}?`
                         : auditAction === 'update-batas-teknis'
-                        ? 'Konfirmasi Perubahan Batas Teknis'
-                        : 'Konfirmasi Perubahan Substantif'
+                        ? 'Simpan perubahan batas teknis?'
+                        : 'Simpan perubahan persyaratan?'
                 }
                 description={
                     auditAction === 'delete'
@@ -679,7 +527,7 @@ export default function JenisBerkasIndex({
                 reason={auditReason}
                 error={auditError || undefined}
                 busy={isSubmitting}
-                confirmLabel={auditAction === 'delete' ? 'Hapus Persyaratan' : 'Simpan Perubahan'}
+                confirmLabel={auditAction === 'delete' ? 'Hapus persyaratan' : 'Simpan perubahan'}
                 destructive={auditAction === 'delete'}
                 onReasonChange={setAuditReason}
                 onClose={() => {
