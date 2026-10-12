@@ -60,6 +60,7 @@ use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowReviuRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreRencanaAksiDraft;
+use App\Http\Controllers\RencanaAksi\SubmitRencanaAksi;
 use App\Http\Controllers\RencanaAksi\UpdateRencanaAksiTarget;
 use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
 use App\Http\Controllers\Renstra\CreateRenstra;
@@ -115,7 +116,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}', [TargetTahunanController::class, 'update'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.update');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
-    Route::get('/jadwal/opsi/{jenis}', [JadwalController::class, 'options'])->whereIn('jenis', ['renstra', 'periode'])->name('jadwal.options');
     Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
     Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
     Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
@@ -249,6 +249,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');
         Route::delete('/rencana-aksi/{rencanaAksi}/bukti/{bukti}', DestroyBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
         Route::post('/rencana-aksi/{id}/sahkan', SahkanRencanaAksi::class)->whereUuid('id')->name('rencana-aksi.sahkan');
+        Route::post('/rencana-aksi/{rencanaAksi}/ajukan', SubmitRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.ajukan');
     });
     Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');
     Route::get('/rencana-aksi/{rencanaAksi}/bukti/{bukti}/unduh', DownloadBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.download');

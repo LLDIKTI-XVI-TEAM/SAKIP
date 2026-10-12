@@ -66,6 +66,26 @@ class DashboardSummaryTest extends TestCase
             ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'aktif')->where('stats.total', 1));
     }
 
+    public function test_dashboard_reports_progress_for_every_schedule_period(): void
+    {
+        Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => true]);
+        $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $next->id,
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+        $ratified = $this->pengukuran->replicate();
+        $ratified->periode_id = $next->id;
+        $ratified->status_alur = 'disahkan';
+        $ratified->save();
+        $this->travelTo(now()->setDate(2026, 3, 10));
+
+        $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
+            ->where('tahun', 2026)->where('activeJadwal.tahun', 2026)->where('activeJadwal.status', 'aktif')
+            ->where('stats.total', 1)->where('stats.draft', 1)->where('stats.disahkan', 0)
+            ->has('progresPeriode', 2)
+            ->where('progresPeriode.0.nama', 'Triwulan I')->where('progresPeriode.0.total', 1)->where('progresPeriode.0.draft', 1)
+            ->where('progresPeriode.1.nama', 'Triwulan II')->where('progresPeriode.1.total', 1)->where('progresPeriode.1.disahkan', 1));
+    }
+
     public function test_dashboard_does_not_fall_back_to_old_data_without_an_active_renstra_schedule(): void
     {
         Renstra::query()->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
@@ -74,7 +94,8 @@ class DashboardSummaryTest extends TestCase
 
         $renstra = Renstra::create(['kode' => 'R-BARU', 'nama' => 'Renstra Baru', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activeRenstra.id', $renstra->id)->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
+            ->where('activeRenstra.id', $renstra->id)->where('activeJadwal', null)->where('activePeriode', null)->where('stats.total', 0)
+            ->has('progresPeriode', 0)->has('pengukurans', 0));
     }
 
     public function test_dashboard_selects_the_active_renstra_covering_the_current_year(): void

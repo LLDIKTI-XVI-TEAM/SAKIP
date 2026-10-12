@@ -2,7 +2,7 @@
 
 namespace App\Actions\RencanaAksi;
 
-use App\Actions\Pengukuran\CalculatePengukuran;
+use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -12,24 +12,26 @@ use App\Models\RencanaAksiTarget;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
+use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
+use App\Support\DeviasiTargetPk;
 use App\Support\PermissionCodes;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
 
 class IndexRencanaAksi
 {
     public function __construct(
         private readonly PermissionResolver $resolver,
-        private readonly CalculatePengukuran $calculator,
         private readonly RekonsiliasiTargetDraf $rekonsiliasi,
         private readonly JendelaTulisRencanaAksi $jendela,
         private readonly KonteksBekuRencanaAksi $konteks,
+        private readonly KesiapanPengajuan $kesiapan,
+        private readonly EvaluateEvidence $evaluator,
     ) {}
 
     /**
@@ -58,7 +60,8 @@ class IndexRencanaAksi
      * Himpunan komponen efektif dan periode efektif memakai aturan
      * yang sama dengan jalur tulis `SimpanTargetPeriode`, tetapi tanpa kunci
      * baris karena jalur ini read-only. Estimasi skor dihitung server via
-     * `CalculatePengukuran` agar React tidak menghitung skor turunan sendiri.
+     * `KesiapanPengajuan` (mesin `CalculatePengukuran`) agar React tidak
+     * menghitung skor turunan sendiri.
      * Peringatan turun antar-periode (PRD §14.4) dan deviasi periode
      * terakhir vs target PK (PRD §14.5) adalah data, bukan blokir —
      * penegakan alasan deviasi milik gerbang pengajuan.
@@ -100,7 +103,7 @@ class IndexRencanaAksi
             $jendela = $this->konteks->jendela($jadwal->id);
             $efektifIds = $this->konteks->periodeEfektif($snapshot, $jendela);
 
-            $baris = $this->petaTarget($segel);
+            $baris = $this->kesiapan->petaTarget(RencanaAksiTarget::where('rencana_aksi_id', $segel->id)->get());
 
             // Baris basi transisi (tak efektif pada
             // satu pun versi antara jepit→terbaru) disaring bagai tak
@@ -108,11 +111,32 @@ class IndexRencanaAksi
             // + audit milik jalur tulis berikutnya.
             $baris = $this->rekonsiliasi->saringPetaBasi($baris, $this->rekonsiliasi->rekonsiliasi($segel, $snapshot)['kunci']);
 
-            $periode = $this->susunPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+            // Baris periode beku (bentuk yang dibekukan saat pengajuan) adalah
+            // satu-satunya sumber skor dan deviasi di halaman ini, sehingga
+            // angka yang tampil, kesiapan, dan versi beku tidak dapat berbeda.
+            // Dihitung dari peta yang sudah disaring agar sel basi tidak
+            // dihitung lengkap. Bukti current dibaca lagi oleh
+            // `IndexBuktiRencanaAksi` untuk panel (terbatas).
+            $barisBeku = $this->kesiapan->barisPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+            $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
+            $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
+            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
+            // Jepit draf tertinggal dari snapshot koreksi terbaru: gerbang
+            // pengajuan menolak 409 sampai target disimpan di konteks baru, jadi
+            // halaman menunjukkan tindakannya alih-alih "siap" tanpa tombol.
+            if ((string) $segel->snapshot_draf_id !== (string) $snapshot->id) {
+                array_unshift($alasanPengajuan, 'Konteks indikator berubah (snapshot koreksi baru terbit). Simpan target sebelum mengajukan.');
+            }
+
+            $periode = $this->susunPeriode($tipe, $definisi, $jendela, $efektifIds, $baris, collect($barisBeku)->keyBy('periode_id'));
             $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
             $unitId = (string) $segel->unit_id;
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
+            // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
+            $versiPengajuan = $segel->latestVersion()
+                ->leftJoin('users', 'users.id', '=', 'rencana_aksi_versi.diajukan_by')
+                ->first(['rencana_aksi_versi.nomor', 'rencana_aksi_versi.diajukan_at', 'users.nama as diajukan_oleh']);
 
             // Metadata indikator (nama, satuan, arah, tipe,
             // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
@@ -156,7 +180,14 @@ class IndexRencanaAksi
                 'periode' => $periode,
                 // Lingkup koreksi untuk UI; lihat statusKoreksi.
                 'koreksi' => $koreksi,
-                'deviasi_pk' => $this->deviasiPk($segel, $presisi, $snapshot, $periode),
+                'deviasi_pk' => DeviasiTargetPk::props($deviasiBeku, $segel->alasan_deviasi_pk, $barisBeku === [] ? null : $barisBeku[array_key_last($barisBeku)]['periode_id']),
+                // Teks alasan berasal dari server; React hanya menampilkannya.
+                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan],
+                'versi_pengajuan' => $versiPengajuan === null ? null : [
+                    'nomor' => (int) $versiPengajuan->nomor,
+                    'diajukan_oleh' => $versiPengajuan->getAttribute('diajukan_oleh'),
+                    'diajukan_at' => $versiPengajuan->diajukan_at->toIso8601String(),
+                ],
                 // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
                 // (izin, unit aktif, indikator bukan arsip, status draf,
                 // lingkup koreksi yang mencakup periode efektif, jendela
@@ -170,9 +201,32 @@ class IndexRencanaAksi
                         && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
                         && (! $koreksi['aktif'] || array_intersect($efektifIds->all(), $koreksi['periode_ids']) !== [])
                         && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan') === null,
+                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal),
                 ],
             ];
         });
+    }
+
+    /**
+     * Eligibility gerbang `AjukanRencanaAksi` tanpa kelengkapan isi: status
+     * dapat disunting, jepit snapshot terbaru, unit aktif, indikator bukan
+     * arsip, izin `rencana_aksi:ajukan`, dan jendela pengajuan. Kelengkapan
+     * dilaporkan terpisah di `pengajuan` agar UI dapat menunjukkan alasannya.
+     * Pemeriksaan murah didahulukan agar resolver tidak dipanggil untuk
+     * status beku.
+     */
+    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    {
+        if (! in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
+            || (string) $segel->snapshot_draf_id !== (string) $snapshot->id
+            || $segel->unit?->status !== 'aktif'
+            || $indikator->isArsip()) {
+            return false;
+        }
+
+        $keputusan = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id);
+
+        return $keputusan->allowed && $this->jendela->alasanTolak($actor, $keputusan, $indikator, $jadwal, 'pengajuan') === null;
     }
 
     /**
@@ -193,25 +247,14 @@ class IndexRencanaAksi
     }
 
     /**
-     * Target tersimpan dikelompokkan per periode lalu per komponen
-     * (`manual` untuk baris manual `komponen_id = NULL`).
-     */
-    private function petaTarget(RencanaAksi $header): Collection
-    {
-        return RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-            ->get()
-            ->groupBy(fn (RencanaAksiTarget $row): string => (string) $row->periode_id)
-            ->map(fn (Collection $rows): Collection => $rows->keyBy(fn (RencanaAksiTarget $row): string => $row->komponen_id === null ? 'manual' : (string) $row->komponen_id));
-    }
-
-    /**
      * @param  Collection<int, PeriodeJadwal>  $jendela
      * @param  Collection<int, string>  $efektifIds
      * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
      * @param  Collection<string, Collection<string, RencanaAksiTarget>>  $baris
+     * @param  Collection<string, array{nilai: ?string, status_perhitungan: string}>  $barisBeku  Skor per `periode_id` dari `KesiapanPengajuan::barisPeriode`.
      * @return list<array<string, mixed>>
      */
-    private function susunPeriode(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $baris): array
+    private function susunPeriode(string $tipe, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $baris, Collection $barisBeku): array
     {
         $hasil = [];
         /** @var array<string, string|null> $nilaiSebelumnya nilai komponen periode efektif sebelumnya */
@@ -227,7 +270,7 @@ class IndexRencanaAksi
             }
 
             $nilai = $this->nilaiPeriode($tipe, $definisi, $baris->get($periodeId) ?? collect());
-            $skor = $this->skorPeriode($tipe, $presisi, $definisi, $nilai);
+            $beku = $barisBeku->get($periodeId);
             $turun = $this->komponenTurun($nilai, $nilaiSebelumnya);
             foreach ($nilai as $kunci => $angka) {
                 $nilaiSebelumnya[$kunci] = $angka;
@@ -240,7 +283,7 @@ class IndexRencanaAksi
                 'efektif' => true,
                 'status' => 'efektif',
                 'nilai' => $this->tampilNilai($tipe, $definisi, $baris->get($periodeId) ?? collect()),
-                'skor' => $skor,
+                'skor' => ['nilai' => $beku['nilai'] ?? null, 'status_perhitungan' => $beku['status_perhitungan'] ?? 'belum_diisi'],
                 'peringatan_turun' => $turun !== [],
                 'komponen_turun' => $turun,
             ];
@@ -319,35 +362,6 @@ class IndexRencanaAksi
     }
 
     /**
-     * Estimasi skor dihitung server; kegagalan hitung tidak menggagalkan
-     * halaman baca (data drift pasca-simpan tetap tampil sebagai data).
-     *
-     * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
-     * @param  array<string, string|int|float|null>  $nilai
-     * @return array{nilai: string|null, status_perhitungan: string}
-     */
-    private function skorPeriode(string $tipe, int $presisi, Collection $definisi, array $nilai): array
-    {
-        $definitions = $definisi->map(fn (array $item): array => [
-            'komponen_id' => $item['komponen_id'],
-            'peran' => $item['peran'],
-            'bobot' => $item['bobot'],
-        ])->all();
-
-        try {
-            if ($tipe === 'manual') {
-                $hitung = $this->calculator->handle($tipe, $presisi, [], [], $nilai['manual'] ?? null);
-            } else {
-                $hitung = $this->calculator->handle($tipe, $presisi, $definitions, $nilai, null);
-            }
-        } catch (InvalidArgumentException|ValidationException) {
-            return ['nilai' => null, 'status_perhitungan' => 'tidak_dapat_dihitung'];
-        }
-
-        return ['nilai' => $hitung['nilai'] === null ? null : (string) $hitung['nilai'], 'status_perhitungan' => (string) $hitung['status_perhitungan']];
-    }
-
-    /**
      * Peringatan kumulatif: nilai komponen lebih kecil dari periode
      * efektif sebelumnya pada komponen yang sama. Hanya bila kedua nilai
      * terisi angka (`null` = belum diisi, bukan nol) — tanpa memblokir.
@@ -370,35 +384,5 @@ class IndexRencanaAksi
         }
 
         return $turun;
-    }
-
-    /**
-     * Deviasi: skor turunan periode efektif terakhir vs target PK
-     * (salinan beku `jadwal_snapshot.target`, yaitu target PK snapshot)
-     * dengan toleransi `presisi`. Bila tak dapat dinilai
-     * (skor/target tak tersedia), alasan tidak diperlukan.
-     *
-     * @param  list<array<string, mixed>>  $periode
-     * @return array{dapat_dinilai: bool, ada: bool, alasan_diperlukan: bool, alasan_terisi: bool, skor_periode_terakhir: string|null, target_pk: string|null, periode_id: string|null}
-     */
-    private function deviasiPk(RencanaAksi $header, int $presisi, JadwalSnapshot $snapshot, array $periode): array
-    {
-        $terakhir = collect($periode)->where('efektif', true)->sortBy('urutan')->last();
-        $skor = is_array($terakhir) ? ($terakhir['skor']['nilai'] ?? null) : null;
-        $targetPk = $snapshot->target === null ? null : (string) $snapshot->target;
-
-        $dapatDinilai = is_string($terakhir['id'] ?? null) && is_numeric($skor) && is_numeric($targetPk);
-        $ada = $dapatDinilai && bccomp((string) $skor, (string) $targetPk, $presisi) !== 0;
-        $alasanTerisi = trim((string) $header->alasan_deviasi_pk) !== '';
-
-        return [
-            'dapat_dinilai' => $dapatDinilai,
-            'ada' => $ada,
-            'alasan_diperlukan' => $ada,
-            'alasan_terisi' => $alasanTerisi,
-            'skor_periode_terakhir' => is_numeric($skor) ? (string) $skor : null,
-            'target_pk' => is_numeric($targetPk) ? (string) $targetPk : null,
-            'periode_id' => is_string($terakhir['id'] ?? null) ? $terakhir['id'] : null,
-        ];
     }
 }

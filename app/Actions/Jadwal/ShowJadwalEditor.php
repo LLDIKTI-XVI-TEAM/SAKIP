@@ -22,7 +22,8 @@ class ShowJadwalEditor
         $canCreate = $this->policy->create($actor)->allowed();
         $canActivate = $this->policy->activate($actor)->allowed();
         if ($jadwal === null) {
-            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false], 'read_only_reason' => null];
+            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false], 'read_only_reason' => null,
+                'renstra_options' => $this->renstraOptions(), 'periode_options' => $this->periodeOptions()];
         }
 
         return DB::transaction(function () use ($actor, $jadwal, $canCreate, $canActivate): array {
@@ -51,7 +52,40 @@ class ShowJadwalEditor
 
             return ['jadwal' => [...$attributes, 'renstra' => $renstra->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']), 'periode' => $windows],
                 // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
-                'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate], 'read_only_reason' => $reason];
+                'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate], 'read_only_reason' => $reason,
+                'renstra_options' => $reason === null ? $this->renstraOptions() : [],
+                'periode_options' => $reason === null ? $this->periodeOptions() : []];
         });
+    }
+
+    /**
+     * Pilihan dropdown tambah periode: hanya periode aktif, urut sesuai master.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function periodeOptions(): array
+    {
+        $fields = ['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi'];
+
+        // shortcut: tanpa paginasi karena master periode global dan tidak bertambah per tahun (Data Model §2.14;
+        // seed Triwulan I–IV), hanya yang aktif dikirim; ganti ke pencarian bila periode aktif melebihi ±50.
+        return Periode::query()->select($fields)->where('aktif', true)->orderBy('urutan')->orderBy('id')->get()
+            ->map(fn (Periode $periode): array => $periode->only($fields))->values()->all();
+    }
+
+    /**
+     * Pilihan dropdown Renstra: hanya draft/aktif yang boleh menerima jadwal, dikirim saat form dapat diubah.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function renstraOptions(): array
+    {
+        $fields = ['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai'];
+
+        // shortcut: tanpa paginasi karena Renstra berjangka lima tahun, hanya draft/aktif dikirim, dan rentang aktif
+        // tidak boleh tumpang tindih; ganti ke pencarian bila pilihan melebihi ±50.
+        return Renstra::query()->select($fields)->whereIn('status', ['draft', 'aktif'])
+            ->orderByDesc('tahun_mulai')->orderBy('id')->get()
+            ->map(fn (Renstra $renstra): array => $renstra->only($fields))->values()->all();
     }
 }

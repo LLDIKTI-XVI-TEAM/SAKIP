@@ -18,7 +18,7 @@ class JadwalPagesTest extends TestCase
     public function test_domain_access_is_create_or_update_and_before_lookup_or_query_validation(): void
     {
         $none = User::factory()->create(['status' => 'aktif']);
-        foreach (['/periode', '/jadwal', '/jadwal/create', '/jadwal/'.Str::uuid(), '/jadwal/opsi/renstra?q='.str_repeat('x', 101)] as $url) {
+        foreach (['/periode', '/jadwal', '/jadwal/create', '/jadwal/'.Str::uuid()] as $url) {
             $this->actingAs($none)->get($url)->assertForbidden();
         }
         $actor = $this->calendarActor(['periode:update', 'jadwal:update']);
@@ -26,7 +26,6 @@ class JadwalPagesTest extends TestCase
         $this->get('/jadwal')->assertOk();
         $this->get('/jadwal/create')->assertForbidden();
         $this->get('/jadwal/not-a-uuid')->assertNotFound();
-        $this->get('/jadwal/opsi/invalid')->assertNotFound();
     }
 
     public function test_queries_are_paginated_and_current_final_is_outside_filter(): void
@@ -39,11 +38,12 @@ class JadwalPagesTest extends TestCase
         $this->actingAs($actor)->get('/periode?q=Kandidat')->assertInertia(fn (Assert $page) => $page->has('periode.data', 20)
             ->where('periode.total', 22)->where('current_final.id', $final->id)->where('current_final.revisi', 1)
             ->where('periode.data.0.metadata_locked', false)->missing('periode.data.0.created_by'));
-        $this->getJson('/jadwal/opsi/periode?q=Kandidat')->assertJsonCount(20, 'data')->assertJsonPath('has_more', true);
-        $this->getJson('/jadwal/opsi/periode?q=Kandidat&page=2')->assertJsonCount(2, 'data')->assertJsonPath('has_more', false);
+        $this->get('/jadwal/create')->assertInertia(fn (Assert $page) => $page->has('periode_options', 23)
+            ->where('periode_options.0.urutan', 0)->missing('periode_options.0.created_by'));
         $final->update(['aktif' => false]);
-        $this->getJson('/jadwal/opsi/periode?q=Triwulan')->assertJsonCount(0, 'data');
-        $this->getJson('/jadwal/opsi/periode?page=0')->assertUnprocessable();
+        $this->get('/jadwal/create')->assertInertia(fn (Assert $page) => $page->has('periode_options', 22)
+            ->where('periode_options', fn ($options): bool => ! collect($options)->pluck('id')->contains($final->id)));
+        $this->get('/jadwal/opsi/periode')->assertNotFound();
         $this->get('/jadwal?sort=sql')->assertSessionHasErrors('sort');
     }
 
@@ -68,10 +68,12 @@ class JadwalPagesTest extends TestCase
         $this->actingAs($actor)->get('/jadwal/'.$jadwal->id)->assertInertia(fn (Assert $page) => $page->component('Jadwal/Editor')
             ->where('jadwal.revisi', 2)->where('jadwal.penutupan', '2027-01-20')->where('jadwal.periode.0.aktif', false)
             ->where('jadwal.periode.0.periode_revisi', 1)->where('jadwal.renstra.id', $renstra->id)->where('can.update', true)
+            ->where('renstra_options', fn ($options): bool => collect($options)->pluck('id')->contains($renstra->id))
             ->missing('jadwal.renstra_pk_id')->missing('jadwal.activated_at'));
         $renstra->update(['status' => 'nonaktif']);
-        $this->get('/jadwal/'.$jadwal->id)->assertInertia(fn (Assert $page) => $page->where('can.update', false)->where('read_only_reason', fn ($reason): bool => str_contains($reason, 'Renstra')));
+        $this->get('/jadwal/'.$jadwal->id)->assertInertia(fn (Assert $page) => $page->where('can.update', false)->where('read_only_reason', fn ($reason): bool => str_contains($reason, 'Renstra'))
+            ->where('renstra_options', [])->where('periode_options', []));
         $this->get('/jadwal?renstra_id='.$renstra->id.'&tahun=2026')->assertInertia(fn (Assert $page) => $page->has('jadwal.data', 1)->where('jadwal.data.0.can_update', false));
-        $this->getJson('/jadwal/opsi/renstra')->assertJsonCount(0, 'data');
+        $this->get('/jadwal/create')->assertInertia(fn (Assert $page) => $page->where('renstra_options', fn ($options): bool => ! collect($options)->pluck('id')->contains($renstra->id)));
     }
 }

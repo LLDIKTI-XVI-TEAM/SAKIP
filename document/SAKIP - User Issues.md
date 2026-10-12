@@ -1539,7 +1539,7 @@ Matriks berikut memetakan setiap aturan PJ terhadap baseline, evidence resmi, st
 
 Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/tree/6e09189516a97035e6a08b05f97cfa9985527b55); tambahan aturan dapat ditelusuri pada histori/diff PR #68. Folder `docs/adr/` tidak tersedia; ADR accepted pada `SAKIP - Architecture Decision Records.md` menetapkan arsitektur/authorization, bukan persetujuan PJ-01–PJ-05. Q34 menutup MAJOR. PJ-01 dan PJ-03–PJ-05 sudah sesuai implementasi; PJ-02 berbeda dan direkonsiliasi pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70) (resolver, constraint, migration, dan test).
 
-**MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11 sampai versi pengajuan ISS-05.03 tersedia, sedangkan AC-3 terverifikasi melalui #70 (10 Oktober 2026); catatan ini tidak mengubah checkbox atau keputusan domain.
+**MINOR tetap FIXED:** kontras canonical `Badge` success dan reuse `useFormatTanggal` untuk timestamp histori, tanpa mengubah tanggal efektif/input/payload API. Detail QA dan keterbatasannya dirujuk pada [PR #68](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68) dan [re-review terkait](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). US-04.01 AC-3 terverifikasi melalui #70 (10 Oktober 2026) dan AC-4 untuk Rencana Aksi Modul 11 melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti` pada ISS-05.03 (11 Oktober 2026); catatan ini tidak mengubah checkbox atau keputusan domain.
 
 ### ISS-05.01 · [Feature] Penyusunan Target Rencana Aksi per Periode
 
@@ -1564,7 +1564,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:create`, `rencana_aksi:update`.
 - **Dampak Data:** `rencana_aksi`, `rencana_aksi_target`, `audit_log`.
 
-> **Status implementasi — PR #62:** centang menunjukkan bukti implementasi dan QA pada `7ec7007`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37902466096); bukan persetujuan UAT atau deployment. Bukti memakai test Pest pada `tests/Feature/RencanaAksi/` (antara lain `RencanaAksiTargetTest`, `RencanaAksiIndexTest`, `RencanaAksiWriteGuardTest`, `RencanaAksiAuthorizationTest`, dan `RencanaAksiKoreksiLingkupTest`), test frontend `tests/Frontend/RencanaAksi*.test.tsx`, serta E2E browser lokal pada desktop dan mobile. AC-6/TEST-6 tetap terbuka: kewajiban alasan deviasi ditegakkan saat pengajuan (ISS-05.03, ADR-0008), sedangkan simpan draf hanya memberi peringatan. Kontras teks belum diaudit formal terhadap checklist `design-system.md`.
+> **Status implementasi — PR #62:** centang menunjukkan bukti implementasi dan QA pada `7ec7007`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37902466096); bukan persetujuan UAT atau deployment. Bukti memakai test Pest pada `tests/Feature/RencanaAksi/` (antara lain `RencanaAksiTargetTest`, `RencanaAksiIndexTest`, `RencanaAksiWriteGuardTest`, `RencanaAksiAuthorizationTest`, dan `RencanaAksiKoreksiLingkupTest`), test frontend `tests/Frontend/RencanaAksi*.test.tsx`, serta E2E browser lokal pada desktop dan mobile. AC-6/TEST-6 terverifikasi pada pengajuan ISS-05.03 melalui `test_deviasi_tanpa_alasan_ditolak_dan_dengan_alasan_diterima` (ADR-0008); simpan draf tetap hanya memberi peringatan. Kontras teks belum diaudit formal terhadap checklist `design-system.md`.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -1573,7 +1573,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
 - [x] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
 - [x] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
-- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi. *(Q34/ADR-0008: kewajiban alasan ditegakkan pada pengajuan ISS-05.03; ISS-05.01 hanya menampilkan peringatan deviasi dan menyimpan `alasan_deviasi_pk` pada draf.)*
+- [x] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi. *(Q34/ADR-0008: kewajiban alasan ditegakkan pada pengajuan ISS-05.03 dan terverifikasi melalui `test_deviasi_tanpa_alasan_ditolak_dan_dengan_alasan_diterima`; ISS-05.01 hanya menampilkan peringatan deviasi dan menyimpan `alasan_deviasi_pk` pada draf.)*
 
 #### Implementation Tasks
 
@@ -1602,7 +1602,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
 - [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
@@ -1648,7 +1648,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: penghapusan bukti non-destruktif terbukti — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
+- [x] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Penghapusan bukti non-destruktif terbukti — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi terverifikasi melalui `test_versi_beku_tidak_berubah_saat_draf_dan_bukti_berubah` pada ISS-05.03.)*
 
 #### Implementation Tasks
 
@@ -1676,7 +1676,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: `test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` menjadi regresi soft delete dan retensi file; bukti pembekuan versi menunggu ISS-05.03.)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(`test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` menjadi regresi soft delete dan retensi file; pembekuan versi terverifikasi melalui `test_versi_beku_tidak_berubah_saat_draf_dan_bukti_berubah` pada ISS-05.03.)*
 
 #### Definition of Done
 
@@ -1707,51 +1707,53 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - **Dependensi:** RA draft/dikembalikan; target dan bukti memenuhi aturan; jendela aktor sah.
 - **Otorisasi:** `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan).
-- **Dampak Data:** `rencana_aksi`, `rencana_aksi_versi`, `audit_log`, notifikasi in-app.
+- **Dampak Data:** `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
+
+> **Status implementasi — PR #92 (ISS-05.03):** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiAjukanTest`, `RencanaAksiKesiapanPengajuanTest`, `RencanaAksiVersiBekuTest`, `tests/Unit/RencanaAksi/DeviasiTargetPkTest`, serta race dua koneksi `tests/Integration/Concurrency/MutationConcurrencyTest`) dan test frontend `tests/Frontend/RencanaAksiAjukan.test.tsx`; SHA dan CI exact-HEAD dicatat pada PR, bukan persetujuan UAT/deployment. AC-7/TEST-7 diubah oleh keputusan PM L3 (10 Oktober 2026): ISS-05.03 tidak membuat notifikasi, inbox, atau antrean; antrean berbasis status milik ISS-05.04/ISS-05.05 dan item notifikasi in-app milik ISS-12.02 AC-2. Klaim kegiatan belum dibekukan pada versi karena belum ada writer klaim rencana aksi. Provenance saat PJ berganti terbukti melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`; bagian REGRESSION tentang F1 diverifikasi bersama ISS-05.04/ISS-05.05. Kontrak `rencana_aksi_versi` dan isi `snapshot` ada di Data Model §2.34.
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
-- [ ] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
-- [ ] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
-- [ ] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [ ] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
-- [ ] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] **AC-7:** Given submit berhasil, Then notifikasi in-app untuk antrean Perencanaan dibuat setelah transaksi berhasil.
+- [x] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
+- [x] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
+- [x] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
+- [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
+- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
+- [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
+- [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_versi`, `audit_log`, notifikasi in-app.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
 
 **B. Backend / Domain**
-- [ ] Submit RA harus berjalan atomik, memvalidasi target/bukti/deviasi PK/waktu/scope/PIC, lalu membuat `rencana_aksi_versi` baru.
-- [ ] Bekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi, dan konteks snapshot.
-- [ ] `created_by` hanya pembuat draft; jangan gunakan untuk F1/F2.
+- [x] Submit RA harus berjalan atomik, memvalidasi target/bukti/deviasi PK/waktu/scope/PIC, lalu membuat `rencana_aksi_versi` baru.
+- [x] Bekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi, dan konteks snapshot. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
+- [x] `created_by` hanya pembuat draft; jangan gunakan untuk F1/F2.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pengajuan Rencana Aksi & Pembekuan Versi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pengajuan Rencana Aksi & Pembekuan Versi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then notifikasi in-app untuk antrean Perencanaan dibuat setelah transaksi berhasil.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 - [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
-- [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
+- [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
 #### Definition of Done
 
