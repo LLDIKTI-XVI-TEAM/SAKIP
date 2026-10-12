@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Button } from '@/Components/Button';
 import SahkanDialog from './SahkanDialog';
 import type { RencanaAksiDetail } from './types';
@@ -17,7 +18,7 @@ export default function RencanaAksiReviu({ rencanaAksi }: { rencanaAksi: Rencana
     return <AuthenticatedLayout title="Pengesahan Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: rencanaAksi.indikator.kode }]}>
         <Head title={`Pengesahan ${rencanaAksi.indikator.kode}`} />
         <div className="mx-auto max-w-4xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3"><Link href="/rencana-aksi?status=antrean" className="rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">Kembali ke antrean rencana aksi</Link><Badge status={rencanaAksi.status} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><Link href={`/rencana-aksi?status=${rencanaAksi.status === 'disahkan' ? 'disahkan' : 'antrean'}`} className="rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary">Kembali ke daftar rencana aksi</Link><Badge status={rencanaAksi.status} /></div>
             {rencanaAksi.status === 'disahkan' && <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm"><p className="font-semibold">Rencana aksi telah disahkan</p><p className="mt-1">Versi pengajuan beku dipertahankan sebagai dokumen resmi.{rencanaAksi.disahkan_pada ? ` Waktu pengesahan: ${formatTanggal(rencanaAksi.disahkan_pada, { withTime: true })}.` : ''}</p>{rencanaAksi.disahkan_oleh && <p className="mt-1">Disahkan oleh: <strong>{rencanaAksi.disahkan_oleh.nama}</strong></p>}{rencanaAksi.self_approval && <p className="mt-1 font-semibold">Disahkan sendiri oleh pengaju melalui jalur Perencanaan (self-approval).</p>}</div>}
             {rencanaAksi.konteks_tidak_lengkap.length > 0 && <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><p className="font-semibold">Sebagian konteks beku tidak lengkap</p><p className="mt-1">Snapshot versi ini tidak memuat: {rencanaAksi.konteks_tidak_lengkap.join(', ')}. Nilai bertanda &ldquo;konteks tidak lengkap&rdquo; bukan data terbaru.</p></div>}
             <div className="flex flex-wrap gap-3 rounded-lg border border-border bg-surface p-3 text-xs text-muted">
@@ -106,20 +107,8 @@ export default function RencanaAksiReviu({ rencanaAksi }: { rencanaAksi: Rencana
                     ) : rencanaAksi.bukti_dukungs.length === 0 ? (
                         <p className="text-sm text-muted">Tidak ada bukti dukung pada versi pengajuan ini.</p>
                     ) : (
-                        <ul className="space-y-3 text-sm">
-                            {rencanaAksi.bukti_dukungs.map((bukti) => (
-                                <li key={bukti.id} className="rounded-lg border border-border bg-soft p-3">
-                                    <p className="font-medium">{bukti.nama_asli || bukti.mode}</p>
-                                    <p className="mt-0.5 text-xs text-muted">Mode: {bukti.mode}</p>
-                                    {bukti.mode === 'file' && bukti.download_url && (
-                                        <p className="mt-1 text-xs">
-                                            <a href={bukti.download_url} className="rounded text-primary underline focus:outline-none focus:ring-2 focus:ring-primary">Unduh berkas</a>
-                                        </p>
-                                    )}
-                                    {bukti.mode === 'tautan' && bukti.tautan && <p className="mt-1 break-all text-xs text-primary">{bukti.tautan}</p>}
-                                    {bukti.mode === 'teks' && bukti.isi_teks && <p className="mt-1 whitespace-pre-wrap text-xs">{bukti.isi_teks}</p>}
-                                </li>
-                            ))}
+                        <ul className="space-y-3">
+                            {rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={bukti} />)}
                         </ul>
                     )}
                 </CardContent>
