@@ -135,9 +135,11 @@ class ReviewRencanaAksiTest extends TestCase
 
     public function test_histori_dan_antrean_membaca_snapshot_bukan_master_atau_draf(): void
     {
-        $this->indikator->update(['nama' => 'Nama master baru']);
+        $this->indikator->update(['nama' => 'Nama master baru', 'satuan' => 'satuan master', 'desimal_tampilan' => 4]);
         $this->rencanaAksi->update(['uraian' => 'Narasi draf baru']);
+        $snapshot = $this->versiPengajuan->jadwalSnapshot;
         $this->actingAs($this->reviewer)->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->where('rencanaAksi.indikator.satuan', $snapshot->satuan)->where('rencanaAksi.indikator.desimal_tampilan', $snapshot->desimal_tampilan)
             ->where('rencanaAksi.uraian', 'Narasi beku')->where('rencanaAksi.target_periode.0.nilai', '0')
             ->where('rencanaAksi.target_periode.0.periode_nama', 'Triwulan beku')->missing('rencanaAksi.versi_pengajuan.dasar_izin_pengajuan'));
         $this->get('/rencana-aksi/review')->assertOk()->assertInertia(fn (Assert $p) => $p->component('RencanaAksi/ReviewIndex')

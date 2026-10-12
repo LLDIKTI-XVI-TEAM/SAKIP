@@ -28,7 +28,7 @@ export interface ReviewRencanaAksi {
         jalur_pengajuan: 'pic' | 'perencanaan';
         pengaju: { id: string; nama: string } | null;
     };
-    indikator: { kode: string; nama: string };
+    indikator: { kode: string; nama: string; satuan: string; desimal_tampilan: number };
     unit_kerja: { id: string; nama: string } | null;
     pic: { id: string; nama: string } | null;
     uraian: string | null;

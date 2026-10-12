@@ -12,8 +12,10 @@ import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { ReviewProps } from './review-types';
+import { rencanaAksiStatusPerhitungan } from './types';
 
 type Decision = 'verifikasi' | 'kembalikan';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
@@ -25,6 +27,8 @@ export default function Review(props: ReviewProps) {
 function ReviewForm({ rencanaAksi }: ReviewProps) {
     const versi = rencanaAksi.versi_pengajuan;
     const formatTanggal = useFormatTanggal();
+    const formatNilai = useFormatNilai();
+    const { satuan, desimal_tampilan: desimal } = rencanaAksi.indikator;
     const [decision, setDecision] = useState<Decision | null>(null);
     const [message, setMessage] = useState('');
     const errorSummary = useRef<HTMLDivElement>(null);
@@ -145,8 +149,8 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                             {rencanaAksi.target_periode.length === 0 ? <TableRow><TableCell colSpan={3} className="py-8 text-center text-muted">Target periode tidak tersedia pada versi ini.</TableCell></TableRow> : rencanaAksi.target_periode.map((periode) => (
                                 <TableRow key={periode.periode_id}>
                                     <TableCell>{periode.periode_nama || konteksTidakLengkap}{periode.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{periode.keterangan}</p>}</TableCell>
-                                    <TableCell className="font-mono tabular-nums">{periode.nilai ?? 'Belum tersedia'}{periode.status_perhitungan && <p className="mt-1 font-sans text-xs text-muted">{periode.status_perhitungan.replaceAll('_', ' ')}</p>}</TableCell>
-                                    <TableCell>{periode.komponen.length === 0 ? '—' : <ul className="space-y-1">{periode.komponen.map((komponen) => <li key={komponen.komponen_id}><span>{komponen.kode} · {komponen.label || konteksTidakLengkap}: </span><span className="font-mono tabular-nums">{komponen.nilai ?? 'Belum tersedia'}</span>{komponen.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{komponen.keterangan}</p>}</li>)}</ul>}</TableCell>
+                                    <TableCell className="tabular-nums"><span>{periode.nilai === null ? 'Belum tersedia' : `${formatNilai(periode.nilai, desimal)} ${satuan}`}</span>{periode.status_perhitungan && <p className="mt-1 text-xs text-muted">{rencanaAksiStatusPerhitungan[periode.status_perhitungan] ?? periode.status_perhitungan}</p>}</TableCell>
+                                    <TableCell>{periode.komponen.length === 0 ? '—' : <ul className="space-y-1">{periode.komponen.map((komponen) => <li key={komponen.komponen_id}><span>{komponen.kode} · {komponen.label || konteksTidakLengkap}: </span><span className="tabular-nums">{komponen.nilai === null ? 'Belum tersedia' : formatNilai(komponen.nilai, desimal)}</span>{komponen.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{komponen.keterangan}</p>}</li>)}</ul>}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

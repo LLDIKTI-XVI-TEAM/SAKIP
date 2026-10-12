@@ -44,7 +44,9 @@ class BacaReviewRencanaAksi
                 'id' => $header->id, 'tahun' => $header->tahun, 'status_alur' => $header->status_alur, 'expected_versi' => $header->versi,
                 'versi_pengajuan' => $this->ringkas($versi) + ['pengaju' => ($beku['pic']['id'] ?? null) === $versi->diajukan_by
                     ? $this->identitas($beku['pic']) : ['id' => $versi->diajukan_by, 'nama' => User::whereKey($versi->diajukan_by)->value('nama') ?? 'Pengaju versi']],
-                'indikator' => ['kode' => $beku['indikator']['kode'] ?? '—', 'nama' => $beku['indikator']['nama'] ?? 'Konteks versi belum lengkap'],
+                // Satuan dan desimal tampilan dari jadwal_snapshot versi, sama dengan halaman RA; bukan master berjalan.
+                'indikator' => ['kode' => $beku['indikator']['kode'] ?? '—', 'nama' => $beku['indikator']['nama'] ?? 'Konteks versi belum lengkap',
+                    'satuan' => (string) $versi->jadwalSnapshot->satuan, 'desimal_tampilan' => (int) $versi->jadwalSnapshot->desimal_tampilan],
                 'unit_kerja' => $this->identitas($beku['unit_kerja'] ?? null), 'pic' => $this->identitas($beku['pic'] ?? null),
                 'uraian' => $beku['uraian'] ?? null, 'alasan_deviasi_pk' => $beku['alasan_deviasi_pk'] ?? null,
                 'target_periode' => array_map(fn (array $baris): array => [

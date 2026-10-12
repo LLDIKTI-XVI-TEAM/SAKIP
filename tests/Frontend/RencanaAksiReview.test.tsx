@@ -39,7 +39,7 @@ const pagination = { current_page: 1, last_page: 1, total: 1, prev_page_url: nul
 const rencanaAksi: ReviewRencanaAksi = {
     id: 'ra-1', tahun: 2026, status_alur: 'diajukan', expected_versi: 7,
     versi_pengajuan: { id: 'versi-2', nomor: 2, diajukan_at: '2026-10-01T01:00:00Z', jalur_pengajuan: 'pic', pengaju: { id: 'user-1', nama: 'Pengaju Lama' } },
-    indikator: { kode: 'IKU-1', nama: 'Label indikator dibekukan' },
+    indikator: { kode: 'IKU-1', nama: 'Label indikator dibekukan', satuan: '%', desimal_tampilan: 2 },
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
@@ -66,10 +66,21 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('Substansi versi pengajuan')).toBeTruthy();
         expect(screen.getByText('Unit versi pengajuan')).toBeTruthy();
         expect(screen.getByText('Pengaju Lama')).toBeTruthy();
-        expect(screen.getByText('10.25')).toBeTruthy();
+        expect(screen.getByText('10,25 %')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Lihat versi' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review?versi=versi-1');
         expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe(rencanaAksi.bukti_dukungs[0].download_url);
         expect(screen.queryByRole('textbox')).toBeNull();
+    });
+    it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {
+        renderReview({ target_periode: [
+            { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
+                komponen: [{ komponen_id: 'k-1', kode: 'n', label: 'Pembilang', nilai: '37.000000000000', keterangan: null }] },
+            { periode_id: 'p-2', periode_nama: 'Triwulan II', periode_urutan: 2, nilai: null, status_perhitungan: 'tidak_dapat_dihitung', keterangan: null, komponen: [] },
+        ] });
+        expect(screen.getByText('74,00 %')).toBeTruthy();
+        expect(screen.getByText('37,00')).toBeTruthy();
+        expect(screen.getByText('Tidak dapat dihitung')).toBeTruthy();
+        expect(screen.queryByText(/000000/)).toBeNull();
     });
 
     it('capability server menyembunyikan aksi/bukti dan alasan bisnis tetap terbaca', () => {
