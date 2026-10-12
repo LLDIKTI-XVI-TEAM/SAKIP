@@ -58,7 +58,7 @@ class SahkanRencanaAksi
                     $ra->setRelation('jadwalSnapshot', $snapshot);
                     $ra->setRelation('latestVersion', $version);
                 }
-                $errors = $this->policy->businessErrors($actor, $ra);
+                $errors = $this->policy->businessErrorsSahkan($actor, $ra);
                 if ($ra->versi !== (int) $data['versi']) {
                     $errors[] = 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.';
                 }

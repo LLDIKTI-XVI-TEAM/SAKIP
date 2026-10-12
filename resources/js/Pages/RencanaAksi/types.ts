@@ -187,6 +187,12 @@ export function kunciSel(periodeId: string, komponenId: string | null): string {
     return `${periodeId}::${komponenId ?? 'manual'}`;
 }
 
+/** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
+export function tanpaNolBelakang(nilai: string | number): string {
+    const teks = String(nilai);
+    return teks.includes('.') ? teks.replace(/\.?0+$/, '') : teks;
+}
+
 /** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif, hanya yang tercakup. */
 export function dapatDisuntingPeriode(koreksi: RencanaAksiKoreksi, periodeId: string): boolean {
     return !koreksi.aktif || koreksi.periode_ids.includes(periodeId);

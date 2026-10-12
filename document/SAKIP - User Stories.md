@@ -723,21 +723,26 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Prioritas** | 🔴 P0 |
 | **Story Points** | 8 |
 | **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | RA berstatus `diajukan` dan versi terbaru tersedia. |
+| **Dependensi** | ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman in-app menunggu ISS-12.02 (Q37). |
 | **Otorisasi** | `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`. |
-| **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, notifikasi. |
+| **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit. |
+| **Keputusan terkait** | Q37 §37.1–§37.3. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** memverifikasi versi RA atau mengembalikannya dengan alasan,  
 > **Sehingga** substansi RA diperiksa tanpa membuka celah self-review jalur PIC.
 
+**Bukti verifikasi:** hasil pengujian dan batas QA/UAT dicatat pada [PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93); TEST-1–TEST-7 tercatat pada ISS-05.04. Checklist di bawah tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
+
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
 - [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`, audit mencatat alasan, dan PIC menerima notifikasi.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
 - [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
+- [ ] **AC-7:** Given versi/status valid, aktor berwenang, dan seluruh business guard lolos, When verifikasi dikonfirmasi tanpa alasan pengguna, Then verifikasi berhasil dan audit memuat alasan baku server serta `dasar_izin`.
 
 ### US-05.05 · Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2
 
@@ -750,6 +755,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Dependensi** | RA berstatus `diverifikasi`; versi yang direviu adalah versi terbaru dan tidak stale. |
 | **Otorisasi** | `rencana_aksi:sahkan` (sensitif). |
 | **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`. |
+| **Keputusan terkait** | Q37 §37.1. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mengesahkan versi RA yang telah diverifikasi,  
@@ -757,14 +763,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
-- [x] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
-- [x] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
-- [x] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
-- [x] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
-- [x] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
-
-> **Catatan eviden (traceability):** AC-1–AC-6 dibuktikan lewat fixture versi `diverifikasi` (ISS-05.05); bukti end-to-end menyusul setelah ISS-05.03/05.04 (penyusunan, pengajuan, dan verifikasi) tersedia.
+- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
+- [ ] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
+- [ ] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
+- [ ] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
+- [ ] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
+- [ ] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [ ] **AC-7:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When pengesahan dicoba termasuk pada jalur F2 dan request langsung, Then `businessErrors` yang sama dengan verifikasi/pengembalian menolak, penolakan diaudit, dan header/metadata versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
 
 ### US-05.06 · Buka-Kembali Rencana Aksi yang Telah Disahkan
 

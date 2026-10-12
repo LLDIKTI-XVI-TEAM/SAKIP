@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { ClipboardList, Eye, Plus, ShieldCheck } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -56,6 +57,7 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
                 onClick={buat}
                 aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
             >
+                <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 Buat Rencana Aksi
             </Button>
             {galat && (
@@ -69,37 +71,51 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
 
 export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiIndexProps) {
     return (
-        <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
+        <AuthenticatedLayout
+            title="Rencana Aksi"
+            breadcrumbs={[{ label: 'Rencana Aksi' }]}
+            headerActions={
+                <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> indikator</p>
+                    <Link href="/rencana-aksi/review" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
+                        <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                        Review Rencana Aksi
+                    </Link>
+                </div>
+            }
+        >
             <Head title="Rencana Aksi" />
 
             <TabFilter active="draf" />
 
             <Card>
-                <Table>
+                <Table className="table-fixed xl:table-auto">
+                    <caption className="sr-only">Daftar indikator dan rencana aksi pada jadwal aktif</caption>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Indikator</TableHead>
-                            <TableHead className="hidden md:table-cell">Unit</TableHead>
-                            <TableHead className="hidden md:table-cell">Tahun</TableHead>
-                            <TableHead className="hidden md:table-cell">Penanggung Jawab</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Aksi</TableHead>
+                            <TableHead className="hidden xl:table-cell">Unit</TableHead>
+                            <TableHead className="hidden xl:table-cell">Tahun</TableHead>
+                            <TableHead className="hidden xl:table-cell">Penanggung Jawab</TableHead>
+                            <TableHead className="hidden xl:table-cell">Status</TableHead>
+                            <TableHead className="w-44 text-right xl:w-auto">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {daftar.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={6} className="py-12 text-center text-sm text-muted">
-                                    Belum ada indikator pada jadwal aktif.
+                                    <ClipboardList className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                    <p className="mt-2 font-semibold text-ink">Belum ada indikator pada jadwal aktif.</p>
                                 </TableCell>
                             </TableRow>
                         ) : (
                             daftar.map((baris) => (
                                 <TableRow key={`${baris.indikator_id}:${baris.tahun}`}>
-                                    <TableCell className="max-w-sm">
+                                    <TableCell className="max-w-sm break-words">
                                         <div className="font-semibold">
                                             {baris.kode}
-                                            <span className="font-normal text-muted md:hidden"> · {baris.tahun}</span>
+                                            <span className="font-normal text-muted xl:hidden"> · {baris.tahun}</span>
                                             {baris.milik_saya && (
                                                 <Badge variant="primary" size="sm" className="ml-2">
                                                     Anda
@@ -107,11 +123,15 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                             )}
                                         </div>
                                         <div className="mt-0.5 text-muted">{baris.nama}</div>
+                                        <p className="mt-1 text-xs text-muted xl:hidden">{baris.unit_nama ?? '—'} · PJ: {baris.pj_nama ?? '—'}</p>
+                                        <div className="mt-2 xl:hidden">
+                                            {baris.rencana_aksi ? <Badge status={baris.rencana_aksi.status_alur} size="sm" /> : <span className="text-muted">Belum dibuat</span>}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="hidden md:table-cell">{baris.unit_nama ?? '—'}</TableCell>
-                                    <TableCell className="hidden md:table-cell">{baris.tahun}</TableCell>
-                                    <TableCell className="hidden md:table-cell">{baris.pj_nama ?? '—'}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="hidden xl:table-cell">{baris.unit_nama ?? '—'}</TableCell>
+                                    <TableCell className="hidden xl:table-cell">{baris.tahun}</TableCell>
+                                    <TableCell className="hidden xl:table-cell">{baris.pj_nama ?? '—'}</TableCell>
+                                    <TableCell className="hidden xl:table-cell">
                                         {baris.rencana_aksi ? (
                                             <Badge status={baris.rencana_aksi.status_alur} size="sm" />
                                         ) : (
@@ -125,8 +145,9 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                             <Link
                                                 href={`/rencana-aksi/${baris.rencana_aksi.id}`}
                                                 aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
-                                                className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                                className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
                                             >
+                                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                                 Buka
                                             </Link>
                                         ) : (
