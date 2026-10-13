@@ -24,11 +24,13 @@ class DaftarReviewRencanaAksi
         $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', Rule::in(['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan', 'semua'])]])->validate();
         $status = $query['status'] ?? 'diajukan';
-        $terbaru = RencanaAksiVersi::query()->selectRaw('DISTINCT ON (rencana_aksi_id) rencana_aksi_id, nomor')
+        $terbaru = RencanaAksiVersi::query()->selectRaw('DISTINCT ON (rencana_aksi_id) rencana_aksi_id, nomor, jadwal_snapshot_id')
             ->addSelect('snapshot->indikator->kode as indikator_kode', 'snapshot->indikator->nama as indikator_nama', 'snapshot->unit_kerja->nama as unit_nama')
             ->orderBy('rencana_aksi_id')->orderByDesc('nomor');
         $halaman = RencanaAksi::query()->select('rencana_aksi.*', 'v.nomor as nomor_pengajuan', 'v.indikator_kode', 'v.indikator_nama', 'v.unit_nama')
             ->joinSub($terbaru, 'v', 'v.rencana_aksi_id', '=', 'rencana_aksi.id')
+            // Selaras dengan RencanaAksiPolicy::view: versi terbaru yang merujuk snapshot unit lain tidak dapat dibuka.
+            ->join('jadwal_snapshot as js', 'js.id', '=', 'v.jadwal_snapshot_id')->whereColumn('js.unit_id', 'rencana_aksi.unit_id')
             ->whereNotIn('rencana_aksi.unit_id', $this->resolver->unitDitolak($actor, PermissionCodes::RENCANA_AKSI_READ))
             ->when($status !== 'semua', fn ($q) => $q->where('rencana_aksi.status_alur', $status))
             ->orderByDesc('rencana_aksi.updated_at')->orderBy('rencana_aksi.id')->paginate(20, page: $query['page'] ?? 1)->withQueryString();

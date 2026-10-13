@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Undo2 } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, CheckCircle2, Undo2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -14,11 +14,19 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import Pagination from '@/Pages/Pengukuran/Pagination';
-import type { ReviewProps } from './review-types';
+import type { ReviewProps, StatusReview } from './review-types';
 import { rencanaAksiStatusPerhitungan } from './types';
 
-type Decision = 'verifikasi' | 'kembalikan';
+type Decision = 'verifikasi' | 'kembalikan' | 'sahkan';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
+// Sama dengan filter status DaftarReviewRencanaAksi agar RA yang baru diproses tetap terlihat.
+const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
+const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan' };
+const judulTidakTersedia: Record<Decision, string> = {
+    verifikasi: 'Verifikasi tidak tersedia',
+    kembalikan: 'Pengembalian tidak tersedia',
+    sahkan: 'Pengesahan tidak tersedia',
+};
 
 export default function Review(props: ReviewProps) {
     return <ReviewForm key={`${props.rencanaAksi.id}:${props.rencanaAksi.versi_pengajuan.id}`} {...props} />;
@@ -35,6 +43,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     const recovery = useAuthRecovery();
     const form = useForm({ expected_versi: rencanaAksi.expected_versi, versi_pengajuan_id: versi.id, alasan: '' });
     const blocked = Boolean(message || recovery.recovery);
+    const hrefDaftar = statusDaftar.includes(rencanaAksi.status_alur) ? `/rencana-aksi/review?status=${rencanaAksi.status_alur}` : '/rencana-aksi/review';
 
     const buka = (aksi: Decision): void => {
         if (form.processing || !rencanaAksi.can[aksi]) return;
@@ -48,7 +57,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     const kirim = (aksi: Decision): void => {
         if (form.processing || blocked || !rencanaAksi.can[aksi]) return;
         const path = `/rencana-aksi/${rencanaAksi.id}/${aksi}`;
-        const status = aksi === 'verifikasi' ? 'diverifikasi' : 'dikembalikan';
+        const status = statusHasil[aksi];
         form.transform((data) => aksi === 'kembalikan' ? data : {
             expected_versi: data.expected_versi,
             versi_pengajuan_id: data.versi_pengajuan_id,
@@ -104,14 +113,15 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     );
 
     return (
-        <AuthenticatedLayout title={`Review ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review', href: '/rencana-aksi/review' }, { label: `Versi ${versi.nomor}` }]}>
+        <AuthenticatedLayout title={`Review ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review', href: hrefDaftar }, { label: `Versi ${versi.nomor}` }]}>
             <Head title={`Review Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/rencana-aksi/review" className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar review</Link>
+                    <Link href={hrefDaftar} className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar review</Link>
                     <div className="flex flex-wrap gap-2">
                         {rencanaAksi.can.kembalikan && <Button type="button" variant="outline" size="sm" disabled={form.processing || blocked} onClick={() => buka('kembalikan')}><Undo2 className="h-3.5 w-3.5" aria-hidden="true" />Kembalikan untuk revisi</Button>}
                         {rencanaAksi.can.verifikasi && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('verifikasi')}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Verifikasi</Button>}
+                        {rencanaAksi.can.sahkan && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('sahkan')}><BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />Sahkan</Button>}
                     </div>
                 </div>
                 {blocked && decision === null && <Card><CardContent>{notice}</CardContent></Card>}
@@ -125,6 +135,18 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-sm text-muted">Menampilkan substansi pengajuan versi {versi.nomor} yang dibekukan. Perubahan substansi harus melalui pengembalian dan pengajuan versi baru.</p>
+                        {rencanaAksi.pengesahan && (
+                            <section aria-label="Pengesahan" className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success-dark">
+                                <h3 className="font-semibold">
+                                    Disahkan oleh {rencanaAksi.pengesahan.oleh}
+                                    {rencanaAksi.pengesahan.pada ? ` pada ${formatTanggal(rencanaAksi.pengesahan.pada, { withTime: true })}` : ''}
+                                </h3>
+                                <p className="mt-1">Versi pengajuan {versi.nomor} menjadi dokumen resmi rencana aksi.</p>
+                                {rencanaAksi.pengesahan.self_approval && (
+                                    <p className="mt-1 font-semibold">Disahkan sendiri oleh pengaju melalui jalur Perencanaan (self-approval).</p>
+                                )}
+                            </section>
+                        )}
                         <dl className="grid gap-5 text-sm sm:grid-cols-2">
                             <div><dt className="text-muted">Unit pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.unit_kerja?.nama ?? konteksTidakLengkap}</dd></div>
                             <div><dt className="text-muted">Penanggung jawab pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.pic?.nama ?? konteksTidakLengkap}</dd></div>
@@ -133,9 +155,10 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         </dl>
                         <div><h3 className="text-sm font-semibold">Uraian rencana aksi</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.uraian ?? 'Uraian tidak tersedia pada versi ini.'}</p></div>
                         {rencanaAksi.alasan_deviasi_pk && <div><h3 className="text-sm font-semibold">Alasan deviasi target PK</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.alasan_deviasi_pk}</p></div>}
-                        {(['verifikasi', 'kembalikan'] as const).map((aksi) => rencanaAksi.businessErrors[aksi].length > 0 && (
+                        {/* Alasan pengesahan hanya relevan pada tahap diverifikasi; pada tahap lain pengesahan memang belum waktunya. */}
+                        {(['verifikasi', 'kembalikan', 'sahkan'] as const).filter((aksi) => aksi !== 'sahkan' || rencanaAksi.status_alur === 'diverifikasi').map((aksi) => rencanaAksi.businessErrors[aksi].length > 0 && (
                             <section key={aksi} aria-label={`Alasan ${aksi} tidak tersedia`} className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
-                                <h3 className="font-semibold text-warning-dark">{aksi === 'verifikasi' ? 'Verifikasi tidak tersedia' : 'Pengembalian tidak tersedia'}</h3>
+                                <h3 className="font-semibold text-warning-dark">{judulTidakTersedia[aksi]}</h3>
                                 <ul className="mt-2 list-disc space-y-1 pl-5">{rencanaAksi.businessErrors[aksi].map((error) => <li key={error}>{error}</li>)}</ul>
                             </section>
                         ))}
@@ -187,6 +210,25 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
             >
                 <form id="verifikasi-rencana-aksi" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); kirim('verifikasi'); }} className="space-y-4" aria-busy={form.processing}>
                     <p className="text-sm text-muted">Verifikasi dicatat dalam audit dengan alasan baku server. Substansi versi pengajuan tetap dibekukan.</p>
+                    {notice}
+                </form>
+            </Modal>
+            <Modal
+                isOpen={decision === 'sahkan'}
+                onClose={tutup}
+                title="Sahkan rencana aksi"
+                description={`Konfirmasi pengesahan versi pengajuan ${versi.nomor}.`}
+                size="lg"
+                showCloseButton={!form.processing}
+                footer={
+                    <>
+                        <Button type="button" variant="outline" disabled={form.processing} onClick={tutup}>Batal</Button>
+                        <Button type="submit" form="sahkan-rencana-aksi" isLoading={form.processing} disabled={blocked || !rencanaAksi.can.sahkan}>Konfirmasi pengesahan</Button>
+                    </>
+                }
+            >
+                <form id="sahkan-rencana-aksi" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); kirim('sahkan'); }} className="space-y-4" aria-busy={form.processing}>
+                    <p className="text-sm text-muted">Pengesahan menyimpan versi pengajuan {versi.nomor} sebagai dokumen resmi rencana aksi dan dicatat dalam audit dengan alasan baku server.</p>
                     {notice}
                 </form>
             </Modal>

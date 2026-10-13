@@ -182,7 +182,7 @@ trait CreatesRencanaAksiFixture
                 'target_periode' => [[
                     'periode_id' => $this->snapshot->periode_mulai_id,
                     'periode_nama' => 'Triwulan beku', 'periode_urutan' => 1,
-                    'nilai' => '0', 'status_perhitungan' => null, 'komponen' => [],
+                    'nilai' => '0', 'status_perhitungan' => 'terhitung', 'komponen' => [],
                 ]], 'bukti_dukungs' => [], 'path' => 'rahasia/internal',
             ],
         ]);

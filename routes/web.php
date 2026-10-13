@@ -58,6 +58,7 @@ use App\Http\Controllers\RencanaAksi\DownloadBuktiVersiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\IndexReviewRencanaAksi;
 use App\Http\Controllers\RencanaAksi\KembalikanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
+use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
 use App\Http\Controllers\RencanaAksi\ShowReviewRencanaAksi;
 use App\Http\Controllers\RencanaAksi\StoreBuktiRencanaAksi;
@@ -255,6 +256,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
         Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');
         Route::delete('/rencana-aksi/{rencanaAksi}/bukti/{bukti}', DestroyBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
+        Route::post('/rencana-aksi/{rencanaAksi}/sahkan', SahkanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.sahkan');
         Route::post('/rencana-aksi/{rencanaAksi}/ajukan', SubmitRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.ajukan');
     });
     Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');

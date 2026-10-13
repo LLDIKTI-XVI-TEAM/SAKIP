@@ -20,7 +20,11 @@ class ReviewRencanaAksiRequest extends FormRequest
     public function authorize(): bool
     {
         $header = RencanaAksi::findOrFail($this->route('rencanaAksi'));
-        $permission = $this->aksi() === 'kembalikan' ? PermissionCodes::RENCANA_AKSI_KEMBALIKAN : PermissionCodes::RENCANA_AKSI_VERIFIKASI;
+        $permission = match ($this->aksi()) {
+            'kembalikan' => PermissionCodes::RENCANA_AKSI_KEMBALIKAN,
+            'sahkan' => PermissionCodes::RENCANA_AKSI_SAHKAN,
+            default => PermissionCodes::RENCANA_AKSI_VERIFIKASI,
+        };
         $decision = app(PermissionResolver::class)->resolve($this->user(), $permission, (string) $header->unit_id);
         $this->dasarIzin = $decision->toAuditBasis();
 
@@ -53,7 +57,11 @@ class ReviewRencanaAksiRequest extends FormRequest
 
     private function aksi(): string
     {
-        return $this->routeIs('rencana-aksi.kembalikan') ? 'kembalikan' : 'verifikasi';
+        return match (true) {
+            $this->routeIs('rencana-aksi.kembalikan') => 'kembalikan',
+            $this->routeIs('rencana-aksi.sahkan') => 'sahkan',
+            default => 'verifikasi',
+        };
     }
 
     private function catat(AuthorizationException|ValidationException $e): void

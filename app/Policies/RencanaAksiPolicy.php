@@ -12,6 +12,7 @@ use App\Services\RencanaAksi\GerbangReviewRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Policy murni tanpa efek samping: penolakan dicatat pemanggil yang tahu
@@ -37,11 +38,22 @@ class RencanaAksiPolicy
     /**
      * Baca satu header memakai izin baca global yang diuji terhadap unit header.
      *
-     * Deny unit-spesifik maupun global tetap menang via resolver; tanpa audit
-     * baca agar penolakan awal tidak membanjiri jejak audit.
+     * Fail-closed saat unit snapshot versi pengajuan terbaru tidak selaras dengan
+     * unit header (data beku tidak boleh dibaca memakai scope unit berbeda);
+     * anomali dicatat. Deny unit-spesifik maupun global tetap menang via resolver;
+     * tanpa audit baca agar penolakan awal tidak membanjiri jejak audit.
      */
     public function view(User $user, RencanaAksi $header): bool
     {
+        $snapshotUnit = $this->snapshotUnit($header);
+        if ($snapshotUnit !== null && $snapshotUnit !== (string) $header->unit_id) {
+            Log::warning('rencana_aksi.unit_snapshot_tidak_konsisten', [
+                'rencana_aksi_id' => $header->id, 'unit_id' => $header->unit_id, 'snapshot_unit_id' => $snapshotUnit,
+            ]);
+
+            return false;
+        }
+
         return $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ, (string) $header->unit_id);
     }
 
@@ -91,6 +103,21 @@ class RencanaAksiPolicy
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
+    /**
+     * Unit snapshot versi pengajuan terbaru; null bila belum ada versi.
+     * Relasi versi dimuat lazy bila belum tersedia.
+     */
+    private function snapshotUnit(RencanaAksi $header): ?string
+    {
+        $version = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
+        if (! $version instanceof RencanaAksiVersi) {
+            return null;
+        }
+        $snapshot = $version->jadwalSnapshot;
+
+        return $snapshot?->unit_id !== null ? (string) $snapshot->unit_id : null;
+    }
+
     private function response(PermissionDecision $decision, string $pesan): Response
     {
         return $decision->allowed ? Response::allow() : Response::deny($pesan);
@@ -104,6 +131,11 @@ class RencanaAksiPolicy
     public function kembalikan(User $user, RencanaAksi $header): Response
     {
         return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_KEMBALIKAN, (string) $header->unit_id), 'Izin pengembalian rencana aksi tidak tersedia.');
+    }
+
+    public function sahkan(User $user, RencanaAksi $header): Response
+    {
+        return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_SAHKAN, (string) $header->unit_id), 'Izin pengesahan rencana aksi tidak tersedia.');
     }
 
     /** @return array<string, list<string>> */

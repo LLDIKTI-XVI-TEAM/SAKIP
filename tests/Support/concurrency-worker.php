@@ -13,6 +13,7 @@ use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
 use App\Actions\RencanaAksi\KembalikanRencanaAksi;
+use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
@@ -94,11 +95,13 @@ try {
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
             'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
             'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
+            'rencana-sahkan' => app(SahkanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['rencana_aksi_id'], $assignment['data']),
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
         $result = match ($argv[1]) {
             'create-deny' => 'created',
             'revoke-deny' => 'revoked',
+            'rencana-sahkan' => 'disahkan',
             default => $result,
         };
     } catch (AuthorizationException $exception) {
@@ -125,6 +128,8 @@ try {
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
             'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
+            // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
+            'rencana-sahkan' => 'businessErrors',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
@@ -133,6 +138,7 @@ try {
         $result = match ($argv[1]) {
             'create-deny' => 'duplicate',
             'revoke-deny' => 'stale',
+            'rencana-sahkan' => 'ditolak',
             default => 'conflict',
         };
     }

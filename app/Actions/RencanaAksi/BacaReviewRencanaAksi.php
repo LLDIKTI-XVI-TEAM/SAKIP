@@ -30,7 +30,7 @@ class BacaReviewRencanaAksi
             $policy = app(RencanaAksiPolicy::class);
             $errors = $policy->businessErrors($actor, $header, $versi);
             if ($versi->id !== $terbaru?->id) {
-                $errors['verifikasi'][] = $errors['kembalikan'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
+                $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
             }
             $buktiBoleh = $policy->viewEvidence($actor, $header);
             $beku = $versi->snapshot ?? [];
@@ -65,8 +65,13 @@ class BacaReviewRencanaAksi
                         ? route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]) : null,
                 ], array_values(array_filter($bukti, fn (array $b): bool => in_array($b['mode'] ?? null, ['file', 'tautan', 'teks'], true)))) : [],
                 'can' => ['verifikasi' => $policy->verifikasi($actor, $header)->allowed() && $errors['verifikasi'] === [],
-                    'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [], 'evidence' => $buktiBoleh],
-                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan']],
+                    'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [],
+                    'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [], 'evidence' => $buktiBoleh],
+                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan']],
+                // F2 wajib terlihat, bukan hanya diaudit: pengesah sama dengan pengaju pada jalur Perencanaan.
+                'pengesahan' => $versi->disahkan_by === null ? null : ['oleh' => User::whereKey($versi->disahkan_by)->value('nama') ?? 'Pengesah versi',
+                    'pada' => $versi->disahkan_at?->toIso8601String(),
+                    'self_approval' => $versi->jalur_pengajuan === 'perencanaan' && $versi->disahkan_by === $versi->diajukan_by],
                 'histori' => $histori->getCollection()->map(fn (RencanaAksiVersi $v): array => $this->ringkas($v))->all(),
                 'pagination' => ['current_page' => $histori->currentPage(), 'last_page' => $histori->lastPage(), 'total' => $histori->total(),
                     'prev_page_url' => $histori->previousPageUrl(), 'next_page_url' => $histori->nextPageUrl()],

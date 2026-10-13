@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -60,7 +61,8 @@ class GerbangReviewRencanaAksi
             throw ValidationException::withMessages(['expected_versi' => 'Data atau versi pengajuan telah berubah. Muat ulang sebelum mengulangi review.'])->status(409);
         }
         $versi->setRelation('jadwalSnapshot', JadwalSnapshot::whereKey($versi->jadwal_snapshot_id)->sharedLock()->first());
-        $jejak['sebelum'] += $this->provenance($pengunci, $versi, $permission === 'rencana_aksi:verifikasi');
+        // Verifikasi dan pengesahan adalah persetujuan; pengembalian tidak menandai self_approval.
+        $jejak['sebelum'] += $this->provenance($pengunci, $versi, in_array($permission, [PermissionCodes::RENCANA_AKSI_VERIFIKASI, PermissionCodes::RENCANA_AKSI_SAHKAN], true));
 
         return [$pengunci, $header, $versi];
     }
@@ -87,22 +89,38 @@ class GerbangReviewRencanaAksi
         }
         $snapshot = $versi?->jadwalSnapshot;
         $beku = $versi?->snapshot ?? [];
-        $bentukSah = Validator::make($beku, [
+        $konteksSah = Validator::make($beku, [
             'indikator.kode' => ['required', 'string'], 'indikator.nama' => ['required', 'string'],
             'unit_kerja.id' => ['required', 'uuid'], 'unit_kerja.nama' => ['required', 'string'],
+        ])->passes();
+        $isiSah = Validator::make($beku, [
             'target_periode' => ['required', 'array', 'min:1'],
             'target_periode.*.periode_id' => ['required', 'uuid'],
-            'target_periode.*.komponen' => ['present', 'array'],
+            'target_periode.*.periode_nama' => ['required', 'string'],
+            'target_periode.*.periode_urutan' => ['required', 'integer'],
+            // Data Model §2.34: produsen hanya membekukan baris `terhitung` beserta nilainya.
+            'target_periode.*.nilai' => ['required', 'numeric'],
+            'target_periode.*.status_perhitungan' => ['required', 'in:terhitung'],
             'bukti_dukungs' => ['present', 'array'],
             'bukti_dukungs.*.id' => ['required', 'uuid'],
             'bukti_dukungs.*.mode' => ['required', 'in:file,tautan,teks'],
-        ])->passes();
+            'bukti_dukungs.*.tautan' => ['required_if:bukti_dukungs.*.mode,tautan', 'nullable', 'string'],
+            'bukti_dukungs.*.isi_teks' => ['required_if:bukti_dukungs.*.mode,teks', 'nullable', 'string'],
+            'bukti_dukungs.*.nama_asli' => ['required_if:bukti_dukungs.*.mode,file', 'nullable', 'string'],
+        ] + ($snapshot?->tipe_perhitungan === 'manual' ? ['target_periode.*.komponen' => ['present', 'array']] : [
+            'target_periode.*.komponen' => ['required', 'array', 'min:1'],
+            'target_periode.*.komponen.*.komponen_id' => ['required', 'uuid'],
+            'target_periode.*.komponen.*.kode' => ['required', 'string'],
+            'target_periode.*.komponen.*.label' => ['required', 'string'],
+            'target_periode.*.komponen.*.nilai' => ['required', 'numeric'],
+        ]))->passes();
         if (! $versi || ! $snapshot || ! $jadwal
             || $snapshot->jadwal_id !== $header->jadwal_tahunan_id || $snapshot->indikator_id !== $header->indikator_id
             || $snapshot->unit_id !== $header->unit_id || $jadwal->tahun !== $header->tahun
             || ($beku['unit_kerja']['id'] ?? null) !== $header->unit_id
             || ! isset($beku['indikator']['kode'], $beku['indikator']['nama'])
-            || ! $bentukSah
+            // Pengembalian tetap boleh agar versi yang isinya rusak dapat diganti versi baru.
+            || ! $konteksSah || ($aksi !== 'kembalikan' && ! $isiSah)
             || ! in_array($versi->jalur_pengajuan, ['pic', 'perencanaan'], true)) {
             $errors[] = 'Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.';
         }
