@@ -25,7 +25,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - **PJ tidak memberi permission.** Assignment dan grant adalah mekanisme terpisah.
 - **Grant Unit** hanya 7 permission scoped dan memakai `delegasi:update`.
 - **Role & Izin** read-only; preset role berubah melalui code/seeder/release.
-- **Onboarding SSO** membuat user nonaktif tanpa role; Admin mengaktifkan dan assign role.
+- **Onboarding SSO** membuat user aktif tanpa role (Q38); Admin menetapkan role.
 - **Logout lokal default**, logout SSO terpisah.
 - **Initial year 2026.** TW I–II periode lampau oleh Perencanaan; TW III–IV normal; tanpa `is_backfill`.
 - **Formula final:** IKU 3 = `(sakip + zi_wbk)/2`; IKU 8 = `n/t × 100%` dengan `t` total publikasi seluruh PTS.
@@ -36,6 +36,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 ### US-01.01 · Login Terpusat Menggunakan Single Sign-On (SSO) Keycloak
 
 > **Q32:** login pertama membuat user `nonaktif` tanpa role. Admin mengaktifkan dan assign role. Logout lokal menjadi default; logout SSO adalah aksi terpisah.
+>
+> **Q38 (13 Oktober 2026):** login pertama kini membuat user `aktif` tanpa role; langkah aktivasi dihapus. Lihat US-01.08.
 
 | Field | Detail |
 |---|---|
@@ -203,6 +205,26 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] Perubahan preset menghasilkan audit before/after + alasan/sumber release.
 - [ ] Seeder rerun tanpa delta tidak menghasilkan audit palsu.
 - [ ] 7 permission unit-scoped tidak diglobalisasi melalui preset role.
+
+### US-01.08 · Onboarding SSO Langsung Aktif dan Status Akun
+
+| Field | Detail |
+|---|---|
+| **ID** | `US-01.08` |
+| **Prioritas** | 🟡 P1 |
+| **Otorisasi UI** | `pengguna:read` + `akses:update` untuk menonaktifkan dan mengaktifkan kembali akun. |
+| **Dampak Data** | `users.status`, `audit_log`. |
+
+> **Sebagai** pengelola akses SAKIP, **saya ingin** akun SSO baru langsung aktif tanpa peran dan dapat menonaktifkan atau mengaktifkan kembali akun pegawai tertentu, **sehingga** persetujuan akses cukup satu langkah dan akses pegawai yang keluar dapat diputus tanpa bantuan operator.
+
+**Acceptance Criteria**
+
+- [ ] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
+- [ ] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
+- [ ] Menu Aktivasi Pengguna tidak tersedia lagi.
+- [ ] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
+- [ ] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+- [ ] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 

@@ -543,6 +543,8 @@ Jika preset role berubah melalui rilis, seeder harus:
 
 ## 32.5 Onboarding SSO Final
 
+> **Digantikan Q38 (13 Oktober 2026):** akun SSO baru langsung aktif tanpa role. Alur di bawah dipertahankan sebagai riwayat keputusan.
+
 Onboarding akun SSO menggunakan pola **just-in-time, status belum aktif**:
 
 ```text
@@ -845,6 +847,56 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 
 ---
 
+# Keputusan Q38 — Onboarding SSO Langsung Aktif Tanpa Peran
+
+**Keputusan PM, 13 Oktober 2026**, untuk [ISS-01.08 / Issue #99](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/99). Keputusan ini menggantikan alur §32.5 "Onboarding SSO Final".
+
+## 38.1 Alur Onboarding
+
+```text
+Login Keycloak valid
+        ↓
+create/update users berdasarkan keycloak_id
+        ↓
+status = aktif
+        ↓
+TANPA ROLE
+        ↓
+halaman "Menunggu penetapan peran"
+        ↓
+Admin menetapkan satu dari 5 role (alasan wajib, teraudit)
+```
+
+1. `users.status` tetap enum(`aktif`,`nonaktif`) dengan default DB `nonaktif`; onboarding JIT mengisi `aktif` secara eksplisit. Login ulang tidak mengubah status.
+2. User tanpa role tetap memiliki **nol permission** (`no_role`); grant dan penugasan PJ tidak memberi akses tanpa role.
+3. Persetujuan akses berpindah ke penetapan role: satu langkah admin yang wajib beralasan dan teraudit.
+4. Menu dan endpoint Aktivasi Pengguna (`/akses/aktivasi`) dihapus. Riwayat audit `pengguna.aktivasi` dipertahankan.
+5. Bootstrap Super Admin menerima kandidat aktif tanpa role yang tercatat onboarding SSO; aktivasi hanya dicatat bila kandidat legacy masih `nonaktif`.
+
+## 38.2 Status Nonaktif, Penonaktifan, dan Pengaktifan Kembali
+
+1. `nonaktif` berarti akun dinonaktifkan. Middleware `active` memblokir sesi akun nonaktif pada request berikutnya; halaman pending menampilkan "Akun tidak aktif".
+2. Aktor dengan `akses:update` dapat menonaktifkan dan mengaktifkan kembali akun lain melalui Penetapan Peran dengan alasan wajib dan audit. Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+3. Peran dan grant tidak dihapus saat akun dinonaktifkan, sehingga pengaktifan kembali memulihkan akses yang sama.
+4. Bila pengguna masih menjadi Penanggung Jawab aktif, UI menampilkan peringatan sebelum konfirmasi; penonaktifan tidak diblokir.
+
+## 38.3 Akun yang Menunggu Aktivasi Saat Rilis
+
+Sebelum deploy, akun `nonaktif` yang belum pernah diaktifkan didaftar dengan query read-only dan diaktifkan admin melalui halaman Aktivasi lama (beralasan, teraudit). Bila penonaktifan/pengaktifan kembali (§38.2) dirilis bersamaan, sisa akun dapat diaktifkan sesudah deploy melalui "Aktifkan kembali". Tidak ada migrasi otomatis.
+
+## 38.4 Kandidat Grant Unit dan Penanggung Jawab
+
+Aturan Q32 tetap: kandidat Grant Unit dan PJ adalah user `aktif`, dengan atau tanpa role. Setelah Q38 daftar tersebut mencakup semua akun yang pernah login SSO; pembatasan ke user berperan menjadi keputusan terpisah bila diperlukan.
+
+## 38.5 Dampak dan Traceability
+
+- Menggantikan §32.5 dan butir "onboarding JIT = nonaktif + tanpa role" pada daftar item yang RESOLVED oleh Q32.
+- Diselaraskan: User Issues ISS-01.01 dan ISS-01.08, User Stories US-01.01 dan US-01.08, Data Model §2.1 `users`, Workflow §21.1 dan pohon keputusan akses, PRD risiko "Onboarding memberi akses terlalu awal", Plan Pengembangan 1.3, design system (Prinsip UI), dan README bootstrap.
+- Konfirmasi LLDIKTI: menunggu; dicatat di sini sebelum PR implementasi di-merge.
+- Q38 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
@@ -885,7 +937,7 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 - PJ dapat menunjuk user aktif mana pun dan tidak memberi permission;
 - role-permission tidak diedit dari UI;
 - tidak ada migrasi Pegawai→PIC;
-- onboarding JIT = nonaktif + tanpa role;
+- onboarding JIT = nonaktif + tanpa role (digantikan Q38: aktif + tanpa role);
 - logout lokal default + logout SSO terpisah.
 
 ---

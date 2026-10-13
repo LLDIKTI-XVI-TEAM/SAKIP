@@ -542,7 +542,7 @@ Representasi lokal identitas SSO. Password tidak disimpan di SAKIP.
 | `created_at` | timestamp | not null | |
 | `updated_at` | timestamp | not null | |
 
-**Onboarding final:** login pertama Keycloak yang valid membuat baris `users` dengan `status = nonaktif` dan **tanpa baris `user_roles`**. User diarahkan ke halaman “Akun belum diaktifkan”. Admin mengaktifkan user dan menetapkan role melalui flow terpisah. User tanpa role memiliki 0 permission.
+**Onboarding final (Q38):** login pertama Keycloak yang valid membuat baris `users` dengan `status = aktif` dan **tanpa baris `user_roles`**. User diarahkan ke halaman “Menunggu penetapan peran”. Admin menetapkan role melalui Penetapan Peran. User tanpa role memiliki 0 permission. `status = nonaktif` berarti akun dinonaktifkan; default kolom tetap `nonaktif` untuk jalur insert lain.
 
 ### 2.2 `unit`
 

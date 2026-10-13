@@ -53,7 +53,7 @@ Semua issue wajib mengikuti keputusan final 24 September 2026:
 - Grant Unit menggunakan `delegasi:update`;
 - Assign Role/Deny menggunakan `akses:update`;
 - role-permission UI read-only; preset via code/seeder/release;
-- onboarding SSO nonaktif + tanpa role;
+- onboarding SSO aktif + tanpa role (Q38 menggantikan status nonaktif Q32);
 - logout lokal default, logout SSO terpisah;
 - Jadwal pertama 2026, TW I–II periode lampau, TW III–IV normal, tanpa `is_backfill`;
 - IKU 3/IKU 8 mengikuti formula final Q32.
@@ -65,6 +65,8 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 mengalahkan teks la
 ### ISS-01.01 · [Feature] Login Terpusat Menggunakan Single Sign-On (SSO) Keycloak
 
 > **Q32 FINAL:** JIT SSO membuat user `nonaktif` **tanpa role**. Admin mengaktifkan dan assign salah satu 5 role. Logout lokal default; logout SSO aksi terpisah.
+>
+> **Q38 (13 Oktober 2026):** JIT SSO kini membuat user `aktif` **tanpa role**; langkah aktivasi dihapus dan admin cukup menetapkan role. Lihat ISS-01.08.
 
 **Terkait User Story:** `US-01.01`  
 **Prioritas:** 🔴 P0  
@@ -459,6 +461,48 @@ kegiatan:update
 #### Definition of Done
 
 - [ ] Corrective PR ke `development` lulus review/QA dan tidak ada editor role-permission tersisa.
+
+### ISS-01.08 · [Feature] Onboarding SSO Langsung Aktif dan Nonaktifkan/Aktifkan Kembali Akun (Q38)
+
+**Terkait User Story:** `US-01.08`  
+**Prioritas:** 🟡 P1  
+**Labels:** `feature`, `auth-rbac`, `security`, `audit-sensitive`, `frontend`  
+**GitHub:** [#99](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/99)
+
+#### Kontrak Teknis
+
+- Onboarding JIT membuat `users.status = aktif` tanpa `user_roles`; login ulang tidak mengubah status.
+- User tanpa role tetap nol permission (`no_role`), termasuk bila memiliki grant.
+- Menu, endpoint `/akses/aktivasi`, dan capability `aktivasi` dihapus; izin `pengguna:read` dan `akses:update` dipertahankan.
+- Bootstrap Super Admin menerima kandidat aktif tanpa role yang tercatat onboarding SSO.
+- Penonaktifan dan pengaktifan kembali: aktor `akses:update`, alasan wajib, audit; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; peran dan grant dipertahankan; peringatan bila pengguna masih Penanggung Jawab aktif.
+
+#### Acceptance Criteria
+
+- [ ] **AC-1:** login SSO pertama membuat user `aktif` tanpa role, audit `pengguna.terdaftar` mencatat `status: aktif`, dan pengguna diarahkan ke "Menunggu penetapan peran".
+- [ ] **AC-2:** user aktif tanpa role mendapat 403 di `/dashboard` dan `/akses/peran`, dan seluruh `can.*` bernilai `false`.
+- [ ] **AC-3:** user yang dinonaktifkan tetap `nonaktif` setelah login ulang dan melihat "Akun tidak aktif".
+- [ ] **AC-4:** bootstrap berhasil sekali untuk akun aktif tanpa role yang tercatat onboarding; kandidat berperan atau tanpa jejak onboarding ditolak tanpa perubahan data.
+- [ ] **AC-5:** setelah admin menetapkan role, pengguna dapat masuk dashboard melalui "Periksa status".
+- [ ] **AC-6:** GET dan POST `/akses/aktivasi` mengembalikan 404 dan menu "Aktivasi Pengguna" tidak tampil.
+- [ ] **AC-7:** riwayat audit `pengguna.aktivasi` lama tetap utuh.
+- [ ] **AC-8:** penonaktifan akun lain dengan alasan membuat status `nonaktif`, memblokir sesi target pada request berikutnya, dan tercatat di audit.
+- [ ] **AC-9:** pengaktifan kembali membuat status `aktif` dengan peran dan grant sebelumnya tetap berlaku.
+- [ ] **AC-10:** akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+- [ ] **AC-11:** alasan kosong → 422; tanpa izin atau deny yang cocok → 403, dan penolakan di dalam action teraudit.
+- [ ] **AC-12:** dua mutasi status bersamaan pada akun yang sama → satu berhasil, yang lain ditolak stale.
+- [ ] **AC-13:** bila target masih Penanggung Jawab aktif, dialog menampilkan peringatan sebelum konfirmasi.
+
+#### Implementation Tasks
+
+- [ ] Onboarding `aktif`, bootstrap kandidat aktif, alasan pending `inactive`.
+- [ ] Hapus fitur Aktivasi Pengguna (halaman, route, controller, action, request, capability, menu).
+- [ ] Action, request, dan route penonaktifan/pengaktifan kembali beserta aksi di Penetapan Peran.
+- [ ] Test AC-1..AC-13, termasuk konkurensi bootstrap dan mutasi status.
+
+#### Definition of Done
+
+- [ ] PR Bagian A dan Bagian B ke `development` lulus review/QA, dan konfirmasi LLDIKTI atas Q38 tercatat sebelum merge.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 
