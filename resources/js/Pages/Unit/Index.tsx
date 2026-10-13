@@ -347,7 +347,8 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
                     {/* Grid mobile: jumlah keterkaitan tampil berpasangan tanpa scroll horizontal. */}
                     <Table wrapperClassName="overflow-x-visible" className="block md:table">
                         <caption className="sr-only">Master {lu}</caption>
-                        <TableHeader className="hidden md:table-header-group">
+                        {/* Di mobile header hanya disembunyikan visual (bukan hidden) agar pembaca layar tetap mendapat relasi header–sel. */}
+                        <TableHeader className="max-md:sr-only">
                             <TableRow>
                                 <TableHead className="whitespace-normal">Nama {lu}</TableHead>
                                 {JUMLAH.map(([key, label]) => (

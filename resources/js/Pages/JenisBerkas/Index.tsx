@@ -372,7 +372,8 @@ export default function JenisBerkasIndex({
                     {/* Grid mobile: ketentuan bukti tampil di bawah nama tanpa scroll horizontal. */}
                     <Table wrapperClassName="overflow-x-visible" className="block md:table">
                         <caption className="sr-only">Persyaratan berkas</caption>
-                        <TableHeader className="hidden md:table-header-group">
+                        {/* Di mobile header hanya disembunyikan visual (bukan hidden) agar pembaca layar tetap mendapat relasi header–sel. */}
+                        <TableHeader className="max-md:sr-only">
                             <TableRow>
                                 {['Persyaratan', 'Tahap', 'Lingkup', 'Ketentuan bukti', 'Status', ...(showAksi ? ['Aksi'] : [])].map((label) => (
                                     <TableHead key={label} className={`whitespace-normal ${label === 'Aksi' ? 'text-right' : ''}`}>
