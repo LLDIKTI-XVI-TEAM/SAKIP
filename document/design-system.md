@@ -59,7 +59,7 @@ Design System tidak boleh memperkenalkan aturan authorization baru. Baseline fin
 - visibilitas aksi selalu berasal dari capability server (`can.*`), bukan hardcode nama role;
 - Grant Unit hanya 7 permission scoped dan dikelola melalui `delegasi:update`;
 - halaman **Peran & Izin** bersifat read-only;
-- user SSO baru dapat berada pada status nonaktif/tanpa role;
+- user SSO baru berstatus aktif tanpa role (Q38); status nonaktif berarti akun dinonaktifkan;
 - UI harus mampu menampilkan keadaan “Belum memiliki peran” tanpa error.
 
 ## 🎨 Referensi Token Desain

@@ -1354,7 +1354,7 @@ Detail pemecahan task granular per fitur ada di **SAKIP - Plan Pengembangan.md**
 
 1. **Stale requirement Q31:** kode/dokumen lama dapat masih menganggap `pic` sebagai role. Mitigasi: Q32 wajib menjadi baseline; test katalog role harus tepat 5.
 2. **Grant scope bocor:** permission scoped dapat tanpa sengaja menjadi global. Mitigasi: katalog final hanya 7 scoped, gate Grant Unit `delegasi:update`, test cross-unit wajib.
-3. **Onboarding memberi akses terlalu awal:** user JIT tidak boleh otomatis mendapat role. Mitigasi: status nonaktif + tanpa role + fail closed.
+3. **Onboarding memberi akses terlalu awal:** user JIT tidak boleh otomatis mendapat role. Mitigasi: tanpa role + fail closed (`no_role`); sejak Q38 akun JIT langsung `aktif`, tetapi tetap nol permission sampai role ditetapkan.
 4. **Logout SSO terlalu agresif:** realm dipakai aplikasi lain. Mitigasi: logout lokal default; end-session hanya aksi eksplisit terpisah.
 5. **Interpretasi data IKU salah:** 66,395/87,08 dapat keliru dianggap realisasi dan 84 keliru dipakai pada IKU 8. Mitigasi: fixture final Q32 dan automated test formula/data awal.
 6. **Periode lampau disalahimplementasikan sebagai backfill generik:** mitigasi: status dihitung dari jendela, tanpa `is_backfill`; 2025 hanya baseline.

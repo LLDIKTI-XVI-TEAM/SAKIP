@@ -29,7 +29,7 @@ Setiap task memiliki tiga bagian wajib:
 ### 1.3 Migrasi & model `users` + JIT onboarding tanpa role
 - **Scope:** tabel `users` memakai `id`, `keycloak_id` unique, nama, email, profil opsional, serta `status` enum(`aktif`,`nonaktif`) default `nonaktif`. Callback Keycloak melakukan JIT provisioning berdasarkan `keycloak_id` tanpa membuat `user_roles` otomatis.
 - **Dependency:** 1.2.
-- **DoD:** login pertama membuat satu user `nonaktif` tanpa role; login ulang tidak menduplikasi; user diarahkan ke halaman pending activation; test membuktikan user tanpa role memiliki 0 permission.
+- **DoD:** login pertama membuat satu user `aktif` tanpa role (Q38; semula `nonaktif`); login ulang tidak menduplikasi dan tidak mengubah status; user diarahkan ke halaman menunggu penetapan peran; test membuktikan user tanpa role memiliki 0 permission.
 
 ### 1.4 Migrasi `unit`
 - **Scope:** Buat migrasi dan model `unit` (id, nama, status enum aktif/nonaktif, created_by, created_at). Nama tabel dan seluruh referensi kode memakai `unit` — bukan `tim_kerja` — sejak migrasi pertama.

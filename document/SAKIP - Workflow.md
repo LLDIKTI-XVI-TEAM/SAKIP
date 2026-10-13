@@ -1529,7 +1529,7 @@ permission dikenal & aktif?
   ├─ tidak → 403 fail closed
   ↓ ya
 user terautentikasi & status aktif?
-  ├─ tidak → tolak / pending activation
+  ├─ tidak → tolak / halaman akun tidak aktif
   ↓ ya
 allow role global + grant cocok
   ↓
@@ -1614,14 +1614,13 @@ flowchart TD
 ```text
 Login Keycloak valid
 → create/update users
-→ status nonaktif
+→ status aktif
 → tanpa role
-→ halaman "Akun belum diaktifkan"
-→ Admin aktifkan
+→ halaman "Menunggu penetapan peran"
 → Admin assign satu dari 5 role
 ```
 
-Tanpa role = nol permission.
+Tanpa role = nol permission. Sejak Q38 tidak ada langkah aktivasi; login ulang tidak mengubah status, dan `nonaktif` berarti akun dinonaktifkan.
 
 ### 21.2 Assign Peran
 
@@ -1699,7 +1698,7 @@ Q31 dipertahankan pada dokumen Keputusan Penyelarasan sebagai histori, tetapi ko
 3. PJ = assignment historis dan tidak memberi izin;
 4. Grant Unit = hanya 7 permission scoped, gate `delegasi:update`;
 5. Role & Permission UI = read-only;
-6. onboarding JIT = nonaktif + tanpa role;
+6. onboarding JIT = aktif + tanpa role (Q38);
 7. logout lokal default, logout SSO terpisah;
 8. TW I–II 2026 = periode lampau oleh Perencanaan; TW III–IV normal;
 9. tidak ada `is_backfill`;
