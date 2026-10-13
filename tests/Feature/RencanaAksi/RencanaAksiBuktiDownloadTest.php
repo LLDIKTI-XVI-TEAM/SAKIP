@@ -133,6 +133,18 @@ class RencanaAksiBuktiDownloadTest extends TestCase
         $this->actingAs($this->perencana)->get($this->urlUnduh($ra, $bukti))->assertForbidden();
     }
 
+    public function test_unduh_bukti_versi_ditolak_saat_unit_header_tidak_konsisten(): void
+    {
+        [$ra, $bukti] = $this->buatRencanaAksiDenganBuktiFile();
+        $url = route('rencana-aksi.versi.bukti.download', [$ra->id, $ra->versions()->sole()->id, $bukti->id]);
+        $this->actingAs($this->perencana)->get($url)->assertOk()->assertStreamedContent('Isi bukti beku');
+
+        $unitLain = Unit::create(['nama' => 'Unit Snapshot Beda', 'created_by' => $this->perencana->id]);
+        DB::table('rencana_aksi')->where('id', $ra->id)->update(['unit_id' => $unitLain->id]);
+
+        $this->get($url)->assertForbidden();
+    }
+
     private function userWithRole(string $kode): User
     {
         $user = User::factory()->create(['status' => 'aktif']);
