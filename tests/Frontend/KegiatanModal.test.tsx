@@ -127,3 +127,11 @@ it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan t
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);
     expect(screen.getByRole('link', { name: mode === 'page' ? 'Muat ulang form' : 'Muat ulang data kegiatan' })).toBeTruthy();
 });
+
+it('menerima nama hingga 500 karakter dan tujuan opsional, termasuk saat mengedit tujuan kosong', () => {
+    render(<KegiatanModal isOpen onClose={vi.fn()} kegiatan={{ ...item, tujuan: null }} tahunDefault={2026} periodeOptions={[period]} unitOptions={[a]} />);
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).maxLength).toBe(500);
+    const tujuan = screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/);
+    expect(tujuan.required).toBe(false);
+    expect(tujuan.value).toBe('');
+});

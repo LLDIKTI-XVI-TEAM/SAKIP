@@ -316,6 +316,20 @@ class KegiatanHttpTest extends TestCase
         $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
     }
 
+    public function test_nama_hingga_500_karakter_dan_tujuan_opsional(): void
+    {
+        $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['nama' => str_repeat('n', 501)]))
+            ->assertSessionHasErrors('nama');
+        $nama = str_repeat('é', 500);
+        $this->post('/kegiatan', array_replace($this->payload(), ['nama' => $nama, 'tujuan' => '']))->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+        $this->assertSame($nama, $kegiatan->nama);
+        $this->assertNull($kegiatan->tujuan);
+        $this->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['nama' => $nama, 'tujuan' => null, 'expected_state' => $kegiatan->versionToken()]))
+            ->assertSessionHasNoErrors();
+        $this->assertNull(AuditLog::where('tindakan', 'kegiatan.ubah')->sole()->nilai_baru['tujuan']);
+    }
+
     public function test_gagal_audit_membatalkan_pembuatan(): void
     {
         $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andThrow(new RuntimeException('Audit gagal sintetis'));

@@ -1063,7 +1063,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge; bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada US-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, dan penjumlahan anggaran dikerjakan pada US-06.08 (Q42 §42.6). Kegiatan juga ditambahkan dari halaman Rencana Aksi per periode melalui US-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3).
 
-**Status implementasi (2026-10-14):** Kontrak awal diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 (`nama` hingga 500 karakter, `tujuan` opsional) belum diterapkan, sehingga AC-1 belum dicentang. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi. Merge, UAT, dan deployment belum dilakukan.
+**Status implementasi (2026-10-14):** Diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 (`nama` hingga 500 karakter, `tujuan` opsional) telah diterapkan di PR #97 melalui migrasi, validasi request, dan form. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi. Merge, UAT, dan deployment belum dilakukan.
 
 | Field | Detail |
 |---|---|
@@ -1081,7 +1081,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
 - [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
 - [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
 - [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.

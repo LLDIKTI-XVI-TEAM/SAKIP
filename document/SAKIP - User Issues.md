@@ -2493,7 +2493,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge (validasi PR #97 saat ini masih membatasi `nama` 255 karakter dan mewajibkan `tujuan`); bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada ISS-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 diperbarui langsung karena PR #97 belum di-merge.
 
-**Status implementasi (2026-10-14):** Kontrak awal diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 (`nama` hingga 500 karakter, `tujuan` opsional) belum diterapkan, sehingga AC-1/TEST-1 dan task terkait belum dicentang. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi, sehingga item responsivitas dan checklist UI `design-system.md` belum dicentang. Merge, UAT, dan deployment belum dilakukan.
+**Status implementasi (2026-10-14):** Diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 (`nama` hingga 500 karakter, `tujuan` opsional) telah diterapkan di PR #97 melalui migrasi, validasi request, dan form. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi, sehingga item responsivitas dan checklist UI `design-system.md` belum dicentang. Merge, UAT, dan deployment belum dilakukan.
 
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1 · Tahap 1, PR #97 + Q49 (Q46 §46.3)  
@@ -2518,7 +2518,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
 - [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
 - [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
 - [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
@@ -2527,11 +2527,11 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 **A. Persistence / Data Model**
 - [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [ ] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
+- [x] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
+- [x] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
 - [x] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut. *(Digantikan Q42: PR #97 tidak diperluas; input dan validasi anggaran dikerjakan pada ISS-06.08.)*
 
 **C. Authorization & Audit**
@@ -2546,14 +2546,14 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.

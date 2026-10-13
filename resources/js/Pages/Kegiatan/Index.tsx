@@ -192,7 +192,7 @@ export default function Index({
                                         <TableRow key={item.id}>
                                             <TableCell className="max-w-md">
                                                 <span className="text-sm font-semibold text-ink">{item.nama}</span>
-                                                <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>
+                                                {item.tujuan && <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>}
                                             </TableCell>
                                             <TableCell className="w-1/4 min-w-[220px] text-xs font-medium text-ink">
                                                 <HoverScrollText>{item.unit?.nama ?? '-'}</HoverScrollText>

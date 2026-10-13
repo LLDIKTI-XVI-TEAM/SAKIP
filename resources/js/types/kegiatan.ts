@@ -12,7 +12,7 @@ export interface RencanaKegiatan {
     tahun: number;
     periode_id: string;
     nama: string;
-    tujuan: string;
+    tujuan: string | null;
     sasaran_peserta: number | null;
     keterangan_peserta: string | null;
     lokasi: string | null;
@@ -31,7 +31,7 @@ export interface KegiatanFormProps {
 export interface KegiatanIndexItem {
     id: string;
     nama: string;
-    tujuan: string;
+    tujuan: string | null;
     tahun: number;
     status: string;
     tanggal_rencana: string | null;

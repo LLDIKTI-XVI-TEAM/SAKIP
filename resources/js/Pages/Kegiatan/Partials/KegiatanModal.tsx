@@ -80,7 +80,7 @@ export function KegiatanModal({
                 tahun: String(kegiatan.tahun),
                 periode_id: kegiatan.periode_id ?? kegiatan.periode?.id ?? '',
                 nama: kegiatan.nama,
-                tujuan: kegiatan.tujuan,
+                tujuan: kegiatan.tujuan ?? '',
                 sasaran_peserta: kegiatan.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
                 keterangan_peserta: kegiatan.keterangan_peserta ?? '',
                 lokasi: kegiatan.lokasi ?? '',
@@ -235,7 +235,7 @@ export function KegiatanModal({
                             id="modal_nama"
                             label="Nama kegiatan"
                             required
-                            maxLength={255}
+                            maxLength={500}
                             placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja"
                             value={data.nama}
                             onChange={(e) => setData('nama', e.target.value)}
@@ -247,7 +247,6 @@ export function KegiatanModal({
                         <Textarea
                             id="modal_tujuan"
                             label="Tujuan"
-                            required
                             maxLength={10000}
                             placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..."
                             value={data.tujuan}
