@@ -14,11 +14,13 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import Pagination from '@/Pages/Pengukuran/Pagination';
-import type { ReviewProps } from './review-types';
+import type { ReviewProps, StatusReview } from './review-types';
 import { rencanaAksiStatusPerhitungan } from './types';
 
 type Decision = 'verifikasi' | 'kembalikan' | 'sahkan';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
+// Sama dengan filter status DaftarReviewRencanaAksi agar RA yang baru diproses tetap terlihat.
+const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
 const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan' };
 const judulTidakTersedia: Record<Decision, string> = {
     verifikasi: 'Verifikasi tidak tersedia',
@@ -41,6 +43,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     const recovery = useAuthRecovery();
     const form = useForm({ expected_versi: rencanaAksi.expected_versi, versi_pengajuan_id: versi.id, alasan: '' });
     const blocked = Boolean(message || recovery.recovery);
+    const hrefDaftar = statusDaftar.includes(rencanaAksi.status_alur) ? `/rencana-aksi/review?status=${rencanaAksi.status_alur}` : '/rencana-aksi/review';
 
     const buka = (aksi: Decision): void => {
         if (form.processing || !rencanaAksi.can[aksi]) return;
@@ -110,11 +113,11 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     );
 
     return (
-        <AuthenticatedLayout title={`Review ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review', href: '/rencana-aksi/review' }, { label: `Versi ${versi.nomor}` }]}>
+        <AuthenticatedLayout title={`Review ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review', href: hrefDaftar }, { label: `Versi ${versi.nomor}` }]}>
             <Head title={`Review Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/rencana-aksi/review" className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar review</Link>
+                    <Link href={hrefDaftar} className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar review</Link>
                     <div className="flex flex-wrap gap-2">
                         {rencanaAksi.can.kembalikan && <Button type="button" variant="outline" size="sm" disabled={form.processing || blocked} onClick={() => buka('kembalikan')}><Undo2 className="h-3.5 w-3.5" aria-hidden="true" />Kembalikan untuk revisi</Button>}
                         {rencanaAksi.can.verifikasi && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('verifikasi')}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Verifikasi</Button>}

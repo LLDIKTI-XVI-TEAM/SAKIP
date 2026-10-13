@@ -116,6 +116,15 @@ describe('Review Rencana Aksi', () => {
         expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ra-1/sahkan', { expected_versi: 7, versi_pengajuan_id: 'versi-2' }]);
     });
 
+    it('tautan kembali membawa filter status rencana aksi yang ditinjau', () => {
+        const { unmount } = renderReview({ status_alur: 'disahkan' });
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=disahkan');
+        unmount();
+
+        renderReview({ status_alur: 'diajukan' });
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=diajukan');
+    });
+
     it('menampilkan pengesah dan penanda self-approval pada versi yang disahkan', () => {
         renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, evidence: true },
             pengesahan: { oleh: 'Perencana Pengesah', pada: '2026-10-12T05:00:00Z', self_approval: true } });
