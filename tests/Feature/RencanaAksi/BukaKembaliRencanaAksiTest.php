@@ -155,19 +155,22 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->sahkan();
 
         // Q7 Opsi B: alasan opsional khusus buka_kembali (divergensi dokumen, addendum pending).
+        // Audit bersifat append-only (model guard + trigger DB): baris audit tidak
+        // boleh dihapus, sehingga skenario kedua dinilai dari baris audit terbaru.
         $this->actingAs($this->pembuka)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $this->tokens())
             ->assertOk()->assertJson(['status_alur' => 'dikembalikan', 'versi' => 4]);
 
         $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
-        $audit = AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->sole();
-        $this->assertSame(self::FALLBACK_ALASAN, $audit->alasan);
+        $pertama = AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->sole();
+        $this->assertSame(self::FALLBACK_ALASAN, $pertama->alasan);
 
         // Alasan string kosong juga lolos dengan fallback yang sama.
         $this->rencanaAksi->update(['status_alur' => 'disahkan', 'versi' => $this->rencanaAksi->fresh()->versi + 1]);
-        AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->delete();
         $this->actingAs($this->pembuka)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $this->tokens() + ['alasan' => '   '])
             ->assertOk();
-        $this->assertSame(self::FALLBACK_ALASAN, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->sole()->alasan);
+        $this->assertSame(2, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->count());
+        $kedua = AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->whereNot('id', $pertama->id)->sole();
+        $this->assertSame(self::FALLBACK_ALASAN, $kedua->alasan);
     }
 
     public function test_dengan_alasan_tersimpan_disanitasi_q7_opsi_b(): void
@@ -282,7 +285,10 @@ class BukaKembaliRencanaAksiTest extends TestCase
         app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
         app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
 
-        $this->actingAs($fixture['perencanaan'])->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pasca pengesahan.'])
+        // Q2: pengesah tidak boleh membuka pengesahannya sendiri, sehingga
+        // buka-kembali memakai Perencanaan kedua yang berbeda orang.
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pasca pengesahan.'])
             ->assertOk()->assertJson(['status_alur' => 'dikembalikan']);
         $beku = $versi->fresh()->getRawOriginal('snapshot');
 
