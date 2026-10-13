@@ -66,15 +66,16 @@ class AuthHttpTest extends TestCase
         $this->get('http://127.0.0.1/login')->assertRedirectContains('https://sso.test/realms/sakip/protocol/openid-connect/auth');
     }
 
-    public function test_pending_callback_has_identity_session_but_no_business_access_or_sensitive_props(): void
+    public function test_first_sso_login_is_active_without_role_and_has_no_business_access(): void
     {
         $this->mock(KeycloakIdentityProvider::class)->shouldReceive('identity')->once()->andReturn(['subject' => 'pending-canary', 'nama' => 'Pengguna Uji', 'email' => 'test@example.test']);
         $this->get('/auth/keycloak/callback')->assertRedirect('/auth/pending');
         $this->assertAuthenticated();
-        $this->get('/dashboard')->assertRedirect('/auth/pending');
-        $this->post('/pengukuran/00000000-0000-4000-8000-000000000000')->assertRedirect('/auth/pending');
+        $this->get('/dashboard')->assertForbidden();
+        $this->get('/akses/peran')->assertForbidden();
+        $this->post('/akses/peran/00000000-0000-4000-8000-000000000000', ['role_id' => '00000000-0000-4000-8000-000000000001', 'alasan' => 'Uji', 'expected_assignment' => null])->assertForbidden();
         $response = $this->get('/auth/pending');
-        $response->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'activation')->where('auth.user.status', 'nonaktif')->where('auth.user.nama', 'Pengguna Uji')->where('auth.can.dashboard', false)->missing('demo_users')->missing('auth.user.keycloak_id')->missing('auth.user.password'));
+        $response->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'role')->where('auth.user.status', 'aktif')->where('auth.user.nama', 'Pengguna Uji')->where('auth.can', fn ($can) => collect($can)->every(fn ($value) => $value === false))->missing('demo_users')->missing('auth.user.keycloak_id')->missing('auth.user.password'));
         $this->assertStringNotContainsString('pending-canary', $response->getContent());
     }
 
@@ -262,6 +263,8 @@ class AuthHttpTest extends TestCase
         $provider = $this->mock(KeycloakIdentityProvider::class);
         $provider->shouldReceive('redirect')->once()->andThrow(new \RuntimeException('start-test'));
         $this->get('/login?recovery=1')->assertRedirect('/auth/error')->assertSessionMissing('auth_recovery_requested')->assertSessionHas('auth_recovery_retry', true);
+        // Akun SSO baru langsung aktif; pemulihan tidak aktif hanya terjadi pada akun yang dinonaktifkan.
+        User::factory()->create(['keycloak_id' => 'pending-recovery', 'status' => 'nonaktif']);
         $provider->shouldReceive('identity')->once()->andReturn(['subject' => 'pending-recovery', 'nama' => 'QA', 'email' => 'qa@example.test']);
         $this->withSession(['auth_recovery_requested' => true])->get('/auth/keycloak/callback')->assertRedirect('/auth/pending')->assertSessionMissing('auth_recovery_requested');
         $this->assertSame('no_replay', session('inertia.flash_data.authRecoveryNotice'));

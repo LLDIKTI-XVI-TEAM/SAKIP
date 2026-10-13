@@ -87,7 +87,7 @@ class MutationConcurrencyTest extends TestCase
         $this->assertDatabaseCount('user_roles', 0);
         $this->assertSame(1, DB::table('audit_log')->where('sumber', 'sso_onboarding')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.terdaftar')->count());
-        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'status' => 'nonaktif']);
+        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'status' => 'aktif']);
     }
 
     public function test_two_concurrent_bootstraps_install_privileges_and_audit_only_once(): void
@@ -102,7 +102,7 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'user_roles.tambah')->where('sumber', 'bootstrap')->count());
-        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.aktivasi')->count());
+        $this->assertSame(0, DB::table('audit_log')->where('tindakan', 'pengguna.aktivasi')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'auth.bootstrap')->count());
     }
 

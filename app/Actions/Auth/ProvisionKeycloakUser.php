@@ -22,12 +22,12 @@ class ProvisionKeycloakUser
 
                 return $user;
             }
-            // Identitas baru belum membawa hak akses; aktivasi dan penetapan peran terpisah.
-            $user = User::create(['keycloak_id' => $identity['subject'], 'nama' => $identity['nama'], 'email' => $identity['email'], 'status' => 'nonaktif']);
+            // Identitas baru langsung aktif tanpa peran; akses tetap tertutup sampai peran ditetapkan.
+            $user = User::create(['keycloak_id' => $identity['subject'], 'nama' => $identity['nama'], 'email' => $identity['email'], 'status' => 'aktif']);
             $this->audit->handle([
                 'actor_type' => 'system', 'sumber' => 'sso_onboarding', 'tindakan' => 'pengguna.terdaftar',
                 'objek_tipe' => 'users', 'objek_id' => $user->id,
-                'nilai_baru' => ['status' => 'nonaktif'],
+                'nilai_baru' => ['status' => 'aktif'],
                 'alasan' => 'Sistem — onboarding SSO',
             ]);
 
