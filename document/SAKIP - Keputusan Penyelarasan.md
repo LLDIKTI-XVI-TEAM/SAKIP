@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **12 Oktober 2026**
+Pembaruan terakhir: **13 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -10,6 +10,8 @@ Basis commit sebelum pembaruan Q35: `405fac1e16b768046879b7e6a418fa6d14d9af77`
 Basis commit sebelum pembaruan Q36: `db0a887923127dc7af4b667bdf98c5d91e9a06b1`
 
 Basis commit sebelum keputusan review Q37 (semula bernomor Q36): `bba499436be3f919b24cea9ffbf6295ba1bc00bc`
+
+Basis commit sebelum pembaruan Q39–Q51: `0a260708d3b6df328d82151f85bf274d29bdec3b`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -40,6 +42,12 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 9 Oktober 2026 (Q37; penomoran diselaraskan 12 Oktober 2026)** menetapkan guard review Rencana Aksi pada indikator arsip/unit nonaktif, memisahkan audit permission sensitif dari kewajiban alasan pengguna, serta menetapkan PJ efektif sebagai penerima event pengembalian setelah commit. Pengiriman in-app menunggu ISS-12.02.
 
+**Keputusan 13 Oktober 2026 (Q38)** menghapus langkah aktivasi: akun SSO baru langsung `aktif` tanpa role, dan penonaktifan akun memakai status `nonaktif` dari halaman Penetapan Peran.
+
+**Rapat asistensi LLDIKTI 13 Oktober 2026 (Q39–Q46)** menetapkan dua lapis target dengan target PK sebagai acuan pengukuran (Q39); revisi PK berversi dan revisi Renstra ringan (Q40); Rencana Aksi tanpa jendela penyusunan dengan kunci per triwulan (Q41); kegiatan, anggaran, dan RAB di dalam Rencana Aksi, menggantikan Q28 (Q42); penyempitan kewajiban alasan (Q43); penghapusan Kebijakan Storage dengan batas teknis di server serta penataan menu referensi, menggantikan Q23 (Q44); narasi pelaporan wajib, Rekomendasi Pimpinan oleh Pimpinan, dan dashboard kegiatan (Q45); serta penggunaan pertama 2026 dan urutan pengerjaan (Q46). Status konfirmasi tertulis Tim Perencanaan dicatat pada pengantar Q39–Q46.
+
+**Analisis dokumen resmi 2026 (Q47–Q51)**, ditetapkan PM pada 13 Oktober 2026, menetapkan indikator dinilai tahunan, periode tanpa target, dan realisasi "belum dapat diukur" (Q47); keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan beserta unggahan PDF bertanda tangan (Q48); atribut kegiatan dan salin kegiatan (Q49); nomor PK opsional, presisi target, dan kode indikator mengikuti PK (Q50); serta alur draf dan persetujuan Rekomendasi Pimpinan (Q51). Dasar dan status konfirmasinya dicatat pada pengantar Q47–Q51.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -62,29 +70,29 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q4 | In-app baseline MVP; WA/email sebelum 9 November 2026. Pembukaan jadwal, pengingat PIC H-7/H-3/H-1, rekap Perencanaan H-3/H-1, serta pengembalian berkas. | PRD §28; Workflow §22; Plan 14; Model pengaturan |
 | Q5 | IKU 3 lima input, masing-masing koefisien 0,5; subtotal SAKIP merupakan tampilan turunan. Mesin formula bertingkat generik tetap ditunda. | PRD §17.10–17.11; Plan 5.13/5.17 |
 | Q6 | Definisi pembilang/penyebut/satuan/waktu/sumber IKU 8 harus ditetapkan Perencanaan sebelum produksi. Tidak memilih jumlah PTS hanya karena contoh 84. | PRD §17.11.2 |
-| Q7 | Indikator manual punya satu target langsung per periode; nonmanual target komponen dan skor turunan; tanpa komponen semu. | PRD §14.3; Model rencana_aksi_target |
+| Q7 | Indikator manual punya satu target langsung per periode; nonmanual target komponen dan skor turunan; tanpa komponen semu. **Diperbarui Q47:** indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir. | PRD §14.3; Model rencana_aksi_target; Q47 |
 | Q8 | Realisasi memakai basis yang sebanding dengan target kumulatif dan definisi per indikator; rasio tidak dijumlahkan dan populasi tidak dihitung ganda. | PRD §14.4, §17 |
-| Q9 | Penyebut nol faktual dengan komponen lengkap boleh diajukan/disahkan beralasan sebagai tidak dapat dihitung; dibedakan dari belum diisi dan bukan nol. | PRD §17.4, §19.4, §23 |
+| Q9 | Penyebut nol faktual dengan komponen lengkap boleh diajukan/disahkan beralasan sebagai tidak dapat dihitung; dibedakan dari belum diisi dan bukan nol. **Q47** menambah realisasi "belum dapat diukur", yang berbeda dari tidak dapat dihitung. | PRD §17.4, §19.4, §23; Q47 |
 | Q10 | Koreksi salah input terhadap sumber resmi menerbitkan versi snapshot pengganti beralasan/bukti, mempertahankan versi lama dan memerlukan pengesahan baru untuk hasil resmi yang dikoreksi. | PRD §12.5–12.7; Model jadwal_snapshot |
 | Q11 | Laporan disahkan mempertahankan target RA, klaim, narasi dan bukti yang diperiksa; perubahan kerja tidak memperbarui laporan historis diam-diam. | PRD §14.6, §22.4; Model tabel versi |
 | Q12 | Detail RA/kegiatan dan bukti PIC dibatasi unit berizin, termasuk deny; ringkasan umum tetap sesuai baseline. | PRD §7; Model permission; Workflow §19 |
 | Q13 | Jalur kerja PIC atas RA/pengukuran memerlukan cakupan unit yang sah dan PIC indikator efektif; setelah Q31, jalur operasional normal juga menggunakan role `pic`. Perencanaan tetap memakai kewenangan global; kegiatan tetap kolaboratif sesuai permission unit. | PRD §7, §13, §14.8, §19.3; Q31 |
-| Q14 | Admin tidak memiliki izin substantif secara bawaan; grant eksplisit beralasan dapat memberi pengecualian sesuai katalog, tetap tunduk deny/scope/business guard/waktu/F1. Grant tidak otomatis mengubah role seseorang menjadi PIC dan tidak otomatis menjadikannya penanggung jawab indikator. | PRD §7.3–7.6; Q31 |
+| Q14 | Admin tidak memiliki izin substantif secara bawaan; grant eksplisit beralasan dapat memberi pengecualian sesuai katalog, tetap tunduk deny/scope/business guard/waktu/F1. Grant tidak otomatis mengubah role seseorang menjadi PIC dan tidak otomatis menjadikannya penanggung jawab indikator. **Diperbarui Q43:** alasan pemberian grant opsional; bila kosong, server mengisi alasan baku. | PRD §7.3–7.6; Q31; Q43 |
 | Q15 | F1/F2 berlaku untuk RA dan Pengukuran. Gunakan identitas/jalur pengaju yang dibekukan saat pengajuan, bukan pembuat draft atau role terkini; self-approval Perencanaan ditandai. | PRD §7.6; Workflow §20; Model versi |
-| Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. | PRD §12.3; Plan 3.4 |
+| Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. **Digantikan Q41:** Rencana Aksi tidak lagi memakai jendela penyusunan; periode terkunci bagi PIC setelah jendela pengisiannya lewat. | PRD §12.3; Plan 3.4; Q41 |
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. | PRD §12.3, §31 |
-| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. | PRD §12.3; Plan 3.12 |
+| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. | PRD §12.3; Plan 3.12; Q41 |
 | Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
 | Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
 | Q22 | Bukti kegiatan memakai union persyaratan global dan indikator yang diklaim; klaim baru setelah terlaksana memeriksa bukti tambahan. | PRD §15.6; Workflow §8–10 |
-| Q23 | Saat unggahan mati, hanya kewajiban mode file dikecualikan; mode lain tetap diwajibkan sesuai kombinasi. Penanda/audit menjelaskan pengecualian. Pengecualian khusus lampiran PK existing tetap berlaku. | PRD §18.5–18.7 dan §12.4 |
+| Q23 | Saat unggahan mati, hanya kewajiban mode file dikecualikan; mode lain tetap diwajibkan sesuai kombinasi. Penanda/audit menjelaskan pengecualian. Pengecualian khusus lampiran PK existing tetap berlaku. **Digantikan Q44:** saklar unggahan dihapus sehingga unggahan file selalu aktif; histori penanda lama tetap tersimpan. | PRD §18.5–18.7 dan §12.4; Q44 |
 | Q24 | Persyaratan substantif dibekukan saat versi diajukan. Perubahan berlaku pengajuan berikutnya; proses berjalan harus dikembalikan beralasan jika ingin memakai ketentuan baru; hasil sah tidak otomatis invalid. | PRD §18.11; Model tabel versi |
 | Q25 | Koreksi bukti kegiatan append-only: bukti baru, alasan dan hubungan menggantikan, dengan bukti lama tetap utuh; bukan rollback status untuk menghapus. | PRD §15.6, §18.8 |
 | Q26 | Koreksi klaim mengikuti sumbernya: perencanaan mengikuti RA, pengukuran mengikuti pengukuran terkait; versi historis tidak dihapus. | PRD §16.5 |
 | Q27 | Status capaian terkait versi disahkan. Versi koreksi yang disahkan mulai Belum ditetapkan; penilaian sebelumnya tetap histori. | PRD §19.5, §21 |
-| Q28 | Anggaran kegiatan tidak diinput/ditampilkan/divalidasi pada MVP; kolom nullable untuk fase lanjutan. | PRD §5.2, §15.1; Model kegiatan |
-| Q29 | Perencanaan mengesahkan satu contoh keluaran Excel untuk UAT. Pisahkan baseline/target/realisasi/persentase; kesetaraan informasi tidak mewajibkan menyalin susunan sumber yang ambigu. | PRD §22.4, §24; Plan ekspor |
+| Q28 | Anggaran kegiatan tidak diinput/ditampilkan/divalidasi pada MVP; kolom nullable untuk fase lanjutan. **Digantikan Q42:** anggaran per kegiatan diinput, ditampilkan, dan dijumlahkan; RAB wajib untuk kegiatan beranggaran. | PRD §5.2, §15.1; Model kegiatan; Q42 |
+| Q29 | Perencanaan mengesahkan satu contoh keluaran Excel untuk UAT. Pisahkan baseline/target/realisasi/persentase; kesetaraan informasi tidak mewajibkan menyalin susunan sumber yang ambigu. **Q48** menambah keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan. | PRD §22.4, §24; Plan ekspor; Q48 |
 | Q30 | PM/pengelola infrastruktur menetapkan pemilik dan kesiapan Keycloak, UAT/produksi, domain/HTTPS, storage, backup/pemulihan, notifikasi dan pemeliharaan. Seed konfigurasi terpisah dari data uji. | PRD pembuka/§6; Plan P.4 |
 | **Q31** | **LLDIKTI XVI menetapkan enam role resmi: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`. Role `pic` adalah role sistem tersendiri dan tidak lagi diperlakukan sebagai Pegawai yang “menjadi PIC” hanya karena grant. Namun role `pic` tidak menggantikan `penanggung_jawab`: user role PIC tetap harus ditugaskan ke indikator yang relevan dan lolos scope/grant, deny, jadwal, status, serta business guard lain sebelum dapat mengerjakan RA/Pengukuran. Permission mutasi PIC yang membutuhkan scope unit tidak boleh menjadi akses global hanya karena berasal dari role.** | Klarifikasi langsung LLDIKTI XVI 20 Sep 2026; sinkronisasi wajib PRD §7/§13, Data Model §2.4/§2.19, Workflow §19/§21/§23, Plan Modul 1/4, User Stories/Issues |
 
@@ -576,6 +584,8 @@ Tombol keluar biasa tidak boleh otomatis mengakhiri sesi Keycloak karena realm d
 
 ## 32.7 Penggunaan Pertama: Jadwal 2026
 
+> **Diperbarui Q46 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional. Gerbang baru Q42–Q45 juga dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) tetap berlaku bagi PIC (Q46 §46.1 butir 1). Diagram di bawah dipertahankan sebagai riwayat keputusan.
+
 Penggunaan pertama SAKIP adalah **Jadwal Tahunan 2026**.
 
 ```text
@@ -602,11 +612,15 @@ Tahun aktif tidak boleh di-hardcode; tahun aktif adalah tahun yang mempunyai Jad
 
 ## 32.8 Rencana Aksi 2026
 
+> **Diperbarui Q46 (13 Oktober 2026):** RA 2026 yang dicatat Perencanaan sebagai data awal dikecualikan dari gerbang kegiatan minimal dan RAB (Q42); kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Batas "sebelum pengajuan TW III" dibaca sebagai "sebelum pengajuan TW IV".
+
 Rencana Aksi 2026 sudah disusun oleh Perencanaan. Data tersebut harus dicatat di aplikasi dengan status **disahkan** sebelum pengajuan TW III karena gerbang pengajuan mensyaratkan RA yang sah.
 
 Penetapan PIC operasional melalui workflow normal per periode dimulai pada Rencana Aksi berikutnya (2027). Initial setup 2026 diperlakukan sebagai data awal yang diverifikasi Perencanaan, bukan migrasi role PIC.
 
 ## 32.9 IKU 8 — Definisi Final
+
+> **Catatan Q50 (13 Oktober 2026):** "IKU 8" memakai nomor Renstra; pada PK, Rencana Aksi, dan laporan triwulan indikator ini berkode **IKU 3.3** (Q50 §50.4). Definisi IKU 8 pada Renstra 2025–2029 belum sama dengan definisi di bawah, dan target Renstra-nya turun tajam setelah 2026; klarifikasi definisi, arah, dan target 2027–2029 dicatat pada tindak lanjut. Target PK 2026 tetap 59,5.
 
 IKU 8 bertipe `rasio_persen` dengan formula:
 
@@ -619,6 +633,8 @@ Penyebut `t` adalah **total publikasi seluruh PTS di wilayah kerja**. Angka 84 a
 Target PK 59,5 tetap digunakan apa adanya. Nilai `t` diisi Perencanaan dari sumber resmi dan tidak boleh di-hardcode.
 
 ## 32.10 IKU 3 — Baseline, Target, dan Formula Final
+
+> **Catatan Q47 dan Q50 (13 Oktober 2026):** "IKU 3" memakai nomor Renstra; pada PK, Rencana Aksi, dan laporan triwulan indikator ini berkode **IKU 1.3** (Q50 §50.4). Indikator ini ditandai **dinilai tahunan** (Q47 §47.1).
 
 IKU 3 menggunakan dua skor input:
 
@@ -892,8 +908,571 @@ Aturan Q32 tetap: kandidat Grant Unit dan PJ adalah user `aktif`, dengan atau ta
 
 - Menggantikan §32.5 dan butir "onboarding JIT = nonaktif + tanpa role" pada daftar item yang RESOLVED oleh Q32.
 - Diselaraskan: User Issues ISS-01.01 dan ISS-01.08, User Stories US-01.01 dan US-01.08, Data Model §2.1 `users`, Workflow §21.1 dan pohon keputusan akses, PRD risiko "Onboarding memberi akses terlalu awal", Plan Pengembangan 1.3, design system (Prinsip UI), dan README bootstrap.
-- Konfirmasi LLDIKTI: menunggu; dicatat di sini sebelum PR implementasi di-merge.
+- Konfirmasi LLDIKTI: pada rapat asistensi 13 Oktober 2026 (lihat pengantar Q39–Q46), Tim Perencanaan menyetujui penghapusan langkah aktivasi (menit 01:46–02:50) dan meminta satu tombol di halaman peran untuk memutus seluruh akses pengguna (menit 02:50–03:31). PM menetapkan permintaan tersebut dipenuhi penonaktifan §38.2 (status `nonaktif`; peran dan grant disimpan untuk pengaktifan kembali); usulan menghapus peran tidak dipakai. Konfirmasi tertulis: menunggu, dicatat pada pengantar Q39–Q46.
 - Q38 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test.
+
+---
+
+# Pengantar Q39–Q46 — Rapat Asistensi LLDIKTI 13 Oktober 2026
+
+| Item | Isi |
+|---|---|
+| Rapat | Rapat asistensi SAKIP via Zoom, Selasa, 13 Oktober 2026 (WITA) |
+| Peserta | Tim Perencanaan LLDIKTI XVI, pendamping tim magang dari LLDIKTI XVI, PM (Dion), dan tim magang |
+| Rujukan menit | Menit pada Q38 §38.5 dan Q39–Q46 merujuk rekaman rapat yang disimpan PM |
+| Penetapan rincian | Butir yang tidak tegas di rapat ditetapkan PM pada 13 Oktober 2026 dan ditandai **(PM)** |
+| Konfirmasi tertulis | **Menunggu.** Ringkasan keputusan dikirim PM kepada Tim Perencanaan; tanggal kirim, bentuk, dan hasilnya dicatat pada baris ini |
+
+Sesuai Q1, aturan bisnis disahkan Tim Perencanaan. Sampai konfirmasi tertulis diterima, Q39–Q46 menjadi baseline kerja tim; koreksi dari Tim Perencanaan dicatat sebagai pembaruan pada Q terkait lalu diselaraskan ulang ke dokumen turunan.
+
+| Q | Topik | Menggantikan atau mengubah |
+|---|---|---|
+| Q39 | Dua lapis target: target Renstra dan target PK | PRD §8, §11; Data Model §2.13 |
+| Q40 | Revisi PK berversi dan revisi Renstra | PRD §5.2, §10.5–§10.6, §12.7; Data Model §2.10 |
+| Q41 | Rencana Aksi sepanjang tahun dan kunci per triwulan | Q16; Q18 (sebagian); PRD §4 prinsip 7, §12.2–§12.3, §14.1 |
+| Q42 | Kegiatan, anggaran, dan RAB dalam Rencana Aksi | Q28; PRD §5.2, §15, §18.3 |
+| Q43 | Kewajiban alasan dipersempit | Q14 (sebagian); PRD §4 prinsip 6, §25.2; Data Model §2.32 |
+| Q44 | Kebijakan Storage dihapus, batas teknis unggahan, dan penataan menu | Q23; PRD §18.7, §18.9, §26.3–§26.4 |
+| Q45 | Narasi pelaporan, Rekomendasi Pimpinan, dan dashboard kegiatan | PRD §4 prinsip 5, §11 (`wajib_catatan`), §15.3, §20, §22.2 |
+| Q46 | Penggunaan pertama 2026 dan urutan pengerjaan | Q32.7, Q32.8 (sebagian) |
+
+Issue baru yang dibentuk dari keputusan ini (satu issue untuk satu User Story): US/ISS-02.10, 02.11, 02.12, 05.07, 06.08, 13.05, dan 13.06. Q39–Q46 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test.
+
+---
+
+# Keputusan Q39 — Dua Lapis Target: Target Renstra dan Target PK
+
+Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04–1:19:12, dan 1:27:37–1:28:16. Butir bertanda (PM) ditetapkan PM.
+
+## 39.1 Dua lapis target
+
+| Lapis | Diisi di | Isi | Fungsi |
+|---|---|---|---|
+| Target Renstra | Sasaran & Indikator, sekali per Renstra | Target per tahun untuk setiap tahun dalam rentang Renstra, sesuai dokumen Renstra | Pembanding dan batas bawah target PK; tidak dipakai menghitung capaian |
+| Target PK | Perjanjian Kinerja, per Renstra per tahun | Baseline dan target tahun berjalan per indikator | Acuan target periode Rencana Aksi dan pengukuran capaian |
+
+1. Perjanjian Kinerja bukan sekadar unggah dokumen. Halaman PK memuat isian baseline dan target tahun berjalan untuk setiap indikator aktif Renstra, dikelompokkan per sasaran; nomor, tanggal, dan lampiran dokumen PK bertanda tangan tetap dicatat. Nomor PK opsional (Q50 §50.1), dan baseline tidak termasuk isi dokumen PK (Q50 §50.3).
+2. Target tahun berjalan tidak lagi diisi di halaman Sasaran & Indikator; halaman tersebut memuat target Renstra.
+3. `target_tahunan` (tabel `target_kinerjas`) tetap menyimpan **target PK**, dan editornya dipindah ke halaman PK. Domain nilai Q33 tetap berlaku. Snapshot, rekonsiliasi Rencana Aksi (ADR-0008), dan pengukuran tetap membaca target PK melalui snapshot sehingga tidak berubah. (PM)
+4. Target Renstra adalah data baru per indikator per tahun Renstra dengan domain nilai yang sama dengan Q33: nullable, finite, nonnegatif, dan `0` sah. (PM)
+5. Gerbang aktivasi jadwal tetap: PK tahun tersebut tercatat, setiap indikator aktif memiliki target PK, tahun jadwal berada dalam rentang Renstra, dan PK memiliki lampiran.
+
+## 39.2 Pembanding target Renstra
+
+1. Saat target PK diisi, target Renstra tahun yang sama ditampilkan di sampingnya.
+2. Untuk indikator `naik_baik`, target PK di bawah target Renstra memunculkan **peringatan dan alasan wajib**; untuk indikator `turun_baik`, peringatan muncul bila target PK di atas target Renstra. Sistem tidak menolak penyimpanan karena PK revisi yang sah dapat lebih rendah (menit 1:48:49). (PM, atas permintaan peringatan Tim Perencanaan pada menit 1:17:04)
+3. Anjuran "minimal sama atau naik satu poin" ditampilkan sebagai panduan, bukan aturan sistem. (PM)
+4. Indikator tanpa target Renstra (mis. IKU baru di tengah periode Renstra, atau IKU 4.1 yang hanya ada di PK, Q50 §50.5) tetap dapat diberi target PK dengan keterangan "target Renstra belum ada". (PM)
+5. Alasan deviasi terhadap target Renstra disimpan bersama target PK dan tercatat di audit. (PM)
+
+## 39.3 Penginput target PK
+
+1. Target PK diinput **Tim Perencanaan** setelah angka disepakati dengan tim kerja di luar aplikasi; PJ dan PIC melihat target PK sebagai baca-saja. (PM; menit 1:06:49–1:07:32 menyebut Perencanaan memvalidasi angka)
+2. Alur usulan target oleh PJ di dalam aplikasi tidak dibangun pada tahap ini; bila diperlukan, ditetapkan sebagai keputusan baru.
+3. Target Renstra dan target PK sama-sama disimpan dengan permission `target:update` yang sudah ada; tidak ada permission baru. (PM, 13 Oktober 2026, saat penyelarasan Q47–Q51)
+
+## 39.4 Acuan pengukuran
+
+1. Capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra. (menit 1:27:37–1:28:16)
+2. Target periode Rencana Aksi dipecah dari target PK; selisih target periode terakhir dengan target PK tetap wajib dijelaskan saat pengajuan (ADR-0008).
+3. Indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir. Pada periode tanpa target, capaian persen tidak dihitung dan realisasi dibandingkan langsung dengan target PK (Q47).
+
+## 39.5 Dampak dan traceability
+
+- PRD §5.1, §8, §11, §12.4, §14.5, §31–§32; Data Model §2.13 dan entitas baru target Renstra; Workflow §1, §3.3, §5; Plan modul 2; System Architecture §9.
+- User Stories/Issues: US/ISS-02.07 dan 02.08 diberi catatan; issue baru **US/ISS-02.10** (target Renstra) dan **US/ISS-02.11** (input target PK di halaman PK beserta pembanding target Renstra).
+- Status implementasi: belum. Editor target saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
+
+---
+
+# Keputusan Q40 — Revisi PK Berversi dan Revisi Renstra
+
+Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:57–1:52:06. Butir bertanda (PM) ditetapkan PM.
+
+## 40.1 Revisi PK berversi
+
+1. PK dapat direvisi, umumnya pada akhir tahun setelah persetujuan Eselon I. Di aplikasi, revisi disetujui **Perencanaan**. (menit 1:49:21)
+2. Setiap revisi membentuk **versi PK baru** yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator. Versi sebelumnya tidak diubah. (PM)
+3. PK awal dan PK akhir sama-sama disimpan dan dapat diunduh karena keduanya menjadi lampiran laporan kinerja. (menit 1:49:53)
+4. Revisi berlaku mulai **periode pertama yang belum ditutup**; periode yang sudah dilaporkan tetap memakai target versi lama. Persetujuan revisi yang mengubah target menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I. (PM)
+5. Revisi boleh hanya mengganti dokumen (mis. karena perubahan anggaran) tanpa mengubah target; revisi seperti itu tidak menerbitkan versi snapshot. (menit 1:50:24) Sebelum revisi berversi tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (Q50 §50.7).
+6. Capaian akhir tahun dinilai terhadap target **PK akhir**, yaitu versi yang berlaku pada periode nilai akhir. (PM)
+7. Rencana Aksi tidak diubah otomatis. Selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008); target periode yang belum terkunci disesuaikan lewat buka-kembali (ISS-05.06). (PM)
+8. Koreksi salah ketik nomor atau tanggal PK tetap memakai jalur koreksi teraudit (ISS-02.09); perubahan target resmi memakai revisi berversi.
+9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3).
+
+## 40.2 Revisi Renstra
+
+1. Atribut Renstra tetap direvisi **in place** dengan audit (PRD §10.5).
+2. **Lampiran revisi boleh ditambahkan setelah Renstra aktif**; lampiran yang sudah ada tetap tidak dapat dihapus. Ini menyelaraskan implementasi, yang saat ini menolak penambahan lampiran pada Renstra bukan draf (`UpdateRenstraAction.php:127-131`), dengan PRD §10.6 yang hanya melarang penghapusan. (PM; menit 27:24)
+3. Perubahan target Renstra saat Renstra `aktif` wajib beralasan (dasar revisi) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16)
+4. Versi penuh Renstra, yaitu sasaran dan indikator ikut berversi, **tidak** dibangun saat ini. Penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan yang berlaku. (PM)
+5. Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru. (PM, saat penyelarasan Q47–Q51)
+
+## 40.3 Dampak dan traceability
+
+- Menggantikan PRD §5.2 butir "Revisi target tahunan PK di tengah tahun", PRD §12.7, serta aturan Data Model §2.10 bahwa nomor dan tanggal surat Eselon I dicantumkan pada kolom `alasan`.
+- PRD §5.2, §10.5, §10.6, §12.7, §14.5, §14.10, §18.8; Data Model §2.9, §2.10 (rancangan versi PK), §2.13, §2.17, §2.30; Workflow §2, §3.3, §13, §14; Plan modul 2 dan 3.
+- User Stories/Issues: US/ISS-02.03, 02.08, dan 02.09 diberi catatan; ISS-03.03 menjadi prasyarat; issue baru **US/ISS-02.12** (revisi PK berversi); lampiran revisi dan riwayat target Renstra masuk **US/ISS-02.10**.
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q41 — Rencana Aksi Sepanjang Tahun dan Kunci per Triwulan
+
+Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1:44:51–1:47:57. Butir bertanda (PM) ditetapkan PM.
+
+## 41.1 Tanpa jendela penyusunan
+
+1. Rencana Aksi tidak terikat jendela penyusunan. PIC efektif dengan grant yang sah dapat menyusun, mengubah, dan mengajukan RA **sejak jadwal tahun tersebut aktif sampai `penutupan`**. Jadwal hanya mengikat pelaporan realisasi melalui jendela pengisian per periode. (menit 1:20:22–1:24:52)
+2. `jadwal_tahunan.rencana_aksi_mulai` dan `rencana_aksi_selesai` tidak lagi menjadi batas PIC dan dihapus dari form jadwal; kolomnya dibiarkan nullable sampai dihapus pada migrasi lanjutan. (PM)
+3. Menggantikan Q16, PRD §4 prinsip 7 untuk bagian jendela penyusunan RA, §12.2 (kolom jendela RA), paragraf penutup §12.3, dan §14.1 bagian "sebelum jendela pengisian periode pertama dibuka". Q18 tetap berlaku untuk jendela pengisian pengukuran.
+
+## 41.2 Kunci per triwulan
+
+1. Periode P terkunci bagi PIC pada Rencana Aksi setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). (menit 1:24:08–1:24:31)
+2. Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci. Pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. (PM)
+3. Perencanaan dikecualikan sampai `penutupan`, sama seperti pengecualian Perencanaan pada jendela pengisian.
+4. Periode lampau pada saat aktivasi jadwal (Q46) sudah terkunci bagi PIC sejak aktivasi.
+5. Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC. (PM, saat penyelarasan Q47–Q51)
+6. Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan. (PM, saat penyelarasan Q47–Q51)
+
+## 41.3 Aturan yang tetap berlaku
+
+1. Pengajuan pengukuran suatu periode tetap mensyaratkan RA indikator tersebut **disahkan** (PRD §14.9). (PM)
+2. RA tetap diverifikasi dan disahkan Perencanaan. Perencanaan boleh mengesahkan RA yang diinputnya sendiri dengan penanda self-approval (Q15, F2); yang dijaga ketat adalah jalur PIC (F1). (menit 1:46:46–1:47:57)
+3. Target kumulatif per periode yang turun tetap berupa **peringatan**, bukan penolakan (PRD §14.4). (PM)
+4. Deviasi target periode terakhir terhadap target PK tetap wajib dijelaskan saat pengajuan (ADR-0008).
+
+## 41.4 Kegiatan yang mundur ke periode lain
+
+1. Saat pelaporan, PIC menandai kegiatan yang tidak dilaksanakan sesuai rencana sebagai **ditunda** dengan justifikasi dan periode tujuan (PRD §15.2). (menit 1:44:51–1:45:51)
+2. Sistem membuat kegiatan lanjutan pada periode tujuan yang tertaut ke kegiatan asal (`kegiatan_asal_id`); kegiatan lanjutan diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`). (PM)
+3. RA yang sudah disahkan **tidak dibuka kembali** hanya untuk memindahkan kegiatan; justifikasi kegiatan menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran. (PM)
+4. Buka-kembali RA oleh Perencanaan (ISS-05.06) dipakai bila target periode yang belum terkunci perlu diubah.
+5. Kegiatan lanjutan hanya dapat ditujukan ke periode lain pada tahun yang sama; kegiatan yang mundur ke tahun berikutnya dicatat sebagai kegiatan baru pada Rencana Aksi tahun itu. Berkas kegiatan asal, termasuk RAB, tidak disalin; kegiatan lanjutan tertaut ke asalnya lewat `kegiatan_asal_id`, dan persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk kegiatan lanjutan yang diklaim pada tahap pengukuran. (PM, saat penyelarasan Q47–Q51)
+
+## 41.5 Dampak dan traceability
+
+- PRD §4 prinsip 7, §5.1, §8 butir 6, §12.2, §12.3, §14.1, §14.6, §15.2, §28, §31; Data Model §2.15, §2.16, §2.23, §2.25–§2.26; Workflow §1, §4, §7, §8, §9, §13; Plan modul 3, 11 (task 11.9), dan 12.
+- User Stories/Issues: US/ISS-03.01, 05.01, dan 05.03 diberi catatan; US/ISS-03.06, 05.06, 06.04, dan 06.05 diselaraskan; issue baru **US/ISS-05.07**.
+- Status implementasi: belum. `JendelaTulisRencanaAksi` masih menolak PIC di luar jendela dan saat tanggal jendela kosong (baris 70–74).
+
+---
+
+# Keputusan Q42 — Kegiatan, Anggaran, dan RAB dalam Rencana Aksi
+
+Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:05:23 dan 1:28:47–1:44:27. Butir bertanda (PM) ditetapkan PM.
+
+## 42.1 Kegiatan sebagai bagian Rencana Aksi
+
+1. Rencana Aksi memuat target per periode **dan daftar kegiatan per periode**, bukan hanya angka. (menit 1:29:56–1:30:52)
+2. Kegiatan ditambahkan dari halaman Rencana Aksi per periode. Aksi ini membuat kegiatan (per unit × periode, PRD §15.1) sekaligus klaimnya ke RA dengan `sumber_klaim = rencana_aksi`. (PM)
+3. Pengajuan RA mensyaratkan **minimal satu kegiatan** yang diklaim pada tahap RA; tidak setiap periode wajib berisi kegiatan. (PM)
+4. Struktur kegiatan dan klaim tidak berubah: satu kegiatan tetap dapat diklaim lebih dari satu RA/IKU dalam unit yang sama, dan klaim lintas unit tetap ditolak.
+5. Nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain saat ditambahkan (Q49).
+
+## 42.2 Anggaran kegiatan
+
+1. Setiap kegiatan mencatat **satu angka anggaran** dalam rupiah, nonnegatif; `0` sah untuk kegiatan tanpa anggaran, dan kegiatan beranggaran nol tetap dapat diklaim. (menit 1:31:49–1:33:55, 1:43:07)
+2. Anggaran wajib diisi saat kegiatan dibuat atau diubah; `null` hanya ada pada data sebelum Q42 dan diperlakukan sebagai belum diisi. (PM)
+3. Rincian realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola. (menit 1:40:03–1:42:29)
+4. Anggaran dijumlahkan otomatis per periode, per RA, dan per IKU. Kegiatan yang diklaim lebih dari satu IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**; total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda. (PM)
+5. Dashboard menampilkan total anggaran per IKU dengan drill-down sampai kegiatan. (menit 1:34:24–1:35:27)
+6. Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan. Total yang sudah dibekukan pada versi RA tidak berubah. (PM, saat penyelarasan Q47–Q51)
+
+## 42.3 RAB
+
+1. RAB wajib diunggah untuk kegiatan dengan anggaran **lebih dari 0**, dalam format Excel atau PDF. (menit 1:34:24–1:37:30; batas anggaran lebih dari 0 oleh PM)
+2. Aplikasi tidak membuat template RAB. Perencanaan dapat melampirkan **contoh berkas** generik pada persyaratan RAB; PIC mengunduh contoh tersebut lalu mengunggah RAB miliknya. (menit 1:36:21–1:37:30)
+3. Persyaratan tahap perencanaan kegiatan dapat ditandai **hanya untuk kegiatan beranggaran** (`jenis_berkas.hanya_kegiatan_beranggaran`, boolean, default `false`). Persyaratan RAB memakai penanda ini sehingga hanya diperiksa untuk kegiatan dengan anggaran lebih dari 0; persyaratan lain pada tahap yang sama tetap berlaku untuk setiap kegiatan. (PM, saat penyelarasan Q47–Q51)
+4. Contoh berkas bukan bukti: Perencanaan dapat menambah, mengganti, atau menghapusnya kapan saja, penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan. (PM, saat penyelarasan Q47–Q51)
+
+## 42.4 Persyaratan dokumen kegiatan dua tahap
+
+1. **Tahap perencanaan kegiatan** (mis. RAB) berlaku per kegiatan dan diperiksa saat Rencana Aksi diajukan, untuk setiap kegiatan yang diklaim pada tahap RA. (PM)
+2. **Tahap pelaksanaan kegiatan** (mis. undangan, dokumentasi, SP) memakai tahap `kegiatan` yang ada dan diperiksa saat kegiatan ditandai `terlaksana` (PRD §15.6). Q22 tetap berlaku. (menit 1:37:30–1:37:58)
+3. Kedua tahap ditetapkan Perencanaan di Persyaratan Berkas. `jenis_berkas.tahap` memperoleh nilai baru `kegiatan_perencanaan`, dan persyaratan dapat dilampiri contoh berkas melalui induk `berkas` baru `jenis_berkas`. (PM)
+4. Persyaratan tahap perencanaan kegiatan yang diperiksa saat RA indikator X diajukan adalah persyaratan global ditambah persyaratan khusus indikator X. Untuk kegiatan bersama, persyaratan khusus indikator lain diperiksa saat RA indikator tersebut diajukan. (PM, saat penyelarasan Q47–Q51)
+5. Berkas yang dipakai memenuhi persyaratan tahap perencanaan kegiatan (mis. RAB) tidak dapat dihapus sejak Rencana Aksi yang mengklaim kegiatan tersebut diajukan; koreksinya lewat pengembalian RA atau berkas pengganti (Q25), mengikuti pola bukti Rencana Aksi (Q36). (PM, saat penyelarasan Q47–Q51)
+
+## 42.5 Akses data anggaran
+
+1. Anggaran per kegiatan dan berkas RAB mengikuti akses detail kegiatan, yaitu dibatasi unit (Q12); Perencanaan dan Pimpinan dapat melihat seluruhnya. (PM)
+2. Total anggaran per IKU pada dashboard mengikuti akses dashboard.
+
+## 42.6 Dampak dan traceability
+
+- Menggantikan Q28 serta PRD §5.2 butir "Modul anggaran kegiatan penuh" sepanjang menyangkut input, tampilan, dan penjumlahan anggaran per kegiatan. Q12, Q22, Q24, dan Q25 tetap berlaku.
+- PRD §5.1, §5.2, §14.7, §15.1, §15.6, §16, §18.2–§18.4, §18.6, §18.8, §22.4, §23, §25.1, §30; Data Model §2.25, §2.26, §2.29, §2.30, §6; Workflow §1, §7, §8, §9, §10; Plan modul 7, 8, 11, 12 (task 12.12), dan 13; System Architecture §9.
+- User Stories/Issues: US/ISS-06.01 diberi catatan (PR #97 tidak diperluas; anggaran dikerjakan di ISS-06.08); US/ISS-06.02, 06.03, 10.01, dan 10.02 diselaraskan; US/ISS-11.01 diberi catatan; issue baru **US/ISS-06.08**.
+- Status implementasi: kolom `kegiatan.anggaran` sudah tersedia (nullable). Input anggaran, RAB, tahap persyaratan baru, contoh berkas, gerbang pengajuan, dan penjumlahan belum.
+
+---
+
+# Keputusan Q43 — Kewajiban Alasan Dipersempit
+
+Sumber: rapat 13 Oktober 2026, menit 12:59, 45:13, dan 48:25–49:09. Butir bertanda (PM) ditetapkan PM.
+
+## 43.1 Prinsip
+
+Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif sesuai Q37 §37.2). Alasan pengguna hanya diwajibkan bila memberi informasi yang tidak dapat dibaca dari data. (menit 45:13)
+
+## 43.2 Aksi yang tetap wajib alasan (PM)
+
+1. Pengembalian dan buka-kembali (Rencana Aksi, pengukuran, jadwal).
+2. Penghapusan data atau berkas.
+3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), revisi target Renstra saat Renstra aktif (Q40), dan koreksi snapshot (Q35).
+4. Perubahan akses: penetapan dan pergantian peran, penonaktifan dan pengaktifan kembali akun (Q38), pembatasan izin dan pencabutannya, serta pencabutan grant.
+5. Justifikasi kegiatan `tidak_terlaksana`/`ditunda`/`batal`, alasan deviasi terhadap target PK (ADR-0008), dan alasan target PK di bawah target Renstra (Q39).
+
+## 43.3 Aksi yang alasannya opsional (PM)
+
+1. Pemberian grant unit. Kolom alasan grant tetap `NOT NULL`; bila pengguna mengosongkannya, server mengisi **alasan baku**, mengikuti pola alasan baku pada Q37 §37.2. (menit 12:59)
+2. Perubahan target PK, yang sudah opsional.
+3. Perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif.
+4. Kolom alasan pada penetapan dan pergantian **Penanggung Jawab** dihapus dari form; kolom basis datanya sudah nullable. (menit 48:25–49:09)
+
+Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap berlaku.
+
+## 43.4 Dampak dan traceability
+
+- Mengubah Q14 (alasan grant), PRD §4 prinsip 6, §7.5, §13, §25.1–§25.2; Data Model §2.7, §2.19, §2.32; Workflow §21–§22; Plan modul 10 (task 10.7); design system (pola modal alasan).
+- User Stories/Issues: US/ISS-01.04 dan 04.01 diberi catatan; issue baru **US/ISS-13.05** memuat rincian per request.
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q44 — Kebijakan Storage Dihapus, Batas Teknis Unggahan, dan Penataan Menu
+
+Sumber: rapat 13 Oktober 2026, menit 19:18–25:12 dan 1:52:36. Butir bertanda (PM) ditetapkan PM.
+
+## 44.1 Kebijakan Storage dihapus
+
+1. Menu **Kebijakan Storage** (`/pengaturan/storage`) dan halaman **Batas Unggahan Berkas** dihapus. Format dan ukuran maksimum per persyaratan ditetapkan **Perencanaan** di Persyaratan Berkas. (menit 21:10–23:33)
+2. Saklar global unggahan dihapus; unggahan file selalu aktif. Penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan (PRD §18.7 dan gerbang lampiran PK) tidak lagi terjadi; penanda yang sudah tercatat tetap menjadi histori. (PM)
+3. Panel penggunaan penyimpanan dihapus. Tampilan daftar berkas terunggah (semacam file manager) masuk backlog. (menit 23:33)
+4. Penyimpanan tetap privat, dan unduhan tetap melalui route berizin.
+5. Menggantikan Q23, PRD §18.9, §26.3 butir batas unggahan, §26.4, serta US/ISS-11.06 dan US/ISS-13.02 (yang sudah diimplementasikan).
+
+## 44.2 Batas teknis unggahan di server (PM)
+
+1. Server tetap menegakkan batas teknis dari konfigurasi aplikasi, bukan dari UI:
+   - default **10 MB** dan format `pdf,docx,xlsx,jpg,jpeg,png` untuk lampiran tanpa persyaratan (Renstra, PK, Dasar Aturan, lampiran bebas kegiatan) dan untuk persyaratan yang mengosongkan format atau ukuran;
+   - batas atas **100 MB** per berkas yang tidak dapat dilampaui `jenis_berkas.ukuran_maks_kb`, divalidasi saat persyaratan disimpan dan saat unggah.
+2. Nilai tersebut sama dengan default dan batas maksimum halaman Kebijakan Storage sebelumnya.
+3. Perubahan batas teknis dilakukan melalui konfigurasi deployment dan dicatat pada catatan rilis.
+
+## 44.3 Penataan menu referensi
+
+1. **Dasar Aturan** dipindah ke grup **Master Data & Referensi** karena dirujuk seluruh modul. (menit 24:49)
+2. **Persyaratan Berkas** dipindah ke grup **Perencanaan Kinerja** karena ditetapkan setelah IKU tersedia. (menit 24:09–25:12)
+3. Permission tidak berubah; menu tetap tampil berdasarkan `can.*` dari server.
+
+## 44.4 Dampak dan traceability
+
+- PRD §5.1, §8, §12.4, §14.10, §18.1–§18.2, §18.5–§18.7, §18.9, §25.1, §26; Data Model §2.15, §2.22, §2.29, §2.30, §2.32; Workflow §3.3, §5, §10, §18; Plan modul 3, 9 (task 9.10), 11, dan 13; design system (navigasi); System Architecture §14.1; Engineering Standards §7.
+- User Stories/Issues: US/ISS-03.02, 11.01, dan 13.02 diberi catatan; US/ISS-11.06 dibatalkan; issue baru **US/ISS-13.06**.
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q45 — Narasi Pelaporan, Rekomendasi Pimpinan, dan Dashboard Kegiatan
+
+Sumber: rapat 13 Oktober 2026, menit 50:14–56:01, 1:09:38–1:13:00, dan 1:43:45–1:46:46. Butir bertanda (PM) ditetapkan PM.
+
+## 45.1 Narasi pelaporan
+
+1. Setiap pengukuran (indikator × periode) wajib memuat narasi **progres kegiatan**, **kendala/masalah**, dan **tindak lanjut/strategi penyelesaian** saat diajukan. (menit 51:04–51:59, 1:12:24–1:13:00) Narasi diisi per indikator per periode. (PM)
+2. Narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) tetap tersedia dan opsional; rekapitulasi menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim. (PM)
+3. Kewajiban `catatan` pada PRD §20 (nilai memburuk atau `wajib_catatan`) digantikan narasi wajib. Kolom `catatan` tetap sebagai keterangan tambahan opsional, dan saklar `wajib_catatan` disembunyikan dari form indikator tanpa menghapus kolomnya. (PM; menit 54:37–56:01)
+4. Status kegiatan (terlaksana, tidak terlaksana, ditunda) dapat diperbarui sepanjang periode berjalan, misalnya setiap bulan; tidak ada entitas bulanan tersendiri. (menit 1:11:23–1:12:24)
+
+## 45.2 Rekomendasi Pimpinan
+
+> **Dikoreksi Q51 (13 Oktober 2026):** butir 1 dilengkapi alur draf oleh Perencanaan dan persetujuan oleh Pimpinan; persetujuan oleh Perencanaan sebagai cadangan diberi penanda. Butir 4 diubah: ISS-09.01 dikerjakan pada tahap 2.
+
+1. Rekomendasi Pimpinan diisi **Pimpinan** di aplikasi; preset peran Pimpinan memperoleh `rekomendasi:tetapkan` melalui seeder (Q32.4). Perencanaan tetap memegang permission tersebut sebagai cadangan. (menit 51:59–52:32)
+2. Rekomendasi tetap melekat pada indikator × periode dan independen dari status pengukuran (PRD §22.3).
+3. Bila terdapat rekomendasi pada periode N, pengukuran periode N+1 wajib memuat isian **tindak lanjut atas rekomendasi** saat diajukan. (menit 52:32–53:02)
+4. Dibangun bersama ISS-09.01, setelah pengukuran inti (§46.3). (PM)
+5. Menggantikan PRD §4 prinsip 5 (pengisi rekomendasi), §5.1 butir rekomendasi, §22.2, dan Data Model §2.31 (pengisi Fase Awal).
+
+## 45.3 Dashboard kegiatan
+
+1. Dashboard menampilkan status kegiatan per periode secara real-time dengan label "belum diverifikasi"; kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. (menit 1:10:11–1:11:23; label oleh PM)
+2. Angka capaian resmi tetap hanya dari data yang disahkan (PRD §4 prinsip 1).
+3. Total anggaran per IKU mengikuti Q42 §42.2.
+
+## 45.4 Dampak dan traceability
+
+- PRD §4 prinsip 1 dan 5, §5.1, §11 (`wajib_catatan`), §15.3, §20, §22, §23, §24, §32; Data Model §2.12, §2.20, §2.25, §2.31; Workflow §1, §11, §12, §17, §22; Plan modul 5, 6 (task 6.7), 7, dan 8; design system (contoh form pengukuran).
+- User Stories/Issues: US/ISS-02.04 diberi catatan; US/ISS-07.01, 07.03, 09.01, 10.01, dan 10.02 diselaraskan.
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q46 — Penggunaan Pertama 2026 dan Urutan Pengerjaan
+
+Sumber: rapat 13 Oktober 2026, menit 1:25:19–1:26:59, 1:29:56–1:30:52, dan 1:52:06–1:55:47. Butir §46.1 dan §46.3 ditetapkan PM.
+
+## 46.1 Periode lampau 2026 (PM)
+
+1. Gerbang baru Q42–Q45 — RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi — **dikecualikan untuk periode lampau**, sama seperti gerbang lain pada Q32.7. Kunci per triwulan (Q41 §41.2) bukan bagian pengecualian ini: periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan yang mengisinya memang tidak terikat kunci (Q41 §41.2 butir 3–4). *(Dikoreksi 13 Oktober 2026 saat penyelarasan Q47–Q51; semula kunci per triwulan ikut disebut sebagai gerbang yang dikecualikan.)*
+2. Dengan pola pelaporan pada minggu pertama bulan setelah triwulan (menit 1:25:19), **TW III 2026** menjadi periode lampau yang diisi Perencanaan; **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional, dengan pelaporan awal Januari 2027. Status periode lampau tetap dihitung dari jendela pengisian terhadap waktu aktivasi, tanpa `is_backfill`.
+3. RA 2026 yang dicatat Perencanaan sebagai data awal (Q32.8) dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi, Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output. (Ketentuan anggaran ditambahkan PM saat penyelarasan Q47–Q51)
+4. Setiap issue yang menambah gerbang Q42–Q45 menyertakan pengecualian periode lampau beserta test-nya; issue kunci per triwulan (Q41) menyertakan test bahwa periode lampau terkunci bagi PIC.
+5. Memperbarui Q32.7 ("TW III–IV normal"), Q32.8, dan PRD §12.6.
+6. Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (pengantar Q47–Q51): target PK, target periode dan kegiatan Rencana Aksi, serta realisasi, narasi, dan rekomendasi TW I–II. Target periode lampau boleh kosong (Q47 §47.2), dan data yang belum dikonfirmasi mengikuti asumsi kerja pada bagian tindak lanjut.
+
+## 46.2 Fokus pengerjaan
+
+Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan sebelum verifikasi/pengesahan pengukuran dan fitur tambahan dikerjakan, dengan asistensi berkala selama pengerjaan. (menit 1:29:56–1:30:25, 1:52:06–1:53:35)
+
+## 46.3 Urutan pengerjaan (PM)
+
+| Tahap | Batas | Cakupan |
+|---|---|---|
+| 1 | Sebelum integrasi 9 November 2026 (Q2) | Q38 (ISS-01.08); Q39 dan Q50 (ISS-02.10, ISS-02.11); lampiran revisi dan riwayat target Renstra (Q40 §40.2, ISS-02.10); Q41 dan Q47 (ISS-05.07, serta ISS-05.06 yang sedang berjalan); Q42 dan Q49 (ISS-06.01, ISS-06.02, ISS-06.08); Q43 (ISS-13.05); Q44 (ISS-13.06); pengecualian periode lampau (§46.1); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
+| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01 |
+| 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); simulasi target; tampilan daftar berkas; versi penuh Renstra; ISS-13.03. ISS-09.01 dipindah ke tahap 2 (Q51) |
+
+Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
+
+## 46.4 Dampak dan traceability
+
+- Q32.7 dan Q32.8; PRD §12.6, §33; Data Model §8.4; Workflow §15; Plan (prioritas dan urutan modul); User Issues §4.1; US/ISS-03.05 dan 07.05.
+- Status implementasi: belum.
+
+---
+
+# Pengantar Q47–Q51 — Analisis Dokumen Resmi 2026
+
+| Item | Isi |
+|---|---|
+| Dokumen | Renstra LLDIKTI Wilayah XVI 2025–2029 (Keputusan Kepala LLDIKTI Wilayah XVI Nomor 548/DST/LL16/PR.00.02/2026, 1 Mei 2026); Perjanjian Kinerja 2026 (21 April 2026); Rencana Aksi 2026 (23 Mei 2026); Laporan Kinerja Triwulan I dan II 2026 (20 Juli 2026) |
+| Asal | Diterima dari Tim Perencanaan sebagai tindak lanjut rapat 13 Oktober 2026 (contoh dokumen PK, Rencana Aksi, dan pengukuran); disimpan PM |
+| Penetapan | Q47–Q51 ditetapkan PM pada 13 Oktober 2026 berdasarkan analisis dokumen tersebut; seluruh butirnya berstatus (PM) |
+| Konfirmasi tertulis | **Menunggu**, bersama konfirmasi Q38–Q46 |
+
+Temuan yang mendasari keputusan:
+
+1. Struktur dokumen resmi sama dengan model SAKIP: target per triwulan per indikator, kegiatan per indikator per triwulan, analisis per indikator (progres, kendala, tindak lanjut), dan rekomendasi per indikator. Target sembilan indikator identik di PK, Rencana Aksi, dan laporan triwulan.
+2. Rencana Aksi 2026 mencantumkan target TW I–III bernilai 0 untuk semua indikator, sedangkan laporan triwulan menilai realisasi terhadap target PK dalam selisih poin (Q47).
+3. Keempat dokumen operasional merupakan gabungan seluruh indikator untuk satu lembaga dan ditandatangani elektronik di luar aplikasi (Q48).
+4. Rencana Aksi 2026 memuat sekitar 228 kegiatan; dua nama kegiatan melebihi 255 karakter (345 dan 263), tidak ada tujuan per kegiatan, dan banyak kegiatan berulang tiap triwulan (Q49).
+5. PK 2026 tidak bernomor, mencetak target yang dibulatkan (94; 81; 92,9) sementara laporan memakai nilai penuh (94,05; 80,95; 92,86), dan memuat sasaran S4 serta IKU 4.1 yang tidak ada di Renstra (Q50).
+6. Rekomendasi pada laporan triwulan bercampur kalimat orang pertama dan orang ketiga, yang menandakan rekomendasi disusun staf lalu disetujui pimpinan (Q51).
+
+| Q | Topik | Menggantikan atau mengubah |
+|---|---|---|
+| Q47 | Indikator dinilai tahunan, periode tanpa target, dan realisasi belum dapat diukur | Q7 (sebagian); PRD §14.3, §14.7, §20, §21, §23 |
+| Q48 | Rencana Aksi tahunan, Laporan Kinerja Triwulan, dan unggah PDF bertanda tangan | Melengkapi Q29; PRD §24 |
+| Q49 | Atribut kegiatan dan salin kegiatan | PRD §15.1; validasi kegiatan PR #97 |
+| Q50 | Nomor PK, presisi target, dan kode indikator | Data Model §2.10; PRD §8, §11 |
+| Q51 | Draf dan persetujuan Rekomendasi Pimpinan | Q45 §45.2 butir 1 dan 4; Q46 §46.3 |
+
+**Pemetaan kode indikator (Q50 §50.4):**
+
+| Renstra 2025–2029 | PK, Rencana Aksi, dan laporan triwulan | Indikator | Satuan |
+|---|---|---|---|
+| IKU 1 | IKU 1.1 | Keunggulan layanan LLDIKTI | % |
+| IKU 2 | IKU 1.2 | Arsitektur Perguruan Tinggi Swasta (PTS) | % |
+| IKU 3 | IKU 1.3 | Tata kelola LLDIKTI yang berkualitas dan berintegritas | Nilai |
+| IKU 4 | IKU 2.1 | Fasilitasi peningkatan mutu pendidikan pada PTS oleh LLDIKTI | % |
+| IKU 5 | IKU 2.2 | Pencegahan dan penanganan kekerasan, narkoba, dan korupsi | % |
+| IKU 6 | IKU 3.1 | Fasilitasi pengembangan kemahasiswaan dan prestasi oleh LLDIKTI | % |
+| IKU 7 | IKU 3.2 | Jumlah dosen PTS yang meningkat jabatan fungsionalnya | Orang |
+| IKU 8 | IKU 3.3 | Fasilitasi peningkatan kinerja penelitian, publikasi, pengabdian kepada masyarakat, dan kemitraan PTS | % |
+| — | IKU 4.1 (sasaran S4) | Nilai Kinerja Anggaran atas Pelaksanaan RKA-K/L | Nilai |
+
+**Ketentuan pelengkap (PM):**
+
+1. **Glosarium istilah** dimuat di PRD: Program (Renstra), Kegiatan DIPA berkode 7733 dan 7735 (PK), Rincian Output (Rencana Aksi), dan Rencana Kegiatan/Aktivitas, yaitu kegiatan SAKIP (PRD §15). Keempat istilah dipakai dengan arti berbeda pada dokumen resmi.
+2. **Peringatan verifikasi:** saat Perencanaan memverifikasi pengukuran, sistem memperingatkan bila realisasi atau narasi sama persis dengan periode sebelumnya. Peringatan tidak memblokir verifikasi (ISS-08.01).
+
+Issue baru dari keputusan ini: **US/ISS-10.05** (Q48). Dampak lainnya diserap issue yang ada: US/ISS-02.11 (Q50), 05.07 (Q47), 06.01 dan 06.02 (Q49), 07.01, 07.03, 10.01, dan 10.02 (Q47), 08.01 (peringatan verifikasi), 09.01 (Q51), dan 15.01 (data awal). Q47–Q51 adalah keputusan requirement, bukan bukti implementasi atau kelulusan test.
+
+---
+
+# Keputusan Q47 — Indikator Dinilai Tahunan, Periode tanpa Target, dan Realisasi Belum Dapat Diukur
+
+Sumber: Rencana Aksi 2026 (target TW I–III bernilai 0 untuk semua indikator) dan Laporan Kinerja Triwulan I–II 2026 (target triwulan 0; realisasi dinilai terhadap target PK dalam selisih poin; IKU 1.3 belum diukur; IKU 4.1 dan indikator berbasis jumlah PTS sudah terukur sejak TW I). Seluruh butir ditetapkan PM.
+
+## 47.1 Indikator dinilai tahunan
+
+1. Perencanaan dapat menandai indikator sebagai **dinilai tahunan**, yaitu indikator yang nilainya baru tersedia pada periode nilai akhir (`periode.is_nilai_akhir`). Penanda diubah di Sasaran & Indikator dan tercatat di audit.
+2. Penanda ikut dibekukan pada snapshot jadwal bersama atribut indikator lain; perubahan setelah jadwal aktif mengikuti koreksi snapshot (Q35).
+3. Penanda tidak mengubah tipe perhitungan, formula, maupun komponen indikator.
+4. Data awal 2026: hanya **IKU 1.3** yang ditandai. IKU 4.1 tidak ditandai karena nilainya tersedia tiap triwulan (TW I 99,48; TW II 99,71).
+
+## 47.2 Target periode
+
+1. Untuk indikator dinilai tahunan, target Rencana Aksi pada periode sebelum periode nilai akhir **boleh kosong**. Target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008).
+2. Indikator lain tetap wajib memiliki target kumulatif di setiap periode (PRD §14.7), termasuk indikator berbasis jumlah PTS yang diukur tiap triwulan.
+3. Target kosong berarti **tidak ditargetkan** dan berbeda dari target `0`, yang tetap sah bila memang ditargetkan nol.
+4. Data awal 2026: target TW I–III yang tertulis 0 pada Rencana Aksi 2026 dicatat **kosong** untuk semua indikator, karena laporan triwulan tidak menilai realisasi terhadap angka tersebut dan periode itu adalah periode lampau (Q46 §46.1).
+5. Pada versi Rencana Aksi yang dibekukan, periode tanpa target dicatat dengan status `tidak_ditargetkan`, bukan `belum_diisi`, sehingga laporan dapat membedakannya dari target yang belum diisi.
+
+## 47.3 Penilaian pada periode tanpa target
+
+1. Pada periode tanpa target, capaian persen dan status capaian (PRD §21) tidak dihitung. Tampilan menunjukkan realisasi, target PK, dan **selisih terhadap target PK** (realisasi − target PK dalam satuan indikator; tandanya dibaca menurut arah indikator).
+2. Selisih terhadap target PK juga ditampilkan pada periode bertarget sebagai informasi tambahan; status capaian resmi tetap mengikuti PRD §21.
+3. Dashboard menampilkan periode tersebut sebagai **"Tanpa target periode"**, bukan "Belum tercapai". Bila realisasinya juga belum dapat diukur (§47.4), yang tampil "Belum dapat diukur".
+4. Penetapan status capaian manual (PRD §21) tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (§47.4).
+
+## 47.4 Realisasi belum dapat diukur
+
+1. Pengukuran dapat diajukan dengan realisasi **belum dapat diukur** bila nilainya belum tersedia pada periode tersebut. Status ini dicatat sebagai nilai tersendiri `status_perhitungan = belum_dapat_diukur` (dengan `nilai` kosong) di samping `belum_diisi`, `terhitung`, dan `tidak_dapat_dihitung`, bukan disimpulkan dari nilai kosong, dan gerbang kelengkapan komponen dikecualikan.
+2. Narasi pengukuran (Q45 §45.1) tetap wajib dan menjelaskan mengapa nilai belum tersedia. Perencanaan menilainya saat verifikasi dan dapat mengembalikan pengukuran bila alasannya tidak dapat diterima.
+3. Status ini berbeda dari realisasi `0` (nilai sah) dan dari "tidak dapat dihitung" karena penyebut nol (Q9). Dashboard dan rekap menampilkannya sebagai "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0.
+4. Pada periode nilai akhir, realisasi wajib terisi, kecuali tidak dapat dihitung menurut Q9.
+
+## 47.5 Dampak dan traceability
+
+- Mengubah Q7 dan PRD §14.7 (target wajib di setiap periode); melengkapi Q9.
+- PRD §11, §14.3, §14.4, §14.7, §17.7, §19.4, §20, §21, §23, §24; Data Model §2.12 (`indikator`), §2.17 (`jadwal_snapshot`), §2.20 (`pengukuran`), §2.24 (`rencana_aksi_target`); Workflow (penyusunan Rencana Aksi dan pengajuan pengukuran); Plan modul 2, 5, 7, 8, dan 11 (task 11.9); design system (tampilan status).
+- User Stories/Issues: **US/ISS-05.07** (penanda dan target periode kosong); US/ISS-07.01 dan 07.03 (realisasi belum dapat diukur); US/ISS-10.01 dan 10.02 (tampilan); ISS-15.01 (data awal).
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q48 — Rencana Aksi Tahunan, Laporan Kinerja Triwulan, dan Unggah PDF Bertanda Tangan
+
+Sumber: Rencana Aksi 2026, Laporan Kinerja Triwulan I–II 2026, dan Perjanjian Kinerja 2026; ketiganya gabungan seluruh indikator untuk satu lembaga dan ditandatangani elektronik di luar aplikasi. Seluruh butir ditetapkan PM.
+
+## 48.1 Keluaran dari SAKIP
+
+1. SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga:
+   - **Rencana Aksi tahunan** per jadwal tahunan: sasaran, indikator, satuan, target PK, dan target per periode seluruh indikator, serta daftar kegiatan per indikator per periode dari Rencana Aksi yang disahkan.
+   - **Laporan Kinerja Triwulan** per periode: target PK, target periode, realisasi, dan capaian atau selisih terhadap target PK (Q47 §47.3) per indikator; analisis per indikator dari narasi pengukuran (Q45 §45.1); dan Rekomendasi Pimpinan yang disetujui (Q51). Status kegiatan per indikator dicetak sebagai lampiran tambahan.
+2. Isi diambil dari data yang disahkan. Indikator yang Rencana Aksi atau pengukurannya belum disahkan tetap tercantum dengan keterangan "belum disahkan" dan tanpa angka resmi.
+3. Tabel Rincian Output pada Rencana Aksi dan realisasi anggaran per Rincian Output pada laporan tetap disusun di luar SAKIP; SAKIP tidak mengelola struktur anggaran DIPA (selaras Q42 §42.2 butir 3).
+4. Dokumen PK tidak dihasilkan SAKIP karena ditandatangani bersama Direktur Jenderal; SAKIP mencatat isi target dan lampirannya (Q39).
+5. Format awal Excel, mengikuti ekspor Fase Awal (PRD §24.1) dan contoh keluaran yang disahkan Perencanaan (Q29); keluaran PDF tetap fase lanjutan (PRD §24.2).
+6. Keluaran dibuat dan diunduh pemegang `laporan:ekspor` (preset Perencanaan, Pimpinan, dan Superadmin).
+
+## 48.2 Unggah PDF bertanda tangan
+
+1. PDF yang sudah ditandatangani elektronik diunggah kembali ke SAKIP sebagai arsip resmi:
+   - Rencana Aksi tahunan pada jadwal tahunan; boleh lebih dari satu berkas, misalnya Rencana Aksi awal dan perubahan;
+   - Laporan Kinerja Triwulan pada periode jadwal;
+   - PK pada lampiran PK, dan per versi setelah revisi berversi tersedia (Q40).
+2. Unggahan Rencana Aksi tahunan dan Laporan Kinerja Triwulan dilakukan Perencanaan dengan permission baru `laporan:unggah`; unduhannya mengikuti `laporan:ekspor`. Lampiran PK tetap mengikuti permission PK. `laporan:unggah` tidak bertanda sensitif karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di audit (butir 4).
+3. Berkas yang sudah diunggah tidak dihapus. Salah unggah dikoreksi dengan mengunggah berkas pengganti beserta keterangan, mengikuti pola append-only (Q25).
+4. Unggahan tidak mengubah data, status, maupun snapshot.
+5. Karena itu, unggahan arsip tetap dapat dilakukan setelah jadwal tahunan ditutup; penutupan jadwal (ISS-14.01) hanya menghentikan mutasi data kinerja. (PM, saat analisis issue GitHub 13 Oktober 2026)
+6. Keterangan berkas (mis. "Rencana Aksi perubahan" atau "PK perubahan anggaran") disimpan pada kolom baru `berkas.keterangan` (nullable); `alasan_koreksi` tetap khusus untuk berkas pengganti. Ketentuan ini juga dipakai lampiran tambahan PK (Q50 §50.7). (PM, saat penyelarasan Q47–Q51)
+7. Arsip Rencana Aksi tahunan dan Laporan Kinerja Triwulan hanya menerima berkas PDF, dengan batas ukuran mengikuti batas teknis Q44 §44.2. (PM, saat penyelarasan Q47–Q51)
+
+## 48.3 Dampak dan traceability
+
+- Melengkapi Q29 dan PRD §24.
+- PRD §5.1, §7.2, §24, §30, §31; Data Model §2.30 (induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode`) dan katalog permission (`laporan:unggah`); Workflow (alur buat, tanda tangan di luar aplikasi, dan unggah); Plan modul 8 (task 8.5) dan 13; System Architecture §14.
+- User Stories/Issues: issue baru **US/ISS-10.05**, tahap 2 (Q46 §46.3); US/ISS-10.02 dan 14.01 diberi catatan.
+- Bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR.
+- Status implementasi: belum.
+
+---
+
+# Keputusan Q49 — Atribut Kegiatan dan Salin Kegiatan
+
+Sumber: Rencana Aksi 2026 — sekitar 228 kegiatan; dua nama kegiatan melebihi 255 karakter (345 dan 263); tidak ada tujuan per kegiatan; banyak kegiatan berulang tiap triwulan; beberapa nama kegiatan memuat nama orang atau kasus. Seluruh butir ditetapkan PM.
+
+## 49.1 Atribut kegiatan
+
+1. `nama` kegiatan hingga **500 karakter**.
+2. `tujuan` kegiatan **opsional**.
+3. Diterapkan di PR #97 (ISS-06.01) sebelum merge karena perubahannya kecil. Bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan di ISS-06.08.
+
+## 49.2 Salin kegiatan ke periode lain
+
+1. Saat menambah kegiatan dari halaman Rencana Aksi (Q42 §42.1 butir 2), PIC dapat menyalinnya ke satu atau lebih periode lain pada Rencana Aksi yang sama.
+2. Setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan.
+3. Berkas, termasuk RAB, tidak ikut disalin; persyaratan tahap perencanaan kegiatan (Q42 §42.4) diperiksa untuk setiap kegiatan.
+4. Salinan hanya dapat dibuat untuk periode yang belum terkunci (Q41 §41.2).
+
+## 49.3 Akses detail kegiatan
+
+Detail kegiatan tetap dibatasi unit (Q12), karena nama kegiatan dapat memuat nama orang atau kasus. Rencana Aksi tahunan (Q48) hanya dibuat dan diunduh pemegang `laporan:ekspor`.
+
+## 49.4 Dampak dan traceability
+
+- PRD §15.1; Data Model §2.25 (`kegiatan.nama` hingga 500 karakter, `tujuan` nullable); Workflow (penambahan kegiatan dari Rencana Aksi); Plan modul 12; design system (batas field).
+- User Stories/Issues: US/ISS-06.01 diberi catatan (validasi PR #97); US/ISS-06.02 (salin kegiatan).
+- Status implementasi: belum. Validasi kegiatan pada branch PR #97 masih membatasi `nama` 255 karakter dan mewajibkan `tujuan`.
+
+---
+
+# Keputusan Q50 — Nomor PK, Presisi Target, dan Kode Indikator
+
+Sumber: Perjanjian Kinerja 2026 (tanpa nomor dokumen; target tercetak dibulatkan; sasaran S4 dan IKU 4.1 tidak ada di Renstra; bertanggal 21 April 2026, sebelum penetapan Renstra pada 1 Mei 2026), Laporan Kinerja Triwulan I–II 2026 (rekomendasi TW I memakai target 94,05; 59,52; 92,86; alokasi anggaran Rp2,94 miliar di bawah PK), dan Renstra 2025–2029 (IKU 1–8). Seluruh butir ditetapkan PM.
+
+## 50.1 Nomor PK
+
+`nomor_pk` opsional karena PK 2026 tidak bernomor. PK tetap dikenali dari Renstra dan tahun (`unique(renstra_id, tahun)`) serta tanggal PK.
+
+## 50.2 Presisi target PK
+
+1. Target PK disimpan dengan **nilai penuh** yang dipakai pengukuran (mis. 94,05; 80,95; 92,86), bukan nilai tercetak pada dokumen PK yang dibulatkan (94; 81; 92,9).
+2. Status capaian dan selisih terhadap target PK memakai nilai yang disimpan; tampilan mengikuti `desimal_tampilan` indikator.
+3. Data awal 2026 memakai nilai penuh; konfirmasi nilai resmi dicatat pada tindak lanjut.
+
+## 50.3 Baseline
+
+Baseline tetap disimpan pada `target_tahunan` (Q33) dan diisi dari realisasi tahun sebelumnya, tetapi bukan isi dokumen PK. Halaman PK menampilkannya sebagai data pendukung.
+
+## 50.4 Kode indikator
+
+1. Kode sasaran dan indikator mengikuti PK, Rencana Aksi, dan laporan triwulan: **S1–S4** dan **IKU 1.1–IKU 4.1** (pemetaan pada pengantar Q47–Q51).
+2. Nomor IKU pada Renstra (IKU 1–8) dicatat sebagai keterangan pada definisi operasional indikator; tidak ada kolom baru.
+3. Rujukan lama pada dokumen ini tetap memakai nomor Renstra: "IKU 3" pada Q32.10 adalah IKU 1.3, dan "IKU 8" pada Q32.9 adalah IKU 3.3.
+
+## 50.5 Sasaran S4 dan IKU 4.1
+
+Sasaran S4 dan IKU 4.1 (Nilai Kinerja Anggaran atas Pelaksanaan RKA-K/L) hanya ada di PK. Keduanya dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q39 §39.2 butir 4).
+
+## 50.6 Tanggal PK
+
+Tidak ada validasi bahwa tanggal PK harus setelah tanggal penetapan Renstra.
+
+## 50.7 PK perubahan karena anggaran
+
+1. Sebelum revisi PK berversi tersedia (Q40, ISS-02.12), PK perubahan yang hanya mengubah anggaran diunggah sebagai **lampiran tambahan** pada PK tahun tersebut beserta keterangan; target dan snapshot tidak berubah.
+2. PK perubahan yang mengubah target memakai revisi berversi (Q40). Bila revisi seperti itu terbit sebelum ISS-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru.
+
+## 50.8 Dampak dan traceability
+
+- PRD §8, §11, §14.10, glosarium; Data Model §2.10 (`nomor_pk` nullable), §2.11 dan §2.12 (kode), §2.13 (presisi); Workflow (penyusunan PK); Plan modul 2.
+- User Stories/Issues: US/ISS-02.11 (nomor PK opsional, nilai penuh, baseline); US/ISS-02.03 diberi catatan; ISS-15.01 (kode indikator, S4/IKU 4.1, nilai penuh).
+- Status implementasi: belum. `StorePerjanjianKinerjaRequest` dan `UpdatePerjanjianKinerjaRequest` masih mewajibkan `nomor_pk`.
+
+---
+
+# Keputusan Q51 — Draf dan Persetujuan Rekomendasi Pimpinan
+
+Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator bercampur kalimat orang pertama dan orang ketiga (TW I delapan butir, TW II enam butir). Seluruh butir ditetapkan PM.
+
+## 51.1 Alur
+
+1. Perencanaan menyusun **draf** rekomendasi per indikator × periode. Pimpinan **menyetujui** draf, dapat mengubah isinya sebelum menyetujui, atau menulis rekomendasi langsung.
+2. Hanya rekomendasi **disetujui** yang berlaku: tampil pada pengukuran periode berikutnya dan Laporan Kinerja Triwulan (Q48), serta memicu tindak lanjut wajib (Q45 §45.2 butir 3). Draf tidak tampil bagi PIC.
+3. Rekomendasi tetap opsional per indikator per periode dan independen dari status pengukuran (PRD §22.3).
+4. Kewajiban tindak lanjut berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur.
+5. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya (kolom rancangan `rekomendasi_pimpinan.rujukan_sumber`).
+
+## 51.2 Permission dan penanda
+
+1. Permission tetap `rekomendasi:tetapkan` pada preset Pimpinan dan Perencanaan (Q45 §45.2). Simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission.
+2. Persetujuan oleh Perencanaan adalah jalur cadangan bila Pimpinan berhalangan; persetujuan tersebut diberi penanda dan tercatat di audit. Penanda yang sama berlaku untuk persetujuan oleh peran lain selain Pimpinan, termasuk Superadmin.
+3. Perubahan rekomendasi yang sudah disetujui membentuk baris baru (pola riwayat PRD §22.1) dan melalui persetujuan yang sama.
+
+## 51.3 Dampak dan traceability
+
+- Mengoreksi Q45 §45.2 butir 1 dan 4. ISS-09.01 dipindah dari tahap 3 ke tahap 2 (Q46 §46.3) agar Laporan Kinerja Triwulan TW IV 2026 memuat rekomendasi.
+- PRD §4 prinsip 5, §22; Data Model §2.31 (`status` draf/disetujui, penyetuju, waktu persetujuan, dan salinan peran penyetuju untuk penanda cadangan); Workflow (Rekomendasi Pimpinan); Plan modul 6 (task baru 6.7 untuk ISS-09.01; rujukan lama "Plan 8.5" pada matriks User Stories/Issues tidak pernah menunjuk task yang ada dan digantikan 6.7).
+- User Stories/Issues: US/ISS-09.01 diselaraskan.
+- Status implementasi: belum.
 
 ---
 
@@ -923,12 +1502,38 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
 | Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. |
 | Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. |
-| Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW III. |
+| Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW IV (Q46; semula TW III). Pemetaan unit sementara tercantum pada asumsi kerja di bawah. |
+| Konfirmasi tertulis Q38–Q51 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46 dan pengantar Q47–Q51. |
+| Contoh dokumen PK, Rencana Aksi, dan Pengukuran | Perencanaan | **Selesai.** Diterima sebagai lima dokumen resmi 2026 dan dianalisis pada Q47–Q51. |
+| Penjumlahan anggaran untuk kegiatan lintas IKU | Perencanaan | Q42 §42.2 memakai penanda "kegiatan bersama" dan total dari kegiatan unik; alternatif satu kegiatan hanya untuk satu IKU menunggu konfirmasi. |
+| Formula dan komponen indikator 2026 | Perencanaan | Renstra 2025–2029 tidak memuat formula, komponen, satuan, maupun baseline. Asumsi kerja di bawah; komponen tidak disetel di produksi sebelum dikonfirmasi. |
+| Definisi, arah, dan target 2027–2029 IKU 3.3 (IKU 8 Renstra) | Perencanaan | Definisi pada Renstra berbeda dengan Q32.9, dan target Renstra turun tajam setelah 2026 (59,5 → 25 → 22,22 → 20). Komponen tidak disetel sampai jelas. |
+| Baseline 2026 | Perencanaan | Realisasi 2025 dari LKj 2025; dokumennya diminta. |
+| Nilai target PK resmi | Perencanaan | Q50 §50.2 memakai nilai penuh (mis. 94,05) alih-alih nilai tercetak (94); perlu dikonfirmasi. |
+| Target TW IV IKU 1.2 pada Rencana Aksi 2026 | Perencanaan | Tertulis 92,9, berbeda dengan target PK 94; data awal memakai target PK disertai catatan sampai dikonfirmasi. |
+| Rencana PK perubahan 2026 | Perencanaan | Alokasi anggaran pada laporan triwulan Rp2,94 miliar di bawah PK; perlu dipastikan apakah PK direvisi dan apakah target ikut berubah (Q50 §50.7). |
+| Lampiran matriks Renstra 2025–2029 | Perencanaan | Tidak ikut dalam PDF Renstra; diminta. |
+
+## Asumsi kerja data awal 2026
+
+Asumsi berikut dipakai untuk menyiapkan data uji dan rancangan data awal (ISS-15.01). Asumsi ini **tidak dipakai di produksi** sebelum dikonfirmasi Perencanaan.
+
+| Data | Asumsi kerja | Dasar |
+|---|---|---|
+| Formula IKU 1.2, 2.1, 2.2, dan 3.1 | Jumlah PTS yang memenuhi ÷ jumlah PTS wilayah × 100%; penyebut diisi per periode, tidak di-hardcode | Target dan realisasi konsisten dengan penyebut 84: 94,05 = 79/84; 92,86 = 78/84; 80,95 = 68/84; 59,52 = 50/84; realisasi 90,48 = 76/84 dan 35,71 = 30/84 |
+| IKU 1.3 | (skor SAKIP + skor ZI-WBK) / 2; dinilai tahunan | Q32.10; Q47 §47.1 |
+| IKU 1.1 | Persentase kepuasan layanan dari survei; diisi manual | Laporan TW I–II |
+| IKU 3.2 | Jumlah dosen PTS yang naik jabatan fungsional, kumulatif dalam tahun | PK 2026 (satuan orang) |
+| IKU 4.1 | Nilai Kinerja Anggaran dari sistem kementerian; diisi manual tiap triwulan | Laporan TW I–II (99,48; 99,71) |
+| IKU 3.3 | Komponen tidak disetel sampai definisinya jelas; target PK 2026 59,5 | Q32.9 |
+| Unit dan PJ | IKU 1.1, 1.3, dan 4.1 → Bagian Umum; IKU 1.2 → Tim Kerja Penguatan Kualitas Kelembagaan dan Kerja Sama PT; IKU 2.1 dan 3.1 → Tim Kerja Penguatan Mutu Pembelajaran dan Kemahasiswaan; IKU 3.2 → Tim Kerja Penguatan Kualitas Sumber Daya; IKU 3.3 → Tim Kerja Penguatan Mutu Penelitian dan PkM; IKU 2.2 → sementara Tim Kerja Penguatan Mutu Pembelajaran dan Kemahasiswaan | Pembagian tim kerja pada Renstra 2025–2029 |
+| Target TW I–III 2026 | Kosong (tidak ditargetkan) | Q47 §47.2 butir 4 |
+| PK 2026 | Hanya berubah anggaran, sehingga cukup lampiran tambahan | Q50 §50.7 |
 
 ## Item klarifikasi yang sudah RESOLVED oleh Q32
 
 - tahun penggunaan pertama = 2026;
-- TW I–II = periode lampau oleh Perencanaan; TW III–IV normal;
+- TW I–II = periode lampau oleh Perencanaan; TW III–IV normal (diperbarui Q46: TW III juga periode lampau, TW IV normal);
 - IKU 8 penyebut = total publikasi seluruh PTS;
 - 76,25 = target; 66,395/87,08 bukan realisasi;
 - baseline IKU 3 = 74,2 dan tidak dibandingkan sebagai tren terhadap target gabungan;
