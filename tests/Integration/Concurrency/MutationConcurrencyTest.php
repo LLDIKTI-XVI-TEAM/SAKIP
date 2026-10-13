@@ -1070,7 +1070,7 @@ class MutationConcurrencyTest extends TestCase
             'diajukan_at' => now(), 'jalur_pengajuan' => 'pic', 'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $unit->id],
             'snapshot' => ['indikator' => ['kode' => 'I-RACE-RA', 'nama' => 'Indikator Race RA'], 'unit_kerja' => ['id' => $unit->id, 'nama' => $unit->nama],
                 'pic' => ['id' => $pic->id, 'nama' => $pic->nama], 'uraian' => 'Versi pengajuan beku.', 'alasan_deviasi_pk' => null,
-                'target_periode' => [['periode_id' => $periode->id, 'periode_nama' => 'Triwulan I', 'periode_urutan' => 1, 'nilai' => '70', 'status_perhitungan' => null, 'komponen' => []]],
+                'target_periode' => [['periode_id' => $periode->id, 'periode_nama' => 'Triwulan I', 'periode_urutan' => 1, 'nilai' => '70', 'status_perhitungan' => 'terhitung', 'komponen' => []]],
                 'bukti_dukungs' => []]]);
 
         return [$perencana, $superadmin, $unit, $ra, ['expected_versi' => $ra->fresh()->versi, 'versi_pengajuan_id' => $versi->id]];

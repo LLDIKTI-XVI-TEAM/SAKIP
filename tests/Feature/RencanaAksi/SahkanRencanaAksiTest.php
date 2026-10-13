@@ -14,10 +14,12 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
@@ -47,13 +49,18 @@ class SahkanRencanaAksiTest extends TestCase
         $this->versiPengajuan = $this->createRencanaAksiSubmission();
     }
 
-    /** Versi tambahan dengan provenance tertentu, mengikuti bentuk snapshot versi 1 (versi beku tidak dapat diubah/dihapus). */
-    private function ajukanUlang(User $pengaju, string $jalur, ?string $snapshotId = null): RencanaAksiVersi
+    /**
+     * Versi tambahan dengan provenance tertentu, mengikuti bentuk snapshot versi 1 (versi beku tidak dapat diubah/dihapus).
+     *
+     * @param  array<string, mixed>|null  $beku
+     */
+    private function ajukanUlang(User $pengaju, string $jalur, ?string $snapshotId = null, ?array $beku = null): RencanaAksiVersi
     {
         return $this->versiPengajuan = $this->rencanaAksi->versions()->create(array_merge(
             $this->versiPengajuan->only(['jadwal_snapshot_id', 'snapshot', 'dasar_izin_pengajuan']),
             ['nomor' => $this->versiPengajuan->nomor + 1, 'diajukan_by' => $pengaju->id, 'diajukan_at' => now(), 'jalur_pengajuan' => $jalur],
             $snapshotId === null ? [] : ['jadwal_snapshot_id' => $snapshotId],
+            $beku === null ? [] : ['snapshot' => $beku],
         ));
     }
 
@@ -218,6 +225,27 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertSame(2, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
     }
 
+    /**
+     * Data Model §2.34: baris target_periode versi wajib berbentuk lengkap dan `terhitung`.
+     *
+     * @param  list<string>  $hilang
+     * @param  array<string, string>  $timpa
+     */
+    #[DataProvider('targetPeriodeTidakLengkap')]
+    public function test_target_periode_versi_tidak_lengkap_ditolak_tanpa_mengesahkan(array $hilang, array $timpa): void
+    {
+        $this->verifikasi();
+        $beku = $this->versiPengajuan->snapshot;
+        $beku['target_periode'][0] = array_merge(Arr::except($beku['target_periode'][0], $hilang), $timpa);
+        $this->ajukanUlang($this->actor, 'pic', beku: $beku);
+
+        $this->sahkan($this->pengesah)->assertUnprocessable()
+            ->assertJsonPath('errors.businessErrors', ['Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.']);
+
+        $this->assertBelumDisahkan();
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
+    }
+
     public function test_arsip_dan_unit_nonaktif_menolak_pengesahan_termasuk_f2_dan_action_langsung(): void
     {
         $this->ajukanUlang($this->pengesah, 'perencanaan');
@@ -291,5 +319,17 @@ class SahkanRencanaAksiTest extends TestCase
             ->where('rencanaAksi.can.sahkan', true)->where('rencanaAksi.businessErrors.sahkan', [])->where('rencanaAksi.pengesahan', null));
         $halaman($this->actor)->assertInertia(fn (Assert $page) => $page
             ->where('rencanaAksi.can.sahkan', false)->where('rencanaAksi.businessErrors.sahkan', [self::F1]));
+    }
+
+    /** @return array<string, array{list<string>, array<string, string>}> */
+    public static function targetPeriodeTidakLengkap(): array
+    {
+        return [
+            'tanpa nilai' => [['nilai'], []],
+            'tanpa status_perhitungan' => [['status_perhitungan'], []],
+            'status belum terhitung' => [[], ['status_perhitungan' => 'belum_diisi']],
+            'tanpa periode_nama' => [['periode_nama'], []],
+            'tanpa periode_urutan' => [['periode_urutan'], []],
+        ];
     }
 }

@@ -94,6 +94,11 @@ class GerbangReviewRencanaAksi
             'unit_kerja.id' => ['required', 'uuid'], 'unit_kerja.nama' => ['required', 'string'],
             'target_periode' => ['required', 'array', 'min:1'],
             'target_periode.*.periode_id' => ['required', 'uuid'],
+            'target_periode.*.periode_nama' => ['required', 'string'],
+            'target_periode.*.periode_urutan' => ['required', 'integer'],
+            // Data Model §2.34: produsen hanya membekukan baris `terhitung` beserta nilainya.
+            'target_periode.*.nilai' => ['required', 'numeric'],
+            'target_periode.*.status_perhitungan' => ['required', 'in:terhitung'],
             'target_periode.*.komponen' => ['present', 'array'],
             'bukti_dukungs' => ['present', 'array'],
             'bukti_dukungs.*.id' => ['required', 'uuid'],
