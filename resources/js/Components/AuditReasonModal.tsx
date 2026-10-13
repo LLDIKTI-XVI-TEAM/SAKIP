@@ -14,6 +14,9 @@ interface AuditReasonModalProps {
     showAuditHint?: boolean;
     confirmLabel: string;
     destructive?: boolean;
+    /** Q7 ISS-05.06: alasan buka-kembali opsional; default tetap wajib agar pemakaian lain tidak berubah. */
+    required?: boolean;
+    placeholder?: string;
     onReasonChange: (reason: string) => void;
     onClose: () => void;
     onConfirm: () => void;
@@ -31,6 +34,8 @@ export function AuditReasonModal({
     showAuditHint = true,
     confirmLabel,
     destructive = false,
+    required = true,
+    placeholder,
     onReasonChange,
     onClose,
     onConfirm,
@@ -86,19 +91,19 @@ export function AuditReasonModal({
                 <div className="px-5 py-4">
                     {open && notice}
                     <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
-                        Alasan perubahan <span className="text-danger" aria-hidden="true">*</span>
+                        Alasan perubahan {required ? <span className="text-danger" aria-hidden="true">*</span> : <span className="font-normal text-muted">(opsional)</span>}
                     </label>
                     <textarea
                         id={`${id}-reason`}
                         ref={reasonInput}
                         rows={4}
                         disabled={busy}
-                        aria-required="true"
+                        aria-required={required ? 'true' : 'false'}
                         aria-invalid={Boolean(error)}
                         aria-describedby={error ? `${id}-error` : undefined}
                         value={reason}
                         onChange={(event) => onReasonChange(event.target.value)}
-                        placeholder="Jelaskan alasan yang dapat dipahami saat audit…"
+                        placeholder={placeholder ?? 'Jelaskan alasan yang dapat dipahami saat audit…'}
                         className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}

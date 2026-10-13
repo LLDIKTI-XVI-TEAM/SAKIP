@@ -2,6 +2,7 @@
 
 namespace App\Actions\RencanaAksi;
 
+use App\Models\AuditLog;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -30,7 +31,7 @@ class BacaReviewRencanaAksi
             $policy = app(RencanaAksiPolicy::class);
             $errors = $policy->businessErrors($actor, $header, $versi);
             if ($versi->id !== $terbaru?->id) {
-                $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
+                $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = $errors['buka_kembali'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
             }
             $buktiBoleh = $policy->viewEvidence($actor, $header);
             $beku = $versi->snapshot ?? [];
@@ -39,6 +40,10 @@ class BacaReviewRencanaAksi
             $buktiBerlaku = $buktiBoleh ? $header->buktiDukungs()->current()->whereIn('id', $buktiIds)->where('mode', 'file')->pluck('id')->all() : [];
             $histori = $header->versions()->select(['id', 'rencana_aksi_id', 'nomor', 'diajukan_at', 'jalur_pengajuan'])
                 ->reorder('nomor', 'desc')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
+            // Q4 ISS-05.06: penanda terkecil "pernah dibuka kembali" dari audit append-only; versi resmi lama
+            // tetap terbaca via histori + versi disahkan di atas. Frontend memakai flag ini untuk banner.
+            $dibukaKembali = AuditLog::where('objek_tipe', 'rencana_aksi')->where('objek_id', $header->id)
+                ->where('tindakan', 'rencana_aksi.buka_kembali')->exists();
 
             return [
                 'id' => $header->id, 'tahun' => $header->tahun, 'status_alur' => $header->status_alur, 'expected_versi' => $header->versi,
@@ -66,13 +71,15 @@ class BacaReviewRencanaAksi
                 ], array_values(array_filter($bukti, fn (array $b): bool => in_array($b['mode'] ?? null, ['file', 'tautan', 'teks'], true)))) : [],
                 'can' => ['verifikasi' => $policy->verifikasi($actor, $header)->allowed() && $errors['verifikasi'] === [],
                     'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [],
-                    'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [], 'evidence' => $buktiBoleh],
-                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan']],
+                    'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [],
+                    'buka_kembali' => $policy->bukaKembali($actor, $header)->allowed() && $errors['buka_kembali'] === [], 'evidence' => $buktiBoleh],
+                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan'], 'buka_kembali' => $errors['buka_kembali']],
                 // F2 wajib terlihat, bukan hanya diaudit: pengesah sama dengan pengaju pada jalur Perencanaan.
                 'pengesahan' => $versi->disahkan_by === null ? null : ['oleh' => User::whereKey($versi->disahkan_by)->value('nama') ?? 'Pengesah versi',
                     'pada' => $versi->disahkan_at?->toIso8601String(),
                     'self_approval' => $versi->jalur_pengajuan === 'perencanaan' && $versi->disahkan_by === $versi->diajukan_by],
                 'histori' => $histori->getCollection()->map(fn (RencanaAksiVersi $v): array => $this->ringkas($v))->all(),
+                'dibuka_kembali' => $dibukaKembali,
                 'pagination' => ['current_page' => $histori->currentPage(), 'last_page' => $histori->lastPage(), 'total' => $histori->total(),
                     'prev_page_url' => $histori->previousPageUrl(), 'next_page_url' => $histori->nextPageUrl()],
             ];

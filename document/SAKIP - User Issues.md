@@ -1952,50 +1952,52 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] **AC-3:** Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest` 5/5, regresi `SahkanRencanaAksiTest` + `ReviewRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `development` uncommitted; bukan persetujuan UAT, merge, maupun deployment. Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi historis, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi historis, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
 
 **B. Backend / Domain**
-- [ ] Buka kembali hanya mengubah header ke jalur revisi; versi disahkan lama tetap immutable dan resmi sampai versi baru disahkan.
-- [ ] PIC tetap tunduk jendela kerja resmi; buka RA tidak otomatis memperpanjang deadline.
+- [x] Buka kembali hanya mengubah header ke jalur revisi; versi disahkan lama tetap immutable dan resmi sampai versi baru disahkan.
+- [x] PIC tetap tunduk jendela kerja resmi; buka RA tidak otomatis memperpanjang deadline.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Rencana Aksi yang Telah Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Rencana Aksi yang Telah Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 
 ---

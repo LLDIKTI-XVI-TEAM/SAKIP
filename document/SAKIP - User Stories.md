@@ -791,11 +791,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] **AC-3:** Given PIC perlu memperbaiki, Then PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka dan grant + PIC efektif valid.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`) pada branch `development` uncommitted; bukan persetujuan UAT, merge, maupun deployment.
 
 ---
 

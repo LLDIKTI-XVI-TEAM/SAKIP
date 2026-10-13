@@ -23,6 +23,7 @@ class ReviewRencanaAksiRequest extends FormRequest
         $permission = match ($this->aksi()) {
             'kembalikan' => PermissionCodes::RENCANA_AKSI_KEMBALIKAN,
             'sahkan' => PermissionCodes::RENCANA_AKSI_SAHKAN,
+            'buka_kembali' => PermissionCodes::RENCANA_AKSI_BUKA_KEMBALI,
             default => PermissionCodes::RENCANA_AKSI_VERIFIKASI,
         };
         $decision = app(PermissionResolver::class)->resolve($this->user(), $permission, (string) $header->unit_id);
@@ -37,6 +38,9 @@ class ReviewRencanaAksiRequest extends FormRequest
         $rules = ['expected_versi' => ['required', 'integer', 'min:1'], 'versi_pengajuan_id' => ['required', 'uuid']];
         if ($this->aksi() === 'kembalikan') {
             $rules['alasan'] = ['required', 'string', 'max:1000', AuditReason::validate(...)];
+        } elseif ($this->aksi() === 'buka_kembali') {
+            // Q7 Opsi B (divergensi dokumen, addendum pending): alasan OPSIONAL khusus buka_kembali.
+            $rules['alasan'] = ['nullable', 'string', 'max:1000', AuditReason::validate(...)];
         }
 
         return $rules;
@@ -60,6 +64,7 @@ class ReviewRencanaAksiRequest extends FormRequest
         return match (true) {
             $this->routeIs('rencana-aksi.kembalikan') => 'kembalikan',
             $this->routeIs('rencana-aksi.sahkan') => 'sahkan',
+            $this->routeIs('rencana-aksi.buka-kembali') => 'buka_kembali',
             default => 'verifikasi',
         };
     }

@@ -61,7 +61,7 @@ class GerbangReviewRencanaAksi
             throw ValidationException::withMessages(['expected_versi' => 'Data atau versi pengajuan telah berubah. Muat ulang sebelum mengulangi review.'])->status(409);
         }
         $versi->setRelation('jadwalSnapshot', JadwalSnapshot::whereKey($versi->jadwal_snapshot_id)->sharedLock()->first());
-        // Verifikasi dan pengesahan adalah persetujuan; pengembalian tidak menandai self_approval.
+        // Verifikasi dan pengesahan adalah persetujuan; pengembalian dan buka-kembali tidak menandai self_approval.
         $jejak['sebelum'] += $this->provenance($pengunci, $versi, in_array($permission, [PermissionCodes::RENCANA_AKSI_VERIFIKASI, PermissionCodes::RENCANA_AKSI_SAHKAN], true));
 
         return [$pengunci, $header, $versi];
@@ -83,6 +83,7 @@ class GerbangReviewRencanaAksi
             'verifikasi' => [RencanaAksi::STATUS_DIAJUKAN],
             'kembalikan' => [RencanaAksi::STATUS_DIAJUKAN, RencanaAksi::STATUS_DIVERIFIKASI],
             'sahkan' => [RencanaAksi::STATUS_DIVERIFIKASI],
+            'buka_kembali' => [RencanaAksi::STATUS_DISAHKAN],
         };
         if (! in_array($header->status_alur, $status, true)) {
             $errors[] = 'Status rencana aksi tidak sesuai untuk tindakan ini.';
@@ -119,8 +120,8 @@ class GerbangReviewRencanaAksi
             || $snapshot->unit_id !== $header->unit_id || $jadwal->tahun !== $header->tahun
             || ($beku['unit_kerja']['id'] ?? null) !== $header->unit_id
             || ! isset($beku['indikator']['kode'], $beku['indikator']['nama'])
-            // Pengembalian tetap boleh agar versi yang isinya rusak dapat diganti versi baru.
-            || ! $konteksSah || ($aksi !== 'kembalikan' && ! $isiSah)
+            // Pengembalian dan buka-kembali tetap boleh agar versi yang isinya rusak dapat diganti versi baru.
+            || ! $konteksSah || (! in_array($aksi, ['kembalikan', 'buka_kembali'], true) && ! $isiSah)
             || ! in_array($versi->jalur_pengajuan, ['pic', 'perencanaan'], true)) {
             $errors[] = 'Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.';
         }
@@ -130,9 +131,15 @@ class GerbangReviewRencanaAksi
             // Lingkup periode dijaga saat simpan; producer membekukan seluruh periode efektif.
             $errors[] = 'Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi untuk indikator ini.';
         }
-        // F1 mengikuti provenance immutable, bukan peran atau PJ berjalan; pengembalian dikecualikan.
-        if ($aksi !== 'kembalikan' && $versi?->jalur_pengajuan === 'pic' && $versi->diajukan_by === $actor->id) {
+        // F1 mengikuti provenance immutable, bukan peran atau PJ berjalan; pengembalian dan
+        // buka-kembali dikecualikan (buka-kembali hanya dipegang Perencanaan/Superadmin global).
+        if (! in_array($aksi, ['kembalikan', 'buka_kembali'], true) && $versi?->jalur_pengajuan === 'pic' && $versi->diajukan_by === $actor->id) {
             $errors[] = 'F1: pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan pengajuannya sendiri.';
+        }
+        // Q2 ISS-05.06: pemisahan tugas buka-kembali — pembuka tidak boleh sama dengan pengesah versi,
+        // kecuali Superadmin darurat (diizinkan + ditandai di audit nilai_baru oleh Action).
+        if ($aksi === 'buka_kembali' && $versi?->disahkan_by !== null && $versi->disahkan_by === $actor->id && ! $actor->hasRole('superadmin')) {
+            $errors[] = 'Pengesah tidak boleh membuka kembali pengesahannya sendiri; minta Perencanaan lain atau Superadmin darurat.';
         }
 
         return $errors;

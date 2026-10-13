@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, CheckCircle2, Undo2 } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, CheckCircle2, RotateCcw, Undo2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -17,15 +17,16 @@ import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { ReviewProps, StatusReview } from './review-types';
 import { rencanaAksiStatusPerhitungan } from './types';
 
-type Decision = 'verifikasi' | 'kembalikan' | 'sahkan';
+type Decision = 'verifikasi' | 'kembalikan' | 'sahkan' | 'buka_kembali';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
 // Sama dengan filter status DaftarReviewRencanaAksi agar RA yang baru diproses tetap terlihat.
 const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
-const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan' };
+const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan', buka_kembali: 'dikembalikan' };
 const judulTidakTersedia: Record<Decision, string> = {
     verifikasi: 'Verifikasi tidak tersedia',
     kembalikan: 'Pengembalian tidak tersedia',
     sahkan: 'Pengesahan tidak tersedia',
+    buka_kembali: 'Buka kembali tidak tersedia',
 };
 
 export default function Review(props: ReviewProps) {
@@ -56,9 +57,9 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     };
     const kirim = (aksi: Decision): void => {
         if (form.processing || blocked || !rencanaAksi.can[aksi]) return;
-        const path = `/rencana-aksi/${rencanaAksi.id}/${aksi}`;
+        const path = `/rencana-aksi/${rencanaAksi.id}/${aksi === 'buka_kembali' ? 'buka-kembali' : aksi}`;
         const status = statusHasil[aksi];
-        form.transform((data) => aksi === 'kembalikan' ? data : {
+        form.transform((data) => aksi === 'kembalikan' || aksi === 'buka_kembali' ? data : {
             expected_versi: data.expected_versi,
             versi_pengajuan_id: data.versi_pengajuan_id,
         });
@@ -104,7 +105,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     };
     const notice = (
         <div ref={errorSummary} tabIndex={-1} className="space-y-3 focus:outline-none">
-            {Object.entries(form.errors).filter(([field]) => field !== 'alasan' || decision !== 'kembalikan').map(([field, error]) => <p key={field} role="alert" className="text-sm text-danger">{error}</p>)}
+            {Object.entries(form.errors).filter(([field]) => field !== 'alasan' || (decision !== 'kembalikan' && decision !== 'buka_kembali')).map(([field, error]) => <p key={field} role="alert" className="text-sm text-danger">{error}</p>)}
             {form.processing && <p role="status" className="text-sm text-muted">Tindakan sedang diproses…</p>}
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {message && !recovery.recovery && <p role="alert" className="text-sm text-danger">{message}</p>}
@@ -122,6 +123,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         {rencanaAksi.can.kembalikan && <Button type="button" variant="outline" size="sm" disabled={form.processing || blocked} onClick={() => buka('kembalikan')}><Undo2 className="h-3.5 w-3.5" aria-hidden="true" />Kembalikan untuk revisi</Button>}
                         {rencanaAksi.can.verifikasi && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('verifikasi')}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Verifikasi</Button>}
                         {rencanaAksi.can.sahkan && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('sahkan')}><BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />Sahkan</Button>}
+                        {rencanaAksi.can.buka_kembali && <Button type="button" variant="outline" size="sm" disabled={form.processing || blocked} onClick={() => buka('buka_kembali')}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />Buka kembali</Button>}
                     </div>
                 </div>
                 {blocked && decision === null && <Card><CardContent>{notice}</CardContent></Card>}
@@ -147,6 +149,12 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                                 )}
                             </section>
                         )}
+                        {rencanaAksi.dibuka_kembali && rencanaAksi.status_alur === 'dikembalikan' && (
+                            <section aria-label="Dibuka kembali" className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
+                                <h3 className="font-semibold">Dibuka kembali setelah pengesahan</h3>
+                                <p className="mt-1">Versi resmi terakhir tetap berlaku sampai versi baru disahkan. Histori versi disahkan tetap dapat dibaca di bawah.</p>
+                            </section>
+                        )}
                         <dl className="grid gap-5 text-sm sm:grid-cols-2">
                             <div><dt className="text-muted">Unit pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.unit_kerja?.nama ?? konteksTidakLengkap}</dd></div>
                             <div><dt className="text-muted">Penanggung jawab pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.pic?.nama ?? konteksTidakLengkap}</dd></div>
@@ -155,8 +163,8 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         </dl>
                         <div><h3 className="text-sm font-semibold">Uraian rencana aksi</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.uraian ?? 'Uraian tidak tersedia pada versi ini.'}</p></div>
                         {rencanaAksi.alasan_deviasi_pk && <div><h3 className="text-sm font-semibold">Alasan deviasi target PK</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.alasan_deviasi_pk}</p></div>}
-                        {/* Alasan pengesahan hanya relevan pada tahap diverifikasi; pada tahap lain pengesahan memang belum waktunya. */}
-                        {(['verifikasi', 'kembalikan', 'sahkan'] as const).filter((aksi) => aksi !== 'sahkan' || rencanaAksi.status_alur === 'diverifikasi').map((aksi) => rencanaAksi.businessErrors[aksi].length > 0 && (
+                        {/* Alasan pengesahan hanya relevan pada tahap diverifikasi; buka-kembali hanya relevan pada tahap disahkan. */}
+                        {(['verifikasi', 'kembalikan', 'sahkan', 'buka_kembali'] as const).filter((aksi) => (aksi !== 'sahkan' || rencanaAksi.status_alur === 'diverifikasi') && (aksi !== 'buka_kembali' || rencanaAksi.status_alur === 'disahkan')).map((aksi) => rencanaAksi.businessErrors[aksi].length > 0 && (
                             <section key={aksi} aria-label={`Alasan ${aksi} tidak tersedia`} className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
                                 <h3 className="font-semibold text-warning-dark">{judulTidakTersedia[aksi]}</h3>
                                 <ul className="mt-2 list-disc space-y-1 pl-5">{rencanaAksi.businessErrors[aksi].map((error) => <li key={error}>{error}</li>)}</ul>
@@ -233,6 +241,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                 </form>
             </Modal>
             <AuditReasonModal open={decision === 'kembalikan'} title="Kembalikan rencana aksi" description={`Tuliskan perbaikan versi ${versi.nomor} yang harus ditindaklanjuti penanggung jawab.`} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.kembalikan || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi pengembalian" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('kembalikan')} />
+            <AuditReasonModal open={decision === 'buka_kembali'} title="Buka kembali rencana aksi" description={`Opsional: tuliskan dasar koreksi pembukaan kembali versi ${versi.nomor} yang telah disahkan agar penanggung jawab dapat memperbaiki.`} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.buka_kembali} confirmLabel="Konfirmasi buka kembali" required={false} placeholder="Contoh: koreksi target periode berdasarkan SK resmi…" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('buka_kembali')} />
         </AuthenticatedLayout>
     );
 }

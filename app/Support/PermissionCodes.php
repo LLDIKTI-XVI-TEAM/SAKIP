@@ -102,6 +102,8 @@ final class PermissionCodes
 
     public const RENCANA_AKSI_SAHKAN = 'rencana_aksi:sahkan';
 
+    public const RENCANA_AKSI_BUKA_KEMBALI = 'rencana_aksi:buka_kembali';
+
     public const KEGIATAN_READ = 'kegiatan:read';
 
     public const KEGIATAN_CREATE = 'kegiatan:create';
