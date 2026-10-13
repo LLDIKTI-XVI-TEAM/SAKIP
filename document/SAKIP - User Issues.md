@@ -2493,7 +2493,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge; bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada ISS-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 diperbarui langsung karena PR #97 belum di-merge.
 
-**Status implementasi (2026-10-14):** Diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 (`nama` hingga 500 karakter, `tujuan` opsional) telah diterapkan di PR #97 melalui migrasi, validasi request, dan form. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi, sehingga item responsivitas dan checklist UI `design-system.md` belum dicentang. Merge, UAT, dan deployment belum dilakukan.
+**Status implementasi (2026-10-14):** Diimplementasikan di PR #97. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 (`nama` hingga 500 karakter, `tujuan` opsional) telah diterapkan di PR #97 melalui migrasi, validasi request, dan form. Pembatasan detail kegiatan per unit (PRD §15.1, Q12, Q49 §49.3) menunggu keputusan PM tentang dasar unit bagi role selain Perencanaan/Pimpinan; implementasi saat ini memakai `kegiatan:read` global dikurangi deny unit. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi, sehingga item responsivitas dan checklist UI `design-system.md` belum dicentang. Merge, UAT, dan deployment belum dilakukan.
 
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1 · Tahap 1, PR #97 + Q49 (Q46 §46.3)  
@@ -2556,7 +2556,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.02 · [Feature] Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
