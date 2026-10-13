@@ -146,6 +146,21 @@ class AccountLifecycleTest extends TestCase
         $action->handle($other->id, 'Operator Uji', 'Target berbeda', 'qa-runtime');
     }
 
+    public function test_bootstrap_accepts_active_candidate_without_role_and_skips_activation_audit(): void
+    {
+        $user = $this->pending('aktif-baru');
+        // Keadaan onboarding SSO tanpa langkah aktivasi manual.
+        $user->update(['status' => 'aktif']);
+
+        $this->assertTrue(app(BootstrapSuperadmin::class)->handle($user->id, 'Operator QA', 'Inisialisasi', 'qa-runtime'));
+
+        $this->assertSame('aktif', $user->fresh()->status);
+        $this->assertSame('superadmin', $user->roles()->value('kode'));
+        $this->assertSame(0, AuditLog::where('objek_id', $user->id)->where('tindakan', 'pengguna.aktivasi')->count());
+        $this->assertSame(1, AuditLog::where('objek_id', $user->id)->where('tindakan', 'auth.bootstrap')->count());
+        $this->assertDatabaseCount('auth_bootstraps', 1);
+    }
+
     public function test_activation_is_atomic_idempotent_and_deny_overrides_superadmin(): void
     {
         $admin = $this->pending('admin');
@@ -229,15 +244,15 @@ class AccountLifecycleTest extends TestCase
         $this->assertSame($count, DB::table('audit_log')->count());
     }
 
-    public function test_bootstrap_rejects_active_assigned_or_unproven_candidates_without_overwrite(): void
+    public function test_bootstrap_rejects_assigned_or_unproven_candidates_without_overwrite(): void
     {
-        $active = $this->pending('already-active');
-        $active->update(['status' => 'aktif']);
+        $granter = $this->pending('granter');
         $assigned = $this->pending('already-assigned');
-        $assigned->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $active->id, 'created_at' => now()]);
+        $assigned->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $granter->id, 'created_at' => now()]);
+        $assignedStatus = $assigned->status;
         $unproven = User::factory()->create();
         $before = DB::table('audit_log')->count();
-        foreach ([$active, $assigned, $unproven] as $candidate) {
+        foreach ([$assigned, $unproven] as $candidate) {
             try {
                 app(BootstrapSuperadmin::class)->handle($candidate->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
                 $this->fail('Kandidat tidak sah tidak boleh memperoleh privilege.');
@@ -248,6 +263,6 @@ class AccountLifecycleTest extends TestCase
         }
         $this->assertDatabaseCount('user_roles', 1);
         $this->assertSame('pegawai', $assigned->roles()->value('kode'));
-        $this->assertSame('nonaktif', $assigned->fresh()->status);
+        $this->assertSame($assignedStatus, $assigned->fresh()->status);
     }
 }
