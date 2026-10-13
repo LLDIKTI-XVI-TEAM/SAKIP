@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { CalendarDays, Pencil, Plus, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -31,12 +31,12 @@ export default function Index({
     tahunDefault = new Date().getFullYear(),
     can = { create: false },
 }: KegiatanIndexProps) {
-    const [search, setSearch] = useState(() => ({
-        tahun: filters.tahun || String(tahunDefault),
-        unit_id: filters.unit_id || '',
-        periode_id: filters.periode_id || '',
-        status: filters.status || '',
-    }));
+    const { tahun = '', unit_id = '', periode_id = '', status = '' } = filters;
+    const [search, setSearch] = useState({ tahun: tahun || String(tahunDefault), unit_id, periode_id, status });
+    // Redirect simpan (POST) mempertahankan state Inertia; ikuti filter yang benar-benar diterapkan server.
+    useEffect(() => {
+        setSearch({ tahun: tahun || String(tahunDefault), unit_id, periode_id, status });
+    }, [tahun, unit_id, periode_id, status, tahunDefault]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingKegiatan, setEditingKegiatan] = useState<KegiatanIndexItem | null>(null);
     const formatTanggal = useFormatTanggal();

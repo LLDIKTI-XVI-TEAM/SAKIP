@@ -24,6 +24,10 @@ class FormKegiatan
                     $this->reject($actor, $decision, $kegiatan);
                 }
             }
+            // Allow dari role tidak bergantung status unit; writer selalu menolak unit sumber nonaktif.
+            if (! Unit::whereKey($kegiatan->unit_id)->where('status', 'aktif')->exists()) {
+                $this->reject($actor, new PermissionDecision(false, 'kegiatan:update', ['alasan' => 'inactive_unit']), $kegiatan);
+            }
         }
         $units = Unit::where('status', 'aktif')->orderBy('nama')->get(['id', 'nama']);
         $code = $kegiatan ? 'kegiatan:update' : 'kegiatan:create';

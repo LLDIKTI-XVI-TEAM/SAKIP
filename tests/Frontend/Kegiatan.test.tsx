@@ -128,3 +128,11 @@ it('menginisialisasi filter tahun dengan nilai default serta menyediakan placeho
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(getSpy).toHaveBeenCalledWith('/kegiatan', { tahun: 2026 }, expect.any(Object));
 });
+
+it('menyinkronkan input filter dengan filters server setelah redirect simpan yang mempertahankan state', () => {
+    const daftar = { data: [], links: [], from: null, to: null, total: 0 };
+    const { rerender } = render(<Index kegiatan={daftar} filters={{ tahun: '2026', unit_id: '', periode_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} tahunDefault={2026} can={{ create: false }} />);
+    // Mutasi Inertia default preserveState: komponen tidak di-mount ulang, hanya props yang berubah.
+    rerender(<Index kegiatan={daftar} filters={{ tahun: '2027', unit_id: '', periode_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} tahunDefault={2026} can={{ create: false }} />);
+    expect(screen.getByLabelText<HTMLInputElement>('Tahun').value).toBe('2027');
+});

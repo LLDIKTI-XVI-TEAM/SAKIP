@@ -305,6 +305,17 @@ class KegiatanHttpTest extends TestCase
                 && collect($items)->firstWhere('id', $nonaktif->id)['can']['update'] === false));
     }
 
+    public function test_form_edit_kegiatan_unit_nonaktif_ditolak_dan_diaudit(): void
+    {
+        $kegiatan = $this->kegiatan($this->unitLain);
+        $this->unitLain->update(['status' => 'nonaktif']);
+        $this->actingAs($this->perencanaan)->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
+        $audit = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole();
+        $this->assertSame($kegiatan->id, $audit->objek_id);
+        $this->assertSame('inactive_unit', $audit->dasar_izin['alasan']);
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+    }
+
     public function test_gagal_audit_membatalkan_pembuatan(): void
     {
         $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andThrow(new RuntimeException('Audit gagal sintetis'));
