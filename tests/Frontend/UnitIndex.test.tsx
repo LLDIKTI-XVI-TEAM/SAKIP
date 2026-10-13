@@ -110,6 +110,47 @@ it('menampilkan penolakan server di dialog ubah status tanpa menutupnya', async 
     expect(within(dialog).getByRole('alert').textContent).toContain('Data unit sudah berubah. Muat ulang halaman.');
 });
 
+// Edit gagal: galatnya tampil di banner halaman dan tetap ada setelah modal edit ditutup.
+async function gagalkanEdit(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Edit Bagian Umum' }));
+    await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[0][2]?.onError?.({ version_token: 'Data unit sudah berubah. Muat ulang halaman.' });
+    });
+    await user.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(screen.getByRole('button', { name: 'Tutup pesan kesalahan' })).toBeTruthy();
+}
+
+it('membersihkan galat edit lama setelah status unit berhasil diubah', async () => {
+    const user = userEvent.setup();
+    render(<UnitIndex units={units} can={{ create: true }} />);
+    await gagalkanEdit(user);
+
+    await user.click(screen.getByRole('button', { name: 'Nonaktifkan Bagian Umum' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nonaktifkan' }));
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[1][2]?.onSuccess?.({} as never);
+    });
+
+    expect(screen.queryByRole('button', { name: 'Tutup pesan kesalahan' })).toBeNull();
+});
+
+it('membersihkan galat edit lama setelah unit berhasil dihapus', async () => {
+    vi.spyOn(router, 'delete').mockImplementation(() => undefined);
+    const user = userEvent.setup();
+    render(<UnitIndex units={units} can={{ create: true }} />);
+    await gagalkanEdit(user);
+
+    await user.click(screen.getByRole('button', { name: 'Hapus Tim Kerja Sistem Informasi' }));
+    await user.type(screen.getByLabelText(/Alasan perubahan/), 'Unit sudah dilebur');
+    await user.click(screen.getByRole('button', { name: 'Hapus permanen' }));
+    await act(async () => {
+        vi.mocked(router.delete).mock.calls[0][1]?.onSuccess?.({} as never);
+    });
+
+    expect(screen.queryByRole('button', { name: 'Tutup pesan kesalahan' })).toBeNull();
+});
+
 it('membedakan master yang masih kosong dari hasil pencarian yang kosong', () => {
     render(<UnitIndex units={[]} can={{ create: true }} />);
 

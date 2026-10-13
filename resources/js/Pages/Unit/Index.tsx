@@ -199,6 +199,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const handleOpenToggle = (unit: UnitItem) => {
         setTogglingUnit(unit);
         setToggleError('');
+        setStatusError(null);
     };
 
     const handleCloseToggle = () => {
@@ -253,6 +254,7 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         setDeletingUnit(unit);
         setDeleteReason('');
         setDeleteError('');
+        setStatusError(null);
     };
 
     const handleCloseDelete = () => {
