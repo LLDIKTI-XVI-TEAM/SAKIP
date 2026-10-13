@@ -3254,7 +3254,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - **Dependensi:** Pengukuran draft/dikembalikan; jendela aktor sah; RA resmi tersedia pada jalur normal; Rekomendasi Pimpinan disetujui (ISS-09.01) untuk gerbang tindak lanjut.
 - **Otorisasi:** `pengukuran:update` untuk submit sesuai scope.
-- **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi.
+- **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`; item notifikasi in-app ke Perencanaan menunggu ISS-12.02 (Q37 §37.3 butir 4).
 - **Rule (Q51 §51.1 butir 4):** kewajiban tindak lanjut rekomendasi (AC-8) berlaku lintas tahun: rekomendasi disetujui pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur.
 - **Rule (Q47 §47.3 butir 3–4):** bila periode tanpa target dan realisasi belum dapat diukur berlaku bersamaan, tampilan memakai "Belum dapat diukur"; penetapan status capaian manual tidak tersedia untuk kedua kondisi tersebut (ISS-09.02).
 
@@ -3266,7 +3266,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] **AC-4:** Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
 - [ ] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
 - [ ] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
-- [ ] **AC-7:** Given submit berhasil, Then notifikasi antrean Perencanaan dibuat setelah commit.
+- [ ] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app mengikuti ISS-12.02 AC-2. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
 - [ ] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] **AC-9:** Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
 - [ ] **AC-10:** Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
@@ -3276,7 +3276,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi.
+- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`; penyimpanan/pengiriman notifikasi in-app menunggu ISS-12.02.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 - [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
@@ -3309,7 +3309,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then notifikasi antrean Perencanaan dibuat setelah commit.
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); pengiriman notifikasi in-app diuji pada ISS-12.02.
 - [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
 - [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
@@ -3520,13 +3520,13 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 - **Dependensi:** Pengukuran berstatus `diajukan`; versi terbaru tersedia.
 - **Otorisasi:** `pengukuran:verifikasi`, `pengukuran:kembalikan`.
-- **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi.
+- **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`; item notifikasi in-app pengembalian menunggu ISS-12.02 (Q37 §37.3 butir 4).
 
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [ ] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan` dan notifikasi dikirim setelah commit.
+- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [ ] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
 - [ ] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
 - [ ] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
@@ -3535,7 +3535,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`, notifikasi.
+- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`; penyimpanan/pengiriman notifikasi in-app menunggu ISS-12.02.
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
@@ -3559,7 +3559,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan` dan notifikasi dikirim setelah commit.
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; pengiriman notifikasi in-app diuji pada ISS-12.02.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, Then ditolak.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*

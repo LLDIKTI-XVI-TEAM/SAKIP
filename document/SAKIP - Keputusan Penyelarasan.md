@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **13 Oktober 2026**
+Pembaruan terakhir: **14 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -843,7 +843,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 1. Penerima pengembalian adalah PJ efektif pada saat pengembalian, menggunakan `PenugasanIndikator::effectiveOn()`; penerima tidak ditentukan dari pembuat draf, `penanggung_jawab_id` historis pada header, atau pengaju historis.
 2. Pengaju historis tetap tercatat pada `rencana_aksi_versi.diajukan_by` dan audit. Pergantian PJ tidak mengubah provenance versi yang direview.
 3. ISS-05.04 menetapkan penentuan penerima dan event pengembalian setelah commit; transaksi yang rollback tidak memancarkan event tersebut. Tautan ke Rencana Aksi tetap diperiksa otorisasinya ketika dibuka.
-4. Infrastruktur notifikasi belum tersedia pada baseline ini. Pengiriman in-app menunggu ISS-12.02; AC-3 ISS-05.04/US-05.04 diberi catatan pemisahan cakupan ini, tanpa mengklaim delivery sudah tersedia.
+4. Infrastruktur notifikasi belum tersedia pada baseline ini. Pengiriman in-app menunggu ISS-12.02; AC-3 ISS-05.04/US-05.04 diberi catatan pemisahan cakupan ini, tanpa mengklaim delivery sudah tersedia. Pemisahan yang sama berlaku untuk Pengukuran (ditetapkan PM 14 Oktober 2026): AC-7 ISS-07.03/US-07.03 dibuktikan lewat antrean verifikasi berbasis status, dan AC-3 ISS-08.01/US-08.01 tidak mencakup pengiriman notifikasi pengembalian. Pengiriman keduanya menjadi cakupan ISS-12.02 (AC-2 dan AC-1).
 
 ## 37.4 Dampak dan Traceability
 
