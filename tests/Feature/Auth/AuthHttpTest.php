@@ -99,15 +99,22 @@ class AuthHttpTest extends TestCase
         Log::shouldHaveReceived('warning')->once()->with('Autentikasi SSO gagal.', ['category' => \RuntimeException::class]);
     }
 
-    public function test_activation_validates_reason_and_live_deactivation_blocks_existing_session(): void
+    public function test_activation_endpoints_and_capability_are_gone(): void
     {
         $provision = app(ProvisionKeycloakUser::class);
         $admin = $provision->handle(['subject' => 'admin', 'nama' => 'Admin Uji', 'email' => 'admin@example.test']);
         app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
         $target = $provision->handle(['subject' => 'target', 'nama' => 'Target Uji', 'email' => 'target@example.test']);
-        $this->actingAs($admin->fresh())->post('/akses/aktivasi/'.$target->id, ['alasan' => ''])->assertSessionHasErrors('alasan');
-        $this->post('/akses/aktivasi/'.$target->id, ['alasan' => 'Disetujui'])->assertRedirect('/akses/aktivasi')->assertSessionHas('activationResult.status', 'activated');
-        $this->assertSame('aktif', $target->fresh()->status);
+        $this->actingAs($admin->fresh());
+        $this->get('/akses/aktivasi')->assertNotFound();
+        $this->post('/akses/aktivasi/'.$target->id, ['alasan' => 'Disetujui'])->assertNotFound();
+        $this->get('/akses/peran')->assertInertia(fn (Assert $page) => $page->missing('auth.can.aktivasi')->missing('can.aktivasi'));
+    }
+
+    public function test_live_deactivation_blocks_existing_session(): void
+    {
+        $target = app(ProvisionKeycloakUser::class)->handle(['subject' => 'target', 'nama' => 'Target Uji', 'email' => 'target@example.test']);
+        $target->update(['status' => 'aktif']);
         $this->actingAs($target->fresh());
         $target->refresh()->update(['status' => 'nonaktif']);
         $this->get('/pengukuran')->assertRedirect('/auth/pending');

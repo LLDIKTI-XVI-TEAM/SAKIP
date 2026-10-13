@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\Permission;
@@ -71,7 +70,7 @@ class LegacyOnboardingMigrationTest extends TestCase
         $this->assertSame($count, DB::table('audit_log')->count());
 
         app(ProvisionKeycloakUser::class)->handle(['subject' => $pending->keycloak_id, 'nama' => 'Profil baru', 'email' => 'new@example.test']);
-        $this->assertTrue(app(ActivateUser::class)->handle($operator->fresh(), $pending->id, 'Aktivasi tanpa role'));
+        $pending->update(['status' => 'aktif']);
         $decision = app(PermissionResolver::class)->decide($pending->fresh(), 'dashboard:read');
         $this->assertFalse($decision['allowed']);
         $this->assertSame('no_role', $decision['reason']);

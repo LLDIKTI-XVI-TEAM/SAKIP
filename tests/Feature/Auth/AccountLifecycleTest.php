@@ -4,7 +4,6 @@ namespace Tests\Feature\Auth;
 
 use App\Actions\Access\AssignRole;
 use App\Actions\Audit\WriteAuditLog;
-use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\AuditLog;
@@ -13,7 +12,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Authorization\RolePermissionPresets;
 use Database\Seeders\AccessCatalogSeeder;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -161,20 +159,6 @@ class AccountLifecycleTest extends TestCase
         $this->assertDatabaseCount('auth_bootstraps', 1);
     }
 
-    public function test_activation_is_atomic_idempotent_and_deny_overrides_superadmin(): void
-    {
-        $admin = $this->pending('admin');
-        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi uji', 'qa-runtime');
-        $target = $this->pending('target');
-        $action = app(ActivateUser::class);
-        $this->assertTrue($action->handle($admin->fresh(), $target->id, 'Disetujui admin'));
-        $this->assertFalse($action->handle($admin->fresh(), $target->id, 'Submit ulang'));
-        $this->assertSame(0, $target->roles()->count());
-        DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $admin->id, 'permission_id' => Permission::where('kode', 'akses:update')->value('id'), 'unit_id' => null, 'ditetapkan_oleh' => $admin->id, 'alasan' => 'Dibatasi', 'created_at' => now()]);
-        $this->expectException(AuthorizationException::class);
-        $action->handle($admin->fresh(), $target->id, 'Ditolak');
-    }
-
     private function pending(string $subject): User
     {
         return app(ProvisionKeycloakUser::class)->handle(['subject' => $subject, 'nama' => 'Pengguna '.$subject, 'email' => $subject.'@example.test']);
@@ -225,23 +209,6 @@ class AccountLifecycleTest extends TestCase
             $this->assertDatabaseCount('auth_bootstraps', 0);
             $this->assertDatabaseHas('roles', ['kode' => 'pimpinan', 'aktif' => false]);
         }
-    }
-
-    public function test_activation_audit_failure_leaves_account_pending(): void
-    {
-        $admin = $this->pending('admin-audit');
-        app(BootstrapSuperadmin::class)->handle($admin->id, 'Operator QA', 'Inisialisasi', 'qa-runtime');
-        $target = $this->pending('target-audit');
-        $count = DB::table('audit_log')->count();
-        $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andThrow(new RuntimeException('audit-unavailable'));
-        try {
-            app(ActivateUser::class)->handle($admin->fresh(), $target->id, 'Disetujui');
-            $this->fail('Audit gagal harus membatalkan aktivasi.');
-        } catch (RuntimeException $e) {
-            $this->assertSame('audit-unavailable', $e->getMessage());
-        }
-        $this->assertSame('nonaktif', $target->fresh()->status);
-        $this->assertSame($count, DB::table('audit_log')->count());
     }
 
     public function test_bootstrap_rejects_assigned_or_unproven_candidates_without_overwrite(): void

@@ -33,7 +33,7 @@ afterAll(() => {
 it('mempertahankan draft dan mencegah replay ketika router nyata menerima hasil unknown', async () => {
     const auth: SharedPageProps['auth'] = {
         user: { id: 'operator', nama: 'Operator QA', email: 'operator@example.test', status: 'aktif', role: 'admin' },
-        can: { dashboard: false, pengukuran: false, verifikasi: false, aktivasi: false, regulasi: false, assignRole: true, manageDeny: false, unit: false, grant: false, pengaturan: false, viewRolePermissions: false },
+        can: { dashboard: false, pengukuran: false, verifikasi: false, regulasi: false, assignRole: true, manageDeny: false, unit: false, grant: false, pengaturan: false, viewRolePermissions: false },
     };
     const roles = [{ id: 'pegawai', kode: 'pegawai', nama: 'Pegawai' }, { id: 'admin', kode: 'admin', nama: 'Admin' }];
     const initialPage: Page = {
