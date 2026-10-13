@@ -292,6 +292,32 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
     }
 
+    /**
+     * Data Model §2.34: bukti beku wajib memuat isinya sesuai mode.
+     *
+     * @param  array<string, mixed>  $isi
+     */
+    #[DataProvider('buktiBekuTidakLengkap')]
+    public function test_bukti_beku_tidak_lengkap_tidak_dapat_disetujui_tetapi_dapat_dikembalikan(array $isi, string $kosong): void
+    {
+        $this->verifikasi();
+        $bukti = $isi + ['id' => (string) Str::uuid(), 'jenis_berkas_id' => null, 'menggantikan_id' => null, 'alasan_koreksi' => null,
+            'nama_asli' => null, 'mime' => null, 'ukuran_bytes' => null, 'tautan' => null, 'isi_teks' => null, 'path' => null];
+        $beku = $this->versiPengajuan->snapshot;
+        $beku['bukti_dukungs'] = [$bukti];
+        $lengkap = $this->ajukanUlang($this->actor, 'pic', beku: $beku);
+        $this->assertSame([], app(GerbangReviewRencanaAksi::class)->businessErrors($this->pengesah, $this->rencanaAksi->fresh(), $lengkap, 'sahkan'));
+
+        $beku['bukti_dukungs'] = [[$kosong => null] + $bukti];
+        $this->ajukanUlang($this->actor, 'pic', beku: $beku);
+        $url = "/rencana-aksi/{$this->rencanaAksi->id}";
+
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [self::KONTEKS]);
+        $this->actingAs($this->verifikator)->postJson("{$url}/verifikasi", $this->tokens())->assertUnprocessable();
+        $this->actingAs($this->verifikator)->postJson("{$url}/kembalikan", $this->tokens() + ['alasan' => 'Lengkapi isi bukti dukung.'])->assertSuccessful();
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+    }
+
     public function test_arsip_dan_unit_nonaktif_menolak_pengesahan_termasuk_f2_dan_action_langsung(): void
     {
         $this->ajukanUlang($this->pengesah, 'perencanaan');
@@ -386,6 +412,17 @@ class SahkanRencanaAksiTest extends TestCase
             'komponen kosong' => [null],
             'komponen tanpa nilai' => ['nilai'],
             'komponen tanpa komponen_id' => ['komponen_id'],
+        ];
+    }
+
+    /** @return array<string, array{array<string, mixed>, string}> */
+    public static function buktiBekuTidakLengkap(): array
+    {
+        return [
+            'tautan tanpa tautan' => [['mode' => 'tautan', 'tautan' => 'https://example.org/bukti-rencana-aksi'], 'tautan'],
+            'teks tanpa isi_teks' => [['mode' => 'teks', 'isi_teks' => 'Notulen rapat penyusunan rencana aksi.'], 'isi_teks'],
+            'file tanpa nama_asli' => [['mode' => 'file', 'nama_asli' => 'bukti.pdf', 'mime' => 'application/pdf', 'ukuran_bytes' => 14,
+                'path' => 'rencana-aksi/bukti.pdf'], 'nama_asli'],
         ];
     }
 }

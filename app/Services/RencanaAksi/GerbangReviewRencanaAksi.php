@@ -104,6 +104,9 @@ class GerbangReviewRencanaAksi
             'bukti_dukungs' => ['present', 'array'],
             'bukti_dukungs.*.id' => ['required', 'uuid'],
             'bukti_dukungs.*.mode' => ['required', 'in:file,tautan,teks'],
+            'bukti_dukungs.*.tautan' => ['required_if:bukti_dukungs.*.mode,tautan', 'nullable', 'string'],
+            'bukti_dukungs.*.isi_teks' => ['required_if:bukti_dukungs.*.mode,teks', 'nullable', 'string'],
+            'bukti_dukungs.*.nama_asli' => ['required_if:bukti_dukungs.*.mode,file', 'nullable', 'string'],
         ] + ($snapshot?->tipe_perhitungan === 'manual' ? ['target_periode.*.komponen' => ['present', 'array']] : [
             'target_periode.*.komponen' => ['required', 'array', 'min:1'],
             'target_periode.*.komponen.*.komponen_id' => ['required', 'uuid'],

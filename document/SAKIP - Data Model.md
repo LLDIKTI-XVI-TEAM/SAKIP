@@ -1551,7 +1551,7 @@ Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada s
 
 Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti hanya melayani bukti yang masih berlaku pada induknya; karena bukti tidak dapat diubah sejak induk diajukan (Q36), bukti versi yang sedang direviu dan versi resmi terakhir selalu termasuk di dalamnya. Akses bukti versi resmi lama setelah buka-kembali menjadi bagian ISS-05.06.
 
-Versi yang isi target atau bukti bekunya tidak lengkap tidak dapat diverifikasi atau disahkan, tetapi tetap dapat dikembalikan agar penanggung jawab mengajukan versi pengganti; guard izin, status, jadwal, indikator, unit, dan keselarasan konteks tetap berlaku.
+Versi yang isi target, komponen, atau bukti bekunya tidak lengkap (termasuk tautan, isi teks, atau nama berkas sesuai mode bukti) tidak dapat diverifikasi atau disahkan, tetapi tetap dapat dikembalikan agar penanggung jawab mengajukan versi pengganti; guard izin, status, jadwal, indikator, unit, dan keselarasan konteks tetap berlaku.
 
 ---
 
