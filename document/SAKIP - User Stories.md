@@ -607,25 +607,25 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-1:** Given indikator, pengguna, tanggal mulai, dan alasan valid, When penugasan disimpan, Then baris baru `penanggung_jawab` dibuat tanpa update in-place histori lama.
 - [x] **AC-2:** Given beberapa penugasan historis ada, When PIC efektif dicari pada tanggal T, Then sistem memilih baris terbaru dengan `tanggal_mulai_berlaku <= T`.
 - [x] **AC-3:** Given PIC berganti, When request RA/Pengukuran baru dilakukan, Then guard memakai PIC efektif terkini dan grant unit yang sah.
-- [ ] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
+- [x] **AC-4:** Given versi RA/Pengukuran lama sudah diajukan, When PIC berganti, Then `diajukan_by`/provenance versi lama tidak berubah.
 - [x] **AC-5:** Given alasan pergantian kosong, When disimpan, Then ditolak dan aksi sensitif diaudit.
 - [x] **AC-6 (Q32):** Given target user aktif dengan role apa pun atau belum memiliki role, When ditetapkan sebagai PJ, Then assignment diperbolehkan tanpa memberi permission; kesiapan tujuh izin kerja dinilai terpisah melalui PermissionResolver.
 
 
-> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 berasal dari Q34 dan ditelusuri pada matriks provenance ISS-04.01. AC-3 terverifikasi untuk Rencana Aksi dan Pengukuran, termasuk pergantian pada tanggal yang sama; AC-4 tetap terbuka sampai versi pengajuan Rencana Aksi (ISS-05.03) tersedia.
+> Checkbox AC mencatat status implementasi/verifikasi teknis. Persetujuan kebijakan PJ-01–PJ-05 berasal dari Q34 dan ditelusuri pada matriks provenance ISS-04.01. AC-3 terverifikasi untuk Rencana Aksi dan Pengukuran, termasuk pergantian pada tanggal yang sama; AC-4 terverifikasi untuk versi pengajuan Rencana Aksi melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti` (ISS-05.03).
 
 **Kontrak Final Q32**
 
 - `penanggung_jawab` tetap menjadi sumber histori assignment indikator.
 - Peran pengguna dan assignment `penanggung_jawab` merupakan dua data yang berbeda; tidak ada syarat role PIC.
 - Monitoring menampilkan izin tersedia dan kurang untuk semua tujuh permission scoped pada unit indikator menurut ACL saat ini. Explicit deny menang dan user nonaktif fail-closed. Diagnosis tidak menjadi gate pengganti resolver saat aksi dilakukan.
-- Bukti reuse Rencana Aksi pada AC-4 tetap bergantung pada versi pengajuan Rencana Aksi (ISS-05.03); guard AC-3 dan reuse Plan 4.4 sudah memakai resolver PJ yang sama.
+- Bukti reuse Rencana Aksi pada AC-4 berasal dari versi pengajuan Rencana Aksi (ISS-05.03, `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`); guard AC-3 dan reuse Plan 4.4 sudah memakai resolver PJ yang sama.
 
 **Kontrak Dasar Histori dan Resolusi — Plan §4.3–4.4 / Issue #54:** pergantian wajib alasan dan menambah histori; resolver memilih tanggal mulai terbesar yang <= tanggal acuan, lalu `urutan` penugasan terbesar pada tanggal yang sama.
 
 **Aturan PJ — Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70):** PJ-01 (tanggal mutasi lampau/mendatang), PJ-03 (no-op ditolak dan mantan PJ boleh kembali), PJ-04 (assignment mendatang dipertahankan), dan PJ-05 (guard indikator arsip/Renstra diarsipkan/unit nonaktif) sesuai Q34 §34.1 butir 2–6. PJ-02 (unique indikator/tanggal tanpa tie-break) digantikan butir 1 dan diimplementasikan pada #70 dengan kolom `urutan`. Detail evidence dan dampak berada pada [matriks provenance ISS-04.01](SAKIP%20-%20User%20Issues.md#status-review-dan-traceability-iss-0401--8-oktober-2026).
 
-**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) **RESOLVED oleh Q34 (9 Oktober 2026)**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. PJ-02 digantikan Q34 butir 1 dan dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). AC-4 tetap terbuka untuk integrasi Rencana Aksi Modul 11 sampai versi pengajuan ISS-05.03 tersedia, sedangkan AC-3 terverifikasi melalui #70 (10 Oktober 2026); catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
+**Status review 8 Oktober 2026:** dua MINOR UI (kontras canonical Badge success dan reuse formatter timestamp histori) tetap **FIXED**, sebagaimana [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808). MAJOR provenance PJ-01–PJ-05 (tanggal mutasi, unique tanggal, no-op/reassignment, histori mendatang, dan lifecycle) **RESOLVED oleh Q34 (9 Oktober 2026)**; baseline, evidence, inferensi engineering, dan dampak kode dipetakan pada `SAKIP - User Issues.md`, bagian **Status Review dan Traceability ISS-04.01**. PJ-02 digantikan Q34 butir 1 dan dilacak [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). AC-3 terverifikasi melalui #70 (10 Oktober 2026) dan AC-4 untuk Rencana Aksi Modul 11 melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti` pada ISS-05.03 (11 Oktober 2026); catatan ini tidak mengubah requirement/checkbox atau mengklaim persetujuan domain, CI perubahan lokal, merge, UAT, maupun deployment.
 
 **Tindak lanjut review M-02/M-03:** audit penolakan aktor nonaktif dan continuation monitoring dengan batas kandidat telah diperbaiki serta diverifikasi lokal. Cakupan PJ efektif yang akunnya nonaktif (D-01) tetap **PENDING REQUIREMENT CLARIFICATION** dengan filter existing dipertahankan sementara; status dan pilihan keputusan berada pada bagian traceability ISS-04.01 di User Issues. Tidak ada perubahan AC atau keputusan bisnis dari tindak lanjut teknis ini.
 
@@ -652,7 +652,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 > **Saya ingin** mengisi target kumulatif per periode secara manual atau per komponen sesuai snapshot,  
 > **Sehingga** target tahunan dapat diturunkan menjadi target operasional tanpa kehilangan konsistensi formula.
 
-> **Status implementasi — PR #62:** AC-1–5 memiliki bukti QA pada `7ec7007`; AC-6 menunggu ISS-05.03 (ADR-0008). Batas bukti tercatat pada [ISS-05.01](SAKIP%20-%20User%20Issues.md#iss-0501--feature-penyusunan-target-rencana-aksi-per-periode).
+> **Status implementasi — PR #62:** AC-1–5 memiliki bukti QA pada `7ec7007`; AC-6 terverifikasi pada pengajuan ISS-05.03 melalui `test_deviasi_tanpa_alasan_ditolak_dan_dengan_alasan_diterima` (ADR-0008). Batas bukti tercatat pada [ISS-05.01](SAKIP%20-%20User%20Issues.md#iss-0501--feature-penyusunan-target-rencana-aksi-per-periode).
 
 **Acceptance Criteria**
 
@@ -661,7 +661,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-3:** Given target periode lebih rendah dari periode sebelumnya, When disimpan, Then sistem memberi warning kumulatif namun tidak memblokir.
 - [x] **AC-4:** Given periode sebelum efektivitas indikator, When target diminta, Then periode tersebut dikecualikan sebagai Tidak berlaku.
 - [x] **AC-5:** Given PIC berada di luar jendela RA, When mutasi dicoba, Then ditolak; Perencanaan dapat bekerja sampai penutupan/jendela koreksi yang sah.
-- [ ] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
+- [x] **AC-6:** Given target akhir berbeda dari target PK snapshot, Then submit tetap dapat dilakukan hanya setelah alasan deviasi diisi.
 
 ### US-05.02 · Pemenuhan Bukti Dukung Rencana Aksi
 
@@ -685,7 +685,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-2:** Given mode tidak diizinkan, When bukti dikirim, Then server menolak.
 - [x] **AC-3:** Given `semua_mode_wajib = true`, When sebagian mode belum terpenuhi, Then persyaratan tetap belum lengkap.
 - [x] **AC-4:** Given deny/capability induk tidak mengizinkan upload, When request dipanggil langsung, Then 403.
-- [ ] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(Parsial: PR #76 membuktikan penghapusan bukti non-destruktif — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi dibuktikan pada ISS-05.03.)*
+- [x] **AC-5:** Given bukti sudah dibekukan dalam versi pengajuan, Then perubahan setelahnya tidak mengubah snapshot versi tersebut. *(PR #76 membuktikan penghapusan bukti non-destruktif — soft delete dan file fisik dipertahankan; pembekuan bukti ke dalam versi terverifikasi melalui `test_versi_beku_tidak_berubah_saat_draf_dan_bukti_berubah` pada ISS-05.03.)*
 
 > **Status implementasi — PR #76 (ISS-05.02):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/RencanaAksiBuktiHttpTest`, `BuktiRencanaAksiEvaluasiTest`, `tests/Frontend/RencanaAksiBukti.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT maupun deployment.
 
@@ -699,7 +699,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
 | **Dependensi** | RA draft/dikembalikan; target dan bukti memenuhi aturan; jendela aktor sah. |
 | **Otorisasi** | `rencana_aksi:ajukan` (unit-scoped bagi PIC; global bagi Perencanaan). |
-| **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`, notifikasi in-app. |
+| **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`. |
 
 > **Sebagai** PIC atau Tim Perencanaan,  
 > **Saya ingin** mengajukan RA sebagai versi substansi yang immutable,  
@@ -707,13 +707,13 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
-- [ ] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
-- [ ] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
-- [ ] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
-- [ ] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks.
-- [ ] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] **AC-7:** Given submit berhasil, Then notifikasi in-app untuk antrean Perencanaan dibuat setelah transaksi berhasil.
+- [x] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
+- [x] **AC-2:** Given bukti wajib belum lengkap sesuai versi persyaratan saat submit, When submit, Then ditolak.
+- [x] **AC-3:** Given deviasi target akhir terhadap PK belum memiliki alasan, When submit, Then ditolak.
+- [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
+- [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
+- [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
+- [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 
 ### US-05.04 · Verifikasi & Pengembalian Rencana Aksi dengan F1
 
@@ -723,21 +723,26 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Prioritas** | 🔴 P0 |
 | **Story Points** | 8 |
 | **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
-| **Dependensi** | RA berstatus `diajukan` dan versi terbaru tersedia. |
+| **Dependensi** | ISS-05.03 / #57 sudah merged ke `development`; RA berstatus `diajukan` dan versi terbaru tersedia. Pengiriman in-app menunggu ISS-12.02 (Q37). |
 | **Otorisasi** | `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`. |
-| **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, notifikasi. |
+| **Dampak Data** | `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit. |
+| **Keputusan terkait** | Q37 §37.1–§37.3. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** memverifikasi versi RA atau mengembalikannya dengan alasan,  
 > **Sehingga** substansi RA diperiksa tanpa membuka celah self-review jalur PIC.
 
+**Bukti verifikasi:** hasil pengujian dan batas QA/UAT dicatat pada [PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93); TEST-1–TEST-7 tercatat pada ISS-05.04. Checklist di bawah tetap untuk QA/UAT; hasil otomatis tidak mengesahkan UAT, merge atau deployment.
+
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
 - [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`, audit mencatat alasan, dan PIC menerima notifikasi.
+- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
 - [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
 - [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
+- [ ] **AC-7:** Given versi/status valid, aktor berwenang, dan seluruh business guard lolos, When verifikasi dikonfirmasi tanpa alasan pengguna, Then verifikasi berhasil dan audit memuat alasan baku server serta `dasar_izin`.
 
 ### US-05.05 · Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2
 
@@ -750,6 +755,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Dependensi** | RA berstatus `diverifikasi`; versi yang direviu adalah versi terbaru dan tidak stale. |
 | **Otorisasi** | `rencana_aksi:sahkan` (sensitif). |
 | **Dampak Data** | `rencana_aksi`, `rencana_aksi_versi`, `audit_log`. |
+| **Keputusan terkait** | Q37 §37.1. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mengesahkan versi RA yang telah diverifikasi,  
@@ -757,12 +763,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
-- [ ] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
-- [ ] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
-- [ ] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
-- [ ] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
-- [ ] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
+- [x] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
+- [x] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
+- [x] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
+- [x] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
+- [x] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [x] **AC-7:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When pengesahan dicoba termasuk pada jalur F2 dan request langsung, Then `businessErrors` yang sama dengan verifikasi/pengembalian menolak, penolakan diaudit, dan header/metadata versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
+
+> **Status implementasi — PR #66 (ISS-05.05):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/SahkanRencanaAksiTest`, `tests/Integration/Concurrency/MutationConcurrencyTest`, `tests/Frontend/RencanaAksiReview.test.tsx`) beserta CI exact-HEAD pada PR; bukan persetujuan UAT maupun deployment.
 
 ### US-05.06 · Buka-Kembali Rencana Aksi yang Telah Disahkan
 

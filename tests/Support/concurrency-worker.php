@@ -12,6 +12,9 @@ use App\Actions\PenanggungJawab\ReadPenanggungJawab;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
+use App\Actions\RencanaAksi\KembalikanRencanaAksi;
+use App\Actions\RencanaAksi\SahkanRencanaAksi;
+use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
@@ -62,7 +65,7 @@ try {
         }
         // Izin Rencana Aksi ber-scope unit: cek awal memakai unit indikator,
         // bukan keputusan global di blok atas.
-        if (in_array($argv[1], ['ra-ensure-draft', 'ra-simpan'], true)
+        if (in_array($argv[1], ['ra-ensure-draft', 'ra-simpan', 'ra-ajukan'], true)
             && ! app(PermissionResolver::class)->allows(User::findOrFail($assignment['actor_id']), $assignment['permission'], $assignment['izin_unit_id'])) {
             throw new RuntimeException('Fixture harus diizinkan sebelum menunggu lock.');
         }
@@ -73,7 +76,10 @@ try {
             'formula-update' => app(ChangeIndicatorFormula::class)->handle(User::findOrFail($assignment['actor_id']), IndikatorKinerja::findOrFail($assignment['indikator_id']), $assignment['data'])['status'],
             'formula-read' => app(ReadIndicatorEditor::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['indikator_id'], false),
             'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment' => performRenstraMutation($argv[1], $assignment),
-            'ra-ensure-draft', 'ra-simpan' => performRencanaAksiMutation($argv[1], $assignment),
+            'ra-ensure-draft', 'ra-simpan', 'ra-ajukan' => performRencanaAksiMutation($argv[1], $assignment),
+            'ra-verifikasi', 'ra-kembalikan' => $argv[1] === 'ra-verifikasi'
+                ? app(VerifikasiRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur
+                : app(KembalikanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur,
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),
             'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical' => performJenisBerkasMutation($argv[1], $assignment),
@@ -89,15 +95,17 @@ try {
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
             'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
             'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
+            'rencana-sahkan' => app(SahkanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['rencana_aksi_id'], $assignment['data']),
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
         $result = match ($argv[1]) {
             'create-deny' => 'created',
             'revoke-deny' => 'revoked',
+            'rencana-sahkan' => 'disahkan',
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -119,6 +127,9 @@ try {
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
+            'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
+            // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
+            'rencana-sahkan' => 'businessErrors',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
@@ -127,6 +138,7 @@ try {
         $result = match ($argv[1]) {
             'create-deny' => 'duplicate',
             'revoke-deny' => 'stale',
+            'rencana-sahkan' => 'ditolak',
             default => 'conflict',
         };
     }
@@ -180,7 +192,11 @@ function performRenstraMutation(string $operation, array $assignment): string
 function performRencanaAksiMutation(string $operation, array $assignment): string
 {
     Auth::setUser(User::findOrFail($assignment['actor_id']));
-    $path = $operation === 'ra-ensure-draft' ? '/rencana-aksi/ensure-draft' : '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/target';
+    $path = match ($operation) {
+        'ra-ensure-draft' => '/rencana-aksi/ensure-draft',
+        'ra-simpan' => '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/target',
+        'ra-ajukan' => '/rencana-aksi/'.$assignment['rencana_aksi_id'].'/ajukan',
+    };
     $request = Request::create($path, 'POST', $assignment['data']);
     $kernel = app(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request);
@@ -188,6 +204,14 @@ function performRencanaAksiMutation(string $operation, array $assignment): strin
 
     if ($response->getStatusCode() === 403) {
         return 'denied';
+    }
+    // Penolakan bisnis yang diharapkan test (mis. pengajuan yang kalah antrean kunci) wajib pada field yang disebut.
+    if (isset($assignment['expected_error_field']) && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+        if (! array_key_exists($assignment['expected_error_field'], (array) $request->session()->get('errors.default.messages'))) {
+            throw new RuntimeException('Penolakan validasi Rencana Aksi tidak sesuai field yang diharapkan.');
+        }
+
+        return 'conflict';
     }
     if ($response->getStatusCode() !== 302 || $request->session()->has('errors') || ! $request->session()->has('success')) {
         throw new RuntimeException('Mutasi Rencana Aksi tidak mencapai hasil sukses atau penolakan izin.');

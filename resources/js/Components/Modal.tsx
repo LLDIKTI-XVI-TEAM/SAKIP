@@ -155,8 +155,10 @@ export const Modal: React.FC<ModalProps> = ({
     };
 
     return (
+        // m-0: modal dirender di tempat (tanpa portal), jadi margin `space-y-*` induk
+        // tidak boleh memotong overlay dan menyisakan konten yang masih dapat diklik.
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs transition-opacity duration-200"
+            className="fixed inset-0 z-50 m-0 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs transition-opacity duration-200"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}

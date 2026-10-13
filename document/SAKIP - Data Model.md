@@ -1121,7 +1121,15 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 **Status alur:** mengikuti pola pengukuran — `draft → diajukan → diverifikasi → disahkan`, dengan `dikembalikan` (alasan wajib) sebagai jalur revisi. Permission `rencana_aksi:buka_kembali` (Perencanaan/Superadmin; alasan wajib; hanya tersedia sebelum `jadwal_tahunan.penutupan`) menangani transisi `disahkan → dikembalikan`, sepenuhnya paralel dengan `pengukuran:buka_kembali` (§2.20).
 
-**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`) **ditolak** bila ada `indikator_komponen` aktif yang belum memiliki `rencana_aksi_target` pada salah satu periode yang diharapkan menurut `jadwal_periode` — ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
+**Guard review (Q37 §37.1):** verifikasi, pengembalian, dan pengesahan memakai `businessErrors` yang sama dan ditolak bila indikator berstatus `arsip` atau unit konteks RA `nonaktif`, termasuk pada jalur F2 dan request langsung. Guard diperiksa server-side pada mutation boundary; penolakan diaudit tanpa mengubah header/payload versi. Detail dan histori tetap dapat dibaca sesuai otorisasi, dan UI menampilkan alasan dari server. Renstra `diarsipkan` sudah tertutup oleh guard jadwal karena tidak dapat keluar dari `aktif` selama mempunyai jadwal aktif (§2.9); tidak ditambahkan guard Renstra arsip terpisah.
+
+**Alasan review (Q37 §37.2):** verifikasi cukup konfirmasi, tanpa alasan pengguna; audit memakai alasan baku server dan `dasar_izin`. Pengembalian wajib alasan pengguna yang divalidasi dan disanitasi di backend. Permission sensitif tidak otomatis mewajibkan alasan pengguna (§2.32, §3.5).
+
+**Penerima pengembalian (Q37 §37.3):** penerima ditentukan dari PJ efektif saat pengembalian melalui `PenugasanIndikator::effectiveOn()`, bukan `penanggung_jawab_id` historis pada header atau pengaju historis. `rencana_aksi_versi.diajukan_by` dan audit tetap mencatat pengaju historis. ISS-05.04 menetapkan penerima dan event setelah commit (tidak pada rollback); pengiriman in-app menunggu ISS-12.02 dan tautan tetap diotorisasi saat dibuka.
+
+**Versi pengajuan beku:** setiap pengajuan tersimpan sebagai baris `rencana_aksi_versi` (§2.34) berisi provenance beku dan snapshot isi pengajuan; yang disahkan pada transisi akhir adalah snapshot versi tersebut, bukan header.
+
+**Gerbang kelengkapan saat pengajuan:** pengajuan rencana aksi (`draft → diajukan`, atau `dikembalikan → diajukan` sebagai revisi langsung tanpa kembali ke `draft`) **ditolak** bila ada periode efektif yang targetnya belum berstatus `terhitung`. Periode efektif adalah periode `jadwal_periode` mulai `periode_mulai_id` pada `jadwal_snapshot` terbaru (§2.17). Status `belum_diisi` (nonmanual: ada komponen `jadwal_snapshot_komponen` yang belum bernilai; manual: nilai belum diisi) dan `tidak_dapat_dihitung` (mis. penyebut nol) sama-sama menolak; angka `0` sah. Ini adalah gerbang kelengkapan, bukan sekadar catatan peringatan.
 
 **Pemisahan tugas pada jalur verifikasi/pengesahan:** aturan yang sama seperti pengukuran (§2.20) berlaku di sini — bila rencana aksi diajukan lewat jalur PIC ber-scope unit, aktor pengaju tidak boleh melanjutkan sendiri transisi verifikasi/pengesahannya. Rinciannya di §4.
 
@@ -1427,8 +1435,10 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 | `objek_id` | uuid | not null | ID baris entitas terkait |
 | `nilai_lama` | jsonb | nullable | Snapshot kondisi sebelum perubahan |
 | `nilai_baru` | jsonb | nullable | Snapshot kondisi sesudah perubahan |
-| `alasan` | text | nullable | Wajib diisi (validasi aplikasi) untuk tindakan tertentu: koreksi PK, pengembalian pengukuran, pergantian penanggung jawab, penghapusan unit, `jadwal:buka_kembali`, `rencana_aksi:buka_kembali`, penandaan kegiatan `tidak_terlaksana`/`ditunda`/`batal`, **perubahan/penghapusan `regulasi` (`regulasi:update`/`regulasi:delete`)**, **perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), setiap grant (`user_permission_granted`) dan setiap deny (`user_permission_denials`)**, dan tindakan sensitif lain yang ditetapkan PRD |
+| `alasan` | text | nullable | Wajib diisi (validasi aplikasi) untuk tindakan tertentu: koreksi PK, pengembalian pengukuran/rencana aksi, pergantian penanggung jawab, penghapusan unit, `jadwal:buka_kembali`, `rencana_aksi:buka_kembali`, penandaan kegiatan `tidak_terlaksana`/`ditunda`/`batal`, **perubahan/penghapusan `regulasi` (`regulasi:update`/`regulasi:delete`)**, **perubahan isi peran (`role_permissions`), penetapan/pergantian peran pengguna (`user_roles`), setiap grant (`user_permission_granted`) dan setiap deny (`user_permission_denials`)**, dan tindakan sensitif lain yang ditetapkan PRD |
 | `dasar_izin` | jsonb | **nullable** | **Wajib diisi** untuk aksi atas permission bertanda `permissions.sensitif = true` (lihat §2.3, §3.5): daftar sumber izin yang membuat aksi diizinkan (peran mana / grant mana yang cocok), atau deny mana yang memicu penolakan. `null` untuk tindakan yang tidak melalui gerbang permission sensitif |
+
+**Pembedaan sensitif dan alasan (Q37 §37.2):** `permissions.sensitif = true` mewajibkan `dasar_izin`, bukan alasan dari pengguna. Verifikasi RA memakai alasan baku server; pengembalian RA wajib alasan pengguna yang divalidasi/disanitasi. Kewajiban alasan untuk tindakan lain mengikuti PRD dan daftar di atas. Penolakan guard review indikator arsip/unit nonaktif tetap diaudit tanpa meninggalkan mutasi domain yang ditolak.
 
 **Sifat:** tabel ini tidak memiliki endpoint update/delete di aplikasi — hanya `INSERT`. Tidak ada `updated_at`/`deleted_at` karena baris bersifat final begitu ditulis.
 
@@ -1501,6 +1511,48 @@ perubahan pada baris `renstra`/`indikator` yang bersangkutan (lihat §2.32).
 
 ---
 
+### 2.34 `rencana_aksi_versi`
+
+Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada sebuah rencana aksi, menyimpan provenance beku (siapa mengajukan, lewat jalur apa, dengan dasar izin apa) beserta `snapshot` isi pengajuan saat itu. Transisi `diverifikasi → disahkan` mengesahkan **snapshot versi ini**, bukan header; `rencana_aksi.disahkan_at`/`disahkan_by` hanya ringkasan status terkini.
+
+> **Kepemilikan kontrak:** ISS-05.03 (final) adalah pemilik dan satu-satunya pembentuk versi, lewat `POST /rencana-aksi/{id}/ajukan`; ISS-05.04 (verifikasi) dan ISS-05.05 (pengesahan) adalah konsumen. Konfirmasi pemilik tercatat di [PR #66 · issuecomment-6084316378](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/66#issuecomment-6084316378). Perubahan bentuk `snapshot` wajib dicatat di Data Model lebih dahulu dan diselaraskan dengan produsen maupun konsumennya.
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `rencana_aksi_id` | uuid | FK → rencana_aksi.id, not null | |
+| `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id, not null | Snapshot terbaru yang dipakai saat pengajuan, sama dengan `rencana_aksi.snapshot_draf_id`. Karena `jadwal_snapshot` beku sejak terbit (Q35), target PK, baseline, nama/satuan/arah/tipe/presisi, periode mulai, dan definisi komponen (kode/label/peran/bobot) ikut beku lewat relasi ini |
+| `nomor` | int | not null | Nomor urut pengajuan (nomor terbesar + 1 di bawah kunci header); `unique(rencana_aksi_id, nomor)`; versi terbaru = `nomor` terbesar |
+| `diajukan_by` | uuid | FK → users.id, not null | Pengaju; dasar keras F1/F2 (§4) — bukan `rencana_aksi.created_by` |
+| `diajukan_at` | timestamp | not null | Waktu pengajuan; sekaligus kunci urutan antrean pengesahan |
+| `jalur_pengajuan` | enum(`pic`,`perencanaan`) | not null | `perencanaan` bila allow `rencana_aksi:ajukan` berasal dari peran (termasuk Superadmin), selain itu `pic`; dibekukan saat submit |
+| `dasar_izin_pengajuan` | jsonb | not null | Dasar keputusan izin saat submit — bentuk di bawah |
+| `disahkan_by` | uuid | FK → users.id, nullable | Diisi sekali saat pengesahan |
+| `disahkan_at` | timestamp | nullable | Diisi sekali saat pengesahan |
+| `snapshot` | jsonb | not null | Isi pengajuan beku — kontrak di bawah |
+
+**Sifat beku:** `UPDATE`/`DELETE` baris versi ditolak trigger basis data `rencana_aksi_versi_immutable` (fungsi `reject_submission_version_mutation`) dan `TRUNCATE` ditolak `rencana_aksi_versi_no_truncate`; satu-satunya pengecualian adalah pengisian sekali `disahkan_by` + `disahkan_at` dari `NULL` saat pengesahan. Perbaikan pengajuan dilakukan dengan membuat versi baru — bukan menimpa snapshot lama. Perubahan peran, grant, atau penanggung jawab setelah submit tidak menulis ulang provenance versi.
+
+**Bentuk `dasar_izin_pengajuan`:** keputusan resolver `rencana_aksi:ajukan` pada unit header saat submit (`permission`, `keputusan`, `sumber_allow`, `deny`, dan kunci basis resolver lainnya), ditambah `unit_id` (unit header), `penugasan_id`, dan `pic_id` (penugasan penanggung jawab efektif pada tanggal submit, zona Asia/Makassar; boleh `null` pada jalur Perencanaan).
+
+**Kontrak isi `snapshot` (jsonb):** semua nilai desimal berupa string dan UUID berhuruf kecil.
+
+| Key | Tipe | Isi |
+|---|---|---|
+| `indikator` | object | `{kode, nama}`; `nama` dari snapshot beku, `kode` dari master |
+| `unit_kerja` | object | `{id, nama}` unit header |
+| `pic` | object\|null | `{id, nama}` PJ efektif pada tanggal submit (zona Asia/Makassar), sama dengan `dasar_izin_pengajuan.pic_id`; null pada jalur Perencanaan tanpa PJ |
+| `uraian` | string\|null | `rencana_aksi.uraian` |
+| `alasan_deviasi_pk` | string\|null | `rencana_aksi.alasan_deviasi_pk` saat submit |
+| `deviasi_pk` | object | `{status, skor, target_pk, presisi}`: skor periode efektif terakhir dibandingkan target PK beku setelah keduanya dibulatkan HALF_UP pada presisi snapshot; `status` ∈ `setara`, `deviasi`, `tidak_dapat_dinilai` (target PK atau skor null); `skor`/`target_pk` adalah angka hasil pembulatan |
+| `target_periode` | array | Hanya periode efektif, urut `periode_urutan`: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, keterangan, komponen[]}`. `nilai` = keluaran mesin hitung sehingga pembaca yang menghitung ulang memperoleh angka sama; `status_perhitungan` = `terhitung` pada versi yang berhasil. Manual: `komponen = []`, `keterangan` = keterangan sel manual. Nonmanual: `keterangan = null` di baris, `komponen[] = {komponen_id, kode, label, nilai, keterangan}` seluruh komponen snapshot |
+| `persyaratan_bukti` | array | Keluaran evaluator bukti bersama tahap `rencana_aksi` apa adanya (definisi persyaratan + `pemenuhan`), dibekukan saat submit (Q24) |
+| `bukti_dukungs` | array | Bukti berlaku saat submit: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`; `path` privat hanya dipakai server untuk unduhan beku, tidak pernah dikirim ke props |
+
+Key yang hilang ditampilkan sebagai "konteks tidak lengkap" pada layar reviu, bukan galat; kunci yang tidak dikenali diabaikan. Setiap versi merujuk tepat satu `jadwal_snapshot` (§2.17) yang membekukan konteks indikatornya. Unduhan bukti hanya melayani bukti yang masih berlaku pada induknya; karena bukti tidak dapat diubah sejak induk diajukan (Q36), bukti versi yang sedang direviu dan versi resmi terakhir selalu termasuk di dalamnya. Akses bukti versi resmi lama setelah buka-kembali menjadi bagian ISS-05.06.
+
+Versi yang isi target, komponen, atau bukti bekunya tidak lengkap (termasuk tautan, isi teks, atau nama berkas sesuai mode bukti) tidak dapat diverifikasi atau disahkan, tetapi tetap dapat dikembalikan agar penanggung jawab mengajukan versi pengganti; guard izin, status, jadwal, indikator, unit, dan keselarasan konteks tetap berlaku.
+
 ---
 
 ## 3. Algoritma Resolusi Izin
@@ -1546,6 +1598,8 @@ Resolusi izin dijalankan lewat **satu service/Policy/Gate terpusat** yang dipang
 ### 3.5 Audit dasar izin untuk aksi sensitif
 
 Untuk setiap aksi atas permission bertanda `permissions.sensitif = true` (§2.3), baris `audit_log` yang dihasilkan **wajib** mengisi kolom `dasar_izin` (§2.32) dengan sumber izin yang membuat aksi tersebut diizinkan (peran mana, dan/atau grant mana yang cocok) — atau, bila aksi ditolak akibat deny, deny mana yang memicu penolakan. Kebutuhan ini muncul justru karena izin dievaluasi hidup: jejak "kenapa orang ini boleh melakukan ini" tidak lagi dapat dibaca dari satu baris izin statis seperti pada model lama.
+
+**Q37 §37.2:** kewajiban `dasar_izin` untuk permission sensitif tidak otomatis mewajibkan alasan pengguna. Alasan mengikuti kontrak tindakan di §2.32 dan PRD; verifikasi RA cukup konfirmasi dengan alasan audit baku server, sedangkan pengembalian RA wajib alasan pengguna.
 
 ---
 

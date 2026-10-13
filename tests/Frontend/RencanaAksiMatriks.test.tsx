@@ -105,7 +105,9 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             periode_id: PERIODE_2,
         },
         koreksi: { aktif: false, periode_ids: [] },
-        can: { view: true, update: true },
+        pengajuan: { siap: true, alasan: [] },
+        versi_pengajuan: null,
+        can: { view: true, update: true, submit: false },
         ...overrides,
     };
 }
@@ -364,5 +366,46 @@ describe('Rencana aksi matriks target', () => {
         expect(router.post).toHaveBeenCalledTimes(1);
         const kirim = vi.mocked(router.post).mock.calls[0][1] as { expected_versi: number };
         expect(kirim.expected_versi).toBe(2);
+    });
+});
+
+describe('Tata letak halaman detail rencana aksi', () => {
+    it('ringkasan konteks memakai label indikator yang sama dengan halaman indikator tanpa nomor versi teknis', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        expect(screen.getByText('Rasio Persen')).toBeTruthy();
+        expect(screen.getByText('Makin tinggi makin baik')).toBeTruthy();
+        expect(screen.getByText('Tahun 2026')).toBeTruthy();
+    });
+
+    it('matriks menampilkan skor tersimpan sekali per periode dengan label komponen yang terlihat di HP', () => {
+        const { container } = render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        expect(screen.queryByText(/Skor tersimpan per periode/)).toBeNull();
+        expect(screen.queryByText('Hasil server; bukan hitungan klien.')).toBeNull();
+        expect(screen.queryByText('Urutan 1')).toBeNull();
+        // Label isian tetap dari <label> sr-only; label visual HP disembunyikan dari pembaca layar agar tidak dibaca dua kali.
+        expect(container.querySelectorAll('span[aria-hidden="true"][data-label-hp]')).toHaveLength(4);
+        expect(screen.getByRole('spinbutton', { name: 'n · Pembilang · Triwulan I' })).toBeTruthy();
+    });
+
+    it('menampilkan peran dan bobot komponen tanpa nol di belakang koma', () => {
+        const payload = buatPayload();
+        render(<RencanaAksiShow rencanaAksi={{ ...payload, komponen: [
+            { ...payload.komponen[0], bobot: '1.000000000000' },
+            { ...payload.komponen[1], bobot: '0.500000000000' },
+        ] }} />);
+
+        expect(screen.getByText('Pembilang · Bobot 1')).toBeTruthy();
+        expect(screen.getByText('Penyebut · Bobot 0,5')).toBeTruthy();
+        expect(screen.queryByText(/000000/)).toBeNull();
+    });
+
+    it('catatan deviasi tampil bersama kolom alasan deviasi, bukan kartu terpisah', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
+
+        expect(screen.queryByRole('heading', { name: 'Deviasi terhadap target PK' })).toBeNull();
+        expect(screen.getByText('Skor periode terakhir berbeda dari target PK')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Uraian dan alasan deviasi' })).toBeTruthy();
     });
 });

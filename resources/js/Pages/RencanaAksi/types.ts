@@ -102,10 +102,28 @@ export interface RencanaAksiShow {
     /** Lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
     koreksi: RencanaAksiKoreksi;
     deviasi_pk: RencanaAksiDeviasiPk;
+    pengajuan: RencanaAksiPengajuan;
+    /** Versi pengajuan terbaru (nomor terbesar); null bila belum pernah diajukan. */
+    versi_pengajuan: RencanaAksiVersiPengajuan | null;
     can: {
         view: boolean;
         update: boolean;
+        /** Eligibility pengajuan dari server (izin, jendela, status, jepit snapshot); kelengkapan isi ada di `pengajuan`. */
+        submit: boolean;
     };
+}
+
+/** Kesiapan pengajuan dari evaluator server; `alasan` adalah teks server dan hanya ditampilkan. */
+export interface RencanaAksiPengajuan {
+    siap: boolean;
+    alasan: string[];
+}
+
+export interface RencanaAksiVersiPengajuan {
+    nomor: number;
+    diajukan_oleh: string | null;
+    /** ISO-8601 dari server. */
+    diajukan_at: string;
 }
 
 export type BuktiMode = 'file' | 'tautan' | 'teks';
@@ -167,6 +185,12 @@ export const rencanaAksiStatusPerhitungan: Record<string, string> = {
 /** Kunci sel matriks `periode_id::komponen_id` (`manual` untuk indikator manual). */
 export function kunciSel(periodeId: string, komponenId: string | null): string {
     return `${periodeId}::${komponenId ?? 'manual'}`;
+}
+
+/** Nilai tersimpan (`numeric(30,12)`) tampil tanpa nol di belakang koma; operasi string, tanpa pembulatan. */
+export function tanpaNolBelakang(nilai: string | number): string {
+    const teks = String(nilai);
+    return teks.includes('.') ? teks.replace(/\.?0+$/, '') : teks;
 }
 
 /** True bila periode boleh disunting di UI: tanpa koreksi aktif semua efektif boleh; bila koreksi aktif, hanya yang tercakup. */
