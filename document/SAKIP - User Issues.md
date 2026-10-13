@@ -1869,52 +1869,54 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:sahkan` (sensitif).
 - **Dampak Data:** `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
 
+> **Status implementasi — PR #66 (ISS-05.05):** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/SahkanRencanaAksiTest`, `RencanaAksiVersiBekuTest`, serta race dua koneksi `tests/Integration/Concurrency/MutationConcurrencyTest`) dan test frontend `tests/Frontend/RencanaAksiReview.test.tsx`; SHA dan CI exact-HEAD dicatat pada PR, bukan persetujuan UAT/deployment. Sesuai D1 (Keputusan Penyelarasan §37.5), pengesahan memakai antrean, halaman review, dan `GerbangReviewRencanaAksi` milik ISS-05.04. Versi pengajuan pada test dibentuk fixture bersama sesuai kontrak Data Model §2.34, lalu diverifikasi dan disahkan melalui Action/HTTP nyata. Pengesahan tidak mewajibkan alasan (alasan wajib hanya pada pengembalian), sehingga item Modal Alasan Audit tidak dicentang. Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
-- [ ] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
-- [ ] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
-- [ ] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
-- [ ] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
-- [ ] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
-- [ ] **AC-7:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When pengesahan dicoba termasuk pada jalur F2 dan request langsung, Then `businessErrors` yang sama dengan verifikasi/pengembalian menolak, penolakan diaudit, dan header/metadata versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
+- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
+- [x] **AC-2:** Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
+- [x] **AC-3:** Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
+- [x] **AC-4:** Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
+- [x] **AC-5:** Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
+- [x] **AC-6:** Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [x] **AC-7:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When pengesahan dicoba termasuk pada jalur F2 dan request langsung, Then `businessErrors` yang sama dengan verifikasi/pengembalian menolak, penolakan diaudit, dan header/metadata versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, `rencana_aksi_versi`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
 
 **B. Backend / Domain**
-- [ ] F1/F2 harus membaca `rencana_aksi_versi.diajukan_by` dan `jalur_pengajuan`; perubahan role/PIC/grant setelah submit tidak mengubah provenance.
-- [ ] Pengesahan wajib mengunci versi terbaru yang sedang direviu dan menolak versi stale.
-- [ ] F2 self-approval jalur Perencanaan tetap wajib lolos resolver permission/deny dan dicatat sebagai `self_approval`.
-- [ ] Gunakan `businessErrors` yang sama dengan verifikasi/pengembalian ISS-05.04: tolak indikator `arsip` atau unit konteks RA nonaktif, termasuk jalur F2; periksa ulang pada mutation boundary. Renstra diarsipkan tertutup oleh guard jadwal (Data Model §2.9).
+- [x] F1/F2 harus membaca `rencana_aksi_versi.diajukan_by` dan `jalur_pengajuan`; perubahan role/PIC/grant setelah submit tidak mengubah provenance.
+- [x] Pengesahan wajib mengunci versi terbaru yang sedang direviu dan menolak versi stale.
+- [x] F2 self-approval jalur Perencanaan tetap wajib lolos resolver permission/deny dan dicatat sebagai `self_approval`.
+- [x] Gunakan `businessErrors` yang sama dengan verifikasi/pengembalian ISS-05.04: tolak indikator `arsip` atau unit konteks RA nonaktif, termasuk jalur F2; periksa ulang pada mutation boundary. Renstra diarsipkan tertutup oleh guard jadwal (Data Model §2.9).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:sahkan` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
-- [ ] Audit penolakan guard indikator arsip/unit nonaktif tanpa mengubah header/metadata versi; penolakan tidak hilang akibat rollback mutasi.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:sahkan` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Audit penolakan guard indikator arsip/unit nonaktif tanpa mengubah header/metadata versi; penolakan tidak hilang akibat rollback mutasi.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Buat/rapikan page dan reusable component React untuk **Pengesahan Rencana Aksi & Pemisahan Tugas F1/F2**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Detail/histori tetap dapat dibaca sesuai otorisasi; tampilkan alasan aksi tidak tersedia dari server untuk indikator arsip/unit nonaktif.
+- [x] Detail/histori tetap dapat dibaca sesuai otorisasi; tampilkan alasan aksi tidak tersedia dari server untuk indikator arsip/unit nonaktif.
 - [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
-- [ ] TEST-7: Uji guard bersama pada indikator arsip/unit nonaktif termasuk F2/direct HTTP, audit penolakan, header/metadata versi tetap utuh, serta akses detail/histori dan alasan UI sesuai otorisasi.
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui jalur PIC, When aktor sama dengan `diajukan_by` mencoba mengesahkan, Then **F1 menolak**.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan oleh PIC dan aktor Perencanaan lain berizin, When sahkan, Then header menjadi `disahkan` dan metadata pengesahan pada versi terisi atomik.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui `jalur_pengajuan = perencanaan`, When pengaju yang sama memverifikasi/mengesahkan dan masih memiliki permission efektif, Then **F2 mengizinkan** serta mencatat `self_approval`.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given terdapat deny atau permission reviewer hilang, When F2 dicoba, Then tetap ditolak; F2 bukan bypass resolver.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi yang hendak disahkan bukan versi terbaru yang sedang direviu, When aksi dilakukan, Then ditolak untuk mencegah pengesahan payload stale.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA disahkan, Then bukti yang dirujuk versi resmi tidak boleh dihapus.
+- [x] TEST-7: Uji guard bersama pada indikator arsip/unit nonaktif termasuk F2/direct HTTP, audit penolakan, header/metadata versi tetap utuh, serta akses detail/histori dan alasan UI sesuai otorisasi.
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
 #### Definition of Done
 
