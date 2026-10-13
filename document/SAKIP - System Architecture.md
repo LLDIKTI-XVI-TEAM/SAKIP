@@ -346,20 +346,23 @@ flowchart LR
     REG[Regulasi] --> REN[Renstra]
     REN --> SAS[Sasaran Strategis]
     SAS --> IND[Indikator Kinerja]
-    IND --> TAR[Target Tahunan + Baseline]
-    REN --> PK[Perjanjian Kinerja]
-    TAR --> JAD[Jadwal Tahunan]
-    PK --> JAD
+    IND --> TR[Target Renstra]
+    REN --> PK[Perjanjian Kinerja: Target PK + Baseline]
+    IND --> PK
+    TR -. pembanding .-> PK
+    PK --> JAD[Jadwal Tahunan]
     JAD --> SNAP[Snapshot]
     IND --> PJ[Penanggung Jawab Efektif]
     SNAP --> RA[Rencana Aksi]
-    RA --> KEG[Kegiatan]
+    RA --> KEG[Kegiatan + Anggaran/RAB]
     KEG --> KLAIM[Klaim Kegiatan]
     SNAP --> UKUR[Pengukuran]
     RA --> UKUR
     UKUR --> CAP[Status Capaian]
     UKUR --> REC[Rekomendasi / Rekap / Laporan]
 ```
+
+Target Renstra sebagai pembanding dan target PK sebagai acuan pengukuran mengikuti Q39; kegiatan, anggaran, dan RAB di dalam Rencana Aksi mengikuti Q42.
 
 ### 9.1 Bounded domain secara logis
 
@@ -368,7 +371,7 @@ Walau aplikasi tetap monolith, domain logic dipisah secara konseptual:
 - Authentication & Access;
 - Regulasi/Renstra;
 - Sasaran & Indikator;
-- Target Tahunan & PK;
+- Target Renstra, Perjanjian Kinerja & Target PK (Q39);
 - Periode/Jadwal/Snapshot;
 - Penanggung Jawab;
 - Rencana Aksi;
@@ -547,7 +550,27 @@ Prinsip:
 - download selalu melalui object authorization;
 - nama storage aman;
 - tidak membuat public symlink sebagai bypass;
+- batas ukuran dan format unggahan ditegakkan server dari persyaratan berkas dan konfigurasi aplikasi (default 10 MB, batas atas 100 MB), bukan dari halaman setelan (Q44);
 - storage mutation dan DB transaction harus menangani failure masing-masing secara eksplisit.
+
+### 14.2 Keluaran dokumen resmi dan arsip bertanda tangan (Q48)
+
+SAKIP menghasilkan Rencana Aksi tahunan dan Laporan Kinerja Triwulan sebagai berkas Excel dari data yang disahkan. Tanda tangan elektronik dilakukan di luar aplikasi, lalu PDF bertanda tangan diunggah kembali sebagai arsip.
+
+```mermaid
+flowchart LR
+    D[Data disahkan] --> X[Keluaran Excel<br/>laporan:ekspor]
+    X --> T[Tanda tangan elektronik<br/>di luar SAKIP]
+    T --> U[Unggah PDF<br/>laporan:unggah]
+    U --> A[Arsip berkas privat<br/>induk jadwal_tahunan / jadwal_periode]
+```
+
+Prinsip:
+
+- keluaran dibentuk di server dari data yang disahkan; bagian yang belum disahkan diberi keterangan, bukan diisi angka draf;
+- arsip PDF memakai jalur unggah dan unduh berizin yang sama dengan berkas lain, bersifat append-only, dan tidak mengubah data, status, maupun snapshot;
+- dokumen PK tidak dihasilkan SAKIP; PDF PK tetap menjadi lampiran PK;
+- pustaka baru untuk membentuk berkas, bila diperlukan, dicatat sebagai ADR.
 
 ---
 
