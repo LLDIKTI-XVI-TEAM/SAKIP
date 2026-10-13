@@ -30,11 +30,7 @@ class FormKegiatan
         $decisions = $this->resolver->decideManyForUnits($actor, [$code], $units->pluck('id')->all());
         $unitOptions = $units->filter(fn (Unit $unit) => $decisions[$unit->id][$code]['allowed'])->values();
         if ($unitOptions->isEmpty()) {
-            $decision = $this->resolver->resolve($actor, $code);
-            if ($decision->allowed) {
-                $decision = new PermissionDecision(false, $code, ['alasan' => 'no_active_writable_unit']);
-            }
-            $this->reject($actor, $decision, $kegiatan);
+            $this->reject($actor, $this->keputusanTanpaUnit($code, array_column($decisions, $code)), $kegiatan);
         }
 
         return [
@@ -43,6 +39,25 @@ class FormKegiatan
             'unitOptions' => $unitOptions->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
         ];
+    }
+
+    /**
+     * Permission ini unit-scoped; keputusan tanpa unit selalu `invalid_scope`. Gabungkan keputusan
+     * batch per unit agar audit tetap memuat alasan, sumber allow, dan ID deny yang sebenarnya.
+     *
+     * @param  list<array{reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>  $perUnit
+     */
+    private function keputusanTanpaUnit(string $code, array $perUnit): PermissionDecision
+    {
+        $alasan = array_values(array_unique(array_column($perUnit, 'reason')));
+        $gabung = fn (string $key) => array_values(array_unique(array_merge([], ...array_column($perUnit, $key))));
+
+        return new PermissionDecision(false, $code, [
+            'alasan' => count($alasan) === 1 ? $alasan[0] : 'no_active_writable_unit',
+            'alasan_unit' => $alasan,
+            'sumber_allow' => ['roles' => $gabung('roles'), 'grants' => $gabung('grants')],
+            'deny' => $gabung('denies'),
+        ]);
     }
 
     /** Audit GET forbidden di boundary use case, agar Policy/resolver tetap tanpa efek samping. */

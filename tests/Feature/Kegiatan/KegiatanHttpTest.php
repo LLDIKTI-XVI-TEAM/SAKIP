@@ -254,6 +254,26 @@ class KegiatanHttpTest extends TestCase
         $this->assertDatabaseCount('kegiatan', 1);
     }
 
+    public function test_form_tanpa_unit_tulis_mengaudit_provenance_keputusan_per_unit(): void
+    {
+        // Deny global: seluruh unit aktif ditolak oleh deny yang sama.
+        $this->deny($this->perencanaan, 'kegiatan:create', null);
+        $this->actingAs($this->perencanaan)->get('/kegiatan/buat')->assertForbidden();
+        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin;
+        $this->assertSame('explicit_deny', $basis['alasan']);
+        $this->assertSame(UserPermissionDeny::where('user_id', $this->perencanaan->id)->pluck('id')->all(), $basis['deny']);
+
+        // Alasan campuran: deny di unit A, tanpa allow di unit B; ID deny dan grant tetap tercatat.
+        $this->deny($this->pegawai, 'kegiatan:create', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertForbidden();
+        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $this->pegawai->id)->sole()->dasar_izin;
+        $this->assertSame('no_active_writable_unit', $basis['alasan']);
+        $this->assertEqualsCanonicalizing(['explicit_deny', 'no_allow'], $basis['alasan_unit']);
+        $this->assertSame(UserPermissionDeny::where('user_id', $this->pegawai->id)->pluck('id')->all(), $basis['deny']);
+        $this->assertNotEmpty($basis['sumber_allow']['grants']);
+        $this->assertDatabaseCount('kegiatan', 0);
+    }
+
     public function test_opsi_modal_create_dan_update_terpisah_dan_periode_nonaktif_tidak_ditawarkan(): void
     {
         UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
