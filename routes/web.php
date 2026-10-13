@@ -4,6 +4,7 @@ use App\Http\Controllers\Access\DenyManagement;
 use App\Http\Controllers\Access\EffectivePermissionExplorer;
 use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
+use App\Http\Controllers\Access\UserStatus;
 use App\Http\Controllers\Akses\IndexGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\SearchGrantUsers;
@@ -152,6 +153,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
     Route::get('/akses/peran/opsi/pengguna', [RoleAssignment::class, 'users'])->name('role-assignment.users');
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
+    Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
 
     // Regulasi
