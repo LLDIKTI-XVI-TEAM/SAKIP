@@ -1,22 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
-import { 
-    Building2, 
-    Plus, 
-    Edit2, 
-    Trash2, 
-    Search, 
-    Power, 
-    CheckCircle2, 
-    XCircle, 
-    AlertTriangle,
-    X
-} from 'lucide-react';
+import { AlertTriangle, Building2, Pencil, Plus, Power, Trash2, X } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { AuditReasonModal } from '@/Components/AuditReasonModal';
+import { Badge } from '@/Components/Badge';
+import { Card } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -53,19 +47,33 @@ interface UnitIndexProps {
     };
 }
 
+// Jumlah keterkaitan per unit: dasar pertimbangan sebelum menonaktifkan atau menghapus unit.
+const JUMLAH = [
+    ['indikators_count', 'Indikator'],
+    ['rencana_aksis_count', 'Rencana aksi'],
+    ['kegiatans_count', 'Kegiatan'],
+    ['grants_count', 'Grant izin'],
+] as const;
+
+const ALASAN_TIDAK_DAPAT_DIHAPUS = 'Masih terkait indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin.';
+
 export default function UnitIndex({ units, can }: UnitIndexProps) {
     const page = usePage();
     const pageErrors = (page.props as { errors?: Record<string, string> }).errors;
     const recovery = useAuthRecovery();
     const labelUnit = useLabelUnit();
+    const lu = labelUnit.toLowerCase();
 
     const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+    const [filterStatus, setFilterStatus] = useState<'' | 'aktif' | 'nonaktif'>('');
     const [statusError, setStatusError] = useState<string | null>(null);
 
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState<UnitItem | null>(null);
+    const [togglingUnit, setTogglingUnit] = useState<UnitItem | null>(null);
+    const [isToggling, setIsToggling] = useState(false);
+    const [toggleError, setToggleError] = useState('');
     const [deletingUnit, setDeletingUnit] = useState<UnitItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
@@ -97,15 +105,15 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     const filteredUnits = useMemo(() => {
         return units.filter((u) => {
             const matchesSearch = u.nama.toLowerCase().includes(search.toLowerCase());
-
-            const matchesStatus = 
-                filterStatus === 'all' ||
-                (filterStatus === 'active' && u.is_active) ||
-                (filterStatus === 'inactive' && !u.is_active);
+            const matchesStatus = filterStatus === '' || u.status === filterStatus;
 
             return matchesSearch && matchesStatus;
         });
     }, [units, search, filterStatus]);
+
+    const activeCount = units.filter((u) => u.is_active).length;
+    const editErrors = editForm.errors as Record<string, string | undefined>;
+    const editConflict = editErrors.version_token || editErrors.konflik || editErrors.snapshot || editErrors.expected_state;
 
     const handleOpenCreate = () => {
         createForm.reset();
@@ -188,55 +196,76 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
         });
     };
 
-    const handleToggleStatus = (unit: UnitItem) => {
-        if (Boolean(recovery.recovery)) return;
-        const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
-        if (confirm(`Ubah status unit '${unit.nama}' menjadi ${nextStatus === 'aktif' ? 'Aktif' : 'Nonaktif'}?`)) {
-            setStatusError(null);
-            router.post(`/unit/${unit.id}`, {
-                nama: unit.nama,
-                status: nextStatus,
-                version_token: unit.version_token ?? '',
-                expected_nama: unit.nama,
-                expected_status: unit.status,
-                snapshot: {
-                    nama: unit.nama,
-                    status: unit.status,
-                },
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setStatusError(null);
-                },
-                onError: (errors: Record<string, string>) => {
-                    const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
-                    setStatusError(message);
-                },
-                onHttpException: (response) => {
-                    if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${unit.id}`, mutation: true })) {
-                        return false;
-                    }
-                    const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
-                        ? response.data.message
-                        : null;
-                    const message = serverMsg || (response.status === 403
-                        ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah status unit organisasi.'
-                        : 'Gagal mengubah status unit organisasi.');
-                    setStatusError(message);
-                    return false;
-                },
-            });
-        }
+    const handleOpenToggle = (unit: UnitItem) => {
+        setTogglingUnit(unit);
+        setToggleError('');
+        setStatusError(null);
     };
 
-    const handleDeleteSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!deletingUnit || isDeleting || Boolean(recovery.recovery)) return;
+    const handleCloseToggle = () => {
+        if (!isToggling) setTogglingUnit(null);
+    };
 
-        if (deleteReason.trim().length < 5) {
-            setDeleteError('Alasan penghapusan unit wajib diisi minimal 5 karakter.');
-            return;
-        }
+    const handleToggleStatus = () => {
+        const unit = togglingUnit;
+        if (!unit || isToggling || Boolean(recovery.recovery)) return;
+        const nextStatus = unit.status === 'aktif' ? 'nonaktif' : 'aktif';
+        setToggleError('');
+        setIsToggling(true);
+        router.post(`/unit/${unit.id}`, {
+            nama: unit.nama,
+            status: nextStatus,
+            version_token: unit.version_token ?? '',
+            expected_nama: unit.nama,
+            expected_status: unit.status,
+            snapshot: {
+                nama: unit.nama,
+                status: unit.status,
+            },
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setTogglingUnit(null);
+            },
+            onError: (errors: Record<string, string>) => {
+                const message = errors.version_token || errors.konflik || errors.snapshot || errors.expected_state || errors.status || errors.nama || Object.values(errors)[0] || 'Gagal mengubah status unit organisasi.';
+                setToggleError(message);
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/unit/${unit.id}`, mutation: true })) {
+                    return false;
+                }
+                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
+                    ? response.data.message
+                    : null;
+                const message = serverMsg || (response.status === 403
+                    ? 'Izin tindakan ditolak. Anda tidak memiliki wewenang untuk mengubah status unit organisasi.'
+                    : 'Gagal mengubah status unit organisasi.');
+                setToggleError(message);
+                return false;
+            },
+            onFinish: () => {
+                setIsToggling(false);
+            },
+        });
+    };
+
+    const handleOpenDelete = (unit: UnitItem) => {
+        setDeletingUnit(unit);
+        setDeleteReason('');
+        setDeleteError('');
+        setStatusError(null);
+    };
+
+    const handleCloseDelete = () => {
+        if (isDeleting) return;
+        setDeletingUnit(null);
+        setDeleteReason('');
+        setDeleteError('');
+    };
+
+    const handleDeleteSubmit = () => {
+        if (!deletingUnit || isDeleting || Boolean(recovery.recovery)) return;
 
         setIsDeleting(true);
         router.delete(`/unit/${deletingUnit.id}`, {
@@ -275,501 +304,341 @@ export default function UnitIndex({ units, can }: UnitIndexProps) {
     return (
         <AuthenticatedLayout
             title={`Master ${labelUnit}`}
-            breadcrumbs={[
-                { label: 'Pengaturan Master' },
-                { label: labelUnit },
-            ]}
+            breadcrumbs={[{ label: `Master ${labelUnit}` }]}
+            headerActions={
+                can.create && (
+                    <Button type="button" size="sm" onClick={handleOpenCreate}>
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Tambah {lu}
+                    </Button>
+                )
+            }
         >
             <Head title={`Master ${labelUnit}`} />
 
-            <div className="space-y-6 max-w-7xl mx-auto">
-                {/* Header Title & Actions */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold text-ink">
-                            Pengelolaan Master {labelUnit}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted">
-                            Kelola {labelUnit.toLowerCase()} pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.
-                        </p>
-                    </div>
-
-                    {can.create && (
-                        <Button 
-                            variant="primary"
-                            size="sm"
-                            onClick={handleOpenCreate}
-                            className="gap-1.5 self-start sm:self-auto"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Tambah {labelUnit} Baru
-                        </Button>
-                    )}
-                </div>
-
-                {/* Status / Global Error Notification */}
+            <div className="space-y-5">
                 {(statusError || pageErrors?.status) && (
-                    <div
-                        role="alert"
-                        className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3.5 text-xs text-rose-800 shadow-2xs"
-                    >
-                        <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                        <div className="flex-1 font-medium">
-                            {statusError || pageErrors?.status}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setStatusError(null)}
-                            className="text-rose-500 hover:text-rose-700 p-0.5 rounded transition-colors"
-                            aria-label="Tutup pesan kesalahan"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                    <ErrorAlert message={statusError || pageErrors?.status || ''} onDismiss={() => setStatusError(null)} />
                 )}
 
-                {/* Filter & Search Bar */}
-                <Card>
-                    <CardContent className="p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                        <div className="relative flex-1">
-                            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder={`Cari nama ${labelUnit.toLowerCase()}...`}
-                                className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#122E92]/30 focus:border-[#122E92] transition-colors"
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-2 self-end md:self-auto">
-                            <span className="text-xs text-slate-500 font-medium">Status:</span>
-                            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg text-xs">
-                                <button
-                                    onClick={() => setFilterStatus('all')}
-                                    className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                                        filterStatus === 'all' ? 'bg-white shadow-xs text-[#122E92] font-semibold' : 'text-slate-600 hover:text-slate-900'
-                                    }`}
-                                >
-                                    Semua ({units.length})
-                                </button>
-                                <button
-                                    onClick={() => setFilterStatus('active')}
-                                    className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                                        filterStatus === 'active' ? 'bg-white shadow-xs text-emerald-700 font-semibold' : 'text-slate-600 hover:text-slate-900'
-                                    }`}
-                                >
-                                    Aktif ({units.filter((u) => u.is_active).length})
-                                </button>
-                                <button
-                                    onClick={() => setFilterStatus('inactive')}
-                                    className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                                        filterStatus === 'inactive' ? 'bg-white shadow-xs text-rose-700 font-semibold' : 'text-slate-600 hover:text-slate-900'
-                                    }`}
-                                >
-                                    Nonaktif ({units.filter((u) => !u.is_active).length})
-                                </button>
-                            </div>
-                        </div>
-                    </CardContent>
+                <Card className="overflow-visible">
+                    <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                        <Input
+                            label={`Cari ${lu}`}
+                            placeholder={`Cari nama ${lu}...`}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            autoComplete="off"
+                        />
+                        <Select
+                            label="Status"
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value as '' | 'aktif' | 'nonaktif')}
+                            options={[
+                                { value: '', label: `Semua status (${units.length})` },
+                                { value: 'aktif', label: `Aktif (${activeCount})` },
+                                { value: 'nonaktif', label: `Nonaktif (${units.length - activeCount})` },
+                            ]}
+                        />
+                    </div>
                 </Card>
 
-                {/* Table Unit */}
                 <Card>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                                    <th className="py-3.5 px-4 w-12 text-center">No</th>
-                                    <th className="py-3.5 px-4">Nama {labelUnit}</th>
-                                    <th className="py-3.5 px-4 text-center">Indikator</th>
-                                    <th className="py-3.5 px-4 text-center">Rencana Aksi</th>
-                                    <th className="py-3.5 px-4 text-center">Kegiatan</th>
-                                    <th className="py-3.5 px-4 text-center">Grant Izin</th>
-                                    <th className="py-3.5 px-4 text-center">Status</th>
-                                    <th className="py-3.5 px-4 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredUnits.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="py-12 text-center text-slate-400">
-                                            <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                            Tidak ada data {labelUnit.toLowerCase()} yang cocok dengan kriteria pencarian.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredUnits.map((unit, index) => (
-                                        <tr 
-                                            key={unit.id}
-                                            className="hover:bg-slate-50/70 transition-colors group"
-                                        >
-                                            <td className="py-3.5 px-4 text-center font-medium text-slate-400">
-                                                {index + 1}
-                                            </td>
-                                            <td className="py-3.5 px-4 font-semibold text-slate-900">
-                                                {unit.nama}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.indikators_count > 0 
-                                                        ? 'bg-blue-50 text-blue-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.indikators_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.rencana_aksis_count > 0 
-                                                        ? 'bg-indigo-50 text-indigo-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.rencana_aksis_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.kegiatans_count > 0 
-                                                        ? 'bg-amber-50 text-amber-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.kegiatans_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
-                                                    unit.grants_count > 0 
-                                                        ? 'bg-purple-50 text-purple-700' 
-                                                        : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {unit.grants_count}
-                                                </span>
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                {unit.is_active ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        Aktif
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                                        <XCircle className="w-3 h-3" />
-                                                        Nonaktif
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    {unit.can.update && (
-                                                        <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleToggleStatus(unit)}
-                                                                title={unit.is_active ? 'Nonaktifkan Unit' : 'Aktifkan Unit'}
-                                                                className={`h-8 w-8 p-0 ${
-                                                                    unit.is_active 
-                                                                        ? 'text-amber-600 hover:bg-amber-50 hover:border-amber-200' 
-                                                                        : 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
-                                                                }`}
-                                                            >
-                                                                <Power className="w-3.5 h-3.5" />
-                                                            </Button>
-
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleOpenEdit(unit)}
-                                                                title="Edit Data Unit"
-                                                                className="h-8 w-8 p-0 text-[#122E92] hover:bg-blue-50 hover:border-blue-200"
-                                                            >
-                                                                <Edit2 className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-
-                                                    {unit.can.delete ? (
+                    {/* Grid mobile: jumlah keterkaitan tampil berpasangan tanpa scroll horizontal. */}
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                        <caption className="sr-only">Master {lu}</caption>
+                        {/* Di mobile header hanya disembunyikan visual (bukan hidden) agar pembaca layar tetap mendapat relasi header–sel. */}
+                        <TableHeader className="max-md:sr-only">
+                            <TableRow>
+                                <TableHead className="whitespace-normal">Nama {lu}</TableHead>
+                                {JUMLAH.map(([key, label]) => (
+                                    <TableHead key={key} className="whitespace-normal text-right">
+                                        {label}
+                                    </TableHead>
+                                ))}
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {filteredUnits.length === 0 && (
+                                <TableRow className="block md:table-row">
+                                    <TableCell colSpan={7} className="block py-12 text-center md:table-cell">
+                                        <Building2 className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                        <p className="mt-2 text-sm font-semibold text-ink">
+                                            {units.length === 0 ? `Belum ada ${lu}` : `Tidak ada ${lu} yang cocok`}
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted">
+                                            {units.length === 0
+                                                ? `${labelUnit} menjadi pemilik indikator kinerja, rencana aksi, dan kewenangan operasional SAKIP.`
+                                                : 'Coba ubah kata kunci atau status pada filter.'}
+                                        </p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {filteredUnits.map((unit) => (
+                                <TableRow key={unit.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                    <TableCell className="col-span-2 min-w-0 break-words p-0 text-sm font-semibold md:px-4 md:py-3.5">
+                                        {unit.nama}
+                                    </TableCell>
+                                    {JUMLAH.map(([key, label]) => (
+                                        <TableCell key={key} className="min-w-0 p-0 tabular-nums md:px-4 md:py-3.5 md:text-right">
+                                            <span className="mr-2 text-muted md:hidden">{label}</span>
+                                            {unit[key]}
+                                        </TableCell>
+                                    ))}
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                        <Badge variant={unit.is_active ? 'success' : 'muted'}>
+                                            {unit.is_active ? 'Aktif' : 'Nonaktif'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5 md:text-right">
+                                        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+                                            {unit.can.update && (
+                                                <>
+                                                    <Tooltip content={unit.is_active ? 'Nonaktifkan' : 'Aktifkan'} align="right">
                                                         <Button
-                                                            variant="outline"
+                                                            type="button"
                                                             size="sm"
-                                                            onClick={() => {
-                                                                setDeletingUnit(unit);
-                                                                setDeleteReason('');
-                                                                setDeleteError('');
-                                                            }}
-                                                            title="Hapus Unit Kosong (Superadmin)"
-                                                            className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:border-rose-200"
+                                                            variant="outline"
+                                                            onClick={() => handleOpenToggle(unit)}
+                                                            aria-label={`${unit.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${unit.nama}`}
+                                                            className="h-8 w-8 p-0"
                                                         >
-                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                            <Power className="h-4 w-4" aria-hidden="true" />
                                                         </Button>
-                                                    ) : (
-                                                        !unit.is_deletable && (
-                                                            <span 
-                                                                title="Tidak dapat dihapus karena masih memiliki keterkaitan dengan indikator, rencana aksi, kegiatan, snapshot jadwal, atau izin."
-                                                                className="inline-flex items-center justify-center h-8 w-8 text-slate-300 cursor-not-allowed"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5 opacity-30" />
-                                                            </span>
-                                                        )
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                                    </Tooltip>
+                                                    <Tooltip content="Edit" align="right">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleOpenEdit(unit)}
+                                                            aria-label={`Edit ${unit.nama}`}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
+                                                </>
+                                            )}
+                                            {unit.can.delete ? (
+                                                <Tooltip content="Hapus" align="right">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleOpenDelete(unit)}
+                                                        aria-label={`Hapus ${unit.nama}`}
+                                                        className="h-8 w-8 border-danger/30 p-0 text-danger hover:bg-danger/10 focus:ring-danger/25"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                    </Button>
+                                                </Tooltip>
+                                            ) : (
+                                                !unit.is_deletable && (
+                                                    <Tooltip content={ALASAN_TIDAK_DAPAT_DIHAPUS} align="right">
+                                                        {/* aria-disabled, bukan disabled: tombol tetap dapat difokus agar alasannya terbaca. */}
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            aria-disabled="true"
+                                                            aria-label={`${unit.nama} tidak dapat dihapus: ${ALASAN_TIDAK_DAPAT_DIHAPUS}`}
+                                                            className="h-8 w-8 cursor-not-allowed p-0 text-muted opacity-50 hover:bg-surface"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
+                                                )
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </Card>
             </div>
 
-            {/* Modal Tambah Unit */}
             <Modal
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
+                title={`Tambah ${lu}`}
                 size="lg"
-                title={
-                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
-                        <Plus className="w-4 h-4 text-[#D6AC48]" />
-                        <span>Tambah {labelUnit} Baru</span>
-                    </div>
-                }
-                description={`Tambahkan ${labelUnit.toLowerCase()} baru ke dalam master data SAKIP.`}
-            >
-                <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
-                    <div className="space-y-1.5">
-                        <label htmlFor="create_unit_nama" className="font-semibold text-slate-700">
-                            Nama {labelUnit} <span className="text-rose-500">*</span>
-                        </label>
-                        <Input
-                            id="create_unit_nama"
-                            type="text"
-                            value={createForm.data.nama}
-                            onChange={(e) => createForm.setData('nama', e.target.value)}
-                            placeholder="Contoh: Bagian Umum / Pokja Kelembagaan"
-                            required
-                        />
-                        {createForm.errors.nama && (
-                            <p className="text-[11px] text-rose-600">{createForm.errors.nama}</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-1.5 pt-1">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="create_is_active"
-                                checked={createForm.data.status === 'aktif'}
-                                onChange={(e) => {
-                                    createForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif');
-                                    if (createForm.errors.status) {
-                                        createForm.clearErrors('status');
-                                    }
-                                }}
-                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                            />
-                            <label htmlFor="create_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                                Status Langsung Aktif
-                            </label>
-                        </div>
-                        {createForm.errors.status && (
-                            <p role="alert" className="text-[11px] font-medium text-rose-600">{createForm.errors.status}</p>
-                        )}
-                    </div>
-
-                    <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
-
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsCreateOpen(false)}
-                            disabled={createForm.processing}
-                        >
+                footer={
+                    <>
+                        <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createForm.processing}>
                             Batal
                         </Button>
                         <Button
                             type="submit"
+                            form="unit-create-form"
                             disabled={createForm.processing || Boolean(recovery.recovery)}
-                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
+                            isLoading={createForm.processing}
                         >
-                            {createForm.processing ? 'Menyimpan...' : 'Simpan Unit'}
+                            Simpan {lu}
                         </Button>
-                    </div>
+                    </>
+                }
+            >
+                <form id="unit-create-form" onSubmit={handleCreateSubmit} className="space-y-4">
+                    <Input
+                        id="create_unit_nama"
+                        label={`Nama ${lu}`}
+                        value={createForm.data.nama}
+                        onChange={(e) => createForm.setData('nama', e.target.value)}
+                        placeholder="Contoh: Bagian Umum"
+                        autoComplete="off"
+                        required
+                        error={createForm.errors.nama}
+                    />
+                    <StatusCheckbox
+                        id="create_unit_aktif"
+                        checked={createForm.data.status === 'aktif'}
+                        error={createForm.errors.status}
+                        onChange={(checked) => {
+                            createForm.setData('status', checked ? 'aktif' : 'nonaktif');
+                            if (createForm.errors.status) createForm.clearErrors('status');
+                        }}
+                    />
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
                 </form>
             </Modal>
 
-            {/* Modal Edit Unit */}
             <Modal
                 isOpen={!!editingUnit}
                 onClose={() => setEditingUnit(null)}
+                title={`Edit ${lu}`}
                 size="lg"
-                title={
-                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
-                        <Edit2 className="w-4 h-4 text-[#122E92]" />
-                        <span>Edit {labelUnit}: {editingUnit?.nama}</span>
-                    </div>
-                }
-                description={`Perbarui informasi nama atau status keaktifan ${labelUnit.toLowerCase()}.`}
-            >
-                <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
-                    {(editForm.errors.version_token || (editForm.errors as Record<string, string>).konflik || (editForm.errors as Record<string, string>).snapshot || (editForm.errors as Record<string, string>).expected_state) && (
-                        <div
-                            role="alert"
-                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
-                        >
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                            <div className="flex-1 font-medium">
-                                {editForm.errors.version_token || (editForm.errors as Record<string, string>).konflik || (editForm.errors as Record<string, string>).snapshot || (editForm.errors as Record<string, string>).expected_state}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-1.5">
-                        <label htmlFor="edit_unit_nama" className="font-semibold text-slate-700">
-                            Nama {labelUnit} <span className="text-rose-500">*</span>
-                        </label>
-                        <Input
-                            id="edit_unit_nama"
-                            type="text"
-                            value={editForm.data.nama}
-                            onChange={(e) => editForm.setData('nama', e.target.value)}
-                            required
-                        />
-                        {editForm.errors.nama && (
-                            <p className="text-[11px] text-rose-600">{editForm.errors.nama}</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-1.5 pt-1">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="edit_is_active"
-                                checked={editForm.data.status === 'aktif'}
-                                onChange={(e) => {
-                                    editForm.setData('status', e.target.checked ? 'aktif' : 'nonaktif');
-                                    if (editForm.errors.status) {
-                                        editForm.clearErrors('status');
-                                    }
-                                }}
-                                className="w-4 h-4 rounded text-[#122E92] border-slate-300 focus:ring-[#122E92]"
-                            />
-                            <label htmlFor="edit_is_active" className="font-semibold text-slate-700 cursor-pointer">
-                                Unit Aktif
-                            </label>
-                        </div>
-                        {editForm.errors.status && (
-                            <p role="alert" className="text-[11px] font-medium text-rose-600">{editForm.errors.status}</p>
-                        )}
-                    </div>
-
-                    <AuthRecoveryNotice recovery={recovery.recovery} pending={editForm.processing} />
-
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditingUnit(null)}
-                            disabled={editForm.processing}
-                        >
+                footer={
+                    <>
+                        <Button type="button" variant="outline" onClick={() => setEditingUnit(null)} disabled={editForm.processing}>
                             Batal
                         </Button>
                         <Button
                             type="submit"
+                            form="unit-edit-form"
                             disabled={editForm.processing || Boolean(recovery.recovery)}
-                            className="bg-[#122E92] hover:bg-[#0a1b5c] text-white"
+                            isLoading={editForm.processing}
                         >
-                            {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            Simpan perubahan
                         </Button>
-                    </div>
+                    </>
+                }
+            >
+                <form id="unit-edit-form" onSubmit={handleEditSubmit} className="space-y-4">
+                    {editConflict && <ErrorAlert message={editConflict} />}
+                    <Input
+                        id="edit_unit_nama"
+                        label={`Nama ${lu}`}
+                        value={editForm.data.nama}
+                        onChange={(e) => editForm.setData('nama', e.target.value)}
+                        autoComplete="off"
+                        required
+                        error={editForm.errors.nama}
+                    />
+                    <StatusCheckbox
+                        id="edit_unit_aktif"
+                        checked={editForm.data.status === 'aktif'}
+                        error={editForm.errors.status}
+                        onChange={(checked) => {
+                            editForm.setData('status', checked ? 'aktif' : 'nonaktif');
+                            if (editForm.errors.status) editForm.clearErrors('status');
+                        }}
+                    />
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={editForm.processing} />
                 </form>
             </Modal>
 
-            {/* Modal Konfirmasi Hapus Unit Kosong (Superadmin) */}
             <Modal
-                isOpen={!!deletingUnit}
-                onClose={() => {
-                    setDeletingUnit(null);
-                    setDeleteReason('');
-                    setDeleteError('');
-                }}
+                isOpen={!!togglingUnit}
+                onClose={handleCloseToggle}
+                showCloseButton={!isToggling}
+                title={togglingUnit?.is_active ? `Nonaktifkan ${lu}?` : `Aktifkan ${lu}?`}
                 size="md"
-                title={
-                    <div className="flex items-center gap-2 text-rose-900 font-semibold text-base">
-                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-                        <span>Hapus Unit: {deletingUnit?.nama}?</span>
-                    </div>
-                }
-                description="Aksi ini hanya dapat dilakukan oleh Superadmin untuk unit yang tidak memiliki keterkaitan data. Tindakan ini bersifat permanen."
-            >
-                <form onSubmit={handleDeleteSubmit} className="space-y-4 text-xs">
-                    {deleteError && (
-                        <div
-                            role="alert"
-                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
-                        >
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                            <div className="flex-1 font-medium">
-                                {deleteError}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-1.5">
-                        <label htmlFor="delete_alasan" className="block font-semibold text-slate-700">
-                            Alasan Penghapusan <span className="text-rose-600">*</span>
-                        </label>
-                        <textarea
-                            id="delete_alasan"
-                            rows={3}
-                            value={deleteReason}
-                            onChange={(e) => {
-                                setDeleteReason(e.target.value);
-                                if (e.target.value.trim().length >= 5) {
-                                    setDeleteError('');
-                                }
-                            }}
-                            placeholder="Masukkan dasar administratif penghapusan unit (minimal 5 karakter)..."
-                            className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-colors"
-                            required
-                            minLength={5}
-                            disabled={isDeleting}
-                        />
-                        {deleteError && (
-                            <p className="text-[11px] text-rose-600">{deleteError}</p>
-                        )}
-                        <p className="text-[11px] text-slate-500">
-                            Alasan tertulis diwajibkan sebagai rekaman permanen pada audit trail SAKIP.
-                        </p>
-                    </div>
-
-                    <AuthRecoveryNotice recovery={recovery.recovery} pending={isDeleting} />
-
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                setDeletingUnit(null);
-                                setDeleteReason('');
-                                setDeleteError('');
-                            }}
-                            disabled={isDeleting}
-                        >
+                footer={
+                    <>
+                        <Button type="button" variant="outline" onClick={handleCloseToggle} disabled={isToggling}>
                             Batal
                         </Button>
-                        <Button
-                            type="submit"
-                            disabled={isDeleting || deleteReason.trim().length < 5 || Boolean(recovery.recovery)}
-                            className="bg-rose-600 hover:bg-rose-700 text-white"
-                        >
-                            {isDeleting ? 'Menghapus...' : 'Hapus Permanen'}
+                        <Button type="button" onClick={handleToggleStatus} disabled={Boolean(recovery.recovery)} isLoading={isToggling}>
+                            {togglingUnit?.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                         </Button>
-                    </div>
-                </form>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    {toggleError && <ErrorAlert message={toggleError} />}
+                    <p className="text-sm text-ink">
+                        Status <span className="font-semibold">{togglingUnit?.nama}</span> akan diubah menjadi{' '}
+                        {togglingUnit?.is_active ? 'Nonaktif' : 'Aktif'}.
+                    </p>
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={isToggling} />
+                </div>
             </Modal>
+
+            <AuditReasonModal
+                open={!!deletingUnit}
+                title={`Hapus ${deletingUnit?.nama ?? lu}?`}
+                description={`Hanya ${lu} tanpa keterkaitan data yang dapat dihapus. Penghapusan bersifat permanen.`}
+                reason={deleteReason}
+                error={deleteError || undefined}
+                busy={isDeleting}
+                submitDisabled={deleteReason.trim().length < 5 || Boolean(recovery.recovery)}
+                notice={<AuthRecoveryNotice recovery={recovery.recovery} pending={isDeleting} />}
+                confirmLabel="Hapus permanen"
+                destructive
+                onReasonChange={(value) => {
+                    setDeleteReason(value);
+                    if (value.trim().length >= 5) setDeleteError('');
+                }}
+                onClose={handleCloseDelete}
+                onConfirm={handleDeleteSubmit}
+            />
         </AuthenticatedLayout>
+    );
+}
+
+function ErrorAlert({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
+    return (
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger/5 p-3.5 text-sm text-danger-dark">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p className="flex-1 font-medium">{message}</p>
+            {onDismiss && (
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    aria-label="Tutup pesan kesalahan"
+                    className="rounded p-0.5 transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/30"
+                >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+            )}
+        </div>
+    );
+}
+
+function StatusCheckbox({ id, checked, error, onChange }: { id: string; checked: boolean; error?: string; onChange: (checked: boolean) => void }) {
+    return (
+        <div>
+            <label htmlFor={id} className="flex items-center gap-2 text-sm text-ink">
+                <input
+                    id={id}
+                    type="checkbox"
+                    checked={checked}
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? `${id}-error` : undefined}
+                    onChange={(e) => onChange(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                />
+                Aktif
+            </label>
+            {error && (
+                <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-danger">
+                    {error}
+                </p>
+            )}
+        </div>
     );
 }

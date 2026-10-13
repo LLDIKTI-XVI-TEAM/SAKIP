@@ -2,8 +2,21 @@ import type { ReactNode } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import UnitIndex from '@/Pages/Unit/Index';
+
+const dialogMethods = ['showModal', 'close'] as const;
+const originalDialogMethods = dialogMethods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
+beforeAll(() => {
+    // jsdom belum menerapkan API dialog native yang dipakai AuditReasonModal.
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; } });
+});
+afterAll(() => dialogMethods.forEach((name, index) => {
+    const descriptor = originalDialogMethods[index];
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+}));
 
 const currentPage = vi.hoisted(() => ({
     props: {
@@ -59,19 +72,19 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Klik tombol hapus
-        const deleteBtn = screen.getByTitle('Hapus Unit Kosong (Superadmin)');
+        const deleteBtn = screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' });
         await user.click(deleteBtn);
 
         // Modal hapus terbuka
         expect(screen.getByRole('dialog')).toBeTruthy();
-        expect(screen.getByText(/Hapus Unit: Biro Administrasi Akademik\?/)).toBeTruthy();
+        expect(screen.getByText('Hapus Biro Administrasi Akademik?')).toBeTruthy();
 
         // Masukkan alasan
-        const textarea = screen.getByLabelText(/Alasan Penghapusan/);
+        const textarea = screen.getByLabelText(/Alasan perubahan/);
         await user.type(textarea, 'Penghapusan unit uji coba');
 
         // Submit form
-        const submitBtn = screen.getByRole('button', { name: 'Hapus Permanen' });
+        const submitBtn = screen.getByRole('button', { name: 'Hapus permanen' });
         await user.click(submitBtn);
 
         expect(router.delete).toHaveBeenCalledTimes(1);
@@ -95,7 +108,7 @@ describe('Unit Delete Exception Handling', () => {
         expect(screen.getByRole('dialog')).toBeTruthy();
 
         // Alasan yang diketik pengguna tetap utuh tidak hilang
-        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan Penghapusan/ }).value).toBe('Penghapusan unit uji coba');
+        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan perubahan/ }).value).toBe('Penghapusan unit uji coba');
 
         // Pesan penolakan server tampil di alert banner
         const alert = screen.getByRole('alert');
@@ -107,11 +120,11 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Buka modal hapus
-        await user.click(screen.getByTitle('Hapus Unit Kosong (Superadmin)'));
-        const textarea = screen.getByLabelText(/Alasan Penghapusan/);
+        await user.click(screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' }));
+        const textarea = screen.getByLabelText(/Alasan perubahan/);
         await user.type(textarea, 'Alasan awal');
 
-        await user.click(screen.getByRole('button', { name: 'Hapus Permanen' }));
+        await user.click(screen.getByRole('button', { name: 'Hapus permanen' }));
         const options = vi.mocked(router.delete).mock.calls[0][1];
 
         // Simulasikan respons validasi 422
@@ -131,11 +144,11 @@ describe('Unit Delete Exception Handling', () => {
         render(<UnitIndex units={[mockUnit]} can={{ create: true }} />);
 
         // Buka modal hapus
-        await user.click(screen.getByTitle('Hapus Unit Kosong (Superadmin)'));
-        const textarea = screen.getByLabelText(/Alasan Penghapusan/);
+        await user.click(screen.getByRole('button', { name: 'Hapus Biro Administrasi Akademik' }));
+        const textarea = screen.getByLabelText(/Alasan perubahan/);
         await user.type(textarea, 'Unit sudah tidak digunakan');
 
-        await user.click(screen.getByRole('button', { name: 'Hapus Permanen' }));
+        await user.click(screen.getByRole('button', { name: 'Hapus permanen' }));
         const options = vi.mocked(router.delete).mock.calls[0][1];
 
         // Simulasikan sukses
