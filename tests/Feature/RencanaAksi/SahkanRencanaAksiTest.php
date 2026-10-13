@@ -2,287 +2,294 @@
 
 namespace Tests\Feature\RencanaAksi;
 
-use App\Models\BuktiDukung;
-use App\Models\IndikatorKinerja;
+use App\Actions\RencanaAksi\SahkanRencanaAksi;
+use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
+use App\Models\AuditLog;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
-use App\Models\Periode;
-use App\Models\Permission;
-use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
-use App\Models\Renstra;
-use App\Models\RenstraPk;
 use App\Models\Role;
-use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Support\PermissionCodes;
-use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
 /**
- * ISS-05.05: Pengesahan Rencana Aksi diverifikasi→disahkan + F1/F2 + stale + audit + guard bukti pasca-sah.
- * Fixture terisolasi: langsung membuat RA diverifikasi + versi beku, tanpa memakai ulang trait global.
+ * ISS-05.05: pengesahan diverifikasi → disahkan pada surface review #93 (D1):
+ * gerbang bersama, token versi pengajuan, F1/F2, audit, dan guard konteks.
  */
 class SahkanRencanaAksiTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesRencanaAksiFixture, RefreshDatabase;
 
-    private User $perencana;
+    private const F1 = 'F1: pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan pengajuannya sendiri.';
 
-    private User $picUser;
+    private RencanaAksiVersi $versiPengajuan;
 
-    private Unit $unit;
+    private User $verifikator;
 
-    private RencanaAksi $ra;
-
-    private JadwalSnapshot $snapshot;
+    private User $pengesah;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
-        $this->seed(AccessCatalogSeeder::class);
-        $this->perencana = $this->userWithRole('perencanaan');
-        $this->picUser = $this->userWithRole('pegawai');
-        $superadmin = $this->userWithRole('superadmin');
-        $this->unit = Unit::create(['nama' => 'Unit Pengujian RA', 'created_by' => $superadmin->id]);
-        $renstra = Renstra::create(['kode' => 'R-RA', 'nama' => 'Renstra RA', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $superadmin->id]);
-        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-RA', 'deskripsi' => 'Sasaran RA']);
-        $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $this->unit->id, 'kode' => 'I-RA', 'nama' => 'Indikator RA',
-            'satuan' => 'poin', 'tipe_perhitungan' => 'manual', 'status' => 'aktif', 'tahun_mulai_berlaku' => 2025,
-            'created_by' => $superadmin->id, 'created_by_role' => 'superadmin']);
-        $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-RA', 'tanggal_pk' => '2026-01-01', 'created_by' => $superadmin->id]);
-        $periode = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
-        $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id, 'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => now()]);
-        $this->snapshot = JadwalSnapshot::create(['jadwal_id' => $jadwal->id, 'indikator_id' => $indikator->id, 'periode_mulai_id' => $periode->id, 'unit_id' => $this->unit->id,
-            'nama' => 'Indikator RA', 'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
-            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
-        // PIC operasional memperoleh hak kerja unit lewat grant scoped; Perencanaan memegang allow global via role.
-        $this->grant($this->picUser, 'rencana_aksi:ajukan');
-        $this->ra = RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $this->unit->id, 'jadwal_tahunan_id' => $jadwal->id,
-            'penanggung_jawab_id' => $this->picUser->id, 'created_by' => $superadmin->id, 'status_alur' => 'diverifikasi']);
+        $this->setUpRencanaAksiFixture();
+        $this->verifikator = $this->createUserWithRole('perencanaan');
+        $this->pengesah = $this->createUserWithRole('perencanaan');
+        // Versi 1 diajukan jalur PIC oleh aktor fixture (superadmin sebagai PJ).
+        $this->versiPengajuan = $this->createRencanaAksiSubmission();
     }
 
-    /** Versi pengajuan beku sejak INSERT; provenance tiap test dibuat langsung, bukan diubah. */
-    private function ajukanVersi(string $jalur, User $diajukanBy): void
+    /** Versi tambahan dengan provenance tertentu, mengikuti bentuk snapshot versi 1 (versi beku tidak dapat diubah/dihapus). */
+    private function ajukanUlang(User $pengaju, string $jalur, ?string $snapshotId = null): RencanaAksiVersi
     {
-        RencanaAksiVersi::create(['rencana_aksi_id' => $this->ra->id, 'jadwal_snapshot_id' => $this->snapshot->id, 'nomor' => 1, 'diajukan_by' => $diajukanBy->id,
-            'diajukan_at' => now(), 'jalur_pengajuan' => $jalur, 'dasar_izin_pengajuan' => ['jalur' => $jalur, 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi pengajuan beku.']]);
+        return $this->versiPengajuan = $this->rencanaAksi->versions()->create(array_merge(
+            $this->versiPengajuan->only(['jadwal_snapshot_id', 'snapshot', 'dasar_izin_pengajuan']),
+            ['nomor' => $this->versiPengajuan->nomor + 1, 'diajukan_by' => $pengaju->id, 'diajukan_at' => now(), 'jalur_pengajuan' => $jalur],
+            $snapshotId === null ? [] : ['jadwal_snapshot_id' => $snapshotId],
+        ));
     }
 
-    public function test_1_f1_menolak_pengesahan_pengaju_jalur_pic(): void
+    private function verifikasi(?User $verifikator = null): void
     {
-        $reviewer = $this->userWithRole('perencanaan');
-        // Provenance beku: pengaju jalur PIC adalah reviewer sendiri.
-        $this->ajukanVersi('pic', $reviewer);
-
-        $response = Gate::forUser($reviewer)->inspect('sahkan', $this->ra->fresh());
-
-        $this->assertTrue($response->denied());
-        $this->assertStringContainsString('jalur PIC', (string) $response->message());
-
-        $this->actingAs($reviewer)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
-        $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_tipe' => 'rencana_aksi', 'objek_id' => $this->ra->id]);
+        app(VerifikasiRencanaAksi::class)->handle($verifikator ?? $this->verifikator, $this->rencanaAksi->id, $this->tokens());
     }
 
-    public function test_2_perencana_lain_mengesahkan_pengajuan_pic_secara_atomik(): void
+    /** @return array{expected_versi: int, versi_pengajuan_id: string} */
+    private function tokens(): array
     {
-        $this->ajukanVersi('pic', $this->picUser);
-
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
-
-        $ra = $this->ra->fresh();
-        $version = $ra->latestVersion;
-        $this->assertSame('disahkan', $ra->status_alur);
-        $this->assertSame(2, $ra->versi);
-        $this->assertSame($this->perencana->id, $version->disahkan_by);
-        $this->assertNotNull($version->disahkan_at);
-        $this->assertSame($this->perencana->id, $ra->disahkan_by);
-        $this->assertNotNull($ra->disahkan_at);
-        $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.sahkan')->where('objek_id', $ra->id)->firstOrFail();
-        $basisIzin = json_decode((string) $audit->dasar_izin, true);
-        $this->assertSame(PermissionCodes::RENCANA_AKSI_SAHKAN, $basisIzin['permission']);
-        $this->assertSame('diizinkan', $basisIzin['keputusan']);
-        $this->assertSame('allow', $basisIzin['alasan']);
-        $nilaiBaru = json_decode((string) $audit->nilai_baru, true);
-        $this->assertFalse($nilaiBaru['self_approval']);
-        $this->assertSame('disahkan', $nilaiBaru['status_alur']);
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('rencanaAksi.disahkan_oleh.id', $this->perencana->id)->where('rencanaAksi.self_approval', false));
+        return ['expected_versi' => $this->rencanaAksi->fresh()->versi, 'versi_pengajuan_id' => $this->versiPengajuan->id];
     }
 
-    public function test_3_f2_mengizinkan_self_approval_jalur_perencanaan_dengan_catatan_audit(): void
+    /** @param array<string, mixed>|null $data */
+    private function sahkan(User $aktor, ?array $data = null): TestResponse
     {
-        $this->ajukanVersi('perencanaan', $this->perencana);
+        return $this->actingAs($aktor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/sahkan", $data ?? $this->tokens());
+    }
 
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
+    private function assertBelumDisahkan(): void
+    {
+        $header = $this->rencanaAksi->fresh();
+        $this->assertSame('diverifikasi', $header->status_alur);
+        $this->assertNull($header->disahkan_by);
+        $this->assertNull($this->versiPengajuan->fresh()->disahkan_at);
+    }
 
-        $this->assertSame('disahkan', $this->ra->fresh()->status_alur);
-        $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.sahkan')->where('objek_id', $this->ra->id)->firstOrFail();
-        $this->assertTrue(json_decode((string) $audit->nilai_baru, true)['self_approval']);
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$this->ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('rencanaAksi.disahkan_oleh.id', $this->perencana->id)->where('rencanaAksi.self_approval', true));
+    public function test_f1_menolak_pengesahan_oleh_pengaju_jalur_pic(): void
+    {
+        $this->verifikasi();
+
+        $this->sahkan($this->actor)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [self::F1]);
+
+        $this->assertBelumDisahkan();
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
+    }
+
+    public function test_perencana_lain_mengesahkan_pengajuan_pic_secara_atomik_dengan_audit(): void
+    {
+        $this->verifikasi();
+        $beku = $this->versiPengajuan->fresh()->getRawOriginal('snapshot');
+
+        $this->sahkan($this->pengesah)->assertOk()->assertJson(['status_alur' => 'disahkan', 'versi' => 3]);
+
+        $header = $this->rencanaAksi->fresh();
+        $versi = $this->versiPengajuan->fresh();
+        $this->assertSame('disahkan', $header->status_alur);
+        $this->assertSame(3, $header->versi);
+        $this->assertSame($this->pengesah->id, $header->disahkan_by);
+        $this->assertNotNull($header->disahkan_at);
+        $this->assertSame($this->pengesah->id, $versi->disahkan_by);
+        $this->assertNotNull($versi->disahkan_at);
+        $this->assertSame($beku, $versi->getRawOriginal('snapshot'));
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.sahkan')->sole();
+        $this->assertSame(PermissionCodes::RENCANA_AKSI_SAHKAN, $audit->dasar_izin['permission']);
+        $this->assertSame('diizinkan', $audit->dasar_izin['keputusan']);
+        $this->assertSame('disahkan', $audit->nilai_baru['status_alur']);
+        $this->assertFalse($audit->nilai_baru['self_approval']);
+        $this->assertNotEmpty($audit->alasan);
+        $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('RencanaAksi/Review')->where('rencanaAksi.status_alur', 'disahkan')
+            ->where('rencanaAksi.pengesahan.oleh', $this->pengesah->nama)->where('rencanaAksi.pengesahan.self_approval', false)
+            ->where('rencanaAksi.can.sahkan', false));
+        // Daftar disahkan untuk monitoring memakai antrean review yang sama.
+        $this->get('/rencana-aksi/review?status=disahkan')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('daftar', 1)->where('daftar.0.id', $this->rencanaAksi->id)->where('daftar.0.status_alur', 'disahkan'));
+    }
+
+    public function test_f2_mengizinkan_self_approval_jalur_perencanaan_dan_menandainya(): void
+    {
+        $this->ajukanUlang($this->pengesah, 'perencanaan');
+        $this->verifikasi();
+
+        $this->sahkan($this->pengesah)->assertOk();
+
+        $this->assertSame('disahkan', $this->rencanaAksi->fresh()->status_alur);
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.sahkan')->sole();
+        $this->assertTrue($audit->nilai_baru['self_approval']);
+        $this->assertTrue($audit->nilai_lama['self_approval']);
+        $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.pengesahan.oleh', $this->pengesah->nama)->where('rencanaAksi.pengesahan.self_approval', true));
     }
 
     public function test_penutupan_menolak_pengesahan_kecuali_sesi_koreksi_mencakup_rencana_aksi(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
+        $this->verifikasi();
         $this->travelTo(now()->setDate(2027, 1, 5));
-        $ditutup = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup rencana aksi ini.';
-        $sahkan = fn () => $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1]);
-        $koreksi = fn (array $jenis) => JadwalTahunan::findOrFail($this->snapshot->jadwal_id)->update(['koreksi_mulai' => now()->subDay(), 'koreksi_sampai' => now()->addDay(),
-            'lingkup_koreksi' => ['indikator_ids' => [$this->ra->indikator_id], 'jenis_objek' => $jenis]]);
+        $ditutup = 'Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi untuk indikator ini.';
 
-        $sahkan()->assertSessionHasErrors(['versi' => $ditutup]);
-        $koreksi(['pengukuran']);
-        $sahkan()->assertSessionHasErrors(['versi' => $ditutup]);
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [$ditutup]);
+        $this->jadwal->update(['koreksi_mulai' => now()->subHour(), 'koreksi_sampai' => now()->addHour(),
+            'lingkup_koreksi' => ['jenis_objek' => ['pengukuran'], 'indikator_ids' => [$this->indikator->id], 'periode_ids' => [$this->snapshot->periode_mulai_id]]]);
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [$ditutup]);
+        $this->assertBelumDisahkan();
 
-        $koreksi(['rencana_aksi']);
-        $sahkan()->assertSessionHasNoErrors();
-        $this->assertSame('disahkan', $this->ra->fresh()->status_alur);
+        $this->jadwal->update(['lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$this->indikator->id], 'periode_ids' => [$this->snapshot->periode_mulai_id]]]);
+        $this->sahkan($this->pengesah)->assertOk();
+        $this->assertSame('disahkan', $this->rencanaAksi->fresh()->status_alur);
     }
 
-    public function test_4_f2_tidak_melewati_deny_atau_permission_hilang(): void
+    public function test_f2_tidak_melewati_deny_global_deny_unit_maupun_izin_yang_hilang(): void
     {
-        // Jalur perencanaan + self-approval, tetapi deny eksplisit tetap menang atas F2.
-        $this->ajukanVersi('perencanaan', $this->perencana);
-        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
-            'permission_id' => Permission::where('kode', 'rencana_aksi:sahkan')->value('id'),
-            'unit_id' => null, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
+        $this->ajukanUlang($this->pengesah, 'perencanaan');
+        $this->verifikasi();
 
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('sahkan', $this->ra->fresh())->denied());
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
+        $this->denyPermission($this->pengesah, PermissionCodes::RENCANA_AKSI_SAHKAN);
+        $this->sahkan($this->pengesah)->assertForbidden();
+        $audit = AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->sole();
+        $this->assertSame(PermissionCodes::RENCANA_AKSI_SAHKAN, $audit->dasar_izin['permission']);
+        $this->assertSame('ditolak', $audit->dasar_izin['keputusan']);
 
-        // Aktor tanpa permission sahkan juga ditolak walau bukan pengaju.
-        $pegawai = $this->userWithRole('pegawai');
-        $this->actingAs($pegawai)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
+        $lain = $this->createUserWithRole('perencanaan');
+        $this->denyPermission($lain, PermissionCodes::RENCANA_AKSI_SAHKAN, $this->unit->id);
+        $this->sahkan($lain)->assertForbidden();
+        // Peran baca-saja dapat melihat review tetapi tidak dapat mengesahkan.
+        $this->sahkan($this->createUserWithRole('pegawai'))->assertForbidden();
+        $this->sahkan($this->createUserWithRole('pimpinan'))->assertForbidden();
+
+        $this->assertBelumDisahkan();
+        $this->assertSame(4, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
     }
 
-    public function test_5_versi_terbaru_merujuk_snapshot_tidak_selaras_ditolak(): void
+    public function test_versi_bukan_terbaru_dan_token_usang_ditolak_tanpa_transisi_ulang(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        $otherUnit = Unit::create(['nama' => 'Unit Lain', 'created_by' => $this->perencana->id]);
-        $otherSnapshot = JadwalSnapshot::create(['jadwal_id' => $this->snapshot->jadwal_id, 'indikator_id' => $this->ra->indikator_id,
-            'periode_mulai_id' => $this->snapshot->periode_mulai_id, 'unit_id' => $otherUnit->id, 'nama' => 'Indikator RA',
-            'definisi' => 'Definisi operasional beku.', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
-            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70, 'nomor_versi' => 2]);
-        // Versi terbaru (nomor 2) merujuk snapshot unit berbeda: konteks beku tidak
-        // selaras dengan header sehingga pengesahan ditolak.
-        RencanaAksiVersi::create(['rencana_aksi_id' => $this->ra->id, 'jadwal_snapshot_id' => $otherSnapshot->id, 'nomor' => 2,
-            'diajukan_by' => $this->picUser->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'pic',
-            'dasar_izin_pengajuan' => ['jalur' => 'pic', 'unit_id' => $this->unit->id], 'snapshot' => ['uraian' => 'Versi kedua beku.']]);
+        $this->verifikasi();
+        $lama = $this->tokens();
+        $this->ajukanUlang($this->actor, 'pic');
 
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
-        $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
+        // Payload mengacu versi pengajuan yang sudah tergantikan, lalu token header usang.
+        $this->sahkan($this->pengesah, $lama)->assertConflict()->assertJsonValidationErrors('expected_versi');
+        $this->sahkan($this->pengesah, ['expected_versi' => 1, 'versi_pengajuan_id' => $this->versiPengajuan->id])->assertConflict();
+        $this->assertBelumDisahkan();
+
+        $terbaru = $this->tokens();
+        $this->sahkan($this->pengesah, $terbaru)->assertOk();
+        $this->sahkan($this->createUserWithRole('perencanaan'), $terbaru)->assertConflict();
+        $this->assertSame($this->pengesah->id, $this->rencanaAksi->fresh()->disahkan_by);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.sahkan')->count());
     }
 
-    /**
-     * Guard jadwal: header menunjuk jadwal B sementara snapshot beku berasal
-     * dari jadwal A → sahkan ditolak sebelum evaluasi penutupan/koreksi.
-     */
-    public function test_7_header_jadwal_tidak_cocok_snapshot_ditolak(): void
+    public function test_konteks_versi_tidak_selaras_dengan_header_ditolak(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        $jadwalA = JadwalTahunan::findOrFail($this->ra->jadwal_tahunan_id);
-        // Jadwal B valid (aktif, belum tutup) tetapi berbeda dari snapshot beku;
-        // tahun berbeda agar tidak melanggar unique (renstra_id, tahun).
-        $jadwalB = JadwalTahunan::create(['renstra_id' => $jadwalA->renstra_id, 'tahun' => 2027, 'renstra_pk_id' => $jadwalA->renstra_pk_id,
+        $this->verifikasi();
+        $unitLain = Unit::create(['nama' => 'Unit Lain', 'created_by' => $this->actor->id]);
+        $snapshotLain = JadwalSnapshot::create(array_merge($this->snapshot->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan',
+            'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), ['unit_id' => $unitLain->id, 'nomor_versi' => 2]));
+        // Versi terbaru merujuk snapshot unit lain.
+        $this->ajukanUlang($this->actor, 'pic', $snapshotLain->id);
+        $konteks = 'Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.';
+
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [$konteks]);
+
+        // Snapshot selaras kembali, tetapi header menunjuk jadwal tahunan lain.
+        $this->ajukanUlang($this->actor, 'pic', $this->snapshot->id);
+        $jadwalLain = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2027, 'renstra_pk_id' => $this->jadwal->renstra_pk_id,
             'penutupan' => '2027-12-31', 'status' => 'aktif', 'activated_at' => now()]);
-        $this->ra->update(['jadwal_tahunan_id' => $jadwalB->id]);
+        $this->rencanaAksi->update(['jadwal_tahunan_id' => $jadwalLain->id]);
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [$konteks]);
 
-        $denied = Gate::forUser($this->perencana)->inspect('sahkan', $this->ra->fresh());
-        $this->assertTrue($denied->denied());
-        $this->assertStringContainsString('tidak cocok', (string) $denied->message());
-
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasErrors('versi');
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
-        $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
-        $this->assertDatabaseHas('audit_log', ['tindakan' => 'rencana_aksi.ditolak', 'objek_tipe' => 'rencana_aksi', 'objek_id' => $this->ra->id]);
+        $this->assertBelumDisahkan();
+        $this->assertSame(2, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
     }
 
-    public function test_6_bukti_rujukan_versi_resmi_tidak_boleh_dihapus(): void
+    public function test_arsip_dan_unit_nonaktif_menolak_pengesahan_termasuk_f2_dan_action_langsung(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        $bukti = BuktiDukung::create(['berkasable_type' => 'rencana_aksi', 'berkasable_id' => $this->ra->id,
-            'mode' => 'teks', 'isi_teks' => 'Bukti rujukan versi resmi.', 'uploaded_by' => $this->picUser->id, 'created_at' => now()]);
+        $this->ajukanUlang($this->pengesah, 'perencanaan');
+        $this->verifikasi();
+        $this->indikator->update(['status' => 'arsip']);
+        $this->unit->update(['status' => 'nonaktif']);
 
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonCount(2, 'errors.businessErrors');
+        try {
+            app(SahkanRencanaAksi::class)->handle($this->pengesah, $this->rencanaAksi->id, $this->tokens());
+            $this->fail('Pengesahan langsung pada konteks tidak aktif harus ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertCount(2, $e->errors()['businessErrors']);
+        }
 
-        // Q36: bukti induk disahkan imutabel; penolakan adalah validasi bisnis, bukan izin.
-        $this->actingAs($this->perencana)->delete('/rencana-aksi/'.$this->ra->id.'/bukti/'.$bukti->id, ['alasan' => 'Coba hapus bukti resmi.'])
+        $this->assertBelumDisahkan();
+        $this->assertSame(2, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
+        $this->actingAs($this->pengesah)->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.can.sahkan', false)->has('rencanaAksi.businessErrors.sahkan', 2));
+    }
+
+    public function test_bukti_rujukan_versi_resmi_tidak_dapat_dihapus_setelah_disahkan(): void
+    {
+        $bukti = $this->createBuktiDukung(['mode' => 'teks', 'tautan' => null, 'isi_teks' => 'Bukti rujukan versi resmi.']);
+        $this->verifikasi();
+        $this->sahkan($this->pengesah)->assertOk();
+
+        $this->actingAs($this->pengesah)->delete("/rencana-aksi/{$this->rencanaAksi->id}/bukti/{$bukti->id}", ['alasan' => 'Coba hapus bukti resmi.'])
             ->assertSessionHasErrors('status_alur');
         $this->assertNull($bukti->fresh()->dihapus_pada);
     }
 
-    public function test_regression_provenance_beku_setelah_perubahan_role(): void
+    public function test_regresi_provenance_beku_setelah_perubahan_role_tetap_menolak_f1(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        // Pembuat draft (created_by) berbeda dari pengaju; F1 memakai diajukan_by + jalur beku.
-        $drafter = $this->userWithRole('pegawai');
-        $this->ra->update(['created_by' => $drafter->id]);
-        // Perubahan role setelah submit (satu role per user): pengaju jalur PIC menjadi Perencanaan.
-        DB::table('user_roles')->where('user_id', $this->picUser->id)->update(['role_id' => Role::where('kode', 'perencanaan')->firstOrFail()->id]);
+        $pic = $this->createPicPegawai();
+        $this->ajukanUlang($pic, 'pic');
+        $this->verifikasi();
+        // Pembuat draf berbeda dari pengaju; peran pengaju berubah setelah pengajuan.
+        $this->rencanaAksi->update(['created_by' => $this->createUserWithRole('pegawai')->id]);
+        DB::table('user_roles')->where('user_id', $pic->id)->update(['role_id' => Role::where('kode', 'perencanaan')->value('id')]);
 
-        $version = $this->ra->fresh()->latestVersion;
-        $this->assertSame('pic', $version->jalur_pengajuan);
-        $this->assertSame($this->picUser->id, $version->diajukan_by);
-        $this->assertTrue(Gate::forUser($this->picUser)->inspect('sahkan', $this->ra->fresh())->denied());
+        $this->sahkan($pic)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [self::F1]);
+        $this->assertBelumDisahkan();
     }
 
-    public function test_stale_concurrency_pengesahan_kedua_ditolak(): void
+    public function test_kegagalan_audit_membatalkan_pengesahan(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        $reviewerKedua = $this->userWithRole('perencanaan');
+        $this->verifikasi();
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andThrow(new \RuntimeException('Audit gagal'));
 
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertSessionHasNoErrors();
-        $this->actingAs($reviewerKedua)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])
-            ->assertSessionHasErrors('versi', 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.');
+        try {
+            app(SahkanRencanaAksi::class)->handle($this->pengesah, $this->rencanaAksi->id, $this->tokens());
+            $this->fail('Kegagalan audit harus diteruskan.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Audit gagal', $e->getMessage());
+        }
 
-        $ra = $this->ra->fresh();
-        $this->assertSame('disahkan', $ra->status_alur);
-        $this->assertSame($this->perencana->id, $ra->latestVersion->disahkan_by);
+        $this->assertBelumDisahkan();
     }
 
-    /** Security review 2026-10-09: deny unit-spesifik menang atas allow global saat sahkan. */
-    public function test_deny_unit_spesifik_menolak_pengesahan_walau_allow_global(): void
+    public function test_halaman_review_menawarkan_sahkan_hanya_bila_izin_dan_guard_terpenuhi(): void
     {
-        $this->ajukanVersi('pic', $this->picUser);
-        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->perencana->id,
-            'permission_id' => Permission::where('kode', 'rencana_aksi:sahkan')->value('id'),
-            'unit_id' => $this->unit->id, 'alasan' => 'Pencabutan pengujian', 'ditetapkan_oleh' => $this->perencana->id, 'created_at' => now()]);
+        $halaman = fn (User $aktor) => $this->actingAs($aktor)->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk();
+        $status = 'Status rencana aksi tidak sesuai untuk tindakan ini.';
 
-        $this->assertTrue(Gate::forUser($this->perencana)->inspect('sahkan', $this->ra->fresh())->denied());
-        $this->actingAs($this->perencana)->post('/rencana-aksi/'.$this->ra->id.'/sahkan', ['versi' => 1])->assertForbidden();
-        $this->assertSame('diverifikasi', $this->ra->fresh()->status_alur);
-        $this->assertNull($this->ra->fresh()->latestVersion->disahkan_at);
-        $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.ditolak')->where('objek_id', $this->ra->id)->firstOrFail();
-        $basisIzin = json_decode((string) $audit->dasar_izin, true);
-        $this->assertSame(PermissionCodes::RENCANA_AKSI_SAHKAN, $basisIzin['permission']);
-        $this->assertSame('ditolak', $basisIzin['keputusan']);
-    }
+        $halaman($this->pengesah)->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.can.sahkan', false)->where('rencanaAksi.businessErrors.sahkan', [$status]));
 
-    private function userWithRole(string $kode): User
-    {
-        $user = User::factory()->create(['status' => 'aktif']);
-        $role = Role::where('kode', $kode)->firstOrFail();
-        $user->roles()->attach($role->id, ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
-
-        return $user;
-    }
-
-    private function grant(User $user, string $permission): void
-    {
-        DB::table('user_permission_granted')->insert(['id' => (string) Str::uuid(), 'user_id' => $user->id,
-            'permission_id' => Permission::where('kode', $permission)->value('id'),
-            'unit_id' => $this->unit->id, 'alasan' => 'Fixture pengujian', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        $this->verifikasi();
+        $halaman($this->pengesah)->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.can.sahkan', true)->where('rencanaAksi.businessErrors.sahkan', [])->where('rencanaAksi.pengesahan', null));
+        $halaman($this->actor)->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.can.sahkan', false)->where('rencanaAksi.businessErrors.sahkan', [self::F1]));
     }
 }

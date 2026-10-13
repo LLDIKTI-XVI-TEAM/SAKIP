@@ -100,16 +100,11 @@ class RencanaAksiBuktiDownloadTest extends TestCase
         return route('rencana-aksi.bukti.download', ['rencanaAksi' => $ra->id, 'bukti' => $bukti->id]);
     }
 
-    public function test_layar_reviu_menautkan_unduhan_ke_jalur_bukti_rencana_aksi(): void
+    public function test_unduh_bukti_file_mengalirkan_isi_bagi_pembaca_berizin(): void
     {
         [$ra, $bukti] = $this->buatRencanaAksiDenganBuktiFile();
-        $url = $this->urlUnduh($ra, $bukti);
 
-        $this->actingAs($this->perencana)->get('/rencana-aksi/'.$ra->id.'/reviu')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('rencanaAksi.can.evidence', true)
-            ->where('rencanaAksi.bukti_dukungs.0.download_url', $url)
-            ->missing('rencanaAksi.bukti_dukungs.0.path'));
-        $this->actingAs($this->perencana)->get($url)->assertOk()->assertStreamedContent('Isi bukti beku');
+        $this->actingAs($this->perencana)->get($this->urlUnduh($ra, $bukti))->assertOk()->assertStreamedContent('Isi bukti beku');
     }
 
     public function test_unduh_bukti_menolak_deny_berkas_dan_tanpa_read(): void

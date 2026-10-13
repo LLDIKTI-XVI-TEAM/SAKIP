@@ -44,7 +44,7 @@ const rencanaAksi: ReviewRencanaAksi = {
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
-    can: { verifikasi: true, kembalikan: true, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [] },
+    can: { verifikasi: true, kembalikan: true, sahkan: false, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [] }, pengesahan: null,
     histori: [{ id: 'versi-1', nomor: 1, diajukan_at: '2026-09-01T01:00:00Z', jalur_pengajuan: 'pic' }, { id: 'versi-2', nomor: 2, diajukan_at: '2026-10-01T01:00:00Z', jalur_pengajuan: 'pic' }], pagination,
 };
 const renderReview = (override: Partial<ReviewRencanaAksi> = {}) => render(<Review rencanaAksi={{ ...rencanaAksi, ...override }} />);
@@ -84,7 +84,7 @@ describe('Review Rencana Aksi', () => {
     });
 
     it('capability server menyembunyikan aksi/bukti dan alasan bisnis tetap terbaca', () => {
-        renderReview({ can: { verifikasi: false, kembalikan: false, evidence: false }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'] } });
+        renderReview({ can: { verifikasi: false, kembalikan: false, sahkan: false, evidence: false }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'], sahkan: [] } });
         expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Kembalikan untuk revisi' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Unduh file' })).toBeNull();
@@ -102,6 +102,35 @@ describe('Review Rencana Aksi', () => {
         await user.click(within(dialog).getByRole('button', { name: 'Konfirmasi verifikasi' }));
         expect(router.post).toHaveBeenCalledTimes(1);
         expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ra-1/verifikasi', { expected_versi: 7, versi_pengajuan_id: 'versi-2' }]);
+    });
+
+    it('pengesahan memakai konfirmasi dan mengirim token header serta versi pengajuan', async () => {
+        const user = userEvent.setup();
+        renderReview({ status_alur: 'diverifikasi', can: { verifikasi: false, kembalikan: true, sahkan: true, evidence: true } });
+        expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Sahkan' }));
+        const dialog = screen.getByRole('dialog', { name: 'Sahkan rencana aksi' });
+        expect(within(dialog).queryByRole('textbox')).toBeNull();
+        await user.click(within(dialog).getByRole('button', { name: 'Konfirmasi pengesahan' }));
+        expect(router.post).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ra-1/sahkan', { expected_versi: 7, versi_pengajuan_id: 'versi-2' }]);
+    });
+
+    it('menampilkan pengesah dan penanda self-approval pada versi yang disahkan', () => {
+        renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, evidence: true },
+            pengesahan: { oleh: 'Perencana Pengesah', pada: '2026-10-12T05:00:00Z', self_approval: true } });
+        expect(screen.getByText(/Disahkan oleh Perencana Pengesah/)).toBeTruthy();
+        expect(screen.getByText(/self-approval/)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Sahkan' })).toBeNull();
+    });
+
+    it('alasan pengesahan hanya tampil pada tahap diverifikasi', () => {
+        const businessErrors = { verifikasi: [], kembalikan: [], sahkan: ['F1: pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan pengajuannya sendiri.'] };
+        const { unmount } = renderReview({ businessErrors });
+        expect(screen.queryByText('Pengesahan tidak tersedia')).toBeNull();
+        unmount();
+        renderReview({ status_alur: 'diverifikasi', businessErrors });
+        expect(screen.getByText('Pengesahan tidak tersedia')).toBeTruthy();
     });
 
     it('submit keyboard tetap mengirim intent verifikasi', async () => {

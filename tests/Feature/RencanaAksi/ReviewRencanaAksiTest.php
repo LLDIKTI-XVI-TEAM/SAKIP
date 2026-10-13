@@ -5,8 +5,10 @@ namespace Tests\Feature\RencanaAksi;
 use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Models\AuditLog;
+use App\Models\JadwalSnapshot;
 use App\Models\RencanaAksiVersi;
 use App\Models\Role;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -223,5 +225,19 @@ class ReviewRencanaAksiTest extends TestCase
         $this->assertSame($pic->id, $versi->fresh()->diajukan_by);
         // Pembuat draf berbeda dari pengaju; F1 tidak mengambil created_by.
         $this->actingAs($this->actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $tokens)->assertSuccessful();
+    }
+
+    public function test_antrean_dan_detail_menolak_record_dengan_snapshot_unit_tidak_selaras(): void
+    {
+        $unitLain = Unit::create(['nama' => 'Unit Lain', 'created_by' => $this->actor->id]);
+        $snapshotLain = JadwalSnapshot::create(array_merge($this->snapshot->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan',
+            'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), ['unit_id' => $unitLain->id, 'nomor_versi' => 2]));
+        $this->rencanaAksi->versions()->create(array_merge($this->versiPengajuan->only(['snapshot', 'dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']),
+            ['nomor' => 2, 'jadwal_snapshot_id' => $snapshotLain->id]));
+
+        // Selaras dengan RencanaAksiPolicy::view: versi terbaru yang merujuk snapshot unit lain tidak dapat dibuka.
+        $this->actingAs($this->reviewer)->get('/rencana-aksi/review?status=semua')->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->has('daftar', 0)->where('pagination.total', 0));
+        $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertForbidden();
     }
 }

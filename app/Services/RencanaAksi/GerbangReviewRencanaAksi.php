@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -60,7 +61,8 @@ class GerbangReviewRencanaAksi
             throw ValidationException::withMessages(['expected_versi' => 'Data atau versi pengajuan telah berubah. Muat ulang sebelum mengulangi review.'])->status(409);
         }
         $versi->setRelation('jadwalSnapshot', JadwalSnapshot::whereKey($versi->jadwal_snapshot_id)->sharedLock()->first());
-        $jejak['sebelum'] += $this->provenance($pengunci, $versi, $permission === 'rencana_aksi:verifikasi');
+        // Verifikasi dan pengesahan adalah persetujuan; pengembalian tidak menandai self_approval.
+        $jejak['sebelum'] += $this->provenance($pengunci, $versi, in_array($permission, [PermissionCodes::RENCANA_AKSI_VERIFIKASI, PermissionCodes::RENCANA_AKSI_SAHKAN], true));
 
         return [$pengunci, $header, $versi];
     }

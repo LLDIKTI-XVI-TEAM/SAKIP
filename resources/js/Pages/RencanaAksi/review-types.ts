@@ -50,8 +50,10 @@ export interface ReviewRencanaAksi {
         isi_teks: string | null;
         download_url: string | null;
     }[];
-    can: { verifikasi: boolean; kembalikan: boolean; evidence: boolean };
-    businessErrors: { verifikasi: string[]; kembalikan: string[] };
+    can: { verifikasi: boolean; kembalikan: boolean; sahkan: boolean; evidence: boolean };
+    businessErrors: { verifikasi: string[]; kembalikan: string[]; sahkan: string[] };
+    /** Metadata pengesahan versi yang ditampilkan; null bila versi ini belum disahkan. */
+    pengesahan: { oleh: string; pada: string | null; self_approval: boolean } | null;
     histori: { id: string; nomor: number; diajukan_at: string; jalur_pengajuan: 'pic' | 'perencanaan' }[];
     pagination: PengukuranPagination;
 }

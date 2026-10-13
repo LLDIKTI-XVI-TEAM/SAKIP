@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\IndikatorKinerja;
-use App\Models\JadwalSnapshot;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -13,7 +12,6 @@ use App\Services\RencanaAksi\GerbangReviewRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -105,89 +103,6 @@ class RencanaAksiPolicy
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
-    public function sahkan(User $user, RencanaAksi $header): Response
-    {
-        return $this->capability($user, $header, PermissionCodes::RENCANA_AKSI_SAHKAN);
-    }
-
-    /** Dipakai Gate sahkan: izin kanonis lalu gabungan aturan bisnis. */
-    private function capability(User $user, RencanaAksi $header, string $permission): Response
-    {
-        if (! $this->resolver->allows($user, $permission, (string) $header->unit_id)) {
-            return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
-        }
-        $errors = $this->businessErrorsSahkan($user, $header);
-
-        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
-    }
-
-    /**
-     * Dipakai Action setelah resolver dan Gate sahkan; kegagalan bisnis
-     * menghasilkan validasi, bukan keputusan deny palsu.
-     *
-     * Konteks beku berasal dari snapshot versi pengajuan terbaru
-     * (`rencana_aksi_versi.jadwal_snapshot_id`), bukan kolom header —
-     * header tidak lagi menyimpan rujukan snapshot (D7).
-     */
-    public function businessErrorsSahkan(User $user, RencanaAksi $header): array
-    {
-        $version = $header->latestVersion;
-        if (! $version) {
-            return ['Versi pengajuan yang direviu belum tersedia atau tidak cocok.'];
-        }
-        // Action sahkan memasang relasi snapshot terkunci; jalur Gate membaca
-        // snapshot versi (tanpa lock) dengan kontrak data yang sama.
-        /** @var JadwalSnapshot|null $snapshot */
-        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->getRelation('jadwalSnapshot') : $version->jadwalSnapshot;
-        if (! $snapshot || $snapshot->indikator_id !== $header->indikator_id || $snapshot->jadwal->tahun !== $header->tahun) {
-            return ['Snapshot jadwal tidak cocok dengan rencana aksi.'];
-        }
-        $jadwal = $snapshot->jadwal;
-        $errors = [];
-        // Versi yang direviu wajib merujuk snapshot yang dievaluasi;
-        // dicek sebelum evaluasi penutupan/sesi koreksi.
-        if ((string) $version->jadwal_snapshot_id !== (string) $snapshot->id) {
-            $errors[] = 'Versi pengajuan yang direviu belum tersedia atau tidak cocok.';
-        }
-        if ((string) $snapshot->jadwal_id !== (string) $header->jadwal_tahunan_id) {
-            $errors[] = 'Jadwal tahunan rencana aksi tidak cocok dengan snapshot jadwal.';
-        }
-        if ((string) $header->unit_id !== (string) $snapshot->unit_id) {
-            $errors[] = 'Unit rencana aksi tidak cocok dengan snapshot jadwal.';
-        }
-        if ($jadwal->renstra_id !== $header->indikator->sasaranStrategis->renstra_id) {
-            $errors[] = 'Renstra jadwal tidak cocok dengan indikator.';
-        }
-        // FIX1: bila Action sudah mengunci baris unit (SahkanRencanaAksi), nilai
-        // terkunci yang dipakai — bukan baca ulang tanpa lock (anti-TOCTOU).
-        // Jalur Gate tanpa transaksi memakai cek DB seperti sebelumnya.
-        $unitAktif = $this->lockedUnitStatus($header)
-            ?? DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists();
-        if (! $unitAktif) {
-            $errors[] = 'Unit organisasi rencana aksi berstatus nonaktif.';
-        }
-        if ($jadwal->status !== 'aktif') {
-            $errors[] = 'Jadwal tahunan harus aktif.';
-        }
-        // F1: pemisahan tugas keras jalur PIC memakai provenance beku versi, bukan created_by header.
-        if ($version->diajukan_by === $user->id && $version->jalur_pengajuan === 'pic') {
-            $errors[] = 'Pengaju jalur PIC tidak boleh menyetujui pengajuannya sendiri.';
-        }
-        if ($header->status_alur !== 'diverifikasi') {
-            $errors[] = 'Status rencana aksi tidak sesuai untuk tindakan ini.';
-        }
-        $date = today(config('app.business_timezone'))->toDateString();
-        $scope = $jadwal->lingkup_koreksi ?? [];
-        $correction = $jadwal->koreksi_mulai && $jadwal->koreksi_sampai && now()->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)
-            && in_array($header->indikator_id, $scope['indikator_ids'] ?? [], true)
-            && in_array('rencana_aksi', $scope['jenis_objek'] ?? [], true);
-        if ($jadwal->penutupan && $date > $jadwal->penutupan->toDateString() && ! $correction) {
-            $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup rencana aksi ini.';
-        }
-
-        return $errors;
-    }
-
     /**
      * Unit snapshot versi pengajuan terbaru; null bila belum ada versi.
      * Relasi versi dimuat lazy bila belum tersedia.
@@ -203,20 +118,6 @@ class RencanaAksiPolicy
         return $snapshot?->unit_id !== null ? (string) $snapshot->unit_id : null;
     }
 
-    /**
-     * Status unit dari relasi terkunci (SahkanRencanaAksi mengunci
-     * jadwalSnapshot.unit via lockForUpdate). Null bila relasi tak dimuat —
-     * pemanggil memakai cek DB biasa.
-     */
-    private function lockedUnitStatus(RencanaAksi $header): ?bool
-    {
-        /** @var JadwalSnapshot|null $snapshot */
-        $snapshot = $header->relationLoaded('jadwalSnapshot') ? $header->getRelation('jadwalSnapshot') : null;
-        $unit = $snapshot && $snapshot->relationLoaded('unit') ? $snapshot->unit : null;
-
-        return $unit ? $unit->status === 'aktif' : null;
-    }
-
     private function response(PermissionDecision $decision, string $pesan): Response
     {
         return $decision->allowed ? Response::allow() : Response::deny($pesan);
@@ -230,6 +131,11 @@ class RencanaAksiPolicy
     public function kembalikan(User $user, RencanaAksi $header): Response
     {
         return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_KEMBALIKAN, (string) $header->unit_id), 'Izin pengembalian rencana aksi tidak tersedia.');
+    }
+
+    public function sahkan(User $user, RencanaAksi $header): Response
+    {
+        return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_SAHKAN, (string) $header->unit_id), 'Izin pengesahan rencana aksi tidak tersedia.');
     }
 
     /** @return array<string, list<string>> */

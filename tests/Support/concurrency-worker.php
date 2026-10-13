@@ -128,7 +128,8 @@ try {
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
             'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
-            'rencana-sahkan' => 'versi',
+            // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
+            'rencana-sahkan' => 'businessErrors',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
