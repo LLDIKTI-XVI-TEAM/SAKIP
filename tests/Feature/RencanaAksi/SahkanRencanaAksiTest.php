@@ -12,10 +12,12 @@ use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\RencanaAksi\GerbangReviewRencanaAksi;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -32,6 +34,8 @@ class SahkanRencanaAksiTest extends TestCase
     use CreatesRencanaAksiFixture, RefreshDatabase;
 
     private const F1 = 'F1: pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan pengajuannya sendiri.';
+
+    private const KONTEKS = 'Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.';
 
     private RencanaAksiVersi $versiPengajuan;
 
@@ -246,6 +250,48 @@ class SahkanRencanaAksiTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.sahkan_ditolak')->count());
     }
 
+    public function test_versi_tidak_lengkap_tidak_dapat_disetujui_tetapi_dapat_dikembalikan(): void
+    {
+        $beku = $this->versiPengajuan->snapshot;
+        unset($beku['target_periode'][0]['nilai']);
+        $this->ajukanUlang($this->actor, 'pic', beku: $beku);
+        $url = "/rencana-aksi/{$this->rencanaAksi->id}";
+
+        $this->actingAs($this->verifikator)->postJson("{$url}/verifikasi", $this->tokens())->assertUnprocessable()
+            ->assertJsonPath('errors.businessErrors', [self::KONTEKS]);
+        $this->sahkan($this->pengesah)->assertUnprocessable()
+            ->assertJsonPath('errors.businessErrors', ['Status rencana aksi tidak sesuai untuk tindakan ini.', self::KONTEKS]);
+        $this->actingAs($this->verifikator)->get("{$url}/review")->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.can.kembalikan', true)->where('rencanaAksi.can.verifikasi', false));
+
+        $this->actingAs($this->verifikator)->postJson("{$url}/kembalikan", $this->tokens() + ['alasan' => 'Lengkapi nilai target periode.'])->assertSuccessful();
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.kembalikan')->count());
+    }
+
+    /** Data Model §2.34: indikator nonmanual membekukan seluruh komponen beserta nilainya. */
+    #[DataProvider('komponenNonmanualTidakLengkap')]
+    public function test_komponen_nonmanual_tidak_lengkap_tidak_dapat_disetujui_tetapi_dapat_dikembalikan(?string $hilang): void
+    {
+        $this->verifikasi();
+        $rasio = JadwalSnapshot::create(array_merge($this->snapshot->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan',
+            'presisi', 'desimal_tampilan', 'arah', 'target']), ['tipe_perhitungan' => 'rasio_persen', 'nomor_versi' => 2]));
+        $komponen = ['komponen_id' => (string) Str::uuid(), 'kode' => 'pembilang', 'label' => 'Pembilang', 'nilai' => '8', 'keterangan' => null];
+        $beku = $this->versiPengajuan->snapshot;
+        $beku['target_periode'][0]['komponen'] = [$komponen];
+        $lengkap = $this->ajukanUlang($this->actor, 'pic', $rasio->id, $beku);
+        $this->assertSame([], app(GerbangReviewRencanaAksi::class)->businessErrors($this->pengesah, $this->rencanaAksi->fresh(), $lengkap, 'sahkan'));
+
+        $beku['target_periode'][0]['komponen'] = $hilang === null ? [] : [Arr::except($komponen, $hilang)];
+        $this->ajukanUlang($this->actor, 'pic', $rasio->id, $beku);
+        $url = "/rencana-aksi/{$this->rencanaAksi->id}";
+
+        $this->sahkan($this->pengesah)->assertUnprocessable()->assertJsonPath('errors.businessErrors', [self::KONTEKS]);
+        $this->actingAs($this->verifikator)->postJson("{$url}/verifikasi", $this->tokens())->assertUnprocessable();
+        $this->actingAs($this->verifikator)->postJson("{$url}/kembalikan", $this->tokens() + ['alasan' => 'Lengkapi nilai komponen.'])->assertSuccessful();
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+    }
+
     public function test_arsip_dan_unit_nonaktif_menolak_pengesahan_termasuk_f2_dan_action_langsung(): void
     {
         $this->ajukanUlang($this->pengesah, 'perencanaan');
@@ -330,6 +376,16 @@ class SahkanRencanaAksiTest extends TestCase
             'status belum terhitung' => [[], ['status_perhitungan' => 'belum_diisi']],
             'tanpa periode_nama' => [['periode_nama'], []],
             'tanpa periode_urutan' => [['periode_urutan'], []],
+        ];
+    }
+
+    /** @return array<string, array{?string}> */
+    public static function komponenNonmanualTidakLengkap(): array
+    {
+        return [
+            'komponen kosong' => [null],
+            'komponen tanpa nilai' => ['nilai'],
+            'komponen tanpa komponen_id' => ['komponen_id'],
         ];
     }
 }

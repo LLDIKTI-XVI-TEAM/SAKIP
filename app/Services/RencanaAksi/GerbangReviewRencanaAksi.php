@@ -89,9 +89,11 @@ class GerbangReviewRencanaAksi
         }
         $snapshot = $versi?->jadwalSnapshot;
         $beku = $versi?->snapshot ?? [];
-        $bentukSah = Validator::make($beku, [
+        $konteksSah = Validator::make($beku, [
             'indikator.kode' => ['required', 'string'], 'indikator.nama' => ['required', 'string'],
             'unit_kerja.id' => ['required', 'uuid'], 'unit_kerja.nama' => ['required', 'string'],
+        ])->passes();
+        $isiSah = Validator::make($beku, [
             'target_periode' => ['required', 'array', 'min:1'],
             'target_periode.*.periode_id' => ['required', 'uuid'],
             'target_periode.*.periode_nama' => ['required', 'string'],
@@ -99,17 +101,23 @@ class GerbangReviewRencanaAksi
             // Data Model §2.34: produsen hanya membekukan baris `terhitung` beserta nilainya.
             'target_periode.*.nilai' => ['required', 'numeric'],
             'target_periode.*.status_perhitungan' => ['required', 'in:terhitung'],
-            'target_periode.*.komponen' => ['present', 'array'],
             'bukti_dukungs' => ['present', 'array'],
             'bukti_dukungs.*.id' => ['required', 'uuid'],
             'bukti_dukungs.*.mode' => ['required', 'in:file,tautan,teks'],
-        ])->passes();
+        ] + ($snapshot?->tipe_perhitungan === 'manual' ? ['target_periode.*.komponen' => ['present', 'array']] : [
+            'target_periode.*.komponen' => ['required', 'array', 'min:1'],
+            'target_periode.*.komponen.*.komponen_id' => ['required', 'uuid'],
+            'target_periode.*.komponen.*.kode' => ['required', 'string'],
+            'target_periode.*.komponen.*.label' => ['required', 'string'],
+            'target_periode.*.komponen.*.nilai' => ['required', 'numeric'],
+        ]))->passes();
         if (! $versi || ! $snapshot || ! $jadwal
             || $snapshot->jadwal_id !== $header->jadwal_tahunan_id || $snapshot->indikator_id !== $header->indikator_id
             || $snapshot->unit_id !== $header->unit_id || $jadwal->tahun !== $header->tahun
             || ($beku['unit_kerja']['id'] ?? null) !== $header->unit_id
             || ! isset($beku['indikator']['kode'], $beku['indikator']['nama'])
-            || ! $bentukSah
+            // Pengembalian tetap boleh agar versi yang isinya rusak dapat diganti versi baru.
+            || ! $konteksSah || ($aksi !== 'kembalikan' && ! $isiSah)
             || ! in_array($versi->jalur_pengajuan, ['pic', 'perencanaan'], true)) {
             $errors[] = 'Konteks versi pengajuan belum lengkap atau tidak selaras; review ditolak.';
         }
