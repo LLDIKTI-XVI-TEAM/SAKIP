@@ -33,15 +33,16 @@ class KegiatanController extends Controller
 
     public function store(SimpanKegiatanRequest $request, SimpanKegiatan $action): RedirectResponse
     {
-        $action->handle($request->user(), $request->validated());
+        $kegiatan = $action->handle($request->user(), $request->validated());
 
-        return redirect()->route('kegiatan.index')->with('success', 'Rencana kegiatan berhasil dicatat.');
+        // Kembali ke tahun kegiatan agar hasil simpan tetap terlihat di daftar.
+        return redirect()->route('kegiatan.index', ['tahun' => $kegiatan->tahun])->with('success', 'Rencana kegiatan berhasil dicatat.');
     }
 
     public function update(SimpanKegiatanRequest $request, Kegiatan $kegiatan, SimpanKegiatan $action): RedirectResponse
     {
-        $action->handle($request->user(), $request->validated(), (string) $kegiatan->id);
+        $kegiatan = $action->handle($request->user(), $request->validated(), (string) $kegiatan->id);
 
-        return redirect()->route('kegiatan.index')->with('success', 'Rencana kegiatan berhasil diperbarui.');
+        return redirect()->route('kegiatan.index', ['tahun' => $kegiatan->tahun])->with('success', 'Rencana kegiatan berhasil diperbarui.');
     }
 }

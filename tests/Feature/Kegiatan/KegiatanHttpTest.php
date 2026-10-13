@@ -61,7 +61,7 @@ class KegiatanHttpTest extends TestCase
         $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['tanggal_rencana' => '2026-10-17']) + [
             'anggaran' => ['bukan' => 'angka'], 'status' => 'terlaksana', 'created_by' => $this->perencanaan->id,
             'tanggal_realisasi' => '2026-10-12', 'uraian_pelaksanaan' => 'Tidak boleh tersimpan',
-        ])->assertRedirect('/kegiatan')->assertSessionHasNoErrors();
+        ])->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $kegiatan = Kegiatan::sole();
         $this->assertSame('rencana', $kegiatan->status);
@@ -85,7 +85,7 @@ class KegiatanHttpTest extends TestCase
         $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
             'nama' => 'Rencana diperbarui', 'expected_state' => $this->editToken($kegiatan),
             'status' => 'batal', 'anggaran' => null, 'uraian_pelaksanaan' => 'Payload tidak dipercaya',
-        ]))->assertRedirect('/kegiatan')->assertSessionHasNoErrors();
+        ]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $this->assertSame('Rencana diperbarui', $kegiatan->fresh()->nama);
         $this->assertSame('terlaksana', $kegiatan->fresh()->status);
@@ -284,6 +284,27 @@ class KegiatanHttpTest extends TestCase
             ->has('activePeriodeOptions', 0)->has('periodeOptions', 1));
     }
 
+    public function test_simpan_kembali_ke_daftar_tahun_kegiatan_agar_hasil_tetap_terlihat(): void
+    {
+        $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['tahun' => 2027]))
+            ->assertRedirect('/kegiatan?tahun=2027')->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+        $this->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['tahun' => 2025, 'expected_state' => $kegiatan->versionToken()]))
+            ->assertRedirect('/kegiatan?tahun=2025')->assertSessionHasNoErrors();
+    }
+
+    public function test_kegiatan_unit_nonaktif_tidak_menawarkan_edit_meski_izin_dari_role(): void
+    {
+        $aktif = $this->kegiatan();
+        $nonaktif = $this->kegiatan($this->unitLain);
+        $this->unitLain->update(['status' => 'nonaktif']);
+        // Writer mensyaratkan unit aktif; capability tidak boleh menawarkan aksi yang pasti ditolak.
+        $this->actingAs($this->perencanaan)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page
+            ->has('kegiatan.data', 2)
+            ->where('kegiatan.data', fn ($items) => collect($items)->firstWhere('id', $aktif->id)['can']['update'] === true
+                && collect($items)->firstWhere('id', $nonaktif->id)['can']['update'] === false));
+    }
+
     public function test_gagal_audit_membatalkan_pembuatan(): void
     {
         $this->mock(AuditLogger::class)->shouldReceive('catat')->once()->andThrow(new RuntimeException('Audit gagal sintetis'));
@@ -347,7 +368,7 @@ class KegiatanHttpTest extends TestCase
         $token = $this->editToken($kegiatan);
         $this->actingAs($this->pegawai)->postJson("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['tahun' => 2027, 'expected_state' => $token]))->assertUnprocessable()->assertJsonValidationErrors('tahun');
         $this->assertSame(2026, $kegiatan->fresh()->tahun);
-        $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['nama' => 'Nama dikoreksi', 'unit_id' => strtoupper($this->unit->id), 'periode_id' => strtoupper($this->periode->id), 'expected_state' => $token]))->assertRedirect('/kegiatan')->assertSessionHasNoErrors();
+        $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['nama' => 'Nama dikoreksi', 'unit_id' => strtoupper($this->unit->id), 'periode_id' => strtoupper($this->periode->id), 'expected_state' => $token]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
         $this->assertSame('Nama dikoreksi', $kegiatan->fresh()->nama);
     }
 

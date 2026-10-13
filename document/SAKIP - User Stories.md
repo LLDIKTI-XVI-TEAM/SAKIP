@@ -803,7 +803,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-06.01 · Pencatatan Rencana Kegiatan Unit
 
-**Status implementasi (2026-10-11):** Diimplementasikan dan diverifikasi lokal. Checklist mencerminkan automated test dan smoke browser, bukan penerimaan UAT. CI GitHub untuk perubahan ini, merge, UAT, dan deployment belum dilakukan.
+**Status implementasi (2026-10-13):** Diimplementasikan. Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Smoke browser desktop/mobile untuk build modal terbaru belum dilengkapi. Merge, UAT, dan deployment belum dilakukan.
 
 | Field | Detail |
 |---|---|

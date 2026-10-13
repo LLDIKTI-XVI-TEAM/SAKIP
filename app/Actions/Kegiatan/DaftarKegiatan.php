@@ -70,7 +70,8 @@ class DaftarKegiatan
             'version_token' => $kegiatan->versionToken(),
             'unit' => $kegiatan->unit->only(['id', 'nama']),
             'periode' => $kegiatan->periode->only(['id', 'nama']),
-            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed']],
+            // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
+            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id)],
         ]);
 
         return [
