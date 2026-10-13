@@ -119,6 +119,7 @@ class AuthHttpTest extends TestCase
         $this->actingAs($target->fresh());
         $target->refresh()->update(['status' => 'nonaktif']);
         $this->get('/pengukuran')->assertRedirect('/auth/pending');
+        $this->get('/auth/pending')->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'inactive')->where('auth.user.status', 'nonaktif'));
     }
 
     public function test_failed_callback_preserves_an_existing_identity_and_clears_oidc_state(): void
