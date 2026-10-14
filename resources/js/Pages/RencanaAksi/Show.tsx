@@ -64,7 +64,8 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
     // koreksi hanya-baca dan tidak dikirim; validasi fail-closed tetap di
     // backend.
     const koreksi = rencanaAksi.koreksi;
-    const terkunci = useMemo(() => new Set(rencanaAksi.periode_terkunci ?? []), [JSON.stringify(rencanaAksi.periode_terkunci ?? [])]);
+    const daftarTerkunci = rencanaAksi.periode_terkunci ?? [];
+    const terkunci = useMemo(() => new Set(daftarTerkunci), [daftarTerkunci]);
     const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId) && !terkunci.has(periodeId);
     const periodeDapatDisunting = useMemo(
         () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
