@@ -125,7 +125,7 @@ Bagian ini adalah guardrail pembacaan, bukan pengganti rumus dan transisi lengka
 ## 7. Bukti dukung dan audit
 
 - Ikuti tiga mode bukti file/tautan/teks dan hubungan induk yang ditetapkan dokumen. Validasi stage, jenis persyaratan, ukuran, MIME/extension, dan status induk di server.
-- Jangan memperketat pengecualian `tidak_dapat_dipenuhi` atau backfill dengan meniadakannya. Verifikasi alasan, scope, dan audit yang diwajibkan sumber.
+- Jangan memperketat pengecualian `tidak_dapat_dipenuhi` atau backfill dengan meniadakannya. Verifikasi alasan, scope, dan audit yang diwajibkan sumber. Pengecualian yang dicabut keputusan resmi mengikuti keputusan tersebut; mis. Q44 menghapus saklar unggahan sehingga penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi terjadi, sedangkan penanda lama tetap histori.
 - File privat memakai storage privat, nama tersimpan yang aman, dan route download/stream dengan authorization objek. Path dari klien tidak boleh menjadi filesystem path bebas.
 - Periksa risiko traversal, tipe file berbahaya, dan akses lintas unit/induk. Jangan membuat symlink publik untuk bukti privat. Scan malware digunakan bila infra tersedia dan scope mengharuskan, bukan klaim fasilitas sudah aktif.
 - Tautan eksternal divalidasi sesuai kontrak. Jangan fetch URL pengguna di server tanpa kebutuhan dan proteksi SSRF yang relevan.

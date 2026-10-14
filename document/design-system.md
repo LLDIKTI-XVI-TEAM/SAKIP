@@ -59,7 +59,7 @@ Design System tidak boleh memperkenalkan aturan authorization baru. Baseline fin
 - visibilitas aksi selalu berasal dari capability server (`can.*`), bukan hardcode nama role;
 - Grant Unit hanya 7 permission scoped dan dikelola melalui `delegasi:update`;
 - halaman **Peran & Izin** bersifat read-only;
-- user SSO baru dapat berada pada status nonaktif/tanpa role;
+- user SSO baru berstatus aktif tanpa role (Q38); status nonaktif berarti akun dinonaktifkan;
 - UI harus mampu menampilkan keadaan “Belum memiliki peran” tanpa error.
 
 ## 🎨 Referensi Token Desain
@@ -360,6 +360,15 @@ export const capaianBadgeMap: Record<string, { variant: BadgeVariant; label: str
     tercapai: { variant: 'success', label: 'Tercapai' },
     belum_tercapai: { variant: 'danger', label: 'Belum Tercapai' },
     belum_ditetapkan: { variant: 'muted', label: 'Belum Ditetapkan' },
+    // Tampilan Q47, bukan nilai status_capaian: capaian tidak dihitung pada periode ini
+    tanpa_target_periode: { variant: 'info', label: 'Tanpa Target Periode' },
+    belum_dapat_diukur: { variant: 'warning', label: 'Belum Dapat Diukur' },
+};
+
+// Status Rekomendasi Pimpinan (Q51): hanya yang disetujui berlaku
+export const rekomendasiBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
+    draf: { variant: 'muted', label: 'Draf' },
+    disetujui: { variant: 'success', label: 'Disetujui' },
 };
 
 // Status Kegiatan
@@ -370,11 +379,18 @@ export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; lab
 };
 ```
 
+> **Q42, Q45, Q47, Q49, Q51 (13 Oktober 2026):** pola tampilan tambahan berikut memakai `Badge` dan token yang sama.
+> - Indikator **dinilai tahunan** diberi badge `secondary` "Dinilai tahunan" di Sasaran & Indikator dan Rencana Aksi; target periode yang dikosongkan tampil "—" dengan keterangan "Tidak ditargetkan", bukan `0` (Q47).
+> - Pada pengukuran, dashboard, dan rekap, **selisih terhadap target PK** ditampilkan dalam satuan indikator dengan tanda (mis. "−3,57 poin"); warnanya mengikuti arah indikator, dan teksnya tetap menyebut "di atas" atau "di bawah" target agar tidak bergantung pada warna saja (Q47 §47.3).
+> - Status kegiatan di dashboard diberi label "belum diverifikasi" (Q45 §45.3); kegiatan yang diklaim lebih dari satu IKU diberi badge `muted` "Kegiatan bersama" (Q42 §42.2).
+> - Rekomendasi yang disetujui Perencanaan sebagai cadangan diberi keterangan "Disetujui Perencanaan (cadangan)" di samping badge `Disetujui` (Q51 §51.2).
+> - Field nama kegiatan menampilkan penghitung karakter dengan batas 500; field tujuan berlabel "Tujuan (opsional)" (Q49 §49.1).
+
 ---
 
 ### 3. Modal Alasan Wajib (`resources/js/components/ui/ModalAlasan.tsx`)
 
-Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain** — termasuk pengembalian pengukuran/rencana aksi, koreksi PK, buka kembali jadwal/pengukuran, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan setelan aplikasi. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
+Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain (Q43 §43.2)** — termasuk pengembalian pengukuran/rencana aksi, koreksi dan revisi PK, buka kembali jadwal/pengukuran/rencana aksi, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan akses (peran, penonaktifan/pengaktifan kembali akun, pembatasan izin, pencabutan grant). Aksi beralasan **opsional** (Q43 §43.3: pemberian grant, perubahan target PK, perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif) menampilkan field "Alasan (opsional)" tanpa validasi wajib; bila alasan grant kosong, server mengisi alasan baku. Form penetapan Penanggung Jawab tidak menampilkan field alasan. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
 
 ```tsx
 import React, { useState } from 'react';
@@ -471,6 +487,8 @@ Pola halaman detail: tautan "← Kembali ke daftar" (`<Link>`) di kiri dan aksi 
 
 Contoh pengisian form pengukuran realisasi dengan hook `useForm` dari `@inertiajs/react` v3:
 
+> **Q45 (13 Oktober 2026):** contoh ini masih memakai satu field `catatan`. Form pengukuran aktual wajib memuat narasi **progres kegiatan**, **kendala/masalah**, dan **tindak lanjut/strategi** (serta tindak lanjut rekomendasi bila ada rekomendasi periode sebelumnya); `catatan` menjadi keterangan tambahan opsional dan saklar `wajib_catatan` tidak dipakai (ISS-07.03). Pola `useForm` di bawah tetap berlaku.
+
 ```tsx
 // resources/js/pages/Pengukuran/Edit.tsx
 import React from 'react';
@@ -487,7 +505,7 @@ interface Props {
         nilai: number | null;
         catatan: string | null;
         versi: number;
-        wajib_catatan: boolean;
+        wajib_catatan: boolean; // tidak dipakai sejak Q45
         arah: 'naik_baik' | 'turun_baik';
     };
 }
@@ -557,6 +575,8 @@ export default function EditPengukuran({ pengukuran }: Props) {
 Navigasi antar halaman menggunakan `<Link>` dari `@inertiajs/react`. Daftar menu mengikuti rantai kinerja, tetapi **visibilitas menu harus berasal dari capability yang sudah dihitung server**, bukan dari nama role.
 
 > Contoh berikut memakai objek `can` sebagai representasi capability server. Nama key dapat disesuaikan dengan kontrak props aplikasi, tetapi keputusan allow/deny tetap dibuat backend.
+
+> **Q44 (13 Oktober 2026):** pada sidebar aktual (`resources/js/lib/navigation/sidebarNavigation.ts`), **Dasar Aturan** berada di grup **Master Data & Referensi** dan **Persyaratan Berkas** di grup **Perencanaan Kinerja**; menu **Kebijakan Storage** dihapus. Visibilitas tetap mengikuti `can.*` server.
 
 ```tsx
 import { Link, usePage } from '@inertiajs/react';
@@ -749,7 +769,7 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
-- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain memicu modal input alasan dengan validasi backend; `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
+- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain (Q43 §43.2) memicu modal input alasan dengan validasi backend; aksi beralasan opsional (Q43 §43.3) memakai field opsional; `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
 
 - [ ] **Lima Role Q32**: UI yang menampilkan pilihan/label role hanya mengenal `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`
