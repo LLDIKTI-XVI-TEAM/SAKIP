@@ -24,6 +24,7 @@ use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
+use App\Http\Controllers\Pengukuran\EnsureDraftPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
@@ -172,6 +173,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
+    Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
     Route::post('/pengukuran/{id}', UpdatePengukuran::class)->whereUuid('id')->name('pengukuran.update');
     Route::post('/pengukuran/{id}/pratinjau', PreviewPengukuran::class)->whereUuid('id')->name('pengukuran.preview');

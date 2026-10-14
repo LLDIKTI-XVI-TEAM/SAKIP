@@ -89,6 +89,7 @@ try {
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'pengukuran-ajukan' => app(SubmitPengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
+            'pengukuran-ensure-draft' => performPengukuranEnsureDraft($assignment),
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
             'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
@@ -218,6 +219,33 @@ function performRencanaAksiMutation(string $operation, array $assignment): strin
     }
 
     return 'mutated';
+}
+
+/** Request ensure-draft pengukuran melewati middleware, FormRequest, controller, dan transaksi Action; hasil sukses berupa ID header tujuan redirect. */
+function performPengukuranEnsureDraft(array $assignment): string
+{
+    Auth::setUser(User::findOrFail($assignment['actor_id']));
+    $request = Request::create('/pengukuran/ensure-draft', 'POST', $assignment['data']);
+    $kernel = app(Illuminate\Contracts\Http\Kernel::class);
+    $response = $kernel->handle($request);
+    $kernel->terminate($request, $response);
+
+    if ($response->getStatusCode() === 403) {
+        return 'denied';
+    }
+    if (isset($assignment['expected_error_field']) && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+        if (! array_key_exists($assignment['expected_error_field'], (array) $request->session()->get('errors.default.messages'))) {
+            throw new RuntimeException('Penolakan validasi ensure-draft tidak sesuai field yang diharapkan.');
+        }
+
+        return 'conflict';
+    }
+    if ($response->getStatusCode() !== 302 || $request->session()->has('errors')
+        || preg_match('#/pengukuran/([0-9a-f-]{36})/edit$#', (string) $response->headers->get('Location'), $match) !== 1) {
+        throw new RuntimeException('Ensure-draft pengukuran tidak mencapai editor atau penolakan izin.');
+    }
+
+    return $match[1];
 }
 
 /** Jalur request Regulasi mencakup middleware, FormRequest, dan controller yang dipakai aplikasi. */

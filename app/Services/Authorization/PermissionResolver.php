@@ -18,6 +18,8 @@ use Illuminate\Support\Str;
  * jalur memakai aturan yang sama. Resolver hanya membaca data ACL tanpa
  * kunci; kunci baris aktor dan otorisasi ulang di dalam transaksi tetap
  * milik pemanggil (mis. `ResolveLockedActor`), begitu pula audit penolakan.
+ * Capability navigasi berbasis peran (filter daftar pengukuran) juga dibaca di
+ * sini agar tidak memasok unit rekaan ke keputusan berscope unit.
  */
 class PermissionResolver
 {
@@ -133,6 +135,22 @@ class PermissionResolver
             ->where('permissions.kode', $kode)
             ->whereNotNull('user_permission_denied.unit_id')
             ->select('user_permission_denied.unit_id');
+    }
+
+    /**
+     * Navigasi berbasis peran untuk izin berscope unit: benar hanya bila pengguna aktif, izin katalog aktif, allow berasal
+     * dari peran aktif, dan tidak ada deny global. Bukan izin tulis; grant/deny per unit tetap diputuskan decide() pada
+     * baris atau aksi sebenarnya, dan decide() tanpa unit tetap invalid_scope.
+     */
+    public function allowsRoleNavigation(User $user, string $kode): bool
+    {
+        $permissionId = in_array($kode, PermissionCatalog::codes(), true) ? Permission::where('kode', $kode)->where('aktif', true)->value('id') : null;
+
+        return $user->status === 'aktif' && $permissionId !== null
+            && DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
+                ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)->whereIn('roles.kode', RoleCatalog::codes())
+                ->where('role_permissions.permission_id', $permissionId)->exists()
+            && ! DB::table('user_permission_denied')->where('user_id', $user->id)->where('permission_id', $permissionId)->whereNull('unit_id')->exists();
     }
 
     public function allows(User $user, string $kode, ?string $unitId = null): bool

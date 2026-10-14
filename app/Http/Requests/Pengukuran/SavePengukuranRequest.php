@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Pengukuran;
 
+use App\Models\PengukuranKinerja;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,9 @@ class SavePengukuranRequest extends FormRequest
             'komponen' => ['sometimes', 'array'], 'komponen.*' => ['array:komponen_id,nilai'],
             'komponen.*.komponen_id' => ['required', 'uuid', 'distinct'], 'komponen.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
             'catatan' => ['nullable', 'string', 'max:10000'], 'alasan_tidak_dapat_dihitung' => ['nullable', 'string', 'max:10000'],
+            // Satu-satunya status dari client adalah pilihan eksplisit; status hasil lain diputuskan server.
+            'status_perhitungan' => ['nullable', 'in:belum_dapat_diukur'],
+            ...array_fill_keys(PengukuranKinerja::NARASI, ['nullable', 'string', 'max:10000']),
             'bukti' => ['sometimes', 'nullable', 'array:jenis_berkas_id,mode,file,tautan,isi_teks,menggantikan_id,alasan_koreksi'],
             'bukti.menggantikan_id' => ['nullable', 'uuid'],
             'bukti.alasan_koreksi' => ['required_with:bukti.menggantikan_id', 'nullable', 'string', 'max:10000'],
@@ -26,7 +30,7 @@ class SavePengukuranRequest extends FormRequest
             'bukti.file' => [Rule::requiredIf(fn () => $this->input('bukti.mode') === 'file'), 'nullable', 'file', Rule::prohibitedIf(fn () => $this->input('bukti.mode') !== 'file')],
             'bukti.tautan' => [Rule::requiredIf(fn () => $this->input('bukti.mode') === 'tautan'), 'nullable', 'url:http,https', 'max:2048', Rule::prohibitedIf(fn () => $this->input('bukti.mode') !== 'tautan')],
             'bukti.isi_teks' => [Rule::requiredIf(fn () => $this->input('bukti.mode') === 'teks'), 'nullable', 'string', 'max:10000', Rule::prohibitedIf(fn () => $this->input('bukti.mode') !== 'teks')],
-            'status_alur' => ['prohibited'], 'status_perhitungan' => ['prohibited'], 'sumber_nilai' => ['prohibited'], 'diajukan_by' => ['prohibited'],
+            'status_alur' => ['prohibited'], 'sumber_nilai' => ['prohibited'], 'diajukan_by' => ['prohibited'],
             'jalur_pengajuan' => ['prohibited'], 'dasar_izin_pengajuan' => ['prohibited'], 'jadwal_snapshot_id' => ['prohibited'], 'rencana_aksi_versi_id' => ['prohibited']];
     }
 

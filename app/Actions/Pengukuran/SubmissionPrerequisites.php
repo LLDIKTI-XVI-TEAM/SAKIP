@@ -59,6 +59,10 @@ class SubmissionPrerequisites
         if ($pengukuran->status_perhitungan === 'belum_diisi') {
             $errors[] = 'Nilai manual atau seluruh komponen snapshot wajib diisi.';
         }
+        // Penolakan sementara sampai gerbang BDD final tersedia; draft BDD tetap dapat disimpan.
+        if ($pengukuran->status_perhitungan === 'belum_dapat_diukur') {
+            $errors[] = 'Pengajuan belum tersedia untuk status Belum dapat diukur. Simpan sebagai draft.';
+        }
         if ($pengukuran->status_perhitungan === 'tidak_dapat_dihitung' && trim((string) $pengukuran->alasan_tidak_dapat_dihitung) === '') {
             $errors[] = 'Alasan penyebut nol wajib diisi.';
         }

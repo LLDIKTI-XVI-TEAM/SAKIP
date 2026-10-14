@@ -63,7 +63,7 @@ class UnitDitolakTest extends TestCase
         $this->deny($this->actor, 'pengukuran:read', $this->unit->id);
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
             ->has('pengukurans', 1)
-            ->whereNot('pengukurans.0.id', $this->pengukuran->id));
+            ->whereNot('pengukurans.0.pengukuran.id', $this->pengukuran->id));
     }
 
     /**
