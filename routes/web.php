@@ -18,6 +18,7 @@ use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Kegiatan\KegiatanController;
+use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
@@ -182,6 +183,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
     Route::get('/kegiatan/buat', [KegiatanController::class, 'create'])->name('kegiatan.create');
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
+    Route::post('/kegiatan/{kegiatan}/klaim', [KlaimKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.klaim.store');
+    Route::delete('/kegiatan/{kegiatan}/klaim/{klaim}', [KlaimKegiatanController::class, 'destroy'])->whereUuid('kegiatan')->whereUuid('klaim')->name('kegiatan.klaim.destroy');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
