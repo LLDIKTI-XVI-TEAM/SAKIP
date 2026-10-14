@@ -6,6 +6,8 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
@@ -23,6 +25,7 @@ use App\Support\AlasanAudit;
 use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -67,7 +70,9 @@ class AjukanRencanaAksi
      * sehingga dinilai sebagai daftar kosong (guard simpan sudah mencegah
      * perubahan sejak awal). Dalam sesi koreksi, lingkup dinilai terhadap
      * periode yang berubah pula, berlaku untuk PIC maupun Perencanaan.
-     * Klaim kegiatan belum dibekukan karena belum ada writer klaim rencana aksi.
+     * Klaim kegiatan tahap RA (`sumber_klaim = rencana_aksi`) dibekukan ke
+     * snapshot versi dan wajib minimal satu kecuali pengecualian Q46; perubahan
+     * daftar kegiatan pada periode terkunci sudah ditolak oleh writer klaim.
      *
      * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
      * indikator lalu `rencana_aksi`, berlawanan dengan writer RA (header lalu
@@ -170,6 +175,13 @@ class AjukanRencanaAksi
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
                 $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);
+                // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
+                $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
+                $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
+                if ($alasanKegiatan !== null) {
+                    $alasan[] = $alasanKegiatan;
+                }
                 if ($alasan !== []) {
                     throw ValidationException::withMessages(['pengajuan' => $alasan]);
                 }
@@ -197,6 +209,7 @@ class AjukanRencanaAksi
                         'alasan_deviasi_pk' => $header->alasan_deviasi_pk,
                         'deviasi_pk' => $deviasi,
                         'target_periode' => $baris,
+                        'klaim' => $this->klaimBeku($klaim, $kegiatan),
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([
@@ -265,5 +278,33 @@ class AjukanRencanaAksi
 
             throw $exception;
         }
+    }
+
+    /**
+     * Bentuk beku klaim tahap RA (Data Model §2.34): data kegiatan disalin agar
+     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluator
+     * persyaratan tahap perencanaan kegiatan ditambahkan saat persyaratannya ada.
+     *
+     * @param  Collection<int, KlaimKegiatan>  $klaim
+     * @param  Collection<string, Kegiatan>  $kegiatan
+     * @return list<array<string, mixed>>
+     */
+    private function klaimBeku(Collection $klaim, Collection $kegiatan): array
+    {
+        return $klaim->map(function (KlaimKegiatan $item) use ($kegiatan): array {
+            /** @var Kegiatan $sumber */
+            $sumber = $kegiatan->get($item->kegiatan_id);
+
+            return [
+                ...$item->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan']),
+                'periode_id' => (string) $sumber->periode_id,
+                'kegiatan' => [
+                    'nama' => $sumber->nama,
+                    'tujuan' => $sumber->tujuan,
+                    'anggaran' => $sumber->anggaran === null ? null : (string) $sumber->anggaran,
+                    'status' => $sumber->status,
+                ],
+            ];
+        })->values()->all();
     }
 }

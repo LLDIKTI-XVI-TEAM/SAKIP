@@ -4,9 +4,11 @@ namespace App\Services\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksiTarget;
 use App\Support\DeviasiTargetPk;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -29,6 +31,9 @@ use InvalidArgumentException;
  */
 class KesiapanPengajuan
 {
+    /** Tahun RA data awal yang dicatat Perencanaan (Q32.8, Q46 §46.1 butir 3). */
+    public const TAHUN_DATA_AWAL = 2026;
+
     public function __construct(private readonly CalculatePengukuran $calculator) {}
 
     /**
@@ -114,6 +119,38 @@ class KesiapanPengajuan
      * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
      * @return list<string>
      */
+    /**
+     * Gerbang minimal satu kegiatan yang diklaim pada tahap RA (Q42 §42.1
+     * butir 3); tidak setiap periode wajib berisi kegiatan. Dikecualikan
+     * untuk RA data awal 2026 yang diajukan lewat jalur Perencanaan (Q46
+     * §46.1 butir 3, Q32.8) dan RA yang seluruh periode efektifnya sudah
+     * lampau saat aktivasi jadwal (Q46 §46.1 butir 1). Kegiatan pada periode
+     * lampau tetap dihitung bila ada.
+     *
+     * @param  Collection<int, PeriodeJadwal>  $jendela
+     * @param  Collection<int, string>  $periodeEfektif
+     */
+    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): ?string
+    {
+        if ($jumlahKlaim > 0) {
+            return null;
+        }
+        // Asumsi kerja menunggu konfirmasi PM: "data awal" dikenali dari tahun 2026 dan jalur Perencanaan, tanpa kolom penanda.
+        if ($tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan) {
+            return null;
+        }
+        // Periode lampau mengikuti JadwalActivationReadiness: pengisian selesai sebelum tanggal aktivasi jadwal.
+        $aktivasi = $jadwal->activated_at === null ? null : Carbon::parse($jadwal->activated_at)->setTimezone(config('app.business_timezone'))->toDateString();
+        $lampau = $aktivasi === null ? collect() : $jendela
+            ->filter(fn (PeriodeJadwal $row): bool => $row->pengisian_selesai !== null && $row->pengisian_selesai->toDateString() < $aktivasi)
+            ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
+        if ($periodeEfektif->isNotEmpty() && $periodeEfektif->diff($lampau)->isEmpty()) {
+            return null;
+        }
+
+        return 'Rencana aksi wajib memiliki minimal satu kegiatan yang diklaim pada tahap rencana aksi.';
+    }
+
     public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan): array
     {
         $alasan = [];

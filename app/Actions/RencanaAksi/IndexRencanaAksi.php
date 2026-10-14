@@ -6,6 +6,7 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\KlaimKegiatan;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
@@ -123,6 +124,16 @@ class IndexRencanaAksi
             $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
             $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
+            // Gerbang kegiatan minimal memakai aturan yang sama dengan pengajuan; jalur dinilai dari izin ajukan pembaca.
+            $alasanKegiatan = $this->kesiapan->alasanKegiatan(
+                KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->count(),
+                (int) $segel->tahun,
+                $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id)),
+                $jadwal, $jendela, $efektifIds,
+            );
+            if ($alasanKegiatan !== null) {
+                $alasanPengajuan[] = $alasanKegiatan;
+            }
             // Jepit draf tertinggal dari snapshot koreksi terbaru: gerbang
             // pengajuan menolak 409 sampai target disimpan di konteks baru, jadi
             // halaman menunjukkan tindakannya alih-alih "siap" tanpa tombol.
