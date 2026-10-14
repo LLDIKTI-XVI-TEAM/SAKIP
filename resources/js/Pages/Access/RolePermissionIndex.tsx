@@ -52,9 +52,10 @@ export default function RolePermissionIndex({
     };
 
     useEffect(() => {
-        // Mengikuti pencarian pengguna Grant: minimal 2 huruf dan debounce 350 ms; kotak kosong menampilkan semua izin.
-        const q = query.trim();
-        if (!filters.role || q === filters.q || q.length === 1) return;
+        // Mengikuti pencarian pengguna Grant: minimal 2 huruf dan debounce 350 ms; kurang dari 2 huruf menampilkan semua izin.
+        const trimmed = query.trim();
+        const q = trimmed.length < 2 ? "" : trimmed;
+        if (!filters.role || q === filters.q) return;
         const timer = window.setTimeout(() => {
             // Kunjungan baru membatalkan yang sedang berjalan; pencarian ditunda sampai kunjungan itu selesai.
             if (pending.current) {

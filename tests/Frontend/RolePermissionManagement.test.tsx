@@ -103,13 +103,13 @@ it("mencari otomatis setelah 2 huruf hanya lewat GET dan mengunci pilihan peran 
     expect(post).not.toHaveBeenCalled();
 });
 
-it("mengosongkan kotak pencarian menampilkan kembali semua izin peran", () => {
+it.each(["", "d"])("kotak pencarian \"%s\" (kurang dari 2 huruf) menampilkan kembali semua izin peran", (value) => {
     vi.useFakeTimers();
     const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
     render(<RolePermissionIndex {...props} filters={{ role: role.id, q: "da" }} />);
     act(() => { vi.advanceTimersByTime(1000); });
     expect(get).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value } });
     act(() => { vi.advanceTimersByTime(350); });
     expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: role.id, q: "" }]]);
 });
