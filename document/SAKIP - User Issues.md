@@ -2494,7 +2494,9 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 ### ISS-06.01 · [Feature] Pencatatan Rencana Kegiatan Unit
 
-> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge (validasi PR #97 saat ini masih membatasi `nama` 255 karakter dan mewajibkan `tujuan`); bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada ISS-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 diperbarui langsung karena PR #97 belum di-merge.
+> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 mengikuti Q49 §49.1.
+
+**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Penegakan pembatasan detail per unit (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan akses baca penerima grant tulis ditunda ke satu issue lintas modul Rencana Aksi + Kegiatan sesuai [keputusan PM PR #97](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/97#issuecomment-6161158080). Requirement tetap berlaku; PR ini mempertahankan baca global dikurangi deny unit. Issue tindak lanjut: [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102), gerbang sebelum UAT dengan data nyata serta produksi, bukan gerbang merge PR ini. Sementara itu grant kegiatan:create/update hanya diberikan kepada pengguna yang sudah memiliki kegiatan:read; Admin tidak diberi grant kegiatan. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
 
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1 · Tahap 1, PR #97 + Q49 (Q46 §46.3)  
@@ -2519,45 +2521,45 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [ ] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
+- [x] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
-- [ ] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut. *(Digantikan Q42: PR #97 tidak diperluas; input dan validasi anggaran dikerjakan pada ISS-06.08.)*
+- [x] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
+- [x] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut. *(Digantikan Q42: PR #97 tidak diperluas; input dan validasi anggaran dikerjakan pada ISS-06.08.)*
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.02 · [Feature] Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen

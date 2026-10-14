@@ -1061,7 +1061,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-06.01 · Pencatatan Rencana Kegiatan Unit
 
-> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge; bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada US-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, dan penjumlahan anggaran dikerjakan pada US-06.08 (Q42 §42.6). Kegiatan juga ditambahkan dari halaman Rencana Aksi per periode melalui US-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3).
+> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, dan penjumlahan anggaran dikerjakan pada US-06.08 (Q42 §42.6). Kegiatan juga ditambahkan dari halaman Rencana Aksi per periode melalui US-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3).
+
+**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Penegakan pembatasan detail per unit (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan akses baca penerima grant tulis ditunda ke satu issue lintas modul Rencana Aksi + Kegiatan sesuai [keputusan PM PR #97](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/97#issuecomment-6161158080). Requirement tetap berlaku; PR ini mempertahankan baca global dikurangi deny unit. Issue tindak lanjut: [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102), gerbang sebelum UAT dengan data nyata serta produksi, bukan gerbang merge PR ini. Sementara itu grant kegiatan:create/update hanya diberikan kepada pengguna yang sudah memiliki kegiatan:read; Admin tidak diberi grant kegiatan. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
 
 | Field | Detail |
 |---|---|
@@ -1079,10 +1081,10 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 ### US-06.02 · Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
 

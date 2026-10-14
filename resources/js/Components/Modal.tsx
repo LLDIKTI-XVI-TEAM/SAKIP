@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
                 return;
             }
             const primaryField = modalRef.current.querySelector<HTMLElement>(
-                'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+                'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)'
             );
             if (primaryField) {
                 primaryField.focus();
@@ -70,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
             }
 
             const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)'
             );
             if (focusable.length > 0) {
                 focusable[0].focus();
@@ -99,7 +99,7 @@ export const Modal: React.FC<ModalProps> = ({
             if (e.key === 'Tab' && modalRef.current) {
                 const focusables = Array.from(
                     modalRef.current.querySelectorAll<HTMLElement>(
-                        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)'
                     )
                 ).filter((el) => el.offsetParent !== null);
 
