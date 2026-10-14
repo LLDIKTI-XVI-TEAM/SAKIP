@@ -138,11 +138,17 @@ class RencanaAksiPolicy
         return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_SAHKAN, (string) $header->unit_id), 'Izin pengesahan rencana aksi tidak tersedia.');
     }
 
+    public function bukaKembali(User $user, RencanaAksi $header): Response
+    {
+        return $this->response($this->resolver->resolve($user, PermissionCodes::RENCANA_AKSI_BUKA_KEMBALI, (string) $header->unit_id), 'Izin buka-kembali rencana aksi tidak tersedia.');
+    }
+
     /** @return array<string, list<string>> */
     public function businessErrors(User $user, RencanaAksi $header, ?RencanaAksiVersi $versi): array
     {
         return ['verifikasi' => $this->review->businessErrors($user, $header, $versi, 'verifikasi'),
             'kembalikan' => $this->review->businessErrors($user, $header, $versi, 'kembalikan'),
-            'sahkan' => $this->review->businessErrors($user, $header, $versi, 'sahkan')];
+            'sahkan' => $this->review->businessErrors($user, $header, $versi, 'sahkan'),
+            'buka_kembali' => $this->review->businessErrors($user, $header, $versi, 'buka_kembali')];
     }
 }

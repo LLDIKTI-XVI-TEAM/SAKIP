@@ -58,7 +58,8 @@ class GerbangBuktiRencanaAksi
     /**
      * Validasi bisnis tulis bukti yang sejajar dengan `SimpanTargetPeriode`:
      * unit header aktif, indikator bukan arsip, status header dapat
-     * disunting, dan jendela tulis (penutupan, PIC efektif, rentang tanggal).
+     * disunting, dan gerbang tulis (penutupan/sesi koreksi, PIC efektif;
+     * bukti menempel pada header sehingga tanpa dimensi periode Q41).
      *
      * @return array{0: string, 1: string}|null Pasangan [field, pesan] pelanggaran pertama.
      */

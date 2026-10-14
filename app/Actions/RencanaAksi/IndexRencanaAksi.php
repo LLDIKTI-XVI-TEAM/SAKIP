@@ -16,7 +16,9 @@ use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
+use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
+use App\Support\PermissionDecision;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +135,16 @@ class IndexRencanaAksi
 
             $unitId = (string) $segel->unit_id;
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
+            // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
+            // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
+            // Dalam sesi koreksi aktif daftar juga dikosongkan: lingkup
+            // koreksi sudah menjadi pembatas dan kunci tanggal diabaikan
+            // (cermin `penilaian()`), sehingga periode dalam lingkup tidak
+            // dikunci UI.
+            $hariIni = today(config('app.business_timezone'))->toDateString();
+            $terkunciIds = ($this->jendela->jalurPerencanaan($keputusanUbah) || $koreksi['aktif'])
+                ? []
+                : array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'id');
             // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
             $versiPengajuan = $segel->latestVersion()
                 ->leftJoin('users', 'users.id', '=', 'rencana_aksi_versi.diajukan_by')
@@ -188,34 +200,73 @@ class IndexRencanaAksi
                     'diajukan_oleh' => $versiPengajuan->getAttribute('diajukan_oleh'),
                     'diajukan_at' => $versiPengajuan->diajukan_at->toIso8601String(),
                 ],
-                // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
-                // (izin, unit aktif, indikator bukan arsip, status draf,
-                // lingkup koreksi yang mencakup periode efektif, jendela
-                // tulis) agar formulir tidak dibuka untuk penyimpanan yang
-                // pasti ditolak.
+                // Daftar kunci untuk UI hanya-baca per periode.
+                'periode_terkunci' => $terkunciIds,
+                // `update` memakai syarat gerbang tulis simpan berbasis
+                // perubahan (Q41): tetap true selama masih ada periode yang
+                // dapat ditulis (efektif dikurangi terkunci; dalam koreksi
+                // hanya irisan efektif ∩ lingkup) agar formulir tidak dibuka
+                // untuk penyimpanan yang pasti ditolak.
                 'can' => [
                     'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
-                    'update' => $keputusanUbah->allowed
-                        && $segel->unit?->status === 'aktif'
-                        && ! $indikator->isArsip()
-                        && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
-                        && (! $koreksi['aktif'] || array_intersect($efektifIds->all(), $koreksi['periode_ids']) !== [])
-                        && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan') === null,
-                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal),
+                    'update' => $this->bolehUbah($actor, $keputusanUbah, $segel, $indikator, $jadwal, $efektifIds, $koreksi, $terkunciIds),
+                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal, $efektifIds, $barisBeku),
                 ],
             ];
         });
     }
 
     /**
-     * Eligibility gerbang `AjukanRencanaAksi` tanpa kelengkapan isi: status
-     * dapat disunting, jepit snapshot terbaru, unit aktif, indikator bukan
-     * arsip, izin `rencana_aksi:ajukan`, dan jendela pengajuan. Kelengkapan
-     * dilaporkan terpisah di `pengajuan` agar UI dapat menunjukkan alasannya.
-     * Pemeriksaan murah didahulukan agar resolver tidak dipanggil untuk
-     * status beku.
+     * Periode yang dapat ditulis: irisan efektif ∩ lingkup dalam sesi
+     * koreksi (kunci tanggal diabaikan di sana); di luar itu efektif
+     * dikurangi terkunci bagi aktor.
+     *
+     * @param  Collection<int, string>  $efektifIds
+     * @param  array{aktif: bool, periode_ids: list<string>}  $koreksi
+     * @param  list<string>  $terkunciIds
+     * @return list<string>
      */
-    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    private function periodeDapatDitulis(Collection $efektifIds, array $koreksi, array $terkunciIds): array
+    {
+        if ($koreksi['aktif']) {
+            return array_values(array_intersect($efektifIds->all(), $koreksi['periode_ids']));
+        }
+
+        return array_values(array_diff($efektifIds->all(), $terkunciIds));
+    }
+
+    private function bolehUbah(User $actor, PermissionDecision $keputusanUbah, RencanaAksi $segel, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds, array $koreksi, array $terkunciIds): bool
+    {
+        if (! $keputusanUbah->allowed
+            || $segel->unit?->status !== 'aktif'
+            || $indikator->isArsip()
+            || ! in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)) {
+            return false;
+        }
+
+        $dapatDitulis = $this->periodeDapatDitulis($efektifIds, $koreksi, $terkunciIds);
+        if ($dapatDitulis === []) {
+            return false;
+        }
+
+        return $this->jendela->penilaian($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan', $dapatDitulis)['pesan'] === null;
+    }
+
+    /**
+     * Eligibility gerbang pengajuan tanpa kelengkapan isi: status dapat
+     * disunting, jepit snapshot terbaru, unit aktif, indikator bukan arsip,
+     * izin ajukan, dan kunci berbasis perubahan yang sama dengan
+     * `AjukanRencanaAksi` lewat `PerbandinganNilaiRencanaAksi` (periode yang
+     * dinilai adalah yang berubah dibanding versi sah terakhir; tanpa
+     * pembanding dinilai kosong).
+     * Kelengkapan dilaporkan terpisah di `pengajuan` agar UI dapat
+     * menunjukkan alasannya. Pemeriksaan murah didahulukan agar resolver
+     * tidak dipanggil untuk status beku.
+     *
+     * @param  Collection<int, string>  $efektifIds
+     * @param  list<array{periode_id: string, nilai: mixed, komponen: list<array{komponen_id: string, nilai: mixed}>}>  $barisBeku
+     */
+    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds, array $barisBeku): bool
     {
         if (! in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
             || (string) $segel->snapshot_draf_id !== (string) $snapshot->id
@@ -225,8 +276,13 @@ class IndexRencanaAksi
         }
 
         $keputusan = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id);
+        if (! $keputusan->allowed) {
+            return false;
+        }
 
-        return $keputusan->allowed && $this->jendela->alasanTolak($actor, $keputusan, $indikator, $jadwal, 'pengajuan') === null;
+        $berubah = PerbandinganNilaiRencanaAksi::periodeBerubahVsVersiSah((string) $segel->id, $barisBeku);
+
+        return $this->jendela->penilaian($actor, $keputusan, $indikator, $jadwal, 'pengajuan', $berubah)['pesan'] === null;
     }
 
     /**

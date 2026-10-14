@@ -51,8 +51,9 @@ class EnsureDraftRencanaAksi
      * zona Asia/Makassar. Indikator arsip dan ketiadaan jadwal aktif ditolak
      * validasi. Snapshot beku jadwal aktif wajib ada; tanpanya
      * pembuatan ditolak fail-closed. Jalur unit-scoped PIC mensyaratkan pemanggil adalah PIC
-     * efektif hari ini dan hari ini di dalam jendela rencana aksi; jalur
-     * Perencanaan global mengikuti kewenangan resmi tanpa syarat PIC/jendela
+     * efektif hari ini tanpa jendela penyusunan (Q41: pembuatan header tanpa
+     * dimensi periode; kunci per periode dinilai saat simpan/ajukan); jalur
+     * Perencanaan global mengikuti kewenangan resmi tanpa syarat PIC
      * (tetap tunduk pada penutupan tahun). Keberadaan header diperiksa di
      * bawah kunci sehingga pemanggilan ulang mengembalikan baris yang sama
      * tanpa duplikat.

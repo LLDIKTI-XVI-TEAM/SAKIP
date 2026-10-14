@@ -99,7 +99,10 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'targets' => ['required', 'array', 'min:1', 'max:600'],
             'targets.*.periode_id' => ['required', 'uuid', 'exists:periode,id'],
             'targets.*.komponen_id' => ['nullable', 'uuid', 'exists:indikator_komponen,id'],
-            'targets.*.nilai' => ['present', 'nullable', 'numeric', 'between:-999999999999999999,999999999999999999'],
+            // Desimal biasa tanpa eksponen (cermin `PreviewIndicatorFormulaRequest`):
+            // `numeric` saja meloloskan `1e3`; tolak sebagai 422 agar nilai
+            // tersimpan selalu desimal biasa sesuai kapasitas `numeric(30,12)`.
+            'targets.*.nilai' => ['present', 'nullable', 'numeric', 'regex:/^-?\d+(?:\.\d{1,12})?$/', 'between:-999999999999999999,999999999999999999'],
             // Batas per sel; ukuran audit (seluruh matriks masuk lama+baru
             // tiap simpan) dibatasi oleh batas total matriks tersimpan di
             // SimpanTargetPeriode.
@@ -132,6 +135,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'targets.*.nilai.present' => 'Kolom :attribute harus dikirim; gunakan nilai kosong untuk target yang belum diisi.',
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
+            'regex' => 'Kolom :attribute harus berupa desimal biasa tanpa eksponen.',
             'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
             'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
             'min' => 'Kolom :attribute tidak memenuhi nilai minimum.',

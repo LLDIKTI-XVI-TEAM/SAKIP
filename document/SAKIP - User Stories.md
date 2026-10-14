@@ -1001,13 +1001,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
+- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD M1.)*
+
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi RA, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41/Q43. Review 14 Oktober 2026: AC-6 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode (writer klaim tahap RA milik ISS-06.02/06.08). AC-3 dan AC-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1).
 
 **Business Rules / Catatan**
 

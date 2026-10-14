@@ -24,8 +24,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Fixture bukti rencana aksi: jadwal aktif dengan jendela penyusunan yang
- * sedang berjalan, aktor superadmin sebagai PJ awal, dan helper untuk
+ * Fixture bukti rencana aksi: jadwal aktif sebelum penutupan (Q41: tanpa
+ * jendela penyusunan), aktor superadmin sebagai PJ awal, dan helper untuk
  * membentuk PIC pegawai (grant unit + penugasan efektif).
  */
 trait CreatesRencanaAksiFixture

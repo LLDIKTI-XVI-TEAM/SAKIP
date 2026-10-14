@@ -60,6 +60,31 @@ class RencanaAksiTargetTest extends TestCase
     }
 
     /**
+     * Notasi eksponen (`1e3`) lolos aturan `numeric` sehingga wajib ditolak
+     * sebagai 422 oleh regex desimal biasa, bukan 500 dari perbandingan nilai.
+     */
+    public function test_nilai_eksponen_ditolak_422_bukan_500(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => '1e3', 'keterangan' => null],
+            ],
+        ])->assertSessionHasErrors('targets.0.nilai');
+        $this->assertSame(1, $header->fresh()->versi);
+    }
+
+    /**
      * Seluruh matriks masuk audit dua kali tiap simpan, jadi ukuran per
      * permintaan (keterangan per sel) dan frekuensi tulis dibatasi agar
      * `audit_log` yang append-only tidak dapat dibanjiri. Pratinjau tidak
@@ -388,24 +413,21 @@ class RencanaAksiTargetTest extends TestCase
         ])->assertSessionHasNoErrors();
     }
 
-    public function test_jendela_pic_ditutup_tetapi_perencanaan_sampai_penutupan(): void
+    public function test_kunci_periode_pic_ditolak_tetapi_perencanaan_sampai_penutupan(): void
     {
         $fixture = $this->buatFixtureManual();
-        $fixture['jadwal']->update(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-31']);
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        // Q41: tidak ada jendela penyusunan — pembuatan draf PIC selalu
+        // diterima sebelum penutupan; kunci per periode dinilai saat simpan.
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasErrors('jendela');
-        $this->assertDatabaseCount('rencana_aksi', 0);
-
-        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
+        // Batas pengisian 31 Maret sudah lewat: PIC ditolak dengan pesan
+        // spesifik per periode, Perencanaan dikecualikan sampai penutupan.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
@@ -413,7 +435,7 @@ class RencanaAksiTargetTest extends TestCase
             'targets' => [
                 ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
             ],
-        ])->assertSessionHasErrors('jendela');
+        ])->assertSessionHasErrors(['jendela' => 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31).']);
         $this->assertSame(1, $header->fresh()->versi);
 
         $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
@@ -444,21 +466,33 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->exists());
     }
 
-    public function test_ensure_draft_menolak_pic_efektif_di_luar_jendela(): void
+    public function test_ensure_draft_mengizinkan_pic_setelah_periode_terkunci_kunci_dinilai_saat_simpan(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
 
+        // Pembuatan header tanpa dimensi periode tidak terikat kunci.
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        // Kunci baru menolak saat simpan menyentuh periode terkunci.
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null],
+            ],
         ])->assertSessionHasErrors('jendela');
 
-        $this->assertDatabaseCount('rencana_aksi', 0);
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat_ditolak')->exists());
+        $this->assertSame(1, $header->fresh()->versi);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat')->exists());
     }
 
-    public function test_ensure_draft_mengizinkan_pic_efektif_di_dalam_jendela(): void
+    public function test_ensure_draft_mengizinkan_pic_efektif_sebelum_penutupan(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -473,7 +507,7 @@ class RencanaAksiTargetTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.buat')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_ensure_draft_perencanaan_global_mengikuti_jalur_resmi_di_luar_jendela(): void
+    public function test_ensure_draft_perencanaan_global_mengikuti_jalur_resmi_setelah_periode_terkunci(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));

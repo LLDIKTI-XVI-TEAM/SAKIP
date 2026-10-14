@@ -23,6 +23,7 @@ class ReviewRencanaAksiRequest extends FormRequest
         $permission = match ($this->aksi()) {
             'kembalikan' => PermissionCodes::RENCANA_AKSI_KEMBALIKAN,
             'sahkan' => PermissionCodes::RENCANA_AKSI_SAHKAN,
+            'buka_kembali' => PermissionCodes::RENCANA_AKSI_BUKA_KEMBALI,
             default => PermissionCodes::RENCANA_AKSI_VERIFIKASI,
         };
         $decision = app(PermissionResolver::class)->resolve($this->user(), $permission, (string) $header->unit_id);
@@ -35,7 +36,8 @@ class ReviewRencanaAksiRequest extends FormRequest
     public function rules(): array
     {
         $rules = ['expected_versi' => ['required', 'integer', 'min:1'], 'versi_pengajuan_id' => ['required', 'uuid']];
-        if ($this->aksi() === 'kembalikan') {
+        if ($this->aksi() === 'kembalikan' || $this->aksi() === 'buka_kembali') {
+            // Q43 §43.2: alasan pengembalian dan buka-kembali WAJIB.
             $rules['alasan'] = ['required', 'string', 'max:1000', AuditReason::validate(...)];
         }
 
@@ -60,6 +62,7 @@ class ReviewRencanaAksiRequest extends FormRequest
         return match (true) {
             $this->routeIs('rencana-aksi.kembalikan') => 'kembalikan',
             $this->routeIs('rencana-aksi.sahkan') => 'sahkan',
+            $this->routeIs('rencana-aksi.buka-kembali') => 'buka_kembali',
             default => 'verifikasi',
         };
     }

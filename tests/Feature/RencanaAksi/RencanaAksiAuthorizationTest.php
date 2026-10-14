@@ -318,19 +318,14 @@ class RencanaAksiAuthorizationTest extends TestCase
         $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")->assertOk();
     }
 
-    public function test_jendela_pic_ditutup_tetapi_perencanaan_lolos(): void
+    public function test_kunci_periode_pic_ditolak_tetapi_perencanaan_lolos(): void
     {
         $fixture = $this->buatFixtureManual();
-        $fixture['jadwal']->update(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-31']);
-        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        // Q41: pembuatan draf PIC diterima sebelum penutupan walau batas
+        // pengisian sudah lewat; kunci menolak saat simpan.
+        $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
-            'indikator_id' => $fixture['indikator']->id,
-            'tahun' => 2026,
-        ])->assertSessionHasErrors('jendela');
-        $this->assertDatabaseCount('rencana_aksi', 0);
-
-        $this->actingAs($fixture['perencanaan'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
