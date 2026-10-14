@@ -32,8 +32,6 @@ class RencanaAksiAjukanTest extends TestCase
 
     private const ALASAN_TOLAK_OTORISASI = 'Percobaan pengajuan rencana aksi ditolak oleh sistem otorisasi.';
 
-    private const KUNCI_DUA_PERIODE = 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31); Triwulan II (batas 2026-03-31).';
-
     public function test_pic_mengajukan_draf_lengkap_membentuk_versi_beku(): void
     {
         $fixture = $this->buatFixtureManual();
@@ -281,14 +279,25 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('2026-03-31', RencanaAksiVersi::sole()->diajukan_at->setTimezone('Asia/Makassar')->toDateString());
     }
 
-    public function test_pic_setelah_batas_pengisian_ditolak_sedangkan_dalam_batas_diterima(): void
+    /**
+     * F2 (ISS-05.06 AC-6): pengajuan PIC berbasis perubahan nilai. Tanpa versi
+     * sah sebelumnya tidak ada pembanding sehingga pengajuan setelah batas
+     * tetap lolos bila nilai sama (guard simpan sudah mencegah perubahan sejak
+     * awal); penolakan karena nilai periode terkunci berubah dibuktikan pada
+     * BukaKembaliRencanaAksiTest dengan versi sah sebagai pembanding.
+     */
+    public function test_pic_setelah_batas_tanpa_versi_sah_lolos_sedangkan_dalam_batas_diterima(): void
     {
+        // (a) Sehari setelah batas 31 Maret, kedua periode terkunci bagi PIC,
+        // tetapi tanpa versi sah tidak ada pembanding → lolos.
+        $fixtureAwal = $this->buatFixtureManual();
+        $headerAwal = $this->drafManual($fixtureAwal);
+        $this->travelTo(Carbon::parse('2026-04-01 09:00', 'Asia/Makassar'));
+        $this->ajukan($fixtureAwal['pic'], $headerAwal, 2)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $headerAwal->fresh()->status_alur);
+
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
-
-        // (a) Sehari setelah batas pengisian 31 Maret lewat, kedua periode terkunci bagi PIC.
-        $this->travelTo(Carbon::parse('2026-04-01 09:00', 'Asia/Makassar'));
-        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors(['jendela' => self::KUNCI_DUA_PERIODE]);
 
         // (d) Grant ajukan dicabut: 403 dari FormRequest dengan satu audit penolakan.
         $this->travelTo(Carbon::parse('2026-03-10 09:00', 'Asia/Makassar'));
@@ -310,31 +319,36 @@ class RencanaAksiAjukanTest extends TestCase
             'created_at' => now(),
         ]);
         $this->ajukan($superadmin, $header, 2)->assertForbidden();
-        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+        $this->assertSame(0, $header->versions()->count());
 
         // (b) Hari terakhir batas pengisian pukul 23:30 WITA masih diterima.
         $this->travelTo(Carbon::parse('2026-03-31 23:30', 'Asia/Makassar'));
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $header->fresh()->status_alur);
 
-        // (b) 00:30 WITA 1 April ditolak walau tanggal UTC masih 31 Maret.
+        // (b2) 00:30 WITA 1 April tanpa versi sah tetap lolos (bukan blanket-reject);
+        // tanggal bisnis WITA tetap dipakai (UTC masih 31 Maret) untuk menentukan
+        // status terkunci, tetapi tanpa pembanding versi sah dinilai lolos.
         $kedua = $this->buatFixtureManual();
         $headerKedua = $this->drafManual($kedua);
         $this->travelTo(Carbon::parse('2026-04-01 00:30', 'Asia/Makassar'));
         $this->assertSame('2026-03-31', now()->utc()->toDateString());
-        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasErrors(['jendela' => self::KUNCI_DUA_PERIODE]);
+        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
 
         // (c) PJ efektif berpindah ke pengguna lain.
+        $ketiga = $this->buatFixtureManual();
+        $headerKetiga = $this->drafManual($ketiga);
         $this->travelTo(Carbon::parse('2026-03-10 09:00', 'Asia/Makassar'));
         PenugasanIndikator::create([
-            'indikator_id' => $kedua['indikator']->id,
+            'indikator_id' => $ketiga['indikator']->id,
             'user_id' => $this->penggunaDenganPeran('pegawai')->id,
             'tanggal_mulai_berlaku' => '2026-03-05',
-            'ditetapkan_oleh' => $kedua['perencanaan']->id,
+            'ditetapkan_oleh' => $ketiga['perencanaan']->id,
             'created_at' => now(),
         ]);
-        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasErrors(['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
-        $this->assertSame('draft', $headerKedua->fresh()->status_alur);
+        $this->ajukan($ketiga['pic'], $headerKetiga, 2)->assertSessionHasErrors(['jendela' => 'Tindakan ini memerlukan penugasan PIC yang efektif.']);
+        $this->assertSame('draft', $headerKetiga->fresh()->status_alur);
     }
 
     public function test_jalur_perencanaan_global_setelah_periode_terkunci_tercatat_sebagai_perencanaan(): void

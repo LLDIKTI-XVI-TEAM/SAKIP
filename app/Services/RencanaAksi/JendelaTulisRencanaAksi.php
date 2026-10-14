@@ -153,17 +153,18 @@ class JendelaTulisRencanaAksi
     }
 
     /**
-     * Periode yang hendak ditulis tetapi `pengisian_selesai` berlakunya
-     * sudah lewat pada tanggal bisnis, terurut urutan periode lalu nama
-     * agar pesan 422 spesifik per periode dan stabil.
+     * Rincian periode terkunci bagi PIC (untuk gerbang pengajuan berbasis
+     * perubahan nilai Q41 §41.2): setiap periode yang `pengisian_selesai`
+     * berlakunya sudah lewat pada tanggal bisnis, terurut urutan periode
+     * lalu nama agar pesan 422 spesifik per periode dan stabil.
      *
      * Periode yang tidak dikenal atau bukan anggota jadwal diabaikan di
      * sini; validasi keanggotaan milik pemanggil (`SimpanTargetPeriode`).
      *
      * @param  list<string>  $periodeIds
-     * @return list<string>
+     * @return list<array{id: string, nama: string, batas: string, urutan: int}>
      */
-    private function periodeTerkunci(JadwalTahunan $jadwal, array $periodeIds, string $hariIni): array
+    public function rincianTerkunci(JadwalTahunan $jadwal, array $periodeIds, string $hariIni): array
     {
         $ids = array_values(array_unique(array_map(fn ($id): string => (string) $id, $periodeIds)));
         if ($ids === []) {
@@ -181,11 +182,27 @@ class JendelaTulisRencanaAksi
             if ($tanggal === null || $tanggal === '' || $tanggal >= $hariIni) {
                 continue;
             }
-            $terkunci[] = ['nama' => (string) ($nama->get($id) ?? $id), 'batas' => $tanggal, 'urutan' => (int) ($urutan->get($id) ?? 0)];
+            $terkunci[] = ['id' => $id, 'nama' => (string) ($nama->get($id) ?? $id), 'batas' => $tanggal, 'urutan' => (int) ($urutan->get($id) ?? 0)];
         }
         usort($terkunci, fn (array $a, array $b): int => [$a['urutan'], $a['nama']] <=> [$b['urutan'], $b['nama']]);
 
-        return array_map(fn (array $baris): string => "{$baris['nama']} (batas {$baris['batas']})", $terkunci);
+        return $terkunci;
+    }
+
+    /**
+     * Periode yang hendak ditulis tetapi `pengisian_selesai` berlakunya
+     * sudah lewat pada tanggal bisnis, terurut urutan periode lalu nama
+     * agar pesan 422 spesifik per periode dan stabil.
+     *
+     * Periode yang tidak dikenal atau bukan anggota jadwal diabaikan di
+     * sini; validasi keanggotaan milik pemanggil (`SimpanTargetPeriode`).
+     *
+     * @param  list<string>  $periodeIds
+     * @return list<string>
+     */
+    private function periodeTerkunci(JadwalTahunan $jadwal, array $periodeIds, string $hariIni): array
+    {
+        return array_map(fn (array $baris): string => "{$baris['nama']} (batas {$baris['batas']})", $this->rincianTerkunci($jadwal, $periodeIds, $hariIni));
     }
 
     /**

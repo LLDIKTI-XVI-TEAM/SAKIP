@@ -1575,3 +1575,11 @@ Penyelarasan ini terbatas pada keunikan jadwal. Ketentuan master periode dan see
 Seed berjalan melalui `PeriodeSeeder`, juga dipanggil `DatabaseSeeder`, hanya jika tabel `periode` kosong. Keempat baris dibuat atomik dengan lock konfigurasi yang sama dengan mutasi master. Jika sudah ada baris, termasuk konfigurasi kustom pengelola, seed selesai tanpa perubahan dan menampilkan pesan bahwa konfigurasi dipertahankan. Pengulangan tidak menggandakan, melengkapi, menimpa, atau menormalkan konfigurasi existing.
 
 Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/2026. Nama, urutan, status, dan nilai akhir selanjutnya dikelola melalui aturan master periode yang berlaku; seed bukan mekanisme reset konfigurasi.
+
+## Addendum ISS-05.06 — Pemisahan Tugas Buka-Kembali Rencana Aksi
+
+**Keputusan pengguna: 14 Oktober 2026 (WITA), pada sesi grilling ISS-05.06.** Pengguna menyetujui guard pemisahan tugas khusus aksi `rencana_aksi:buka_kembali`: aktor yang mengesahkan versi (`versi.disahkan_by`) tidak boleh membuka kembali RA yang sama, kecuali Superadmin sebagai jalur darurat. Ini bukan nomor Q baru dan tidak mengubah kontrak Q41/Q43 maupun permission `rencana_aksi:buka_kembali` (tetap Perencanaan/Superadmin, sensitif, alasan wajib). Pencatatan ini bukan klaim ratifikasi PM, UAT, atau penerapan ke database telah selesai.
+
+- Penolakan non-Superadmin dicatat sebagai validasi bisnis 422 (`businessErrors`) beserta audit `rencana_aksi.buka_kembali_ditolak`; tombol UI disembunyikan via `can.buka_kembali`.
+- Pengecualian darurat Superadmin yang membuka pengesahannya sendiri tetap diizinkan dan wajib teraudit eksplisit (`nilai_baru.pembuka_sama_dengan_pengesah = true`), dengan alasan buka-kembali tetap wajib.
+- Guard ini melengkapi F1/F2 verifikasi/pengesahan (ISS-05.04/ISS-05.05), bukan menggantikannya; F1/F2 tidak berubah.

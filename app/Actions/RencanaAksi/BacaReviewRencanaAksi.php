@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -66,8 +67,7 @@ class BacaReviewRencanaAksi
                 'bukti_dukungs' => $buktiBoleh ? array_map(fn (array $b): array => [
                     'id' => $b['id'] ?? '', 'mode' => $b['mode'] ?? '', 'nama_asli' => $b['nama_asli'] ?? null,
                     'tautan' => $b['tautan'] ?? null, 'isi_teks' => $b['isi_teks'] ?? null,
-                    'download_url' => ($b['mode'] ?? '') === 'file' && in_array($b['id'] ?? null, $buktiBerlaku, true)
-                        ? route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]) : null,
+                    'download_url' => $this->unduhanBukti($header, $versi, $b, $buktiBerlaku),
                 ], array_values(array_filter($bukti, fn (array $b): bool => in_array($b['mode'] ?? null, ['file', 'tautan', 'teks'], true)))) : [],
                 'can' => ['verifikasi' => $policy->verifikasi($actor, $header)->allowed() && $errors['verifikasi'] === [],
                     'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [],
@@ -107,5 +107,31 @@ class BacaReviewRencanaAksi
     private function baris(mixed $rows): array
     {
         return is_array($rows) ? array_values(array_filter($rows, is_array(...))) : [];
+    }
+
+    /**
+     * Tautan unduh bukti versi: baris current yang masih berlaku selalu
+     * diberi tautan (perilaku lama); baris historis yang current-nya sudah
+     * tidak berlaku (diganti/dihapus setelah buka-kembali) tetap diberi
+     * tautan selama file fisik beku versinya masih ada, tanpa mensyaratkan
+     * current. File fisik yang hilang tetap tanpa tautan.
+     *
+     * @param  array<string, mixed>  $b
+     * @param  list<string>  $buktiBerlaku
+     */
+    private function unduhanBukti(RencanaAksi $header, RencanaAksiVersi $versi, array $b, array $buktiBerlaku): ?string
+    {
+        if (($b['mode'] ?? '') !== 'file' || ! is_string($b['id'] ?? null) || ! Str::isUuid($b['id'])) {
+            return null;
+        }
+        if (in_array($b['id'], $buktiBerlaku, true)) {
+            return route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]);
+        }
+        $jalurBeku = $b['path'] ?? null;
+        if (! is_string($jalurBeku) || $jalurBeku === '' || ! Storage::disk('local')->exists($jalurBeku)) {
+            return null;
+        }
+
+        return route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]);
     }
 }

@@ -7,12 +7,15 @@ use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Events\RencanaAksiDibukaKembali;
 use App\Events\RencanaAksiDikembalikan;
 use App\Models\AuditLog;
+use App\Models\BuktiDukung;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\CreatesRencanaAksiFixture;
@@ -262,9 +265,11 @@ class BukaKembaliRencanaAksiTest extends TestCase
 
     /**
      * ISS-05.06 AC-6 / Q41 §41.2: setelah dibuka kembali, PIC yang menyimpan
-     * atau mengajukan periode yang sudah terkunci ditolak 422 dengan pesan
-     * spesifik per periode dan diaudit; periode belum terkunci diterima dan
-     * Perencanaan dikecualikan sampai penutupan.
+     * periode yang sudah terkunci ditolak 422 dengan pesan spesifik per periode
+     * dan diaudit; periode belum terkunci diterima dan Perencanaan
+     * dikecualikan sampai penutupan. F2: pengajuan PIC hanya menolak bila nilai
+     * periode terkunci berubah dibanding versi sah terakhir — ubah periode
+     * terbuka lalu ajukan ulang tanpa menyentuh periode terkunci BERHASIL.
      */
     public function test_kunci_periode_terkunci_pic_ditolak_422_perencanaan_dikecualikan(): void
     {
@@ -301,14 +306,78 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $simpan($fixture['pic'], $dibuka, [$manual($fixture['periode2'], 90)])->assertSessionHasNoErrors();
         $this->assertSame($dibuka + 1, $header->fresh()->versi);
 
-        // Pengajuan menyentuh seluruh RA sehingga TW I yang terkunci menolak.
+        // F2: TW I terkunci tetapi nilainya sama dengan versi sah (100) sehingga
+        // pengajuan ulang yang hanya mengubah TW II terbuka BERHASIL.
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $dibuka + 1])
-            ->assertSessionHasErrors(['jendela' => $pesanKunci]);
-        $this->assertSame($dibuka + 1, $header->fresh()->versi);
-        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->exists());
+            ->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $header->fresh()->status_alur);
+        $this->assertSame(2, $header->versions()->count());
 
-        $simpan($fixture['perencanaan'], $dibuka + 1, [$manual($fixture['periode1'], 55)])->assertSessionHasNoErrors();
-        $this->assertSame($dibuka + 2, $header->fresh()->versi);
+        // Perencanaan tetap dikecualikan sampai penutupan (ditunjukkan pada
+        // fixture segar agar tidak mengganggu status diajukan di atas).
+        $kedua = $this->buatFixtureManual();
+        $headerKedua = $this->drafManual($kedua);
+        $this->actingAs($kedua['pic'])->post("/rencana-aksi/{$headerKedua->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versiKedua = $headerKedua->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokensKedua = fn (): array => ['expected_versi' => $headerKedua->fresh()->versi, 'versi_pengajuan_id' => $versiKedua->id];
+        app(VerifikasiRencanaAksi::class)->handle($kedua['perencanaan'], $headerKedua->id, $tokensKedua());
+        app(SahkanRencanaAksi::class)->handle($kedua['perencanaan'], $headerKedua->id, $tokensKedua());
+        $pembukaKedua = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembukaKedua)->postJson("/rencana-aksi/{$headerKedua->id}/buka-kembali", $tokensKedua() + ['alasan' => 'Koreksi Perencanaan pada periode terkunci.'])->assertOk();
+        $dibukaKedua = $headerKedua->fresh()->versi;
+        PeriodeJadwal::where('jadwal_id', $kedua['jadwal']->id)->where('periode_id', $kedua['periode1']->id)->update(['pengisian_selesai' => '2026-03-05']);
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($kedua['perencanaan'])->post("/rencana-aksi/{$headerKedua->id}/target", [
+            'expected_versi' => $dibukaKedua,
+            'expected_snapshot_id' => $kedua['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [$manual($kedua['periode1'], 55)],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($dibukaKedua + 1, $headerKedua->fresh()->versi);
+    }
+
+    /**
+     * F2 (ISS-05.06 AC-6): pengajuan PIC ditolak 422 hanya bila nilai periode
+     * terkunci berubah dibanding versi sah terakhir, dengan pesan spesifik per
+     * periode seperti guard simpan dan audit penolakan.
+     */
+    public function test_ajukan_menolak_bila_nilai_periode_terkunci_berubah_dibanding_versi_sah(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture, 100, 100);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versi = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versi->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi nilai terkunci.'])->assertOk();
+        $dibuka = $header->fresh()->versi;
+
+        // PIC mengubah TW I saat masih terbuka (100 → 50), lalu TW I dikunci.
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $dibuka,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 50, 'keterangan' => null]],
+        ])->assertSessionHasNoErrors();
+        $diubah = $header->fresh()->versi;
+
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->update(['pengisian_selesai' => '2026-03-05']);
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-03-20']);
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $pesanKunci = 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-05).';
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $diubah])
+            ->assertSessionHasErrors(['jendela' => $pesanKunci]);
+        $this->assertSame($diubah, $header->fresh()->versi);
+        $this->assertSame('dikembalikan', $header->fresh()->status_alur);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->where('alasan', $pesanKunci)->exists());
+
+        // Perencanaan dikecualikan: pengajuan dengan nilai yang sama tetap lolos.
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $diubah])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $header->fresh()->status_alur);
     }
 
     /**
@@ -397,5 +466,60 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $baru = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
         $this->assertSame(2, $baru->nomor);
         $this->assertSame($beku, $versi->fresh()->getRawOriginal('snapshot'));
+    }
+
+    /**
+     * F3 (Data Model §2.34): setelah buka-kembali lalu ganti/hapus bukti pada
+     * status dikembalikan, unduhan bukti versi sah lama tetap 200 dengan isi
+     * beku yang benar; bila file fisiknya dihapus menjadi 404. `download_url`
+     * versi historis tetap diberikan selama file fisiknya ada.
+     */
+    public function test_unduhan_bukti_versi_sah_lama_tetap_200_setelah_ganti_hapus_dan_404_bila_file_hilang(): void
+    {
+        Storage::fake('local');
+        $fixture = $this->buatFixtureManual();
+        $header = $this->buatDraf($fixture);
+
+        Storage::disk('local')->put('berkas/rencana_aksi/lama.pdf', 'ISI LAMA BENAR');
+        $buktiLama = BuktiDukung::create([
+            'berkasable_type' => 'rencana_aksi', 'berkasable_id' => $header->id, 'mode' => 'file',
+            'nama_asli' => 'lama.pdf', 'path' => 'berkas/rencana_aksi/lama.pdf', 'mime' => 'application/pdf', 'ukuran_bytes' => 14,
+            'uploaded_by' => $fixture['pic']->id, 'created_at' => now(),
+        ]);
+
+        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)]);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versiSah = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versiSah->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi bukti pendukung.'])->assertOk();
+
+        // Ganti/hapus pada status dikembalikan: hapus bukti lama lalu unggah baru.
+        $this->actingAs($fixture['pic'])->delete(
+            route('rencana-aksi.bukti.destroy', ['rencanaAksi' => $header->id, 'bukti' => $buktiLama->id]),
+            ['alasan' => 'Dokumen lama diganti versi terbaru.']
+        )->assertSessionHasNoErrors();
+        $this->assertNotNull($buktiLama->fresh()->dihapus_pada);
+        $this->actingAs($fixture['pic'])->post(route('rencana-aksi.bukti.store', $header->id), [
+            'mode' => 'file', 'file' => UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf'),
+        ])->assertSessionHasNoErrors();
+
+        $urlLama = route('rencana-aksi.versi.bukti.download', [$header->id, $versiSah->id, $buktiLama->id]);
+        $this->actingAs($fixture['perencanaan'])->get($urlLama)->assertOk()->assertStreamedContent('ISI LAMA BENAR');
+
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}/review?versi={$versiSah->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rencanaAksi.bukti_dukungs.0.id', $buktiLama->id)
+                ->where('rencanaAksi.bukti_dukungs.0.download_url', $urlLama));
+
+        Storage::disk('local')->delete('berkas/rencana_aksi/lama.pdf');
+
+        $this->actingAs($fixture['perencanaan'])->get($urlLama)->assertNotFound();
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}/review?versi={$versiSah->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rencanaAksi.bukti_dukungs.0.id', $buktiLama->id)
+                ->where('rencanaAksi.bukti_dukungs.0.download_url', null));
     }
 }
