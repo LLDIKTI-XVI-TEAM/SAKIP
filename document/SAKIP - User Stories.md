@@ -1003,7 +1003,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 - [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
 - [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Menunggu CI exact-HEAD B1.)*
+- [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 - [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
