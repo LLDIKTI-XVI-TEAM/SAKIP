@@ -38,7 +38,7 @@ it('mempertahankan draft dan mencegah replay ketika router nyata menerima hasil 
     const roles = [{ id: 'pegawai', kode: 'pegawai', nama: 'Pegawai' }, { id: 'admin', kode: 'admin', nama: 'Admin' }];
     const initialPage: Page = {
         component: 'Access/RoleAssignmentIndex', url: '/akses/peran', version: null, flash: {}, rescuedProps: [], rememberedState: {},
-        props: { errors: {}, auth, users: { data: [{ id: 'target', nama: 'Target QA', email: 'target@example.test', status: 'aktif', current_role: { ...roles[0], aktif: true }, assignment: { id: 'pivot', role_id: 'pegawai', audit_id: null }, has_active_pj: false }], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null }, roles, filters: { q: '' }, can: { assignRole: true }, confirmationUnavailable: false },
+        props: { errors: {}, auth, users: { data: [{ id: 'target', nama: 'Target QA', email: 'target@example.test', status: 'aktif', current_role: { ...roles[0], aktif: true }, assignment: { id: 'pivot', role_id: 'pegawai', audit_id: null }, has_active_pj: false }], links: [], from: 1, to: 1, total: 1 }, roles, filters: { q: '' }, can: { assignRole: true }, confirmationUnavailable: false },
     };
     const unknownPage: Page = {
         // Kontrak HTTP yang disetujui: unknown berizin tetap Index walau URL delivery berasal dari Result.

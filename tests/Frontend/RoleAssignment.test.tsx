@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import type { Page, PendingVisit } from '@inertiajs/core';
@@ -21,7 +21,7 @@ const response = (flash: Record<string, unknown>, url = `/akses/peran?receipt=${
 const users = { data: [
     { id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', status: 'aktif' as const, current_role: { ...roles[1], aktif: true }, assignment: token, has_active_pj: true },
     { id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif' as const, current_role: null, assignment: null, has_active_pj: false },
-], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null };
+], links: [], from: 1, to: 2, total: 2 };
 const methods = ['showModal', 'close'] as const;
 const originals = methods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
 beforeAll(() => {
@@ -54,8 +54,8 @@ it('mengirim single role dan snapshot, menjaga input/error, lalu mereset saat ga
     await user.selectOptions(select, 'pimpinan-id');
     const reason = screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ });
     await user.type(reason, 'Penugasan disetujui');
-    await user.tab();
-    await user.tab();
+    // jsdom tidak menghitung offsetParent sehingga trap Tab Modal tidak dapat diuji; fokus langsung ke tombol footer.
+    act(() => { screen.getByRole('button', { name: 'Simpan peran' }).focus(); });
     await user.keyboard('{Enter}');
     expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran/user-a', { role_id: 'pimpinan-id', alasan: 'Penugasan disetujui', expected_assignment: token }]);
     const options = vi.mocked(router.post).mock.calls[0][2];
@@ -86,6 +86,7 @@ it('memperingatkan perubahan peran sendiri dan menampilkan toast server yang dap
     await user.selectOptions(screen.getByRole('combobox'), 'pimpinan-id');
     expect(screen.getByText(/Anda sedang mengubah peran akun sendiri/)).toBeTruthy();
     expect(screen.getByText(/Anda mungkin tidak dapat mengembalikannya sendiri/)).toBeTruthy();
+    expect(screen.getByRole('combobox').getAttribute('aria-describedby')).toContain('self-role-warning');
     await user.click(screen.getByRole('button', { name: 'Batal' }));
     currentPage.url = `/akses/peran?receipt=${receiptA}`;
     currentPage.flash = { roleAssignmentOutcome: { receipt_id: receiptA, status: 'changed', has_active_pj: false } };
@@ -123,9 +124,9 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     await act(async () => { options?.onStart?.(visit); });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Batal' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLSelectElement>('combobox').disabled).toBe(true);
-    const cancel = new Event('cancel', { cancelable: true });
-    screen.getByRole('dialog').dispatchEvent(cancel);
-    expect(cancel.defaultPrevented).toBe(true);
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Tutup dialog' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
     await act(async () => { options?.onError?.({ alasan: 'Jelaskan alasan penetapan.' }); });
     await act(async () => { options?.onFinish?.({
         ...visit, completed: true,
@@ -144,12 +145,55 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     expect(vi.mocked(router.post).mock.calls).toHaveLength(1);
 });
 
-it('menjaga hierarki heading: intro bagian H2 dan entri pengguna H3 di bawahnya', () => {
+it('menyajikan daftar sebagai tabel di bawah heading bagian H2 dengan badge peran dan status akun', () => {
     page();
     expect(screen.getByRole('heading', { level: 2, name: 'Peran utama pengguna' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 3, name: 'Ayu' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 3, name: 'Budi' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { level: 2, name: 'Ayu' })).toBeNull();
+    const table = screen.getByRole('table', { name: 'Daftar pengguna dan peran utama' });
+    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Pengguna', 'Peran', 'Status akun', 'Aksi']);
+    const [ayu, budi] = within(table).getAllByRole('row').slice(1);
+    expect(within(ayu).getByText('Pegawai')).toBeTruthy();
+    expect(within(ayu).getByText('Aktif')).toBeTruthy();
+    expect(within(budi).getByText('Belum memiliki peran')).toBeTruthy();
+    expect(within(budi).getByText('Nonaktif')).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+});
+
+it('menandai peran nonaktif dan menyembunyikan kolom aksi bila server tidak memberi izin', () => {
+    const inactive = { ...users, data: [{ ...users.data[0], current_role: { ...roles[1], aktif: false } }] };
+    render(<RoleAssignmentIndex users={inactive} roles={roles} filters={{ q: '' }} can={{ assignRole: false }} confirmationUnavailable={false} />);
+    expect(screen.getByText('Peran nonaktif')).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Aksi' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /peran Ayu/ })).toBeNull();
+});
+
+it.each([
+    ['ayu', 'Tidak ada pengguna yang sesuai', 'Coba kata kunci nama atau email lain.'],
+    ['', 'Belum ada pengguna', 'Pengguna tampil di sini setelah login SSO pertama kali.'],
+])('menjelaskan daftar kosong sesuai filter "%s"', (q, title, hint) => {
+    render(<RoleAssignmentIndex users={{ ...users, data: [], from: null, to: null, total: 0 }} roles={roles} filters={{ q }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    expect(screen.getByText(title)).toBeTruthy();
+    expect(screen.getByText(hint)).toBeTruthy();
+});
+
+it('memakai paginasi bersama untuk daftar lebih dari satu halaman', () => {
+    const links = [
+        { url: null, label: '&laquo; Previous', active: false }, { url: '/akses/peran?page=1', label: '1', active: true },
+        { url: '/akses/peran?page=2', label: '2', active: false }, { url: '/akses/peran?page=2', label: 'Next &raquo;', active: false },
+    ];
+    render(<RoleAssignmentIndex users={{ ...users, links, from: 1, to: 20, total: 25 }} roles={roles} filters={{ q: '' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    const nav = screen.getByRole('navigation', { name: 'Halaman pengguna' });
+    expect(nav.textContent).toContain('Menampilkan 1–20 dari 25 data');
+    expect(within(nav).getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/akses/peran?page=2');
+});
+
+it('menutup dialog dengan Escape saat tidak memproses dan mengembalikan fokus ke pemicu', async () => {
+    const user = userEvent.setup();
+    page();
+    const trigger = screen.getByRole('button', { name: 'Ubah peran Ayu' });
+    await user.click(trigger);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
 });
 
 it.each([

@@ -1,11 +1,19 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Search, UserCog, Users, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
+import { Card, CardHeader } from '@/Components/Card';
+import { Input } from '@/Components/Input';
+import { Modal } from '@/Components/Modal';
+import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
+import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Textarea } from '@/Components/Textarea';
+import { Tooltip } from '@/Components/Tooltip';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { primaryButton, secondaryButton } from '@/Pages/Auth/AuthShell';
 import type { SharedPageProps } from '@/types/auth';
 import { readRoleAssignmentOutcome, RoleAssignmentPjNotice, roleAssignmentMessages, roleAssignmentUnknown, roleAssignmentCheck } from './RoleAssignmentFeedback';
 
@@ -13,18 +21,15 @@ type AssignmentState = { id: string; role_id: string; audit_id: string | null };
 type RoleOption = { id: string; kode: string; nama: string };
 type RoleUser = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif'; current_role: (RoleOption & { aktif: boolean }) | null; assignment: AssignmentState | null; has_active_pj: boolean };
 interface RoleAssignmentProps {
-    users: { data: RoleUser[]; current_page: number; last_page: number; prev_page_url: string | null; next_page_url: string | null };
+    users: { data: RoleUser[]; links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     roles: RoleOption[];
     filters: { q: string };
     can: { assignRole: boolean };
     confirmationUnavailable: boolean;
 }
-const fieldClass = 'mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
+const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
 
 function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser; roles: RoleOption[]; isSelf: boolean; onClose: () => void; onSaved: () => void }) {
-    const dialog = useRef<HTMLDialogElement>(null);
-    const roleInput = useRef<HTMLSelectElement>(null);
-    const reasonInput = useRef<HTMLTextAreaElement>(null);
     const alert = useRef<HTMLParagraphElement>(null);
     const [message, setMessage] = useState('');
     const recovery = useAuthRecovery();
@@ -36,22 +41,19 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
     const legacyRole = user.current_role && !['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'].includes(user.current_role.kode);
     const needsReload = Boolean(conflict || message);
     useEffect(() => {
-        const element = dialog.current;
-        element?.showModal();
-        return () => element?.close();
-    }, []);
-    useEffect(() => {
         // Tunggu field kembali enabled setelah respons Inertia sebelum memindahkan fokus.
         if (form.processing) return;
         if (needsReload) alert.current?.focus();
-        else if (form.errors.role_id) roleInput.current?.focus();
-        else if (form.errors.alasan) reasonInput.current?.focus();
+        else if (form.errors.role_id) document.getElementById('role-choice')?.focus();
+        else if (form.errors.alasan) document.getElementById('role-reason')?.focus();
     }, [form.processing, form.errors, needsReload, message]);
+    const close = () => { if (!form.processing) onClose(); };
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (form.processing || recovery.recovery || needsReload) return;
         form.post(`/akses/peran/${user.id}`, {
-            preserveScroll: true,
+            // Notifikasi hasil tampil di atas daftar, jadi gulir ke atas kecuali saat validasi gagal.
+            preserveScroll: 'errors',
             onSuccess: (page) => {
                 const outcome = readRoleAssignmentOutcome(page, page.component === 'Access/RoleAssignmentResult' ? 'Access/RoleAssignmentResult' : 'Access/RoleAssignmentIndex');
                 if (!outcome) {
@@ -71,43 +73,57 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
             },
         });
     };
-    return <dialog ref={dialog} aria-labelledby="role-title" aria-describedby={isSelf ? 'role-description self-role-warning' : 'role-description'} onCancel={(event) => {
-        if (form.processing) event.preventDefault();
-    }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
-        <h2 id="role-title" className="text-lg font-semibold">{user.current_role ? 'Ubah peran' : 'Tetapkan peran'}</h2>
-        <p id="role-description" className="mt-2 break-words text-sm text-muted">{user.nama} ({user.email}). Peran saat ini: {user.current_role?.nama ?? 'Belum ditetapkan'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}.</p>
-        {legacyRole && <p className="mt-2 text-sm text-warning-dark">Peran lama ini perlu ditetapkan ulang ke peran resmi.</p>}
-        {user.has_active_pj && <p role="status" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-ink">Pengguna ini masih menjadi Penanggung Jawab. Perubahan peran tidak mengakhiri penugasan atau mengubah grant izin.</p>}
-        {isSelf && <div id="self-role-warning" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-            <p className="font-semibold">Anda sedang mengubah peran akun sendiri.</p>
-            <p className="mt-1">Menu dan akses pengelolaan dapat hilang setelah disimpan. Anda mungkin tidak dapat mengembalikannya sendiri. Pastikan peran tujuan sudah benar.</p>
-        </div>}
-        <form onSubmit={submit} className="mt-5 space-y-4" aria-busy={form.processing}>
-            <div>
-                <label htmlFor="role-choice" className="block text-sm font-medium">Peran tujuan <span className="text-danger">*</span></label>
-                <select ref={roleInput} id="role-choice" autoFocus required value={form.data.role_id} onChange={(event) => form.setData('role_id', event.target.value)} disabled={form.processing} aria-invalid={Boolean(form.errors.role_id)} aria-describedby={form.errors.role_id ? 'role-error' : undefined} className={fieldClass}>
-                    <option value="" disabled>Pilih peran</option>
-                    {roles.map((role) => <option key={role.id} value={role.id}>{role.nama}</option>)}
-                </select>
-                {form.errors.role_id && <p id="role-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.role_id}</p>}
-            </div>
-            <div>
-                <label htmlFor="role-reason" className="block text-sm font-medium">Alasan penetapan <span className="text-danger">*</span></label>
-                <textarea ref={reasonInput} id="role-reason" required maxLength={2000} rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} disabled={form.processing} aria-invalid={Boolean(form.errors.alasan)} aria-describedby={form.errors.alasan ? 'reason-error' : 'reason-help'} className={fieldClass} />
-                {form.errors.alasan ? <p id="reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="reason-help" className="mt-1 text-xs text-muted">Maksimal 2.000 karakter.</p>}
-            </div>
+    return <Modal
+        isOpen
+        onClose={close}
+        size="lg"
+        title={user.current_role ? 'Ubah peran' : 'Tetapkan peran'}
+        description={`${user.nama} (${user.email}). Peran saat ini: ${user.current_role?.nama ?? 'Belum ditetapkan'}${user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}.`}
+        footer={<>
+            <Button type="button" variant="outline" disabled={form.processing} onClick={close}>Batal</Button>
+            <Button type="submit" form="role-assignment-form" isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || roles.length === 0}>Simpan peran</Button>
+        </>}
+    >
+        <form id="role-assignment-form" onSubmit={submit} className="space-y-4" aria-busy={form.processing}>
+            {legacyRole && <p className="text-sm text-warning-dark">Peran lama ini perlu ditetapkan ulang ke peran resmi.</p>}
+            {user.has_active_pj && <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">Pengguna ini masih menjadi Penanggung Jawab. Perubahan peran tidak mengakhiri penugasan atau mengubah grant izin.</p>}
+            {isSelf && <div id="self-role-warning" className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
+                <p className="font-semibold">Anda sedang mengubah peran akun sendiri.</p>
+                <p className="mt-1">Menu dan akses pengelolaan dapat hilang setelah disimpan. Anda mungkin tidak dapat mengembalikannya sendiri. Pastikan peran tujuan sudah benar.</p>
+            </div>}
+            <Select
+                id="role-choice"
+                label="Peran tujuan"
+                required
+                value={form.data.role_id}
+                onChange={(event) => form.setData('role_id', event.target.value)}
+                disabled={form.processing}
+                error={form.errors.role_id}
+                aria-describedby={[isSelf && 'self-role-warning', form.errors.role_id && 'role-choice-error'].filter(Boolean).join(' ') || undefined}
+            >
+                <option value="" disabled>Pilih peran</option>
+                {roles.map((role) => <option key={role.id} value={role.id}>{role.nama}</option>)}
+            </Select>
+            <Textarea
+                id="role-reason"
+                label="Alasan penetapan"
+                required
+                maxLength={2000}
+                rows={3}
+                value={form.data.alasan}
+                onChange={(event) => form.setData('alasan', event.target.value)}
+                disabled={form.processing}
+                error={form.errors.alasan}
+                helperText="Maksimal 2.000 karakter."
+            />
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {needsReload && !recovery.recovery && <div className="space-y-2 rounded-lg bg-soft p-3">
-                <p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger">{conflict || message}</p>
+                <p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger focus:outline-none">{conflict || message}</p>
                 {!conflict && message === roleAssignmentUnknown && <p className="text-sm text-ink">{roleAssignmentCheck}</p>}
-                <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/peran', {}, { replace: true, preserveState: false })}>{!conflict && message === roleAssignmentUnknown ? 'Kembali ke daftar pengguna' : 'Muat ulang data'}</Button>
+                <Button type="button" variant="outline" size="sm" disabled={form.processing} onClick={() => router.get('/akses/peran', {}, { replace: true, preserveState: false })}>{!conflict && message === roleAssignmentUnknown ? 'Kembali ke daftar pengguna' : 'Muat ulang data'}</Button>
             </div>}
-            <div className="flex flex-wrap justify-end gap-3">
-                <Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={onClose}>Batal</Button>
-                <Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || roles.length === 0}>Simpan peran</Button>
-            </div>
         </form>
-    </dialog>;
+    </Modal>;
 }
 
 export default function RoleAssignmentIndex({ users, roles, filters, can, confirmationUnavailable }: RoleAssignmentProps) {
@@ -127,38 +143,91 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
         if (trigger.current?.isConnected) trigger.current.focus();
         else title.current?.focus();
     }, [selected]);
-    return <AuthenticatedLayout title="Penetapan Peran">
+    return <AuthenticatedLayout title="Penetapan Peran" breadcrumbs={[{ label: 'Penetapan Peran' }]}>
         <Head title="Penetapan Peran" />
-        {confirmationUnavailable && !selected && <section role="status" aria-labelledby="role-confirmation-unavailable" className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-ink">
-            <h2 id="role-confirmation-unavailable" className="font-semibold">{roleAssignmentUnknown}</h2>
-            <p className="mt-2">{roleAssignmentCheck}</p>
-            <Link href="/akses/peran" className={`${secondaryButton} mt-3 inline-flex rounded-lg px-4 py-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}>Kembali ke daftar pengguna</Link>
-        </section>}
-        {successMessage && outcome && dismissedReceipt !== outcome.receipt_id && <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-success/30 bg-surface p-4 shadow-lg">
-            <CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
-            <p role="status" className="flex-1 text-sm font-medium">{successMessage}</p>
-            <button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissedReceipt(outcome.receipt_id)} className="-m-2 rounded-lg p-3 text-muted hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary"><X aria-hidden="true" className="h-4 w-4" /></button>
-        </div>}
-        <RoleAssignmentPjNotice outcome={outcome} />
-        <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
-            <h2 ref={title} tabIndex={-1} className="text-sm font-semibold text-ink">Peran utama pengguna</h2>
-            <form onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/peran', { preserveState: false }); }} className="my-6 flex flex-wrap items-end gap-3" role="search">
-                <div className="min-w-0 flex-1"><label htmlFor="user-search" className="block text-sm font-medium">Cari nama atau email</label><input id="user-search" type="search" maxLength={100} value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} className={fieldClass} /></div>
-                <Button type="submit" className={secondaryButton} isLoading={search.processing}>Cari</Button>
-                {filters.q && <Link href="/akses/peran" className="rounded py-3 text-sm text-primary underline focus:ring-2 focus:ring-primary">Reset</Link>}
-            </form>
-            {users.data.length === 0 ? <p className="rounded-lg bg-soft p-4 text-sm text-muted">Tidak ada pengguna yang sesuai.</p> : <ul className="divide-y divide-border">
-                {users.data.map((user) => <li key={user.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><h3 className="break-words text-sm font-semibold text-ink">{user.nama}</h3><p className="break-all text-sm text-muted">{user.email}</p><p className="mt-2 text-sm"><span className="font-medium">{user.current_role?.nama ?? 'Belum memiliki peran'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}</span><span className="text-muted"> · {user.status === 'aktif' ? 'Akun aktif' : 'Akun nonaktif'}</span></p></div>
-                    {can.assignRole && <Button type="button" className={`${primaryButton} self-start sm:shrink-0 sm:self-auto`} aria-label={`${user.current_role ? 'Ubah' : 'Tetapkan'} peran ${user.nama}`} onClick={(event) => { trigger.current = event.currentTarget; setSelected(user); }}>{user.current_role ? 'Ubah peran' : 'Tetapkan peran'}</Button>}
-                </li>)}
-            </ul>}
-            {users.last_page > 1 && <nav aria-label="Halaman pengguna" className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
-                {users.prev_page_url ? <Link href={users.prev_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Sebelumnya</Link> : <span className="text-muted">Sebelumnya</span>}
-                <span>Halaman {users.current_page} dari {users.last_page}</span>
-                {users.next_page_url ? <Link href={users.next_page_url} className="rounded text-primary underline focus:ring-2 focus:ring-primary">Berikutnya</Link> : <span className="text-muted">Berikutnya</span>}
-            </nav>}
-        </section>
+        <div className="space-y-5">
+            {confirmationUnavailable && !selected && <section role="status" aria-labelledby="role-confirmation-unavailable" className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-sm text-ink shadow-2xs">
+                <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-warning-dark" />
+                <div className="min-w-0">
+                    <h2 id="role-confirmation-unavailable" className="font-semibold">{roleAssignmentUnknown}</h2>
+                    <p className="mt-1">{roleAssignmentCheck}</p>
+                    <Link href="/akses/peran" className="mt-3 inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">Kembali ke daftar pengguna</Link>
+                </div>
+            </section>}
+            {successMessage && outcome && dismissedReceipt !== outcome.receipt_id && <div className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-sm text-ink shadow-2xs">
+                <CheckCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <p role="status" className="min-w-0 flex-1">{successMessage}</p>
+                <button type="button" aria-label="Tutup notifikasi" onClick={() => setDismissedReceipt(outcome.receipt_id)} className="-m-2 rounded-lg p-2.5 text-muted transition-colors hover:bg-soft hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary/25"><X aria-hidden="true" className="h-4 w-4" /></button>
+            </div>}
+            <RoleAssignmentPjNotice outcome={outcome} />
+            <Card className="overflow-visible">
+                <form onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/peran', { preserveState: false }); }} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" role="search">
+                    <Input id="user-search" type="search" label="Cari nama atau email" placeholder="Ketik nama atau email pengguna…" maxLength={100} autoComplete="off" value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} />
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit" variant="outline" isLoading={search.processing}>{!search.processing && <Search className="h-4 w-4" aria-hidden="true" />}Cari</Button>
+                        {filters.q && <Link href="/akses/peran" className="rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset</Link>}
+                    </div>
+                </form>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <div className="min-w-0">
+                        <h2 ref={title} tabIndex={-1} className="text-base font-semibold tracking-tight text-ink focus:outline-none">Peran utama pengguna</h2>
+                        <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki satu peran utama. Perubahan peran wajib disertai alasan dan tercatat di jejak audit.</p>
+                    </div>
+                </CardHeader>
+                {/* Grid mobile: setiap pengguna tampil sebagai kartu ringkas tanpa scroll horizontal. */}
+                <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                    <caption className="sr-only">Daftar pengguna dan peran utama</caption>
+                    <TableHeader className="max-md:sr-only">
+                        <TableRow>
+                            <TableHead className="whitespace-normal">Pengguna</TableHead>
+                            <TableHead>Peran</TableHead>
+                            <TableHead>Status akun</TableHead>
+                            {can.assignRole && <TableHead className="text-right">Aksi</TableHead>}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody className="block md:table-row-group">
+                        {users.data.length === 0 && <TableRow className="block md:table-row">
+                            <TableCell colSpan={can.assignRole ? 4 : 3} className="block py-12 text-center md:table-cell">
+                                <Users className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                <p className="mt-2 text-sm font-semibold text-ink">{filters.q ? 'Tidak ada pengguna yang sesuai' : 'Belum ada pengguna'}</p>
+                                <p className="mt-1 text-xs text-muted">{filters.q ? 'Coba kata kunci nama atau email lain.' : 'Pengguna tampil di sini setelah login SSO pertama kali.'}</p>
+                            </TableCell>
+                        </TableRow>}
+                        {users.data.map((user) => {
+                            const action = user.current_role ? 'Ubah peran' : 'Tetapkan peran';
+                            return <TableRow key={user.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                <TableCell className={`col-span-2 ${cellClass}`}>
+                                    <p className="break-words text-sm font-semibold text-ink">{user.nama}</p>
+                                    <p className="break-all text-xs text-muted">{user.email}</p>
+                                </TableCell>
+                                <TableCell className={cellClass}>
+                                    <span className="mr-2 text-muted md:hidden">Peran</span>
+                                    {user.current_role
+                                        ? <span className="inline-flex flex-wrap items-center gap-1.5"><span className="text-sm font-medium text-ink">{user.current_role.nama}</span>{!user.current_role.aktif && <Badge variant="muted">Peran nonaktif</Badge>}</span>
+                                        : <Badge variant="warning">Belum memiliki peran</Badge>}
+                                </TableCell>
+                                <TableCell className={cellClass}>
+                                    <span className="mr-2 text-muted md:hidden">Status akun</span>
+                                    <Badge variant={user.status === 'aktif' ? 'success' : 'muted'}>{user.status === 'aktif' ? 'Aktif' : 'Nonaktif'}</Badge>
+                                </TableCell>
+                                {can.assignRole && <TableCell className={`col-span-2 ${cellClass} md:text-right`}>
+                                    <div className="flex justify-end">
+                                        <Tooltip content={action} align="right">
+                                            <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={`${action} ${user.nama}`} onClick={(event) => { trigger.current = event.currentTarget; setSelected(user); }}>
+                                                <UserCog className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </Tooltip>
+                                    </div>
+                                </TableCell>}
+                            </TableRow>;
+                        })}
+                    </TableBody>
+                </Table>
+            </Card>
+            <Pagination links={users.links} from={users.from} to={users.to} total={users.total} ariaLabel="Halaman pengguna" />
+        </div>
         {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={() => {
             // Respons sukses kembali ke daftar tanpa filter; error tetap mempertahankan input.
             search.setData('q', '');
