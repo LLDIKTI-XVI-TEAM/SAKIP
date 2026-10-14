@@ -26,12 +26,12 @@ class BukaKembaliRencanaAksi
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$jejak) {
                 [$pengunci, $header, $versi] = $this->gerbang->kunci($actor, $id, $data, PermissionCodes::RENCANA_AKSI_BUKA_KEMBALI, $jejak);
-                // Q7 Opsi B (divergensi dokumen, addendum pending): alasan OPSIONAL khusus buka_kembali.
-                // PRD §14.6 / Plan 11.7 / ISS-05.06 masih menulis wajib, tetapi stakeholder memerintahkan
-                // opsional. Validasi nullable; sanitasi hanya bila terisi; kosong/null lolos dan audit memakai fallback.
-                Validator::make($data, ['alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)]])->validate();
-                $mentah = $data['alasan'] ?? null;
-                $alasan = is_string($mentah) ? trim(AuditReason::sanitize($mentah)) : '';
+                // Q43 §43.2: alasan buka-kembali WAJIB, sama seperti kembalikan.
+                Validator::make($data, ['alasan' => ['required', 'string', 'max:1000', AuditReason::validate(...)]])->validate();
+                $alasan = trim(AuditReason::sanitize($data['alasan']));
+                if ($alasan === '') {
+                    throw ValidationException::withMessages(['alasan' => 'Alasan buka kembali wajib diisi.']);
+                }
                 $this->gerbang->pastikan($pengunci, $header, $versi, 'buka_kembali');
                 // Q5: isi-snapshot dilonggarkan seperti kembalikan (lihat GerbangReviewRencanaAksi) agar versi
                 // yang isinya rusak dapat diganti versi baru, bukan terjebak aturan validasi baru.
@@ -45,15 +45,13 @@ class BukaKembaliRencanaAksi
                 // Q2: penanda darurat bila Superadmin membuka pengesahannya sendiri; non-superadmin sama-orang
                 // sudah ditolak di GerbangReviewRencanaAksi::businessErrors dan tercatat via catatPenolakan.
                 $darurat = $versi->disahkan_by !== null && $versi->disahkan_by === $pengunci->id && $pengunci->hasRole('superadmin');
-                $alasanAudit = $alasan !== '' ? $alasan : null;
-                $alasanEvent = $alasan !== '' ? $alasan : 'Pencatatan audit untuk tindakan rencana_aksi.buka_kembali.';
                 $nilaiBaru = ['status_alur' => $header->status_alur, 'versi' => $header->versi, 'penerima_id' => $penerima]
                     + $this->gerbang->provenance($pengunci, $versi, persetujuan: false)
                     + ($darurat ? ['pembuka_sama_dengan_pengesah' => true] : []);
                 $this->audit->catat($pengunci, 'rencana_aksi.buka_kembali', 'rencana_aksi', $id, $jejak['sebelum'],
                     $nilaiBaru,
-                    $alasanAudit, $jejak['dasar_izin']);
-                RencanaAksiDibukaKembali::dispatch($id, $versi->id, $versi->diajukan_by, $penerima, $pengunci->id, $alasanEvent);
+                    $alasan, $jejak['dasar_izin']);
+                RencanaAksiDibukaKembali::dispatch($id, $versi->id, $versi->diajukan_by, $penerima, $pengunci->id, $alasan);
 
                 return $header;
             });

@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Fixture Rencana Aksi dua periode (Triwulan I–II, jendela penyusunan Maret
+ * Fixture Rencana Aksi dua periode (Triwulan I–II, batas pengisian Maret
  * 2026): PIC pegawai dengan grant unit `rencana_aksi:create/update/ajukan`
  * dan penugasan PJ efektif, aktor Perencanaan, serta snapshot jadwal beku
  * berisi target PK yang dapat diatur (null = target PK belum ditetapkan).

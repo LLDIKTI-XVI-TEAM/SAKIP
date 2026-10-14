@@ -190,9 +190,10 @@ class IndexRencanaAksi
                 ],
                 // `update` memakai syarat gerbang tulis `SimpanTargetPeriode`
                 // (izin, unit aktif, indikator bukan arsip, status draf,
-                // lingkup koreksi yang mencakup periode efektif, jendela
-                // tulis) agar formulir tidak dibuka untuk penyimpanan yang
-                // pasti ditolak.
+                // kunci per periode Q41) agar formulir tidak dibuka untuk
+                // penyimpanan yang pasti ditolak. Simpan parsial diizinkan:
+                // dalam sesi koreksi hanya irisan efektif ∩ lingkup yang
+                // dinilai; di luar itu seluruh periode efektif.
                 'can' => [
                     'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
                     'update' => $keputusanUbah->allowed
@@ -200,22 +201,43 @@ class IndexRencanaAksi
                         && ! $indikator->isArsip()
                         && in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
                         && (! $koreksi['aktif'] || array_intersect($efektifIds->all(), $koreksi['periode_ids']) !== [])
-                        && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan') === null,
-                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal),
+                        && $this->jendela->alasanTolak($actor, $keputusanUbah, $indikator, $jadwal, 'penyimpanan', $this->periodeTulis($efektifIds, $koreksi)) === null,
+                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal, $efektifIds),
                 ],
             ];
         });
     }
 
     /**
+     * Periode yang dinilai gerbang tulis untuk capability `update`: irisan
+     * efektif ∩ lingkup dalam sesi koreksi (simpan parsial periode tercakup
+     * tetap dibuka), seluruh periode efektif di luar itu.
+     *
+     * @param  Collection<int, string>  $efektifIds
+     * @param  array{aktif: bool, periode_ids: list<string>}  $koreksi
+     * @return list<string>
+     */
+    private function periodeTulis(Collection $efektifIds, array $koreksi): array
+    {
+        if (! $koreksi['aktif']) {
+            return $efektifIds->all();
+        }
+
+        return array_values(array_intersect($efektifIds->all(), $koreksi['periode_ids']));
+    }
+
+    /**
      * Eligibility gerbang `AjukanRencanaAksi` tanpa kelengkapan isi: status
      * dapat disunting, jepit snapshot terbaru, unit aktif, indikator bukan
-     * arsip, izin `rencana_aksi:ajukan`, dan jendela pengajuan. Kelengkapan
+     * arsip, izin `rencana_aksi:ajukan`, dan kunci per periode Q41 atas
+     * seluruh periode efektif. Kelengkapan
      * dilaporkan terpisah di `pengajuan` agar UI dapat menunjukkan alasannya.
      * Pemeriksaan murah didahulukan agar resolver tidak dipanggil untuk
      * status beku.
+     *
+     * @param  Collection<int, string>  $efektifIds
      */
-    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal): bool
+    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds): bool
     {
         if (! in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
             || (string) $segel->snapshot_draf_id !== (string) $snapshot->id
@@ -226,7 +248,7 @@ class IndexRencanaAksi
 
         $keputusan = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id);
 
-        return $keputusan->allowed && $this->jendela->alasanTolak($actor, $keputusan, $indikator, $jadwal, 'pengajuan') === null;
+        return $keputusan->allowed && $this->jendela->alasanTolak($actor, $keputusan, $indikator, $jadwal, 'pengajuan', $efektifIds->all()) === null;
     }
 
     /**

@@ -58,8 +58,10 @@ class AjukanRencanaAksi
      * koreksi terbit setelah simpan terakhir, tolak 409 tanpa rekonsiliasi
      * otomatis agar pengaju menyimpan ulang di konteks baru. Karena jepit =
      * terbaru, tidak ada baris basi transisi yang perlu disaring. Jendela
-     * dinilai dengan `periodeIds` kosong: pengajuan menyangkut seluruh RA dan
-     * lingkup periode koreksi sudah dijaga saat simpan. Klaim kegiatan belum
+     * dinilai terhadap seluruh periode efektif: pengajuan menyentuh seluruh
+     * RA, sehingga periode terkunci mana pun menolak pengajuan PIC (Q41
+     * §41.2); dalam sesi koreksi, lingkup harus mencakup seluruh periode
+     * efektif. Klaim kegiatan belum
      * dibekukan karena belum ada writer klaim rencana aksi.
      *
      * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
@@ -129,14 +131,18 @@ class AjukanRencanaAksi
                 $penugasan = PenugasanIndikator::effectiveOn($waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $indikator->id)
                     ->first();
-                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id, pada: $waktuAjukan);
+                // Periode efektif dihitung sebelum gerbang jendela agar
+                // pengajuan PIC dinilai terhadap seluruh RA (Q41 §41.2).
+                $jendelaPeriode = $this->konteks->jendela($jadwal->id, kunci: true);
+                $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $jendelaPeriode);
+                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $periodeEfektif->all(), $penugasan?->user_id, pada: $waktuAjukan);
                 if ($alasanJendela !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasanJendela]);
                 }
 
                 $presisi = (int) $snapshot->presisi;
                 $definisi = $this->konteks->komponen($snapshot, kunci: true);
-                $jendela = $this->konteks->jendela($jadwal->id, kunci: true);
+                $jendela = $jendelaPeriode;
                 $targets = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
                     ->orderBy('periode_id')
                     ->orderBy('komponen_id')
@@ -149,7 +155,7 @@ class AjukanRencanaAksi
                     $presisi,
                     $definisi,
                     $jendela,
-                    $this->konteks->periodeEfektif($snapshot, $jendela),
+                    $periodeEfektif,
                     $this->kesiapan->petaTarget($targets),
                 );
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);

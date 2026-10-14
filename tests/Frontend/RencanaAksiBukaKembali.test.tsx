@@ -82,20 +82,22 @@ describe('Buka kembali rencana aksi disahkan', () => {
         expect(screen.queryByText('Dibuka kembali setelah pengesahan')).toBeNull();
     });
 
-    it('modal opsional Q7: tombol aktif tanpa alasan dan mengirim token ke endpoint buka-kembali', async () => {
+    it('modal wajib Q43: tombol nonaktif tanpa alasan dan mengirim token ke endpoint buka-kembali', async () => {
         const user = userEvent.setup();
         renderReview();
         await user.click(screen.getByRole('button', { name: 'Buka kembali' }));
         const dialog = screen.getByRole('dialog', { name: 'Buka kembali rencana aksi' });
-        expect((within(dialog).getByRole('button', { name: 'Konfirmasi buka kembali' }) as HTMLButtonElement).disabled).toBe(false);
+        expect((within(dialog).getByRole('button', { name: 'Konfirmasi buka kembali' }) as HTMLButtonElement).disabled).toBe(true);
         expect(within(dialog).getByRole('textbox', { name: /Alasan perubahan/ }).getAttribute('placeholder')).toMatch(/koreksi target periode/);
+        await user.type(within(dialog).getByRole('textbox', { name: /Alasan perubahan/ }), 'Koreksi resmi target periode');
+        expect((within(dialog).getByRole('button', { name: 'Konfirmasi buka kembali' }) as HTMLButtonElement).disabled).toBe(false);
         await user.click(within(dialog).getByRole('button', { name: 'Konfirmasi buka kembali' }));
         const [, data] = vi.mocked(router.post).mock.calls[0];
-        expect(data).toEqual({ expected_versi: 9, versi_pengajuan_id: 'versi-3', alasan: '' });
+        expect(data).toEqual({ expected_versi: 9, versi_pengajuan_id: 'versi-3', alasan: 'Koreksi resmi target periode' });
         expect(vi.mocked(router.post).mock.calls[0][0]).toBe('/rencana-aksi/ra-1/buka-kembali');
     });
 
-    it('modal opsional tetap mengirim alasan bila diisi', async () => {
+    it('modal wajib menandai alasan dan mengirim alasan bila diisi', async () => {
         const user = userEvent.setup();
         renderReview();
         await user.click(screen.getByRole('button', { name: 'Buka kembali' }));

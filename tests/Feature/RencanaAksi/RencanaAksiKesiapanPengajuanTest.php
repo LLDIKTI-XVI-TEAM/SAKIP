@@ -83,7 +83,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
             ->where('rencanaAksi.pengajuan.alasan', []));
     }
 
-    public function test_can_submit_false_tanpa_izin_ajukan_di_luar_jendela_atau_jepit_usang(): void
+    public function test_can_submit_false_tanpa_izin_ajukan_periode_terkunci_atau_jepit_usang(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->buatDraf($fixture);
@@ -94,7 +94,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
         $this->assertCanSubmit(false, $fixture['pic'], $header);
         $this->grant($fixture['pic'], 'rencana_aksi:ajukan', $fixture['unit']->id, $fixture['perencanaan']);
 
-        // (b) Lewat jendela penyusunan: PIC tertutup, Perencanaan jalur global tetap boleh.
+        // (b) Periode terkunci bagi PIC, Perencanaan jalur global tetap boleh.
         $this->travelTo(now()->setDate(2026, 4, 2)->setTime(9, 0));
         $this->assertCanSubmit(false, $fixture['pic'], $header);
         $this->assertCanSubmit(true, $fixture['perencanaan'], $header);

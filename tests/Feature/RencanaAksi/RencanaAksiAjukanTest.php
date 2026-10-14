@@ -32,7 +32,7 @@ class RencanaAksiAjukanTest extends TestCase
 
     private const ALASAN_TOLAK_OTORISASI = 'Percobaan pengajuan rencana aksi ditolak oleh sistem otorisasi.';
 
-    private const JENDELA_TUTUP = 'Jendela penyusunan rencana aksi periode ini sudah ditutup.';
+    private const KUNCI_DUA_PERIODE = 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31); Triwulan II (batas 2026-03-31).';
 
     public function test_pic_mengajukan_draf_lengkap_membentuk_versi_beku(): void
     {
@@ -281,14 +281,14 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('2026-03-31', RencanaAksiVersi::sole()->diajukan_at->setTimezone('Asia/Makassar')->toDateString());
     }
 
-    public function test_pic_di_luar_jendela_tanpa_pj_tanpa_grant_atau_deny_ditolak(): void
+    public function test_pic_setelah_batas_pengisian_ditolak_sedangkan_dalam_batas_diterima(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
 
-        // (a) Sehari setelah jendela 1–31 Maret berakhir.
+        // (a) Sehari setelah batas pengisian 31 Maret lewat, kedua periode terkunci bagi PIC.
         $this->travelTo(Carbon::parse('2026-04-01 09:00', 'Asia/Makassar'));
-        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors(['jendela' => self::JENDELA_TUTUP]);
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors(['jendela' => self::KUNCI_DUA_PERIODE]);
 
         // (d) Grant ajukan dicabut: 403 dari FormRequest dengan satu audit penolakan.
         $this->travelTo(Carbon::parse('2026-03-10 09:00', 'Asia/Makassar'));
@@ -312,7 +312,7 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($superadmin, $header, 2)->assertForbidden();
         $this->assertDatabaseCount('rencana_aksi_versi', 0);
 
-        // (b) Hari terakhir jendela pukul 23:30 WITA masih diterima.
+        // (b) Hari terakhir batas pengisian pukul 23:30 WITA masih diterima.
         $this->travelTo(Carbon::parse('2026-03-31 23:30', 'Asia/Makassar'));
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $header->fresh()->status_alur);
@@ -322,7 +322,7 @@ class RencanaAksiAjukanTest extends TestCase
         $headerKedua = $this->drafManual($kedua);
         $this->travelTo(Carbon::parse('2026-04-01 00:30', 'Asia/Makassar'));
         $this->assertSame('2026-03-31', now()->utc()->toDateString());
-        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasErrors(['jendela' => self::JENDELA_TUTUP]);
+        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasErrors(['jendela' => self::KUNCI_DUA_PERIODE]);
 
         // (c) PJ efektif berpindah ke pengguna lain.
         $this->travelTo(Carbon::parse('2026-03-10 09:00', 'Asia/Makassar'));
@@ -337,7 +337,7 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('draft', $headerKedua->fresh()->status_alur);
     }
 
-    public function test_jalur_perencanaan_global_di_luar_jendela_tercatat_sebagai_perencanaan(): void
+    public function test_jalur_perencanaan_global_setelah_periode_terkunci_tercatat_sebagai_perencanaan(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
@@ -496,14 +496,15 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($fixture['pic'], $header, 2)
             ->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.']);
 
-        // Lingkup periode tidak diperiksa untuk pengajuan (periode dijaga saat simpan).
+        // Pengajuan dinilai terhadap seluruh periode efektif, sehingga
+        // lingkup koreksi harus mencakup keduanya agar PIC dapat mengajukan.
         $fixture['jadwal']->update([
             'koreksi_mulai' => '2026-03-16 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
             'lingkup_koreksi' => [
                 'jenis_objek' => ['rencana_aksi'],
                 'indikator_ids' => [$fixture['indikator']->id],
-                'periode_ids' => [$fixture['periode2']->id],
+                'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id],
             ],
         ]);
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
@@ -511,11 +512,11 @@ class RencanaAksiAjukanTest extends TestCase
     }
 
     /**
-     * Keputusan Q18/Q19: sesi koreksi tidak otomatis membuka jendela PIC.
-     * Setelah `rencana_aksi_selesai`, PIC menunggu Perencanaan mengubah jendela
-     * resminya; jalur Perencanaan tetap dapat mengajukan dalam sesi koreksi.
+     * Q41 §41.2 butir 6: dalam sesi koreksi, pengajuan PIC dinilai terhadap
+     * seluruh periode efektif — lingkup parsial menolak pengajuan yang
+     * mencakup periode di luar lingkup; lingkup penuh menerimanya.
      */
-    public function test_sesi_koreksi_tidak_membuka_jendela_pic_yang_sudah_lewat(): void
+    public function test_sesi_koreksi_parsial_menolak_pengajuan_pic_di_luar_lingkup(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
@@ -527,9 +528,12 @@ class RencanaAksiAjukanTest extends TestCase
         ]);
         $this->travelTo(Carbon::parse('2026-04-10 09:00', 'Asia/Makassar'));
 
-        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors(['jendela' => self::JENDELA_TUTUP]);
-        $this->ajukan($fixture['perencanaan'], $header, 2)->assertSessionHasNoErrors();
-        $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
+        $this->ajukan($fixture['pic'], $header, 2)
+            ->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.']);
+
+        $fixture['jadwal']->update(['lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$fixture['indikator']->id], 'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id]]]);
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $header->fresh()->status_alur);
     }
 
     public function test_uuid_asing_404_dan_tanpa_izin_403_sebelum_validasi(): void

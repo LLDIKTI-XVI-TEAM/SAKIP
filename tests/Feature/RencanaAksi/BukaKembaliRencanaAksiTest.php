@@ -7,6 +7,7 @@ use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Events\RencanaAksiDibukaKembali;
 use App\Events\RencanaAksiDikembalikan;
 use App\Models\AuditLog;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Support\PermissionCodes;
@@ -19,9 +20,10 @@ use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
 /**
- * ISS-05.06: buka-kembali disahkan → dikembalikan dengan alasan OPSIONAL (Opsi B,
- * divergensi dokumen: PRD §14.6 / Plan 11.7 masih menulis wajib, addendum pending),
- * sebelum penutupan atau di dalam sesi koreksi yang sah (#85).
+ * ISS-05.06: buka-kembali disahkan → dikembalikan dengan alasan WAJIB
+ * (Q43 §43.2), sebelum penutupan atau di dalam sesi koreksi yang sah (#85).
+ * Kunci per periode Q41 (§41.2) ditegakkan pada simpan/ajukan PIC setelah
+ * dibuka kembali; Perencanaan dikecualikan sampai penutupan.
  */
 class BukaKembaliRencanaAksiTest extends TestCase
 {
@@ -30,8 +32,6 @@ class BukaKembaliRencanaAksiTest extends TestCase
     private const DITUTUP = 'Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi untuk indikator ini.';
 
     private const PISAH_TUGAS = 'Pengesah tidak boleh membuka kembali pengesahannya sendiri; minta Perencanaan lain atau Superadmin darurat.';
-
-    private const FALLBACK_ALASAN = 'Pencatatan audit untuk tindakan rencana_aksi.buka_kembali.';
 
     private RencanaAksiVersi $versiPengajuan;
 
@@ -149,31 +149,25 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
     }
 
-    public function test_tanpa_alasan_berhasil_dengan_fallback_audit_q7_opsi_b(): void
+    public function test_tanpa_alasan_ditolak_status_tetap_disahkan_dan_diaudit(): void
     {
         $this->verifikasi();
         $this->sahkan();
 
-        // Q7 Opsi B: alasan opsional khusus buka_kembali (divergensi dokumen, addendum pending).
-        // Audit bersifat append-only (model guard + trigger DB): baris audit tidak
-        // boleh dihapus, sehingga skenario kedua dinilai dari baris audit terbaru.
+        // Q43 §43.2: alasan buka-kembali WAJIB — hilang, string kosong, atau
+        // spasi-only sama-sama 422 dan tercatat sebagai penolakan.
         $this->actingAs($this->pembuka)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $this->tokens())
-            ->assertOk()->assertJson(['status_alur' => 'dikembalikan', 'versi' => 4]);
-
-        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
-        $pertama = AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->sole();
-        $this->assertSame(self::FALLBACK_ALASAN, $pertama->alasan);
-
-        // Alasan string kosong juga lolos dengan fallback yang sama.
-        $this->rencanaAksi->update(['status_alur' => 'disahkan', 'versi' => $this->rencanaAksi->fresh()->versi + 1]);
+            ->assertUnprocessable()->assertJsonValidationErrors('alasan');
+        $this->actingAs($this->pembuka)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $this->tokens() + ['alasan' => ''])
+            ->assertUnprocessable()->assertJsonValidationErrors('alasan');
         $this->actingAs($this->pembuka)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $this->tokens() + ['alasan' => '   '])
-            ->assertOk();
-        $this->assertSame(2, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->count());
-        $kedua = AuditLog::where('tindakan', 'rencana_aksi.buka_kembali')->whereNot('id', $pertama->id)->sole();
-        $this->assertSame(self::FALLBACK_ALASAN, $kedua->alasan);
+            ->assertUnprocessable()->assertJsonValidationErrors('alasan');
+
+        $this->assertSame('disahkan', $this->rencanaAksi->fresh()->status_alur);
+        $this->assertSame(3, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali_ditolak')->count());
     }
 
-    public function test_dengan_alasan_tersimpan_disanitasi_q7_opsi_b(): void
+    public function test_dengan_alasan_tersimpan_disanitasi(): void
     {
         $this->verifikasi();
         $this->sahkan();
@@ -240,7 +234,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
                 ->where('rencanaAksi.businessErrors.buka_kembali', ['Status rencana aksi tidak sesuai untuk tindakan ini.', 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.']));
     }
 
-    public function test_pic_tanpa_izin_ditolak_dan_tetap_tunduk_jendela_setelah_dibuka(): void
+    public function test_pic_tanpa_izin_buka_ditolak_dan_menulis_tanpa_jendela_penyusunan_diterima(): void
     {
         $this->verifikasi();
         $this->sahkan();
@@ -250,16 +244,119 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertSame('disahkan', $this->rencanaAksi->fresh()->status_alur);
         $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali_ditolak')->count());
 
+        // Q41: tidak ada jendela penyusunan — kolom lama yang sudah lewat
+        // tidak dibaca. PIC boleh menulis periode yang belum terkunci
+        // sebelum penutupan selama grant + PIC efektif valid.
+        $this->jadwal->update(['rencana_aksi_mulai' => '2026-02-01', 'rencana_aksi_selesai' => '2026-02-28']);
         $this->bukaKembali($this->pembuka)->assertOk();
-        // Buka-kembali tidak memperpanjang deadline PIC: jendela penyusunan yang lewat tetap menolak simpan target.
+
         $this->travelTo(now()->setDate(2026, 3, 20)->setTime(9, 0));
         $this->actingAs($pic)->post("/rencana-aksi/{$this->rencanaAksi->id}/target", [
             'expected_versi' => $this->rencanaAksi->fresh()->versi,
             'expected_snapshot_id' => $this->snapshot->id,
             'expected_snapshot_versi' => 1,
             'targets' => [['periode_id' => $this->snapshot->periode_mulai_id, 'komponen_id' => null, 'nilai' => 10, 'keterangan' => null]],
-        ])->assertSessionHasErrors('jendela');
-        $this->assertSame(4, $this->rencanaAksi->fresh()->versi);
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(5, $this->rencanaAksi->fresh()->versi);
+    }
+
+    /**
+     * ISS-05.06 AC-6 / Q41 §41.2: setelah dibuka kembali, PIC yang menyimpan
+     * atau mengajukan periode yang sudah terkunci ditolak 422 dengan pesan
+     * spesifik per periode dan diaudit; periode belum terkunci diterima dan
+     * Perencanaan dikecualikan sampai penutupan.
+     */
+    public function test_kunci_periode_terkunci_pic_ditolak_422_perencanaan_dikecualikan(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versi = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versi->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi target periode belum terkunci.'])->assertOk();
+        $dibuka = $header->fresh()->versi;
+
+        // TW I terkunci bagi PIC, TW II masih terbuka (batas dalam urutan tanggal resmi).
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->update(['pengisian_selesai' => '2026-03-05']);
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-03-20']);
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $simpan = fn (User $aktor, int $versiHeader, array $targets): TestResponse => $this->actingAs($aktor)->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $versiHeader,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => $targets,
+        ]);
+        $manual = fn ($periode, $nilai): array => ['periode_id' => $periode->id, 'komponen_id' => null, 'nilai' => $nilai, 'keterangan' => null];
+        $pesanKunci = 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-05).';
+
+        $simpan($fixture['pic'], $dibuka, [$manual($fixture['periode1'], 50)])
+            ->assertSessionHasErrors(['jendela' => $pesanKunci]);
+        $this->assertSame($dibuka, $header->fresh()->versi);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
+
+        $simpan($fixture['pic'], $dibuka, [$manual($fixture['periode2'], 90)])->assertSessionHasNoErrors();
+        $this->assertSame($dibuka + 1, $header->fresh()->versi);
+
+        // Pengajuan menyentuh seluruh RA sehingga TW I yang terkunci menolak.
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $dibuka + 1])
+            ->assertSessionHasErrors(['jendela' => $pesanKunci]);
+        $this->assertSame($dibuka + 1, $header->fresh()->versi);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->exists());
+
+        $simpan($fixture['perencanaan'], $dibuka + 1, [$manual($fixture['periode1'], 55)])->assertSessionHasNoErrors();
+        $this->assertSame($dibuka + 2, $header->fresh()->versi);
+    }
+
+    /**
+     * ISS-05.06 AC-7 / Q41 §41.2 butir 6: dalam sesi koreksi pascapenutupan,
+     * PIC hanya boleh menulis periode yang jendela pengisiannya dibuka
+     * kembali secara resmi; periode lain ditolak.
+     */
+    public function test_sesi_koreksi_pic_hanya_boleh_periode_dibuka_resmi(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versi = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versi->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pascapenutupan.'])->assertOk();
+        $dibuka = $header->fresh()->versi;
+
+        $fixture['jadwal']->update([
+            'penutupan' => '2026-03-05',
+            'koreksi_mulai' => '2026-03-06 00:00:00',
+            'koreksi_sampai' => '2026-03-31 23:59:59',
+            'lingkup_koreksi' => [
+                'jenis_objek' => ['rencana_aksi'],
+                'indikator_ids' => [$fixture['indikator']->id],
+                'periode_ids' => [$fixture['periode2']->id],
+            ],
+        ]);
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $dibuka,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $fixture['periode2']->id, 'komponen_id' => null, 'nilai' => 95, 'keterangan' => null]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($dibuka + 1, $header->fresh()->versi);
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => $dibuka + 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => 95, 'keterangan' => null]],
+        ])->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; penyimpanan memerlukan sesi koreksi resmi.']);
+        $this->assertSame($dibuka + 1, $header->fresh()->versi);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
     public function test_penutupan_tanpa_sesi_koreksi_menolak_buka_kembali_dan_mengaudit_penolakan(): void

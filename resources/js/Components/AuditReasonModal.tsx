@@ -14,7 +14,7 @@ interface AuditReasonModalProps {
     showAuditHint?: boolean;
     confirmLabel: string;
     destructive?: boolean;
-    /** Q7 ISS-05.06: alasan buka-kembali opsional; default tetap wajib agar pemakaian lain tidak berubah. */
+    /** Alasan buka-kembali ikut wajib (Q43 §43.2); default tetap wajib agar pemakaian lain tidak berubah. */
     required?: boolean;
     placeholder?: string;
     onReasonChange: (reason: string) => void;

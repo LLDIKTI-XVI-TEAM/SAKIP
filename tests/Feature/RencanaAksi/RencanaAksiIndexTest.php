@@ -375,18 +375,19 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
-     * Di luar jendela hanya jalur Perencanaan yang ditawari "Buat", dan
-     * indikator tanpa PJ efektif tidak ditawari sama sekali karena
-     * EnsureDraftRencanaAksi pasti menolaknya.
+     * Q41: pembuatan header tanpa dimensi periode tidak terikat kunci —
+     * PIC tetap ditawari "Buat" setelah jendela lama lewat selama jadwal
+     * belum ditutup; indikator tanpa PJ efektif tidak ditawari sama sekali
+     * karena EnsureDraftRencanaAksi pasti menolaknya.
      */
-    public function test_daftar_di_luar_jendela_hanya_perencanaan_yang_ditawari_buat(): void
+    public function test_daftar_setelah_jendela_lama_pic_tetap_ditawari_buat_sebelum_penutupan(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 4, 10)->setTime(9, 0));
         $tanpaPj = $this->tambahIndikatorTerjadwal($fixture, 'A-TANPA-PJ', denganPj: false);
 
         $this->actingAs($fixture['pic'])->get('/rencana-aksi')
-            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.create', false));
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.create', true));
         $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
             ->assertInertia(fn ($page) => $page
                 ->where('daftar.0.indikator_id', $tanpaPj->id)
@@ -394,6 +395,13 @@ class RencanaAksiIndexTest extends TestCase
                 ->where('daftar.0.can.create', false)
                 ->where('daftar.1.indikator_id', $fixture['indikator']->id)
                 ->where('daftar.1.can.create', true));
+
+        // Setelah penutupan tanpa sesi koreksi, tidak ada yang ditawari.
+        $this->travelTo(now()->setDate(2027, 1, 5)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.0.indikator_id', $fixture['indikator']->id)->where('daftar.0.can.create', false));
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertInertia(fn ($page) => $page->where('daftar.1.indikator_id', $fixture['indikator']->id)->where('daftar.1.can.create', false));
     }
 
     /**
@@ -531,7 +539,7 @@ class RencanaAksiIndexTest extends TestCase
 
     /**
      * `can.update` memakai gerbang tulis yang sama dengan SimpanTargetPeriode:
-     * PIC di luar jendela dan header yang sudah diajukan tidak ditawari form.
+     * PIC dengan periode terkunci dan header yang sudah diajukan tidak ditawari form.
      */
     public function test_can_update_mengikuti_gerbang_tulis(): void
     {

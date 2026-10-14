@@ -36,11 +36,9 @@ class ReviewRencanaAksiRequest extends FormRequest
     public function rules(): array
     {
         $rules = ['expected_versi' => ['required', 'integer', 'min:1'], 'versi_pengajuan_id' => ['required', 'uuid']];
-        if ($this->aksi() === 'kembalikan') {
+        if ($this->aksi() === 'kembalikan' || $this->aksi() === 'buka_kembali') {
+            // Q43 §43.2: alasan pengembalian dan buka-kembali WAJIB.
             $rules['alasan'] = ['required', 'string', 'max:1000', AuditReason::validate(...)];
-        } elseif ($this->aksi() === 'buka_kembali') {
-            // Q7 Opsi B (divergensi dokumen, addendum pending): alasan OPSIONAL khusus buka_kembali.
-            $rules['alasan'] = ['nullable', 'string', 'max:1000', AuditReason::validate(...)];
         }
 
         return $rules;

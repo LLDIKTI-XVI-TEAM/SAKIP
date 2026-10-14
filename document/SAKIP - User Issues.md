@@ -2343,13 +2343,13 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
 - [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
+- [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
+- [x] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
 
-> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest` 5/5, regresi `SahkanRencanaAksiTest` + `ReviewRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `development` uncommitted; bukan persetujuan UAT, merge, maupun deployment. Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi `RencanaAksiAjukanTest`/`SahkanRencanaAksiTest`/`ReviewRencanaAksiTest` 246/246 Pest pada PostgreSQL disposable, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41: jendela penyusunan tidak lagi dibaca, guard kunci per periode di `JendelaTulisRencanaAksi`. Batasan: frasa "atau daftar kegiatan" pada AC-6/TEST-6 baru ditegakkan pada level target periode — writer klaim tahap RA belum ada (milik ISS-06.02/06.08). Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
 
 #### Implementation Tasks
 
@@ -2360,7 +2360,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 **B. Backend / Domain**
 - [x] Buka kembali hanya mengubah header ke jalur revisi; versi disahkan lama tetap immutable dan resmi sampai versi baru disahkan.
-- [ ] PIC tetap tunduk kunci per periode (Q41 §41.2; aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`); dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (Q41 §41.2 butir 6, ISS-14.03). Buka RA tidak otomatis membuka periode yang terkunci maupun memperpanjang deadline.
+- [x] PIC tetap tunduk kunci per periode (Q41 §41.2; aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`); dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (Q41 §41.2 butir 6, ISS-14.03). Buka RA tidak otomatis membuka periode yang terkunci maupun memperpanjang deadline.
 
 **C. Authorization & Audit**
 - [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:buka_kembali` (sensitif).
@@ -2377,11 +2377,11 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
 
 #### Definition of Done
 
