@@ -98,6 +98,10 @@ class LegacyOnboardingMigrationTest extends TestCase
         $this->assertSame('superadmin', $legacy->roles()->sole()->kode);
         $this->assertDatabaseCount('auth_bootstraps', 1);
         $this->assertSame(0, DB::table('audit_log')->where('tindakan', 'pengguna.terdaftar')->count());
+        $aktivasi = DB::table('audit_log')->where('objek_id', $legacy->id)->where('tindakan', 'pengguna.aktivasi')->get();
+        $this->assertCount(1, $aktivasi);
+        $this->assertSame('bootstrap', $aktivasi[0]->sumber);
+        $this->assertSame(['status' => 'nonaktif'], json_decode($aktivasi[0]->nilai_lama, true));
         $this->assertEquals($auditBefore, DB::table('audit_log')->whereIn('id', $auditBefore->pluck('id'))->orderBy('id')->get());
     }
 
