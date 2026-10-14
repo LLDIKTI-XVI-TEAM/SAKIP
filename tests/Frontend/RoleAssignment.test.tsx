@@ -196,13 +196,13 @@ it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab',
     await user.click(await screen.findByRole('option', { name: /Ayu/ }));
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(String(lookup.mock.calls[0][0])).toBe('/akses/peran/opsi/pengguna?q=ay&page=1');
-    expect(vi.mocked(router.get).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran', { q: 'ayu@example.test' }]);
+    expect(vi.mocked(router.get).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran', { user: 'user-a' }]);
     expect(vi.mocked(router.get).mock.calls[0][2]).toMatchObject({ preserveState: true, preserveScroll: true, replace: true });
 });
 
 it('menampilkan pengguna terpilih dari filter dan mengembalikan semua pengguna saat diganti', async () => {
     const user = userEvent.setup();
-    page('ayu@example.test');
+    render(<RoleAssignmentIndex users={{ ...users, data: [users.data[0]] }} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
     expect(screen.queryByRole('combobox', { name: 'Cari pengguna' })).toBeNull();
     expect(within(screen.getByRole('search')).getByText('ayu@example.test')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
@@ -214,6 +214,13 @@ it('menyediakan jalan kembali ke semua pengguna untuk filter yang bukan pengguna
     expect(screen.getByText(/Menampilkan hasil untuk “ay”/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Tampilkan semua' }).getAttribute('href')).toBe('/akses/peran');
     expect(screen.getByRole('combobox', { name: 'Cari pengguna' })).toBeTruthy();
+});
+
+it('menyediakan jalan kembali bila pengguna terpilih tidak lagi ditemukan', () => {
+    render(<RoleAssignmentIndex users={{ ...users, data: [], from: null, to: null, total: 0 }} roles={roles} filters={{ q: '', user: 'user-hilang' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    expect(screen.getByText(/Pengguna terpilih tidak ditemukan/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Tampilkan semua' }).getAttribute('href')).toBe('/akses/peran');
+    expect(screen.getByText('Tidak ada pengguna yang sesuai')).toBeTruthy();
 });
 
 it('menutup dialog dengan Escape saat tidak memproses dan mengembalikan fokus ke pemicu', async () => {

@@ -17,16 +17,20 @@ class GetRoleAssignmentPage
      *
      * @return array{
      *     users: LengthAwarePaginator<int, array{id: string, nama: string, email: string, status: 'aktif'|'nonaktif', current_role: array{id: string, kode: string, nama: string, aktif: bool}|null, assignment: mixed, has_active_pj: bool}>,
-     *     roles: list<array{id: string, kode: string, nama: string}>, filters: array{q: string}, can: array{assignRole: true}
+     *     roles: list<array{id: string, kode: string, nama: string}>, filters: array{q: string, user: string|null}, can: array{assignRole: true}
      * }
      */
-    public function handle(string $search, int $page): array
+    public function handle(string $search, int $page, ?string $userId = null): array
     {
+        // `%`/`_` dari pengguna dicari sebagai teks, bukan wildcard SQL.
+        $pattern = '%'.addcslashes($search, '\\%_').'%';
         $users = User::select(['id', 'nama', 'email', 'status'])
             ->with('roles:id,kode,nama,aktif')
+            // Pengguna terpilih dari autocomplete disaring per id, bukan potongan email.
+            ->when($userId !== null, fn ($builder) => $builder->whereKey($userId))
             ->when($search !== '', fn ($builder) => $builder->where(fn ($filter) => $filter
-                ->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%')))
-            ->orderBy('nama')->orderBy('id')->paginate(20, page: $page)->appends(['q' => $search]);
+                ->where('nama', 'ilike', $pattern)->orWhere('email', 'ilike', $pattern)))
+            ->orderBy('nama')->orderBy('id')->paginate(20, page: $page)->appends(['q' => $search, 'user' => $userId]);
         $activePj = $this->warnings->forUsers($users->getCollection()->pluck('id')->all());
         $users->through(function (User $user) use ($activePj): array {
             $role = $user->roles->first();
@@ -46,6 +50,6 @@ class GetRoleAssignmentPage
             }
         }
 
-        return ['users' => $users, 'roles' => $roles, 'filters' => ['q' => $search], 'can' => ['assignRole' => true]];
+        return ['users' => $users, 'roles' => $roles, 'filters' => ['q' => $search, 'user' => $userId], 'can' => ['assignRole' => true]];
     }
 }

@@ -527,6 +527,22 @@ class AssignRoleTest extends TestCase
         $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertSessionHasErrors('role_id');
     }
 
+    public function test_selected_user_filter_is_exact_and_search_escapes_wildcards(): void
+    {
+        $ana = User::factory()->create(['nama' => 'Ana', 'email' => 'ana@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Diana', 'email' => 'diana@lldikti16.test', 'status' => 'aktif']);
+        $underscore = User::factory()->create(['nama' => 'Garis Bawah', 'email' => 'a_b@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Huruf X', 'email' => 'axb@lldikti16.test', 'status' => 'aktif']);
+        // Pengguna terpilih dari autocomplete disaring per id, bukan potongan email.
+        $this->actingAs($this->actor)->get('/akses/peran?user='.$ana->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('users.data.0.id', $ana->id)->where('filters.user', $ana->id));
+        // Kontrol: pencarian teks tetap mencocokkan sebagian.
+        $this->get('/akses/peran?q=ana%40lldikti16')->assertInertia(fn (Assert $page) => $page->has('users.data', 2));
+        // `_` dan `%` adalah karakter biasa, bukan wildcard SQL.
+        $this->get('/akses/peran?q=a_b%40')->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.id', $underscore->id));
+        $this->get('/akses/peran?user=bukan-uuid')->assertSessionHasErrors('user');
+    }
+
     #[DataProvider('invalidPayloads')]
     public function test_http_rejects_invalid_payload_without_mutation(array $override, array $remove, string $field): void
     {

@@ -23,7 +23,7 @@ type RoleUser = { id: string; nama: string; email: string; status: 'aktif' | 'no
 interface RoleAssignmentProps {
     users: { data: RoleUser[]; links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     roles: RoleOption[];
-    filters: { q: string };
+    filters: { q: string; user?: string | null };
     can: { assignRole: boolean };
     confirmationUnavailable: boolean;
 }
@@ -136,12 +136,13 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
     const trigger = useRef<HTMLButtonElement | null>(null);
     const title = useRef<HTMLHeadingElement>(null);
     const close = () => setSelected(null);
-    // Filter email yang cocok persis ditampilkan sebagai pengguna terpilih pada autocomplete.
+    // Filter id pengguna ditampilkan sebagai pengguna terpilih pada autocomplete.
     const filtered = useMemo<UserOption | null>(() => {
-        const match = filters.q ? users.data.find((user) => user.email === filters.q) : undefined;
+        const match = filters.user ? users.data.find((user) => user.id === filters.user) : undefined;
         return match ? { id: match.id, nama: match.nama, email: match.email, status: match.status, roles: match.current_role ? [`${match.current_role.nama}${match.current_role.aktif ? '' : ' (nonaktif)'}`] : [] } : null;
-    }, [users.data, filters.q]);
-    const filterBy = (_id: string, user?: UserOption | null) => router.get('/akses/peran', user ? { q: user.email } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    }, [users.data, filters.user]);
+    const filterBy = (id: string) => router.get('/akses/peran', id ? { user: id } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    const hasFilter = Boolean(filters.q || filters.user);
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
         if (selected || !trigger.current) return;
@@ -168,7 +169,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
             <Card className="overflow-visible">
                 <div className="space-y-2 p-4" role="search">
                     <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={filtered?.id ?? ''} initialUser={filtered} onChange={filterBy} />
-                    {filters.q && !filtered && <p className="text-xs text-muted">Menampilkan hasil untuk “{filters.q}”. <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
+                    {hasFilter && !filtered && <p className="text-xs text-muted">{filters.q ? `Menampilkan hasil untuk “${filters.q}”.` : 'Pengguna terpilih tidak ditemukan.'} <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
                 </div>
             </Card>
             <Card>
@@ -193,8 +194,8 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                         {users.data.length === 0 && <TableRow className="block md:table-row">
                             <TableCell colSpan={can.assignRole ? 4 : 3} className="block py-12 text-center md:table-cell">
                                 <Users className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                <p className="mt-2 text-sm font-semibold text-ink">{filters.q ? 'Tidak ada pengguna yang sesuai' : 'Belum ada pengguna'}</p>
-                                <p className="mt-1 text-xs text-muted">{filters.q ? 'Coba kata kunci nama atau email lain.' : 'Pengguna tampil di sini setelah login SSO pertama kali.'}</p>
+                                <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada pengguna yang sesuai' : 'Belum ada pengguna'}</p>
+                                <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci nama atau email lain.' : 'Pengguna tampil di sini setelah login SSO pertama kali.'}</p>
                             </TableCell>
                         </TableRow>}
                         {users.data.map((user) => {
