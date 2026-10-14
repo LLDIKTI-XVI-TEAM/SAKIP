@@ -141,7 +141,8 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
         const match = filters.user ? users.data.find((user) => user.id === filters.user) : undefined;
         return match ? { id: match.id, nama: match.nama, email: match.email, status: match.status, roles: match.current_role ? [`${match.current_role.nama}${match.current_role.aktif ? '' : ' (nonaktif)'}`] : [] } : null;
     }, [users.data, filters.user]);
-    const filterBy = (id: string) => router.get('/akses/peran', id ? { user: id } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    const [filtering, setFiltering] = useState(false);
+    const filterBy = (id: string) => router.get('/akses/peran', id ? { user: id } : {}, { preserveState: true, preserveScroll: true, replace: true, onStart: () => setFiltering(true), onFinish: () => setFiltering(false) });
     const hasFilter = Boolean(filters.q || filters.user);
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
@@ -229,7 +230,10 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                     </TableBody>
                 </Table>
             </Card>
-            <Pagination links={users.links} from={users.from} to={users.to} total={users.total} ariaLabel="Halaman pengguna" />
+            {/* Tautan halaman lama tidak boleh membatalkan filter pengguna yang sedang dimuat. */}
+            <div inert={filtering} className={`transition-opacity ${filtering ? 'opacity-60' : ''}`}>
+                <Pagination links={users.links} from={users.from} to={users.to} total={users.total} ariaLabel="Halaman pengguna" />
+            </div>
         </div>
         {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={close} />}
     </AuthenticatedLayout>;

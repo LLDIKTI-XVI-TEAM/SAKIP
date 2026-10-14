@@ -152,6 +152,36 @@ it("mengirim kata cari terbaru sekali setelah pencarian sebelumnya gagal, tanpa 
     expect(get).toHaveBeenCalledTimes(2);
 });
 
+it.each<Partial<ActiveVisit>>([{ interrupted: true }, { cancelled: true }])(
+    "tidak mengulang pencarian bila kunjungan dibatalkan, misalnya karena pindah halaman (%o)",
+    (flags) => {
+        vi.useFakeTimers();
+        const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+        render(<RolePermissionIndex {...props} />);
+        const box = screen.getByRole("searchbox");
+        fireEvent.change(box, { target: { value: "da" } });
+        act(() => { vi.advanceTimersByTime(350); });
+        const first = get.mock.calls[0][2];
+        act(() => first?.onStart?.({} as PendingVisit));
+        fireEvent.change(box, { target: { value: "dash" } });
+        act(() => { vi.advanceTimersByTime(350); });
+        act(() => first?.onFinish?.(flags as ActiveVisit));
+        act(() => { vi.advanceTimersByTime(5000); });
+        expect(get).toHaveBeenCalledTimes(1);
+    },
+);
+
+it("menyediakan tombol ke halaman pertama hanya untuk halaman izin di luar jangkauan", async () => {
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const empty = { links: [], from: null, to: null, total: 0 };
+    const view = render(<RolePermissionIndex {...props} permissions={[]} pagination={empty} />);
+    expect(screen.queryByRole("button", { name: "Ke halaman pertama" })).toBeNull();
+    view.rerender(<RolePermissionIndex {...props} permissions={[]} pagination={{ ...empty, total: 13 }} />);
+    expect(screen.getByText("Tidak ada izin di halaman ini.")).not.toBeNull();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Ke halaman pertama" }));
+    expect(get).toHaveBeenCalledWith("/akses/izin-peran", { role: role.id, q: "" }, expect.objectContaining({ preserveState: false }));
+});
+
 it("menonaktifkan paginasi peran lama selama pergantian peran dimuat", () => {
     const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
     const other = { ...role, id: "33333333-3333-4333-8333-333333333333", kode: "admin", nama: "Admin" };
@@ -201,6 +231,7 @@ it("hasil kosong dan role nonaktif tetap ditampilkan sebagai metadata", () => {
             {...props}
             selectedRole={{ ...role, aktif: false }}
             permissions={[]}
+            pagination={{ links: [], from: null, to: null, total: 0 }}
             filters={{ role: role.id, q: "tidak-ada" }}
         />,
     );

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
-import type { Page, PendingVisit } from '@inertiajs/core';
+import type { ActiveVisit, Page, PendingVisit } from '@inertiajs/core';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import RoleAssignmentIndex from '@/Pages/Access/RoleAssignmentIndex';
 import RoleAssignmentResult from '@/Pages/Access/RoleAssignmentResult';
@@ -183,6 +183,23 @@ it('memakai paginasi bersama untuk daftar lebih dari satu halaman', () => {
     const nav = screen.getByRole('navigation', { name: 'Halaman pengguna' });
     expect(nav.textContent).toContain('Menampilkan 1–20 dari 25 data');
     expect(within(nav).getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/akses/peran?page=2');
+});
+
+it('menonaktifkan paginasi selama filter pengguna dimuat agar pilihan autocomplete tidak dibatalkan', async () => {
+    const user = userEvent.setup();
+    const links = [
+        { url: null, label: '&laquo; Previous', active: false }, { url: '/akses/peran?page=1', label: '1', active: true },
+        { url: '/akses/peran?page=2', label: '2', active: false }, { url: '/akses/peran?page=2', label: 'Next &raquo;', active: false },
+    ];
+    render(<RoleAssignmentIndex users={{ ...users, links, from: 1, to: 20, total: 25 }} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    const nav = screen.getByRole('navigation', { name: 'Halaman pengguna' });
+    expect(nav.closest('[inert]')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    const visit = vi.mocked(router.get).mock.calls[0][2];
+    act(() => visit?.onStart?.({} as PendingVisit));
+    expect(nav.closest('[inert]')).not.toBeNull();
+    act(() => visit?.onFinish?.({} as ActiveVisit));
+    expect(nav.closest('[inert]')).toBeNull();
 });
 
 it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab', async () => {

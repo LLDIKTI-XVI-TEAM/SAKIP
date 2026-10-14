@@ -2,6 +2,7 @@ import { Head, router, usePage } from "@inertiajs/react";
 import { KeyRound, SearchX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/Components/Badge";
+import { Button } from "@/Components/Button";
 import { Card, CardHeader } from "@/Components/Card";
 import { Input } from "@/Components/Input";
 import { Pagination } from "@/Components/Pagination";
@@ -31,13 +32,13 @@ export default function RolePermissionIndex({
             pending.current = true;
             setNavigating(true);
         },
-        onFinish: () => {
+        onFinish: (visit: { cancelled: boolean; interrupted: boolean }) => {
             pending.current = false;
             setNavigating(false);
-            // onFinish juga terpanggil saat kunjungan gagal; pencarian yang tertunda dijadwalkan ulang tepat sekali.
+            // Kunjungan gagal tetap memanggil onFinish: kirim ulang pencarian tertunda sekali, kecuali kunjungan dibatalkan (mis. pindah halaman).
             if (skipped.current) {
                 skipped.current = false;
-                setRetry((count) => count + 1);
+                if (!visit.cancelled && !visit.interrupted) setRetry((count) => count + 1);
             }
         },
     }), []);
@@ -161,12 +162,17 @@ export default function RolePermissionIndex({
                                     <TableRow className="block md:table-row">
                                         <TableCell colSpan={3} className="block py-12 text-center md:table-cell">
                                             <SearchX className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                            {/* Halaman kosong padahal total > 0 berarti nomor halaman melampaui halaman terakhir, mis. bookmark lama. */}
                                             <p className="mt-2 text-sm font-semibold text-ink">
-                                                {filters.q
-                                                    ? "Tidak ada izin yang cocok dengan pencarian."
-                                                    : pagination.total === 0 ? "Peran ini belum memiliki izin bawaan." : "Tidak ada izin di halaman ini."}
+                                                {pagination.total > 0
+                                                    ? "Tidak ada izin di halaman ini."
+                                                    : filters.q ? "Tidak ada izin yang cocok dengan pencarian." : "Peran ini belum memiliki izin bawaan."}
                                             </p>
-                                            {filters.q && (
+                                            {pagination.total > 0 ? (
+                                                <Button type="button" variant="outline" size="sm" className="mt-4" disabled={navigating} onClick={() => navigate({})}>
+                                                    Ke halaman pertama
+                                                </Button>
+                                            ) : filters.q && (
                                                 <p className="mt-1 text-xs text-muted">Coba kata kunci kode atau keterangan lain.</p>
                                             )}
                                         </TableCell>
