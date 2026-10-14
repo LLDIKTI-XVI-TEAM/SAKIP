@@ -13,7 +13,6 @@ use App\Http\Controllers\Auth\PendingAccount;
 use App\Http\Controllers\Auth\ProcessLogout;
 use App\Http\Controllers\Auth\ProcessSsoLogout;
 use App\Http\Controllers\Auth\RedirectToKeycloak;
-use App\Http\Controllers\Auth\UserActivation;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
@@ -152,8 +151,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
-    Route::get('/akses/aktivasi', [UserActivation::class, 'index'])->name('activation.index');
-    Route::post('/akses/aktivasi/{user}', [UserActivation::class, 'store'])->whereUuid('user')->name('activation.store');
 
     // Regulasi
     Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');

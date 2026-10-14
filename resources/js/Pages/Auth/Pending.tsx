@@ -5,7 +5,7 @@ import { Button } from '@/Components/Button';
 import AuthShell, { secondaryButton } from './AuthShell';
 
 interface PendingProps {
-    pendingReason: 'activation' | 'role';
+    pendingReason: 'inactive' | 'role';
     auth: { user: { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif' } };
 }
 
@@ -23,11 +23,11 @@ export default function Pending({ auth, pendingReason }: PendingProps) {
     };
 
     return (
-        <AuthShell title={pendingReason === 'role' ? 'Menunggu penetapan peran' : 'Menunggu aktivasi akun'}>
+        <AuthShell title={pendingReason === 'role' ? 'Menunggu penetapan peran' : 'Akun tidak aktif'}>
             <p className="mt-3 text-sm leading-relaxed text-muted">
                 {pendingReason === 'role'
                     ? 'Akun Anda sudah aktif, tetapi belum memiliki peran yang aktif. Sampaikan ID akun kepada pengelola akses SAKIP untuk penetapan peran.'
-                    : 'Identitas SSO Anda sudah terhubung. Sampaikan ID akun di bawah kepada pengelola akses SAKIP untuk aktivasi.'}
+                    : 'Akun SAKIP Anda sedang dinonaktifkan. Hubungi pengelola akses SAKIP dan sertakan ID akun di bawah bila Anda memerlukan akses kembali.'}
             </p>
             {flash.authRecoveryNotice === 'no_replay' && <p role="status" className="my-4 rounded-lg bg-soft p-4 text-sm">Tidak ada formulir yang dikirim ulang otomatis. Periksa hasil tindakan sebelumnya sebelum mencoba kembali setelah akses tersedia.</p>}
             <dl className="my-6 space-y-3 rounded-lg bg-soft p-4 text-sm">
@@ -41,7 +41,7 @@ export default function Pending({ auth, pendingReason }: PendingProps) {
                     </dd>
                     <p role="status" aria-live="polite" className="mt-1 text-xs text-muted">{copyMessage}</p>
                 </div>
-                <div><dt className="text-muted">Status</dt><dd className="font-medium">{pendingReason === 'role' ? 'Aktif — belum memiliki peran' : 'Belum aktif'}</dd></div>
+                <div><dt className="text-muted">Status</dt><dd className="font-medium">{pendingReason === 'role' ? 'Aktif — belum memiliki peran' : 'Dinonaktifkan'}</dd></div>
             </dl>
             <Link href="/auth/pending" className="inline-flex rounded-lg border border-border px-4 py-2 text-sm font-semibold text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Periksa status</Link>
             <LogoutActions />

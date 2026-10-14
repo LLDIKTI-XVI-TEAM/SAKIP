@@ -2,9 +2,9 @@
 
 namespace Tests\Integration\Concurrency;
 
+use App\Actions\Access\AssignRole;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
-use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\Pengukuran\SubmitPengukuran;
@@ -87,7 +87,7 @@ class MutationConcurrencyTest extends TestCase
         $this->assertDatabaseCount('user_roles', 0);
         $this->assertSame(1, DB::table('audit_log')->where('sumber', 'sso_onboarding')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.terdaftar')->count());
-        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'status' => 'nonaktif']);
+        $this->assertDatabaseHas('users', ['keycloak_id' => 'concurrent-subject', 'status' => 'aktif']);
     }
 
     public function test_two_concurrent_bootstraps_install_privileges_and_audit_only_once(): void
@@ -102,24 +102,25 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(5, DB::table('audit_log')->where('tindakan', 'role_permissions.ubah')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'user_roles.tambah')->where('sumber', 'bootstrap')->count());
-        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'pengguna.aktivasi')->count());
+        $this->assertSame(0, DB::table('audit_log')->where('tindakan', 'pengguna.aktivasi')->count());
         $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'auth.bootstrap')->count());
     }
 
-    public function test_bootstrap_rechecks_candidate_after_waiting_for_activation_lock(): void
+    public function test_bootstrap_rechecks_candidate_after_waiting_for_role_assignment(): void
     {
         $this->seed(AccessCatalogSeeder::class);
         $actor = User::factory()->create(['status' => 'aktif']);
         $actor->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
-        $target = app(ProvisionKeycloakUser::class)->handle(['subject' => 'activation-race', 'nama' => 'Fixture', 'email' => 'fixture@example.test']);
-        $prepare = fn () => app(ActivateUser::class)->handle($actor, $target->id, 'Aktivasi sah lebih dahulu');
+        $target = app(ProvisionKeycloakUser::class)->handle(['subject' => 'assignment-race', 'nama' => 'Fixture', 'email' => 'fixture@example.test']);
+        $status = $target->status;
+        $prepare = fn () => app(AssignRole::class)->handle($actor, $target->id, Role::where('kode', 'pegawai')->value('id'), 'Peran sah lebih dahulu', null);
         $results = $this->race('bootstrap', $target->id, '', [['expect_ineligible' => true]], $prepare);
         $this->assertSame(['ineligible'], $results);
-        $this->assertSame('aktif', $target->fresh()->status);
-        $this->assertSame(0, $target->roles()->count());
+        $this->assertSame($status, $target->fresh()->status);
+        $this->assertSame('pegawai', $target->roles()->value('kode'));
         $this->assertDatabaseCount('auth_bootstraps', 0);
         $this->assertSame(0, DB::table('audit_log')->where('sumber', 'bootstrap')->count());
-        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'pengguna.aktivasi')->count());
+        $this->assertSame(1, DB::table('audit_log')->where('objek_id', $target->id)->where('tindakan', 'user_roles.tambah')->where('sumber', 'manual')->count());
     }
 
     public function test_two_first_assignments_have_one_winner_and_one_stale_conflict(): void

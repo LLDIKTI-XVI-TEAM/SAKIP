@@ -32,7 +32,6 @@ class HandleInertiaRequests extends Middleware
                         'pengukuran' => $can['pengukuran'],
                         'verifikasi' => $can['verifikasi'],
                         'rencanaAksi' => $can['rencanaAksi'],
-                        'aktivasi' => $can['aktivasi'],
                         'regulasi' => $can['regulasi'],
                         'renstra' => $can['renstra'],
                         'assignRole' => $can['assignRole'],
@@ -75,7 +74,6 @@ class HandleInertiaRequests extends Middleware
             'pengukuran' => false,
             'verifikasi' => false,
             'rencanaAksi' => false,
-            'aktivasi' => false,
             'assignRole' => false,
             'manageDeny' => false,
             'unit' => false,
@@ -139,7 +137,6 @@ class HandleInertiaRequests extends Middleware
                 && ($boleh('pengukuran:verifikasi')
                     || $boleh('pengukuran:sahkan')
                     || $boleh('pengukuran:kembalikan')),
-            'aktivasi' => $boleh('pengguna:read'),
             'assignRole' => $boleh('pengguna:read')
                 && $boleh('akses:update'),
             'manageDeny' => $boleh('akses:update'),

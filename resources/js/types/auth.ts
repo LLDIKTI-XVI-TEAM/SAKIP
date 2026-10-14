@@ -23,7 +23,6 @@ export interface SharedPageProps extends PageProps {
             pengukuran: boolean;
             verifikasi: boolean;
             rencanaAksi?: boolean;
-            aktivasi: boolean;
             regulasi: boolean;
             renstra?: boolean;
             'renstra:create'?: boolean;
