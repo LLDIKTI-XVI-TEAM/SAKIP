@@ -88,7 +88,7 @@ export interface KlaimPengukuran {
     kegiatan: {
         id: string;
         nama: string;
-        tujuan: string;
+        tujuan: string | null;
         status: 'rencana' | 'terlaksana' | 'tidak_terlaksana' | 'ditunda' | 'batal';
         tanggal_rencana: string | null;
         tanggal_realisasi: string | null;

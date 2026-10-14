@@ -1284,7 +1284,7 @@ Aktivitas konkret yang dilaksanakan unit pada suatu periode, sebagai bukti pendu
 | `unit_id` | uuid | FK → unit.id, not null | |
 | `tahun` | int | not null | |
 | `periode_id` | uuid | FK → periode.id, not null | Periode **rencana** pelaksanaan |
-| `nama` | string | not null; hingga 500 karakter (Q49 §49.1 butir 1) | Status implementasi: diterapkan di PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form); belum merge ke `development` (Q49 §49.1 butir 3) |
+| `nama` | string | not null; hingga 500 karakter (Q49 §49.1 butir 1) | Status implementasi: diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form) (Q49 §49.1 butir 3) |
 | `tujuan` | text | **nullable** sejak Q49 (semula not null) | Opsional (Q49 §49.1 butir 2); status implementasi sama dengan `nama` |
 | `sasaran_peserta` | int | nullable | Target jumlah peserta |
 | `keterangan_peserta` | varchar | nullable | mis. "tim penyusun SPMI dari 30 PTS" |

@@ -98,7 +98,7 @@ body {
     scrollbar-width: none !important; /* Firefox */
 }
 
-/* HoverScrollText: teks terpotong bergeser saat hover teks atau fokus kontrol induk.
+/* HoverScrollText: teks terpotong bergeser saat hover teks atau hover/fokus kontrol induk.
    Di layer components agar utility dari prop className tetap dapat menimpanya. */
 @layer components {
     .hover-scroll-text {
@@ -121,7 +121,7 @@ body {
 
     @media (prefers-reduced-motion: no-preference) {
         .hover-scroll-text:is(:hover, :focus-visible) > span,
-        :is(a, button):focus-visible .hover-scroll-text > span,
+        :is(a, button):is(:hover, :focus-visible) .hover-scroll-text > span,
         .hover-scroll-select:hover .hover-scroll-text > span {
             width: max-content;
             overflow: visible;
