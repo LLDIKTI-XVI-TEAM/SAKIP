@@ -20,6 +20,7 @@ use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AlasanAudit;
+use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -58,9 +59,15 @@ class AjukanRencanaAksi
      * koreksi terbit setelah simpan terakhir, tolak 409 tanpa rekonsiliasi
      * otomatis agar pengaju menyimpan ulang di konteks baru. Karena jepit =
      * terbaru, tidak ada baris basi transisi yang perlu disaring. Jendela
-     * dinilai dengan `periodeIds` kosong: pengajuan menyangkut seluruh RA dan
-     * lingkup periode koreksi sudah dijaga saat simpan. Klaim kegiatan belum
-     * dibekukan karena belum ada writer klaim rencana aksi.
+     * dinilai terhadap periode yang berubah dibanding versi sah terakhir
+     * (Q41 §41.2): untuk PIC hanya periode terkunci yang nilainya berubah
+     * yang menolak pengajuan; periode terkunci yang nilainya sama tetap
+     * lolos agar alur buka-kembali lalu ubah periode terbuka lalu ajukan
+     * ulang tidak mati; tanpa versi sah sebelumnya tidak ada pembanding
+     * sehingga dinilai sebagai daftar kosong (guard simpan sudah mencegah
+     * perubahan sejak awal). Dalam sesi koreksi, lingkup dinilai terhadap
+     * periode yang berubah pula, berlaku untuk PIC maupun Perencanaan.
+     * Klaim kegiatan belum dibekukan karena belum ada writer klaim rencana aksi.
      *
      * Pengajuan Pengukuran juga mengunci header RA sebelum indikator agar
      * tidak membentuk siklus kunci dengan writer/reviewer RA.
@@ -127,14 +134,12 @@ class AjukanRencanaAksi
                 $penugasan = PenugasanIndikator::effectiveOn($waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $indikator->id)
                     ->first();
-                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', [], $penugasan?->user_id, pada: $waktuAjukan);
-                if ($alasanJendela !== null) {
-                    throw ValidationException::withMessages(['jendela' => $alasanJendela]);
-                }
+                $jendelaPeriode = $this->konteks->jendela($jadwal->id, kunci: true);
+                $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $jendelaPeriode);
 
                 $presisi = (int) $snapshot->presisi;
                 $definisi = $this->konteks->komponen($snapshot, kunci: true);
-                $jendela = $this->konteks->jendela($jadwal->id, kunci: true);
+                $jendela = $jendelaPeriode;
                 $targets = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
                     ->orderBy('periode_id')
                     ->orderBy('komponen_id')
@@ -147,9 +152,19 @@ class AjukanRencanaAksi
                     $presisi,
                     $definisi,
                     $jendela,
-                    $this->konteks->periodeEfektif($snapshot, $jendela),
+                    $periodeEfektif,
                     $this->kesiapan->petaTarget($targets),
                 );
+                // Kunci berbasis perubahan nilai: periode yang dinilai
+                // terhadap lingkup koreksi maupun kunci tanggal adalah
+                // periode yang berubah dibanding versi sah terakhir; tanpa
+                // pembanding dinilai sebagai daftar kosong. Hasil terstruktur
+                // membedakan penutupan, PIC, dan kunci tanpa mencocokkan teks.
+                $berubah = PerbandinganNilaiRencanaAksi::periodeBerubahVsVersiSah($header->id, $baris);
+                $penilaian = $this->jendela->penilaian($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $berubah, $penugasan?->user_id, pada: $waktuAjukan);
+                if ($penilaian['pesan'] !== null) {
+                    throw ValidationException::withMessages(['jendela' => $penilaian['pesan']]);
+                }
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
                 $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);

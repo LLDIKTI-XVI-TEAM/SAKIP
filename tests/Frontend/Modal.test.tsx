@@ -5,6 +5,29 @@ import { Modal } from '@/Components/Modal';
 afterEach(cleanup);
 
 describe('Modal Accessibility', () => {
+    it('fokus awal dan Tab mengabaikan field efektif disabled melalui fieldset', () => {
+        vi.useFakeTimers();
+        const layout = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockReturnValue(document.body);
+        try {
+            render(<Modal isOpen title="Recovery kegiatan" onClose={vi.fn()} showCloseButton={false}>
+                <a href="/kegiatan">Muat ulang</a>
+                <fieldset disabled><input aria-label="Draft" /></fieldset>
+            </Modal>);
+            act(() => vi.runOnlyPendingTimers());
+            const reload = screen.getByRole('link', { name: 'Muat ulang' });
+            expect(document.activeElement).toBe(reload);
+            for (const shiftKey of [false, true]) {
+                const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true });
+                window.dispatchEvent(event);
+                expect(event.defaultPrevented).toBe(true);
+                expect(document.activeElement).toBe(reload);
+            }
+        } finally {
+            layout.mockRestore();
+            cleanup();
+            vi.useRealTimers();
+        }
+    });
     it.each([false, true])('fokus awal tidak mengambil alih field yang sudah dipilih: %s', (alreadyFocused) => {
         vi.useFakeTimers();
         try {

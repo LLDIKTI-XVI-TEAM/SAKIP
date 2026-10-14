@@ -5,14 +5,27 @@ namespace App\Services\RencanaAksi;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
 use App\Models\PenugasanIndikator;
+use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Support\PermissionDecision;
 use Carbon\CarbonInterface;
 
 /**
- * Aturan jendela tulis Rencana Aksi: penutupan tahun beserta sesi koreksi,
- * jalur Perencanaan global, PIC efektif, dan jendela `rencana_aksi_mulai`
- * sampai `rencana_aksi_selesai` pada tanggal Asia/Makassar.
+ * Aturan tulis Rencana Aksi Q41: penutupan tahun beserta sesi koreksi,
+ * jalur Perencanaan global, PIC efektif, dan kunci per periode mengikuti
+ * `jadwal_periode.pengisian_selesai` yang berlaku pada tanggal Asia/Makassar.
+ *
+ * Sejak Q41 tidak ada jendela penyusunan: kolom
+ * `jadwal_tahunan.rencana_aksi_mulai`/`rencana_aksi_selesai` dibiarkan di
+ * skema tetapi tidak dibaca di sini. PIC efektif dengan grant yang sah
+ * dapat menulis sejak jadwal `aktif` sampai `penutupan`; periode P
+ * terkunci bagi PIC setelah `pengisian_selesai` P terlewati — termasuk
+ * periode lampau saat aktivasi (tanggalnya sudah lewat sehingga otomatis
+ * terkunci) dan hasil revisi resmi jendela (Q18) karena yang dibaca selalu
+ * nilai berlaku. Dalam sesi koreksi sah pascapenutupan, kunci tanggal
+ * tidak diterapkan; sebagai gantinya hanya periode dalam lingkup koreksi
+ * yang boleh ditulis (Q41 §41.2 butir 6).
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
  * `SimpanTargetPeriode`, `AjukanRencanaAksi`) dan capability baca
@@ -36,8 +49,11 @@ class JendelaTulisRencanaAksi
      * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
-     *                                    Pengajuan selalu kosong karena menyentuh seluruh RA;
-     *                                    periode sudah dijaga lingkup koreksi saat simpan.
+     *                                    Pengajuan memakai seluruh periode efektif karena
+     *                                    menyentuh seluruh RA; daftar kegiatan tahap RA
+     *                                    (`sumber_klaim = rencana_aksi`) belum ada
+     *                                    writer-nya sehingga guard pada tahap ini baru
+     *                                    menilai target periode.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
      *                                  null berarti dibaca di sini. Capability baca
      *                                  (`DaftarRencanaAksi`) mengisinya dari join. Gerbang
@@ -52,28 +68,49 @@ class JendelaTulisRencanaAksi
      */
     public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): ?string
     {
+        return $this->penilaian($aktor, $keputusan, $indikator, $jadwal, $tindakan, $periodeIds, $picUserId, $pada)['pesan'];
+    }
+
+    /**
+     * Penilaian terstruktur gerbang tulis agar pemanggil tidak mencocokkan
+     * teks pesan untuk membedakan jenis penolakan.
+     *
+     * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
+     * @param  list<string>  $periodeIds
+     * @return array{jenis: 'lolos'|'penutupan'|'pic'|'kunci', pesan: string|null, terkunci: list<array{id: string, nama: string, batas: string, urutan: int}>}
+     */
+    public function penilaian(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): array
+    {
         $pada ??= now();
         if ($this->tahunDitutup($jadwal, $pada) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)) {
-            return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
+            return ['jenis' => 'penutupan', 'pesan' => "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.", 'terkunci' => []];
         }
 
         if ($this->jalurPerencanaan($keputusan)) {
-            return null;
+            return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
         }
 
         $hariIni = $this->tanggalBisnis($pada);
         $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
         if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
-            return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
+            return ['jenis' => 'pic', 'pesan' => 'Tindakan ini memerlukan penugasan PIC yang efektif.', 'terkunci' => []];
         }
 
-        $mulai = $jadwal->rencana_aksi_mulai?->toDateString();
-        $selesai = $jadwal->rencana_aksi_selesai?->toDateString();
-        if (! is_string($mulai) || ! is_string($selesai) || $hariIni < $mulai || $hariIni > $selesai) {
-            return 'Jendela penyusunan rencana aksi periode ini sudah ditutup.';
+        // Dalam sesi koreksi yang sah, lingkup periode sudah divalidasi pada
+        // gerbang penutupan di atas; kunci tanggal tidak diterapkan agar
+        // periode yang jendela pengisiannya dibuka resmi dapat dikoreksi.
+        if ($this->tahunDitutup($jadwal, $pada)) {
+            return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
         }
 
-        return null;
+        $terkunci = $this->rincianTerkunci($jadwal, $periodeIds, $hariIni);
+        if ($terkunci !== []) {
+            $pesan = 'Periode terkunci bagi PIC setelah batas pengisian lewat: '.implode('; ', array_map(fn (array $baris): string => "{$baris['nama']} (batas {$baris['batas']})", $terkunci)).'.';
+
+            return ['jenis' => 'kunci', 'pesan' => $pesan, 'terkunci' => $terkunci];
+        }
+
+        return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
     }
 
     /**
@@ -128,6 +165,59 @@ class JendelaTulisRencanaAksi
     public function jalurPerencanaan(PermissionDecision $keputusan): bool
     {
         return $keputusan->allowed && ($keputusan->basis['sumber_allow']['roles'] ?? []) !== [];
+    }
+
+    /**
+     * Rincian periode terkunci bagi PIC (untuk gerbang pengajuan berbasis
+     * perubahan nilai Q41 §41.2): setiap periode yang `pengisian_selesai`
+     * berlakunya sudah lewat pada tanggal bisnis, terurut urutan periode
+     * lalu nama agar pesan 422 spesifik per periode dan stabil.
+     *
+     * Periode yang tidak dikenal atau bukan anggota jadwal diabaikan di
+     * sini; validasi keanggotaan milik pemanggil (`SimpanTargetPeriode`).
+     *
+     * @param  list<string>  $periodeIds
+     * @return list<array{id: string, nama: string, batas: string, urutan: int}>
+     */
+    public function rincianTerkunci(JadwalTahunan $jadwal, array $periodeIds, string $hariIni): array
+    {
+        $ids = array_values(array_unique(array_map(fn ($id): string => (string) $id, $periodeIds)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $batas = PeriodeJadwal::where('jadwal_id', $jadwal->id)->whereIn('periode_id', $ids)->pluck('pengisian_selesai', 'periode_id');
+        $nama = Periode::whereIn('id', $ids)->pluck('nama', 'id');
+        $urutan = Periode::whereIn('id', $ids)->pluck('urutan', 'id');
+
+        $terkunci = [];
+        foreach ($ids as $id) {
+            $selesai = $batas->get($id);
+            $tanggal = $selesai instanceof CarbonInterface ? $selesai->toDateString() : (is_string($selesai) ? substr($selesai, 0, 10) : null);
+            if ($tanggal === null || $tanggal === '' || $tanggal >= $hariIni) {
+                continue;
+            }
+            $terkunci[] = ['id' => $id, 'nama' => (string) ($nama->get($id) ?? $id), 'batas' => $tanggal, 'urutan' => (int) ($urutan->get($id) ?? 0)];
+        }
+        usort($terkunci, fn (array $a, array $b): int => [$a['urutan'], $a['nama']] <=> [$b['urutan'], $b['nama']]);
+
+        return $terkunci;
+    }
+
+    /**
+     * Periode yang hendak ditulis tetapi `pengisian_selesai` berlakunya
+     * sudah lewat pada tanggal bisnis, terurut urutan periode lalu nama
+     * agar pesan 422 spesifik per periode dan stabil.
+     *
+     * Periode yang tidak dikenal atau bukan anggota jadwal diabaikan di
+     * sini; validasi keanggotaan milik pemanggil (`SimpanTargetPeriode`).
+     *
+     * @param  list<string>  $periodeIds
+     * @return list<string>
+     */
+    private function periodeTerkunci(JadwalTahunan $jadwal, array $periodeIds, string $hariIni): array
+    {
+        return array_map(fn (array $baris): string => "{$baris['nama']} (batas {$baris['batas']})", $this->rincianTerkunci($jadwal, $periodeIds, $hariIni));
     }
 
     /**

@@ -15,7 +15,6 @@ import {
     FileSpreadsheet,
     CheckCircle2,
     Building2,
-    UserCheck,
     UserPlus,
     KeyRound,
     Ban,
@@ -171,6 +170,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     canKey: 'rencanaAksi',
                 },
                 {
+                    id: 'kegiatan',
+                    label: 'Kegiatan',
+                    href: '/kegiatan',
+                    icon: CalendarDays,
+                    canKey: 'kegiatan',
+                },
+                {
                     id: 'pengukuran',
                     label: 'Pengukuran Kinerja',
                     href: '/pengukuran',
@@ -218,13 +224,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
             label: 'Manajemen Akses',
             icon: ShieldCheck,
             children: [
-                {
-                    id: 'aktivasi',
-                    label: 'Aktivasi Pengguna',
-                    href: '/akses/aktivasi',
-                    icon: UserCheck,
-                    canKey: 'aktivasi',
-                },
                 {
                     id: 'peran',
                     label: 'Penetapan Peran',

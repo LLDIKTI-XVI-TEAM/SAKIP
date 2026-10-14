@@ -234,9 +234,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
-- [ ] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
-- [ ] Menu Aktivasi Pengguna tidak tersedia lagi.
+- [x] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
+- [x] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
+- [x] Menu Aktivasi Pengguna tidak tersedia lagi.
 - [ ] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
 - [ ] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
 - [ ] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.
@@ -1001,13 +1001,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
+- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD M1.)*
+
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi RA, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41/Q43. Review 14 Oktober 2026: AC-6 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode (writer klaim tahap RA milik ISS-06.02/06.08). AC-3 dan AC-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1).
 
 **Business Rules / Catatan**
 
@@ -1061,7 +1063,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-06.01 · Pencatatan Rencana Kegiatan Unit
 
-> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge; bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada US-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, dan penjumlahan anggaran dikerjakan pada US-06.08 (Q42 §42.6). Kegiatan juga ditambahkan dari halaman Rencana Aksi per periode melalui US-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3).
+> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, dan penjumlahan anggaran dikerjakan pada US-06.08 (Q42 §42.6). Kegiatan juga ditambahkan dari halaman Rencana Aksi per periode melalui US-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3).
+
+**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Penegakan pembatasan detail per unit (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan akses baca penerima grant tulis ditunda ke satu issue lintas modul Rencana Aksi + Kegiatan sesuai [keputusan PM PR #97](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/97#issuecomment-6161158080). Requirement tetap berlaku; PR ini mempertahankan baca global dikurangi deny unit. Issue tindak lanjut: [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102), gerbang sebelum UAT dengan data nyata serta produksi, bukan gerbang merge PR ini. Sementara itu grant kegiatan:create/update hanya diberikan kepada pengguna yang sudah memiliki kegiatan:read; Admin tidak diberi grant kegiatan. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
 
 | Field | Detail |
 |---|---|
@@ -1079,10 +1083,10 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 ### US-06.02 · Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
 

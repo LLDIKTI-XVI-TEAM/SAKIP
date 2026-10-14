@@ -19,10 +19,10 @@ export interface SharedPageProps extends PageProps {
         user: AuthUser | null;
         can: {
             dashboard: boolean;
+            kegiatan?: boolean;
             pengukuran: boolean;
             verifikasi: boolean;
             rencanaAksi?: boolean;
-            aktivasi: boolean;
             regulasi: boolean;
             renstra?: boolean;
             'renstra:create'?: boolean;

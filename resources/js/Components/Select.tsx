@@ -2,6 +2,7 @@ import React, { SelectHTMLAttributes, useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { HoverScrollText } from './HoverScrollText';
 
 export interface SelectOption {
     value: string | number;
@@ -15,6 +16,8 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
     error?: string;
     helperText?: string;
     options?: SelectOption[];
+    hoverScroll?: boolean;
+    hoverScrollDuration?: string;
 }
 
 export function Select({
@@ -23,6 +26,8 @@ export function Select({
     error,
     helperText,
     options,
+    hoverScroll = false,
+    hoverScrollDuration,
     className,
     id,
     children,
@@ -30,6 +35,9 @@ export function Select({
 }: SelectProps) {
     const fallbackId = useId();
     const selectId = id ?? props.name ?? fallbackId;
+
+    const selectedOption = options?.find((opt) => String(opt.value) === String(props.value));
+    const showHoverScroll = Boolean(hoverScroll && selectedOption && selectedOption.value !== '');
 
     return (
         <div className="w-full">
@@ -39,7 +47,10 @@ export function Select({
                     {props.required && <span className="ml-1 text-danger font-normal" aria-hidden="true">*</span>}
                 </label>
             )}
-            <div className="relative">
+            <div
+                className={clsx('relative', showHoverScroll && 'hover-scroll-select')}
+                style={hoverScrollDuration ? ({ '--hover-scroll-duration': hoverScrollDuration } as React.CSSProperties) : undefined}
+            >
                 <select
                     id={selectId}
                     aria-invalid={error ? true : undefined}
@@ -47,6 +58,7 @@ export function Select({
                     className={twMerge(
                         clsx(
                             'w-full h-[42px] appearance-none rounded-lg border bg-surface pl-3.5 pr-10 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted cursor-pointer',
+                            showHoverScroll && 'text-transparent',
                             error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                             className,
                         ),
@@ -55,12 +67,24 @@ export function Select({
                 >
                     {options
                         ? options.map((opt) => (
-                              <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                              <option key={opt.value} value={opt.value} disabled={opt.disabled} className="text-ink bg-surface">
                                   {opt.label}
                               </option>
                           ))
                         : children}
                 </select>
+                {showHoverScroll && selectedOption && (
+                    <div className="pointer-events-none absolute inset-y-0 left-0 right-10 flex items-center pl-3.5 overflow-hidden">
+                        <span className="flex min-w-0 flex-1 items-center" aria-hidden="true">
+                            <HoverScrollText
+                                key={String(selectedOption.value)}
+                                className={clsx('text-sm font-normal', props.disabled ? 'text-muted' : 'text-ink')}
+                            >
+                                {selectedOption.label}
+                            </HoverScrollText>
+                        </span>
+                    </div>
+                )}
                 <ChevronDown
                     className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
                     aria-hidden="true"

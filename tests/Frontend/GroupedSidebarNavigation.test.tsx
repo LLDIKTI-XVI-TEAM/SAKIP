@@ -23,6 +23,7 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     renstra: true,
     sasaranIndikator: true,
     rencanaAksi: true,
+    kegiatan: true,
     pk: true,
     periode: true,
     jadwal: true,
@@ -30,7 +31,6 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     verifikasi: true,
     unit: true,
     jenisBerkas: true,
-    aktivasi: true,
     assignRole: true,
     viewRolePermissions: true,
     grant: true,
@@ -89,6 +89,7 @@ afterEach(() => {
         renstra: true,
         sasaranIndikator: true,
         rencanaAksi: true,
+        kegiatan: true,
         pk: true,
         periode: true,
         jadwal: true,
@@ -96,7 +97,6 @@ afterEach(() => {
         verifikasi: true,
         unit: true,
         jenisBerkas: true,
-        aktivasi: true,
         assignRole: true,
         viewRolePermissions: true,
         grant: true,
@@ -146,8 +146,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pelaksanaan.type).toBe('group');
         if (pelaksanaan.type === 'group') {
             expect(pelaksanaan.group.label).toBe('Pelaksanaan & Evaluasi');
-            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan']);
-            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'pengukuran', 'verifikasi']);
+            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Kegiatan', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan']);
+            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'kegiatan', 'pengukuran', 'verifikasi']);
         }
 
         expect(masterData.type).toBe('group');
@@ -161,7 +161,6 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         if (manajemenAkses.type === 'group') {
             expect(manajemenAkses.group.label).toBe('Manajemen Akses');
             expect(manajemenAkses.group.children.map((c) => c.label)).toEqual([
-                'Aktivasi Pengguna',
                 'Penetapan Peran',
                 'Peran & Izin',
                 'Izin Unit (Grant)',
@@ -169,7 +168,6 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
                 'Izin Pengguna',
             ]);
             expect(manajemenAkses.group.children.map((c) => c.canKey)).toEqual([
-                'aktivasi',
                 'assignRole',
                 'viewRolePermissions',
                 'grant',

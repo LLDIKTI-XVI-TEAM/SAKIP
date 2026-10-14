@@ -240,14 +240,20 @@ class RencanaAksiBuktiHttpTest extends TestCase
         return ['unggah' => ['berkas:upload', 'berkas.unggah_ditolak'], 'hapus' => ['berkas:delete', 'berkas.hapus_ditolak']];
     }
 
-    public function test_pic_di_luar_jendela_ditolak_sedangkan_jalur_perencanaan_tetap_boleh(): void
+    public function test_tanpa_jendela_penyusunan_pic_dapat_mengunggah_sebelum_penutupan(): void
     {
-        $hariIni = today(config('app.business_timezone'));
-        $this->jadwal->update(['rencana_aksi_mulai' => $hariIni->copy()->subDays(3)->toDateString(), 'rencana_aksi_selesai' => $hariIni->copy()->subDays(2)->toDateString()]);
+        // Q41: jendela penyusunan tidak ada lagi — unggahan bukti PIC pada
+        // header yang dapat disunting diterima sebelum penutupan walau kolom
+        // rencana_aksi_mulai/selesai sudah lewat.
+        $this->jadwal->update(['rencana_aksi_mulai' => '2026-02-01', 'rencana_aksi_selesai' => '2026-02-28']);
         $pic = $this->createPicPegawai();
 
+        $this->kirim($pic, ['mode' => 'teks', 'isi_teks' => 'Lampiran tepat waktu.'])->assertSessionHasNoErrors();
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Perencanaan tanpa batas periode.'])->assertSessionHasNoErrors();
+
+        // Setelah penutupan tanpa sesi koreksi, keduanya ditolak dan diaudit.
+        $this->travelTo(now()->setDate(2027, 1, 5)->setTime(9, 0));
         $this->kirim($pic, ['mode' => 'teks', 'isi_teks' => 'Terlambat.'])->assertSessionHasErrors('jendela');
-        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Perencanaan tanpa batas jendela.'])->assertSessionHasNoErrors();
         $this->assertTrue(AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('actor_id', $pic->id)->exists());
     }
 
@@ -431,7 +437,7 @@ class RencanaAksiBuktiHttpTest extends TestCase
                 ->where('bukti.daftar.0.nama_persyaratan', 'KAK Lama'));
     }
 
-    public function test_capability_mengikuti_pj_efektif_dan_jendela_penyusunan(): void
+    public function test_capability_mengikuti_pj_efektif_tanpa_jendela_penyusunan(): void
     {
         $lihatCan = fn (User $user, bool $boleh) => $this->actingAs($user)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
             ->assertOk()
@@ -442,13 +448,19 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->grantUnitPermission($bukanPj, 'rencana_aksi:update');
 
         $lihatCan($pic, true);
-        // Grant unit tanpa penugasan PJ efektif ditolak gerbang jendela, jadi tombol tidak ditawarkan.
+        // Grant unit tanpa penugasan PJ efektif ditolak gerbang tulis, jadi tombol tidak ditawarkan.
         $lihatCan($bukanPj, false);
 
+        // Kolom rencana_aksi_mulai/selesai yang lewat tidak lagi membatasi.
         $hariIni = today(config('app.business_timezone'));
         $this->jadwal->update(['rencana_aksi_mulai' => $hariIni->copy()->subDays(3)->toDateString(), 'rencana_aksi_selesai' => $hariIni->copy()->subDays(2)->toDateString()]);
-        $lihatCan($pic, false);
+        $lihatCan($pic, true);
         $lihatCan($this->actor, true);
+
+        // Setelah penutupan tanpa sesi koreksi, tombol tidak ditawarkan.
+        $this->travelTo(now()->setDate(2027, 1, 5)->setTime(9, 0));
+        $lihatCan($pic, false);
+        $lihatCan($this->actor, false);
     }
 
     public function test_membuka_halaman_tanpa_hak_mutasi_tidak_mencatat_percobaan_ditolak(): void

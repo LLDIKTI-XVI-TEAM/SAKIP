@@ -36,9 +36,10 @@ function labelSkor(nilai: string | null, status: string, formatNilai: (n: string
  * Skor turunan selalu berasal dari payload server (`periode.skor`)
  * dan tidak pernah dihitung ulang di React. Perubahan input hanya
  * mengubah `values` formulir; kolom skor tetap menampilkan hasil
- * tersimpan sampai server menyimpan ulang. Baris di luar lingkup
- * koreksi dinonaktifkan dan tidak dikirim (validasi fail-closed tetap
- * di backend); skor reaktif ditampilkan komponen pratinjau terpisah.
+ * tersimpan sampai server menyimpan ulang. Baris yang dikunci
+ * (di luar lingkup koreksi atau periode terkunci) dinonaktifkan dan
+ * tidak dikirim (validasi fail-closed tetap di backend); skor reaktif
+ * ditampilkan komponen pratinjau terpisah.
  */
 export default function MatriksTarget({
     tipePerhitungan,
@@ -108,8 +109,9 @@ export default function MatriksTarget({
                         );
                     }
 
-                    // Periode efektif di luar lingkup koreksi dikunci di UI
-                    // (tak dikirim saat simpan); backend tetap menolak fail-closed.
+                    // Periode efektif yang dikunci (di luar lingkup koreksi
+                    // atau periode terkunci) hanya-baca di UI (tak dikirim
+                    // saat simpan); backend tetap menolak fail-closed.
                     const terkunciKoreksi = dapatDisunting ? !dapatDisunting(baris.id) : false;
                     const selDisabled = disabled || terkunciKoreksi;
 
@@ -156,7 +158,7 @@ export default function MatriksTarget({
                                 {/* Catatan per baris hanya membedakan baris saat sebagian matriks dapat disunting. */}
                                 {terkunciKoreksi && !disabled && (
                                     <p className="mt-2 text-xs font-medium text-muted" data-testid={`koreksi-terkunci-${baris.id}`}>
-                                        Di luar lingkup koreksi; tidak disunting dan tidak dikirim.
+                                        Periode dikunci; tidak disunting dan tidak dikirim.
                                     </p>
                                 )}
                                 {baris.peringatan_turun && (

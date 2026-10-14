@@ -898,7 +898,7 @@ Admin menetapkan satu dari 5 role (alasan wajib, teraudit)
 
 ## 38.3 Akun yang Menunggu Aktivasi Saat Rilis
 
-Sebelum deploy, akun `nonaktif` yang belum pernah diaktifkan didaftar dengan query read-only dan diaktifkan admin melalui halaman Aktivasi lama (beralasan, teraudit). Bila penonaktifan/pengaktifan kembali (§38.2) dirilis bersamaan, sisa akun dapat diaktifkan sesudah deploy melalui "Aktifkan kembali". Tidak ada migrasi otomatis.
+Sebelum deploy, akun `nonaktif` yang belum pernah diaktifkan didaftar dengan query read-only dan diaktifkan admin melalui halaman Aktivasi lama (beralasan, teraudit). Bila penonaktifan/pengaktifan kembali (§38.2) dirilis bersamaan, sisa akun dapat diaktifkan sesudah deploy melalui "Aktifkan kembali". Tidak ada migrasi otomatis. Keputusan PM 14 Oktober 2026 (PR #101): Bagian A dan Bagian B dideploy bersamaan setelah konfirmasi tertulis Q38 diterima; persetujuan rapat 13 Oktober 2026 (§38.5) cukup untuk merge ke `development`. Bila Bagian B belum siap, Bagian A tidak dideploy.
 
 ## 38.4 Kandidat Grant Unit dan Penanggung Jawab
 
@@ -1400,7 +1400,7 @@ Detail kegiatan tetap dibatasi unit (Q12), karena nama kegiatan dapat memuat nam
 
 - PRD §15.1; Data Model §2.25 (`kegiatan.nama` hingga 500 karakter, `tujuan` nullable); Workflow (penambahan kegiatan dari Rencana Aksi); Plan modul 12; design system (batas field).
 - User Stories/Issues: US/ISS-06.01 diberi catatan (validasi PR #97); US/ISS-06.02 (salin kegiatan).
-- Status implementasi: belum. Validasi kegiatan pada branch PR #97 masih membatasi `nama` 255 karakter dan mewajibkan `tujuan`.
+- Status implementasi: §49.1 diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). §49.2 belum (ISS-06.02).
 
 ---
 
@@ -1575,3 +1575,13 @@ Penyelarasan ini terbatas pada keunikan jadwal. Ketentuan master periode dan see
 Seed berjalan melalui `PeriodeSeeder`, juga dipanggil `DatabaseSeeder`, hanya jika tabel `periode` kosong. Keempat baris dibuat atomik dengan lock konfigurasi yang sama dengan mutasi master. Jika sudah ada baris, termasuk konfigurasi kustom pengelola, seed selesai tanpa perubahan dan menampilkan pesan bahwa konfigurasi dipertahankan. Pengulangan tidak menggandakan, melengkapi, menimpa, atau menormalkan konfigurasi existing.
 
 Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/2026. Nama, urutan, status, dan nilai akhir selanjutnya dikelola melalui aturan master periode yang berlaku; seed bukan mekanisme reset konfigurasi.
+
+## Addendum ISS-05.06 — Keputusan PM Buka-Kembali Rencana Aksi
+
+**Keputusan PM: 14 Oktober 2026 (WITA), [komentar Keputusan PM — PR #100 (ISS-05.06)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/100#issuecomment-6161432383), merujuk [review sebelumnya](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/100#issuecomment-6161417285) pada HEAD `1286d39`.** Keputusan ini menggantikan addendum pemisahan tugas buka-kembali yang dihapus pada butir 2 (addendum tersebut tidak berlaku sebagai keputusan PM). Ini bukan nomor Q baru dan bukan klaim ratifikasi UAT, merge, maupun deployment.
+
+1. Kunci per periode bagi PIC ditegakkan berbasis perubahan nilai di seluruh jalur (simpan, ajukan, capability, form), termasuk penilaian lingkup koreksi terhadap periode yang berubah (Q41 §41.1 butir 1, §41.2 butir 2 dan 6; ISS-05.07 AC-3).
+2. Guard pembuka tidak boleh sama dengan pengesah beserta penanda darurat Superadmin dihapus; Perencanaan yang mengesahkan boleh membuka kembali. Kontrol tersisa permission sensitif, alasan wajib (Q43 §43.2), dan audit `dasar_izin`.
+3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
+4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
+5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.

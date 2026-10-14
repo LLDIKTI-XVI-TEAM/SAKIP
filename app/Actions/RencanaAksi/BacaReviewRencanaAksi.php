@@ -2,12 +2,14 @@
 
 namespace App\Actions\RencanaAksi;
 
+use App\Models\AuditLog;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -30,7 +32,7 @@ class BacaReviewRencanaAksi
             $policy = app(RencanaAksiPolicy::class);
             $errors = $policy->businessErrors($actor, $header, $versi);
             if ($versi->id !== $terbaru?->id) {
-                $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
+                $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = $errors['buka_kembali'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
             }
             $buktiBoleh = $policy->viewEvidence($actor, $header);
             $beku = $versi->snapshot ?? [];
@@ -39,6 +41,11 @@ class BacaReviewRencanaAksi
             $buktiBerlaku = $buktiBoleh ? $header->buktiDukungs()->current()->whereIn('id', $buktiIds)->where('mode', 'file')->pluck('id')->all() : [];
             $histori = $header->versions()->select(['id', 'rencana_aksi_id', 'nomor', 'diajukan_at', 'jalur_pengajuan'])
                 ->reorder('nomor', 'desc')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
+            // Penanda "pernah dibuka kembali" dari audit append-only; versi
+            // resmi lama tetap terbaca via histori. Frontend memakai flag ini
+            // untuk banner.
+            $dibukaKembali = AuditLog::where('objek_tipe', 'rencana_aksi')->where('objek_id', $header->id)
+                ->where('tindakan', 'rencana_aksi.buka_kembali')->exists();
 
             return [
                 'id' => $header->id, 'tahun' => $header->tahun, 'status_alur' => $header->status_alur, 'expected_versi' => $header->versi,
@@ -61,18 +68,20 @@ class BacaReviewRencanaAksi
                 'bukti_dukungs' => $buktiBoleh ? array_map(fn (array $b): array => [
                     'id' => $b['id'] ?? '', 'mode' => $b['mode'] ?? '', 'nama_asli' => $b['nama_asli'] ?? null,
                     'tautan' => $b['tautan'] ?? null, 'isi_teks' => $b['isi_teks'] ?? null,
-                    'download_url' => ($b['mode'] ?? '') === 'file' && in_array($b['id'] ?? null, $buktiBerlaku, true)
-                        ? route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]) : null,
+                    'download_url' => $this->unduhanBukti($header, $versi, $b, $buktiBerlaku),
                 ], array_values(array_filter($bukti, fn (array $b): bool => in_array($b['mode'] ?? null, ['file', 'tautan', 'teks'], true)))) : [],
                 'can' => ['verifikasi' => $policy->verifikasi($actor, $header)->allowed() && $errors['verifikasi'] === [],
                     'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [],
-                    'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [], 'evidence' => $buktiBoleh],
-                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan']],
-                // F2 wajib terlihat, bukan hanya diaudit: pengesah sama dengan pengaju pada jalur Perencanaan.
+                    'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [],
+                    'buka_kembali' => $policy->bukaKembali($actor, $header)->allowed() && $errors['buka_kembali'] === [], 'evidence' => $buktiBoleh],
+                'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan'], 'buka_kembali' => $errors['buka_kembali']],
+                // Penanda self-approval wajib terlihat, bukan hanya diaudit:
+                // pengesah sama dengan pengaju pada jalur Perencanaan (Q41 §41.3 butir 2).
                 'pengesahan' => $versi->disahkan_by === null ? null : ['oleh' => User::whereKey($versi->disahkan_by)->value('nama') ?? 'Pengesah versi',
                     'pada' => $versi->disahkan_at?->toIso8601String(),
                     'self_approval' => $versi->jalur_pengajuan === 'perencanaan' && $versi->disahkan_by === $versi->diajukan_by],
                 'histori' => $histori->getCollection()->map(fn (RencanaAksiVersi $v): array => $this->ringkas($v))->all(),
+                'dibuka_kembali' => $dibukaKembali,
                 'pagination' => ['current_page' => $histori->currentPage(), 'last_page' => $histori->lastPage(), 'total' => $histori->total(),
                     'prev_page_url' => $histori->previousPageUrl(), 'next_page_url' => $histori->nextPageUrl()],
             ];
@@ -100,5 +109,35 @@ class BacaReviewRencanaAksi
     private function baris(mixed $rows): array
     {
         return is_array($rows) ? array_values(array_filter($rows, is_array(...))) : [];
+    }
+
+    /**
+     * Tautan unduh bukti versi: baris current yang masih berlaku selalu
+     * diberi tautan (perilaku lama); baris historis yang current-nya sudah
+     * tidak berlaku (diganti/dihapus setelah buka-kembali) hanya diberi
+     * tautan untuk versi resmi (`disahkan_at` terisi) selama file fisik
+     * beku versinya masih ada. Bukti yang dihapus pada versi tak disahkan
+     * tetap tanpa tautan; file fisik yang hilang tetap tanpa tautan.
+     *
+     * @param  array<string, mixed>  $b
+     * @param  list<string>  $buktiBerlaku
+     */
+    private function unduhanBukti(RencanaAksi $header, RencanaAksiVersi $versi, array $b, array $buktiBerlaku): ?string
+    {
+        if (($b['mode'] ?? '') !== 'file' || ! is_string($b['id'] ?? null) || ! Str::isUuid($b['id'])) {
+            return null;
+        }
+        if (in_array($b['id'], $buktiBerlaku, true)) {
+            return route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]);
+        }
+        if ($versi->disahkan_at === null) {
+            return null;
+        }
+        $jalurBeku = $b['path'] ?? null;
+        if (! is_string($jalurBeku) || $jalurBeku === '' || ! Storage::disk('local')->exists($jalurBeku)) {
+            return null;
+        }
+
+        return route('rencana-aksi.versi.bukti.download', [$header->id, $versi->id, $b['id']]);
     }
 }

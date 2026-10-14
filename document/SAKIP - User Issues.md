@@ -501,6 +501,8 @@ kegiatan:update
 **Labels:** `feature`, `auth-rbac`, `security`, `audit-sensitive`, `frontend`  
 **GitHub:** [#99](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/99)
 
+**Status implementasi Bagian A (2026-10-14):** diimplementasikan oleh PR #101 (onboarding SSO langsung aktif tanpa peran, bootstrap kandidat aktif, penghapusan Aktivasi Pengguna). Checklist yang dicentang mencerminkan automated test dan CI PR #101, bukan penerimaan UAT. AC-5 menunggu smoke browser SSO; AC-7 terverifikasi inspeksi (tanpa migrasi dan tanpa kode yang mengubah `audit_log`). Bagian B (AC-8–AC-13) dikerjakan pada PR terpisah. UAT dan deployment belum dilakukan.
+
 #### Kontrak Teknis
 
 - Onboarding JIT membuat `users.status = aktif` tanpa `user_roles`; login ulang tidak mengubah status.
@@ -511,12 +513,12 @@ kegiatan:update
 
 #### Acceptance Criteria
 
-- [ ] **AC-1:** login SSO pertama membuat user `aktif` tanpa role, audit `pengguna.terdaftar` mencatat `status: aktif`, dan pengguna diarahkan ke "Menunggu penetapan peran".
-- [ ] **AC-2:** user aktif tanpa role mendapat 403 di `/dashboard` dan `/akses/peran`, dan seluruh `can.*` bernilai `false`.
-- [ ] **AC-3:** user yang dinonaktifkan tetap `nonaktif` setelah login ulang dan melihat "Akun tidak aktif".
-- [ ] **AC-4:** bootstrap berhasil sekali untuk akun aktif tanpa role yang tercatat onboarding; kandidat berperan atau tanpa jejak onboarding ditolak tanpa perubahan data.
+- [x] **AC-1:** login SSO pertama membuat user `aktif` tanpa role, audit `pengguna.terdaftar` mencatat `status: aktif`, dan pengguna diarahkan ke "Menunggu penetapan peran".
+- [x] **AC-2:** user aktif tanpa role mendapat 403 di `/dashboard` dan `/akses/peran`, dan seluruh `can.*` bernilai `false`.
+- [x] **AC-3:** user yang dinonaktifkan tetap `nonaktif` setelah login ulang dan melihat "Akun tidak aktif".
+- [x] **AC-4:** bootstrap berhasil sekali untuk akun aktif tanpa role yang tercatat onboarding; kandidat berperan atau tanpa jejak onboarding ditolak tanpa perubahan data.
 - [ ] **AC-5:** setelah admin menetapkan role, pengguna dapat masuk dashboard melalui "Periksa status".
-- [ ] **AC-6:** GET dan POST `/akses/aktivasi` mengembalikan 404 dan menu "Aktivasi Pengguna" tidak tampil.
+- [x] **AC-6:** GET dan POST `/akses/aktivasi` mengembalikan 404 dan menu "Aktivasi Pengguna" tidak tampil.
 - [ ] **AC-7:** riwayat audit `pengguna.aktivasi` lama tetap utuh.
 - [ ] **AC-8:** penonaktifan akun lain dengan alasan membuat status `nonaktif`, memblokir sesi target pada request berikutnya, dan tercatat di audit.
 - [ ] **AC-9:** pengaktifan kembali membuat status `aktif` dengan peran dan grant sebelumnya tetap berlaku.
@@ -527,14 +529,15 @@ kegiatan:update
 
 #### Implementation Tasks
 
-- [ ] Onboarding `aktif`, bootstrap kandidat aktif, alasan pending `inactive`.
-- [ ] Hapus fitur Aktivasi Pengguna (halaman, route, controller, action, request, capability, menu).
+- [x] Onboarding `aktif`, bootstrap kandidat aktif, alasan pending `inactive`.
+- [x] Hapus fitur Aktivasi Pengguna (halaman, route, controller, action, request, capability, menu).
 - [ ] Action, request, dan route penonaktifan/pengaktifan kembali beserta aksi di Penetapan Peran.
 - [ ] Test AC-1..AC-13, termasuk konkurensi bootstrap dan mutasi status.
 
 #### Definition of Done
 
-- [ ] PR Bagian A dan Bagian B ke `development` lulus review/QA, dan konfirmasi LLDIKTI atas Q38 tercatat sebelum merge.
+- [ ] PR Bagian A dan Bagian B ke `development` lulus review/QA. Persetujuan LLDIKTI atas Q38 pada rapat asistensi 13 Oktober 2026 (§38.5) memenuhi syarat merge; konfirmasi tertulis diterima sebelum deploy produksi (keputusan PM di PR #101).
+- [ ] Bagian A dan Bagian B dideploy bersamaan setelah konfirmasi tertulis Q38 diterima; query akun `nonaktif` yang belum pernah diaktifkan dijalankan sebelum dan sesudah deploy dan hasilnya dicatat di laporan rilis (§38.3, keputusan PM di PR #101).
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 
@@ -2341,54 +2344,56 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] **AC-2:** Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
+- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD untuk penilaian lingkup berbasis perubahan M1.)*
+
+> **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi `RencanaAksiAjukanTest`/`SahkanRencanaAksiTest`/`ReviewRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41: jendela penyusunan tidak lagi dibaca, guard kunci per periode berbasis perubahan di `JendelaTulisRencanaAksi`. Review 14 Oktober 2026: AC-6/TEST-6/DoD-1 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode — writer klaim tahap RA belum ada (milik ISS-06.02/06.08). AC-3/TEST-3 dan AC-7/TEST-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1). Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi historis, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rencana_aksi`, versi historis, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `rencana_aksi_versi` immutable setelah INSERT; submit ulang membuat versi baru, bukan overwrite snapshot lama.
 
 **B. Backend / Domain**
-- [ ] Buka kembali hanya mengubah header ke jalur revisi; versi disahkan lama tetap immutable dan resmi sampai versi baru disahkan.
-- [ ] PIC tetap tunduk kunci per periode (Q41 §41.2; aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`); dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (Q41 §41.2 butir 6, ISS-14.03). Buka RA tidak otomatis membuka periode yang terkunci maupun memperpanjang deadline.
+- [x] Buka kembali hanya mengubah header ke jalur revisi; pengajuan pengukuran ditahan sampai versi baru disahkan, sedangkan versi yang disahkan sebelumnya tetap tersimpan dan dapat dibaca sebagai histori.
+- [ ] PIC tetap tunduk kunci per periode berbasis perubahan (Q41 §41.2; aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`); dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (Q41 §41.2 butir 6, ISS-14.03). Buka RA tidak otomatis membuka periode yang terkunci maupun memperpanjang deadline. *(Menunggu CI exact-HEAD B1/M1.)*
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rencana_aksi:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Rencana Aksi yang Telah Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Rencana Aksi yang Telah Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka.)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah disahkan, When RA dibuka kembali, Then versi lama tetap immutable dan tetap dapat dibaca sebagai histori.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
+- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD M1.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-3/TEST-3 menunggu CI B1, AC-7/TEST-7 menunggu CI M1, AC-6/TEST-6 menunggu guard daftar kegiatan; lihat catatan status)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-05.07 · [Feature] Penyusunan Rencana Aksi Sepanjang Tahun, Kunci per Periode, dan Periode tanpa Target
 
@@ -2491,7 +2496,9 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 ### ISS-06.01 · [Feature] Pencatatan Rencana Kegiatan Unit
 
-> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan di PR #97 sebelum merge (validasi PR #97 saat ini masih membatasi `nama` 255 karakter dan mewajibkan `tujuan`); bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan pada ISS-06.08 (Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 diperbarui langsung karena PR #97 belum di-merge.
+> **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 mengikuti Q49 §49.1.
+
+**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Penegakan pembatasan detail per unit (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan akses baca penerima grant tulis ditunda ke satu issue lintas modul Rencana Aksi + Kegiatan sesuai [keputusan PM PR #97](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/97#issuecomment-6161158080). Requirement tetap berlaku; PR ini mempertahankan baca global dikurangi deny unit. Issue tindak lanjut: [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102), gerbang sebelum UAT dengan data nyata serta produksi, bukan gerbang merge PR ini. Sementara itu grant kegiatan:create/update hanya diberikan kepada pengguna yang sudah memiliki kegiatan:read; Admin tidak diberi grant kegiatan. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
 
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1 · Tahap 1, PR #97 + Q49 (Q46 §46.3)  
@@ -2516,45 +2523,45 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] **AC-1:** Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] **AC-2:** Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] **AC-3:** Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] **AC-4:** Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [ ] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
+- [x] Sesuaikan kolom `kegiatan.nama` (saat ini `string` 255) agar menampung hingga 500 karakter dan `tujuan` (saat ini wajib) menjadi nullable lewat migrasi (Q49 §49.1).
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
-- [ ] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut. *(Digantikan Q42: PR #97 tidak diperluas; input dan validasi anggaran dikerjakan pada ISS-06.08.)*
+- [x] Validasi request kegiatan: `nama` maksimal 500 karakter dan `tujuan` opsional (Q49 §49.1).
+- [x] Jangan expose/accept/validate field anggaran pada UI/API MVP walaupun kolom database tersedia nullable untuk fase lanjut. *(Digantikan Q42: PR #97 tidak diperluas; input dan validasi anggaran dikerjakan pada ISS-06.08.)*
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`, `kegiatan:update` (unit-scoped bila melalui grant).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Pencatatan Rencana Kegiatan Unit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nama (hingga 500 karakter), sasaran peserta, lokasi, dan tanggal valid, dengan tujuan opsional, When disimpan, Then kegiatan terbentuk dengan status `rencana`; nama lebih dari 500 karakter ditolak. *(Diperbarui Q49 §49.1; semula tujuan termasuk isian wajib.)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given MVP, When form kegiatan ditampilkan, Then **field anggaran tidak ditampilkan, tidak diterima sebagai input bisnis, dan tidak divalidasi**; kolom database boleh tetap nullable untuk fase lanjutan. *(Berlaku untuk PR #97; digantikan Q42 setelah US-06.08: anggaran per kegiatan wajib diinput, ditampilkan, dan dijumlahkan.)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna unit memiliki grant `kegiatan:create/update`, When bekerja pada unit yang sama, Then aksi diizinkan tanpa syarat PIC indikator tertentu.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given grant hanya unit A, When kegiatan unit B dimutasi, Then ditolak.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.02 · [Feature] Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen
