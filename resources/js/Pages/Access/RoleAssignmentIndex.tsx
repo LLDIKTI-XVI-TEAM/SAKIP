@@ -181,7 +181,8 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                     </div>
                 </CardHeader>
                 {/* Grid mobile: setiap pengguna tampil sebagai kartu ringkas tanpa scroll horizontal. */}
-                <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                {/* Aksi baris daftar lama tidak boleh membuka dialog untuk pengguna yang akan hilang setelah filter dimuat. */}
+                <Table inert={filtering} wrapperClassName="overflow-x-visible" className={`block transition-opacity md:table ${filtering ? 'opacity-60' : ''}`}>
                     <caption className="sr-only">Daftar pengguna dan peran utama</caption>
                     <TableHeader className="max-md:sr-only">
                         <TableRow>

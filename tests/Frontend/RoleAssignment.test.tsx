@@ -197,7 +197,7 @@ it('memakai paginasi bersama untuk daftar lebih dari satu halaman', () => {
     expect(within(nav).getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/akses/peran?page=2');
 });
 
-it('menonaktifkan paginasi selama filter pengguna dimuat agar pilihan autocomplete tidak dibatalkan', async () => {
+it('menonaktifkan daftar dan paginasi selama filter pengguna dimuat agar aksi baris lama tidak dipakai dan pilihan autocomplete tidak dibatalkan', async () => {
     const user = userEvent.setup();
     const links = [
         { url: null, label: '&laquo; Previous', active: false }, { url: '/akses/peran?page=1', label: '1', active: true },
@@ -205,13 +205,17 @@ it('menonaktifkan paginasi selama filter pengguna dimuat agar pilihan autocomple
     ];
     render(<RoleAssignmentIndex users={{ ...users, links, from: 1, to: 20, total: 25 }} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
     const nav = screen.getByRole('navigation', { name: 'Halaman pengguna' });
+    const rowAction = screen.getByRole('button', { name: 'Ubah peran Ayu' });
     expect(nav.closest('[inert]')).toBeNull();
+    expect(rowAction.closest('[inert]')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
     const visit = vi.mocked(router.get).mock.calls[0][2];
     act(() => visit?.onStart?.({} as PendingVisit));
     expect(nav.closest('[inert]')).not.toBeNull();
+    expect(rowAction.closest('[inert]')).not.toBeNull();
     act(() => visit?.onFinish?.({} as ActiveVisit));
     expect(nav.closest('[inert]')).toBeNull();
+    expect(rowAction.closest('[inert]')).toBeNull();
 });
 
 it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab', async () => {
