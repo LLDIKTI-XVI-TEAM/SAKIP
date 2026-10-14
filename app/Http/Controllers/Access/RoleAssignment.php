@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Access;
 
 use App\Actions\Access\AssignRole;
 use App\Actions\Access\GetRoleAssignmentPage;
+use App\Actions\Access\SearchEffectivePermissionOptions;
 use App\Http\Requests\Access\AssignRoleRequest;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -21,9 +23,18 @@ class RoleAssignment
     public function index(Request $request, PermissionResolver $permissions, GetRoleAssignmentPage $getPage, RoleAssignmentReceipt $receipts): HttpResponse
     {
         $actor = $request->user()->fresh();
-        abort_unless($permissions->allows($actor, 'pengguna:read') && $permissions->allows($actor, 'akses:update'), 403);
+        abort_unless($this->canManage($permissions, $actor), 403);
 
         return $this->indexResponse($request, $actor, $getPage, $receipts);
+    }
+
+    /** Saran autocomplete memakai gerbang izin halaman yang sama dan mencakup akun nonaktif seperti daftar. */
+    public function users(Request $request, PermissionResolver $permissions, SearchEffectivePermissionOptions $options): JsonResponse
+    {
+        $actor = $request->user()->fresh();
+        abort_unless($this->canManage($permissions, $actor), 403);
+
+        return response()->json($options->users($request->validate(['q' => ['nullable', 'string', 'max:100'], 'page' => ['nullable', 'integer', 'min:1']])));
     }
 
     private function indexResponse(Request $request, User $actor, GetRoleAssignmentPage $getPage, RoleAssignmentReceipt $receipts, bool $confirmationUnavailable = false): HttpResponse
@@ -53,7 +64,7 @@ class RoleAssignment
     {
         $actor = $request->user()->fresh();
         $reference = $this->reference($request);
-        $canReturn = $permissions->allows($actor, 'pengguna:read') && $permissions->allows($actor, 'akses:update');
+        $canReturn = $this->canManage($permissions, $actor);
         if ($canReturn) {
             if ($reference !== null) {
                 return redirect()->route('role-assignment.index', ['receipt' => $reference]);
@@ -92,6 +103,12 @@ class RoleAssignment
         } finally {
             $request->session()->forget($leaf);
         }
+    }
+
+    /** Satu gerbang untuk daftar, saran pengguna, dan kembali dari hasil agar ketiganya tidak berbeda aturan. */
+    private function canManage(PermissionResolver $permissions, User $actor): bool
+    {
+        return $permissions->allows($actor, 'pengguna:read') && $permissions->allows($actor, 'akses:update');
     }
 
     /** Reference hanya korelasi hasil; field duplikat/array tidak boleh memilih operasi secara ambigu. */

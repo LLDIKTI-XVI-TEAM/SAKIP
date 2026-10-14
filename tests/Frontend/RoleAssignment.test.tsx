@@ -39,17 +39,18 @@ beforeEach(() => {
     currentPage.url = '/akses/peran';
     currentPage.flash = {};
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.spyOn(router, 'get').mockImplementation(() => undefined);
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const page = (q = '') => render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q }} can={{ assignRole: true }} confirmationUnavailable={false} />);
 
 it('mengirim single role dan snapshot, menjaga input/error, lalu mereset saat ganti target', async () => {
     const user = userEvent.setup();
-    page('ayu@example.test');
+    page();
     const trigger = screen.getByRole('button', { name: 'Ubah peran Ayu' });
     await user.click(trigger);
     expect(screen.queryByText(/Anda sedang mengubah peran akun sendiri/)).toBeNull();
-    const select = screen.getByRole<HTMLSelectElement>('combobox');
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: /Peran tujuan/ });
     expect(select.multiple).toBe(false);
     await user.selectOptions(select, 'pimpinan-id');
     const reason = screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ });
@@ -62,20 +63,18 @@ it('mengirim single role dan snapshot, menjaga input/error, lalu mereset saat ga
     await act(async () => { options?.onError?.({ alasan: 'Jelaskan alasan.' }); });
     expect(document.activeElement).toBe(reason);
     expect(reason.value).toBe('Penugasan disetujui');
-    expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('ayu@example.test');
     await act(async () => { options?.onError?.({ expected_assignment: 'Peran telah berubah. Muat ulang data.' }); });
     expect(screen.getByRole('alert').textContent).toContain('Peran telah berubah');
     await user.click(screen.getByRole('button', { name: 'Batal' }));
     expect(document.activeElement).toBe(trigger);
     await user.click(screen.getByRole('button', { name: 'Tetapkan peran Budi' }));
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ }).value).toBe('');
-    await user.selectOptions(screen.getByRole('combobox'), 'pimpinan-id');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Peran tujuan/ }), 'pimpinan-id');
     await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Penugasan pertama');
     await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
     expect(vi.mocked(router.post).mock.calls[1][1]).toEqual({ role_id: 'pimpinan-id', alasan: 'Penugasan pertama', expected_assignment: null });
     await act(async () => { vi.mocked(router.post).mock.calls[1][2]?.onSuccess?.(response({ roleAssignmentOutcome: { receipt_id: receiptA, status: 'assigned', has_active_pj: false } })); });
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
 });
 
 it('memperingatkan perubahan peran sendiri dan menampilkan toast server yang dapat ditutup', async () => {
@@ -83,10 +82,10 @@ it('memperingatkan perubahan peran sendiri dan menampilkan toast server yang dap
     currentPage.props.auth.user.id = 'user-a';
     const view = page();
     await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
-    await user.selectOptions(screen.getByRole('combobox'), 'pimpinan-id');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Peran tujuan/ }), 'pimpinan-id');
     expect(screen.getByText(/Anda sedang mengubah peran akun sendiri/)).toBeTruthy();
     expect(screen.getByText(/Anda mungkin tidak dapat mengembalikannya sendiri/)).toBeTruthy();
-    expect(screen.getByRole('combobox').getAttribute('aria-describedby')).toContain('self-role-warning');
+    expect(screen.getByRole('combobox', { name: /Peran tujuan/ }).getAttribute('aria-describedby')).toContain('self-role-warning');
     await user.click(screen.getByRole('button', { name: 'Batal' }));
     currentPage.url = `/akses/peran?receipt=${receiptA}`;
     currentPage.flash = { roleAssignmentOutcome: { receipt_id: receiptA, status: 'changed', has_active_pj: false } };
@@ -123,7 +122,7 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
     };
     await act(async () => { options?.onStart?.(visit); });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Batal' }).disabled).toBe(true);
-    expect(screen.getByRole<HTMLSelectElement>('combobox').disabled).toBe(true);
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /Peran tujuan/ }).disabled).toBe(true);
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Tutup dialog' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -186,6 +185,37 @@ it('memakai paginasi bersama untuk daftar lebih dari satu halaman', () => {
     expect(within(nav).getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/akses/peran?page=2');
 });
 
+it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab', async () => {
+    const lookup = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ items: [{ id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', status: 'aktif', roles: ['Pegawai'] }], page: 1, hasMore: false }), { status: 200 }));
+    vi.stubGlobal('fetch', lookup);
+    const user = userEvent.setup();
+    page();
+    const box = screen.getByRole('combobox', { name: 'Cari pengguna' });
+    await user.type(box, 'a');
+    await user.type(box, 'y');
+    await user.click(await screen.findByRole('option', { name: /Ayu/ }));
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(String(lookup.mock.calls[0][0])).toBe('/akses/peran/opsi/pengguna?q=ay&page=1');
+    expect(vi.mocked(router.get).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran', { q: 'ayu@example.test' }]);
+    expect(vi.mocked(router.get).mock.calls[0][2]).toMatchObject({ preserveState: true, preserveScroll: true, replace: true });
+});
+
+it('menampilkan pengguna terpilih dari filter dan mengembalikan semua pengguna saat diganti', async () => {
+    const user = userEvent.setup();
+    page('ayu@example.test');
+    expect(screen.queryByRole('combobox', { name: 'Cari pengguna' })).toBeNull();
+    expect(within(screen.getByRole('search')).getByText('ayu@example.test')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    expect(vi.mocked(router.get).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran', {}]);
+});
+
+it('menyediakan jalan kembali ke semua pengguna untuk filter yang bukan pengguna terpilih', () => {
+    page('ay');
+    expect(screen.getByText(/Menampilkan hasil untuk “ay”/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Tampilkan semua' }).getAttribute('href')).toBe('/akses/peran');
+    expect(screen.getByRole('combobox', { name: 'Cari pengguna' })).toBeTruthy();
+});
+
 it('menutup dialog dengan Escape saat tidak memproses dan mengembalikan fokus ke pemicu', async () => {
     const user = userEvent.setup();
     page();
@@ -229,7 +259,7 @@ it('menjelaskan peran lama tanpa menjadikannya pilihan resmi atau memetakan otom
     await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
     expect(screen.getByText('Peran lama ini perlu ditetapkan ulang ke peran resmi.')).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'PIC lama' })).toBeNull();
-    expect(screen.getByRole<HTMLSelectElement>('combobox').value).toBe('');
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /Peran tujuan/ }).value).toBe('');
 });
 
 it.each([

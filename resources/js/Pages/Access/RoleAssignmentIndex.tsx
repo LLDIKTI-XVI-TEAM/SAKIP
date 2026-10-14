@@ -1,12 +1,12 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { GrantUserAutocomplete, type UserOption } from '@/Components/Access/GrantUserAutocomplete';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { AlertCircle, CheckCircle, Search, UserCog, Users, X } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AlertCircle, CheckCircle, UserCog, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
-import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { Select } from '@/Components/Select';
@@ -135,8 +135,13 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
     const [selected, setSelected] = useState<RoleUser | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);
     const title = useRef<HTMLHeadingElement>(null);
-    const search = useForm({ q: filters.q });
     const close = () => setSelected(null);
+    // Filter email yang cocok persis ditampilkan sebagai pengguna terpilih pada autocomplete.
+    const filtered = useMemo<UserOption | null>(() => {
+        const match = filters.q ? users.data.find((user) => user.email === filters.q) : undefined;
+        return match ? { id: match.id, nama: match.nama, email: match.email, status: match.status, roles: match.current_role ? [`${match.current_role.nama}${match.current_role.aktif ? '' : ' (nonaktif)'}`] : [] } : null;
+    }, [users.data, filters.q]);
+    const filterBy = (_id: string, user?: UserOption | null) => router.get('/akses/peran', user ? { q: user.email } : {}, { preserveState: true, preserveScroll: true, replace: true });
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
         if (selected || !trigger.current) return;
@@ -161,16 +166,13 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
             </div>}
             <RoleAssignmentPjNotice outcome={outcome} />
             <Card className="overflow-visible">
-                <form onSubmit={(event) => { event.preventDefault(); if (!search.processing) search.get('/akses/peran', { preserveState: false }); }} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" role="search">
-                    <Input id="user-search" type="search" label="Cari nama atau email" placeholder="Ketik nama atau email pengguna…" maxLength={100} autoComplete="off" value={search.data.q} onChange={(event) => search.setData('q', event.target.value)} />
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button type="submit" variant="outline" isLoading={search.processing}>{!search.processing && <Search className="h-4 w-4" aria-hidden="true" />}Cari</Button>
-                        {filters.q && <Link href="/akses/peran" className="rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset</Link>}
-                    </div>
-                </form>
+                <div className="space-y-2 p-4" role="search">
+                    <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={filtered?.id ?? ''} initialUser={filtered} onChange={filterBy} />
+                    {filters.q && !filtered && <p className="text-xs text-muted">Menampilkan hasil untuk “{filters.q}”. <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
+                </div>
             </Card>
             <Card>
-                <CardHeader>
+                <CardHeader className="px-4 py-4">
                     <div className="min-w-0">
                         <h2 ref={title} tabIndex={-1} className="text-base font-semibold tracking-tight text-ink focus:outline-none">Peran utama pengguna</h2>
                         <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki satu peran utama. Perubahan peran wajib disertai alasan dan tercatat di jejak audit.</p>
@@ -228,10 +230,6 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
             </Card>
             <Pagination links={users.links} from={users.from} to={users.to} total={users.total} ariaLabel="Halaman pengguna" />
         </div>
-        {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={() => {
-            // Respons sukses kembali ke daftar tanpa filter; error tetap mempertahankan input.
-            search.setData('q', '');
-            close();
-        }} />}
+        {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={close} />}
     </AuthenticatedLayout>;
 }

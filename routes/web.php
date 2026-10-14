@@ -142,6 +142,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/deny/{deny}/cabut', [DenyManagement::class, 'revoke'])->whereUuid('deny')->name('deny.revoke');
     Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
     Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
+    Route::get('/akses/peran/opsi/pengguna', [RoleAssignment::class, 'users'])->name('role-assignment.users');
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
 

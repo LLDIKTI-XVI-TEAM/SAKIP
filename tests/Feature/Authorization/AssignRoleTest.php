@@ -477,10 +477,26 @@ class AssignRoleTest extends TestCase
                 $this->deny($permission);
             }
             $this->get('/akses/peran')->assertForbidden();
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertForbidden();
             $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertForbidden();
             $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
             $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
         }
+    }
+
+    public function test_user_options_search_all_accounts_for_role_page_autocomplete(): void
+    {
+        $this->target->update(['nama' => 'Aa Target Nonaktif', 'email' => 'aa.target@example.test']);
+        $this->actingAs($this->actor)->getJson('/akses/peran/opsi/pengguna?q=aa.target')->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.id', $this->target->id)
+            ->assertJsonPath('items.0.status', 'nonaktif')
+            ->assertJsonPath('items.0.roles', [])
+            ->assertJsonPath('page', 1)
+            ->assertJsonPath('hasMore', false);
+        $this->getJson('/akses/peran/opsi/pengguna?q=Pengelola')->assertOk()->assertJsonPath('items.0.roles', ['Superadmin']);
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertUnprocessable();
+        $this->assertDatabaseCount('audit_log', $this->seedAudits);
     }
 
     public function test_index_bounds_users_filters_and_orders_official_roles_without_sensitive_props(): void

@@ -50,13 +50,13 @@ it('mempertahankan draft dan mencegah replay ketika router nyata menerima hasil 
     });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Ubah peran Target QA' }));
-    await user.selectOptions(screen.getByRole('combobox'), 'admin');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Peran tujuan/ }), 'admin');
     await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Draft yang harus dipertahankan');
     await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
     await screen.findByText('Konfirmasi perubahan tidak tersedia');
     expect(screen.queryByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ })?.value).toBe('Draft yang harus dipertahankan');
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole<HTMLSelectElement>('combobox').value).toBe('admin');
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /Peran tujuan/ }).value).toBe('admin');
     const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan peran' });
     await waitFor(() => { expect(submit.disabled).toBe(true); });
     await waitFor(() => { expect(document.activeElement).toBe(screen.getByRole('alert')); });
