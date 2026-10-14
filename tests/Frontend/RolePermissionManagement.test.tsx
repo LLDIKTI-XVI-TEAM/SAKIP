@@ -1,6 +1,6 @@
 import type { ActiveVisit, PendingVisit } from "@inertiajs/core";
 import type { ReactNode } from "react";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { router } from "@inertiajs/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -20,6 +20,7 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
 afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
 });
 
 const role = {
@@ -42,9 +43,15 @@ const props: RolePermissionIndexProps = {
         },
     ],
     pagination: {
-        page: 1,
-        prev_page_url: null,
-        next_page_url: "/akses/izin-peran?page=2",
+        links: [
+            { url: null, label: "&laquo; Previous", active: false },
+            { url: "/akses/izin-peran?page=1", label: "1", active: true },
+            { url: "/akses/izin-peran?page=2", label: "2", active: false },
+            { url: "/akses/izin-peran?page=2", label: "Next &raquo;", active: false },
+        ],
+        from: 1,
+        to: 20,
+        total: 25,
     },
     filters: { role: role.id, q: "" },
     can: { viewRolePermissions: true },
@@ -52,42 +59,79 @@ const props: RolePermissionIndexProps = {
 
 it("menampilkan metadata tersimpan tanpa kontrol mutasi atau klaim izin efektif", () => {
     render(<RolePermissionIndex {...props} />);
-    expect(screen.getByRole("heading", { name: "Peran & Izin", level: 2 })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Izin bawaan Pegawai", level: 2 })).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "Peran & Izin", level: 2 })).toBeNull();
+    expect(screen.getByText("25 izin")).not.toBeNull();
+    const table = screen.getByRole("table", { name: "Izin tersimpan untuk Pegawai" });
+    expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Izin", "Scope", "Status"]);
     expect(screen.getByText("legacy:read")).not.toBeNull();
     expect(screen.getByText("Di luar katalog rilis")).not.toBeNull();
     expect(screen.getByText("Nonaktif")).not.toBeNull();
     expect(screen.queryByRole("button", { name: /Tambah|Cabut|Simpan/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByText(/berhasil/i)).toBeNull();
-    expect(
-        screen.getByRole("link", { name: "Berikutnya" }).getAttribute("href"),
-    ).toBe("/akses/izin-peran?page=2");
+    const nav = screen.getByRole("navigation", { name: "Halaman izin" });
+    expect(nav.textContent).toContain("Menampilkan 1–20 dari 25 data");
+    expect(within(nav).getByRole("link", { name: "Berikutnya ›" }).getAttribute("href")).toBe("/akses/izin-peran?page=2");
 });
 
-it("pencarian keyboard hanya GET dan mencegah navigasi ganda selama pending", async () => {
+it("mencari otomatis setelah 2 huruf hanya lewat GET dan mengunci pilihan peran selama pending", () => {
+    vi.useFakeTimers();
     const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
     const post = vi.spyOn(router, "post").mockImplementation(() => undefined);
-    const user = userEvent.setup();
     render(<RolePermissionIndex {...props} />);
-    await user.type(screen.getByRole("searchbox"), "dashboard{Enter}");
+    const box = screen.getByRole("searchbox", { name: "Cari kode atau keterangan izin" });
+    fireEvent.change(box, { target: { value: "d" } });
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(get).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(349); });
+    expect(get).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); });
     expect(get).toHaveBeenCalledWith(
         "/akses/izin-peran",
-        { role: role.id, q: "dashboard" },
-        expect.any(Object),
+        { role: role.id, q: "da" },
+        expect.objectContaining({ preserveState: true, preserveScroll: true, replace: true }),
     );
     const options = get.mock.calls[0][2];
     act(() => options?.onStart?.({} as PendingVisit));
-    expect(
-        screen.getByRole("button", { name: /Cari|Mencari/ }).hasAttribute("disabled"),
-    ).toBe(true);
-    expect(
-        screen.getByRole("combobox", { name: "Peran" }).hasAttribute("disabled"),
-    ).toBe(true);
+    expect(screen.getByRole("combobox", { name: "Peran" }).hasAttribute("disabled")).toBe(true);
+    expect(box.hasAttribute("disabled")).toBe(false);
     act(() => options?.onFinish?.({} as ActiveVisit));
-    expect(
-        screen.getByRole("button", { name: /Cari/ }).hasAttribute("disabled"),
-    ).toBe(false);
+    expect(screen.getByRole("combobox", { name: "Peran" }).hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByRole("button", { name: /Cari/ })).toBeNull();
     expect(post).not.toHaveBeenCalled();
+});
+
+it("mengosongkan kotak pencarian menampilkan kembali semua izin peran", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} filters={{ role: role.id, q: "da" }} />);
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(get).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: role.id, q: "" }]]);
+});
+
+it("pencarian tertunda tidak membatalkan pergantian peran yang sedang dimuat", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const other = { ...role, id: "33333333-3333-4333-8333-333333333333", kode: "admin", nama: "Admin" };
+    render(<RolePermissionIndex {...props} roles={[role, other]} />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Peran" }), { target: { value: other.id } });
+    act(() => get.mock.calls[0][2]?.onStart?.({} as PendingVisit));
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: other.id, q: "" }]]);
+});
+
+it.each([
+    [0, "Peran ini belum memiliki izin bawaan."],
+    [13, "Tidak ada izin di halaman ini."],
+])("membedakan peran tanpa izin dari halaman di luar jangkauan (total %i)", (total, message) => {
+    render(<RolePermissionIndex {...props} permissions={[]} pagination={{ links: [], from: null, to: null, total }} />);
+    expect(screen.getByText(message)).not.toBeNull();
 });
 
 it("pilihan role mereset pagination melalui GET dan empty state tetap jelas", async () => {
@@ -117,6 +161,7 @@ it("hasil kosong dan role nonaktif tetap ditampilkan sebagai metadata", () => {
             {...props}
             selectedRole={{ ...role, aktif: false }}
             permissions={[]}
+            filters={{ role: role.id, q: "tidak-ada" }}
         />,
     );
     expect(screen.getByText("Peran nonaktif")).not.toBeNull();

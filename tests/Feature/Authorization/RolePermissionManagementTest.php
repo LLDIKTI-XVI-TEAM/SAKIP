@@ -57,8 +57,9 @@ class RolePermissionManagementTest extends TestCase
         $role = Role::where('kode', 'superadmin')->sole();
         $role->update(['aktif' => false]);
         $this->get('/akses/izin-peran?role='.$role->id)->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->has('permissions', 20)->where('selectedRole.aktif', false)->where('pagination.page', 1)
-            ->where('pagination.next_page_url', fn ($url) => is_string($url) && str_contains($url, 'page=2'))
+            ->has('permissions', 20)->where('selectedRole.aktif', false)
+            ->where('pagination.from', 1)->where('pagination.to', 20)->where('pagination.total', $role->permissions()->count())
+            ->where('pagination.links', fn ($links) => collect($links)->contains(fn ($link) => str_contains((string) $link['url'], 'page=2')))
             ->missing('permissions.0.editable')->missing('permissions.0.attached')->missing('users')->missing('grants')->missing('denies'));
         $legacy = Permission::create(['kode' => 'legacy:read', 'entitas' => 'legacy', 'aksi' => 'read', 'butuh_scope' => 'global', 'aktif' => false]);
         $role->permissions()->attach($legacy->id, ['id' => Str::uuid(), 'created_at' => now()]);
