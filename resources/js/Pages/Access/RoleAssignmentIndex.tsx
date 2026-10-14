@@ -195,8 +195,14 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                         {users.data.length === 0 && <TableRow className="block md:table-row">
                             <TableCell colSpan={can.assignRole ? 4 : 3} className="block py-12 text-center md:table-cell">
                                 <Users className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada pengguna yang sesuai' : 'Belum ada pengguna'}</p>
-                                <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci nama atau email lain.' : 'Pengguna tampil di sini setelah login SSO pertama kali.'}</p>
+                                {/* Halaman kosong padahal total > 0 berarti nomor halaman melampaui halaman terakhir, mis. bookmark lama. */}
+                                {users.total > 0 ? <>
+                                    <p className="mt-2 text-sm font-semibold text-ink">Tidak ada pengguna di halaman ini.</p>
+                                    <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => router.get('/akses/peran', { ...(filters.q ? { q: filters.q } : {}), ...(filters.user ? { user: filters.user } : {}) })}>Ke halaman pertama</Button>
+                                </> : <>
+                                    <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada pengguna yang sesuai' : 'Belum ada pengguna'}</p>
+                                    <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci nama atau email lain.' : 'Pengguna tampil di sini setelah login SSO pertama kali.'}</p>
+                                </>}
                             </TableCell>
                         </TableRow>}
                         {users.data.map((user) => {

@@ -174,6 +174,18 @@ it.each([
     expect(screen.getByText(hint)).toBeTruthy();
 });
 
+it('menyediakan tombol ke halaman pertama hanya untuk halaman pengguna di luar jangkauan', async () => {
+    const empty = { ...users, data: [], from: null, to: null };
+    const view = render(<RoleAssignmentIndex users={{ ...empty, total: 0 }} roles={roles} filters={{ q: '' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    expect(screen.getByText('Belum ada pengguna')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ke halaman pertama' })).toBeNull();
+    view.rerender(<RoleAssignmentIndex users={{ ...empty, total: 25 }} roles={roles} filters={{ q: 'ay', user: null }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    expect(screen.getByText('Tidak ada pengguna di halaman ini.')).toBeTruthy();
+    expect(screen.queryByText('Tidak ada pengguna yang sesuai')).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Ke halaman pertama' }));
+    expect(vi.mocked(router.get).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran', { q: 'ay' }]);
+});
+
 it('memakai paginasi bersama untuk daftar lebih dari satu halaman', () => {
     const links = [
         { url: null, label: '&laquo; Previous', active: false }, { url: '/akses/peran?page=1', label: '1', active: true },
