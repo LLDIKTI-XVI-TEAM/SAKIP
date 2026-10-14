@@ -12,7 +12,6 @@ use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Authorization\PermissionResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -158,7 +157,7 @@ class IndexPengukuranTest extends TestCase
         $this->daftar($planner, $query)->assertOk()->assertInertia(fn ($page) => $page->has('pengukurans', 0)->where('pagination.total', 0));
     }
 
-    public function test_query_daftar_dibatasi_jumlah_unit_bukan_jumlah_baris(): void
+    public function test_query_daftar_tetap_walau_baris_dan_unit_bertambah(): void
     {
         $planner = $this->userWithRole('perencanaan');
         $tw1 = $this->pengukuran->periode;
@@ -173,12 +172,8 @@ class IndexPengukuranTest extends TestCase
         foreach ($units as $index => $unit) {
             $this->indikator('A-'.$index, $tw1, $unit);
         }
-        DB::flushQueryLog();
-        DB::enableQueryLog();
-        app(PermissionResolver::class)->decide($planner, 'pengukuran:create', $units[0]->id);
-        $perUnit = count(DB::getQueryLog());
-        DB::disableQueryLog();
-        $this->assertSame([$single + 2 * $perUnit, $singleGrants + 2], $this->hitungQuery($planner));
+        // Izin create seluruh unit halaman dievaluasi satu batch; unit baru tidak menambah query ACL.
+        $this->assertSame([$single, $singleGrants], $this->hitungQuery($planner));
 
         $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page
             ->has('pengukurans', 20)->where('pagination.total', 23)->where('pagination.last_page', 2));

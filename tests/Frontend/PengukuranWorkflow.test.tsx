@@ -330,6 +330,8 @@ describe('Daftar kewajiban pengukuran', () => {
         expect(screen.getByRole('link', { name: 'Buka Draft IKU-UJI Semester I 2026' }).getAttribute('href')).toBe(`/pengukuran/${measurement.id}/edit`);
         expect(screen.getByRole('link', { name: 'Detail IKU-DUA Semester I 2026' }).getAttribute('href')).toBe('/pengukuran/p-2/edit');
         expect(screen.queryByRole('button', { name: /Isi Pengukuran/ })).toBeNull();
+        // Layar sempit menyembunyikan kolom Target/Realisasi; ringkasannya tetap ada di sel indikator.
+        expect(screen.getAllByText('Target 100,00 % · Realisasi 80,00 %')).toHaveLength(2);
     });
 
     it('Isi Pengukuran mengirim snapshot dan periode server; baris tanpa izin atau tidak berlaku tidak menawarkan aksi', async () => {
@@ -343,6 +345,7 @@ describe('Daftar kewajiban pengukuran', () => {
         expect(screen.getAllByText('Belum Mengisi')).toHaveLength(4);
         expect(screen.getAllByText('Tidak berlaku')).toHaveLength(2);
         expect(screen.getAllByRole('button', { name: /Isi Pengukuran/ })).toHaveLength(1);
+        expect(screen.getByText('Target 75,00 % · Realisasi —')).toBeTruthy();
 
         await user.click(screen.getByRole('button', { name: 'Isi Pengukuran IKU-UJI Semester I 2026' }));
         expect(router.post).toHaveBeenCalledTimes(1);

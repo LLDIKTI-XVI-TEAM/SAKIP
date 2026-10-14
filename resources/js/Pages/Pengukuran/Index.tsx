@@ -108,6 +108,8 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
     const berjalan = konteks.filter((item) => item.periode);
     const kosong = konteks.length === 0 ? 'Jadwal aktif belum tersedia' : berjalan.length === 0 ? 'Pengisian belum dimulai' : 'Belum ada indikator pada periode ini';
     const nilai = (value: string | number | null, baris: BarisPengukuran) => value === null ? '—' : `${formatNilai(value, baris.indikator.desimal_tampilan)} ${baris.indikator.satuan}`;
+    const target = (baris: BarisPengukuran) => nilai(baris.jenis === 'existing' ? baris.pengukuran.target : baris.target, baris);
+    const realisasi = (baris: BarisPengukuran) => baris.jenis === 'existing' ? nilai(baris.pengukuran.nilai, baris) : '—';
 
     return (
         <AuthenticatedLayout title="Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja' }]}>
@@ -143,16 +145,13 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
                                     <div className="mt-0.5 text-muted">{baris.indikator.nama}</div>
                                     <p className="mt-1 text-xs text-muted">{baris.unit.nama} · PJ: {baris.pic?.nama ?? '—'}</p>
                                     <p className="mt-1 text-xs text-muted lg:hidden">{baris.periode.nama_periode} {baris.tahun}</p>
-                                    {/* Layar sempit: status pindah ke sel indikator agar kolom Aksi tidak terpotong. */}
+                                    <p className="mt-1 text-xs text-muted lg:hidden">Target {target(baris)} · Realisasi {realisasi(baris)}</p>
+                                    {/* Layar sempit: target, realisasi, dan status pindah ke sel indikator agar kolom Aksi tidak terpotong. */}
                                     <div className="mt-2 lg:hidden"><StatusBaris baris={baris} /></div>
                                 </TableCell>
                                 <TableCell className="hidden lg:table-cell">{baris.periode.nama_periode} {baris.tahun}</TableCell>
-                                <TableCell className="hidden text-right lg:table-cell">
-                                    {nilai(baris.jenis === 'existing' ? baris.pengukuran.target : baris.target, baris)}
-                                </TableCell>
-                                <TableCell className="hidden text-right lg:table-cell">
-                                    {baris.jenis === 'existing' ? nilai(baris.pengukuran.nilai, baris) : '—'}
-                                </TableCell>
+                                <TableCell className="hidden text-right lg:table-cell">{target(baris)}</TableCell>
+                                <TableCell className="hidden text-right lg:table-cell">{realisasi(baris)}</TableCell>
                                 <TableCell className="hidden lg:table-cell"><StatusBaris baris={baris} /></TableCell>
                                 <TableCell className="text-right"><AksiBaris baris={baris} /></TableCell>
                             </TableRow>

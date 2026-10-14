@@ -31,7 +31,7 @@ class IndexPengukuran
      * memakai snapshot yang dijepit; tanpa header memakai nomor_versi terbesar yang sudah efektif pada urutan periode, atau
      * versi terendah sebagai identitas "Tidak berlaku". Deny baca disaring per unit baris (unit snapshot tersebut, bukan unit
      * master) sebelum paginate, dan indikator arsip tanpa header dikeluarkan. Baris existing hanya ringkasan; izin create
-     * dimemo per unit dan guard pembentukan memakai data pramuat, tanpa query per baris.
+     * seluruh unit halaman dievaluasi satu batch dan guard pembentukan memakai data pramuat, tanpa query per baris/unit.
      *
      * @param  array<string, mixed>  $query  query string halaman
      * @return array<string, mixed>
@@ -65,9 +65,9 @@ class IndexPengukuran
             'periode_id' => $row->periode_id, 'jadwal_snapshot_id' => $row->jadwal_snapshot_id, 'unit_id' => $row->unit_id])->all());
         $targets = array_combine($creatable->map(fn ($row) => $row->jadwal_id.':'.$row->indikator_id)->all(), $targets);
         $snapshots = $creatable->isEmpty() ? collect() : JadwalSnapshot::with('unit')->whereIn('id', $creatable->pluck('jadwal_snapshot_id'))->get()->keyBy('id');
-        $decisions = [];
+        $decisions = $this->resolver->decideManyForUnits($actor, ['pengukuran:create'], $creatable->pluck('unit_id')->unique()->values()->all());
 
-        $rows = $items->map(function ($row) use ($actor, $schedules, $periods, $headers, $targets, $snapshots, &$decisions): array {
+        $rows = $items->map(function ($row) use ($actor, $schedules, $periods, $headers, $targets, $snapshots, $decisions): array {
             $base = ['indikator_id' => $row->indikator_id, 'jadwal_id' => $row->jadwal_id, 'jadwal_snapshot_id' => $row->jadwal_snapshot_id, 'tahun' => (int) $row->tahun,
                 'periode' => $this->periodDto($periods[$row->periode_jadwal_id], (int) $row->tahun),
                 'indikator' => ['kode' => $row->kode, 'nama' => $row->nama, 'satuan' => $row->satuan, 'desimal_tampilan' => (int) $row->desimal_tampilan],
@@ -83,7 +83,7 @@ class IndexPengukuran
             }
             $create = false;
             if ($row->berlaku) {
-                $decision = $decisions[$row->unit_id] ??= $this->resolver->decide($actor, 'pengukuran:create', $row->unit_id);
+                $decision = $decisions[$row->unit_id]['pengukuran:create'];
                 $snapshot = $snapshots[$row->jadwal_snapshot_id]->setRelation('jadwal', $schedules[$row->jadwal_id]);
                 $create = $decision['allowed'] && $this->policy->creationErrors($actor, $snapshot, $periods[$row->periode_jadwal_id], $decision, $row->pic_id) === [];
             }
