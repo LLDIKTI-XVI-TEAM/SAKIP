@@ -898,7 +898,7 @@ Admin menetapkan satu dari 5 role (alasan wajib, teraudit)
 
 ## 38.3 Akun yang Menunggu Aktivasi Saat Rilis
 
-Sebelum deploy, akun `nonaktif` yang belum pernah diaktifkan didaftar dengan query read-only dan diaktifkan admin melalui halaman Aktivasi lama (beralasan, teraudit). Bila penonaktifan/pengaktifan kembali (§38.2) dirilis bersamaan, sisa akun dapat diaktifkan sesudah deploy melalui "Aktifkan kembali". Tidak ada migrasi otomatis.
+Sebelum deploy, akun `nonaktif` yang belum pernah diaktifkan didaftar dengan query read-only dan diaktifkan admin melalui halaman Aktivasi lama (beralasan, teraudit). Bila penonaktifan/pengaktifan kembali (§38.2) dirilis bersamaan, sisa akun dapat diaktifkan sesudah deploy melalui "Aktifkan kembali". Tidak ada migrasi otomatis. Keputusan PM 14 Oktober 2026 (PR #101): Bagian A dan Bagian B dideploy bersamaan setelah konfirmasi tertulis Q38 diterima; persetujuan rapat 13 Oktober 2026 (§38.5) cukup untuk merge ke `development`. Bila Bagian B belum siap, Bagian A tidak dideploy.
 
 ## 38.4 Kandidat Grant Unit dan Penanggung Jawab
 
