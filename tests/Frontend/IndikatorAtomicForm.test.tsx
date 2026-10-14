@@ -26,6 +26,16 @@ it('metadata repair menyertakan hanya child berubah dan token editor asal', asyn
     await user.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     expect(put.mock.calls[0]?.[1]).toMatchObject({ expected_updated_at: REVISION, nama: 'Capaian kinerja revisi', komponen: [{ ...COMPONENTS[1], label: 'Total target repair' }] });
 });
+it('saklar catatan tidak tampil dan metadata edit mempertahankan nilai kolom yang tersimpan', async () => {
+    const user = userEvent.setup();
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<IndikatorModal {...common} indikator={indicator({ wajib_catatan: true })} editor={definition()} onClose={vi.fn()} />);
+    expect(screen.queryByLabelText(/Wajib Melampirkan Catatan/)).toBeNull();
+    await user.type(screen.getByLabelText(/Nama Indikator Kinerja/), ' revisi');
+    await user.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    expect(put.mock.calls[0]?.[1]).toMatchObject({ wajib_catatan: true });
+});
+
 it('metadata-only tanpa child read tidak mengirim array kosong sebagai definisi', async () => {
     const user = userEvent.setup(); const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
     const editor: DefinitionEditor = definition({ komponen: null });

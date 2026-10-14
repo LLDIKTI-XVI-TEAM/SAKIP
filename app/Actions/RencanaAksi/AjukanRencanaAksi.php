@@ -62,10 +62,8 @@ class AjukanRencanaAksi
      * lingkup periode koreksi sudah dijaga saat simpan. Klaim kegiatan belum
      * dibekukan karena belum ada writer klaim rencana aksi.
      *
-     * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
-     * indikator lalu `rencana_aksi`, berlawanan dengan writer RA (header lalu
-     * indikator); race RA dan Pengukuran pada indikator yang sama dapat
-     * berakhir deadlock 40P01.
+     * Pengajuan Pengukuran juga mengunci header RA sebelum indikator agar
+     * tidak membentuk siklus kunci dengan writer/reviewer RA.
      *
      * @param  array<string, mixed>  $data  Hanya `expected_versi`.
      */

@@ -47,6 +47,7 @@ use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\InputStream;
@@ -1206,6 +1207,91 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame($pic->id, $audit->actor_id);
         $this->assertSame('otorisasi', $audit->nilai_baru['jenis_penolakan']);
         $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+    }
+
+    public function test_two_submission_requests_with_one_token_create_one_version(): void
+    {
+        [$operator, , , $measurement] = $this->submittableMeasurementFixture();
+        $planning = User::factory()->create(['status' => 'aktif']);
+        $planning->roles()->attach(Role::where('kode', 'perencanaan')->value('id'),
+            ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        $assignments = array_map(fn ($actor) => ['actor_id' => $actor->id, 'pengukuran_id' => $measurement->id,
+            'data' => ['versi' => 1, 'nilai' => 75]], [$operator, $planning]);
+
+        // Aktor berbeda bersaing pada pengukuran yang sama; hasil tidak bergantung pada lock satu aktor.
+        $results = $this->race('pengukuran-ajukan', $measurement->id, '', $assignments,
+            prepare: fn () => PengukuranKinerja::whereKey($measurement->id)->lockForUpdate()->firstOrFail());
+        sort($results);
+        $this->assertSame(['conflict', 'diajukan'], $results);
+        $measurement = $measurement->fresh();
+        $this->assertSame(['diajukan', 2], [$measurement->status_alur, $measurement->versi]);
+        $this->assertSame(1, $measurement->versions()->count());
+        $this->assertSame(1, $measurement->latestVersion->nomor);
+        $this->assertContains($measurement->latestVersion->diajukan_by, [$operator->id, $planning->id]);
+        $this->assertSame(1, $measurement->riwayats()->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+    }
+
+    #[DataProvider('raSubmissionCommitOrders')]
+    public function test_submission_and_ra_ratification_use_consistent_locks(bool $ratifyFirst): void
+    {
+        $this->travelTo(now()->setDate(2026, 3, 15)->setTime(9, 0));
+        [$reviewer, , $unit, $plan, $token] = $this->rencanaAksiRaceFixture();
+        $pic = User::findOrFail($plan->penanggung_jawab_id);
+        $context = JadwalSnapshot::findOrFail($plan->latestVersion->jadwal_snapshot_id);
+        PenugasanIndikator::create(['indikator_id' => $plan->indikator_id, 'user_id' => $pic->id,
+            'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $reviewer->id, 'created_at' => now()]);
+        UserPermissionGrant::create(['user_id' => $pic->id, 'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'),
+            'unit_id' => $unit->id, 'alasan' => 'Hak pengajuan fixture.', 'diberikan_oleh' => $reviewer->id]);
+        PeriodeJadwal::create(['jadwal_id' => $context->jadwal_id, 'periode_id' => $context->periode_mulai_id,
+            'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+        $measurement = PengukuranKinerja::create(['indikator_id' => $plan->indikator_id, 'tahun' => $plan->tahun,
+            'periode_id' => $context->periode_mulai_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
+        $input = ['versi' => 1, 'nilai' => 75];
+        $assignment = $ratifyFirst
+            ? ['actor_id' => $pic->id, 'pengukuran_id' => $measurement->id, 'data' => $input]
+            : ['actor_id' => $reviewer->id, 'rencana_aksi_id' => $plan->id, 'data' => $token];
+        $assignment['test_now'] = now()->toIso8601String();
+
+        // Worker menunggu RA yang dipegang parent; pengesahan tidak boleh menunggu indikator milik worker submit.
+        $results = $this->race($ratifyFirst ? 'pengukuran-ajukan' : 'rencana-sahkan', $plan->id, '', [$assignment],
+            prepare: fn () => RencanaAksi::whereKey($plan->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: function (array $pids) use ($ratifyFirst, $reviewer, $plan, $token, $pic, $measurement, $input): void {
+                $this->assertStringContainsString('rencana_aksi', (string) DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query'));
+                if ($ratifyFirst) {
+                    app(SahkanRencanaAksi::class)->handle($reviewer, $plan->id, $token);
+                } else {
+                    try {
+                        app(SubmitPengukuran::class)->handle($pic, $measurement->id, $input);
+                        $this->fail('Pengajuan sebelum RA disahkan harus ditolak.');
+                    } catch (ValidationException $exception) {
+                        $this->assertSame(['Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.'], $exception->errors()['pengajuan']);
+                    }
+                }
+            });
+
+        $this->assertSame([$ratifyFirst ? 'diajukan' : 'disahkan'], $results);
+        $this->assertSame('disahkan', $plan->fresh()->status_alur);
+        $measurement = $measurement->fresh();
+        $this->assertSame([$ratifyFirst ? 'diajukan' : 'draft', $ratifyFirst ? 2 : 1], [$measurement->status_alur, $measurement->versi]);
+        $this->assertSame($ratifyFirst ? 1 : 0, $measurement->versions()->count());
+        $this->assertSame($ratifyFirst ? 1 : 0, $measurement->riwayats()->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.sahkan')->count());
+        $this->assertSame($ratifyFirst ? 1 : 0, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        $this->assertSame($ratifyFirst ? 0 : 1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        if ($ratifyFirst) {
+            $this->assertSame($token['versi_pengajuan_id'], $measurement->latestVersion->rencana_aksi_versi_id);
+            $this->assertSame($pic->id, $measurement->latestVersion->diajukan_by);
+            $this->assertSame('75.000000000000', $measurement->latestVersion->snapshot['nilai']);
+        } else {
+            $this->assertNull($measurement->nilai);
+        }
+    }
+
+    public static function raSubmissionCommitOrders(): array
+    {
+        return ['RA disahkan lebih dahulu' => [true], 'Pengajuan ditolak sebelum RA disahkan' => [false]];
     }
 
     /**

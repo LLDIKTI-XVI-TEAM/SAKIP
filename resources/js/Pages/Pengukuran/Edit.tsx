@@ -1,7 +1,7 @@
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import type { HttpExceptionResponse } from '@inertiajs/core';
-import { useCallback, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import { ArrowLeft, Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -10,29 +10,36 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
+import { Modal } from '@/Components/Modal';
 import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
 import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 import CalculationPreview from './CalculationPreview';
 
-interface PengukuranEditProps { pengukuran: Pengukuran }
+interface PengukuranEditProps {
+    pengukuran: Pengukuran;
+    hasil_pengajuan_terakhir?: { alasan: string[] } | null;
+}
 
 export default function PengukuranEdit(props: PengukuranEditProps) {
     return <PengukuranForm key={props.pengukuran.id} {...props} />;
 }
 
-function PengukuranForm({ pengukuran }: PengukuranEditProps) {
+function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEditProps) {
     const formatNilai = useFormatNilai();
     const labelUnit = useLabelUnit();
     const { can } = pengukuran;
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
     const historical = pengukuran.sumber_nilai === 'historis';
     const manual = pengukuran.sumber_nilai !== 'komponen';
-    const errorSummary = useRef<HTMLUListElement>(null);
+    const errorSummary = useRef<HTMLDivElement>(null);
+    const focusErrors = useRef(false);
+    const submitting = useRef(false);
+    const [confirmation, setConfirmation] = useState(false);
     const [requestError, setRequestError] = useState('');
     const recovery = useAuthRecovery();
-    const { data, setData, transform, post, processing, errors } = useForm({
+    const { data, setData, transform, post, processing, errors, isDirty } = useForm({
         versi: pengukuran.versi,
         nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
         komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
@@ -62,13 +69,21 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
     const activeMode = modes.includes(data.mode) ? data.mode : (modes[0] ?? null);
     const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
+    const displayedErrors = hasil_pengajuan_terakhir ? [] : Object.entries(errors);
 
-    const submit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (disabled || recovery.recovery || requestError) return;
-        const submitter = (event.nativeEvent as SubmitEvent).submitter;
-        const intent = submitter instanceof HTMLButtonElement && submitter.value === 'ajukan' ? 'ajukan' : 'draft';
+    useEffect(() => {
+        // Fokus setelah cleanup modal selesai mengembalikan fokus ke tombol asal.
+        if (!confirmation && focusErrors.current && errorSummary.current) {
+            focusErrors.current = false;
+            errorSummary.current.focus();
+        }
+    }, [confirmation, errors, hasil_pengajuan_terakhir]);
+
+    const send = (intent: 'draft' | 'ajukan') => {
+        if (disabled || submitting.current || recovery.recovery || requestError) return;
         if (intent === 'ajukan' && !can.submit) return;
+        // Kunci sinkron menutup jeda sebelum processing diperbarui oleh Inertia.
+        submitting.current = true;
         setRequestError('');
         transform((values) => ({
             versi: values.versi, action: intent,
@@ -82,11 +97,24 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         }));
         post(`/pengukuran/${pengukuran.id}`, {
             preserveScroll: true,
-            onError: () => requestAnimationFrame(() => errorSummary.current?.focus()),
-            onCancel: () => { setRequestError('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
-            onNetworkError: () => { setRequestError('Koneksi terputus. Hasil penyimpanan belum diketahui; periksa status pengukuran sebelum mencoba kembali.'); return false; },
-            onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}`, mutation: true })) return false; setRequestError(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
+            onError: () => { focusErrors.current = true; setConfirmation(false); },
+            onSuccess: () => setConfirmation(false),
+            onFinish: () => { submitting.current = false; },
+            onCancel: () => { setConfirmation(false); setRequestError('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
+            onNetworkError: () => { setConfirmation(false); setRequestError('Koneksi terputus. Hasil penyimpanan belum diketahui; periksa status pengukuran sebelum mencoba kembali.'); return false; },
+            onHttpException: (response) => { setConfirmation(false); if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}`, mutation: true })) return false; setRequestError(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
         });
+    };
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (disabled || submitting.current || recovery.recovery || requestError) return;
+        const submitter = (event.nativeEvent as SubmitEvent).submitter;
+        if (submitter instanceof HTMLButtonElement && submitter.value === 'ajukan') {
+            if (can.submit) setConfirmation(true);
+        } else {
+            send('draft');
+        }
     };
 
     return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}>
@@ -108,11 +136,27 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                         <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd><dd className="text-xs text-muted">{indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd></div>
                         <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                     </dl>
+                    {pengukuran.target_pk !== undefined && <dl className="grid gap-4 border-t border-border pt-3 text-sm sm:grid-cols-2">
+                        <div><dt className="text-muted">Target PK tahunan</dt><dd className="mt-1 font-medium">{pengukuran.target_pk === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                        <div><dt className="text-muted">Selisih terhadap target PK</dt><dd className="mt-1 font-medium">{pengukuran.selisih_target_pk == null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd><dd className="mt-1 text-xs text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</dd></div>
+                    </dl>}
                 </CardContent>
             </Card>
-            {!pengukuran.prasyarat.siap && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Prasyarat pengajuan belum lengkap</h2><ul className="mt-2 list-disc space-y-1 pl-5">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Simpan draf untuk memperbarui hasil dan pemenuhan sebelum mengajukan.</p></div>}
+            <section aria-labelledby="saved-draft-title" className="rounded-lg border border-border bg-surface p-4 text-sm">
+                <h2 id="saved-draft-title" className="font-semibold text-ink">Draft tersimpan</h2>
+                <p className="mt-1 text-muted">{pengukuran.prasyarat.siap ? 'Seluruh prasyarat pengajuan pada draft tersimpan telah terpenuhi.' : 'Prasyarat pengajuan pada draft tersimpan belum lengkap.'}</p>
+                {pengukuran.prasyarat.alasan.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-warning-dark">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
+                {isDirty && <p className="mt-3 text-info-dark">Ada perubahan yang belum disimpan. Saat Ajukan, server akan menyimpan dan memeriksa input terkini.</p>}
+            </section>
             <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
-                {Object.keys(errors).length > 0 && <ul ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{Object.entries(errors).map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
+                {(displayedErrors.length > 0 || hasil_pengajuan_terakhir) && <div ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="scroll-mt-24 rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+                    {displayedErrors.length > 0 && <ul className="list-disc space-y-1 pl-5">{displayedErrors.map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
+                    {hasil_pengajuan_terakhir && <section aria-labelledby="last-submission-title" className={displayedErrors.length > 0 ? 'mt-3' : undefined}>
+                        <h2 id="last-submission-title" className="font-semibold">Hasil pengajuan terakhir</h2>
+                        <ul className="mt-2 list-disc space-y-1 pl-5">{hasil_pengajuan_terakhir.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                        <p className="mt-2">Alasan ini berasal dari input pada percobaan terakhir. Perubahan berikutnya diperiksa saat Anda mengajukan kembali.</p>
+                    </section>}
+                </div>}
                 <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
                 {requestError && !recovery.recovery && <p role="alert" className="text-sm text-danger">{requestError}</p>}
                 <Card>
@@ -165,6 +209,14 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                     {can.submit && <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary"><Send className="mr-2 h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
                 </div>}
             </form>
+            <Modal isOpen={confirmation} onClose={() => { if (!processing && !submitting.current) setConfirmation(false); }}
+                title="Ajukan pengukuran" size="md" footer={<>
+                    <Button type="button" variant="outline" disabled={processing} onClick={() => setConfirmation(false)}>Batal</Button>
+                    <Button type="button" isLoading={processing} disabled={Boolean(recovery.recovery || requestError)} onClick={() => send('ajukan')}>Ajukan dan bekukan</Button>
+                </>}>
+                <p className="text-sm text-ink">Server akan menyimpan dan memeriksa input terkini, termasuk perubahan yang belum disimpan. Jika seluruh syarat terpenuhi, data dibekukan sebagai versi pengajuan dan diteruskan ke Tim Perencanaan.</p>
+                <p className="mt-3 text-sm text-muted">Versi yang sudah diajukan hanya dapat diperbaiki setelah dikembalikan.</p>
+            </Modal>
         </div>
     </AuthenticatedLayout>;
 }

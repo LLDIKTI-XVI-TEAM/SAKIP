@@ -11,6 +11,7 @@ use App\Models\JenisBerkas;
 use App\Models\PengukuranKinerja;
 use App\Models\PengukuranKomponen;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\RiwayatPengukuran;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
@@ -32,23 +33,27 @@ class PengukuranMutationSteps
         private CalculatePengukuran $calculator, private EvaluateEvidence $evidence) {}
 
     /**
-     * Urutan lock: aktor → role aktif (shared) → indikator (shared) → header → snapshot → jadwal → periode.
+     * Urutan lock: aktor → role aktif (shared) → RA (khusus ajukan) → indikator (shared) → header → snapshot → jadwal → periode.
      * Izin dan gate bisnis diputuskan sesudah lock; `$decision` diisi sebelum penolakan dilempar agar audit penolakan memakai keputusan aktual.
      * Pemanggil wajib sudah berada dalam transaksi.
      *
-     * @return array{0: User, 1: PengukuranKinerja, 2: JadwalSnapshot, 3: ?PeriodeJadwal, 4: array} aktor terkunci, header, snapshot, periode jadwal, state audit sebelum mutasi
+     * @return array{0: User, 1: PengukuranKinerja, 2: JadwalSnapshot, 3: ?PeriodeJadwal, 4: array, 5: ?RencanaAksi} aktor terkunci, header, snapshot, periode jadwal, state audit sebelum mutasi, RA pengajuan
      */
     public function lock(User $actor, string $id, string $permission, string $command, int $version, ?array &$decision): array
     {
         $actor = User::lockForUpdate()->findOrFail($actor->id);
         // Role aktif dikunci bersama agar rilis preset yang mencabut izin menunggu, dan izin dibaca dari ACL yang sudah commit.
         $actor->lockActiveRoles();
+        $initial = PengukuranKinerja::findOrFail($id);
+        // RA mendahului indikator agar pengajuan tidak saling menunggu dengan writer/reviewer RA.
+        $plan = $command === 'ajukan'
+            ? RencanaAksi::where('indikator_id', $initial->indikator_id)->where('tahun', $initial->tahun)->lockForUpdate()->first()
+            : null;
         // Timeline PJ stabil sejak guard hingga provenance dan snapshot tersimpan.
-        $indicatorId = PengukuranKinerja::findOrFail($id)->indikator_id;
-        $indicator = IndikatorKinerja::whereKey($indicatorId)->sharedLock()->firstOrFail();
+        $indicator = IndikatorKinerja::whereKey($initial->indikator_id)->sharedLock()->firstOrFail();
         $p = PengukuranKinerja::lockForUpdate()->findOrFail($id);
-        if ($p->indikator_id !== $indicator->id) {
-            throw ValidationException::withMessages(['versi' => 'Konteks indikator telah berubah. Muat ulang pengukuran.']);
+        if ($p->indikator_id !== $indicator->id || $p->tahun !== $initial->tahun) {
+            throw ValidationException::withMessages(['versi' => 'Konteks indikator atau tahun telah berubah. Muat ulang pengukuran.']);
         }
         $p->setRelation('indikator', $indicator);
         $snapshot = JadwalSnapshot::lockForUpdate()->findOrFail($p->jadwal_snapshot_id);
@@ -67,7 +72,7 @@ class PengukuranMutationSteps
             throw ValidationException::withMessages(['versi' => $errors]);
         }
 
-        return [$actor, $p, $snapshot, $period, $this->auditState($p)];
+        return [$actor, $p, $snapshot, $period, $this->auditState($p), $plan];
     }
 
     /**

@@ -43,6 +43,7 @@ export interface Pengukuran {
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: string | number | null;
     target_pk?: string | number | null;
+    selisih_target_pk?: string | null;
     klaim?: KlaimPengukuran[];
     nilai: string | number | null;
     status_perhitungan: 'belum_diisi' | 'terhitung' | 'tidak_dapat_dihitung';

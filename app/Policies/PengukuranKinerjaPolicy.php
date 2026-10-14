@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Actions\Pengukuran\SubmissionPrerequisites;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
@@ -12,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class PengukuranKinerjaPolicy
 {
-    public function __construct(private PermissionResolver $resolver, private SubmissionPrerequisites $prerequisites) {}
+    public function __construct(private PermissionResolver $resolver) {}
 
     public function viewAny(User $user): bool
     {
@@ -69,13 +68,8 @@ class PengukuranKinerjaPolicy
 
     public function submit(User $user, PengukuranKinerja $p): Response
     {
-        $ability = $this->capability($user, $p, 'ajukan', 'pengukuran:update');
-        if ($ability->denied()) {
-            return $ability;
-        }
-        $result = $this->prerequisites->handle($p);
-
-        return $result['siap'] ? Response::allow() : Response::deny(implode(' ', $result['alasan']));
+        // Input terkini disimpan dan diperiksa atomik oleh Action; kesiapan draf bukan izin tombol.
+        return $this->capability($user, $p, 'ajukan', 'pengukuran:update');
     }
 
     public function uploadEvidence(User $user, PengukuranKinerja $p): bool

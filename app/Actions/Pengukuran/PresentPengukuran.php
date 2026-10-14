@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -82,6 +82,7 @@ class PresentPengukuran
         }
         $data['can'] = $can;
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
+        $data['selisih_target_pk'] = $this->calculator->differenceFromPk($data['nilai'], $data['target_pk']);
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
             $activity['bukti_dukungs'] = $can['claimEvidence'] ? array_map(fn ($b) => [

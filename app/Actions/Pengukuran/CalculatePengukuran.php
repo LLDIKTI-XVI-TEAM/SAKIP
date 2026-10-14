@@ -10,6 +10,12 @@ use InvalidArgumentException;
 
 class CalculatePengukuran
 {
+    /** Selisih memakai nilai PK utuh; nilai belum tersedia tidak disamakan dengan nol. */
+    public function differenceFromPk(string|int|float|null $value, string|int|float|null $target): ?string
+    {
+        return $value === null || $target === null ? null : (string) BigDecimal::of((string) $value)->minus((string) $target);
+    }
+
     /** Nilai dihitung dari definisi snapshot; nol faktual berbeda dari input hilang. */
     public function handle(string $type, int $precision, array $definitions, array $values, string|int|float|null $manual): array
     {

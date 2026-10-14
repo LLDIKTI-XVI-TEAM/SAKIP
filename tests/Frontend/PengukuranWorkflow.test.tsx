@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { http } from '@inertiajs/core';
+import type { ActiveVisit, PendingVisit } from '@inertiajs/core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import PengukuranEdit from '@/Pages/Pengukuran/Edit';
 import PengukuranIndex from '@/Pages/Pengukuran/Index';
@@ -33,6 +34,18 @@ const measurement: Pengukuran = {
     periode_jadwal: { id: '0d7029ba-96e0-4343-986b-d1ca723c17e1', urutan: 1, nama_periode: 'Semester I' }, bukti_dukungs: [], bukti_count: 0, riwayats: [], snapshot: null,
 };
 const dialogMethods = ['showModal', 'close'] as const;
+const visit: PendingVisit = {
+    id: 'measurement-test', url: new URL('http://localhost/pengukuran/test'), method: 'post', data: {},
+    completed: false, cancelled: false, interrupted: false, replace: false, preserveScroll: true, preserveState: true,
+    only: [], except: [], headers: {}, errorBag: null, forceFormData: false, queryStringArrayFormat: 'brackets',
+    async: false, showProgress: true, prefetch: false, fresh: false, reset: [], preserveUrl: false, preserveErrors: false,
+    invalidateCacheTags: [], viewTransition: false, component: null, pageProps: null, cached: false,
+};
+const finishedVisit: ActiveVisit = { ...visit, completed: true,
+    onCancelToken: vi.fn(), onBefore: vi.fn(), onBeforeUpdate: vi.fn(), onStart: vi.fn(), onProgress: vi.fn(), onFinish: vi.fn(),
+    onCancel: vi.fn(), onSuccess: vi.fn(), onError: vi.fn(), onHttpException: vi.fn(), onNetworkError: vi.fn(),
+    onFlash: vi.fn(), onPrefetched: vi.fn(), onPrefetching: vi.fn(),
+};
 const originalDialogMethods = dialogMethods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
 beforeAll(() => {
     // Fokus trap dialog native diuji melalui browser, bukan shim jsdom ini.
@@ -45,12 +58,92 @@ afterAll(() => dialogMethods.forEach((name, index) => {
     else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
 }));
 beforeEach(() => {
-    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.spyOn(router, 'post').mockImplementation((_url, _data, options) => { options?.onFinish?.(finishedVisit); });
     vi.spyOn(http.getClient(), 'request').mockResolvedValue({ status: 200, data: JSON.stringify({ nilai: null, status_perhitungan: 'belum_diisi' }), headers: {} });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('mengajukan input terkini setelah konfirmasi meski checklist draft gagal dan form belum disimpan', async () => {
+        const user = userEvent.setup();
+        render(<PengukuranEdit pengukuran={{ ...measurement, prasyarat: { siap: false, alasan: ['Nilai belum lengkap.'] } }} />);
+        await user.clear(screen.getByRole('spinbutton', { name: /Nilai realisasi/ }));
+        await user.type(screen.getByRole('spinbutton', { name: /Nilai realisasi/ }), '90');
+        expect(screen.getByText('Draft tersimpan')).toBeTruthy();
+        expect(screen.getByText(/Ada perubahan yang belum disimpan/)).toBeTruthy();
+        const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Ajukan ke Tim Perencanaan' });
+        expect(submit.disabled).toBe(false);
+        await user.click(submit);
+        expect(router.post).not.toHaveBeenCalled();
+        const confirmation = screen.getByRole('dialog', { name: 'Ajukan pengukuran' });
+        expect(within(confirmation).getByText(/input terkini/i)).toBeTruthy();
+        await user.click(within(confirmation).getByRole('button', { name: 'Ajukan dan bekukan' }));
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ versi: 4, action: 'ajukan', nilai: '90' });
+    });
+
+    it('menampilkan semua alasan percobaan terakhir terpisah dari checklist draft tersimpan', () => {
+        render(<PengukuranEdit pengukuran={{ ...measurement, prasyarat: { siap: false, alasan: ['Rencana aksi belum disahkan.'] } }}
+            hasil_pengajuan_terakhir={{ alasan: ['Narasi progres belum lengkap.', 'Bukti wajib belum lengkap.'] }} />);
+        const result = screen.getByRole('region', { name: 'Hasil pengajuan terakhir' });
+        expect(within(result).getByText('Narasi progres belum lengkap.')).toBeTruthy();
+        expect(within(result).getByText('Bukti wajib belum lengkap.')).toBeTruthy();
+        expect(within(result).queryByText('Rencana aksi belum disahkan.')).toBeNull();
+        expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: /Nilai realisasi/ }).value).toBe('80');
+    });
+
+    it('pembatalan konfirmasi tidak mengirim pengukuran', async () => {
+        const user = userEvent.setup();
+        render(<PengukuranEdit pengukuran={measurement} />);
+        await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Batal' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(router.post).not.toHaveBeenCalled();
+    });
+
+    it('mengunci klik dan submit keyboard bersamaan selama pengajuan pending lalu mempertahankan input saat ditolak', async () => {
+        const user = userEvent.setup();
+        vi.mocked(router.post).mockImplementation(() => undefined);
+        render(<PengukuranEdit pengukuran={measurement} />);
+        await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        const confirmation = screen.getByRole<HTMLButtonElement>('button', { name: 'Ajukan dan bekukan' });
+        act(() => {
+            fireEvent.click(confirmation);
+            fireEvent.click(confirmation);
+            fireEvent.submit(screen.getByRole('button', { name: 'Simpan Sebagai Draft' }).closest('form')!);
+        });
+        expect(router.post).toHaveBeenCalledTimes(1);
+        const options = vi.mocked(router.post).mock.calls[0][2];
+        await act(async () => { options?.onStart?.(visit); });
+        expect(confirmation.disabled).toBe(true);
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan Sebagai Draft' }).disabled).toBe(true);
+        await act(async () => { options?.onError?.({ pengajuan: 'Rencana aksi belum disahkan.' }); options?.onFinish?.(finishedVisit); });
+        expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: /Nilai realisasi/ }).value).toBe('80');
+        await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        await user.click(screen.getByRole('button', { name: 'Ajukan dan bekukan' }));
+        expect(router.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('pembatalan permintaan pengajuan menutup konfirmasi agar hasil ambigu terlihat tanpa kehilangan input', async () => {
+        const user = userEvent.setup();
+        vi.mocked(router.post).mockImplementation(() => undefined);
+        render(<PengukuranEdit pengukuran={measurement} />);
+        await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        await user.click(screen.getByRole('button', { name: 'Ajukan dan bekukan' }));
+        const options = vi.mocked(router.post).mock.calls[0][2];
+        await act(async () => { options?.onCancel?.(); options?.onFinish?.(finishedVisit); });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.getByText(/Hasil tindakan belum dapat dipastikan/)).toBeTruthy();
+        expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: /Nilai realisasi/ }).value).toBe('80');
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Ajukan ke Tim Perencanaan' }).disabled).toBe(true);
+        expect(router.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('menampilkan selisih terhadap target PK yang sudah dihitung server', () => {
+        render(<PengukuranEdit pengukuran={{ ...measurement, target_pk: '94.05', selisih_target_pk: '-14.050000000000' }} />);
+        expect(screen.getByText('Target PK tahunan').parentElement?.textContent).toContain('94,05 %');
+        expect(screen.getByText('Selisih terhadap target PK').parentElement?.textContent).toContain('-14,05 %');
+    });
+
     it('memperbarui pratinjau dari input komponen tanpa menyimpan atau mengirim nilai turunan', async () => {
         const user = userEvent.setup();
         vi.mocked(http.getClient().request).mockResolvedValue({ status: 200, data: JSON.stringify({ nilai: '91.25', status_perhitungan: 'terhitung' }), headers: {} });
@@ -77,7 +170,7 @@ describe('Alur pengukuran', () => {
     });
 
     it('menampilkan target PK, target periode, dan klaim beku dengan bukti sesuai capability', () => {
-        const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95, reviu_terlambat: true,
+        const review: Pengukuran = { ...measurement, status: 'diajukan', target_pk: 95, selisih_target_pk: '-15.000000000000', reviu_terlambat: true,
             can: { ...measurement.can, viewClaims: true, claimEvidence: true }, klaim: [{
                 id: 'claim', komponen_id: null, arah_dampak: 'menambah', catatan: 'Dukungan periode pertama', sumber_klaim: 'rencana_aksi',
                 kegiatan: { id: 'activity', nama: 'Pendampingan QA', tujuan: 'Peningkatan layanan', status: 'tidak_terlaksana',
@@ -90,6 +183,7 @@ describe('Alur pengukuran', () => {
         const { rerender } = render(<VerifikasiShow pengukuran={review} />);
         expect(screen.getByText('Target PK tahunan').parentElement?.textContent).toContain('95,00 %');
         expect(screen.getByText('Target periode RA · Semester I').parentElement?.textContent).toContain('100,00 %');
+        expect(screen.getByText('Selisih terhadap target PK').parentElement?.textContent).toContain('-15,00 %');
         expect(screen.getByText('Status: tidak terlaksana')).toBeTruthy();
         expect(screen.getByText('Narasi beku')).toBeTruthy();
         expect(screen.getByText('Bukti koreksi beku')).toBeTruthy();
@@ -135,6 +229,7 @@ describe('Alur pengukuran', () => {
         await user.keyboard('{Enter}');
         expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ versi: 4, action: 'draft', nilai: '90' });
         await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        await user.click(screen.getByRole('button', { name: 'Ajukan dan bekukan' }));
         expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ versi: 4, action: 'ajukan', nilai: '90' });
         await act(async () => { vi.mocked(router.post).mock.calls[1][2]?.onError?.({ catatan: 'Lengkapi catatan.' }); });
         expect(value.value).toBe('90');

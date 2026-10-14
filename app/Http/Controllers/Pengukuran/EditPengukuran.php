@@ -16,7 +16,11 @@ class EditPengukuran extends Controller
     {
         $pengukuran = PengukuranKinerja::findOrFail($id);
         Gate::authorize('view', $pengukuran);
+        $result = $request->session()->get('hasil_pengajuan_terakhir');
+        $lastSubmission = is_array($result) && ($result['pengukuran_id'] ?? null) === $id && ($result['actor_id'] ?? null) === $request->user()->id
+            ? ['alasan' => $result['alasan']] : null;
 
-        return Inertia::render('Pengukuran/Edit', ['pengukuran' => $present->handle($pengukuran, $request->user(), true)]);
+        return Inertia::render('Pengukuran/Edit', ['pengukuran' => $present->handle($pengukuran, $request->user(), true),
+            'hasil_pengajuan_terakhir' => $lastSubmission]);
     }
 }

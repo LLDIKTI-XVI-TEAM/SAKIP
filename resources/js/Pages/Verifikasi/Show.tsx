@@ -43,6 +43,11 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Nilai pengukuran</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.nilai === null ? '—' : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Hasil perhitungan</dt><dd className="mt-1 font-semibold">{statusPerhitungan[pengukuran.status_perhitungan]}</dd><dd className="mt-1 text-xs text-muted">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd></div>
                     </dl>
+                    {pengukuran.selisih_target_pk !== undefined && <div className="rounded-lg border border-border bg-soft p-4 text-sm">
+                        <p className="text-muted">Selisih terhadap target PK</p>
+                        <p className="mt-1 text-xl font-semibold">{pengukuran.selisih_target_pk === null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</p>
+                        <p className="mt-1 text-xs text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</p>
+                    </div>}
                     {pengukuran.komponen.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="mb-2 text-left font-medium">Komponen pengajuan</caption><thead><tr className="border-b border-border"><th scope="col" className="p-2">Komponen</th><th scope="col" className="p-2">Peran / Bobot</th><th scope="col" className="p-2 text-right">Nilai</th></tr></thead><tbody>{pengukuran.komponen.map((item) => <tr key={item.komponen_id} className="border-b border-border"><th scope="row" className="p-2 font-normal">{item.kode} · {item.label}</th><td className="p-2">{item.peran}{item.bobot === null ? '' : ` / ${item.bobot}`}</td><td className="p-2 text-right">{item.nilai === null ? 'Belum diisi' : formatNilai(item.nilai, indikator.desimal_tampilan)}</td></tr>)}</tbody></table></div>}
                 </CardContent>
             </Card>

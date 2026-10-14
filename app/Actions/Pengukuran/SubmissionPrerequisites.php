@@ -13,8 +13,8 @@ class SubmissionPrerequisites
 {
     public function __construct(private EvaluateEvidence $evidence, private CalculatePengukuran $calculator) {}
 
-    /** RA versi sah dan target periode diambil dari snapshot versi, bukan draft RA hidup. */
-    public function handle(PengukuranKinerja $pengukuran, bool $lock = false): array
+    /** Mode mutasi menerima RA yang dikunci sebelum indikator; target tetap berasal dari versi sah. */
+    public function handle(PengukuranKinerja $pengukuran, bool $lock = false, ?RencanaAksi $lockedPlan = null): array
     {
         $errors = [];
         $target = null;
@@ -23,7 +23,8 @@ class SubmissionPrerequisites
         if (! $snapshot || $snapshot->indikator_id !== $pengukuran->indikator_id || $snapshot->jadwal->tahun !== $pengukuran->tahun) {
             $errors[] = 'Konteks snapshot jadwal tidak cocok dengan indikator/tahun pengukuran.';
         }
-        $ra = RencanaAksi::where('indikator_id', $pengukuran->indikator_id)->where('tahun', $pengukuran->tahun)->when($lock, fn ($q) => $q->lockForUpdate())->first();
+        // Null dari lookup terkunci tetap berarti RA belum ada; jangan mengambil kunci RA baru setelah indikator.
+        $ra = $lock ? $lockedPlan : RencanaAksi::where('indikator_id', $pengukuran->indikator_id)->where('tahun', $pengukuran->tahun)->first();
         if (! $ra || $ra->status_alur !== 'disahkan') {
             $errors[] = 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.';
         } else {

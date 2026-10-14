@@ -4,7 +4,6 @@ import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
-import { Switch } from '@/Components/Switch';
 import { formatRegulasiRingkas } from '@/lib/regulasi';
 import { Button } from '@/Components/Button';
 import type {
@@ -330,18 +329,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     error={errors.definisi_operasional}
                 />
 
-                <div className="flex flex-col gap-3 pt-2">
-                    <div className="flex items-center gap-3">
-                        <Switch
-                            id="indikator_wajib_catatan"
-                            checked={data.wajib_catatan}
-                            onChange={(val) => setData('wajib_catatan', val)}
-                        />
-                        <label htmlFor="indikator_wajib_catatan" className="text-sm font-medium text-ink cursor-pointer">
-                            Wajib Melampirkan Catatan Penjelasan saat Pengisian Realisasi
-                        </label>
-                    </div>
-                </div>
                 {definitionReadable && <section className="space-y-3 rounded-lg border border-border p-4">
                     <Button type="button" variant="outline" aria-expanded={definitionOpen} onClick={() => setDefinitionOpen((value) => !value)}>Komponen Formula</Button>
                     {definitionOpen && <DefinitionFields prefix="indikator" rows={rows} deleted={deleted} tipe={data.tipe_perhitungan} can={definitionCan} disabled={processing || feedback.blocked} onRows={setRows} onDeleted={setDeleted} errors={nestedErrors} />}

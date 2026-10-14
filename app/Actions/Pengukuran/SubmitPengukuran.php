@@ -27,9 +27,9 @@ class SubmitPengukuran
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$path, &$decision) {
-                [$actor, $p, $snapshot, , $before] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
+                [$actor, $p, $snapshot, , $before, $plan] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
                 $this->steps->storeInput($actor, $p, $snapshot, $data, $path, $decision);
-                $prerequisite = $this->prerequisites->handle($p, true);
+                $prerequisite = $this->prerequisites->handle($p, true, $plan);
                 if (! $prerequisite['siap']) {
                     throw ValidationException::withMessages(['pengajuan' => $prerequisite['alasan']]);
                 }
