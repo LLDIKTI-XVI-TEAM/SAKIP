@@ -27,14 +27,14 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('Akun menunggu aktivasi', () => {
+describe('Akun menunggu penetapan peran', () => {
     it('menampilkan dan menyalin ID akun yang dipakai operator bootstrap', async () => {
         const id = '1380daa1-7af3-4884-aa0c-178614d7de78';
         const writeText = vi.fn().mockResolvedValue(undefined);
         const user = userEvent.setup();
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
 
-        render(<Pending pendingReason="activation" auth={{ user: { id, nama: 'Calon Admin', email: 'calon@example.test', status: 'nonaktif' } }} />);
+        render(<Pending pendingReason="role" auth={{ user: { id, nama: 'Calon Admin', email: 'calon@example.test', status: 'aktif' } }} />);
 
         expect(screen.getByText(id)).toBeTruthy();
         await user.click(screen.getByRole('button', { name: 'Salin ID akun' }));
@@ -47,7 +47,7 @@ it('logout419 tidak mengklaim keluar, mengakhiri pending dan menahan POST beriku
     const { router } = await import('@inertiajs/react');
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
     const user = userEvent.setup();
-    render(<Pending pendingReason="activation" auth={{ user: { id: 'qa', nama: 'QA', email: 'qa@example.test', status: 'nonaktif' } }} />);
+    render(<Pending pendingReason="inactive" auth={{ user: { id: 'qa', nama: 'QA', email: 'qa@example.test', status: 'nonaktif' } }} />);
     await user.click(screen.getByRole('button', { name: 'Keluar dari SAKIP' }));
     const options = vi.mocked(router.post).mock.calls[0][2];
     await (await import('@testing-library/react')).act(async () => { options?.onHttpException?.({ status: 419, data: {}, headers: {} }); });
@@ -56,6 +56,14 @@ it('logout419 tidak mengklaim keluar, mengakhiri pending dan menahan POST beriku
     expect(screen.queryByText(/berhasil keluar/i)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Keluar dari SAKIP' }));
     expect(router.post).toHaveBeenCalledTimes(1);
+});
+
+it('akun yang dinonaktifkan melihat status tidak aktif, bukan antrean aktivasi', () => {
+    render(<Pending pendingReason="inactive" auth={{ user: { id: 'qa', nama: 'QA', email: 'qa@example.test', status: 'nonaktif' } }} />);
+    expect(screen.getByRole('heading', { name: 'Akun tidak aktif' })).toBeTruthy();
+    expect(screen.getByText(/sedang dinonaktifkan/)).toBeTruthy();
+    expect(screen.getByText('Dinonaktifkan')).toBeTruthy();
+    expect(screen.queryByText(/aktivasi/i)).toBeNull();
 });
 
 it('akun aktif tanpa peran mendapat petunjuk penetapan peran dan dua aksi logout saling menahan', async () => {

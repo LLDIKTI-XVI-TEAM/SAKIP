@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Actions\Auth\ActivateUser;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Models\Permission;
@@ -71,7 +70,7 @@ class LegacyOnboardingMigrationTest extends TestCase
         $this->assertSame($count, DB::table('audit_log')->count());
 
         app(ProvisionKeycloakUser::class)->handle(['subject' => $pending->keycloak_id, 'nama' => 'Profil baru', 'email' => 'new@example.test']);
-        $this->assertTrue(app(ActivateUser::class)->handle($operator->fresh(), $pending->id, 'Aktivasi tanpa role'));
+        $pending->update(['status' => 'aktif']);
         $decision = app(PermissionResolver::class)->decide($pending->fresh(), 'dashboard:read');
         $this->assertFalse($decision['allowed']);
         $this->assertSame('no_role', $decision['reason']);
@@ -99,6 +98,10 @@ class LegacyOnboardingMigrationTest extends TestCase
         $this->assertSame('superadmin', $legacy->roles()->sole()->kode);
         $this->assertDatabaseCount('auth_bootstraps', 1);
         $this->assertSame(0, DB::table('audit_log')->where('tindakan', 'pengguna.terdaftar')->count());
+        $aktivasi = DB::table('audit_log')->where('objek_id', $legacy->id)->where('tindakan', 'pengguna.aktivasi')->get();
+        $this->assertCount(1, $aktivasi);
+        $this->assertSame('bootstrap', $aktivasi[0]->sumber);
+        $this->assertSame(['status' => 'nonaktif'], json_decode($aktivasi[0]->nilai_lama, true));
         $this->assertEquals($auditBefore, DB::table('audit_log')->whereIn('id', $auditBefore->pluck('id'))->orderBy('id')->get());
     }
 

@@ -47,12 +47,12 @@ class BootstrapSuperadmin
             // Kandidat baru memakai registrasi; legacy wajib memiliki rantai audit corrective.
             $onboarded = $user && DB::table('audit_log')->where('objek_id', $user->id)
                 ->where('objek_tipe', 'users')->where('actor_type', 'system')->where('sumber', 'sso_onboarding')
-                ->where('tindakan', 'pengguna.terdaftar')->where('nilai_baru->status', 'nonaktif')->exists();
+                ->where('tindakan', 'pengguna.terdaftar')->exists();
             if ($user && ! $onboarded && ! $assignment && $user->status === 'nonaktif') {
                 $onboarded = $this->hasCorrectedLegacyOnboarding($user->id, $roles['pegawai']->id);
             }
-            if (! $onboarded || $assignment || $user->status !== 'nonaktif'
-                || DB::table('user_roles')->where('role_id', $superadmin->id)->exists()) {
+            // Akun onboarding boleh sudah aktif; syarat kandidat adalah belum memiliki peran.
+            if (! $onboarded || $assignment || DB::table('user_roles')->where('role_id', $superadmin->id)->exists()) {
                 throw new DomainException('Keadaan awal bootstrap tidak sesuai; tidak ada data yang diubah.');
             }
             $provenance = ['actor_type' => 'operator', 'sumber' => 'bootstrap', 'operator_reference' => $operator, 'runtime_identity' => $runtimeIdentity, 'alasan' => $reason];
@@ -69,8 +69,10 @@ class BootstrapSuperadmin
             }
             $audit = $this->audit->handle($provenance + ['tindakan' => 'user_roles.tambah', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'nilai_lama' => null, 'nilai_baru' => ['role_id' => $superadmin->id]]);
             DB::table('user_roles')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'role_id' => $superadmin->id, 'sumber_pemberian' => 'bootstrap', 'audit_id' => $audit->id, 'diberikan_oleh' => null, 'created_at' => now()]);
-            $user->update(['status' => 'aktif']);
-            $this->audit->handle($provenance + ['tindakan' => 'pengguna.aktivasi', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'nilai_lama' => ['status' => 'nonaktif'], 'nilai_baru' => ['status' => 'aktif']]);
+            if ($user->status === 'nonaktif') {
+                $user->update(['status' => 'aktif']);
+                $this->audit->handle($provenance + ['tindakan' => 'pengguna.aktivasi', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'nilai_lama' => ['status' => 'nonaktif'], 'nilai_baru' => ['status' => 'aktif']]);
+            }
             $completion = $this->audit->handle($provenance + ['tindakan' => 'auth.bootstrap', 'objek_tipe' => 'users', 'objek_id' => $user->id, 'nilai_baru' => ['role_id' => $superadmin->id, 'status' => 'aktif']]);
             DB::table('auth_bootstraps')->insert(['id' => 'initial', 'user_id' => $user->id, 'audit_id' => $completion->id, 'created_at' => now()]);
 

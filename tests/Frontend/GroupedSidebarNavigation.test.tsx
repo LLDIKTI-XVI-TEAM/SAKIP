@@ -30,7 +30,6 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     verifikasi: true,
     unit: true,
     jenisBerkas: true,
-    aktivasi: true,
     assignRole: true,
     viewRolePermissions: true,
     grant: true,
@@ -96,7 +95,6 @@ afterEach(() => {
         verifikasi: true,
         unit: true,
         jenisBerkas: true,
-        aktivasi: true,
         assignRole: true,
         viewRolePermissions: true,
         grant: true,
@@ -161,7 +159,6 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         if (manajemenAkses.type === 'group') {
             expect(manajemenAkses.group.label).toBe('Manajemen Akses');
             expect(manajemenAkses.group.children.map((c) => c.label)).toEqual([
-                'Aktivasi Pengguna',
                 'Penetapan Peran',
                 'Peran & Izin',
                 'Izin Unit (Grant)',
@@ -169,7 +166,6 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
                 'Izin Pengguna',
             ]);
             expect(manajemenAkses.group.children.map((c) => c.canKey)).toEqual([
-                'aktivasi',
                 'assignRole',
                 'viewRolePermissions',
                 'grant',
@@ -203,7 +199,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(20); // 1 direct item + 19 submenus
+        expect(allItems).toHaveLength(19); // 1 direct item + 18 submenus
     });
 });
 

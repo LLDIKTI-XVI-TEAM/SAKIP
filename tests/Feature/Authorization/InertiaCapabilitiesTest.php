@@ -93,7 +93,6 @@ class InertiaCapabilitiesTest extends TestCase
             'dashboard' => $a('dashboard:read'),
             'pengukuran' => $a('pengukuran:read'),
             'verifikasi' => $a('pengukuran:read') && ($a('pengukuran:verifikasi') || $a('pengukuran:sahkan') || $a('pengukuran:kembalikan')),
-            'aktivasi' => $a('pengguna:read'),
             'assignRole' => $a('pengguna:read') && $a('akses:update'),
             'manageDeny' => $a('akses:update'),
             'unit' => $a('unit:read'),

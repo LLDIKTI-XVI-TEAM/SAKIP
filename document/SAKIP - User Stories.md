@@ -234,9 +234,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
-- [ ] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
-- [ ] Menu Aktivasi Pengguna tidak tersedia lagi.
+- [x] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
+- [x] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
+- [x] Menu Aktivasi Pengguna tidak tersedia lagi.
 - [ ] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
 - [ ] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
 - [ ] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.

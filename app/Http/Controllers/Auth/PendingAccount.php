@@ -17,6 +17,6 @@ class PendingAccount
             return redirect()->route('dashboard');
         }
 
-        return Inertia::render('Auth/Pending', ['pendingReason' => $user->status === 'aktif' ? 'role' : 'activation']);
+        return Inertia::render('Auth/Pending', ['pendingReason' => $user->status === 'aktif' ? 'role' : 'inactive']);
     }
 }

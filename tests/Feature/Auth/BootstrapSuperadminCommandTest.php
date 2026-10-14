@@ -55,7 +55,8 @@ class BootstrapSuperadminCommandTest extends TestCase
             '--no-interaction' => true,
         ])->assertExitCode(1);
 
-        $this->assertSame('nonaktif', $user->fresh()->status);
+        $this->assertSame('aktif', $user->fresh()->status);
+        $this->assertSame(0, $user->roles()->count());
         $this->assertDatabaseCount('auth_bootstraps', 0);
         $this->assertDatabaseCount('role_permissions', 165);
     }
