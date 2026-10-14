@@ -9,7 +9,6 @@ use App\Models\JadwalTahunan;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
-use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
@@ -17,6 +16,7 @@ use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
+use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Brick\Math\BigDecimal;
@@ -137,8 +137,12 @@ class IndexRencanaAksi
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
             // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
             // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
+            // Dalam sesi koreksi aktif daftar juga dikosongkan: lingkup
+            // koreksi sudah menjadi pembatas dan kunci tanggal diabaikan
+            // (cermin `penilaian()`), sehingga periode dalam lingkup tidak
+            // dikunci UI.
             $hariIni = today(config('app.business_timezone'))->toDateString();
-            $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah)
+            $terkunciIds = ($this->jendela->jalurPerencanaan($keputusanUbah) || $koreksi['aktif'])
                 ? []
                 : array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'id');
             // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
@@ -252,8 +256,9 @@ class IndexRencanaAksi
      * Eligibility gerbang pengajuan tanpa kelengkapan isi: status dapat
      * disunting, jepit snapshot terbaru, unit aktif, indikator bukan arsip,
      * izin ajukan, dan kunci berbasis perubahan yang sama dengan
-     * `AjukanRencanaAksi` (periode yang dinilai adalah yang berubah
-     * dibanding versi sah terakhir; tanpa pembanding dinilai kosong).
+     * `AjukanRencanaAksi` lewat `PerbandinganNilaiRencanaAksi` (periode yang
+     * dinilai adalah yang berubah dibanding versi sah terakhir; tanpa
+     * pembanding dinilai kosong).
      * Kelengkapan dilaporkan terpisah di `pengajuan` agar UI dapat
      * menunjukkan alasannya. Pemeriksaan murah didahulukan agar resolver
      * tidak dipanggil untuk status beku.
@@ -275,113 +280,9 @@ class IndexRencanaAksi
             return false;
         }
 
-        $berubah = $this->periodeBerubahVsVersiSah((string) $segel->id, $barisBeku);
+        $berubah = PerbandinganNilaiRencanaAksi::periodeBerubahVsVersiSah((string) $segel->id, $barisBeku);
 
         return $this->jendela->penilaian($actor, $keputusan, $indikator, $jadwal, 'pengajuan', $berubah)['pesan'] === null;
-    }
-
-    /**
-     * @param  list<array{periode_id: string, nilai: mixed, komponen: list<array{komponen_id: string, nilai: mixed}>}>  $baris
-     * @return list<string>
-     */
-    private function periodeBerubahVsVersiSah(string $rencanaAksiId, array $baris): array
-    {
-        $versiSah = RencanaAksiVersi::where('rencana_aksi_id', $rencanaAksiId)
-            ->whereNotNull('disahkan_at')
-            ->whereNotNull('disahkan_by')
-            ->orderByDesc('nomor')
-            ->first();
-        if (! $versiSah instanceof RencanaAksiVersi) {
-            return [];
-        }
-
-        $snapshotSah = $versiSah->snapshot ?? [];
-        $petaSah = [];
-        foreach (is_array($snapshotSah['target_periode'] ?? null) ? $snapshotSah['target_periode'] : [] as $row) {
-            if (is_array($row) && isset($row['periode_id'])) {
-                $petaSah[(string) $row['periode_id']] = $row;
-            }
-        }
-        $petaKini = [];
-        foreach ($baris as $row) {
-            if (is_array($row) && isset($row['periode_id'])) {
-                $petaKini[(string) $row['periode_id']] = $row;
-            }
-        }
-
-        $berubah = [];
-        foreach ($petaKini as $periodeId => $kini) {
-            $dulu = $petaSah[$periodeId] ?? null;
-            if (! is_array($kini) || ! is_array($dulu)) {
-                continue;
-            }
-            if ($this->nilaiPeriodeBerubah($kini, $dulu)) {
-                $berubah[] = (string) $periodeId;
-            }
-        }
-
-        return array_values($berubah);
-    }
-
-    /**
-     * @param  array<string, mixed>  $kini
-     * @param  array<string, mixed>  $dulu
-     */
-    private function nilaiPeriodeBerubah(array $kini, array $dulu): bool
-    {
-        $komponenKini = is_array($kini['komponen'] ?? null) ? array_values(array_filter($kini['komponen'], is_array(...))) : [];
-        $komponenDulu = is_array($dulu['komponen'] ?? null) ? array_values(array_filter($dulu['komponen'], is_array(...))) : [];
-
-        if ($komponenKini === [] && $komponenDulu === []) {
-            return ! self::nilaiSama($kini['nilai'] ?? null, $dulu['nilai'] ?? null);
-        }
-        if ($komponenKini === [] || $komponenDulu === []) {
-            return false;
-        }
-
-        $petaDulu = [];
-        foreach ($komponenDulu as $row) {
-            if (isset($row['komponen_id'])) {
-                $petaDulu[(string) $row['komponen_id']] = $row['nilai'] ?? null;
-            }
-        }
-        foreach ($komponenKini as $row) {
-            if (! isset($row['komponen_id'])) {
-                continue;
-            }
-            $id = (string) $row['komponen_id'];
-            if (! array_key_exists($id, $petaDulu)) {
-                continue;
-            }
-            if (! self::nilaiSama($row['nilai'] ?? null, $petaDulu[$id])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static function nilaiSama(mixed $a, mixed $b): bool
-    {
-        if ($a === null && $b === null) {
-            return true;
-        }
-        if ($a === null || $b === null) {
-            return false;
-        }
-        $sa = trim((string) $a);
-        $sb = trim((string) $b);
-        if ($sa === $sb) {
-            return true;
-        }
-        if (is_numeric($sa) && is_numeric($sb) && function_exists('bccomp')) {
-            return bccomp($sa, $sb, 10) === 0;
-        }
-        if (is_numeric($sa) && is_numeric($sb)) {
-            return (float) $sa == (float) $sb;
-        }
-
-        return false;
     }
 
     /**

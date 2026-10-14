@@ -411,6 +411,41 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
+    public function test_props_koreksi_mengosongkan_periode_terkunci_dan_menawarkan_ubah(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $header = $this->drafManual($fixture);
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versi = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versi->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->createUserWithRole('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pascapenutupan.'])->assertOk();
+
+        // Kedua periode melewati batas pengisian sehingga tanpa pengecualian
+        // koreksi akan tercatat terkunci; sesi koreksi mengosongkan daftar
+        // karena lingkup sudah menjadi pembatas (kunci tanggal diabaikan).
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->update(['pengisian_selesai' => '2026-03-05']);
+        $fixture['jadwal']->update([
+            'penutupan' => '2026-03-05',
+            'koreksi_mulai' => '2026-03-06 00:00:00',
+            'koreksi_sampai' => '2026-03-31 23:59:59',
+            'lingkup_koreksi' => [
+                'jenis_objek' => ['rencana_aksi'],
+                'indikator_ids' => [$fixture['indikator']->id],
+                'periode_ids' => [$fixture['periode2']->id],
+            ],
+        ]);
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rencanaAksi.koreksi.aktif', true)
+                ->where('rencanaAksi.periode_terkunci', [])
+                ->where('rencanaAksi.can.update', true));
+    }
+
     public function test_penutupan_tanpa_sesi_koreksi_menolak_buka_kembali_dan_mengaudit_penolakan(): void
     {
         $this->verifikasi();

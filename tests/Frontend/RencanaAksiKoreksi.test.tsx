@@ -168,6 +168,28 @@ describe('lingkup koreksi di UI', () => {
         expect(kirim.targets.find((item) => item.periode_id === P4)).toBeDefined();
     });
 
+    it('koreksi TW III mengabaikan daftar terkunci: TW III disunting dan terkirim', async () => {
+        const user = userEvent.setup();
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [P3] }, [P1, P2, P3, P4])} />);
+
+        expect(screen.getByText(/Sesi koreksi aktif/)).toBeTruthy();
+
+        const inputLuar = screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Target Triwulan I (poin)' });
+        const inputDalam = screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Target Triwulan III (poin)' });
+        expect(inputLuar.disabled).toBe(true);
+        expect(inputDalam.disabled).toBe(false);
+
+        await user.type(inputDalam, '30');
+        await user.click(screen.getByRole('button', { name: 'Simpan Target' }));
+
+        expect(router.post).toHaveBeenCalledTimes(1);
+        const kirim = vi.mocked(router.post).mock.calls[0][1] as {
+            targets: { periode_id: string; komponen_id: string | null; nilai: string | null }[];
+        };
+        expect(kirim.targets).toHaveLength(1);
+        expect(kirim.targets[0]).toEqual({ periode_id: P3, komponen_id: null, nilai: '30', keterangan: null });
+    });
+
     it('tanpa koreksi aktif semua periode efektif dapat disunting', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] })} />);

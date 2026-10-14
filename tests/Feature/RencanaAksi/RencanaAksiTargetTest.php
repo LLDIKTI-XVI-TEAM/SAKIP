@@ -60,6 +60,31 @@ class RencanaAksiTargetTest extends TestCase
     }
 
     /**
+     * Notasi eksponen (`1e3`) lolos aturan `numeric` sehingga wajib ditolak
+     * sebagai 422 oleh regex desimal biasa, bukan 500 dari perbandingan nilai.
+     */
+    public function test_nilai_eksponen_ditolak_422_bukan_500(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 1,
+            'expected_snapshot_id' => $fixture['snapshot']->id,
+            'expected_snapshot_versi' => 1,
+            'targets' => [
+                ['periode_id' => $fixture['periode1']->id, 'komponen_id' => null, 'nilai' => '1e3', 'keterangan' => null],
+            ],
+        ])->assertSessionHasErrors('targets.0.nilai');
+        $this->assertSame(1, $header->fresh()->versi);
+    }
+
+    /**
      * Seluruh matriks masuk audit dua kali tiap simpan, jadi ukuran per
      * permintaan (keterangan per sel) dan frekuensi tulis dibatasi agar
      * `audit_log` yang append-only tidak dapat dibanjiri. Pratinjau tidak

@@ -20,6 +20,7 @@ use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\AlasanAudit;
+use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
@@ -277,7 +278,8 @@ class SimpanTargetPeriode
      * Periode yang benar-benar berubah dan perlu dinilai kunci: kiriman
      * yang nilainya sama dengan tersimpan draf maupun sama dengan versi sah
      * terakhir dikecualikan (tidak dihitung berubah). Perbandingan hanya
-     * memakai `nilai` per komponen dan mengabaikan `keterangan`.
+     * memakai `nilai` per komponen dan mengabaikan `keterangan`, lewat
+     * `PerbandinganNilaiRencanaAksi` yang sama dengan jalur ajukan/baca.
      *
      * @param  list<array{periode_id: string, komponen_id: string|null, nilai: mixed}>  $targets
      * @return list<string>
@@ -334,55 +336,14 @@ class SimpanTargetPeriode
         foreach ($masuk as $pid => $selMasuk) {
             $selSimpan = $simpan[$pid] ?? null;
             $selSah = $sah[$pid] ?? null;
-            $samaSimpan = is_array($selSimpan) && $this->selSama($selMasuk, $selSimpan);
-            $samaSah = is_array($selSah) && $this->selSama($selMasuk, $selSah);
+            $samaSimpan = is_array($selSimpan) && PerbandinganNilaiRencanaAksi::selSama($selMasuk, $selSimpan);
+            $samaSah = is_array($selSah) && PerbandinganNilaiRencanaAksi::selSama($selMasuk, $selSah);
             if (! $samaSimpan && ! $samaSah) {
                 $berubah[] = (string) $pid;
             }
         }
 
         return array_values($berubah);
-    }
-
-    /**
-     * @param  array<string, mixed>  $masuk
-     * @param  array<string, mixed>  $pembanding
-     */
-    private function selSama(array $masuk, array $pembanding): bool
-    {
-        foreach ($masuk as $kid => $nilai) {
-            if (! array_key_exists($kid, $pembanding)) {
-                return false;
-            }
-            if (! self::nilaiSama($nilai, $pembanding[$kid])) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static function nilaiSama(mixed $a, mixed $b): bool
-    {
-        if ($a === null && $b === null) {
-            return true;
-        }
-        if ($a === null || $b === null) {
-            return false;
-        }
-        $sa = trim((string) $a);
-        $sb = trim((string) $b);
-        if ($sa === $sb) {
-            return true;
-        }
-        if (is_numeric($sa) && is_numeric($sb) && function_exists('bccomp')) {
-            return bccomp($sa, $sb, 10) === 0;
-        }
-        if (is_numeric($sa) && is_numeric($sb)) {
-            return (float) $sa == (float) $sb;
-        }
-
-        return false;
     }
 
     /**
