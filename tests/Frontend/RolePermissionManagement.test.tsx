@@ -126,6 +126,46 @@ it("pencarian tertunda tidak membatalkan pergantian peran yang sedang dimuat", (
     expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: other.id, q: "" }]]);
 });
 
+it("mengirim kata cari terbaru sekali setelah pencarian sebelumnya gagal, tanpa mengulang terus-menerus", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    const box = screen.getByRole("searchbox");
+    fireEvent.change(box, { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    const first = get.mock.calls[0][2];
+    act(() => first?.onStart?.({} as PendingVisit));
+    fireEvent.change(box, { target: { value: "dash" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get).toHaveBeenCalledTimes(1);
+    // Kunjungan gagal tidak mengubah props, tetapi Inertia tetap memanggil onFinish.
+    act(() => first?.onFinish?.({} as ActiveVisit));
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+        ["/akses/izin-peran", { role: role.id, q: "da" }],
+        ["/akses/izin-peran", { role: role.id, q: "dash" }],
+    ]);
+    const second = get.mock.calls[1][2];
+    act(() => second?.onStart?.({} as PendingVisit));
+    act(() => second?.onFinish?.({} as ActiveVisit));
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(get).toHaveBeenCalledTimes(2);
+});
+
+it("menonaktifkan paginasi peran lama selama pergantian peran dimuat", () => {
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const other = { ...role, id: "33333333-3333-4333-8333-333333333333", kode: "admin", nama: "Admin" };
+    render(<RolePermissionIndex {...props} roles={[role, other]} />);
+    const nav = screen.getByRole("navigation", { name: "Halaman izin" });
+    expect(nav.closest("[inert]")).toBeNull();
+    fireEvent.change(screen.getByRole("combobox", { name: "Peran" }), { target: { value: other.id } });
+    const visit = get.mock.calls[0][2];
+    act(() => visit?.onStart?.({} as PendingVisit));
+    expect(nav.closest("[inert]")).not.toBeNull();
+    act(() => visit?.onFinish?.({} as ActiveVisit));
+    expect(nav.closest("[inert]")).toBeNull();
+});
+
 it.each([
     [0, "Peran ini belum memiliki izin bawaan."],
     [13, "Tidak ada izin di halaman ini."],

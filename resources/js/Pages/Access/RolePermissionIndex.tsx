@@ -22,7 +22,9 @@ export default function RolePermissionIndex({
     const { errors } = usePage().props;
     const [query, setQuery] = useState(filters.q);
     const [navigating, setNavigating] = useState(false);
+    const [retry, setRetry] = useState(0);
     const pending = useRef(false);
+    const skipped = useRef(false);
 
     const navigationEvents = useMemo(() => ({
         onStart: () => {
@@ -32,6 +34,11 @@ export default function RolePermissionIndex({
         onFinish: () => {
             pending.current = false;
             setNavigating(false);
+            // onFinish juga terpanggil saat kunjungan gagal; pencarian yang tertunda dijadwalkan ulang tepat sekali.
+            if (skipped.current) {
+                skipped.current = false;
+                setRetry((count) => count + 1);
+            }
         },
     }), []);
     const navigate = (next: Partial<typeof filters>) => {
@@ -48,8 +55,11 @@ export default function RolePermissionIndex({
         const q = query.trim();
         if (!filters.role || q === filters.q || q.length === 1) return;
         const timer = window.setTimeout(() => {
-            // Kunjungan baru membatalkan yang sedang berjalan; pencarian yang dilewati diulang saat filters berubah.
-            if (pending.current) return;
+            // Kunjungan baru membatalkan yang sedang berjalan; pencarian ditunda sampai kunjungan itu selesai.
+            if (pending.current) {
+                skipped.current = true;
+                return;
+            }
             router.get(
                 "/akses/izin-peran",
                 { ...filters, q },
@@ -57,7 +67,7 @@ export default function RolePermissionIndex({
             );
         }, 350);
         return () => window.clearTimeout(timer);
-    }, [query, filters, navigationEvents]);
+    }, [query, filters, navigationEvents, retry]);
 
     return (
         <AuthenticatedLayout title="Peran & Izin" breadcrumbs={[{ label: "Peran & Izin" }]}>
@@ -202,13 +212,16 @@ export default function RolePermissionIndex({
                     )}
                 </Card>
                 {selectedRole && (
-                    <Pagination
-                        links={pagination.links}
-                        from={pagination.from}
-                        to={pagination.to}
-                        total={pagination.total}
-                        ariaLabel="Halaman izin"
-                    />
+                    // Tautan halaman peran lama tidak boleh membatalkan kunjungan yang sedang dimuat.
+                    <div inert={navigating} className={`transition-opacity ${navigating ? "opacity-60" : ""}`}>
+                        <Pagination
+                            links={pagination.links}
+                            from={pagination.from}
+                            to={pagination.to}
+                            total={pagination.total}
+                            ariaLabel="Halaman izin"
+                        />
+                    </div>
                 )}
             </div>
         </AuthenticatedLayout>
