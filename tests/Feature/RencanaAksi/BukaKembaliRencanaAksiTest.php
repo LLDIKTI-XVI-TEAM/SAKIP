@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Events\RencanaAksiDibukaKembali;
@@ -645,6 +646,15 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
         $versiDraf = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
         $this->assertNull($versiDraf->disahkan_at);
+
+        // Bukti dikunci setelah submit (diajukan/diverifikasi), sehingga
+        // penghapusan harus dilakukan setelah header kembali dapat disunting.
+        // Verifikasi lalu kembalikan via Action nyata agar status kembali
+        // dikembalikan; versi tetap tak-disahkan (disahkan_at null).
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versiDraf->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(KembalikanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens() + ['alasan' => 'Koreksi bukti pendukung sebelum verifikasi lanjut.']);
+        $this->assertSame('dikembalikan', $header->fresh()->status_alur);
 
         $this->actingAs($fixture['pic'])->delete(
             route('rencana-aksi.bukti.destroy', ['rencanaAksi' => $header->id, 'bukti' => $bukti->id]),
