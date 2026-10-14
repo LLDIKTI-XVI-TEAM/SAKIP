@@ -5,6 +5,7 @@ namespace App\Services\Kegiatan;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
+use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
@@ -91,7 +92,7 @@ class GerbangKlaimKegiatan
     }
 
     /**
-     * Mengunci aktor/ACL, header, indikator, jadwal, lalu kegiatan (bila ada)
+     * Mengunci aktor/ACL, konfigurasi periode, header, indikator, jadwal, lalu kegiatan (bila ada)
      * dengan urutan tetap header → kegiatan agar serial dengan pengajuan
      * Pengukuran yang mengunci header sebelum klaim dan kegiatan.
      *
@@ -111,6 +112,8 @@ class GerbangKlaimKegiatan
             throw new AuthorizationException('Akun pengguna tidak aktif.');
         }
 
+        // Selaras writer kegiatan dan jadwal: aktor/ACL, lalu konfigurasi periode, baru objek domain.
+        Periode::lockConfiguration();
         $header = RencanaAksi::lockForUpdate()->find($headerId)
             ?? throw ValidationException::withMessages(['rencana_aksi_id' => 'Rencana aksi tidak ditemukan.']);
         $indikator = IndikatorKinerja::lockForUpdate()->findOrFail($header->indikator_id);

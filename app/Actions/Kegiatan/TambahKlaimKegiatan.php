@@ -102,7 +102,7 @@ class TambahKlaimKegiatan
      *
      * @throws ValidationException
      */
-    public function pastikanCocok(RencanaAksi $header, Kegiatan $kegiatan, ?string $komponenId): void
+    public function pastikanCocok(RencanaAksi $header, Kegiatan $kegiatan, ?string $komponenId, string $fieldPeriode = 'rencana_aksi_id'): void
     {
         if ((string) $kegiatan->unit_id !== (string) $header->unit_id) {
             throw ValidationException::withMessages(['rencana_aksi_id' => 'Klaim lintas unit tidak diperbolehkan: unit kegiatan berbeda dengan unit rencana aksi.']);
@@ -114,7 +114,7 @@ class TambahKlaimKegiatan
             ?? throw ValidationException::withMessages(['rencana_aksi_id' => 'Konteks indikator beku untuk rencana aksi ini tidak tersedia.']);
         $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $this->konteks->jendela((string) $header->jadwal_tahunan_id));
         if (! $periodeEfektif->contains((string) $kegiatan->periode_id)) {
-            throw ValidationException::withMessages(['rencana_aksi_id' => 'Periode kegiatan tidak termasuk periode efektif rencana aksi.']);
+            throw ValidationException::withMessages([$fieldPeriode => 'Periode kegiatan tidak termasuk periode efektif rencana aksi.']);
         }
         if ($komponenId !== null && ! $this->konteks->komponen($snapshot)->pluck('komponen_id')->contains($komponenId)) {
             throw ValidationException::withMessages(['komponen_id' => 'Komponen bukan anggota indikator beku rencana aksi ini.']);
