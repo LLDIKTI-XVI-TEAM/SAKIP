@@ -68,34 +68,49 @@ class JendelaTulisRencanaAksi
      */
     public function alasanTolak(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): ?string
     {
+        return $this->penilaian($aktor, $keputusan, $indikator, $jadwal, $tindakan, $periodeIds, $picUserId, $pada)['pesan'];
+    }
+
+    /**
+     * Penilaian terstruktur gerbang tulis agar pemanggil tidak mencocokkan
+     * teks pesan untuk membedakan jenis penolakan.
+     *
+     * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
+     * @param  list<string>  $periodeIds
+     * @return array{jenis: 'lolos'|'penutupan'|'pic'|'kunci', pesan: string|null, terkunci: list<array{id: string, nama: string, batas: string, urutan: int}>}
+     */
+    public function penilaian(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): array
+    {
         $pada ??= now();
         if ($this->tahunDitutup($jadwal, $pada) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)) {
-            return "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.";
+            return ['jenis' => 'penutupan', 'pesan' => "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.", 'terkunci' => []];
         }
 
         if ($this->jalurPerencanaan($keputusan)) {
-            return null;
+            return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
         }
 
         $hariIni = $this->tanggalBisnis($pada);
         $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
         if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
-            return 'Tindakan ini memerlukan penugasan PIC yang efektif.';
+            return ['jenis' => 'pic', 'pesan' => 'Tindakan ini memerlukan penugasan PIC yang efektif.', 'terkunci' => []];
         }
 
         // Dalam sesi koreksi yang sah, lingkup periode sudah divalidasi pada
         // gerbang penutupan di atas; kunci tanggal tidak diterapkan agar
         // periode yang jendela pengisiannya dibuka resmi dapat dikoreksi.
         if ($this->tahunDitutup($jadwal, $pada)) {
-            return null;
+            return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
         }
 
-        $terkunci = $this->periodeTerkunci($jadwal, $periodeIds, $hariIni);
+        $terkunci = $this->rincianTerkunci($jadwal, $periodeIds, $hariIni);
         if ($terkunci !== []) {
-            return 'Periode terkunci bagi PIC setelah batas pengisian lewat: '.implode('; ', $terkunci).'.';
+            $pesan = 'Periode terkunci bagi PIC setelah batas pengisian lewat: '.implode('; ', array_map(fn (array $baris): string => "{$baris['nama']} (batas {$baris['batas']})", $terkunci)).'.';
+
+            return ['jenis' => 'kunci', 'pesan' => $pesan, 'terkunci' => $terkunci];
         }
 
-        return null;
+        return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
     }
 
     /**

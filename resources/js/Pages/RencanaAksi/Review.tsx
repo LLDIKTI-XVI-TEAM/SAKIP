@@ -152,7 +152,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         {rencanaAksi.dibuka_kembali && rencanaAksi.status_alur === 'dikembalikan' && (
                             <section aria-label="Dibuka kembali" className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
                                 <h3 className="font-semibold">Dibuka kembali setelah pengesahan</h3>
-                                <p className="mt-1">Versi resmi terakhir tetap berlaku sampai versi baru disahkan. Histori versi disahkan tetap dapat dibaca di bawah.</p>
+                                <p className="mt-1">Pengajuan pengukuran indikator ini ditahan sampai versi baru disahkan. Versi yang disahkan sebelumnya tetap tersimpan dan dapat dibaca sebagai histori.</p>
                             </section>
                         )}
                         <dl className="grid gap-5 text-sm sm:grid-cols-2">

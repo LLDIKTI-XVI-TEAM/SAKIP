@@ -16,9 +16,10 @@ class UnduhBuktiVersiRencanaAksi
      * Melayani file bukti beku versi pengajuan. Baris current yang masih
      * berlaku dilayani dari path barisnya (perilaku lama tidak berubah);
      * bila baris current sudah tidak berlaku karena diganti atau dihapus
-     * (mis. setelah buka-kembali), file beku versi dilayani dari `path`
-     * snapshot selama file fisiknya masih ada, dengan otorisasi
-     * `viewEvidence` induk yang sama. File fisik yang hilang tetap 404.
+     * (mis. setelah buka-kembali), file beku hanya dilayani untuk versi
+     * resmi (`disahkan_at` terisi) selama file fisiknya masih ada, dengan
+     * otorisasi `viewEvidence` induk yang sama. Bukti yang dihapus pada
+     * versi tak disahkan tetap 404; file fisik yang hilang tetap 404.
      */
     public function handle(User $actor, string $id, string $versi, string $bukti): StreamedResponse
     {
@@ -35,6 +36,7 @@ class UnduhBuktiVersiRencanaAksi
 
             return $disk->download($berkas->path, $beku['nama_asli'] ?? 'bukti', ['Cache-Control' => 'private, no-store']);
         }
+        abort_unless($pengajuan->disahkan_at !== null, 404);
         $jalurBeku = $beku['path'] ?? null;
         abort_unless(is_string($jalurBeku) && $jalurBeku !== '' && $disk->exists($jalurBeku), 404);
 

@@ -33,21 +33,21 @@ class BukaKembaliRencanaAksi
                     throw ValidationException::withMessages(['alasan' => 'Alasan buka kembali wajib diisi.']);
                 }
                 $this->gerbang->pastikan($pengunci, $header, $versi, 'buka_kembali');
-                // Q5: isi-snapshot dilonggarkan seperti kembalikan (lihat GerbangReviewRencanaAksi) agar versi
-                // yang isinya rusak dapat diganti versi baru, bukan terjebak aturan validasi baru.
-                // Q6: buka-kembali tidak memperpanjang deadline PIC; jendela tulis tetap ditegakkan saat simpan target.
-                // Versi pengajuan yang disahkan tidak diubah; hanya header kembali ke jalur revisi.
+                // Isi snapshot dilonggarkan seperti kembalikan agar versi yang
+                // isinya rusak dapat diganti versi baru, bukan terjebak aturan
+                // validasi baru. Buka-kembali tidak memperpanjang deadline PIC;
+                // jendela tulis tetap ditegakkan saat simpan target. Versi
+                // pengajuan yang disahkan tidak diubah; hanya header kembali
+                // ke jalur revisi. Perencanaan yang mengesahkan boleh membuka
+                // kembali; kontrol tersisa permission sensitif, alasan wajib,
+                // dan audit dasar izin.
                 $penerima = PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $header->indikator_id)->value('user_id');
                 $header->status_alur = RencanaAksi::STATUS_DIKEMBALIKAN;
                 $header->versi++;
                 $header->save();
-                // Q2: penanda darurat bila Superadmin membuka pengesahannya sendiri; non-superadmin sama-orang
-                // sudah ditolak di GerbangReviewRencanaAksi::businessErrors dan tercatat via catatPenolakan.
-                $darurat = $versi->disahkan_by !== null && $versi->disahkan_by === $pengunci->id && $pengunci->hasRole('superadmin');
                 $nilaiBaru = ['status_alur' => $header->status_alur, 'versi' => $header->versi, 'penerima_id' => $penerima]
-                    + $this->gerbang->provenance($pengunci, $versi, persetujuan: false)
-                    + ($darurat ? ['pembuka_sama_dengan_pengesah' => true] : []);
+                    + $this->gerbang->provenance($pengunci, $versi, persetujuan: false);
                 $this->audit->catat($pengunci, 'rencana_aksi.buka_kembali', 'rencana_aksi', $id, $jejak['sebelum'],
                     $nilaiBaru,
                     $alasan, $jejak['dasar_izin']);

@@ -21,7 +21,6 @@ use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
-use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -59,15 +58,15 @@ class AjukanRencanaAksi
      * koreksi terbit setelah simpan terakhir, tolak 409 tanpa rekonsiliasi
      * otomatis agar pengaju menyimpan ulang di konteks baru. Karena jepit =
      * terbaru, tidak ada baris basi transisi yang perlu disaring. Jendela
-     * dinilai terhadap seluruh periode efektif: pengajuan menyentuh seluruh
-     * RA, sehingga untuk PIC hanya periode terkunci yang nilainya berubah
-     * dibanding versi sah terakhir yang menolak pengajuan (Q41 §41.2);
-     * periode terkunci yang nilainya sama tetap lolos agar alur buka-kembali
-     * lalu ubah periode terbuka lalu ajukan ulang tidak mati; tanpa versi sah
-     * sebelumnya tidak ada pembanding sehingga dinilai lolos (guard simpan
-     * sudah mencegah perubahan sejak awal). Dalam sesi koreksi, lingkup harus
-     * mencakup seluruh periode efektif. Klaim kegiatan belum
-     * dibekukan karena belum ada writer klaim rencana aksi.
+     * dinilai terhadap periode yang berubah dibanding versi sah terakhir
+     * (Q41 §41.2): untuk PIC hanya periode terkunci yang nilainya berubah
+     * yang menolak pengajuan; periode terkunci yang nilainya sama tetap
+     * lolos agar alur buka-kembali lalu ubah periode terbuka lalu ajukan
+     * ulang tidak mati; tanpa versi sah sebelumnya tidak ada pembanding
+     * sehingga dinilai sebagai daftar kosong (guard simpan sudah mencegah
+     * perubahan sejak awal). Dalam sesi koreksi, lingkup dinilai terhadap
+     * periode yang berubah pula, berlaku untuk PIC maupun Perencanaan.
+     * Klaim kegiatan belum dibekukan karena belum ada writer klaim rencana aksi.
      *
      * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
      * indikator lalu `rencana_aksi`, berlawanan dengan writer RA (header lalu
@@ -136,20 +135,8 @@ class AjukanRencanaAksi
                 $penugasan = PenugasanIndikator::effectiveOn($waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString())
                     ->where('indikator_id', $indikator->id)
                     ->first();
-                // Periode efektif dihitung sebelum gerbang jendela agar
-                // pengajuan PIC dinilai terhadap seluruh RA (Q41 §41.2).
                 $jendelaPeriode = $this->konteks->jendela($jadwal->id, kunci: true);
                 $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $jendelaPeriode);
-                $alasanJendela = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $periodeEfektif->all(), $penugasan?->user_id, pada: $waktuAjukan);
-                // Kunci per periode PIC pada pengajuan bersifat berbasis perubahan
-                // nilai (ISS-05.06 AC-6): penutupan dan PJ efektif tetap ditolak
-                // langsung, sedangkan pesan kunci periode ditunda sampai baris
-                // target dihitung agar hanya periode terkunci yang nilainya
-                // berubah dibanding versi sah terakhir yang ditolak.
-                $tundaKunciPeriode = $alasanJendela !== null && str_starts_with($alasanJendela, 'Periode terkunci bagi PIC');
-                if ($alasanJendela !== null && ! $tundaKunciPeriode) {
-                    throw ValidationException::withMessages(['jendela' => $alasanJendela]);
-                }
 
                 $presisi = (int) $snapshot->presisi;
                 $definisi = $this->konteks->komponen($snapshot, kunci: true);
@@ -169,11 +156,15 @@ class AjukanRencanaAksi
                     $periodeEfektif,
                     $this->kesiapan->petaTarget($targets),
                 );
-                if ($tundaKunciPeriode) {
-                    $alasanBerubah = $this->alasanTolakPeriodeTerkunciBerubah($jadwal, $header->id, $periodeEfektif->all(), $baris, $waktuAjukan);
-                    if ($alasanBerubah !== null) {
-                        throw ValidationException::withMessages(['jendela' => $alasanBerubah]);
-                    }
+                // Kunci berbasis perubahan nilai: periode yang dinilai
+                // terhadap lingkup koreksi maupun kunci tanggal adalah
+                // periode yang berubah dibanding versi sah terakhir; tanpa
+                // pembanding dinilai sebagai daftar kosong. Hasil terstruktur
+                // membedakan penutupan, PIC, dan kunci tanpa mencocokkan teks.
+                $berubah = $this->periodeBerubahVsVersiSah($header->id, $baris);
+                $penilaian = $this->jendela->penilaian($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $berubah, $penugasan?->user_id, pada: $waktuAjukan);
+                if ($penilaian['pesan'] !== null) {
+                    throw ValidationException::withMessages(['jendela' => $penilaian['pesan']]);
                 }
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
@@ -276,34 +267,25 @@ class AjukanRencanaAksi
     }
 
     /**
-     * Pesan kunci periode PIC khusus pengajuan: hanya periode terkunci yang
-     * nilainya berubah dibanding versi sah terakhir (nomor terbesar dengan
-     * `disahkan_at` + `disahkan_by` terisi) yang ditolak, dengan format pesan
-     * yang sama seperti guard simpan. Tanpa versi sah sebelumnya berarti tidak
-     * ada pembanding — dinilai lolos karena guard simpan sudah mencegah
-     * perubahan periode terkunci sejak awal. Perbandingan memakai `nilai`
-     * (termasuk nilai per komponen untuk nonmanual) dan mengabaikan
-     * `keterangan`, sehingga perubahan keterangan saja tidak menolak.
+     * Periode yang berubah dibanding versi sah terakhir (nomor terbesar
+     * dengan `disahkan_at` + `disahkan_by` terisi). Tanpa versi sah
+     * sebelumnya berarti tidak ada pembanding sehingga dinilai sebagai
+     * daftar kosong. Perbandingan memakai `nilai` (termasuk nilai per
+     * komponen untuk nonmanual) dan mengabaikan `keterangan`, sehingga
+     * perubahan keterangan saja tidak dihitung berubah.
      *
-     * @param  list<string>  $periodeEfektifIds
      * @param  list<array{periode_id: string, nilai: mixed, komponen: list<array{komponen_id: string, nilai: mixed}>}>  $baris
+     * @return list<string>
      */
-    private function alasanTolakPeriodeTerkunciBerubah(JadwalTahunan $jadwal, string $rencanaAksiId, array $periodeEfektifIds, array $baris, CarbonInterface $waktuAjukan): ?string
+    private function periodeBerubahVsVersiSah(string $rencanaAksiId, array $baris): array
     {
-        $hariIni = $waktuAjukan->copy()->setTimezone(config('app.business_timezone'))->toDateString();
-
-        $terkunci = $this->jendela->rincianTerkunci($jadwal, $periodeEfektifIds, $hariIni);
-        if ($terkunci === []) {
-            return null;
-        }
-
         $versiSah = RencanaAksiVersi::where('rencana_aksi_id', $rencanaAksiId)
             ->whereNotNull('disahkan_at')
             ->whereNotNull('disahkan_by')
             ->orderByDesc('nomor')
             ->first();
         if (! $versiSah instanceof RencanaAksiVersi) {
-            return null;
+            return [];
         }
 
         $snapshotSah = $versiSah->snapshot ?? [];
@@ -321,18 +303,17 @@ class AjukanRencanaAksi
         }
 
         $berubah = [];
-        foreach ($terkunci as $rincian) {
-            $kini = $petaKini[$rincian['id']] ?? null;
-            $dulu = $petaSah[$rincian['id']] ?? null;
+        foreach ($petaKini as $periodeId => $kini) {
+            $dulu = $petaSah[$periodeId] ?? null;
             if (! is_array($kini) || ! is_array($dulu)) {
                 continue;
             }
             if ($this->nilaiPeriodeBerubah($kini, $dulu)) {
-                $berubah[] = "{$rincian['nama']} (batas {$rincian['batas']})";
+                $berubah[] = (string) $periodeId;
             }
         }
 
-        return $berubah === [] ? null : 'Periode terkunci bagi PIC setelah batas pengisian lewat: '.implode('; ', $berubah).'.';
+        return array_values($berubah);
     }
 
     /**

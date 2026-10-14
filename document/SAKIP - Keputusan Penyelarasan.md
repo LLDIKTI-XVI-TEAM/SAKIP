@@ -1576,10 +1576,12 @@ Seed berjalan melalui `PeriodeSeeder`, juga dipanggil `DatabaseSeeder`, hanya ji
 
 Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/2026. Nama, urutan, status, dan nilai akhir selanjutnya dikelola melalui aturan master periode yang berlaku; seed bukan mekanisme reset konfigurasi.
 
-## Addendum ISS-05.06 — Pemisahan Tugas Buka-Kembali Rencana Aksi
+## Addendum ISS-05.06 — Keputusan PM Buka-Kembali Rencana Aksi
 
-**Keputusan pengguna: 14 Oktober 2026 (WITA), pada sesi grilling ISS-05.06.** Pengguna menyetujui guard pemisahan tugas khusus aksi `rencana_aksi:buka_kembali`: aktor yang mengesahkan versi (`versi.disahkan_by`) tidak boleh membuka kembali RA yang sama, kecuali Superadmin sebagai jalur darurat. Ini bukan nomor Q baru dan tidak mengubah kontrak Q41/Q43 maupun permission `rencana_aksi:buka_kembali` (tetap Perencanaan/Superadmin, sensitif, alasan wajib). Pencatatan ini bukan klaim ratifikasi PM, UAT, atau penerapan ke database telah selesai.
+**Keputusan PM: 14 Oktober 2026 (WITA), [komentar Keputusan PM — PR #100 (ISS-05.06)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/100#issuecomment-6161432383), merujuk [review sebelumnya](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/100#issuecomment-6161417285) pada HEAD `1286d39`.** Keputusan ini menggantikan addendum pemisahan tugas buka-kembali yang dihapus pada butir 2 (addendum tersebut tidak berlaku sebagai keputusan PM). Ini bukan nomor Q baru dan bukan klaim ratifikasi UAT, merge, maupun deployment.
 
-- Penolakan non-Superadmin dicatat sebagai validasi bisnis 422 (`businessErrors`) beserta audit `rencana_aksi.buka_kembali_ditolak`; tombol UI disembunyikan via `can.buka_kembali`.
-- Pengecualian darurat Superadmin yang membuka pengesahannya sendiri tetap diizinkan dan wajib teraudit eksplisit (`nilai_baru.pembuka_sama_dengan_pengesah = true`), dengan alasan buka-kembali tetap wajib.
-- Guard ini melengkapi F1/F2 verifikasi/pengesahan (ISS-05.04/ISS-05.05), bukan menggantikannya; F1/F2 tidak berubah.
+1. Kunci per periode bagi PIC ditegakkan berbasis perubahan nilai di seluruh jalur (simpan, ajukan, capability, form), termasuk penilaian lingkup koreksi terhadap periode yang berubah (Q41 §41.1 butir 1, §41.2 butir 2 dan 6; ISS-05.07 AC-3).
+2. Guard pembuka tidak boleh sama dengan pengesah beserta penanda darurat Superadmin dihapus; Perencanaan yang mengesahkan boleh membuka kembali. Kontrol tersisa permission sensitif, alasan wajib (Q43 §43.2), dan audit `dasar_izin`.
+3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
+4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
+5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.

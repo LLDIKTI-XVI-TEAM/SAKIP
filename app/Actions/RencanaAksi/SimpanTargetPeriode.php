@@ -9,6 +9,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
+use App\Models\RencanaAksiVersi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -141,7 +142,19 @@ class SimpanTargetPeriode
                 $anggotaJadwal = PeriodeJadwal::where('jadwal_id', $jadwal->id)->pluck('periode_id')->map(fn ($id): string => (string) $id)->all();
 
                 $targets = $this->normalisasiTargets($data['targets'] ?? []);
-                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'penyimpanan', array_column($targets, 'periode_id'));
+                // Kunci berbasis perubahan: periode terkunci yang nilainya
+                // sama dengan tersimpan (tidak ada perubahan) diterima agar
+                // form yang mengirim seluruh matriks tetap bisa menyimpan
+                // periode terbuka; pengembalian ke nilai versi sah terakhir
+                // juga diterima agar jalan buntu koreksi dapat diselesaikan
+                // PIC. Hanya periode yang benar-benar berubah yang dinilai.
+                $tersimpanAwal = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
+                    ->orderBy('periode_id')
+                    ->orderBy('komponen_id')
+                    ->lockForUpdate()
+                    ->get();
+                $periodeUntukJendela = $this->periodeBerubahUntukJendela($header->id, $targets, $tersimpanAwal);
+                $alasan = $this->jendela->alasanTolak($pengunci, $keputusan, $indikator, $jadwal, 'penyimpanan', $periodeUntukJendela);
                 if ($alasan !== null) {
                     throw ValidationException::withMessages(['jendela' => $alasan]);
                 }
@@ -161,16 +174,11 @@ class SimpanTargetPeriode
                 // efektif-kini tetap milik `bersihkanDimensiTakEfektif`.
                 $jejak = $this->rekonsiliasi->rekonsiliasi($header, $snapshot);
 
-                // Satu baca terkunci matriks tersimpan menjadi dasar audit
-                // "sebelum" dan mengunci baris yang akan di-upsert. Header
-                // FOR UPDATE menyerialkan simpan, jadi sel yang belum ada aman
-                // dibuat baru (index unik tetap menjaga duplikasi).
-                $terkunci = RencanaAksiTarget::where('rencana_aksi_id', $header->id)
-                    ->orderBy('periode_id')
-                    ->orderBy('komponen_id')
-                    ->lockForUpdate()
-                    ->get();
-                $sebelum = $this->auditState($header, $terkunci);
+                // Bacaan terkunci di atas menjadi dasar audit "sebelum" dan
+                // sudah mengunci baris yang akan di-upsert. Header FOR UPDATE
+                // menyerialkan simpan, jadi sel yang belum ada aman dibuat
+                // baru (index unik tetap menjaga duplikasi).
+                $sebelum = $this->auditState($header, $tersimpanAwal);
                 $header->fill([
                     'uraian' => array_key_exists('uraian', $data) ? $this->normalisasiTeks($data['uraian']) : $header->uraian,
                     'alasan_deviasi_pk' => array_key_exists('alasan_deviasi_pk', $data) ? $this->normalisasiTeks($data['alasan_deviasi_pk']) : $header->alasan_deviasi_pk,
@@ -263,6 +271,118 @@ class SimpanTargetPeriode
 
             throw $exception;
         }
+    }
+
+    /**
+     * Periode yang benar-benar berubah dan perlu dinilai kunci: kiriman
+     * yang nilainya sama dengan tersimpan draf maupun sama dengan versi sah
+     * terakhir dikecualikan (tidak dihitung berubah). Perbandingan hanya
+     * memakai `nilai` per komponen dan mengabaikan `keterangan`.
+     *
+     * @param  list<array{periode_id: string, komponen_id: string|null, nilai: mixed}>  $targets
+     * @return list<string>
+     */
+    private function periodeBerubahUntukJendela(string $rencanaAksiId, array $targets, Collection $tersimpan): array
+    {
+        $masuk = [];
+        foreach ($targets as $baris) {
+            $pid = (string) ($baris['periode_id'] ?? '');
+            $kid = $baris['komponen_id'] ?? null;
+            $kid = $kid === null ? null : (string) $kid;
+            $masuk[$pid][$kid ?? 'manual'] = $baris['nilai'] ?? null;
+        }
+        if ($masuk === []) {
+            return [];
+        }
+
+        $simpan = [];
+        foreach ($tersimpan as $row) {
+            $pid = (string) $row->periode_id;
+            $kid = $row->komponen_id === null ? 'manual' : (string) $row->komponen_id;
+            $simpan[$pid][$kid] = $row->nilai;
+        }
+
+        $sah = [];
+        $versiSah = RencanaAksiVersi::where('rencana_aksi_id', $rencanaAksiId)
+            ->whereNotNull('disahkan_at')
+            ->whereNotNull('disahkan_by')
+            ->orderByDesc('nomor')
+            ->first();
+        if ($versiSah instanceof RencanaAksiVersi) {
+            $snapshot = $versiSah->snapshot ?? [];
+            $daftar = is_array($snapshot['target_periode'] ?? null) ? $snapshot['target_periode'] : [];
+            foreach ($daftar as $row) {
+                if (! is_array($row) || ! isset($row['periode_id'])) {
+                    continue;
+                }
+                $pid = (string) $row['periode_id'];
+                $komponen = is_array($row['komponen'] ?? null) ? array_values(array_filter($row['komponen'], is_array(...))) : [];
+                if ($komponen === []) {
+                    $sah[$pid]['manual'] = $row['nilai'] ?? null;
+                } else {
+                    foreach ($komponen as $sel) {
+                        if (! isset($sel['komponen_id'])) {
+                            continue;
+                        }
+                        $sah[$pid][(string) $sel['komponen_id']] = $sel['nilai'] ?? null;
+                    }
+                }
+            }
+        }
+
+        $berubah = [];
+        foreach ($masuk as $pid => $selMasuk) {
+            $selSimpan = $simpan[$pid] ?? null;
+            $selSah = $sah[$pid] ?? null;
+            $samaSimpan = is_array($selSimpan) && $this->selSama($selMasuk, $selSimpan);
+            $samaSah = is_array($selSah) && $this->selSama($selMasuk, $selSah);
+            if (! $samaSimpan && ! $samaSah) {
+                $berubah[] = (string) $pid;
+            }
+        }
+
+        return array_values($berubah);
+    }
+
+    /**
+     * @param  array<string, mixed>  $masuk
+     * @param  array<string, mixed>  $pembanding
+     */
+    private function selSama(array $masuk, array $pembanding): bool
+    {
+        foreach ($masuk as $kid => $nilai) {
+            if (! array_key_exists($kid, $pembanding)) {
+                return false;
+            }
+            if (! self::nilaiSama($nilai, $pembanding[$kid])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function nilaiSama(mixed $a, mixed $b): bool
+    {
+        if ($a === null && $b === null) {
+            return true;
+        }
+        if ($a === null || $b === null) {
+            return false;
+        }
+        $sa = trim((string) $a);
+        $sb = trim((string) $b);
+        if ($sa === $sb) {
+            return true;
+        }
+        if (is_numeric($sa) && is_numeric($sb) && function_exists('bccomp')) {
+            return bccomp($sa, $sb, 10) === 0;
+        }
+        if (is_numeric($sa) && is_numeric($sb)) {
+            return (float) $sa == (float) $sb;
+        }
+
+        return false;
     }
 
     /**

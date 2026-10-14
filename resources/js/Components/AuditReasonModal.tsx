@@ -14,8 +14,6 @@ interface AuditReasonModalProps {
     showAuditHint?: boolean;
     confirmLabel: string;
     destructive?: boolean;
-    /** Alasan buka-kembali ikut wajib (Q43 §43.2); default tetap wajib agar pemakaian lain tidak berubah. */
-    required?: boolean;
     placeholder?: string;
     onReasonChange: (reason: string) => void;
     onClose: () => void;
@@ -34,7 +32,6 @@ export function AuditReasonModal({
     showAuditHint = true,
     confirmLabel,
     destructive = false,
-    required = true,
     placeholder,
     onReasonChange,
     onClose,
@@ -91,14 +88,14 @@ export function AuditReasonModal({
                 <div className="px-5 py-4">
                     {open && notice}
                     <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
-                        Alasan perubahan {required ? <span className="text-danger" aria-hidden="true">*</span> : <span className="font-normal text-muted">(opsional)</span>}
+                        Alasan perubahan <span className="text-danger" aria-hidden="true">*</span>
                     </label>
                     <textarea
                         id={`${id}-reason`}
                         ref={reasonInput}
                         rows={4}
                         disabled={busy}
-                        aria-required={required ? 'true' : 'false'}
+                        aria-required="true"
                         aria-invalid={Boolean(error)}
                         aria-describedby={error ? `${id}-error` : undefined}
                         value={reason}

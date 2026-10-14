@@ -3,6 +3,8 @@
 namespace Tests\Feature\RencanaAksi;
 
 use App\Actions\RencanaAksi\AjukanRencanaAksi;
+use App\Actions\RencanaAksi\SahkanRencanaAksi;
+use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\Pengaturan;
@@ -280,10 +282,10 @@ class RencanaAksiAjukanTest extends TestCase
     }
 
     /**
-     * F2 (ISS-05.06 AC-6): pengajuan PIC berbasis perubahan nilai. Tanpa versi
-     * sah sebelumnya tidak ada pembanding sehingga pengajuan setelah batas
-     * tetap lolos bila nilai sama (guard simpan sudah mencegah perubahan sejak
-     * awal); penolakan karena nilai periode terkunci berubah dibuktikan pada
+     * Pengajuan PIC berbasis perubahan nilai. Tanpa versi sah sebelumnya
+     * tidak ada pembanding sehingga pengajuan setelah batas tetap lolos bila
+     * nilai sama (guard simpan sudah mencegah perubahan sejak awal);
+     * penolakan karena nilai periode terkunci berubah dibuktikan pada
      * BukaKembaliRencanaAksiTest dengan versi sah sebagai pembanding.
      */
     public function test_pic_setelah_batas_tanpa_versi_sah_lolos_sedangkan_dalam_batas_diterima(): void
@@ -510,30 +512,62 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($fixture['pic'], $header, 2)
             ->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.']);
 
-        // Pengajuan dinilai terhadap seluruh periode efektif, sehingga
-        // lingkup koreksi harus mencakup keduanya agar PIC dapat mengajukan.
+        // Tanpa versi sah tidak ada pembanding sehingga dinilai sebagai daftar
+        // kosong: lingkup parsial pun menerima pengajuan awal PIC maupun
+        // Perencanaan selama sesi koreksinya sah.
         $fixture['jadwal']->update([
             'koreksi_mulai' => '2026-03-16 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
             'lingkup_koreksi' => [
                 'jenis_objek' => ['rencana_aksi'],
                 'indikator_ids' => [$fixture['indikator']->id],
-                'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id],
+                'periode_ids' => [$fixture['periode2']->id],
             ],
         ]);
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $header->fresh()->status_alur);
+
+        $kedua = $this->buatFixtureManual();
+        $headerKedua = $this->drafManual($kedua);
+        $kedua['jadwal']->update([
+            'penutupan' => '2026-03-15',
+            'koreksi_mulai' => '2026-03-16 00:00:00',
+            'koreksi_sampai' => '2026-03-31 23:59:59',
+            'lingkup_koreksi' => [
+                'jenis_objek' => ['rencana_aksi'],
+                'indikator_ids' => [$kedua['indikator']->id],
+                'periode_ids' => [$kedua['periode2']->id],
+            ],
+        ]);
+        $this->travelTo(Carbon::parse('2026-03-20 09:00', 'Asia/Makassar'));
+        $this->ajukan($kedua['perencanaan'], $headerKedua, 2)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
     }
 
     /**
-     * Q41 §41.2 butir 6: dalam sesi koreksi, pengajuan PIC dinilai terhadap
-     * seluruh periode efektif — lingkup parsial menolak pengajuan yang
-     * mencakup periode di luar lingkup; lingkup penuh menerimanya.
+     * Dalam sesi koreksi (Q41 §41.2 butir 6), pengajuan dinilai terhadap
+     * periode yang berubah dibanding versi sah terakhir — berlaku untuk PIC
+     * maupun Perencanaan. Tanpa pembanding dinilai kosong (dibuktikan pada
+     * test sebelumnya); dengan pembanding, perubahan di luar lingkup menolak,
+     * perubahan di dalam lingkup menerima.
      */
-    public function test_sesi_koreksi_parsial_menolak_pengajuan_pic_di_luar_lingkup(): void
+    public function test_sesi_koreksi_parsial_dinilai_terhadap_periode_berubah(): void
     {
+        // Perubahan TW I di luar lingkup [TW II]: PIC maupun Perencanaan ditolak.
         $fixture = $this->buatFixtureManual();
-        $header = $this->drafManual($fixture);
+        $header = $this->drafManual($fixture, 100, 100);
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
+        $versi = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokens = fn (): array => ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $versi->id];
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, $tokens());
+        $pembuka = $this->penggunaDenganPeran('perencanaan');
+        $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pascapenutupan.'])->assertOk();
+        $dibuka = $header->fresh()->versi;
+
+        $this->simpan($fixture, $header, $dibuka, [$this->manual($fixture['periode1'], 50)]);
+        $diubah = $header->fresh()->versi;
+
         $fixture['jadwal']->update([
             'penutupan' => '2026-04-05',
             'koreksi_mulai' => '2026-04-06 00:00:00',
@@ -542,12 +576,36 @@ class RencanaAksiAjukanTest extends TestCase
         ]);
         $this->travelTo(Carbon::parse('2026-04-10 09:00', 'Asia/Makassar'));
 
-        $this->ajukan($fixture['pic'], $header, 2)
-            ->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.']);
+        $pesanTutup = 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.';
+        $this->ajukan($fixture['pic'], $header, $diubah)->assertSessionHasErrors(['jendela' => $pesanTutup]);
+        $this->ajukan($fixture['perencanaan'], $header, $diubah)->assertSessionHasErrors(['jendela' => $pesanTutup]);
+        $this->assertSame('dikembalikan', $header->fresh()->status_alur);
 
-        $fixture['jadwal']->update(['lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$fixture['indikator']->id], 'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id]]]);
-        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
-        $this->assertSame('diajukan', $header->fresh()->status_alur);
+        // Perubahan TW II di dalam lingkup [TW II]: PIC maupun Perencanaan diterima.
+        $kedua = $this->buatFixtureManual();
+        $headerKedua = $this->drafManual($kedua, 100, 100);
+        $this->actingAs($kedua['pic'])->post("/rencana-aksi/{$headerKedua->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
+        $versiKedua = $headerKedua->versions()->reorder('nomor', 'desc')->firstOrFail();
+        $tokensKedua = fn (): array => ['expected_versi' => $headerKedua->fresh()->versi, 'versi_pengajuan_id' => $versiKedua->id];
+        app(VerifikasiRencanaAksi::class)->handle($kedua['perencanaan'], $headerKedua->id, $tokensKedua());
+        app(SahkanRencanaAksi::class)->handle($kedua['perencanaan'], $headerKedua->id, $tokensKedua());
+        $pembukaKedua = $this->penggunaDenganPeran('perencanaan');
+        $this->actingAs($pembukaKedua)->postJson("/rencana-aksi/{$headerKedua->id}/buka-kembali", $tokensKedua() + ['alasan' => 'Koreksi resmi pascapenutupan.'])->assertOk();
+        $dibukaKedua = $headerKedua->fresh()->versi;
+
+        $this->simpan($kedua, $headerKedua, $dibukaKedua, [$this->manual($kedua['periode2'], 90)], tambahan: ['alasan_deviasi_pk' => 'Koreksi TW II dalam lingkup.']);
+        $diubahKedua = $headerKedua->fresh()->versi;
+
+        $kedua['jadwal']->update([
+            'penutupan' => '2026-04-05',
+            'koreksi_mulai' => '2026-04-06 00:00:00',
+            'koreksi_sampai' => '2026-04-30 23:59:59',
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$kedua['indikator']->id], 'periode_ids' => [$kedua['periode2']->id]],
+        ]);
+        $this->travelTo(Carbon::parse('2026-04-10 09:00', 'Asia/Makassar'));
+
+        $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
     }
 
     public function test_uuid_asing_404_dan_tanpa_izin_403_sebelum_validasi(): void

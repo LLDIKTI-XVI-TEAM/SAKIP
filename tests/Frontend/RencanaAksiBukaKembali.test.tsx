@@ -69,11 +69,12 @@ describe('Buka kembali rencana aksi disahkan', () => {
         expect(screen.getByText('Tahun jadwal telah ditutup; review memerlukan sesi koreksi resmi untuk indikator ini.')).toBeTruthy();
     });
 
-    it('banner dibuka-kembali menegaskan versi resmi tetap berlaku sampai versi baru disahkan', () => {
+    it('banner dibuka-kembali menegaskan pengukuran ditahan dan versi lama tersimpan sebagai histori', () => {
         renderReview({ status_alur: 'dikembalikan', dibuka_kembali: true,
             can: { ...disahkan.can, buka_kembali: false } });
         expect(screen.getByText('Dibuka kembali setelah pengesahan')).toBeTruthy();
-        expect(screen.getByText(/Versi resmi terakhir tetap berlaku sampai versi baru disahkan/)).toBeTruthy();
+        expect(screen.getByText(/Pengajuan pengukuran indikator ini ditahan sampai versi baru disahkan/)).toBeTruthy();
+        expect(screen.getByText(/tetap tersimpan dan dapat dibaca sebagai histori/)).toBeTruthy();
     });
 
     it('banner tidak tampil untuk dikembalikan biasa tanpa riwayat buka-kembali', () => {
@@ -97,11 +98,12 @@ describe('Buka kembali rencana aksi disahkan', () => {
         expect(vi.mocked(router.post).mock.calls[0][0]).toBe('/rencana-aksi/ra-1/buka-kembali');
     });
 
-    it('modal wajib menandai alasan dan mengirim alasan bila diisi', async () => {
+    it('modal wajib menandai alasan dengan bintang dan mengirim alasan bila diisi', async () => {
         const user = userEvent.setup();
         renderReview();
         await user.click(screen.getByRole('button', { name: 'Buka kembali' }));
         const dialog = screen.getByRole('dialog', { name: 'Buka kembali rencana aksi' });
+        expect(within(dialog).getByText('*')).toBeTruthy();
         await user.type(within(dialog).getByRole('textbox', { name: /Alasan perubahan/ }), 'Koreksi resmi target periode kedua');
         await user.click(within(dialog).getByRole('button', { name: 'Konfirmasi buka kembali' }));
         const [, data] = vi.mocked(router.post).mock.calls[0];

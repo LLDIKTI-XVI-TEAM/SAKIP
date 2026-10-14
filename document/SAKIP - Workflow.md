@@ -806,8 +806,9 @@ Rencana aksi adalah tahap yang disisipkan setelah penugasan Penanggung Jawab dan
 
 📋 Perencanaan / ⚙️ Superadmin
   8. Untuk Rencana Aksi yang sudah disahkan, masih dapat dibuka-kembali
-     (permission rencana_aksi:buka_kembali) menjadi dikembalikan, dengan alasan wajib, HANYA
-     sebelum jadwal_tahunan.penutupan — lihat §13
+     (permission rencana_aksi:buka_kembali) menjadi dikembalikan, dengan alasan wajib, sebelum
+     jadwal_tahunan.penutupan atau setelah penutupan di dalam sesi koreksi resmi yang mencakup
+     rencana_aksi dan indikator tersebut ([Keputusan PM — PR #100](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/100#issuecomment-6161432383)) — lihat §13
      → Dipakai bila target periode yang belum terkunci perlu diubah, termasuk penyesuaian
        setelah revisi PK (Q40–Q41); tidak dipakai hanya untuk memindahkan kegiatan yang mundur
        ke periode lain (Q41, §8)
@@ -827,7 +828,7 @@ stateDiagram-v2
     diverifikasi --> dikembalikan: rencana_aksi:kembalikan (Perencanaan, alasan wajib)
     diverifikasi --> disahkan: rencana_aksi:sahkan (Perencanaan)
     dikembalikan --> diajukan: rencana_aksi:ajukan (revisi langsung, Q36.1 butir 2)
-    disahkan --> dikembalikan: rencana_aksi:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nhanya sebelum jadwal_tahunan.penutupan)
+    disahkan --> dikembalikan: rencana_aksi:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nsebelum penutupan atau dalam sesi koreksi resmi)
     disahkan --> [*]: gerbang pengukuran terbuka -\npengukuran indikator ini dapat diajukan (§11)
 
     note right of disahkan

@@ -94,9 +94,12 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
         $this->assertCanSubmit(false, $fixture['pic'], $header);
         $this->grant($fixture['pic'], 'rencana_aksi:ajukan', $fixture['unit']->id, $fixture['perencanaan']);
 
-        // (b) Periode terkunci bagi PIC, Perencanaan jalur global tetap boleh.
+        // (b) Periode terkunci berbasis perubahan: tanpa versi sah tidak ada
+        // pembanding sehingga dinilai kosong — PIC maupun Perencanaan tetap
+        // ditawari ajukan (penolakan kunci baru terjadi bila nilai terkunci
+        // berubah dibanding versi sah, dibuktikan pada BukaKembali test).
         $this->travelTo(now()->setDate(2026, 4, 2)->setTime(9, 0));
-        $this->assertCanSubmit(false, $fixture['pic'], $header);
+        $this->assertCanSubmit(true, $fixture['pic'], $header);
         $this->assertCanSubmit(true, $fixture['perencanaan'], $header);
 
         // (c) Snapshot koreksi baru terbit setelah draf dijepit ke v1.

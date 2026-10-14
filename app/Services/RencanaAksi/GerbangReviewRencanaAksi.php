@@ -136,11 +136,6 @@ class GerbangReviewRencanaAksi
         if (! in_array($aksi, ['kembalikan', 'buka_kembali'], true) && $versi?->jalur_pengajuan === 'pic' && $versi->diajukan_by === $actor->id) {
             $errors[] = 'F1: pengaju melalui jalur PIC tidak boleh memverifikasi atau mengesahkan pengajuannya sendiri.';
         }
-        // Q2 ISS-05.06: pemisahan tugas buka-kembali — pembuka tidak boleh sama dengan pengesah versi,
-        // kecuali Superadmin darurat (diizinkan + ditandai di audit nilai_baru oleh Action).
-        if ($aksi === 'buka_kembali' && $versi?->disahkan_by !== null && $versi->disahkan_by === $actor->id && ! $actor->hasRole('superadmin')) {
-            $errors[] = 'Pengesah tidak boleh membuka kembali pengesahannya sendiri; minta Perencanaan lain atau Superadmin darurat.';
-        }
 
         return $errors;
     }

@@ -31,13 +31,9 @@ class RencanaAksiProducerReviewTest extends TestCase
             'targets' => [$this->manual($f['periode1'], 50)],
         ])->assertUnprocessable();
 
-        // Q41 §41.2: pengajuan PIC dinilai terhadap seluruh periode efektif,
-        // sehingga lingkup parsial menolak pengajuan sampai Perencanaan
-        // memperluas lingkup ke seluruh periode efektif.
-        $this->actingAs($f['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])
-            ->assertUnprocessable()->assertJsonValidationErrors('jendela');
-        $f['jadwal']->update(['lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$f['indikator']->id], 'periode_ids' => [$f['periode1']->id, $f['periode2']->id]]]);
-
+        // Pengajuan dinilai terhadap periode yang berubah dibanding versi sah
+        // terakhir; tanpa pembanding dinilai kosong sehingga lingkup parsial
+        // menerima pengajuan awal ini.
         $this->actingAs($f['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertRedirect()->assertSessionHasNoErrors();
         $versi = $header->versions()->sole();
         $beku = $versi->getRawOriginal('snapshot');

@@ -35,7 +35,8 @@ export default function RencanaAksiShow(props: ShowProps) {
     const koreksiKey = props.rencanaAksi.koreksi.aktif
         ? `koreksi:${props.rencanaAksi.koreksi.periode_ids.slice().sort().join(',')}`
         : 'tanpa-koreksi';
-    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}`} {...props} />;
+    const terkunciKey = [...(props.rencanaAksi.periode_terkunci ?? [])].sort().join(',');
+    return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}::terkunci:${terkunciKey}`} {...props} />;
 }
 
 function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
@@ -59,15 +60,16 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
         [rencanaAksi.komponen],
     );
 
-    // Saat koreksi aktif hanya periode dalam `periode_ids` yang
-    // disunting/dikirim (kosong = tidak ada); tanpa koreksi semua periode
-    // efektif boleh. Validasi fail-closed tetap di backend.
+    // Periode terkunci (batas pengisian lewat) maupun di luar lingkup
+    // koreksi hanya-baca dan tidak dikirim; validasi fail-closed tetap di
+    // backend.
     const koreksi = rencanaAksi.koreksi;
-    const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId);
+    const terkunci = useMemo(() => new Set(rencanaAksi.periode_terkunci ?? []), [JSON.stringify(rencanaAksi.periode_terkunci ?? [])]);
+    const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId) && !terkunci.has(periodeId);
     const periodeDapatDisunting = useMemo(
         () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [periodeEfektif, koreksi.aktif, JSON.stringify(koreksi.periode_ids)],
+        [periodeEfektif, koreksi.aktif, JSON.stringify(koreksi.periode_ids), JSON.stringify(rencanaAksi.periode_terkunci ?? [])],
     );
 
     const { nilaiAwal, keteranganAwal, urutanKirim } = useMemo(() => {
@@ -100,7 +102,7 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
         }
         return { nilaiAwal: nilai, keteranganAwal: keterangan, urutanKirim: order };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [periodeEfektif, komponenTerurut, manual, koreksi.aktif, JSON.stringify(koreksi.periode_ids)]);
+    }, [periodeEfektif, komponenTerurut, manual, koreksi.aktif, JSON.stringify(koreksi.periode_ids), JSON.stringify(rencanaAksi.periode_terkunci ?? [])]);
 
     const { data, setData, transform, post, processing, errors } = useForm({
         expected_versi: rencanaAksi.expected_versi,
@@ -324,6 +326,12 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         disunting; baris lain dikunci dan tidak dikirim.
                     </p>
                 )}
+                {!koreksi.aktif && terkunci.size > 0 && !terkunciSemua && (
+                    <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
+                        Hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode yang dapat
+                        disunting; periode terkunci hanya-baca dan tidak dikirim.
+                    </p>
+                )}
 
                 <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
                     {ringkasanGalat.length > 0 && (
@@ -367,7 +375,7 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                                         : canUpdate
                                           ? 'Isi target setiap periode yang berlaku. Skor di tabel adalah hasil tersimpan; pratinjau di bawah tabel menghitung perubahan sebelum disimpan.'
                                           : 'Skor di tabel adalah hasil tersimpan.'}
-                                    {!terkunciSemua && koreksi.aktif ? ' Baris di luar lingkup koreksi dikunci dan tidak dikirim.' : ''}
+                                    {!terkunciSemua && (koreksi.aktif || terkunci.size > 0) ? ' Baris yang dikunci hanya-baca dan tidak dikirim.' : ''}
                                     {!terkunciSemua && kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
                                 </p>
                                 <MatriksTarget
