@@ -98,7 +98,7 @@ body {
     scrollbar-width: none !important; /* Firefox */
 }
 
-/* HoverScrollText: teks satu baris terpotong yang bergeser saat link/tombol induk di-hover atau difokus.
+/* HoverScrollText: teks terpotong bergeser saat hover teks atau hover/fokus kontrol induk.
    Di layer components agar utility dari prop className tetap dapat menimpanya. */
 @layer components {
     .hover-scroll-text {
@@ -120,14 +120,14 @@ body {
     }
 
     @media (prefers-reduced-motion: no-preference) {
-        /* Dipicu link/tombol induk, atau teks itu sendiri bila berada di luar elemen interaktif. */
+        .hover-scroll-text:is(:hover, :focus-visible) > span,
         :is(a, button):is(:hover, :focus-visible) .hover-scroll-text > span,
-        .hover-scroll-text:hover > span {
+        .hover-scroll-select:hover .hover-scroll-text > span {
             width: max-content;
             overflow: visible;
-            /* Geser sejauh kelebihan teks (lebar kontainer − lebar teks); teks yang muat tidak bergeser. */
+            /* Geser sejauh kelebihan teks; teks yang muat tidak bergeser. */
             translate: min(0px, calc(100cqw - 100%));
-            transition: translate 2.5s linear 300ms;
+            transition: translate var(--hover-scroll-duration, 2.5s) linear 300ms;
         }
     }
 }

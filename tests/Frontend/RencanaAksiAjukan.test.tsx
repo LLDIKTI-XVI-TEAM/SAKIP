@@ -179,10 +179,10 @@ describe('pengajuan rencana aksi di halaman Show', () => {
     });
 
     it('menampilkan galat server walau can.submit false', () => {
-        halaman.props.errors = { ajukan: { jendela: 'Jendela penyusunan rencana aksi periode ini sudah ditutup.' } };
+        halaman.props.errors = { ajukan: { jendela: 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31).' } };
         render(<RencanaAksiShow rencanaAksi={buatPayload({ can: { view: true, update: false, submit: false } })} />);
 
-        const galat = screen.getByText('Jendela penyusunan rencana aksi periode ini sudah ditutup.');
+        const galat = screen.getByText('Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31).');
         expect(galat.getAttribute('role')).toBe('alert');
     });
 

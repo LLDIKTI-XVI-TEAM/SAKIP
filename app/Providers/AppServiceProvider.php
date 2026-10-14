@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Kegiatan;
 use App\Models\Regulasi;
 use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Unit;
 use App\Models\User;
+use App\Policies\KegiatanPolicy;
 use App\Policies\RegulasiPolicy;
 use App\Policies\RencanaAksiPolicy;
 use App\Policies\RenstraPkPolicy;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
             'renstra_pk' => RenstraPk::class,
         ]);
 
+        Gate::policy(Kegiatan::class, KegiatanPolicy::class);
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(Regulasi::class, RegulasiPolicy::class);
         Gate::policy(RencanaAksi::class, RencanaAksiPolicy::class);

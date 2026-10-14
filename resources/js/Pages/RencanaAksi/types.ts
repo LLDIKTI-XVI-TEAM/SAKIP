@@ -101,6 +101,8 @@ export interface RencanaAksiShow {
     periode: RencanaAksiPeriode[];
     /** Lingkup koreksi dari `IndexRencanaAksi` agar UI menonaktifkan + tak mengirim periode luar lingkup. */
     koreksi: RencanaAksiKoreksi;
+    /** Periode terkunci bagi aktor (batas pengisian lewat); kosong bagi Perencanaan. UI hanya-baca + tak dikirim. Opsional agar payload lama tetap terbaca sebagai tidak terkunci. */
+    periode_terkunci?: string[];
     deviasi_pk: RencanaAksiDeviasiPk;
     pengajuan: RencanaAksiPengajuan;
     /** Versi pengajuan terbaru (nomor terbesar); null bila belum pernah diajukan. */

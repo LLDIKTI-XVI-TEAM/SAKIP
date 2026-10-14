@@ -1,9 +1,12 @@
+import type { CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 interface HoverScrollTextProps {
-    children: string;
+    children?: string | null;
     className?: string;
+    duration?: string;
+    style?: CSSProperties;
 }
 
 /**
@@ -15,10 +18,19 @@ interface HoverScrollTextProps {
  * Hanya untuk wadah yang lebarnya ditentukan dari luar (baris menu selebar penuh, sel tabel, kartu).
  * Jangan dipakai di Button atau badge yang lebarnya mengikuti teks: isi dianggap selebar 0 sehingga teks hilang.
  */
-export function HoverScrollText({ children, className }: HoverScrollTextProps) {
+export function HoverScrollText({ children, className, duration, style }: HoverScrollTextProps) {
+    const text = children ?? '';
+    const combinedStyle = duration
+        ? ({ ...style, '--hover-scroll-duration': duration } as CSSProperties)
+        : style;
+
     return (
-        <span className={twMerge(clsx('hover-scroll-text', className))} title={children}>
-            <span>{children}</span>
+        <span
+            className={twMerge(clsx('hover-scroll-text', className))}
+            title={text}
+            style={combinedStyle}
+        >
+            <span>{text}</span>
         </span>
     );
 }
