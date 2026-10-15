@@ -209,8 +209,24 @@ it('cancel setelah submit mempertahankan draft dan mengunci klik serta Enter ula
     expect(router.post).toHaveBeenCalledTimes(1);
 });
 
+describe('Identitas editor pengukuran', () => {
+    it('menampilkan PIC, periode bertahun, dan label baku cara hitung serta arah', () => {
+        const indikator = { ...measurement.penugasan_indikator.indikator_kinerja, tipe_perhitungan: 'rasio_persen' as const, arah: 'turun_baik' as const };
+        const { rerender } = render(<PengukuranEdit pengukuran={{ ...measurement, penugasan_indikator: { ...measurement.penugasan_indikator, indikator_kinerja: indikator } }} />);
+        const isi = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
+        expect(isi('PIC')).toBe('PIC Uji');
+        expect(isi('Periode')).toBe('Semester I 2026');
+        expect(isi('Target')).toBe('100,00 %');
+        expect(isi('Cara hitung')).toBe('Rasio Persen');
+        expect(isi('Arah kinerja')).toBe('Makin rendah makin baik');
+
+        rerender(<PengukuranEdit pengukuran={{ ...measurement, id: 'tanpa-pic', penugasan_indikator: { ...measurement.penugasan_indikator, pic: null } }} />);
+        expect(isi('PIC')).toBe('Belum ditetapkan');
+    });
+});
+
 describe('Draft narasi dan Belum dapat diukur', () => {
-    const bdd = () => screen.getByRole<HTMLInputElement>('checkbox', { name: 'Belum dapat diukur' });
+    const bdd = () => screen.getByRole('switch', { name: 'Belum dapat diukur' });
     const komponenUji: Pengukuran = { ...measurement, sumber_nilai: 'komponen', alasan_tidak_dapat_dihitung: 'Penyebut nol',
         komponen: [{ komponen_id: 'a', kode: 'A', label: 'Komponen A', peran: 'pembilang', bobot: null, nilai: '5' }] };
 
@@ -252,9 +268,12 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         expect(value.disabled).toBe(true);
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ status_perhitungan: 'belum_dapat_diukur', nilai: null });
+        await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ status_perhitungan: 'Status perhitungan tidak valid.' }); });
+        expect(bdd().getAttribute('aria-invalid')).toBe('true');
+        expect(bdd().getAttribute('aria-describedby')).toBe('measurement-errors');
 
         rerender(<PengukuranEdit pengukuran={{ ...komponenUji, id: 'akhir', periode_jadwal: { ...measurement.periode_jadwal, is_nilai_akhir: true } }} />);
-        expect(screen.queryByRole('checkbox', { name: 'Belum dapat diukur' })).toBeNull();
+        expect(screen.queryByRole('switch', { name: 'Belum dapat diukur' })).toBeNull();
         expect(screen.getByRole('textbox', { name: /Alasan bila hasil/ })).toBeTruthy();
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ status_perhitungan: null });
@@ -300,7 +319,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         const alasan = 'Pengajuan belum tersedia untuk status Belum dapat diukur. Simpan sebagai draft.';
         render(<PengukuranEdit pengukuran={{ ...measurement, nilai: null, status_perhitungan: 'belum_dapat_diukur',
             can: { ...measurement.can, submit: false }, prasyarat: { siap: false, alasan: [alasan] } }} />);
-        expect(bdd().checked).toBe(true);
+        expect(bdd().getAttribute('aria-checked')).toBe('true');
         expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: /Nilai realisasi/ }).value).toBe('');
         expect(screen.getByText(alasan)).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Ajukan ke Tim Perencanaan' })).toBeNull();

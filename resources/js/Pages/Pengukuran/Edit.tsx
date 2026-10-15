@@ -8,6 +8,7 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
+import { Switch } from '@/Components/Switch';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
@@ -15,6 +16,7 @@ import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 import CalculationPreview from './CalculationPreview';
+import { arahLabel, tipePerhitunganLabel } from '@/lib/indikator';
 
 interface PengukuranEditProps { pengukuran: Pengukuran }
 
@@ -105,22 +107,24 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
 
     return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}>
         <Head title={`Pengisian ${indikator.kode}`} />
-        <div className="mx-auto max-w-4xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto max-w-5xl space-y-5">
+            <div>
                 <Link href="/pengukuran" className="inline-flex items-center gap-2 rounded text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary"><ArrowLeft className="h-4 w-4" />Kembali ke daftar pengukuran</Link>
-                <Badge status={pengukuran.status} />
             </div>
             {lastRejection && pengukuran.status === 'dikembalikan' && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{lastRejection.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {lastRejection.user?.nama || 'Verifikator'}</p></div>}
             {!can.update && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p>}
             {historical && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p>}
             <Card>
-                <CardHeader><CardTitle>{indikator.kode} · {indikator.nama}</CardTitle></CardHeader>
+                <CardHeader className="items-start gap-4"><CardTitle className="min-w-0 flex-1 break-words">{indikator.kode} · {indikator.nama}</CardTitle><Badge status={pengukuran.status} /></CardHeader>
                 <CardContent className="space-y-3">
                     {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
-                    <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                    <dl className="grid gap-4 text-sm sm:grid-cols-2">
                         <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
-                        <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd><dd className="text-xs text-muted">{indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd></div>
-                        <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                        <div><dt className="text-muted">PIC</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.pic?.nama ?? 'Belum ditetapkan'}</dd></div>
+                        <div><dt className="text-muted">Periode</dt><dd className="mt-1 font-medium">{`${pengukuran.periode_jadwal.nama_periode} ${pengukuran.periode_jadwal.tahun}`}</dd></div>
+                        <div><dt className="text-muted">Target</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                        <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd></div>
+                        <div><dt className="text-muted">Arah kinerja</dt><dd className="mt-1 font-medium">{arahLabel[indikator.arah]}</dd></div>
                     </dl>
                 </CardContent>
             </Card>
@@ -133,10 +137,10 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                     <CardHeader><CardTitle>Nilai pengukuran</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         {/* Pilihan dan kembali ke mode nilai sama-sama mengosongkan input dalam satu pembaruan agar angka lama tidak terkirim diam-diam. */}
-                        {!pengukuran.periode_jadwal.is_nilai_akhir && <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(event) => {
-                            const checked = event.target.checked;
-                            setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }));
-                        }} />Belum dapat diukur</label>}
+                        {!pengukuran.periode_jadwal.is_nilai_akhir && <div className="flex items-center gap-3">
+                            <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }))} />
+                            <label htmlFor="belum-dapat-diukur" className="cursor-pointer text-sm font-medium text-ink">Belum dapat diukur</label>
+                        </div>}
                         {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={valueDisabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
                             <p className="text-sm text-muted">Isi setiap komponen sesuai periode pengukuran. Pratinjau diperbarui dari hasil perhitungan server; simpan draf untuk menyimpan perubahan.</p>
                             {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={valueDisabled} helperText={`${item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
@@ -190,7 +194,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                         </div>}
                     </CardContent>
                 </Card>
-                {can.update && !historical && <div className="flex flex-wrap justify-between gap-3 border-t border-border pt-4">
+                {can.update && !historical && <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
                     <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="draft" variant="outline" isLoading={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary"><Save className="mr-2 h-4 w-4" />Simpan Draft</Button>
                     {can.submit && <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary"><Send className="mr-2 h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
                 </div>}
