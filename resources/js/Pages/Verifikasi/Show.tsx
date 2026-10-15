@@ -4,7 +4,8 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import type { Pengukuran } from '@/Pages/Pengukuran/types';
 import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
@@ -48,7 +49,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Target PK tahunan</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.target_pk == null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Target periode RA · {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Nilai pengukuran</dt><dd className="mt-1 text-xl font-semibold">{pengukuran.nilai === null ? '—' : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
-                        <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Hasil perhitungan</dt><dd className="mt-1 font-semibold">{statusPerhitungan[pengukuran.status_perhitungan]}</dd><dd className="mt-1 text-xs text-muted">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd></div>
+                        <div className="rounded-lg border border-border bg-soft p-4"><dt className="text-xs text-muted">Hasil perhitungan</dt><dd className="mt-1 font-semibold"><StatusPerhitunganBadge status={pengukuran.status_perhitungan} /></dd><dd className="mt-1 text-xs text-muted">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd></div>
                     </dl>
                     {pengukuran.komponen.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="mb-2 text-left font-medium">Komponen pengajuan</caption><thead><tr className="border-b border-border"><th scope="col" className="p-2">Komponen</th><th scope="col" className="p-2">Peran / Bobot</th><th scope="col" className="p-2 text-right">Nilai</th></tr></thead><tbody>{pengukuran.komponen.map((item) => <tr key={item.komponen_id} className="border-b border-border"><th scope="row" className="p-2 font-normal">{item.kode} · {item.label}</th><td className="p-2">{item.peran}{item.bobot === null ? '' : ` / ${item.bobot}`}</td><td className="p-2 text-right">{item.nilai === null ? 'Belum diisi' : formatNilai(item.nilai, indikator.desimal_tampilan)}</td></tr>)}</tbody></table></div>}
                 </CardContent>
