@@ -7,9 +7,11 @@ use App\Actions\Jadwal\ListJadwal;
 use App\Actions\Jadwal\ReadJadwalActivation;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Jadwal\ShowJadwalEditor;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
 use App\Http\Requests\Jadwal\StoreJadwalRequest;
+use App\Http\Requests\Jadwal\TutupJadwalRequest;
 use App\Http\Requests\Jadwal\UpdateJadwalRequest;
 use App\Models\JadwalTahunan;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +46,14 @@ class JadwalController extends Controller
     public function activate(ActivateJadwalRequest $request, string $jadwal, ActivateJadwal $action): RedirectResponse
     {
         Inertia::flash('jadwal_aktivasi', $action->handle($request->user(), $jadwal, $request->validated()));
+
+        return redirect()->route('jadwal.show', $jadwal);
+    }
+
+    public function close(TutupJadwalRequest $request, string $jadwal, TutupJadwal $action): RedirectResponse
+    {
+        $action->handle($request->user(), $jadwal, $request->validated());
+        Inertia::flash('success', 'Jadwal berhasil ditutup.');
 
         return redirect()->route('jadwal.show', $jadwal);
     }
