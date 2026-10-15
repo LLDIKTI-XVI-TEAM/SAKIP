@@ -53,6 +53,7 @@ use App\Http\Controllers\Regulasi\IndexRegulasi;
 use App\Http\Controllers\Regulasi\ShowRegulasi;
 use App\Http\Controllers\Regulasi\StoreRegulasi;
 use App\Http\Controllers\Regulasi\UpdateRegulasi;
+use App\Http\Controllers\Rekomendasi\RekomendasiController;
 use App\Http\Controllers\RencanaAksi\BukaKembaliRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DestroyBuktiRencanaAksi;
@@ -202,6 +203,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+
+    // Rekomendasi Pimpinan
+    Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');
+    Route::post('/rekomendasi', [RekomendasiController::class, 'store'])->name('rekomendasi.store');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 
