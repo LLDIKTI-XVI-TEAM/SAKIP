@@ -104,7 +104,10 @@ export interface KlaimKegiatanItem {
 export interface OpsiRencanaAksi {
     id: string;
     label: string;
+    /** Komponen yang belum diklaim untuk RA ini. */
     komponen: KegiatanOption[];
+    /** True bila klaim tanpa komponen tertentu ke RA ini belum ada. */
+    tanpa_komponen: boolean;
 }
 
 export interface KlaimKegiatanPanel {

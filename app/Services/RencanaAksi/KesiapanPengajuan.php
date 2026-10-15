@@ -5,7 +5,10 @@ namespace App\Services\RencanaAksi;
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Support\DeviasiTargetPk;
 use Illuminate\Support\Carbon;
@@ -149,6 +152,33 @@ class KesiapanPengajuan
         }
 
         return 'Rencana aksi wajib memiliki minimal satu kegiatan yang diklaim pada tahap rencana aksi.';
+    }
+
+    /**
+     * Klaim tahap RA yang tidak lagi cocok dengan konteks beku terbaru
+     * (snapshot koreksi dapat terbit setelah klaim dibuat): unit dan tahun
+     * kegiatan sama dengan header, periode termasuk periode efektif, komponen
+     * anggota snapshot. Dipakai gerbang pengajuan dan kesiapan halaman.
+     *
+     * @param  iterable<KlaimKegiatan>  $klaim
+     * @param  Collection<string, Kegiatan>  $kegiatan  Diindeks ID kegiatan.
+     * @param  Collection<int, string>  $periodeEfektif
+     * @param  list<string>  $komponenIds
+     * @return list<string>
+     */
+    public function alasanKlaim(iterable $klaim, Collection $kegiatan, RencanaAksi $header, Collection $periodeEfektif, array $komponenIds): array
+    {
+        $alasan = [];
+        foreach ($klaim as $item) {
+            $sumber = $kegiatan->get($item->kegiatan_id);
+            if ($sumber === null || (string) $sumber->unit_id !== (string) $header->unit_id || (int) $sumber->tahun !== (int) $header->tahun
+                || ! $periodeEfektif->contains((string) $sumber->periode_id)
+                || ($item->komponen_id !== null && ! in_array((string) $item->komponen_id, $komponenIds, true))) {
+                $alasan[] = 'Klaim kegiatan "'.($sumber->nama ?? $item->kegiatan_id).'" tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
+            }
+        }
+
+        return $alasan;
     }
 
     public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan): array

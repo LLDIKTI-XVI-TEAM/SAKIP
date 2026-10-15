@@ -79,11 +79,7 @@ final class PerbandinganNilaiRencanaAksi
      */
     public static function periodeBerubahVsVersiSah(string $rencanaAksiId, array $baris): array
     {
-        $versiSah = RencanaAksiVersi::where('rencana_aksi_id', $rencanaAksiId)
-            ->whereNotNull('disahkan_at')
-            ->whereNotNull('disahkan_by')
-            ->orderByDesc('nomor')
-            ->first();
+        $versiSah = self::versiSah($rencanaAksiId);
         if (! $versiSah instanceof RencanaAksiVersi) {
             return [];
         }
@@ -114,6 +110,45 @@ final class PerbandinganNilaiRencanaAksi
         }
 
         return array_values($berubah);
+    }
+
+    /**
+     * Periode yang daftar klaim tahap RA-nya berubah dibanding versi sah
+     * terakhir (Q41 §41.2: daftar kegiatan periode terkunci ikut dijaga).
+     * Klaim dibandingkan per periode melalui kegiatan, komponen, arah dampak,
+     * dan catatan. Versi sah tanpa key `klaim` (dibentuk sebelum klaim
+     * dibekukan) tidak memiliki pembanding sehingga dinilai daftar kosong.
+     *
+     * @param  list<array<string, mixed>>  $klaimKini  Bentuk beku klaim saat ini.
+     * @return list<string>
+     */
+    public static function periodeKlaimBerubahVsVersiSah(string $rencanaAksiId, array $klaimKini): array
+    {
+        $dulu = self::versiSah($rencanaAksiId)?->snapshot['klaim'] ?? null;
+        if (! is_array($dulu)) {
+            return [];
+        }
+        $peta = fn (array $rows) => collect($rows)->filter(fn ($k): bool => is_array($k))
+            ->groupBy(fn (array $k): string => (string) ($k['periode_id'] ?? ''))
+            ->map(fn ($grup) => $grup->map(fn (array $k): string => implode('|', [
+                $k['kegiatan_id'] ?? '', $k['komponen_id'] ?? '', $k['arah_dampak'] ?? '', $k['catatan'] ?? '',
+            ]))->sort()->values()->all());
+        $sah = $peta($dulu);
+        $kini = $peta($klaimKini);
+
+        return $sah->keys()->merge($kini->keys())->unique()
+            ->filter(fn (string $periodeId): bool => ($sah[$periodeId] ?? []) !== ($kini[$periodeId] ?? []))
+            ->values()->all();
+    }
+
+    /** Versi sah terakhir: nomor terbesar dengan `disahkan_at` dan `disahkan_by` terisi. */
+    private static function versiSah(string $rencanaAksiId): ?RencanaAksiVersi
+    {
+        return RencanaAksiVersi::where('rencana_aksi_id', $rencanaAksiId)
+            ->whereNotNull('disahkan_at')
+            ->whereNotNull('disahkan_by')
+            ->orderByDesc('nomor')
+            ->first();
     }
 
     /**

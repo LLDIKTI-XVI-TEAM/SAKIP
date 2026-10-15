@@ -112,6 +112,10 @@ class TambahKlaimKegiatan
         }
         $snapshot = $this->konteks->snapshotTerbaru((string) $header->jadwal_tahunan_id, (string) $header->indikator_id)
             ?? throw ValidationException::withMessages(['rencana_aksi_id' => 'Konteks indikator beku untuk rencana aksi ini tidak tersedia.']);
+        // Sama dengan halaman dan pengajuan RA: header yang unitnya tidak selaras dengan snapshot terbaru ditolak fail-closed.
+        if ((string) $snapshot->unit_id !== (string) $header->unit_id) {
+            throw ValidationException::withMessages(['rencana_aksi_id' => 'Unit pemilik rencana aksi tidak selaras dengan konteks beku terbaru.']);
+        }
         $periodeEfektif = $this->konteks->periodeEfektif($snapshot, $this->konteks->jendela((string) $header->jadwal_tahunan_id));
         if (! $periodeEfektif->contains((string) $kegiatan->periode_id)) {
             throw ValidationException::withMessages([$fieldPeriode => 'Periode kegiatan tidak termasuk periode efektif rencana aksi.']);

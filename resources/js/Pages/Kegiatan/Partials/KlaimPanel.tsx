@@ -7,7 +7,7 @@ import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
-import { ARAH_DAMPAK_OPTIONS, type ArahDampak, type KlaimKegiatanItem, type KlaimKegiatanPanel } from '@/types/kegiatan';
+import { ARAH_DAMPAK_OPTIONS, type ArahDampak, type KlaimKegiatanItem, type KlaimKegiatanPanel, type OpsiRencanaAksi } from '@/types/kegiatan';
 
 interface KlaimPanelProps {
     kegiatanId: string;
@@ -19,14 +19,19 @@ function galatBisnis(errs: Record<string, string | undefined>): string | undefin
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id ?? errs.klaim;
 }
 
+/** Pilihan komponen awal yang masih tersedia: tanpa komponen bila belum diklaim, selain itu komponen pertama. */
+function komponenAwal(opsi: OpsiRencanaAksi | undefined): string {
+    return !opsi || opsi.tanpa_komponen ? '' : (opsi.komponen[0]?.id ?? '');
+}
+
 /** Panel klaim kegiatan ke Rencana Aksi (PRD §16): hanya penjelasan dukungan, tidak mengubah nilai capaian. */
 export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<{
+    const { data, setData, post, processing, errors, clearErrors } = useForm<{
         rencana_aksi_id: string;
         komponen_id: string;
         arah_dampak: ArahDampak;
         catatan: string;
-    }>({ rencana_aksi_id: klaim.opsiRencanaAksi[0]?.id ?? '', komponen_id: '', arah_dampak: 'menambah', catatan: '' });
+    }>({ rencana_aksi_id: klaim.opsiRencanaAksi[0]?.id ?? '', komponen_id: komponenAwal(klaim.opsiRencanaAksi[0]), arah_dampak: 'menambah', catatan: '' });
     const [hapusTarget, setHapusTarget] = useState<KlaimKegiatanItem | null>(null);
     const [alasan, setAlasan] = useState('');
     const [menghapus, setMenghapus] = useState(false);
@@ -34,7 +39,11 @@ export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
     const [galatKirim, setGalatKirim] = useState('');
 
     const fieldErrors = errors as Record<string, string | undefined>;
-    const komponen = klaim.opsiRencanaAksi.find((opsi) => opsi.id === data.rencana_aksi_id)?.komponen ?? [];
+    const opsiTerpilih = klaim.opsiRencanaAksi.find((opsi) => opsi.id === data.rencana_aksi_id);
+    const opsiKomponen = [
+        ...(opsiTerpilih?.tanpa_komponen ? [{ value: '', label: 'Tanpa komponen tertentu' }] : []),
+        ...(opsiTerpilih?.komponen ?? []).map((k) => ({ value: k.id, label: k.nama })),
+    ];
 
     const kirim = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
@@ -42,8 +51,10 @@ export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
         setGalatKirim('');
         post(`/kegiatan/${kegiatanId}/klaim`, {
             preserveScroll: true,
-            onSuccess: () => {
-                reset('komponen_id', 'catatan');
+            onSuccess: (page) => {
+                // Opsi server berubah setelah klaim tersimpan; default dipilih dari kombinasi yang masih tersedia.
+                const opsi = (page.props.klaim as KlaimKegiatanPanel | null | undefined)?.opsiRencanaAksi ?? [];
+                setData({ rencana_aksi_id: opsi[0]?.id ?? '', komponen_id: komponenAwal(opsi[0]), arah_dampak: 'menambah', catatan: '' });
                 clearErrors();
             },
             onHttpException: (response) => {
@@ -128,11 +139,11 @@ export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2">
                                 <Select id="klaim-rencana-aksi" label="Rencana aksi" required hoverScroll value={data.rencana_aksi_id}
-                                    onChange={(e) => setData({ ...data, rencana_aksi_id: e.target.value, komponen_id: '' })}
+                                    onChange={(e) => setData({ ...data, rencana_aksi_id: e.target.value, komponen_id: komponenAwal(klaim.opsiRencanaAksi.find((opsi) => opsi.id === e.target.value)) })}
                                     error={fieldErrors.rencana_aksi_id} options={klaim.opsiRencanaAksi.map((opsi) => ({ value: opsi.id, label: opsi.label }))} />
                             </div>
                             <Select id="klaim-komponen" label="Komponen (opsional)" value={data.komponen_id} onChange={(e) => setData('komponen_id', e.target.value)}
-                                error={fieldErrors.komponen_id} options={[{ value: '', label: 'Tanpa komponen tertentu' }, ...komponen.map((k) => ({ value: k.id, label: k.nama }))]} />
+                                error={fieldErrors.komponen_id} options={opsiKomponen} />
                             <Select id="klaim-arah" label="Arah dampak" required value={data.arah_dampak} onChange={(e) => setData('arah_dampak', e.target.value as ArahDampak)}
                                 error={fieldErrors.arah_dampak} options={ARAH_DAMPAK_OPTIONS} />
                             <div className="sm:col-span-2">

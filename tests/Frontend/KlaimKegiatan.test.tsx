@@ -31,7 +31,7 @@ afterEach(() => {
 const panel: KlaimKegiatanPanel = {
     daftar: [{ id: 'k1', rencana_aksi_id: 'ra-1', rencana_aksi: 'IKU-1 — Indikator Satu', status_alur: 'draft', komponen_id: null, komponen: null,
         arah_dampak: 'menambah', catatan: null, can: { hapus: true } }],
-    opsiRencanaAksi: [{ id: 'ra-1', label: 'IKU-1 — Indikator Satu', komponen: [{ id: 'komp-1', nama: 'P — Pembilang' }] }],
+    opsiRencanaAksi: [{ id: 'ra-1', label: 'IKU-1 — Indikator Satu', komponen: [{ id: 'komp-1', nama: 'P — Pembilang' }], tanpa_komponen: true }],
     can: { tambah: true },
 };
 

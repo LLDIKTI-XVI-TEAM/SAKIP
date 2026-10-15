@@ -100,6 +100,9 @@ class KlaimKegiatanTest extends TestCase
         $this->assertDatabaseCount('klaim_kegiatan', 1);
         $this->assertSame(3, AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->count());
         $this->assertSame(3, AuditLog::where('tindakan', 'klaim_kegiatan.hapus_ditolak')->count());
+        // Audit menyimpan pesan domain dari ValidationException, bukan pesan generik.
+        $this->assertSame('Daftar kegiatan hanya dapat diubah pada rencana aksi berstatus draf atau dikembalikan.',
+            AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->first()->alasan);
     }
 
     public function test_tanpa_izin_kegiatan_atau_terkena_deny_ditolak_403_dan_diaudit(): void
@@ -234,6 +237,23 @@ class KlaimKegiatanTest extends TestCase
             $this->assertSame($pic->id, $audit->actor_id);
             $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
         }
+    }
+
+    public function test_opsi_klaim_hanya_kombinasi_yang_tersedia_dan_label_dari_snapshot(): void
+    {
+        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        // Master berubah setelah aktivasi; label klaim tetap dari snapshot beku RA.
+        $this->komponen->update(['label' => 'Label master baru']);
+        $this->get($edit)->assertInertia(fn ($page) => $page
+            ->where('klaim.opsiRencanaAksi.0.tanpa_komponen', false)
+            ->where('klaim.opsiRencanaAksi.0.komponen.0.nama', 'PEMBILANG — pembilang'));
+
+        $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
+        $this->get($edit)->assertInertia(fn ($page) => $page
+            ->has('klaim.opsiRencanaAksi', 0)
+            ->where('klaim.can.tambah', false)
+            ->where('klaim.daftar.1.komponen', 'PEMBILANG — pembilang'));
     }
 
     private function url(?Kegiatan $kegiatan = null): string

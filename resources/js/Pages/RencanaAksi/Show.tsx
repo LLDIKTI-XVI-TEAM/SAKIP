@@ -515,7 +515,10 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         rencanaAksiId={rencanaAksi.id}
                         periode={rencanaAksi.periode.filter((item) => item.efektif)}
                         komponen={rencanaAksi.komponen}
-                        terkunci={rencanaAksi.periode_terkunci ?? []}
+                        // Selaras matriks target: dalam sesi koreksi hanya periode lingkup koreksi yang dapat diubah.
+                        terkunci={rencanaAksi.periode
+                            .filter((item) => item.efektif && ((rencanaAksi.periode_terkunci ?? []).includes(item.id) || !dapatDisuntingPeriode(rencanaAksi.koreksi, item.id)))
+                            .map((item) => item.id)}
                         kegiatan={kegiatan}
                     />
                 )}

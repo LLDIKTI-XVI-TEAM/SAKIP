@@ -2,7 +2,6 @@
 
 namespace App\Actions\Kegiatan;
 
-use App\Models\IndikatorKomponen;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
@@ -55,8 +54,19 @@ class DaftarKlaimKegiatan
             ->orWhere(fn ($query) => $query->where('unit_id', $unitId)->where('tahun', $kegiatan->tahun)->whereIn('status_alur', RencanaAksi::STATUS_DAPAT_DISUNTING))
             ->orderBy('id')->get()->keyBy('id');
 
-        $komponen = IndikatorKomponen::whereIn('id', $klaim->pluck('komponen_id')->filter())->get(['id', 'kode', 'label'])
-            ->mapWithKeys(fn (IndikatorKomponen $row): array => [(string) $row->id => "{$row->kode} — {$row->label}"]);
+        // Label komponen dari snapshot beku RA yang sama dengan validasi dan pengajuan, bukan master berjalan.
+        $komponenRa = [];
+        $komponenUntuk = function (RencanaAksi $header) use (&$komponenRa): array {
+            if (! array_key_exists($header->id, $komponenRa)) {
+                $snapshot = $this->konteks->snapshotTerbaru((string) $header->jadwal_tahunan_id, (string) $header->indikator_id);
+                $komponenRa[$header->id] = $snapshot === null ? [] : $this->konteks->komponen($snapshot)
+                    ->mapWithKeys(fn (array $row): array => [$row['komponen_id'] => "{$row['kode']} — {$row['label']}"])->all();
+            }
+
+            return $komponenRa[$header->id];
+        };
+        // Kombinasi RA/komponen yang sudah diklaim tidak ditawarkan lagi; '' mewakili klaim tanpa komponen.
+        $terpakai = $klaim->groupBy('rencana_aksi_id')->map(fn ($grup) => $grup->map(fn (KlaimKegiatan $k): string => (string) $k->komponen_id)->all());
         $opsi = [];
         foreach ($headers as $header) {
             if ($header->unit_id !== $kegiatan->unit_id || ! $bolehUntuk($header)) {
@@ -67,17 +77,18 @@ class DaftarKlaimKegiatan
             } catch (ValidationException) {
                 continue;
             }
-            $snapshot = $this->konteks->snapshotTerbaru((string) $header->jadwal_tahunan_id, (string) $header->indikator_id);
-            $opsi[] = [
-                'id' => (string) $header->id,
-                'label' => $this->label($header),
-                'komponen' => $snapshot === null ? [] : $this->konteks->komponen($snapshot)
-                    ->map(fn (array $row): array => ['id' => $row['komponen_id'], 'nama' => "{$row['kode']} — {$row['label']}"])->values()->all(),
-            ];
+            $sudah = $terpakai->get($header->id, []);
+            $komponen = collect($komponenUntuk($header))->reject(fn (string $nama, string $id): bool => in_array($id, $sudah, true))
+                ->map(fn (string $nama, string $id): array => ['id' => $id, 'nama' => $nama])->values()->all();
+            $tanpaKomponen = ! in_array('', $sudah, true);
+            if ($komponen === [] && ! $tanpaKomponen) {
+                continue;
+            }
+            $opsi[] = ['id' => (string) $header->id, 'label' => $this->label($header), 'komponen' => $komponen, 'tanpa_komponen' => $tanpaKomponen];
         }
 
         return [
-            'daftar' => $klaim->map(function (KlaimKegiatan $item) use ($headers, $komponen, $actor, $perencanaan, $bolehUntuk): array {
+            'daftar' => $klaim->map(function (KlaimKegiatan $item) use ($headers, $komponenUntuk, $actor, $perencanaan, $bolehUntuk): array {
                 $header = $headers->get($item->rencana_aksi_id);
 
                 return [
@@ -86,7 +97,7 @@ class DaftarKlaimKegiatan
                     'rencana_aksi' => $header === null ? null : $this->label($header),
                     'status_alur' => $header?->status_alur,
                     'komponen_id' => $item->komponen_id,
-                    'komponen' => $item->komponen_id === null ? null : $komponen->get((string) $item->komponen_id),
+                    'komponen' => $item->komponen_id === null || $header === null ? null : ($komponenUntuk($header)[(string) $item->komponen_id] ?? null),
                     'arah_dampak' => $item->arah_dampak,
                     'catatan' => $item->catatan,
                     'can' => ['hapus' => $header !== null && ((string) $item->created_by === (string) $actor->id || $perencanaan) && $bolehUntuk($header)],

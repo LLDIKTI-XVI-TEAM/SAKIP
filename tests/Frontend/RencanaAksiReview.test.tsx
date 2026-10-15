@@ -43,6 +43,7 @@ const rencanaAksi: ReviewRencanaAksi = {
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
+    klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku' }],
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
     can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
     dibuka_kembali: false,
@@ -70,6 +71,8 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('10,25 %')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Lihat versi' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review?versi=versi-1');
         expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe(rencanaAksi.bukti_dukungs[0].download_url);
+        expect(screen.getByText('Bimtek beku')).toBeTruthy();
+        expect(screen.getByText('Catatan beku')).toBeTruthy();
         expect(screen.queryByRole('textbox')).toBeNull();
     });
     it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {

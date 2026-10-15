@@ -39,6 +39,15 @@ class BacaReviewRencanaAksi
             $bukti = $this->baris($beku['bukti_dukungs'] ?? []);
             $buktiIds = array_values(array_filter(array_column($bukti, 'id'), fn ($id): bool => is_string($id) && Str::isUuid($id)));
             $buktiBerlaku = $buktiBoleh ? $header->buktiDukungs()->current()->whereIn('id', $buktiIds)->where('mode', 'file')->pluck('id')->all() : [];
+            // Label komponen dan nama periode klaim diambil dari versi yang sama, bukan master berjalan.
+            $targetBeku = $this->baris($beku['target_periode'] ?? []);
+            $namaPeriode = array_column($targetBeku, 'periode_nama', 'periode_id');
+            $labelKomponen = [];
+            foreach ($targetBeku as $baris) {
+                foreach ($this->baris($baris['komponen'] ?? []) as $k) {
+                    $labelKomponen[(string) ($k['komponen_id'] ?? '')] = ($k['kode'] ?? '—').' — '.($k['label'] ?? '');
+                }
+            }
             $histori = $header->versions()->select(['id', 'rencana_aksi_id', 'nomor', 'diajukan_at', 'jalur_pengajuan'])
                 ->reorder('nomor', 'desc')->paginate(20, page: $query['page'] ?? 1)->withQueryString();
             // Penanda "pernah dibuka kembali" dari audit append-only; versi
@@ -65,6 +74,14 @@ class BacaReviewRencanaAksi
                         'label' => $k['label'] ?? 'Konteks versi belum lengkap', 'nilai' => $this->nilai($k['nilai'] ?? null),
                         'keterangan' => is_string($k['keterangan'] ?? null) ? $k['keterangan'] : null], $this->baris($baris['komponen'] ?? [])),
                 ], $this->baris($beku['target_periode'] ?? [])),
+                // Klaim tahap RA yang dibekukan saat pengajuan (Data Model §2.34); null untuk versi sebelum klaim dibekukan.
+                'klaim' => is_array($beku['klaim'] ?? null) ? array_map(fn (array $k): array => [
+                    'id' => $k['id'] ?? '', 'periode_nama' => $namaPeriode[$k['periode_id'] ?? ''] ?? 'Periode tidak tersedia',
+                    'nama' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['nama'] ?? 'Konteks versi belum lengkap') : 'Konteks versi belum lengkap',
+                    'status' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['status'] ?? null) : null,
+                    'komponen' => isset($k['komponen_id']) ? ($labelKomponen[(string) $k['komponen_id']] ?? 'Komponen tidak tersedia') : null,
+                    'arah_dampak' => $k['arah_dampak'] ?? null, 'catatan' => is_string($k['catatan'] ?? null) ? $k['catatan'] : null,
+                ], $this->baris($beku['klaim'])) : null,
                 'bukti_dukungs' => $buktiBoleh ? array_map(fn (array $b): array => [
                     'id' => $b['id'] ?? '', 'mode' => $b['mode'] ?? '', 'nama_asli' => $b['nama_asli'] ?? null,
                     'tautan' => $b['tautan'] ?? null, 'isi_teks' => $b['isi_teks'] ?? null,

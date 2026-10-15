@@ -42,6 +42,16 @@ export interface ReviewRencanaAksi {
         keterangan: string | null;
         komponen: { komponen_id: string; kode: string; label: string; nilai: string | null; keterangan: string | null }[];
     }[];
+    /** Klaim tahap RA yang dibekukan pada versi; null untuk versi sebelum klaim dibekukan. */
+    klaim: {
+        id: string;
+        periode_nama: string;
+        nama: string;
+        status: string | null;
+        komponen: string | null;
+        arah_dampak: 'menambah' | 'mengurangi' | null;
+        catatan: string | null;
+    }[] | null;
     bukti_dukungs: {
         id: string;
         mode: 'file' | 'tautan' | 'teks';

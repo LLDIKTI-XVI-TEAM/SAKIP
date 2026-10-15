@@ -179,21 +179,22 @@ class AjukanRencanaAksi
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
-                $komponenIds = $definisi->pluck('komponen_id')->all();
-                foreach ($klaim as $item) {
-                    $sumber = $kegiatan->get($item->kegiatan_id);
-                    if ($sumber === null || (string) $sumber->unit_id !== (string) $header->unit_id || (int) $sumber->tahun !== (int) $header->tahun
-                        || ! $periodeEfektif->contains((string) $sumber->periode_id)
-                        || ($item->komponen_id !== null && ! in_array((string) $item->komponen_id, $komponenIds, true))) {
-                        $alasan[] = 'Klaim kegiatan "'.($sumber->nama ?? $item->kegiatan_id).'" tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
-                    }
-                }
+                $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all())];
                 $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
                 }
                 if ($alasan !== []) {
                     throw ValidationException::withMessages(['pengajuan' => $alasan]);
+                }
+                $klaimBeku = $this->klaimBeku($klaim, $kegiatan);
+                // Q41 §41.2: daftar kegiatan periode terkunci tidak boleh berubah lewat pengajuan PIC, dinilai seperti target terhadap versi sah.
+                $berubahKlaim = PerbandinganNilaiRencanaAksi::periodeKlaimBerubahVsVersiSah($header->id, $klaimBeku);
+                if ($berubahKlaim !== []) {
+                    $penilaianKlaim = $this->jendela->penilaian($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $berubahKlaim, $penugasan?->user_id, pada: $waktuAjukan);
+                    if ($penilaianKlaim['pesan'] !== null) {
+                        throw ValidationException::withMessages(['jendela' => $penilaianKlaim['pesan']]);
+                    }
                 }
 
                 $sebelum = $header->only(['status_alur', 'versi', 'snapshot_draf_id']);
@@ -219,7 +220,7 @@ class AjukanRencanaAksi
                         'alasan_deviasi_pk' => $header->alasan_deviasi_pk,
                         'deviasi_pk' => $deviasi,
                         'target_periode' => $baris,
-                        'klaim' => $this->klaimBeku($klaim, $kegiatan),
+                        'klaim' => $klaimBeku,
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([
