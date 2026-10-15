@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
+import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
 import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { statusJadwal } from '@/lib/jadwal';
@@ -377,6 +378,11 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                         dirtyCalendar={form.isDirty}
                         periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
                     />
+                </div>
+            )}
+            {jadwal && can.close && (
+                <div className="mt-5">
+                    <PenutupanPanel jadwalId={jadwal.id} tahun={jadwal.tahun} revisi={jadwal.revisi} />
                 </div>
             )}
         </AuthenticatedLayout>
