@@ -947,10 +947,10 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
        sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6)
      → Realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola (Q42 §42.2
        butir 3)
-  9. Anggaran per kegiatan dan berkas RAB mengikuti akses detail kegiatan — dibatasi unit (Q12)
-     karena nama kegiatan dapat memuat nama orang atau kasus (Q49 §49.3); Perencanaan dan
-     Pimpinan dapat melihat seluruhnya; total anggaran per IKU di dashboard mengikuti akses
-     dashboard
+  9. Anggaran per kegiatan dan berkas RAB mengikuti akses detail kegiatan — dibatasi unit
+     berizin (Q12, Q54) karena nama kegiatan dapat memuat nama orang atau kasus (Q49 §49.3);
+     Perencanaan dan Pimpinan dapat melihat seluruhnya; total anggaran per IKU di dashboard
+     mengikuti akses dashboard
 ```
 
 ```mermaid
