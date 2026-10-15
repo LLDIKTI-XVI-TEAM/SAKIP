@@ -3458,11 +3458,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
-- [ ] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
-- [ ] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
-- [ ] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
-- [ ] **AC-5:** Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+- [x] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
+- [x] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
+- [x] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
+- [x] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
+- [x] **AC-5:** Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
 - [ ] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Implementation Tasks
@@ -3486,11 +3486,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Definition of Done
