@@ -188,7 +188,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                 <CardHeader className="px-4 py-4">
                     <div className="min-w-0">
                         <h2 ref={title} tabIndex={-1} className="text-base font-semibold tracking-tight text-ink focus:outline-none">Peran utama pengguna</h2>
-                        <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki satu peran utama. Perubahan peran wajib disertai alasan dan tercatat di jejak audit.</p>
+                        <p className="mt-0.5 text-xs text-muted">Setiap pengguna memiliki paling banyak satu peran utama. Perubahan peran wajib disertai alasan dan tercatat di jejak audit.</p>
                     </div>
                 </CardHeader>
                 {/* Grid mobile: setiap pengguna tampil sebagai kartu ringkas tanpa scroll horizontal. */}

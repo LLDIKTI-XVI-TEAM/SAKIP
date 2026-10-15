@@ -147,6 +147,7 @@ it('menahan submit/dismiss saat pending dan menawarkan muat ulang setelah hasil 
 it('menyajikan daftar sebagai tabel di bawah heading bagian H2 dengan badge peran dan status akun', () => {
     page();
     expect(screen.getByRole('heading', { level: 2, name: 'Peran utama pengguna' })).toBeTruthy();
+    expect(screen.getByText('Setiap pengguna memiliki paling banyak satu peran utama. Perubahan peran wajib disertai alasan dan tercatat di jejak audit.')).toBeTruthy();
     const table = screen.getByRole('table', { name: 'Daftar pengguna dan peran utama' });
     expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Pengguna', 'Peran', 'Status akun', 'Aksi']);
     const [ayu, budi] = within(table).getAllByRole('row').slice(1);
