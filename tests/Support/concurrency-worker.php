@@ -128,7 +128,7 @@ try {
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
             'pj-assign', 'pj-change' => $assignment['expected_error_field'] ?? 'expected_state',
-            'assign-role' => 'expected_assignment',
+            'assign-role' => $assignment['expected_error_field'] ?? 'expected_assignment',
             'change-status' => $assignment['expected_error_field'] ?? 'expected_status',
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',

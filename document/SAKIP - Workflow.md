@@ -2088,6 +2088,7 @@ Tanpa role = nol permission. Sejak Q38 tidak ada langkah aktivasi; login ulang t
 - alasan wajib (Q43 §43.2 butir 4);
 - tidak mengubah grant, deny, atau assignment PJ;
 - menonaktifkan dan mengaktifkan kembali akun lain dilakukan dari halaman yang sama dengan alasan wajib dan audit; peran dan grant disimpan sehingga pengaktifan kembali memulihkan akses yang sama; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; bila pengguna masih menjadi PJ aktif, UI menampilkan peringatan tanpa memblokir (Q38 §38.2).
+- penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; superadmin `nonaktif` tidak dihitung (Q53).
 
 ### 21.3 Grant Unit
 
