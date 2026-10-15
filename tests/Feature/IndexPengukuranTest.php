@@ -70,7 +70,7 @@ class IndexPengukuranTest extends TestCase
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
             ->where('konteks', [['jadwal_id' => $this->jadwal->id, 'tahun' => 2026, 'periode' => null]])->has('pengukurans', 0)->where('pagination.total', 0));
 
-        $this->jadwal->update(['status' => 'ditutup']);
+        $this->jadwal->update(['status' => 'draft']);
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page->where('konteks', [])->has('pengukurans', 0));
     }
 
@@ -136,10 +136,57 @@ class IndexPengukuranTest extends TestCase
         $this->daftar($planner, ['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw1])->assertOk();
         $this->travelTo(now()->setDate(2027, 1, 1));
         $this->daftar($planner, ['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw1])->assertSessionHasErrors('jadwal_id');
+    }
 
-        $this->travelTo(now()->setDate(2026, 3, 15));
-        $this->jadwal->update(['status' => 'ditutup']);
-        $this->daftar($planner, ['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw1])->assertSessionHasErrors('jadwal_id');
+    public function test_tahun_ditutup_tampil_baca_saja_setelah_jadwal_aktif_dan_deny_unit_tetap_menyaring(): void
+    {
+        [$absen] = $this->indikator('I-UJI-2', $this->pengukuran->periode, $this->unit);
+        $unitB = Unit::create(['nama' => 'Unit B', 'created_by' => $this->actor->id]);
+        $next = JadwalTahunan::create([...$this->jadwal->only(['renstra_id', 'renstra_pk_id']), 'tahun' => 2027, 'penutupan' => '2027-12-31', 'status' => 'aktif']);
+        PeriodeJadwal::create(['jadwal_id' => $next->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-10', 'pengisian_selesai' => '2026-03-20', 'reviu_mulai' => '2026-03-20', 'reviu_selesai' => '2026-04-20']);
+        JadwalSnapshot::create([...$this->context->only(['indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), 'jadwal_id' => $next->id, 'unit_id' => $unitB->id]);
+        // Kontrol positif: sebelum penutupan, baris tanpa header 2026 menawarkan pembentukan draf.
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukurans.1.indikator_id', $absen->id)->where('pengukurans.1.can.create', true)->where('pengukurans.2.jadwal_id', $next->id));
+
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('konteks.0.jadwal_id', $next->id)->where('konteks.1.jadwal_id', $this->jadwal->id)->where('pagination.total', 3)
+            ->where('pengukurans.0.jadwal_id', $next->id)
+            ->where('pengukurans.1.pengukuran.id', $this->pengukuran->id)->where('pengukurans.1.can.create', false)
+            ->where('pengukurans.2.indikator_id', $absen->id)->where('pengukurans.2.jenis', 'absent')->where('pengukurans.2.can.create', false));
+
+        $this->deny($this->actor, 'pengukuran:read', $this->unit->id);
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page->where('pagination.total', 1)->where('pengukurans.0.jadwal_id', $next->id));
+    }
+
+    public function test_filter_perencanaan_membaca_tahun_ditutup_tanpa_pembentukan(): void
+    {
+        $planner = $this->userWithRole('perencanaan');
+        $query = ['jadwal_id' => $this->jadwal->id, 'periode_id' => $this->pengukuran->periode_id];
+        $this->pengukuran->delete();
+        // Kontrol positif: sebelum penutupan, filter yang sama menawarkan pembentukan draf.
+        $this->daftar($planner, $query)->assertOk()->assertInertia(fn ($page) => $page->where('pengukurans.0.can.create', true));
+
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
+        $this->travelTo(now()->setDate(2027, 2, 1));
+        $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page->where('pilihan_jadwal.0.id', $this->jadwal->id));
+        $this->daftar($planner, $query)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('filters.jadwal_id', $this->jadwal->id)->has('pengukurans', 1)->where('pengukurans.0.jenis', 'absent')->where('pengukurans.0.can.create', false));
+    }
+
+    public function test_tahun_ditutup_tidak_menambah_query_per_baris(): void
+    {
+        $this->indikator('I-TUTUP-00', $this->pengukuran->periode, $this->unit);
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
+        [$single, $grants] = $this->hitungQuery($this->actor);
+        foreach (range(1, 18) as $i) {
+            $this->indikator('I-TUTUP-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT), $this->pengukuran->periode, $this->unit);
+        }
+
+        $this->assertSame([$single, $grants], $this->hitungQuery($this->actor));
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('pengukurans', 20)->where('pengukurans.0.can.create', false)->where('pengukurans.19.pengukuran.id', $this->pengukuran->id));
     }
 
     public function test_kapabilitas_filter_tidak_bergantung_header_dan_deny_unit_tetap_pada_baris(): void
