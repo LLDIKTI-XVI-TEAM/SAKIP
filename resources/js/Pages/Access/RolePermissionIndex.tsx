@@ -26,6 +26,7 @@ export default function RolePermissionIndex({
     const [retry, setRetry] = useState(0);
     const [searchFailed, setSearchFailed] = useState(false);
     const pending = useRef(false);
+    const leavingPage = useRef(false);
     const skipped = useRef(false);
 
     const navigationEvents = useMemo(() => ({
@@ -43,6 +44,24 @@ export default function RolePermissionIndex({
             }
         },
     }), []);
+
+    useEffect(() => {
+        // Navigasi ke halaman lain (sidebar, breadcrumb) tidak lewat callback di atas; hanya pencarian otomatis yang ditahan agar tidak membatalkannya.
+        const leaving = (visit: { url: URL; prefetch: boolean }) => !visit.prefetch && visit.url.pathname !== "/akses/izin-peran";
+        const offStart = router.on("start", (event) => {
+            if (leaving(event.detail.visit)) leavingPage.current = true;
+        });
+        const offFinish = router.on("finish", (event) => {
+            if (!leaving(event.detail.visit)) return;
+            leavingPage.current = false;
+            navigationEvents.onFinish(event.detail.visit);
+        });
+        return () => {
+            offStart();
+            offFinish();
+        };
+    }, [navigationEvents]);
+
     const navigate = (next: Partial<typeof filters>) => {
         if (pending.current) return;
         router.get(
@@ -60,7 +79,7 @@ export default function RolePermissionIndex({
         if (!filters.role || searchQuery === filters.q) return;
         const timer = window.setTimeout(() => {
             // Kunjungan baru membatalkan yang sedang berjalan; pencarian ditunda sampai kunjungan itu selesai.
-            if (pending.current) {
+            if (pending.current || leavingPage.current) {
                 skipped.current = true;
                 return;
             }

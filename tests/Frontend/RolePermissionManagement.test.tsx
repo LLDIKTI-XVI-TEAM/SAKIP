@@ -200,6 +200,61 @@ it("memberi tahu dan menawarkan coba lagi bila pencarian otomatis gagal, tanpa m
     expect(screen.queryByRole("alert")).toBeNull();
 });
 
+const leaving = (visit: Record<string, unknown>) => ({ url: new URL("http://localhost/dashboard"), method: "get", prefetch: false, ...visit });
+const dispatchVisit = (name: "start" | "finish", visit: Record<string, unknown>) =>
+    act(() => { document.dispatchEvent(new CustomEvent(`inertia:${name}`, { detail: { visit } })); });
+
+it("menahan pencarian tertunda selama navigasi ke halaman lain dan mengirimnya sekali bila navigasi gagal", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    // Klik sidebar sebelum debounce selesai: kunjungan global yang tidak lewat callback halaman ini.
+    dispatchVisit("start", leaving({}));
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(get).not.toHaveBeenCalled();
+    dispatchVisit("finish", leaving({ cancelled: false, interrupted: false }));
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: role.id, q: "da" }]]);
+});
+
+it.each([{ interrupted: true }, { cancelled: true }])(
+    "tidak mengirim pencarian tertunda bila navigasi ke halaman lain dibatalkan (%o)",
+    (flags) => {
+        vi.useFakeTimers();
+        const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+        render(<RolePermissionIndex {...props} />);
+        fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+        dispatchVisit("start", leaving({}));
+        act(() => { vi.advanceTimersByTime(350); });
+        dispatchVisit("finish", leaving({ cancelled: false, interrupted: false, ...flags }));
+        act(() => { vi.advanceTimersByTime(5000); });
+        expect(get).not.toHaveBeenCalled();
+    },
+);
+
+it("tetap mengirim pilihan peran yang dipilih pengguna selama navigasi ke halaman lain", () => {
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const other = { ...role, id: "33333333-3333-4333-8333-333333333333", kode: "admin", nama: "Admin" };
+    render(<RolePermissionIndex {...props} roles={[role, other]} />);
+    dispatchVisit("start", leaving({}));
+    fireEvent.change(screen.getByRole("combobox", { name: "Peran" }), { target: { value: other.id } });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([["/akses/izin-peran", { role: other.id, q: "" }]]);
+});
+
+it.each([
+    ["prefetch tautan", leaving({ prefetch: true })],
+    ["kunjungan ke halaman ini sendiri", leaving({ url: new URL("http://localhost/akses/izin-peran?role=x") })],
+])("tidak menahan pencarian untuk %s", (_label, visit) => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    dispatchVisit("start", visit);
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get).toHaveBeenCalledTimes(1);
+});
+
 it("menyediakan tombol ke halaman pertama hanya untuk halaman izin di luar jangkauan", async () => {
     const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
     const empty = { links: [], from: null, to: null, total: 0 };
