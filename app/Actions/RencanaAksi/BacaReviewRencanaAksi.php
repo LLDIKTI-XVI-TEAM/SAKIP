@@ -29,6 +29,7 @@ class BacaReviewRencanaAksi
             $versi = isset($query['versi']) ? $header->versions()->whereKey($query['versi'])->firstOrFail() : $terbaru;
             abort_unless($versi, 404, 'Belum ada versi pengajuan untuk direview.');
             $versi->load('jadwalSnapshot');
+            Gate::forUser($actor)->authorize('viewVersi', [$header, $versi]);
             $policy = app(RencanaAksiPolicy::class);
             $errors = $policy->businessErrors($actor, $header, $versi);
             if ($versi->id !== $terbaru?->id) {

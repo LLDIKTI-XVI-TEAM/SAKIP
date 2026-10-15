@@ -45,16 +45,18 @@ class RencanaAksiPolicy
      */
     public function view(User $user, RencanaAksi $header): bool
     {
-        $snapshotUnit = $this->snapshotUnit($header);
-        if ($snapshotUnit !== null && $snapshotUnit !== (string) $header->unit_id) {
-            Log::warning('rencana_aksi.unit_snapshot_tidak_konsisten', [
-                'rencana_aksi_id' => $header->id, 'unit_id' => $header->unit_id, 'snapshot_unit_id' => $snapshotUnit,
-            ]);
-
+        $terbaru = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
+        if (! $this->unitSnapshotSelaras($header, $terbaru instanceof RencanaAksiVersi ? $terbaru : null)) {
             return false;
         }
 
         return $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ, (string) $header->unit_id);
+    }
+
+    /** Versi yang dipilih juga dicek agar data beku unit lain tidak terbaca lewat versi historis (`?versi=`, unduhan bukti). */
+    public function viewVersi(User $user, RencanaAksi $header, RencanaAksiVersi $versi): bool
+    {
+        return $this->unitSnapshotSelaras($header, $versi) && $this->view($user, $header);
     }
 
     /**
@@ -103,19 +105,18 @@ class RencanaAksiPolicy
             || $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_CREATE, $unitId);
     }
 
-    /**
-     * Unit snapshot versi pengajuan terbaru; null bila belum ada versi.
-     * Relasi versi dimuat lazy bila belum tersedia.
-     */
-    private function snapshotUnit(RencanaAksi $header): ?string
+    /** Tanpa versi atau tanpa unit snapshot dianggap selaras; anomali dicatat. */
+    private function unitSnapshotSelaras(RencanaAksi $header, ?RencanaAksiVersi $versi): bool
     {
-        $version = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
-        if (! $version instanceof RencanaAksiVersi) {
-            return null;
+        $snapshotUnit = $versi?->jadwalSnapshot?->unit_id;
+        if ($snapshotUnit === null || (string) $snapshotUnit === (string) $header->unit_id) {
+            return true;
         }
-        $snapshot = $version->jadwalSnapshot;
+        Log::warning('rencana_aksi.unit_snapshot_tidak_konsisten', [
+            'rencana_aksi_id' => $header->id, 'rencana_aksi_versi_id' => $versi->id, 'unit_id' => $header->unit_id, 'snapshot_unit_id' => (string) $snapshotUnit,
+        ]);
 
-        return $snapshot?->unit_id !== null ? (string) $snapshot->unit_id : null;
+        return false;
     }
 
     private function response(PermissionDecision $decision, string $pesan): Response
