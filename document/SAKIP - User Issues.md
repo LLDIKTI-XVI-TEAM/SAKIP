@@ -2647,7 +2647,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Definition of Done
 
-- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.

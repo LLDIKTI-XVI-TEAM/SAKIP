@@ -92,6 +92,7 @@ use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use App\Http\Controllers\Verifikasi\VerifyPengukuran;
 use App\Http\Middleware\EnsureKegiatanActorIsActive;
+use App\Http\Middleware\EnsureKlaimKegiatanActorIsActive;
 use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -119,6 +120,14 @@ Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(fu
 Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function () {
     Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
+});
+
+// Daftar kegiatan tahap RA: akun nonaktif dicatat sebagai percobaan klaim yang ditolak.
+Route::middleware(['auth', EnsureKlaimKegiatanActorIsActive::class])->group(function () {
+    Route::post('/kegiatan/{kegiatan}/klaim', [KlaimKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.klaim.store');
+    Route::delete('/kegiatan/{kegiatan}/klaim/{klaim}', [KlaimKegiatanController::class, 'destroy'])->whereUuid('kegiatan')->whereUuid('klaim')->name('kegiatan.klaim.destroy');
+    Route::post('/rencana-aksi/{rencanaAksi}/kegiatan', StoreKegiatanRencanaAksi::class)->whereUuid('rencanaAksi')
+        ->middleware('throttle:30,1,rencana-aksi-tulis')->name('rencana-aksi.kegiatan.store');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {
@@ -189,8 +198,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
     Route::get('/kegiatan/buat', [KegiatanController::class, 'create'])->name('kegiatan.create');
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
-    Route::post('/kegiatan/{kegiatan}/klaim', [KlaimKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.klaim.store');
-    Route::delete('/kegiatan/{kegiatan}/klaim/{klaim}', [KlaimKegiatanController::class, 'destroy'])->whereUuid('kegiatan')->whereUuid('klaim')->name('kegiatan.klaim.destroy');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
@@ -275,7 +282,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
         Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');
         Route::delete('/rencana-aksi/{rencanaAksi}/bukti/{bukti}', DestroyBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
-        Route::post('/rencana-aksi/{rencanaAksi}/kegiatan', StoreKegiatanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kegiatan.store');
         Route::post('/rencana-aksi/{rencanaAksi}/sahkan', SahkanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.sahkan');
         Route::post('/rencana-aksi/{rencanaAksi}/buka-kembali', BukaKembaliRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.buka-kembali');
         Route::post('/rencana-aksi/{rencanaAksi}/ajukan', SubmitRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.ajukan');

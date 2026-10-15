@@ -213,6 +213,29 @@ class KlaimKegiatanTest extends TestCase
         $this->get('/kegiatan/'.$this->kegiatan->id.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
     }
 
+    public function test_akun_nonaktif_ditolak_tanpa_mutasi_dan_percobaannya_diaudit(): void
+    {
+        $pic = $this->picKegiatan();
+        $this->grantUnitPermission($pic, 'kegiatan:create');
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $klaim = KlaimKegiatan::sole();
+        $pic->update(['status' => 'nonaktif']);
+
+        $this->actingAs($pic)->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertRedirect();
+        $this->delete($this->url().'/'.$klaim->id, ['alasan' => 'Salah klaim'])->assertRedirect();
+        $this->post('/rencana-aksi/'.$this->rencanaAksi->id.'/kegiatan', ['periode_id' => $this->snapshot->periode_mulai_id, 'nama' => 'Rapat', 'arah_dampak' => 'menambah'])
+            ->assertRedirect();
+
+        $this->assertDatabaseCount('klaim_kegiatan', 1);
+        $this->assertDatabaseCount('kegiatan', 1);
+        foreach (['klaim_kegiatan.tambah_ditolak' => $this->kegiatan->id, 'klaim_kegiatan.hapus_ditolak' => $klaim->id, 'kegiatan.buat_ditolak' => $this->rencanaAksi->id] as $tindakan => $objekId) {
+            $audit = AuditLog::where('tindakan', $tindakan)->sole();
+            $this->assertSame($objekId, $audit->objek_id);
+            $this->assertSame($pic->id, $audit->actor_id);
+            $this->assertSame('inactive_user', $audit->dasar_izin['alasan']);
+        }
+    }
+
     private function url(?Kegiatan $kegiatan = null): string
     {
         return '/kegiatan/'.($kegiatan ?? $this->kegiatan)->id.'/klaim';
