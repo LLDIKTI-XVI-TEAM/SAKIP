@@ -102,7 +102,7 @@ class IndexPengukuran
             'can' => ['selectPeriod' => $canSelect],
             ...($canSelect ? ['pilihan_jadwal' => $this->scheduleOptions($options)] : []),
             'pengukurans' => $rows,
-            'pagination' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'prev_page_url' => $page->previousPageUrl(), 'next_page_url' => $page->nextPageUrl()],
+            'pagination' => ['links' => $page->linkCollection()->all(), 'from' => $page->firstItem(), 'to' => $page->lastItem(), 'total' => $page->total()],
         ];
     }
 

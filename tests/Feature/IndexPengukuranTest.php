@@ -176,7 +176,8 @@ class IndexPengukuranTest extends TestCase
         $this->assertSame([$single, $singleGrants], $this->hitungQuery($planner));
 
         $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page
-            ->has('pengukurans', 20)->where('pagination.total', 23)->where('pagination.last_page', 2));
+            ->has('pengukurans', 20)->where('pagination.total', 23)->where('pagination.from', 1)->where('pagination.to', 20)
+            ->has('pagination.links', 4));
         $this->deny($planner, 'pengukuran:read', $units[1]->id);
         $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page->where('pagination.total', 22));
     }

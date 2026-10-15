@@ -6,9 +6,9 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
-import type { BarisPengukuran, KonteksPengukuran, PengukuranPagination, PilihanJadwalPengukuran } from './types';
+import type { BarisPengukuran, KonteksPengukuran, PilihanJadwalPengukuran } from './types';
 import { statusPerhitungan } from './types';
-import Pagination from './Pagination';
+import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { useFormatNilai } from './formatNilai';
 
 interface PengukuranIndexProps {
@@ -17,7 +17,7 @@ interface PengukuranIndexProps {
     can: { selectPeriod: boolean };
     pilihan_jadwal?: PilihanJadwalPengukuran[];
     pengukurans: BarisPengukuran[];
-    pagination: PengukuranPagination;
+    pagination: { links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     /** Error bag Inertia: konteks filter yang ditolak server dikembalikan ke halaman ini. */
     errors?: { jadwal_id?: string; periode_id?: string };
 }
@@ -158,7 +158,7 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
                         ))}
                     </TableBody>
                 </Table>
-                <Pagination pagination={pagination} />
+                <Pagination {...pagination} ariaLabel="Halaman pengukuran" className="border-t border-border px-5 py-3.5" />
             </Card>
         </AuthenticatedLayout>
     );

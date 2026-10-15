@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { http, type HttpResponse } from '@inertiajs/core';
@@ -107,7 +107,7 @@ describe('Alur pengukuran', () => {
             id: 'old-evidence', jenis_berkas_id: null, mode: 'teks', nama_asli: null, mime: null, ukuran_bytes: null,
             tautan: null, isi_teks: 'Bukti semula', download_url: null, menggantikan_id: null, alasan_koreksi: null,
         }] }} />);
-        await user.click(screen.getByRole('checkbox', { name: 'Tambahkan bukti dukung' }));
+        await user.click(screen.getByRole('switch', { name: 'Tambahkan bukti dukung' }));
         await user.selectOptions(screen.getByRole('combobox', { name: 'Bukti yang diganti (opsional)' }), 'old-evidence');
         await user.type(screen.getByRole('textbox', { name: /Alasan koreksi bukti/ }), 'Lampiran salah periode.');
         await user.selectOptions(screen.getByRole('combobox', { name: 'Mode bukti' }), 'teks');
@@ -152,8 +152,12 @@ describe('Alur pengukuran', () => {
         }} />);
         expect(screen.queryByRole('spinbutton', { name: /Nilai realisasi/ })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Ajukan ke Tim Perencanaan' })).toBeNull();
+        // Peran komponen memakai label baku, bukan kode mentah dari server.
+        expect(screen.getByText('Pembilang')).toBeTruthy();
+        expect(screen.getByText('Penyebut')).toBeTruthy();
+        expect(screen.queryByText('pembilang')).toBeNull();
         await user.type(screen.getByRole('spinbutton', { name: /Pembilang/ }), '0');
-        await user.click(screen.getByRole('checkbox', { name: 'Tambahkan bukti dukung' }));
+        await user.click(screen.getByRole('switch', { name: 'Tambahkan bukti dukung' }));
         await user.selectOptions(screen.getByRole('combobox', { name: 'Persyaratan yang dipenuhi' }), 'requirement');
         expect(screen.queryByRole('option', { name: 'Unggahan file' })).toBeNull();
         const evidence = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Isi bukti teks' });
@@ -337,10 +341,20 @@ const ringkasan = { id: measurement.id, status: 'draft' as const, nilai: 80, sta
 const baris = (kode: string, row: Partial<BarisPengukuran>): BarisPengukuran => ({ ...konteksBaris, indikator_id: kode, indikator: { ...konteksBaris.indikator, kode }, ...row } as BarisPengukuran);
 const indexProps = (pengukurans: BarisPengukuran[], extra: Record<string, unknown> = {}) => ({
     konteks: [{ jadwal_id: 'jad-1', tahun: 2026, periode: tw1 }], filters: { jadwal_id: null, periode_id: null }, can: { selectPeriod: false },
-    pengukurans, pagination: { current_page: 1, last_page: 1, total: pengukurans.length, prev_page_url: null, next_page_url: null }, ...extra,
+    pengukurans, pagination: { links: [], from: 1, to: pengukurans.length, total: pengukurans.length }, ...extra,
 });
 
 describe('Daftar kewajiban pengukuran', () => {
+    it('memakai paginasi bersama ketika daftar lebih dari satu halaman', () => {
+        render(<PengukuranIndex {...indexProps([baris('IKU-UJI', { jenis: 'existing', pengukuran: ringkasan, can: { create: false } })], { pagination: { total: 23, from: 1, to: 20, links: [
+            { url: null, label: '&laquo; Sebelumnya', active: false }, { url: '/pengukuran?page=1', label: '1', active: true },
+            { url: '/pengukuran?page=2', label: '2', active: false }, { url: '/pengukuran?page=2', label: 'Berikutnya &raquo;', active: false },
+        ] } })} />);
+        const nav = screen.getByRole('navigation', { name: 'Halaman pengukuran' });
+        expect(within(nav).getByRole('link', { name: '2' }).getAttribute('href')).toBe('/pengukuran?page=2');
+        expect(nav.textContent).toContain('Menampilkan 1–20 dari 23 data');
+    });
+
     it('membuka draft atau detail existing tanpa menyimpulkan izin edit', () => {
         render(<PengukuranIndex {...indexProps([
             baris('IKU-UJI', { jenis: 'existing', pengukuran: ringkasan, can: { create: false } }),
