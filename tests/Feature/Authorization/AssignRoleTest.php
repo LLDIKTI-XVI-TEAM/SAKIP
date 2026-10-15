@@ -540,7 +540,38 @@ class AssignRoleTest extends TestCase
         $this->get('/akses/peran?q=ana%40lldikti16')->assertInertia(fn (Assert $page) => $page->has('users.data', 2));
         // `_` dan `%` adalah karakter biasa, bukan wildcard SQL.
         $this->get('/akses/peran?q=a_b%40')->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.id', $underscore->id));
+        $this->get('/akses/peran?q='.urlencode('%@lldikti16'))->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
+        // UUID berhuruf besar sah; filter dikembalikan dalam bentuk kanonis agar cocok dengan id di klien.
+        $this->get('/akses/peran?user='.strtoupper($ana->id))->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('filters.user', $ana->id));
+        $this->get('/akses/peran?user='.Str::uuid())->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
         $this->get('/akses/peran?user=bukan-uuid')->assertSessionHasErrors('user');
+    }
+
+    public function test_result_fallback_keeps_pagination_links_on_index_route(): void
+    {
+        User::factory()->count(25)->create(['nama' => 'Z Pengguna']);
+        // Tanpa receipt, daftar dirender di /akses/peran/hasil; tautan halaman tetap menuju daftar.
+        $this->actingAs($this->actor)->get('/akses/peran/hasil')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Access/RoleAssignmentIndex', false)->where('confirmationUnavailable', true)
+            ->where('users.links', fn ($links) => collect($links)->pluck('url')->filter()->isNotEmpty()
+                && collect($links)->pluck('url')->filter()->every(fn ($url) => parse_url($url, PHP_URL_PATH) === '/akses/peran')));
+    }
+
+    public function test_user_options_require_login_active_actor_and_valid_page(): void
+    {
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertUnauthorized();
+        $this->actingAs($this->actor);
+        foreach (['0', 'abc'] as $page) {
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa&page='.$page)->assertUnprocessable()->assertJsonValidationErrors('page');
+        }
+        // Gerbang izin dicek sebelum validasi: aktor tanpa izin tidak mendapat detail validasi.
+        DB::table('role_permissions')->where('role_id', Role::where('kode', 'superadmin')->value('id'))
+            ->where('permission_id', Permission::where('kode', 'akses:update')->value('id'))->delete();
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertForbidden();
+        // Akun yang dinonaktifkan di sesi lain diarahkan ke halaman menunggu tanpa data pengguna.
+        $this->actor->update(['status' => 'nonaktif']);
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertRedirect('/auth/pending');
     }
 
     #[DataProvider('invalidPayloads')]

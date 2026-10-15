@@ -30,7 +30,8 @@ class GetRoleAssignmentPage
             ->when($userId !== null, fn ($builder) => $builder->whereKey($userId))
             ->when($search !== '', fn ($builder) => $builder->where(fn ($filter) => $filter
                 ->where('nama', 'ilike', $pattern)->orWhere('email', 'ilike', $pattern)))
-            ->orderBy('nama')->orderBy('id')->paginate(20, page: $page)->appends(['q' => $search, 'user' => $userId]);
+            // Tautan halaman tetap menuju daftar walau dirender dari jalur hasil.
+            ->orderBy('nama')->orderBy('id')->paginate(20, page: $page)->withPath(route('role-assignment.index'))->appends(['q' => $search, 'user' => $userId]);
         $activePj = $this->warnings->forUsers($users->getCollection()->pluck('id')->all());
         $users->through(function (User $user) use ($activePj): array {
             $role = $user->roles->first();

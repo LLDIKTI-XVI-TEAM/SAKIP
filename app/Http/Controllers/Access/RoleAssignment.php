@@ -40,7 +40,8 @@ class RoleAssignment
     private function indexResponse(Request $request, User $actor, GetRoleAssignmentPage $getPage, RoleAssignmentReceipt $receipts, bool $confirmationUnavailable = false): HttpResponse
     {
         $query = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'user' => ['nullable', 'uuid'], 'page' => ['nullable', 'integer', 'min:1']]);
-        $props = $getPage->handle(trim($query['q'] ?? ''), (int) ($query['page'] ?? 1), $query['user'] ?? null);
+        // UUID berhuruf besar sah; bentuk kanonis membuat filter yang dikembalikan cocok dengan id di klien.
+        $props = $getPage->handle(trim($query['q'] ?? ''), (int) ($query['page'] ?? 1), isset($query['user']) ? Str::lower($query['user']) : null);
         $reference = $this->reference($request);
         $outcome = $reference === null ? null : $receipts->consume($actor->id, $request->session()->getId(), $reference);
         $confirmationUnavailable = $confirmationUnavailable || ($request->query->has('receipt') && $outcome === null);

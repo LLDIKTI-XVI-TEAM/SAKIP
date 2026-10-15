@@ -34,11 +34,13 @@ class GetRolePermissionPage
             if (! $role) {
                 throw ValidationException::withMessages(['role' => 'Pilih peran resmi.']);
             }
+            // `%`/`_` dari pengguna dicari sebagai teks, bukan wildcard SQL.
+            $pattern = '%'.addcslashes($filters['q'], '\\%_').'%';
             // Baca membership aktual; metadata nonaktif/legacy bukan klaim izin efektif pengguna.
             $pageResult = Permission::whereIn('id', function ($query) use ($role) {
                 $query->select('permission_id')->from('role_permissions')->where('role_id', $role->id);
             })->when($filters['q'] !== '', fn ($query) => $query->where(fn ($match) => $match
-                ->where('kode', 'ilike', '%'.$filters['q'].'%')->orWhere('keterangan', 'ilike', '%'.$filters['q'].'%')))
+                ->where('kode', 'ilike', $pattern)->orWhere('keterangan', 'ilike', $pattern)))
                 ->orderBy('kode')->paginate(20, ['id', 'kode', 'keterangan', 'butuh_scope', 'aktif'], 'page', $page)
                 ->withPath(route('role-permission.index'))->appends($filters);
             $props['selectedRole'] = $role->only(['id', 'kode', 'nama', 'aktif']);
