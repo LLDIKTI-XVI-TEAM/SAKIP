@@ -136,7 +136,7 @@ class SimpanTargetPeriodeRequest extends FormRequest
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
             'regex' => 'Kolom :attribute harus berupa desimal biasa tanpa eksponen.',
-            'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
+            'between' => 'Kolom :attribute melebihi kapasitas penyimpanan.',
             'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
             'min' => 'Kolom :attribute tidak memenuhi nilai minimum.',
             'max' => 'Kolom :attribute melebihi batas yang diizinkan.',

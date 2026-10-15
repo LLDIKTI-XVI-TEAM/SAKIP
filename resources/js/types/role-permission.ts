@@ -1,3 +1,5 @@
+import type { PaginationLinkItem } from "@/Components/Pagination";
+
 export type RoleOption = {
     id: string;
     kode: string;
@@ -19,9 +21,10 @@ export interface RolePermissionIndexProps {
     selectedRole: RoleOption | null;
     permissions: PermissionRow[];
     pagination: {
-        page: number;
-        prev_page_url: string | null;
-        next_page_url: string | null;
+        links: PaginationLinkItem[];
+        from: number | null;
+        to: number | null;
+        total: number;
     };
     filters: { role: string | null; q: string };
     can: { viewRolePermissions: boolean };

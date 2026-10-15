@@ -503,6 +503,8 @@ kegiatan:update
 
 **Status implementasi Bagian A (2026-10-14):** diimplementasikan oleh PR #101 (onboarding SSO langsung aktif tanpa peran, bootstrap kandidat aktif, penghapusan Aktivasi Pengguna). Checklist yang dicentang mencerminkan automated test dan CI PR #101, bukan penerimaan UAT. AC-5 menunggu smoke browser SSO; AC-7 terverifikasi inspeksi (tanpa migrasi dan tanpa kode yang mengubah `audit_log`). Bagian B (AC-8–AC-13) dikerjakan pada PR terpisah. UAT dan deployment belum dilakukan.
 
+**Status implementasi Bagian B (2026-10-15):** diimplementasikan oleh PR #108 (penonaktifan dan pengaktifan kembali akun dari Penetapan Peran). Checklist yang dicentang mencerminkan automated test dan CI PR #108, bukan penerimaan UAT; AC-10 dan AC-12 dibuktikan integration test PostgreSQL dua koneksi. Smoke browser SSO, UAT, dan deployment belum dilakukan.
+
 #### Kontrak Teknis
 
 - Onboarding JIT membuat `users.status = aktif` tanpa `user_roles`; login ulang tidak mengubah status.
@@ -520,18 +522,18 @@ kegiatan:update
 - [ ] **AC-5:** setelah admin menetapkan role, pengguna dapat masuk dashboard melalui "Periksa status".
 - [x] **AC-6:** GET dan POST `/akses/aktivasi` mengembalikan 404 dan menu "Aktivasi Pengguna" tidak tampil.
 - [ ] **AC-7:** riwayat audit `pengguna.aktivasi` lama tetap utuh.
-- [ ] **AC-8:** penonaktifan akun lain dengan alasan membuat status `nonaktif`, memblokir sesi target pada request berikutnya, dan tercatat di audit.
-- [ ] **AC-9:** pengaktifan kembali membuat status `aktif` dengan peran dan grant sebelumnya tetap berlaku.
-- [ ] **AC-10:** akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
-- [ ] **AC-11:** alasan kosong → 422; tanpa izin atau deny yang cocok → 403, dan penolakan di dalam action teraudit.
-- [ ] **AC-12:** dua mutasi status bersamaan pada akun yang sama → satu berhasil, yang lain ditolak stale.
-- [ ] **AC-13:** bila target masih Penanggung Jawab aktif, dialog menampilkan peringatan sebelum konfirmasi.
+- [x] **AC-8:** penonaktifan akun lain dengan alasan membuat status `nonaktif`, memblokir sesi target pada request berikutnya, dan tercatat di audit.
+- [x] **AC-9:** pengaktifan kembali membuat status `aktif` dengan peran dan grant sebelumnya tetap berlaku.
+- [x] **AC-10:** akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+- [x] **AC-11:** alasan kosong → 422; tanpa izin atau deny yang cocok → 403, dan penolakan di dalam action teraudit.
+- [x] **AC-12:** dua mutasi status bersamaan pada akun yang sama → satu berhasil, yang lain ditolak stale.
+- [x] **AC-13:** bila target masih Penanggung Jawab aktif, dialog menampilkan peringatan sebelum konfirmasi.
 
 #### Implementation Tasks
 
 - [x] Onboarding `aktif`, bootstrap kandidat aktif, alasan pending `inactive`.
 - [x] Hapus fitur Aktivasi Pengguna (halaman, route, controller, action, request, capability, menu).
-- [ ] Action, request, dan route penonaktifan/pengaktifan kembali beserta aksi di Penetapan Peran.
+- [x] Action, request, dan route penonaktifan/pengaktifan kembali beserta aksi di Penetapan Peran.
 - [ ] Test AC-1..AC-13, termasuk konkurensi bootstrap dan mutasi status.
 
 #### Definition of Done

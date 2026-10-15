@@ -237,9 +237,9 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] Login SSO pertama membuat akun aktif tanpa peran dan menampilkan halaman menunggu penetapan peran.
 - [x] Akun aktif tanpa peran tidak memiliki akses bisnis apa pun.
 - [x] Menu Aktivasi Pengguna tidak tersedia lagi.
-- [ ] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
-- [ ] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
-- [ ] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.
+- [x] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
+- [x] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+- [x] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
 

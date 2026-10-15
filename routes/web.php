@@ -4,6 +4,7 @@ use App\Http\Controllers\Access\DenyManagement;
 use App\Http\Controllers\Access\EffectivePermissionExplorer;
 use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
+use App\Http\Controllers\Access\UserStatus;
 use App\Http\Controllers\Akses\IndexGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\SearchGrantUsers;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
+use App\Http\Controllers\Pengukuran\EnsureDraftPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
@@ -150,7 +152,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/deny/{deny}/cabut', [DenyManagement::class, 'revoke'])->whereUuid('deny')->name('deny.revoke');
     Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
     Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
+    Route::get('/akses/peran/opsi/pengguna', [RoleAssignment::class, 'users'])->name('role-assignment.users');
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
+    Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
 
     // Regulasi
@@ -184,6 +188,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
+    Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
     Route::post('/pengukuran/{id}', UpdatePengukuran::class)->whereUuid('id')->name('pengukuran.update');
     Route::post('/pengukuran/{id}/pratinjau', PreviewPengukuran::class)->whereUuid('id')->name('pengukuran.preview');

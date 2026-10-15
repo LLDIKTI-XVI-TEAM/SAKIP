@@ -38,7 +38,7 @@ it('mempertahankan draft dan mencegah replay ketika router nyata menerima hasil 
     const roles = [{ id: 'pegawai', kode: 'pegawai', nama: 'Pegawai' }, { id: 'admin', kode: 'admin', nama: 'Admin' }];
     const initialPage: Page = {
         component: 'Access/RoleAssignmentIndex', url: '/akses/peran', version: null, flash: {}, rescuedProps: [], rememberedState: {},
-        props: { errors: {}, auth, users: { data: [{ id: 'target', nama: 'Target QA', email: 'target@example.test', status: 'aktif', current_role: { ...roles[0], aktif: true }, assignment: { id: 'pivot', role_id: 'pegawai', audit_id: null }, has_active_pj: false }], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null }, roles, filters: { q: '' }, can: { assignRole: true }, confirmationUnavailable: false },
+        props: { errors: {}, auth, users: { data: [{ id: 'target', nama: 'Target QA', email: 'target@example.test', status: 'aktif', current_role: { ...roles[0], aktif: true }, assignment: { id: 'pivot', role_id: 'pegawai', audit_id: null }, has_active_pj: false }], links: [], from: 1, to: 1, total: 1 }, roles, filters: { q: '' }, can: { assignRole: true }, confirmationUnavailable: false },
     };
     const unknownPage: Page = {
         // Kontrak HTTP yang disetujui: unknown berizin tetap Index walau URL delivery berasal dari Result.
@@ -50,13 +50,13 @@ it('mempertahankan draft dan mencegah replay ketika router nyata menerima hasil 
     });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Ubah peran Target QA' }));
-    await user.selectOptions(screen.getByRole('combobox'), 'admin');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Peran tujuan/ }), 'admin');
     await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Draft yang harus dipertahankan');
     await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
     await screen.findByText('Konfirmasi perubahan tidak tersedia');
     expect(screen.queryByRole<HTMLTextAreaElement>('textbox', { name: /Alasan/ })?.value).toBe('Draft yang harus dipertahankan');
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole<HTMLSelectElement>('combobox').value).toBe('admin');
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /Peran tujuan/ }).value).toBe('admin');
     const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan peran' });
     await waitFor(() => { expect(submit.disabled).toBe(true); });
     await waitFor(() => { expect(document.activeElement).toBe(screen.getByRole('alert')); });

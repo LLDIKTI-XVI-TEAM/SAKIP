@@ -7,9 +7,12 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
+use App\Actions\PenanggungJawab\ChangePenanggungJawab;
+use App\Actions\Pengukuran\SaveDraftPengukuran;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Pengukuran\VerifyPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
+use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Actions\RencanaAksi\EnsureDraftRencanaAksi;
@@ -176,6 +179,78 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame(0, AuditLog::whereIn('tindakan', ['user_roles.tambah', 'user_roles.ubah'])->count());
         $audit = AuditLog::where('tindakan', 'user_roles.ditolak')->sole();
         $this->assertSame($target->id, $audit->objek_id);
+        foreach (['pengguna_read', 'akses_update'] as $key) {
+            $this->assertFalse($audit->dasar_izin[$key]['allowed']);
+            $this->assertSame('no_allow', $audit->dasar_izin[$key]['reason']);
+        }
+    }
+
+    public function test_two_concurrent_status_changes_have_one_winner_and_one_stale_conflict(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $payload = ['actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif', 'alasan' => 'Fixture konkurensi status'];
+
+        $results = $this->race('change-status', $target->id, '', [$payload, $payload]);
+
+        $this->assertEqualsCanonicalizing(['changed', 'conflict'], $results);
+        $this->assertSame('nonaktif', $target->fresh()->status);
+        $this->assertSame(1, AuditLog::where('objek_id', $target->id)->where('tindakan', 'pengguna.nonaktifkan')->count());
+        $this->assertSame(1, AuditLog::where('objek_id', $target->id)->where('tindakan', 'pengguna.status_ditolak')->count());
+    }
+
+    public function test_status_change_rechecks_superadmin_membership_after_waiting_for_demotion(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        [$actor, $target, $other] = User::factory()->count(3)->create(['status' => 'aktif'])->all();
+        foreach ([[$actor, 'admin'], [$target, 'superadmin'], [$other, 'superadmin']] as [$user, $kode]) {
+            $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $assignment = (array) DB::table('user_roles')->where('user_id', $other->id)->first(['id', 'role_id', 'audit_id']);
+        // Penurunan superadmin lain commit setelah worker membaca daftar superadmin, sebelum worker memperoleh kunci.
+        $prepare = fn () => app(AssignRole::class)->handle($actor, $other->id, Role::where('kode', 'pegawai')->value('id'), 'Peran diturunkan lebih dahulu', $assignment);
+
+        $results = $this->race('change-status', $target->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif',
+            'alasan' => 'Fixture superadmin terakhir', 'expected_error_field' => 'status',
+        ]], $prepare);
+
+        $this->assertSame(['conflict'], $results);
+        $this->assertSame('aktif', $target->fresh()->status);
+        $this->assertSame('pegawai', $other->roles()->value('kode'));
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengguna.nonaktifkan')->count());
+        $this->assertSame('Superadmin aktif terakhir tidak dapat dinonaktifkan.', AuditLog::where('tindakan', 'pengguna.status_ditolak')->sole()->alasan);
+    }
+
+    public function test_status_change_reauthorizes_after_preset_release(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $actorRole = Role::where('kode', 'pegawai')->sole();
+        $actor->roles()->attach($actorRole->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        foreach (['pengguna:read', 'akses:update'] as $code) {
+            DB::table('role_permissions')->insert(['id' => Str::uuid(), 'role_id' => $actorRole->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'created_at' => now()]);
+            $this->assertTrue(app(PermissionResolver::class)->allows($actor, $code));
+        }
+        $releaseWhileBlocked = function (array $pids): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringContainsString('for share', $query);
+            // Writer produksi mencabut kedua izin fixture selagi worker menunggu kunci role aktor.
+            $this->assertSame(1, app(SyncRolePermissionPresets::class)->handle('status-race', 'Kembalikan preset resmi', 'test-parent'));
+        };
+
+        $results = $this->race('change-status', $actorRole->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif', 'alasan' => 'Fixture pencabutan preset',
+        ]], barrierTable: 'roles', assertBlocked: $releaseWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertSame('aktif', $target->fresh()->status);
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengguna.nonaktifkan')->count());
+        $audit = AuditLog::where('tindakan', 'pengguna.status_ditolak')->sole();
         foreach (['pengguna_read', 'akses_update'] as $key) {
             $this->assertFalse($audit->dasar_izin[$key]['allowed']);
             $this->assertSame('no_allow', $audit->dasar_izin[$key]['reason']);
@@ -1210,6 +1285,120 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('no_allow', $audit->dasar_izin['reason']);
     }
 
+    /** Dua pembuat pada identitas absent yang sama: satu INSERT, keduanya diarahkan ke header yang sama, satu audit buat. */
+    public function test_pengukuran_ensure_draft_dua_pembuat_bersamaan_satu_header_dan_satu_audit(): void
+    {
+        [$actor, , $indicator, $snapshot, $period] = $this->pengukuranEnsureDraftFixture();
+        $other = User::factory()->create(['status' => 'aktif']);
+        $other->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $data = ['jadwal_snapshot_id' => $snapshot->id, 'periode_id' => $period->id];
+
+        $results = $this->race('pengukuran-ensure-draft', $indicator->id, '', [['actor_id' => $actor->id, 'data' => $data], ['actor_id' => $other->id, 'data' => $data]],
+            prepare: fn () => IndikatorKinerja::whereKey($indicator->id)->lockForUpdate()->firstOrFail());
+
+        $header = PengukuranKinerja::sole();
+        $this->assertSame([$header->id, $header->id], $results);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.buat')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.buat_ditolak')->count());
+    }
+
+    /** Header yang terbentuk selama menunggu lock membuat cabang kedua menjadi replay: pembaca tanpa izin create tetap diarahkan tanpa audit. */
+    public function test_pengukuran_ensure_draft_absent_menjadi_existing_memakai_izin_baca(): void
+    {
+        [$actor, , $indicator, $snapshot, $period] = $this->pengukuranEnsureDraftFixture();
+        $reader = User::factory()->create(['status' => 'aktif']);
+        $reader->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $headerId = null;
+        $prepare = function () use ($actor, $indicator, $snapshot, $period, &$headerId): void {
+            IndikatorKinerja::whereKey($indicator->id)->lockForUpdate()->firstOrFail();
+            $headerId = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => $snapshot->jadwal->tahun, 'periode_id' => $period->id,
+                'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $actor->id])->id;
+        };
+
+        $results = $this->race('pengukuran-ensure-draft', $indicator->id, '', [['actor_id' => $reader->id, 'data' => ['jadwal_snapshot_id' => $snapshot->id, 'periode_id' => $period->id]]], $prepare);
+
+        $this->assertSame([$headerId], $results);
+        $this->assertDatabaseCount('pengukuran_kinerjas', 1);
+        $this->assertSame(0, AuditLog::where('tindakan', 'like', 'pengukuran.buat%')->count());
+    }
+
+    /** Writer arsip/PJ produksi yang commit selama ensure menunggu indikator wajib membuat guard insert dibaca ulang. */
+    #[DataProvider('pengukuranEnsureDraftGuardWriters')]
+    public function test_pengukuran_ensure_draft_membaca_ulang_guard_setelah_writer_commit(string $writer, string $field): void
+    {
+        [$actor, $manager, $indicator, $snapshot, $period] = $this->pengukuranEnsureDraftFixture();
+        $today = today(config('app.business_timezone'))->toDateString();
+        $pic = User::factory()->create(['status' => 'aktif']);
+        $pic->roles()->attach(Role::where('kode', 'pegawai')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $pic->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+            'unit_id' => $indicator->unit_id, 'alasan' => 'Fixture', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
+        PenugasanIndikator::create(['indikator_id' => $indicator->id, 'user_id' => $pic->id, 'tanggal_mulai_berlaku' => today(config('app.business_timezone'))->subDay()->toDateString(),
+            'ditetapkan_oleh' => $manager->id, 'created_at' => now()]);
+        $prepare = fn () => $writer === 'arsip'
+            ? app(DestroyIndikator::class)->handle($manager, $indicator, 'Arsip saat ensure menunggu')
+            : app(ChangePenanggungJawab::class)->handle($manager, $indicator, ['user_id' => $actor->id, 'tanggal_mulai_berlaku' => $today,
+                'expected_state' => $indicator->fresh()->assignmentStateToken(), 'alasan' => 'Pergantian saat ensure menunggu']);
+
+        $results = $this->race('pengukuran-ensure-draft', $indicator->id, '', [['actor_id' => $pic->id, 'expected_error_field' => $field,
+            'data' => ['jadwal_snapshot_id' => $snapshot->id, 'periode_id' => $period->id]]], $prepare);
+
+        $this->assertSame(['conflict'], $results);
+        $this->assertDatabaseCount('pengukuran_kinerjas', 0);
+        $this->assertSame($pic->id, AuditLog::where('tindakan', 'pengukuran.buat_ditolak')->sole()->actor_id);
+    }
+
+    public static function pengukuranEnsureDraftGuardWriters(): array
+    {
+        return ['arsip indikator' => ['arsip', 'indikator_id'], 'pergantian PJ' => ['pj', 'pengukuran']];
+    }
+
+    /** Ensure periode lain menunggu simpan draf indikator yang sama (shared → exclusive) lalu membentuk header tanpa 40P01. */
+    public function test_pengukuran_ensure_draft_menunggu_simpan_draf_indikator_sama_tanpa_deadlock(): void
+    {
+        [$actor, , $indicator, $snapshot, $period, $schedule] = $this->pengukuranEnsureDraftFixture();
+        $today = today(config('app.business_timezone'));
+        $second = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $second->id, 'pengisian_mulai' => $today->copy()->subDay()->toDateString(),
+            'pengisian_selesai' => $today->copy()->addDay()->toDateString(), 'reviu_mulai' => $today->copy()->addDays(2)->toDateString(), 'reviu_selesai' => $today->copy()->addDays(30)->toDateString()]);
+        $existing = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => $schedule->tahun, 'periode_id' => $period->id,
+            'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $actor->id]);
+        $creator = User::factory()->create(['status' => 'aktif']);
+        $creator->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+
+        $results = $this->race('pengukuran-ensure-draft', $indicator->id, '', [['actor_id' => $creator->id, 'data' => ['jadwal_snapshot_id' => $snapshot->id, 'periode_id' => $second->id]]],
+            prepare: fn () => app(SaveDraftPengukuran::class)->handle($actor, $existing->id, ['versi' => 1, 'nilai' => '70']));
+
+        $created = PengukuranKinerja::where('periode_id', $second->id)->sole();
+        $this->assertSame([$created->id], $results);
+        $this->assertSame(2, $existing->fresh()->versi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.buat')->count());
+    }
+
+    /**
+     * Kewajiban pengukuran manual tanpa header pada tahun berjalan. Worker memakai jam nyata, sehingga jendela PIC
+     * mengapit tanggal bisnis hari ini dan penutupan jauh di masa depan.
+     *
+     * @return array{0: User, 1: User, 2: IndikatorKinerja, 3: JadwalSnapshot, 4: Periode, 5: JadwalTahunan} perencana, superadmin, indikator, snapshot V1, periode, jadwal
+     */
+    private function pengukuranEnsureDraftFixture(): array
+    {
+        [$actor, $indicator] = $this->formulaFixture();
+        $indicator->update(['tipe_perhitungan' => 'manual']);
+        $manager = User::factory()->create(['status' => 'aktif']);
+        $manager->roles()->attach(Role::where('kode', 'superadmin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $manager->id, 'created_at' => now()]);
+        $today = today(config('app.business_timezone'));
+        $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $today->year,
+            'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+        PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => $today->copy()->subDay()->toDateString(),
+            'pengisian_selesai' => $today->copy()->addDay()->toDateString(), 'reviu_mulai' => $today->copy()->addDays(2)->toDateString(), 'reviu_selesai' => $today->copy()->addDays(30)->toDateString()]);
+        $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
+            'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Ensure', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
+            'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
+
+        return [$actor, $manager, $indicator, $snapshot, $period, $schedule];
+    }
+
     /**
      * Paralel sejati ISS-08.02: dua pengesahan bertoken versi sama berebut lock
      * baris header; tepat satu menang (status disahkan + audit sukses + riwayat),
@@ -1347,7 +1536,7 @@ class MutationConcurrencyTest extends TestCase
                 $prepare();
             } elseif ($barrierTable === 'roles') {
                 Role::whereKey($subject)->lockForUpdate()->firstOrFail();
-            } elseif (in_array($operation, ['assign-role', 'create-deny', 'revoke-deny'], true)) {
+            } elseif (in_array($operation, ['assign-role', 'change-status', 'create-deny', 'revoke-deny'], true)) {
                 User::whereKey($subject)->lockForUpdate()->firstOrFail();
             } else {
                 DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
