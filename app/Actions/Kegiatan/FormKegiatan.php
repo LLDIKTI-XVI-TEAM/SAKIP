@@ -28,13 +28,21 @@ class FormKegiatan
             if (! Unit::whereKey($kegiatan->unit_id)->where('status', 'aktif')->exists()) {
                 $this->reject($actor, new PermissionDecision(false, 'kegiatan:update', ['alasan' => 'inactive_unit']), $kegiatan);
             }
+        } else {
+            // Q54 §54.3: tanpa izin baca, hasil simpan tidak dapat dibuka kembali dari daftar.
+            $baca = $this->resolver->resolve($actor, 'kegiatan:read');
+            if (! $baca->allowed) {
+                $this->reject($actor, $baca, null);
+            }
         }
         $units = Unit::where('status', 'aktif')->orderBy('nama')->get(['id', 'nama']);
         $code = $kegiatan ? 'kegiatan:update' : 'kegiatan:create';
-        $decisions = $this->resolver->decideManyForUnits($actor, [$code], $units->pluck('id')->all());
-        $unitOptions = $units->filter(fn (Unit $unit) => $decisions[$unit->id][$code]['allowed'])->values();
+        $decisions = $this->resolver->decideManyForUnits($actor, [$code, 'kegiatan:read'], $units->pluck('id')->all());
+        // Alasan tulis didahulukan; keputusan baca hanya dilaporkan bila tulis sudah diizinkan.
+        $perUnit = array_map(fn (array $unit) => $unit[$code]['allowed'] ? $unit['kegiatan:read'] : $unit[$code], $decisions);
+        $unitOptions = $units->filter(fn (Unit $unit) => $perUnit[$unit->id]['allowed'])->values();
         if ($unitOptions->isEmpty()) {
-            $this->reject($actor, $this->keputusanTanpaUnit($code, array_column($decisions, $code)), $kegiatan);
+            $this->reject($actor, $this->keputusanTanpaUnit($code, array_values($perUnit)), $kegiatan);
         }
 
         return [

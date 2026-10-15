@@ -159,6 +159,31 @@ class KegiatanHttpTest extends TestCase
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertForbidden();
     }
 
+    public function test_grant_tulis_tanpa_izin_baca_unit_ditolak_sejak_form_hingga_simpan(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $admin = $this->user('admin');
+        foreach (['kegiatan:create', 'kegiatan:update'] as $code) {
+            UserPermissionGrant::create(['user_id' => $admin->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'unit_id' => $this->unit->id, 'alasan' => 'Grant tanpa izin baca', 'diberikan_oleh' => $this->perencanaan->id]);
+        }
+        $token = $this->editToken($kegiatan);
+        $this->actingAs($admin)->get('/kegiatan/buat')->assertForbidden();
+        $this->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
+        $this->post("/kegiatan/{$kegiatan->id}", $this->payload() + ['expected_state' => $token])->assertForbidden();
+        foreach (['kegiatan.form_ditolak', 'kegiatan.buat_ditolak', 'kegiatan.ubah_ditolak'] as $event) {
+            $this->assertSame('kegiatan:read', AuditLog::where('tindakan', $event)->where('actor_id', $admin->id)->firstOrFail()->dasar_izin['permission']);
+        }
+
+        // Deny baca pada unit tulis menutup tombol, form, dan simpan pada unit itu.
+        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->where('can.create', false)->has('creatableUnitOptions', 0)->has('editableUnitOptions', 0));
+        $this->get('/kegiatan/buat')->assertForbidden();
+        $this->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->assertDatabaseCount('kegiatan', 1);
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+    }
+
     public function test_form_hanya_memberikan_unit_yang_boleh_ditulis_tanpa_izin_unit_read(): void
     {
         $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Form')
