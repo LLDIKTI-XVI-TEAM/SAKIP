@@ -108,7 +108,7 @@ class PengukuranWorkflowTest extends TestCase
             ->where('pengukuran.status_perhitungan', 'belum_dapat_diukur')->where('pengukuran.can.submit', false)
             ->where('pengukuran.prasyarat.alasan', fn ($alasan) => collect($alasan)->contains($message))
             ->where('pengukuran.progres_kegiatan', 'Belum ada data.')->where('pengukuran.kendala_masalah', null)
-            ->where('pengukuran.periode_jadwal.is_nilai_akhir', false)->missing('pengukuran.rekomendasi_sebelumnya'));
+            ->where('pengukuran.periode_jadwal.is_nilai_akhir', false)->where('pengukuran.rekomendasi_sebelumnya', null));
     }
 
     public function test_pengajuan_membekukan_empat_narasi_dan_presenter_hanya_membaca_versi(): void
