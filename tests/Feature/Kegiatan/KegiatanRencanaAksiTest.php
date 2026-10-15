@@ -107,6 +107,23 @@ class KegiatanRencanaAksiTest extends TestCase
         $this->assertDatabaseCount('klaim_kegiatan', 0);
     }
 
+    public function test_halaman_ra_memuat_kegiatan_per_periode_dan_capability(): void
+    {
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+
+        $this->get('/rencana-aksi/'.$this->rencanaAksi->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('kegiatan.daftar', 1)
+            ->where('kegiatan.daftar.0.kegiatan_id', $kegiatan->id)
+            ->where('kegiatan.daftar.0.periode_id', $this->tw1->id)
+            ->where('kegiatan.daftar.0.nama', 'Rapat koordinasi')
+            ->where('kegiatan.can', ['tambah' => true, 'kelola' => true]));
+
+        // PIC tanpa izin buat kegiatan tetap dapat membaca daftar, tetapi tidak ditawari tambah.
+        $this->actingAs($this->createPicPegawai())->get('/rencana-aksi/'.$this->rencanaAksi->id)->assertOk()
+            ->assertInertia(fn ($page) => $page->has('kegiatan.daftar', 1)->where('kegiatan.can.tambah', false));
+    }
+
     private function url(): string
     {
         return '/rencana-aksi/'.$this->rencanaAksi->id.'/kegiatan';

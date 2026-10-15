@@ -92,6 +92,23 @@ class GerbangKlaimKegiatan
     }
 
     /**
+     * Capability halaman tanpa lock dan tanpa audit, memakai aturan yang sama
+     * dengan `kunci()` agar UI tidak menawarkan aksi yang pasti ditolak.
+     *
+     * @param  list<string>  $periodeIds
+     */
+    public function boleh(User $user, RencanaAksi $header, string $unitKegiatan, string $izinKegiatan, array $periodeIds = []): bool
+    {
+        $izin = $this->periksaIzin($user, (string) $header->unit_id, $unitKegiatan, $izinKegiatan);
+        if ($izin['tolak'] !== null) {
+            return false;
+        }
+        $header->loadMissing(['indikator', 'jadwalTahunan']);
+
+        return $this->pelanggaranBisnis($user, $izin['ra'], $header, $header->indikator, $header->jadwalTahunan, $periodeIds) === null;
+    }
+
+    /**
      * Mengunci aktor/ACL, konfigurasi periode, header, indikator, jadwal, lalu kegiatan (bila ada)
      * dengan urutan tetap header → kegiatan agar serial dengan pengajuan
      * Pengukuran yang mengunci header sebelum klaim dan kegiatan.

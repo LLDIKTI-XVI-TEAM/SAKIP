@@ -44,7 +44,7 @@ class DaftarKegiatan
         $units = Unit::whereNotIn('id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))->orderBy('nama')->get(['id', 'nama']);
         $activeUnitIds = Unit::where('status', 'aktif')->pluck('id');
         $scopes = $activeUnitIds->merge($page->getCollection()->pluck('unit_id'))->unique()->values()->all();
-        $decisions = $this->resolver->decideManyForUnits($actor, ['kegiatan:create', 'kegiatan:update'], $scopes);
+        $decisions = $this->resolver->decideManyForUnits($actor, ['kegiatan:create', 'kegiatan:update', 'rencana_aksi:update'], $scopes);
         $activeUnits = Unit::where('status', 'aktif')
             ->orderBy('nama')
             ->get(['id', 'nama']);
@@ -55,24 +55,32 @@ class DaftarKegiatan
             ->filter(fn (Unit $unit) => ($decisions[$unit->id]['kegiatan:update']['allowed'] ?? false))
             ->values();
 
-        $page->through(fn (Kegiatan $kegiatan) => [
-            'id' => $kegiatan->id,
-            'unit_id' => $kegiatan->unit_id,
-            'tahun' => $kegiatan->tahun,
-            'periode_id' => $kegiatan->periode_id,
-            'nama' => $kegiatan->nama,
-            'tujuan' => $kegiatan->tujuan,
-            'sasaran_peserta' => $kegiatan->sasaran_peserta,
-            'keterangan_peserta' => $kegiatan->keterangan_peserta,
-            'lokasi' => $kegiatan->lokasi,
-            'status' => $kegiatan->status,
-            'tanggal_rencana' => $kegiatan->tanggal_rencana?->format('Y-m-d'),
-            'version_token' => $kegiatan->versionToken(),
-            'unit' => $kegiatan->unit->only(['id', 'nama']),
-            'periode' => $kegiatan->periode->only(['id', 'nama']),
+        $page->through(function (Kegiatan $kegiatan) use ($decisions, $activeUnitIds): array {
             // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
-            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id)],
-        ]);
+            $bolehUbah = $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id);
+
+            return [
+                'id' => $kegiatan->id,
+                'unit_id' => $kegiatan->unit_id,
+                'tahun' => $kegiatan->tahun,
+                'periode_id' => $kegiatan->periode_id,
+                'nama' => $kegiatan->nama,
+                'tujuan' => $kegiatan->tujuan,
+                'sasaran_peserta' => $kegiatan->sasaran_peserta,
+                'keterangan_peserta' => $kegiatan->keterangan_peserta,
+                'lokasi' => $kegiatan->lokasi,
+                'status' => $kegiatan->status,
+                'tanggal_rencana' => $kegiatan->tanggal_rencana?->format('Y-m-d'),
+                'version_token' => $kegiatan->versionToken(),
+                'unit' => $kegiatan->unit->only(['id', 'nama']),
+                'periode' => $kegiatan->periode->only(['id', 'nama']),
+                'can' => [
+                    'update' => $bolehUbah,
+                    // Pintu masuk panel klaim; status RA, PIC efektif, dan kunci periode dinilai di halaman dan writer.
+                    'klaim' => $bolehUbah && $decisions[$kegiatan->unit_id]['rencana_aksi:update']['allowed'],
+                ],
+            ];
+        });
 
         return [
             'kegiatan' => $page,

@@ -9,8 +9,9 @@ import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { KegiatanFormProps } from '@/types/kegiatan';
+import { KlaimPanel } from './Partials/KlaimPanel';
 
-export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions }: KegiatanFormProps) {
+export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions, klaim }: KegiatanFormProps) {
     const form = useForm({
         unit_id: kegiatan?.unit_id ?? unitOptions[0]?.id ?? '',
         tahun: String(kegiatan?.tahun ?? tahunDefault),
@@ -74,5 +75,6 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
                 </form>
             </CardContent>
         </Card>
+        {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
     </AuthenticatedLayout>;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { CalendarDays, Pencil, Plus, Search } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { CalendarDays, Link2, Pencil, Plus, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -213,7 +213,19 @@ export default function Index({
                                             <TableCell className="w-28 whitespace-nowrap">
                                                 <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                                             </TableCell>
-                                            <TableCell className="w-16 whitespace-nowrap text-right">
+                                            <TableCell className="w-24 whitespace-nowrap text-right">
+                                                <div className="inline-flex items-center gap-2">
+                                                {item.can?.klaim && (
+                                                    <Tooltip content="Klaim ke rencana aksi" align="right">
+                                                        <Link
+                                                            href={`/kegiatan/${item.id}/edit`}
+                                                            aria-label={`Klaim RA kegiatan ${item.nama}`}
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted transition-all duration-150 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                                        >
+                                                            <Link2 className="h-4 w-4" aria-hidden="true" />
+                                                        </Link>
+                                                    </Tooltip>
+                                                )}
                                                 {item.can?.update && (
                                                     <Tooltip content="Edit rencana kegiatan" align="right">
                                                         <Button
@@ -228,6 +240,7 @@ export default function Index({
                                                         </Button>
                                                     </Tooltip>
                                                 )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     );

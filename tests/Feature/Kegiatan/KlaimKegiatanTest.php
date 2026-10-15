@@ -172,6 +172,39 @@ class KlaimKegiatanTest extends TestCase
         $this->assertDatabaseCount('klaim_kegiatan', 1);
     }
 
+    public function test_halaman_kegiatan_memuat_panel_klaim_sesuai_gerbang(): void
+    {
+        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
+        $this->actingAs($this->actor)->get($edit)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('klaim.daftar', 0)
+            ->where('klaim.can.tambah', true)
+            ->where('klaim.opsiRencanaAksi.0.id', $this->rencanaAksi->id)
+            ->where('klaim.opsiRencanaAksi.0.komponen.0.id', $this->komponen->id));
+
+        $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
+        $this->get($edit)->assertInertia(fn ($page) => $page
+            ->where('klaim.daftar.0.komponen', 'PEMBILANG — pembilang')
+            ->where('klaim.daftar.0.can.hapus', true));
+
+        // RA yang sudah diajukan tidak lagi ditawarkan dan klaimnya tidak dapat dihapus.
+        $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+        $this->get($edit)->assertInertia(fn ($page) => $page
+            ->has('klaim.opsiRencanaAksi', 0)
+            ->where('klaim.can.tambah', false)
+            ->where('klaim.daftar.0.can.hapus', false));
+    }
+
+    public function test_daftar_kegiatan_menawarkan_klaim_hanya_dengan_kewenangan_ra(): void
+    {
+        $this->actingAs($this->actor)->get('/kegiatan?tahun=2026')->assertInertia(fn ($page) => $page->where('kegiatan.data.0.can.klaim', true));
+
+        $pegawai = $this->createUserWithRole('pegawai');
+        $this->grantUnitPermission($pegawai, 'kegiatan:update');
+        $this->actingAs($pegawai)->get('/kegiatan?tahun=2026')->assertInertia(fn ($page) => $page
+            ->where('kegiatan.data.0.can.update', true)
+            ->where('kegiatan.data.0.can.klaim', false));
+    }
+
     private function url(?Kegiatan $kegiatan = null): string
     {
         return '/kegiatan/'.($kegiatan ?? $this->kegiatan)->id.'/klaim';
