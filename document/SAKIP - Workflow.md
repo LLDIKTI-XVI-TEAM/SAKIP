@@ -2024,11 +2024,11 @@ Pemisahan tugas pada verifikasi dan pengesahan pengukuran adalah **aturan bisnis
 
 ⚙️ Sistem (aturan bisnis keras F1 — tidak dapat dikonfigurasi lewat izin)
   2. Pada transisi diajukan → diverifikasi dan diverifikasi → disahkan: membandingkan aktor
-     yang menjalankan aksi dengan pengukuran.created_by
-     → Aktor SAMA dengan pengukuran.created_by, DAN pengisian dilakukan lewat jalur grant
+     yang menjalankan aksi dengan pengukuran_versi.diajukan_by
+     → Aktor SAMA dengan pengukuran_versi.diajukan_by, DAN pengisian dilakukan lewat jalur grant
        scope unit (jalur PIC): TOLAK — terlepas dari permission pengukuran:verifikasi/
        pengukuran:sahkan yang dimiliki aktor tersebut
-     → Aktor BERBEDA dari pengukuran.created_by: lanjut sebagai aksi yang diizinkan (tunduk
+     → Aktor BERBEDA dari pengukuran_versi.diajukan_by: lanjut sebagai aksi yang diizinkan (tunduk
        evaluasi izin normal §19)
 
 📋 Perencanaan (mengisi ATAS NAMA unit, permission global lewat peran, tanpa scope unit)
