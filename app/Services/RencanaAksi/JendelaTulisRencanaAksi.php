@@ -12,7 +12,8 @@ use App\Support\PermissionDecision;
 use Carbon\CarbonInterface;
 
 /**
- * Aturan tulis Rencana Aksi Q41: penutupan tahun beserta sesi koreksi,
+ * Aturan tulis Rencana Aksi Q41: penutupan tahun (status `ditutup` atau
+ * tanggal `penutupan`) beserta sesi koreksi,
  * jalur Perencanaan global, PIC efektif, dan kunci per periode mengikuti
  * `jadwal_periode.pengisian_selesai` yang berlaku pada tanggal Asia/Makassar.
  *
@@ -114,14 +115,12 @@ class JendelaTulisRencanaAksi
     }
 
     /**
-     * Tanggal penutupan jadwal sudah terlewati pada tanggal bisnis `$pada`
-     * (default sekarang).
+     * Tahun terkunci menurut aturan bersama jadwal: status `ditutup` atau
+     * tanggal `penutupan` terlewati pada tanggal bisnis `$pada` (default sekarang).
      */
     public function tahunDitutup(JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
-        $penutupan = $jadwal->penutupan?->toDateString();
-
-        return is_string($penutupan) && $this->tanggalBisnis($pada ?? now()) > $penutupan;
+        return $jadwal->tahunDitutup($pada);
     }
 
     /**

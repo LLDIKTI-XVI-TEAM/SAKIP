@@ -11,6 +11,7 @@ use App\Models\KlaimKegiatan;
 use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
@@ -395,6 +396,66 @@ class KegiatanHttpTest extends TestCase
         $this->assertSame(2026, $kegiatan->fresh()->tahun);
         $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['nama' => 'Nama dikoreksi', 'unit_id' => strtoupper($this->unit->id), 'periode_id' => strtoupper($this->periode->id), 'expected_state' => $token]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
         $this->assertSame('Nama dikoreksi', $kegiatan->fresh()->nama);
+    }
+
+    public function test_tahun_dengan_jadwal_ditutup_menolak_buat_dan_ubah_serta_menyembunyikan_ubah(): void
+    {
+        // Kontrol positif: tanpa jadwal tahun itu, kegiatan tetap boleh dibuat.
+        $this->actingAs($this->pegawai)->post('/kegiatan', $this->payload())->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+        $jadwal = JadwalTahunan::create(['renstra_id' => $this->renstraUji()->id, 'tahun' => $kegiatan->tahun, 'penutupan' => ($kegiatan->tahun + 1).'-12-31', 'status' => 'aktif']);
+        $ubah = fn (array $extra = []) => $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}",
+            [...$this->payload(), 'nama' => 'Nama baru', 'expected_state' => $kegiatan->fresh()->versionToken(), ...$extra]);
+        $ubah()->assertSessionHasNoErrors();
+
+        $jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
+        $this->actingAs($this->pegawai)->post('/kegiatan', $this->payload())->assertSessionHasErrors('tahun');
+        $ubah(['nama' => 'Ditolak'])->assertSessionHasErrors('tahun');
+        // Memindahkan kegiatan dari tahun yang ditutup ke tahun terbuka juga ditolak.
+        $ubah(['tahun' => $kegiatan->tahun + 5])->assertSessionHasErrors('tahun');
+        $this->assertSame('Nama baru', $kegiatan->fresh()->nama);
+        $this->assertSame($kegiatan->tahun, $kegiatan->fresh()->tahun);
+        $this->assertDatabaseCount('kegiatan', 1);
+
+        $this->actingAs($this->pegawai)->get('/kegiatan?tahun='.$kegiatan->tahun)->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('kegiatan.data.0.can.update', false));
+    }
+
+    public function test_tanggal_penutupan_lewat_juga_mengunci_kegiatan(): void
+    {
+        JadwalTahunan::create(['renstra_id' => $this->renstraUji()->id, 'tahun' => 2026, 'penutupan' => today()->subDay()->toDateString(), 'status' => 'aktif']);
+
+        $this->actingAs($this->pegawai)->post('/kegiatan', $this->payload())->assertSessionHasErrors('tahun');
+        // Tahun lain tanpa jadwal tetap bebas.
+        $this->actingAs($this->pegawai)->post('/kegiatan', [...$this->payload(), 'tahun' => 2027])->assertSessionHasNoErrors();
+    }
+
+    public function test_simpan_mengunci_jadwal_tahun_sebelum_kegiatan_searah_pengajuan_pengukuran(): void
+    {
+        $this->actingAs($this->pegawai)->post('/kegiatan', $this->payload())->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+        $kunci = [];
+        DB::listen(function ($query) use (&$kunci): void {
+            $sql = strtolower($query->sql);
+            if (str_contains($sql, 'for update') || str_contains($sql, 'for share')) {
+                $kunci[] = $sql;
+            }
+        });
+
+        $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", [...$this->payload(), 'nama' => 'Nama baru', 'expected_state' => $kegiatan->versionToken()])
+            ->assertSessionHasNoErrors();
+
+        // Pengajuan pengukuran mengunci jadwal lalu kegiatan; urutan terbalik di sini dapat deadlock.
+        $jadwal = array_key_first(array_filter($kunci, fn (string $sql): bool => str_contains($sql, 'from "jadwal_tahunan"')));
+        $baris = array_key_first(array_filter($kunci, fn (string $sql): bool => str_contains($sql, 'from "kegiatan"')));
+        $this->assertNotNull($jadwal);
+        $this->assertNotNull($baris);
+        $this->assertLessThan($baris, $jadwal);
+    }
+
+    private function renstraUji(): Renstra
+    {
+        return Renstra::create(['kode' => 'R-'.Str::random(6), 'nama' => 'Renstra uji', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'created_by' => $this->perencanaan->id]);
     }
 
     private function user(string $role): User

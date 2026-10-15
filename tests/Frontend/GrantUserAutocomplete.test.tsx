@@ -275,9 +275,11 @@ describe('GrantUserAutocomplete Component', () => {
     });
 
     it('memakai endpoint PJ dan dapat memuat pilihan di halaman berikutnya', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch')
-            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-a', nama: 'Calon A', email: 'a@example.test', roles: [] }], page: 1, hasMore: true }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-b', nama: 'Calon B', email: 'b@example.test', roles: [] }], page: 2, hasMore: false }), { status: 200 }));
+        // Respons dipetakan dari parameter page, bukan urutan panggilan: debounce 10 ms bisa lolos di tengah ketikan pada runner lambat.
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+            const second = new URL(String(url), 'http://localhost').searchParams.get('page') === '2';
+            return new Response(JSON.stringify({ items: [second ? { id: 'pj-b', nama: 'Calon B', email: 'b@example.test', roles: [] } : { id: 'pj-a', nama: 'Calon A', email: 'a@example.test', roles: [] }], page: second ? 2 : 1, hasMore: !second }), { status: 200 });
+        });
         const user = userEvent.setup();
         render(<GrantUserAutocomplete endpoint="/penanggung-jawab/opsi/pengguna" value="" onChange={vi.fn()} debounceMs={10} />);
         await user.type(screen.getByRole('combobox'), 'Calon');

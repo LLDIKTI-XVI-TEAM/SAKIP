@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,17 @@ class JadwalTahunan extends Model
     public function isActivated(): bool
     {
         return $this->status === 'aktif' && $this->activated_at !== null;
+    }
+
+    /** Tahun terkunci bila ditutup resmi (bisa sebelum tanggal) atau tanggal `penutupan` lewat pada tanggal bisnis. */
+    public function tahunDitutup(?CarbonInterface $pada = null): bool
+    {
+        if ($this->status === 'ditutup') {
+            return true;
+        }
+        $penutupan = $this->penutupan?->toDateString();
+
+        return is_string($penutupan) && ($pada ?? now())->copy()->setTimezone(config('app.business_timezone'))->toDateString() > $penutupan;
     }
 
     public function getIsTerkunciAttribute(): bool

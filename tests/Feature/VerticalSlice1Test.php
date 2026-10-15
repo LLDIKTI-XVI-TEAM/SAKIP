@@ -58,7 +58,7 @@ class VerticalSlice1Test extends TestCase
         PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->update(['reviu_selesai' => '2026-05-01']);
         $this->assertSame($audit->nilai_baru, $audit->fresh()->nilai_baru);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
-        $this->get('/pengukuran')->assertInertia(fn ($page) => $page->where('pengukurans.0.reviu_terlambat', true));
+        $this->get('/pengukuran')->assertInertia(fn ($page) => $page->where('pengukurans.0.pengukuran.reviu_terlambat', true));
         $this->get('/dashboard')->assertInertia(fn ($page) => $page->where('pengukurans.0.reviu_terlambat', true));
     }
 

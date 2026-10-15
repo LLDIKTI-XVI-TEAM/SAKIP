@@ -2,6 +2,7 @@
 
 namespace App\Actions\Kegiatan;
 
+use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
@@ -56,7 +57,16 @@ class SimpanKegiatan
                 }
                 // Selaras writer periode: aktor/ACL sebelum konfigurasi, lalu objek domain.
                 Periode::lockConfiguration();
+                // Jadwal dikunci sebelum kegiatan, searah pengajuan pengukuran; tahun lama hanya kandidat dan dicek ulang setelah kegiatan terkunci.
+                $tahunLama = $id ? Kegiatan::whereKey($id)->value('tahun') : null;
+                $tahun = array_values(array_unique([(int) $data['tahun'], (int) ($tahunLama ?? $data['tahun'])]));
+                // Kegiatan tidak terikat Renstra: tahun terkunci bila jadwal tahun itu mana pun sudah ditutup; shared lock menyerialkan dengan penutupan.
+                $ditutup = JadwalTahunan::whereIn('tahun', $tahun)->where('status', '!=', 'draft')->orderBy('id')->sharedLock()->get()
+                    ->contains(fn (JadwalTahunan $jadwal): bool => $jadwal->tahunDitutup());
                 $kegiatan = $id ? Kegiatan::whereKey($id)->lockForUpdate()->firstOrFail() : null;
+                if ($kegiatan && (int) $kegiatan->tahun !== (int) $tahunLama) {
+                    throw ValidationException::withMessages(['expected_state' => 'Kegiatan telah berubah. Muat ulang sebelum menyimpan.']);
+                }
                 $unitId = (string) $data['unit_id'];
                 $decision = $this->policy->keputusanSimpan($currentActor, $kegiatan, $unitId);
                 if (($decision->basis['alasan'] ?? $decision->basis['tujuan']['alasan'] ?? null) === 'inactive_unit') {
@@ -73,6 +83,9 @@ class SimpanKegiatan
                 $periode = Periode::whereKey($data['periode_id'])->sharedLock()->first();
                 if (! $periode || ! $periode->aktif) {
                     throw ValidationException::withMessages(['periode_id' => 'Master periode tidak tersedia atau sudah nonaktif.']);
+                }
+                if ($ditutup) {
+                    throw ValidationException::withMessages(['tahun' => 'Tahun kegiatan sudah ditutup; perubahan hanya melalui pembukaan kembali jadwal.']);
                 }
                 if ($kegiatan && ! hash_equals($kegiatan->versionToken(), (string) ($data['expected_state'] ?? ''))) {
                     throw ValidationException::withMessages(['expected_state' => 'Kegiatan telah berubah. Muat ulang sebelum menyimpan.']);

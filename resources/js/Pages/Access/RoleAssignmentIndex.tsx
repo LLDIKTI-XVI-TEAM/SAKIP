@@ -2,8 +2,9 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { GrantUserAutocomplete, type UserOption } from '@/Components/Access/GrantUserAutocomplete';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { AlertCircle, CheckCircle, UserCog, Users, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Power, UserCog, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
@@ -142,6 +143,13 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
     const trigger = useRef<HTMLButtonElement | null>(null);
     const title = useRef<HTMLHeadingElement>(null);
     const close = () => setSelected(null);
+    const recovery = useAuthRecovery();
+    const [statusTarget, setStatusTarget] = useState<RoleUser | null>(null);
+    const [statusReason, setStatusReason] = useState('');
+    const [statusError, setStatusError] = useState('');
+    const [statusBusy, setStatusBusy] = useState(false);
+    const deactivating = statusTarget?.status === 'aktif';
+    const openStatus = (user: RoleUser) => { setStatusTarget(user); setStatusReason(''); setStatusError(''); };
     // Filter id pengguna ditampilkan sebagai pengguna terpilih pada autocomplete.
     const filtered = useMemo<UserOption | null>(() => {
         const match = filters.user ? users.data.find((user) => user.id === filters.user) : undefined;
@@ -187,7 +195,28 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
         if (!visit.cancelled && !visit.interrupted && window.location.pathname === '/akses/peran') filterBy(pendingFilter.id, pendingFilter.user);
     }), [pendingFilter, filterBy]);
     // Simpan memuat daftar baru dari server; pilihan dan pesan filter yang gagal tidak berlaku lagi.
-    const saved = () => { close(); setPendingFilter(null); setFilterFailure(null); };
+    const saved = () => { close(); setStatusTarget(null); setPendingFilter(null); setFilterFailure(null); };
+    const submitStatus = () => {
+        if (!statusTarget || statusBusy || recovery.recovery) return;
+        const path = `/akses/peran/${statusTarget.id}/status`;
+        setStatusBusy(true);
+        setStatusError('');
+        router.post(path, { status: deactivating ? 'nonaktif' : 'aktif', alasan: statusReason, expected_status: statusTarget.status }, {
+            preserveScroll: true,
+            onSuccess: saved,
+            onError: (errors) => setStatusError(Object.values(errors)[0] ?? 'Gagal mengubah status akun.'),
+            onNetworkError: () => {
+                setStatusError('Koneksi terputus. Hasil perubahan status belum diketahui. Muat ulang data sebelum mencoba kembali.');
+                return false;
+            },
+            onHttpException: (response) => {
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) return false;
+                setStatusError(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
+                return false;
+            },
+            onFinish: () => setStatusBusy(false),
+        });
+    };
     const hasFilter = Boolean(filters.q || filters.user);
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
@@ -258,6 +287,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                         </TableRow>}
                         {users.data.map((user) => {
                             const action = user.current_role ? 'Ubah peran' : 'Tetapkan peran';
+                            const statusAction = user.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan kembali';
                             return <TableRow key={user.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
                                 <TableCell className={`col-span-2 ${cellClass}`}>
                                     <p className="break-words text-sm font-semibold text-ink">{user.nama}</p>
@@ -274,12 +304,17 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                                     <Badge variant={user.status === 'aktif' ? 'success' : 'muted'}>{user.status === 'aktif' ? 'Aktif' : 'Nonaktif'}</Badge>
                                 </TableCell>
                                 {can.assignRole && <TableCell className={`col-span-2 ${cellClass} md:text-right`}>
-                                    <div className="flex justify-end">
+                                    <div className="flex flex-wrap justify-end gap-1.5">
                                         <Tooltip content={action} align="right">
                                             <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={`${action} ${user.nama}`} onClick={(event) => { trigger.current = event.currentTarget; setSelected(user); }}>
                                                 <UserCog className="h-4 w-4" aria-hidden="true" />
                                             </Button>
                                         </Tooltip>
+                                        {user.id !== auth.user?.id && <Tooltip content={statusAction} align="right">
+                                            <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={`${statusAction} ${user.nama}`} onClick={() => openStatus(user)}>
+                                                <Power className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </Tooltip>}
                                     </div>
                                 </TableCell>}
                             </TableRow>;
@@ -293,5 +328,24 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
             </div>
         </div>
         {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={saved} />}
+        {/* Tetap terpasang agar penutupan dialog native mengembalikan fokus ke tombol pemicu. */}
+        <AuditReasonModal
+            open={statusTarget !== null}
+            title={`${deactivating ? 'Nonaktifkan' : 'Aktifkan kembali'} ${statusTarget?.nama ?? 'akun'}?`}
+            description={deactivating ? 'Sesi akun terblokir pada permintaan berikutnya. Peran dan grant izin tidak dihapus.' : 'Akun dapat masuk kembali dengan peran dan grant izin yang sama.'}
+            reason={statusReason}
+            error={statusError || undefined}
+            busy={statusBusy}
+            submitDisabled={statusReason.trim() === '' || Boolean(recovery.recovery)}
+            notice={<>
+                {deactivating && statusTarget?.has_active_pj && <p role="status" className="mb-4 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">Pengguna ini masih menjadi Penanggung Jawab aktif. Penonaktifan tidak mengakhiri penugasan; ganti Penanggung Jawab bila diperlukan.</p>}
+                <AuthRecoveryNotice recovery={recovery.recovery} pending={statusBusy} />
+            </>}
+            confirmLabel={deactivating ? 'Nonaktifkan' : 'Aktifkan kembali'}
+            destructive={deactivating}
+            onReasonChange={setStatusReason}
+            onClose={() => { if (!statusBusy) setStatusTarget(null); }}
+            onConfirm={submitStatus}
+        />
     </AuthenticatedLayout>;
 }

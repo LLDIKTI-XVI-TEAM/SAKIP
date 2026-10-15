@@ -135,6 +135,14 @@ class ReviewRencanaAksiTest extends TestCase
         $this->postJson($url, $this->tokens())->assertSuccessful();
     }
 
+    public function test_jadwal_ditutup_sebelum_tanggal_menolak_review(): void
+    {
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
+        $response = $this->actingAs($this->reviewer)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $this->tokens())->assertUnprocessable();
+        $this->assertStringContainsString('Jadwal tahunan tidak aktif.', $response->getContent());
+        $this->assertSame('diajukan', $this->rencanaAksi->fresh()->status_alur);
+    }
+
     public function test_histori_dan_antrean_membaca_snapshot_bukan_master_atau_draf(): void
     {
         $this->indikator->update(['nama' => 'Nama master baru', 'satuan' => 'satuan master', 'desimal_tampilan' => 4]);

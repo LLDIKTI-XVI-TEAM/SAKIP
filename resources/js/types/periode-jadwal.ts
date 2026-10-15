@@ -84,7 +84,8 @@ export interface JadwalDetail {
 
 export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
-    can: { create: boolean; update: boolean; activate: boolean };
+    /** close sudah memuat status `aktif` dari server. */
+    can: { create: boolean; update: boolean; activate: boolean; close: boolean };
     read_only_reason: string | null;
     /** Renstra draft/aktif; kosong bila kalender hanya dapat dibaca. */
     renstra_options: JadwalRenstraOption[];

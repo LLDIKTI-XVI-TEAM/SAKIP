@@ -21,14 +21,20 @@ interface LampiranDraftFieldsProps {
     renderExtraFields?: (index: number) => ReactNode;
     /** Bila diisi, penambahan lampiran ditutup dan pesan ini yang ditampilkan. */
     blockedMessage?: string;
+    /** Tombol tambah disembunyikan setelah jumlah ini tercapai. */
+    maxItems?: number;
+    /** Mode yang boleh dipilih; mode di luar daftar tidak menampilkan input. */
+    modes?: LampiranMode[];
+    /** Field khusus modul untuk semua mode, dirender di atas deskripsi mode. */
+    renderItemFields?: (index: number) => ReactNode;
 }
 
 const modeLabels: Record<LampiranMode, string> = { file: 'File', tautan: 'Tautan', teks: 'Teks' };
 
-function newLampiran(): LampiranDraft {
+function newLampiran(mode: LampiranMode): LampiranDraft {
     return {
         clientId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        mode: 'file',
+        mode,
         file: null,
         tautan: '',
         isi_teks: '',
@@ -50,6 +56,9 @@ export function LampiranDraftFields({
     fileDisabled = false,
     renderExtraFields,
     blockedMessage,
+    maxItems,
+    modes = Object.keys(modeLabels) as LampiranMode[],
+    renderItemFields,
 }: LampiranDraftFieldsProps) {
     const headingId = useId();
 
@@ -72,12 +81,12 @@ export function LampiranDraftFields({
                     <h2 id={headingId} className="text-base font-semibold leading-tight text-ink">{title}</h2>
                     {description && <p className="mt-0.5 max-w-3xl text-sm leading-snug text-muted">{description}</p>}
                 </div>
-                {!blockedMessage && (
+                {!blockedMessage && (maxItems === undefined || items.length < maxItems) && (
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => onChange((previous) => [...previous, newLampiran()])}
+                        onClick={() => onChange((previous) => [...previous, newLampiran(modes[0] ?? 'file')])}
                         disabled={disabled}
                         className="shrink-0 self-start whitespace-nowrap sm:self-center"
                     >
@@ -107,7 +116,7 @@ export function LampiranDraftFields({
                                             {index + 1}
                                         </span>
                                         <div className="flex gap-3">
-                                            {(Object.keys(modeLabels) as LampiranMode[]).map((mode) => (
+                                            {modes.map((mode) => (
                                                 <button
                                                     key={mode}
                                                     type="button"
@@ -137,10 +146,11 @@ export function LampiranDraftFields({
                                 </div>
 
                                 <div className="mt-4">
-                                    <p className="mb-3 text-xs text-muted">{modeDescriptions[item.mode]}</p>
+                                    {renderItemFields && <div className="mb-4 space-y-4">{renderItemFields(index)}</div>}
+                                    {modes.includes(item.mode) && <p className="mb-3 text-xs text-muted">{modeDescriptions[item.mode]}</p>}
                                     {errors[`${prefix}.mode`] && <p className="mb-3 text-xs text-danger">{errors[`${prefix}.mode`]}</p>}
 
-                                    {item.mode === 'file' && (
+                                    {item.mode === 'file' && modes.includes('file') && (
                                         <div>
                                             <input
                                                 type="file"
@@ -158,7 +168,7 @@ export function LampiranDraftFields({
 
                                     {item.mode !== 'file' && renderExtraFields && <div className="mb-3">{renderExtraFields(index)}</div>}
 
-                                    {item.mode === 'tautan' && (
+                                    {item.mode === 'tautan' && modes.includes('tautan') && (
                                         <Input
                                             name={`lampiran_tautan_${index}`}
                                             aria-label={`Tautan lampiran ${index + 1}`}
@@ -170,7 +180,7 @@ export function LampiranDraftFields({
                                         />
                                     )}
 
-                                    {item.mode === 'teks' && (
+                                    {item.mode === 'teks' && modes.includes('teks') && (
                                         <Textarea
                                             name={`lampiran_teks_${index}`}
                                             aria-label={`Teks lampiran ${index + 1}`}
