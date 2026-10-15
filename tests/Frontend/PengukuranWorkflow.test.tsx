@@ -271,7 +271,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Progres kegiatan' }).value).toBe('Progres lama');
         const kendala = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Kendala/masalah' });
         await user.type(kendala, 'Data terlambat');
-        await user.type(screen.getByRole('textbox', { name: 'Strategi tindak lanjut' }), 'Percepat rekap');
+        await user.type(screen.getByRole('textbox', { name: 'Tindak lanjut/strategi penyelesaian' }), 'Percepat rekap');
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         const payload = vi.mocked(router.post).mock.calls[0][1];
         expect(payload).toMatchObject({ status_perhitungan: null, progres_kegiatan: 'Progres lama', kendala_masalah: 'Data terlambat', strategi_tindak_lanjut: 'Percepat rekap' });

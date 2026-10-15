@@ -18,7 +18,7 @@ import CalculationPreview from './CalculationPreview';
 
 interface PengukuranEditProps { pengukuran: Pengukuran }
 
-const narasi = [['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Strategi tindak lanjut']] as const;
+const narasi = [['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const;
 
 export default function PengukuranEdit(props: PengukuranEditProps) {
     return <PengukuranForm key={props.pengukuran.id} {...props} />;
