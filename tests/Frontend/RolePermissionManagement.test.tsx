@@ -256,7 +256,8 @@ it.each([
     expect(get).toHaveBeenCalledTimes(1);
 });
 
-const failSearch = (kind: "network" | "server" | "session") => {
+const failureStatus = { session: 401, denied: 403, server: 500 } as const;
+const failSearch = (kind: "network" | keyof typeof failureStatus) => {
     const get = vi.mocked(router.get);
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
     act(() => { vi.advanceTimersByTime(350); });
@@ -264,7 +265,7 @@ const failSearch = (kind: "network" | "server" | "session") => {
     act(() => failed?.onStart?.({} as PendingVisit));
     act(() => {
         if (kind === "network") failed?.onNetworkError?.(new Error("offline"));
-        else failed?.onHttpException?.({ status: kind === "session" ? 401 : 500, data: kind === "session" ? { message: "Autentikasi diperlukan." } : "", headers: {} });
+        else failed?.onHttpException?.({ status: failureStatus[kind], data: kind === "session" ? { message: "Autentikasi diperlukan." } : "", headers: {} });
     });
     act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
 };
@@ -330,6 +331,7 @@ it("memindahkan fokus ke kotak pencarian saat Coba lagi ditekan", () => {
 
 it.each([
     ["network", "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi. Coba lagi"],
+    ["denied", "Akses ke daftar izin ditolak. Periksa akses sebelum mencoba kembali. Coba lagi"],
     ["server", "Hasil pencarian belum diperbarui. Coba lagi"],
 ] as const)("membedakan pesan gagal pencarian (%s)", (kind, text) => {
     vi.useFakeTimers();
@@ -337,6 +339,19 @@ it.each([
     render(<RolePermissionIndex {...props} />);
     failSearch(kind);
     expect(screen.getByRole("alert").textContent).toBe(text);
+});
+
+it("menahan dialog galat bawaan untuk kegagalan selain sesi tanpa menahan dialog sesi", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    const options = get.mock.calls[0][2];
+    // `false` menghentikan fallback Inertia; pesan di halaman yang menggantikannya.
+    expect(options?.onHttpException?.({ status: 403, data: "<html></html>", headers: {} })).toBe(false);
+    expect(options?.onHttpException?.({ status: 500, data: "<html></html>", headers: {} })).toBe(false);
+    expect(options?.onHttpException?.({ status: 401, data: { message: "Autentikasi diperlukan." }, headers: {} })).not.toBe(false);
 });
 
 it("menyerahkan sesi kedaluwarsa ke dialog sesi tanpa pesan gagal di halaman", () => {

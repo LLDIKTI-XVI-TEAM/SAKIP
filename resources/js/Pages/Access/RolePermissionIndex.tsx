@@ -13,6 +13,11 @@ import { classifyRecovery } from "@/lib/authRecovery";
 import type { RolePermissionIndexProps } from "@/types/role-permission";
 
 const cellClass = "min-w-0 p-0 md:px-4 md:py-3.5";
+const failureText = {
+    network: "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.",
+    denied: "Akses ke daftar izin ditolak. Periksa akses sebelum mencoba kembali.",
+    other: "Hasil pencarian belum diperbarui.",
+};
 
 export default function RolePermissionIndex({
     roles,
@@ -25,7 +30,7 @@ export default function RolePermissionIndex({
     const [query, setQuery] = useState(filters.q);
     const [navigating, setNavigating] = useState(false);
     const [retry, setRetry] = useState(0);
-    const [failure, setFailure] = useState<{ query: string; network: boolean } | null>(null);
+    const [failure, setFailure] = useState<{ query: string; kind: keyof typeof failureText } | null>(null);
     const pending = useRef(false);
     const leavingPage = useRef(false);
     const skipped = useRef(false);
@@ -88,7 +93,7 @@ export default function RolePermissionIndex({
                 return;
             }
             let loaded = false;
-            let network = false;
+            let kind: keyof typeof failureText = "other";
             let sessionDialog = false;
             setFailure(null);
             router.get(
@@ -98,12 +103,15 @@ export default function RolePermissionIndex({
                     preserveState: true, preserveScroll: true, replace: true, ...navigationEvents,
                     onSuccess: () => { loaded = true; },
                     onNetworkError: () => {
-                        network = true;
+                        kind = "network";
                         return false;
                     },
-                    // Sesi kedaluwarsa ditangani dialog sesi global, bukan pesan gagal di halaman.
+                    // Sesi kedaluwarsa diteruskan ke dialog sesi global; kegagalan lain cukup ditampilkan di halaman tanpa dialog galat bawaan.
                     onHttpException: (response) => {
                         sessionDialog = classifyRecovery(response) !== null;
+                        if (sessionDialog) return;
+                        if (response.status === 403) kind = "denied";
+                        return false;
                     },
                     // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan hasil sudah diperbarui.
                     onFinish: (visit) => {
@@ -111,7 +119,7 @@ export default function RolePermissionIndex({
                         navigationEvents.onFinish(visit);
                         // Dipotong kunjungan lain: kirim ulang sekali bila kunjungan itu gagal dan halaman tetap terbuka.
                         if (visit.interrupted) skipped.current = true;
-                        else if (!loaded && !queued && !visit.cancelled && !sessionDialog) setFailure({ query: searchQuery, network });
+                        else if (!loaded && !queued && !visit.cancelled && !sessionDialog) setFailure({ query: searchQuery, kind });
                     },
                 },
             );
@@ -169,7 +177,7 @@ export default function RolePermissionIndex({
                     </form>
                     {failure && failure.query === searchQuery && searchQuery !== filters.q && (
                         <p role="alert" className="px-4 pb-4 text-xs text-danger">
-                            {failure.network ? "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi." : "Hasil pencarian belum diperbarui."}{" "}
+                            {failureText[failure.kind]}{" "}
                             <button
                                 type="button"
                                 onClick={() => {
