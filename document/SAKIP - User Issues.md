@@ -5610,16 +5610,18 @@ Perubahan per request (tanpa nomor baris kode):
 - [x] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak. *(Klaim belum memiliki jalur tulis; penulis klaim kelak memakai aturan yang sama, Q52 §52.3.)*
 - [x] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
 - [x] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] **AC-5:** Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak sebagai validasi bisnis (422); tanpa izin atau terkena deny ditolak 403; keduanya teraudit.
+- [ ] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi terpenuhi; daftar Pengukuran dilanjutkan di #110.)*
 
 > **Status implementasi — ISS-14.01 (#86):** centang menunjukkan bukti implementasi dan test:
-> - `tests/Feature/Jadwal/JadwalPenutupanTest` (AC-1, AC-4, penolakan draft/ditutup/izin/revisi basi beraudit);
+> - `tests/Feature/Jadwal/JadwalPenutupanTest` (AC-1, AC-4, AC-5: penolakan draft/ditutup/izin/revisi basi beraudit);
 > - `tests/Unit/Jadwal/JadwalTahunDitutupTest`;
-> - `tests/Feature/RencanaAksi/RencanaAksiJadwalDitutupTest`, regresi `RencanaAksiBuktiHttpTest` dan `ReviewRencanaAksiTest` (RA dan bukti);
+> - `tests/Feature/RencanaAksi/RencanaAksiJadwalDitutupTest` (termasuk daftar RA baca saja untuk AC-6), regresi `RencanaAksiBuktiHttpTest` dan `ReviewRencanaAksiTest` (RA dan bukti);
 > - `tests/Feature/Pengukuran/PengukuranJadwalDitutupTest` (lima perintah pengukuran dan detail baca saja);
 > - `tests/Feature/Kegiatan/KegiatanHttpTest` (kegiatan);
 > - `tests/Frontend/JadwalEditor.test.tsx`.
 >
-> Jalur `jadwal:buka_kembali` sendiri milik ISS-14.02. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
+> Jalur `jadwal:buka_kembali` sendiri milik ISS-14.02. Daftar Pengukuran tahun ditutup (sisa AC-6) dilacak di #110. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
@@ -5647,10 +5649,12 @@ Perubahan per request (tanpa nomor baris kode):
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak 422; tanpa izin atau deny ditolak 403; keduanya teraudit.
+- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only). *(Rencana Aksi terbukti; daftar Pengukuran di #110.)*
 
 #### Definition of Done
 
-- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-6/TEST-6 untuk daftar Pengukuran menunggu #110.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
