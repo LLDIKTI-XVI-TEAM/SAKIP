@@ -188,7 +188,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         </TableBody>
                     </Table>
                 </Card>
-                <Card>
+                {rencanaAksi.can.kegiatan && <Card>
                     <CardHeader><CardTitle>Kegiatan yang diklaim pada versi {versi.nomor}</CardTitle></CardHeader>
                     <CardContent>
                         {rencanaAksi.klaim === null ? <p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p>
@@ -199,7 +199,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                                     {item.catatan && <p className="break-words text-xs text-muted">{item.catatan}</p>}
                                 </li>)}</ul>}
                     </CardContent>
-                </Card>
+                </Card>}
                 {rencanaAksi.can.evidence && <Card>
                     <CardHeader><CardTitle>Bukti dukung pada versi {versi.nomor}</CardTitle></CardHeader>
                     <CardContent>{rencanaAksi.bukti_dukungs.length === 0 ? <p className="text-sm text-muted">Tidak ada bukti dukung pada versi ini.</p> : <ul className="space-y-3">{rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={{ ...bukti, mime: null, ukuran_bytes: null }} meta={bukti.mode === 'file' && !bukti.download_url ? 'Berkas ini sudah tidak berlaku pada rencana aksi; unduhan tidak tersedia.' : undefined} />)}</ul>}</CardContent>

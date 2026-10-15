@@ -112,17 +112,6 @@ class KesiapanPengajuan
     }
 
     /**
-     * Alasan pengajuan ditolak dengan teks yang sama untuk kartu kesiapan dan
-     * gerbang server. Hanya `terhitung` yang lengkap: `belum_diisi` dan
-     * `tidak_dapat_dihitung` (termasuk penyebut nol) menolak. Deviasi PK yang
-     * tidak dapat dinilai (target PK null) tidak memerlukan alasan.
-     *
-     * @param  list<array{periode_nama: ?string, status_perhitungan: string}>  $baris
-     * @param  array{status: string}  $deviasi  Keluaran `DeviasiTargetPk::bandingkan`.
-     * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
-     * @return list<string>
-     */
-    /**
      * Gerbang minimal satu kegiatan yang diklaim pada tahap RA (Q42 §42.1
      * butir 3); tidak setiap periode wajib berisi kegiatan. Dikecualikan
      * untuk RA data awal 2026 yang diajukan lewat jalur Perencanaan (Q46
@@ -138,7 +127,7 @@ class KesiapanPengajuan
         if ($jumlahKlaim > 0) {
             return null;
         }
-        // Asumsi kerja menunggu konfirmasi PM: "data awal" dikenali dari tahun 2026 dan jalur Perencanaan, tanpa kolom penanda.
+        // Disetujui PM (PR #111): "data awal" dikenali dari tahun 2026 dan jalur Perencanaan, tanpa kolom penanda.
         if ($tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan) {
             return null;
         }
@@ -181,6 +170,17 @@ class KesiapanPengajuan
         return $alasan;
     }
 
+    /**
+     * Alasan pengajuan ditolak dengan teks yang sama untuk kartu kesiapan dan
+     * gerbang server. Hanya `terhitung` yang lengkap: `belum_diisi` dan
+     * `tidak_dapat_dihitung` (termasuk penyebut nol) menolak. Deviasi PK yang
+     * tidak dapat dinilai (target PK null) tidak memerlukan alasan.
+     *
+     * @param  list<array{periode_nama: ?string, status_perhitungan: string}>  $baris
+     * @param  array{status: string}  $deviasi  Keluaran `DeviasiTargetPk::bandingkan`.
+     * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
+     * @return list<string>
+     */
     public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan): array
     {
         $alasan = [];

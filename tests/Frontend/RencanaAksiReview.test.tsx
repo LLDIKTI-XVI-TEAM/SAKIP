@@ -45,7 +45,7 @@ const rencanaAksi: ReviewRencanaAksi = {
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
     klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku' }],
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
-    can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
+    can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true, kegiatan: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
     dibuka_kembali: false,
     histori: [{ id: 'versi-1', nomor: 1, diajukan_at: '2026-09-01T01:00:00Z', jalur_pengajuan: 'pic' }, { id: 'versi-2', nomor: 2, diajukan_at: '2026-10-01T01:00:00Z', jalur_pengajuan: 'pic' }], pagination,
 };
@@ -75,6 +75,11 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('Catatan beku')).toBeTruthy();
         expect(screen.queryByRole('textbox')).toBeNull();
     });
+    it('menyembunyikan klaim beku bila aktor tidak boleh membaca kegiatan unit', () => {
+        renderReview({ klaim: null, can: { ...rencanaAksi.can, kegiatan: false } });
+        expect(screen.queryByText(/Kegiatan yang diklaim pada versi/)).toBeNull();
+        expect(screen.queryByText('Bimtek beku')).toBeNull();
+    });
     it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {
         renderReview({ target_periode: [
             { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
@@ -88,7 +93,7 @@ describe('Review Rencana Aksi', () => {
     });
 
     it('capability server menyembunyikan aksi/bukti dan alasan bisnis tetap terbaca', () => {
-        renderReview({ can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: false }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'], sahkan: [], buka_kembali: [] } });
+        renderReview({ can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: false, kegiatan: true }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'], sahkan: [], buka_kembali: [] } });
         expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Kembalikan untuk revisi' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Unduh file' })).toBeNull();
@@ -110,7 +115,7 @@ describe('Review Rencana Aksi', () => {
 
     it('pengesahan memakai konfirmasi dan mengirim token header serta versi pengajuan', async () => {
         const user = userEvent.setup();
-        renderReview({ status_alur: 'diverifikasi', can: { verifikasi: false, kembalikan: true, sahkan: true, buka_kembali: false, evidence: true } });
+        renderReview({ status_alur: 'diverifikasi', can: { verifikasi: false, kembalikan: true, sahkan: true, buka_kembali: false, evidence: true, kegiatan: true } });
         expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
         await user.click(screen.getByRole('button', { name: 'Sahkan' }));
         const dialog = screen.getByRole('dialog', { name: 'Sahkan rencana aksi' });
@@ -130,7 +135,7 @@ describe('Review Rencana Aksi', () => {
     });
 
     it('menampilkan pengesah dan penanda self-approval pada versi yang disahkan', () => {
-        renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: true },
+        renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: true, kegiatan: true },
             pengesahan: { oleh: 'Perencana Pengesah', pada: '2026-10-12T05:00:00Z', self_approval: true } });
         expect(screen.getByText(/Disahkan oleh Perencana Pengesah/)).toBeTruthy();
         expect(screen.getByText(/self-approval/)).toBeTruthy();

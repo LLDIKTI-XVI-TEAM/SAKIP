@@ -43,7 +43,7 @@ const disahkan: ReviewRencanaAksi = {
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: 'terhitung', keterangan: null, komponen: [] }],
     klaim: null,
     bukti_dukungs: [],
-    can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: true, evidence: true },
+    can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: true, evidence: true, kegiatan: true },
     businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] },
     pengesahan: { oleh: 'Perencana Pengesah', pada: '2026-10-12T05:00:00Z', self_approval: false },
     dibuka_kembali: false,

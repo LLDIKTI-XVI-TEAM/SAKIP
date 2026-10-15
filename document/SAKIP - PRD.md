@@ -863,7 +863,7 @@ Klaim menyatakan **kegiatan mana yang mendukung Rencana Aksi/indikator dan berda
 
 ### 16.5 Penghapusan Klaim
 
-Klaim dapat dihapus oleh PIC pembuat klaim atau Perencanaan selama induknya (Rencana Aksi) belum `disahkan`; penghapusan wajib beralasan (Q43 §43.2 butir 2) dan tercatat di `audit_log`. PIC tidak dapat menghapus klaim tahap Rencana Aksi pada periode yang terkunci (§12.3, Q41).
+Klaim dapat dihapus oleh PIC pembuat klaim atau Perencanaan selama induknya (Rencana Aksi) berstatus draf atau dikembalikan (klaim ikut dibekukan saat pengajuan; keputusan PM 16 Oktober 2026 pada PR #111); penghapusan wajib beralasan (Q43 §43.2 butir 2) dan tercatat di `audit_log`. PIC tidak dapat menghapus klaim tahap Rencana Aksi pada periode yang terkunci (§12.3, Q41).
 
 ---
 

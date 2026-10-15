@@ -1032,8 +1032,9 @@ Klaim menyatakan **kegiatan mana yang mendukung rencana aksi/indikator dan berda
         §7)
 
 🎯 Penanggung Jawab (pembuat klaim) / 📋 Perencanaan
-  7. Dapat menghapus klaim selama rencana aksi induknya belum disahkan dan, bagi PIC, periode
-     kegiatannya belum terkunci (Q41 §41.2); penghapusan tercatat audit_log
+  7. Dapat menghapus klaim selama rencana aksi induknya berstatus draf atau dikembalikan
+     (klaim ikut dibekukan saat pengajuan; keputusan PM 16 Oktober 2026 pada PR #111) dan,
+     bagi PIC, periode kegiatannya belum terkunci (Q41 §41.2); penghapusan tercatat audit_log
 ```
 
 ```mermaid

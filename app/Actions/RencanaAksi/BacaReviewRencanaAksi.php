@@ -7,6 +7,8 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -36,6 +38,8 @@ class BacaReviewRencanaAksi
                 $errors['verifikasi'][] = $errors['kembalikan'][] = $errors['sahkan'][] = $errors['buka_kembali'][] = 'Versi historis hanya dapat dibaca; review memakai pengajuan terbaru.';
             }
             $buktiBoleh = $policy->viewEvidence($actor, $header);
+            // Detail klaim memuat data kegiatan: deny `kegiatan:read` pada unit menyembunyikannya seperti panel RA.
+            $kegiatanBoleh = app(PermissionResolver::class)->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id);
             $beku = $versi->snapshot ?? [];
             $bukti = $this->baris($beku['bukti_dukungs'] ?? []);
             $buktiIds = array_values(array_filter(array_column($bukti, 'id'), fn ($id): bool => is_string($id) && Str::isUuid($id)));
@@ -75,8 +79,8 @@ class BacaReviewRencanaAksi
                         'label' => $k['label'] ?? 'Konteks versi belum lengkap', 'nilai' => $this->nilai($k['nilai'] ?? null),
                         'keterangan' => is_string($k['keterangan'] ?? null) ? $k['keterangan'] : null], $this->baris($baris['komponen'] ?? [])),
                 ], $this->baris($beku['target_periode'] ?? [])),
-                // Klaim tahap RA yang dibekukan saat pengajuan (Data Model §2.34); null untuk versi sebelum klaim dibekukan.
-                'klaim' => is_array($beku['klaim'] ?? null) ? array_map(fn (array $k): array => [
+                // Klaim tahap RA yang dibekukan saat pengajuan (Data Model §2.34); null untuk versi sebelum klaim dibekukan atau tanpa izin baca kegiatan.
+                'klaim' => $kegiatanBoleh && is_array($beku['klaim'] ?? null) ? array_map(fn (array $k): array => [
                     'id' => $k['id'] ?? '', 'periode_nama' => $namaPeriode[$k['periode_id'] ?? ''] ?? 'Periode tidak tersedia',
                     'nama' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['nama'] ?? 'Konteks versi belum lengkap') : 'Konteks versi belum lengkap',
                     'status' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['status'] ?? null) : null,
@@ -91,7 +95,7 @@ class BacaReviewRencanaAksi
                 'can' => ['verifikasi' => $policy->verifikasi($actor, $header)->allowed() && $errors['verifikasi'] === [],
                     'kembalikan' => $policy->kembalikan($actor, $header)->allowed() && $errors['kembalikan'] === [],
                     'sahkan' => $policy->sahkan($actor, $header)->allowed() && $errors['sahkan'] === [],
-                    'buka_kembali' => $policy->bukaKembali($actor, $header)->allowed() && $errors['buka_kembali'] === [], 'evidence' => $buktiBoleh],
+                    'buka_kembali' => $policy->bukaKembali($actor, $header)->allowed() && $errors['buka_kembali'] === [], 'evidence' => $buktiBoleh, 'kegiatan' => $kegiatanBoleh],
                 'businessErrors' => ['verifikasi' => $errors['verifikasi'], 'kembalikan' => $errors['kembalikan'], 'sahkan' => $errors['sahkan'], 'buka_kembali' => $errors['buka_kembali']],
                 // Penanda self-approval wajib terlihat, bukan hanya diaudit:
                 // pengesah sama dengan pengaju pada jalur Perencanaan (Q41 §41.3 butir 2).

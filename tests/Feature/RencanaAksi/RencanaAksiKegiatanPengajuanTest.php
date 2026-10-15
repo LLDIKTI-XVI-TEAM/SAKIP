@@ -5,12 +5,14 @@ namespace Tests\Feature\RencanaAksi;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
+use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
@@ -120,6 +122,45 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
 
         $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
         $this->assertSame(2, RencanaAksiVersi::where('rencana_aksi_id', $header->id)->count());
+    }
+
+    public function test_versi_sah_lama_tanpa_key_klaim_tetap_menjaga_daftar_kegiatan_periode_terkunci(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal');
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        // Versi sah dibentuk sebelum klaim dibekukan: snapshot tanpa key `klaim`. Trigger
+        // versi beku dimatikan sementara (ikut rollback transaksi test) untuk meniru data lama.
+        $versi = RencanaAksiVersi::sole();
+        $snapshot = $versi->snapshot;
+        unset($snapshot['klaim']);
+        DB::statement('ALTER TABLE rencana_aksi_versi DISABLE TRIGGER USER');
+        DB::table('rencana_aksi_versi')->where('id', $versi->id)->update(['snapshot' => json_encode($snapshot),
+            'disahkan_by' => $fixture['perencanaan']->id, 'disahkan_at' => now()]);
+        DB::statement('ALTER TABLE rencana_aksi_versi ENABLE TRIGGER USER');
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
+
+        $this->travelTo(now()->setDate(2026, 4, 5)->setTime(9, 0));
+        $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Ditambah Perencanaan');
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors('jendela');
+
+        $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+        $this->assertSame(2, RencanaAksiVersi::where('rencana_aksi_id', $header->id)->count());
+    }
+
+    public function test_deny_baca_kegiatan_pada_unit_menyembunyikan_klaim_beku_di_review(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan rahasia');
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $fixture['perencanaan']->id,
+            'permission_id' => Permission::where('kode', 'kegiatan:read')->value('id'), 'unit_id' => $fixture['unit']->id,
+            'alasan' => 'Pengujian deny baca kegiatan', 'ditetapkan_oleh' => $fixture['perencanaan']->id, 'created_at' => now()]);
+
+        // Mengikuti pola bukti dukung: detail disembunyikan, keputusan review tidak bergantung padanya.
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}/review")->assertOk()
+            ->assertDontSee('Kegiatan rahasia')
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.klaim', null)->where('rencanaAksi.can.kegiatan', false));
     }
 
     public function test_klaim_ditolak_bila_unit_snapshot_terbaru_tidak_selaras_dengan_header(): void
