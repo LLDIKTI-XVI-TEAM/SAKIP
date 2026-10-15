@@ -1527,7 +1527,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
-- [x] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 ### US-08.03 · Buka-Kembali Pengukuran Disahkan & Histori Status Capaian
 

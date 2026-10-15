@@ -155,7 +155,11 @@ class SahkanPengukuranTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
     }
 
-    public function test_laporan_membaca_snapshot_beku_bukan_live_join_master(): void
+    /**
+     * Kontrak snapshot untuk laporan resmi (AC-6 menunggu ISS-10.05): bacaan
+     * resmi yang dibekukan tidak mengikuti perubahan master belakangan.
+     */
+    public function test_snapshot_beku_tetap_dibaca_setelah_master_berubah(): void
     {
         $pic = $this->siapkanPic();
         $this->ajukan($pic);
