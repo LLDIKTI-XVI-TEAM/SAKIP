@@ -477,10 +477,26 @@ class AssignRoleTest extends TestCase
                 $this->deny($permission);
             }
             $this->get('/akses/peran')->assertForbidden();
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertForbidden();
             $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertForbidden();
             $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
             $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
         }
+    }
+
+    public function test_user_options_search_all_accounts_for_role_page_autocomplete(): void
+    {
+        $this->target->update(['nama' => 'Aa Target Nonaktif', 'email' => 'aa.target@example.test']);
+        $this->actingAs($this->actor)->getJson('/akses/peran/opsi/pengguna?q=aa.target')->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.id', $this->target->id)
+            ->assertJsonPath('items.0.status', 'nonaktif')
+            ->assertJsonPath('items.0.roles', [])
+            ->assertJsonPath('page', 1)
+            ->assertJsonPath('hasMore', false);
+        $this->getJson('/akses/peran/opsi/pengguna?q=Pengelola')->assertOk()->assertJsonPath('items.0.roles', ['Superadmin']);
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertUnprocessable();
+        $this->assertDatabaseCount('audit_log', $this->seedAudits);
     }
 
     public function test_index_bounds_users_filters_and_orders_official_roles_without_sensitive_props(): void
@@ -509,6 +525,53 @@ class AssignRoleTest extends TestCase
             ->has('roles', 4)->where('roles.3.kode', 'pegawai')
             ->where('users.data.0.current_role.kode', 'pimpinan')->where('users.data.0.current_role.aktif', false));
         $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertSessionHasErrors('role_id');
+    }
+
+    public function test_selected_user_filter_is_exact_and_search_escapes_wildcards(): void
+    {
+        $ana = User::factory()->create(['nama' => 'Ana', 'email' => 'ana@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Diana', 'email' => 'diana@lldikti16.test', 'status' => 'aktif']);
+        $underscore = User::factory()->create(['nama' => 'Garis Bawah', 'email' => 'a_b@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Huruf X', 'email' => 'axb@lldikti16.test', 'status' => 'aktif']);
+        // Pengguna terpilih dari autocomplete disaring per id, bukan potongan email.
+        $this->actingAs($this->actor)->get('/akses/peran?user='.$ana->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('users.data.0.id', $ana->id)->where('filters.user', $ana->id));
+        // Kontrol: pencarian teks tetap mencocokkan sebagian.
+        $this->get('/akses/peran?q=ana%40lldikti16')->assertInertia(fn (Assert $page) => $page->has('users.data', 2));
+        // `_` dan `%` adalah karakter biasa, bukan wildcard SQL.
+        $this->get('/akses/peran?q=a_b%40')->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.id', $underscore->id));
+        $this->get('/akses/peran?q='.urlencode('%@lldikti16'))->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
+        // UUID berhuruf besar sah; filter dikembalikan dalam bentuk kanonis agar cocok dengan id di klien.
+        $this->get('/akses/peran?user='.strtoupper($ana->id))->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('filters.user', $ana->id));
+        $this->get('/akses/peran?user='.Str::uuid())->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
+        $this->get('/akses/peran?user=bukan-uuid')->assertSessionHasErrors('user');
+    }
+
+    public function test_result_fallback_keeps_pagination_links_on_index_route(): void
+    {
+        User::factory()->count(25)->create(['nama' => 'Z Pengguna']);
+        // Tanpa receipt, daftar dirender di /akses/peran/hasil; tautan halaman tetap menuju daftar.
+        $this->actingAs($this->actor)->get('/akses/peran/hasil')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Access/RoleAssignmentIndex', false)->where('confirmationUnavailable', true)
+            ->where('users.links', fn ($links) => collect($links)->pluck('url')->filter()->isNotEmpty()
+                && collect($links)->pluck('url')->filter()->every(fn ($url) => parse_url($url, PHP_URL_PATH) === '/akses/peran')));
+    }
+
+    public function test_user_options_require_login_active_actor_and_valid_page(): void
+    {
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertUnauthorized();
+        $this->actingAs($this->actor);
+        foreach (['0', 'abc'] as $page) {
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa&page='.$page)->assertUnprocessable()->assertJsonValidationErrors('page');
+        }
+        // Gerbang izin dicek sebelum validasi: aktor tanpa izin tidak mendapat detail validasi.
+        DB::table('role_permissions')->where('role_id', Role::where('kode', 'superadmin')->value('id'))
+            ->where('permission_id', Permission::where('kode', 'akses:update')->value('id'))->delete();
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertForbidden();
+        // Akun yang dinonaktifkan di sesi lain diarahkan ke halaman menunggu tanpa data pengguna.
+        $this->actor->update(['status' => 'nonaktif']);
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertRedirect('/auth/pending');
     }
 
     #[DataProvider('invalidPayloads')]

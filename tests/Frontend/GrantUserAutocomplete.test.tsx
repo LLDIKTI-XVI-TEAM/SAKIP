@@ -128,7 +128,7 @@ describe('GrantUserAutocomplete Component', () => {
         expect(emptyMessage).toBeTruthy();
     });
 
-    it('menampilkan "Tanpa Role" untuk pengguna yang tidak memiliki peran', async () => {
+    it('menampilkan "Belum memiliki peran" untuk pengguna yang tidak memiliki peran', async () => {
         const user = userEvent.setup();
 
         render(
@@ -143,7 +143,8 @@ describe('GrantUserAutocomplete Component', () => {
         await user.type(input, 'rian');
 
         expect(await screen.findByText('Rian Staf')).toBeTruthy();
-        expect(screen.getByText('Tanpa Role')).toBeTruthy();
+        expect(screen.getByText('Belum memiliki peran')).toBeTruthy();
+        expect(screen.queryByText('Tanpa Role')).toBeNull();
     });
 
     it('memilih pengguna target: menampilkan kartu pengguna terpilih dan memanggil onChange dengan user_id', async () => {
