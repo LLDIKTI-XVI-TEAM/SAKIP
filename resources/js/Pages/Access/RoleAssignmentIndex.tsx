@@ -142,7 +142,17 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
         return match ? { id: match.id, nama: match.nama, email: match.email, status: match.status, roles: match.current_role ? [`${match.current_role.nama}${match.current_role.aktif ? '' : ' (nonaktif)'}`] : [] } : null;
     }, [users.data, filters.user]);
     const [filtering, setFiltering] = useState(false);
-    const filterBy = (id: string) => router.get('/akses/peran', id ? { user: id } : {}, { preserveState: true, preserveScroll: true, replace: true, onStart: () => setFiltering(true), onFinish: () => setFiltering(false) });
+    const [failedFilter, setFailedFilter] = useState<string | null>(null);
+    const filterBy = (id: string) => {
+        let loaded = false;
+        router.get('/akses/peran', id ? { user: id } : {}, {
+            preserveState: true, preserveScroll: true, replace: true,
+            onStart: () => { setFiltering(true); setFailedFilter(null); },
+            onSuccess: () => { loaded = true; },
+            // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan daftar sudah diperbarui.
+            onFinish: (visit) => { setFiltering(false); if (!loaded && !visit.cancelled && !visit.interrupted) setFailedFilter(id); },
+        });
+    };
     const hasFilter = Boolean(filters.q || filters.user);
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
@@ -171,6 +181,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                 <div className="space-y-2 p-4" role="search">
                     <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={filtered?.id ?? ''} initialUser={filtered} onChange={filterBy} />
                     {hasFilter && !filtered && <p className="text-xs text-muted">{filters.q ? `Menampilkan hasil untuk “${filters.q}”.` : 'Pengguna terpilih tidak ditemukan.'} <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
+                    {failedFilter !== null && <p role="alert" className="text-xs text-danger">Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi. <button type="button" onClick={() => filterBy(failedFilter)} className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Coba lagi</button></p>}
                 </div>
             </Card>
             <Card>

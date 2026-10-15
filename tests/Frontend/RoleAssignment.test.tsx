@@ -218,6 +218,26 @@ it('menonaktifkan daftar dan paginasi selama filter pengguna dimuat agar aksi ba
     expect(rowAction.closest('[inert]')).toBeNull();
 });
 
+it('memberi tahu dan menawarkan coba lagi bila filter pengguna gagal dimuat, tanpa membuang pilihan', async () => {
+    const user = userEvent.setup();
+    render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    const failed = vi.mocked(router.get).mock.calls[0][2];
+    act(() => failed?.onStart?.({} as PendingVisit));
+    // Gangguan jaringan atau server: Inertia tetap memanggil onFinish tanpa onSuccess.
+    act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+    expect(screen.getByRole('alert').textContent).toContain('Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi.');
+    expect(screen.queryByRole('button', { name: 'Ganti pengguna target' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
+    expect(vi.mocked(router.get).mock.calls.map((call) => call.slice(0, 2))).toEqual([['/akses/peran', {}], ['/akses/peran', {}]]);
+    const retried = vi.mocked(router.get).mock.calls[1][2];
+    act(() => retried?.onStart?.({} as PendingVisit));
+    expect(screen.queryByRole('alert')).toBeNull();
+    act(() => retried?.onSuccess?.({} as Page));
+    act(() => retried?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+    expect(screen.queryByRole('alert')).toBeNull();
+});
+
 it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab', async () => {
     const lookup = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ items: [{ id: 'user-a', nama: 'Ayu', email: 'ayu@example.test', status: 'aktif', roles: ['Pegawai'] }], page: 1, hasMore: false }), { status: 200 }));
     vi.stubGlobal('fetch', lookup);
