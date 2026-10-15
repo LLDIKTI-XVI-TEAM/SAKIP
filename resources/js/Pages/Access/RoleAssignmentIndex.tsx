@@ -3,7 +3,7 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { GrantUserAutocomplete, type UserOption } from '@/Components/Access/GrantUserAutocomplete';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { AlertCircle, CheckCircle, UserCog, Users, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
@@ -29,6 +29,11 @@ interface RoleAssignmentProps {
     confirmationUnavailable: boolean;
 }
 const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
+const filterFailureText = {
+    network: 'Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi.',
+    denied: 'Akses ke daftar pengguna ditolak. Periksa akses sebelum mencoba kembali.',
+    other: 'Daftar pengguna belum diperbarui.',
+};
 
 function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser; roles: RoleOption[]; isSelf: boolean; onClose: () => void; onSaved: () => void }) {
     const alert = useRef<HTMLParagraphElement>(null);
@@ -145,24 +150,42 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
     const [filtering, setFiltering] = useState(false);
     // Pilihan yang sedang atau gagal dimuat; nilai dari server dipakai lagi setelah daftar berhasil diperbarui.
     const [pendingFilter, setPendingFilter] = useState<{ id: string; user: UserOption | null } | null>(null);
-    const [filterFailure, setFilterFailure] = useState<{ network: boolean } | null>(null);
-    const filterBy = (id: string, user: UserOption | null = null) => {
+    const [filterFailure, setFilterFailure] = useState<keyof typeof filterFailureText | null>(null);
+    const filterInterrupted = useRef(false);
+    const filterBy = useCallback((id: string, user: UserOption | null = null) => {
         let loaded = false;
-        let network = false;
+        let kind: keyof typeof filterFailureText = 'other';
         let sessionDialog = false;
         // Dipasang sebelum respons tiba agar respons lama tidak mengosongkan kata cari yang baru diketik.
         setPendingFilter({ id, user });
         router.get('/akses/peran', id ? { user: id } : {}, {
             preserveState: true, preserveScroll: true, replace: true,
             onStart: () => { setFiltering(true); setFilterFailure(null); },
-            onSuccess: () => { loaded = true; setPendingFilter(null); },
-            onNetworkError: () => { network = true; return false; },
-            // Sesi kedaluwarsa ditangani dialog sesi global, bukan pesan gagal di halaman.
-            onHttpException: (response) => { sessionDialog = classifyRecovery(response) !== null; },
+            onSuccess: () => { loaded = true; filterInterrupted.current = false; setPendingFilter(null); },
+            onNetworkError: () => { kind = 'network'; return false; },
+            // Sesi kedaluwarsa diteruskan ke dialog sesi global; kegagalan lain cukup ditampilkan di halaman tanpa dialog galat bawaan.
+            onHttpException: (response) => {
+                sessionDialog = classifyRecovery(response) !== null;
+                if (sessionDialog) return;
+                if (response.status === 403) kind = 'denied';
+                return false;
+            },
             // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan daftar sudah diperbarui.
-            onFinish: (visit) => { setFiltering(false); if (!loaded && !visit.cancelled && !visit.interrupted && !sessionDialog) setFilterFailure({ network }); },
+            onFinish: (visit) => {
+                setFiltering(false);
+                // Dipotong kunjungan lain: dikirim ulang sekali bila navigasi itu gagal dan halaman tetap terbuka.
+                if (visit.interrupted) filterInterrupted.current = true;
+                else if (!loaded && !visit.cancelled && !sessionDialog) setFilterFailure(kind);
+            },
         });
-    };
+    }, []);
+    useEffect(() => router.on('finish', (event) => {
+        const visit = event.detail.visit;
+        if (visit.prefetch || visit.url.pathname === '/akses/peran' || !filterInterrupted.current || !pendingFilter) return;
+        filterInterrupted.current = false;
+        // Navigasi yang berhasil sudah mengganti URL; hanya navigasi gagal yang menyisakan halaman ini terbuka.
+        if (!visit.cancelled && !visit.interrupted && window.location.pathname === '/akses/peran') filterBy(pendingFilter.id, pendingFilter.user);
+    }), [pendingFilter, filterBy]);
     // Simpan memuat daftar baru dari server; pilihan dan pesan filter yang gagal tidak berlaku lagi.
     const saved = () => { close(); setPendingFilter(null); setFilterFailure(null); };
     const hasFilter = Boolean(filters.q || filters.user);
@@ -193,7 +216,7 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                 <div className="space-y-2 p-4" role="search">
                     <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={pendingFilter ? pendingFilter.id : (filtered?.id ?? '')} initialUser={pendingFilter ? pendingFilter.user : filtered} onChange={(id, user) => filterBy(id, user ?? null)} />
                     {hasFilter && !filtered && <p className="text-xs text-muted">{filters.q ? `Menampilkan hasil untuk “${filters.q}”.` : 'Pengguna terpilih tidak ditemukan.'} <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
-                    {filterFailure && pendingFilter && <p role="alert" className="text-xs text-danger">{filterFailure.network ? 'Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi.' : 'Daftar pengguna belum diperbarui.'} <button type="button" onClick={() => {
+                    {filterFailure && pendingFilter && <p role="alert" className="text-xs text-danger">{filterFailureText[filterFailure]} <button type="button" onClick={() => {
                         // Tombol ini hilang setelah diklik; fokus dipindah ke judul daftar agar keyboard tidak jatuh ke awal halaman.
                         title.current?.focus();
                         filterBy(pendingFilter.id, pendingFilter.user);

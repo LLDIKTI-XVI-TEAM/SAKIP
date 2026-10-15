@@ -240,12 +240,13 @@ it('memberi tahu dan menawarkan coba lagi bila filter pengguna gagal dimuat, tan
     expect(screen.queryByRole('alert')).toBeNull();
 });
 
-const failFilter = (kind: 'network' | 'server' | 'session', call = 0) => {
+const failureStatus = { session: 401, denied: 403, server: 500 } as const;
+const failFilter = (kind: 'network' | keyof typeof failureStatus, call = 0) => {
     const failed = vi.mocked(router.get).mock.calls[call][2];
     act(() => failed?.onStart?.({} as PendingVisit));
     act(() => {
         if (kind === 'network') failed?.onNetworkError?.(new Error('offline'));
-        else failed?.onHttpException?.({ status: kind === 'session' ? 401 : 500, data: kind === 'session' ? { message: 'Autentikasi diperlukan.' } : '', headers: {} });
+        else failed?.onHttpException?.({ status: failureStatus[kind], data: kind === 'session' ? { message: 'Autentikasi diperlukan.' } : '', headers: {} });
     });
     act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
 };
@@ -253,6 +254,7 @@ const optionsWith = (items: unknown[]) => vi.stubGlobal('fetch', vi.fn<typeof fe
 
 it.each([
     ['network', 'Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi. Coba lagi'],
+    ['denied', 'Akses ke daftar pengguna ditolak. Periksa akses sebelum mencoba kembali. Coba lagi'],
     ['server', 'Daftar pengguna belum diperbarui. Coba lagi'],
 ] as const)('membedakan pesan gagal filter pengguna (%s)', async (kind, text) => {
     const user = userEvent.setup();
@@ -260,6 +262,54 @@ it.each([
     await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
     failFilter(kind);
     expect(screen.getByRole('alert').textContent).toBe(text);
+});
+
+it('menahan dialog galat bawaan untuk kegagalan filter selain sesi tanpa menahan dialog sesi', async () => {
+    const user = userEvent.setup();
+    render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    const options = vi.mocked(router.get).mock.calls[0][2];
+    // `false` menghentikan fallback Inertia; pesan di halaman yang menggantikannya.
+    expect(options?.onHttpException?.({ status: 403, data: '<html></html>', headers: {} })).toBe(false);
+    expect(options?.onHttpException?.({ status: 500, data: '<html></html>', headers: {} })).toBe(false);
+    expect(options?.onHttpException?.({ status: 401, data: { message: 'Autentikasi diperlukan.' }, headers: {} })).not.toBe(false);
+});
+
+const leaving = (visit: Record<string, unknown> = {}) => ({ url: new URL('http://localhost/dashboard'), method: 'get', prefetch: false, ...visit });
+const dispatchVisit = (name: 'start' | 'finish', visit: Record<string, unknown>) =>
+    act(() => { document.dispatchEvent(new CustomEvent(`inertia:${name}`, { detail: { visit } })); });
+const interruptedFilterOnBudi = async () => {
+    window.history.replaceState({}, '', '/akses/peran');
+    optionsWith([{ id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif', roles: [] }]);
+    const user = userEvent.setup();
+    page();
+    await user.type(screen.getByRole('combobox', { name: 'Cari pengguna' }), 'bu');
+    await user.click(await screen.findByRole('option', { name: /Budi/ }));
+    const filter = vi.mocked(router.get).mock.calls[0][2];
+    act(() => filter?.onStart?.({} as PendingVisit));
+    // Klik sidebar: Inertia memotong filter yang sedang berjalan lalu memulai navigasi keluar.
+    act(() => filter?.onFinish?.({ cancelled: false, interrupted: true } as ActiveVisit));
+    dispatchVisit('start', leaving());
+};
+afterEach(() => { window.history.replaceState({}, '', '/'); });
+
+it('mengirim ulang sekali filter yang dipotong navigasi ke halaman lain bila navigasi itu gagal', async () => {
+    await interruptedFilterOnBudi();
+    dispatchVisit('finish', leaving({ cancelled: false, interrupted: false }));
+    expect(vi.mocked(router.get).mock.calls.map((call) => call.slice(0, 2))).toEqual([['/akses/peran', { user: 'user-b' }], ['/akses/peran', { user: 'user-b' }]]);
+    dispatchVisit('finish', leaving({ cancelled: false, interrupted: false }));
+    expect(vi.mocked(router.get)).toHaveBeenCalledTimes(2);
+});
+
+it.each([
+    ['dibatalkan', { cancelled: true }, '/akses/peran'],
+    ['berhasil pindah halaman', {}, '/dashboard'],
+])('tidak mengirim ulang filter yang dipotong bila navigasi ke halaman lain %s', async (_label, flags, path) => {
+    await interruptedFilterOnBudi();
+    // Navigasi yang berhasil sudah mengganti URL sebelum event finish.
+    window.history.replaceState({}, '', path);
+    dispatchVisit('finish', leaving({ cancelled: false, interrupted: false, ...flags }));
+    expect(vi.mocked(router.get)).toHaveBeenCalledTimes(1);
 });
 
 it('menyerahkan sesi kedaluwarsa saat memfilter ke dialog sesi tanpa pesan gagal di halaman', async () => {
