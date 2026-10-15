@@ -205,6 +205,14 @@ class KlaimKegiatanTest extends TestCase
             ->where('kegiatan.data.0.can.klaim', false));
     }
 
+    public function test_deny_baca_ra_pada_unit_menyembunyikan_panel_klaim(): void
+    {
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $this->denyPermission($this->actor, 'rencana_aksi:read', $this->unit->id);
+
+        $this->get('/kegiatan/'.$this->kegiatan->id.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
+    }
+
     private function url(?Kegiatan $kegiatan = null): string
     {
         return '/kegiatan/'.($kegiatan ?? $this->kegiatan)->id.'/klaim';

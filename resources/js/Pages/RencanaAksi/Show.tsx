@@ -22,7 +22,8 @@ interface ShowProps {
     rencanaAksi: RencanaAksiShow;
     /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
     bukti?: RencanaAksiBukti | null;
-    kegiatan?: RencanaAksiKegiatan;
+    /** Null bila aktor tidak boleh membaca kegiatan unit ini; panel disembunyikan. */
+    kegiatan?: RencanaAksiKegiatan | null;
 }
 
 export default function RencanaAksiShow(props: ShowProps) {

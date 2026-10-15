@@ -124,6 +124,14 @@ class KegiatanRencanaAksiTest extends TestCase
             ->assertInertia(fn ($page) => $page->has('kegiatan.daftar', 1)->where('kegiatan.can.tambah', false));
     }
 
+    public function test_deny_baca_kegiatan_pada_unit_menyembunyikan_panel_kegiatan_ra(): void
+    {
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $this->denyPermission($this->actor, 'kegiatan:read', $this->unit->id);
+
+        $this->get('/rencana-aksi/'.$this->rencanaAksi->id)->assertOk()->assertInertia(fn ($page) => $page->where('kegiatan', null));
+    }
+
     private function url(): string
     {
         return '/rencana-aksi/'.$this->rencanaAksi->id.'/kegiatan';

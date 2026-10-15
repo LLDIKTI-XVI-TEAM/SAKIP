@@ -30,10 +30,18 @@ class DaftarKlaimKegiatan
         private readonly PermissionResolver $resolver,
     ) {}
 
-    /** @return array<string, mixed> */
-    public function handle(User $actor, Kegiatan $kegiatan): array
+    /**
+     * Null bila aktor tidak boleh membaca RA unit kegiatan (deny unit menang);
+     * klaim selalu satu unit dengan RA-nya sehingga satu pemeriksaan cukup.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function handle(User $actor, Kegiatan $kegiatan): ?array
     {
         $unitId = (string) $kegiatan->unit_id;
+        if (! $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId)) {
+            return null;
+        }
         $periode = [(string) $kegiatan->periode_id];
         $perencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId));
         $boleh = [];

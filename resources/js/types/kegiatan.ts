@@ -24,7 +24,7 @@ export interface RencanaKegiatan {
 export interface KegiatanFormProps {
     kegiatan: RencanaKegiatan | null;
     /** Panel klaim tahap RA; hanya ada pada halaman ubah. */
-    klaim?: KlaimKegiatanPanel;
+    klaim?: KlaimKegiatanPanel | null;
     tahunDefault: number;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];

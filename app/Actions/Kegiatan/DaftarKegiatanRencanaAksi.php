@@ -22,11 +22,19 @@ class DaftarKegiatanRencanaAksi
         private readonly PermissionResolver $resolver,
     ) {}
 
-    /** @return array<string, mixed> */
-    public function handle(User $actor, string $id): array
+    /**
+     * Null bila aktor tidak boleh membaca kegiatan unit RA (deny unit menang),
+     * agar detail kegiatan tidak terbaca lewat halaman RA.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function handle(User $actor, string $id): ?array
     {
         $header = RencanaAksi::findOrFail($id);
         $unitId = (string) $header->unit_id;
+        if (! $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, $unitId)) {
+            return null;
+        }
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
             ->where('klaim_kegiatan.rencana_aksi_id', $header->id)

@@ -178,6 +178,16 @@ class AjukanRencanaAksi
                 // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
+                $komponenIds = $definisi->pluck('komponen_id')->all();
+                foreach ($klaim as $item) {
+                    $sumber = $kegiatan->get($item->kegiatan_id);
+                    if ($sumber === null || (string) $sumber->unit_id !== (string) $header->unit_id || (int) $sumber->tahun !== (int) $header->tahun
+                        || ! $periodeEfektif->contains((string) $sumber->periode_id)
+                        || ($item->komponen_id !== null && ! in_array((string) $item->komponen_id, $komponenIds, true))) {
+                        $alasan[] = 'Klaim kegiatan "'.($sumber->nama ?? $item->kegiatan_id).'" tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
+                    }
+                }
                 $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;

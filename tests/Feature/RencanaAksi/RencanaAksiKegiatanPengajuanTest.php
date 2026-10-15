@@ -4,6 +4,7 @@ namespace Tests\Feature\RencanaAksi;
 
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -68,6 +69,21 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
 
         $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
         $this->assertSame('pic', RencanaAksiVersi::sole()->jalur_pengajuan);
+    }
+
+    public function test_klaim_yang_tidak_cocok_dengan_konteks_beku_terbaru_menolak_pengajuan(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        // Periode di luar jadwal RA: klaim tidak lagi sah terhadap periode efektif beku.
+        $asing = Periode::create(['nama' => 'Periode Asing', 'urutan' => 9, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $asing->id,
+            'nama' => 'Kegiatan basi', 'created_by' => $fixture['pic']->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);
+
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors('pengajuan');
+        $this->assertStringContainsString('Kegiatan basi', session('errors')->first('pengajuan'));
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
     }
 
     /**
