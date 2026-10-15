@@ -42,6 +42,7 @@ export interface Pengukuran {
     reviu_terlambat: boolean;
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: string | number | null;
+    tanpa_target_periode?: boolean;
     target_pk?: string | number | null;
     selisih_target_pk?: string | null;
     klaim?: KlaimPengukuran[];
@@ -49,6 +50,9 @@ export interface Pengukuran {
     status_perhitungan: 'belum_diisi' | 'terhitung' | 'tidak_dapat_dihitung';
     sumber_nilai: 'manual' | 'komponen' | 'historis';
     catatan: string | null;
+    progres_kegiatan?: string | null;
+    kendala_masalah?: string | null;
+    strategi_tindak_lanjut?: string | null;
     alasan_tidak_dapat_dihitung: string | null;
     komponen: { komponen_id: string; kode: string; label: string; peran: string; bobot: string | number | null; nilai: string | number | null }[];
     prasyarat: { siap: boolean; alasan: string[] };

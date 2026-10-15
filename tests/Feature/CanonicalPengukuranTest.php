@@ -180,10 +180,10 @@ class CanonicalPengukuranTest extends TestCase
         $this->actingAs($this->actor)->post('/verifikasi/'.$this->pengukuran->id.'/verifikasi', ['versi' => 2])->assertSessionHasNoErrors();
     }
 
-    public function test_required_note_and_component_overflow_are_validation_failures(): void
+    public function test_required_narrative_and_component_overflow_are_validation_failures(): void
     {
         $this->pengukuran->indikator->update(['wajib_catatan' => true]);
-        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasErrors('pengajuan');
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85, 'progres_kegiatan' => null])->assertSessionHasErrors('progres_kegiatan');
         [$n,$t] = $this->ratioContext();
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft', 'komponen' => [['komponen_id' => $n, 'nilai' => 1e17], ['komponen_id' => $t, 'nilai' => 1]]])->assertSessionHasErrors('nilai');
         $this->assertSame(1, $this->pengukuran->fresh()->versi);

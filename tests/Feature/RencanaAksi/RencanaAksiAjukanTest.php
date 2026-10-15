@@ -97,6 +97,7 @@ class RencanaAksiAjukanTest extends TestCase
 
     public function test_target_belum_lengkap_ditolak_tanpa_versi(): void
     {
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $fixture = $this->buatFixtureManual();
         $header = $this->buatDraf($fixture);
         $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100)]);

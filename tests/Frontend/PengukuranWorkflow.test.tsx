@@ -64,6 +64,44 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Alur pengukuran', () => {
+    it('mengirim narasi terkini dan mengikat galat ke kolom tanpa menghapus input', async () => {
+        const user = userEvent.setup();
+        vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+            options?.onError?.({ kendala_masalah: 'Kendala/masalah wajib diisi sebelum pengajuan.' });
+            options?.onFinish?.(finishedVisit);
+        });
+        render(<PengukuranEdit pengukuran={measurement} />);
+        await user.type(screen.getByRole('textbox', { name: 'Progres kegiatan' }), 'Progres baru');
+        await user.type(screen.getByRole('textbox', { name: 'Tindak lanjut/strategi penyelesaian' }), 'Strategi baru');
+        await user.click(screen.getByRole('button', { name: 'Ajukan ke Tim Perencanaan' }));
+        await user.click(screen.getByRole('button', { name: 'Ajukan dan bekukan' }));
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ progres_kegiatan: 'Progres baru', kendala_masalah: '', strategi_tindak_lanjut: 'Strategi baru', catatan: '' });
+        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Progres kegiatan' }).value).toBe('Progres baru');
+        expect(screen.getByRole('textbox', { name: 'Kendala/masalah' }).getAttribute('aria-invalid')).toBe('true');
+        expect(screen.getByRole('textbox', { name: 'Kendala/masalah' }).getAttribute('aria-describedby')).toContain('kendala_masalah-error');
+        expect(screen.getByText(/Keterangan tambahan opsional/)).toBeTruthy();
+    });
+
+    it('menampilkan tiga narasi dari props versi pengajuan untuk reviewer', () => {
+        render(<VerifikasiShow pengukuran={{ ...measurement, status: 'diajukan', progres_kegiatan: 'Progres beku', kendala_masalah: 'Kendala beku', strategi_tindak_lanjut: 'Strategi beku' }} />);
+        expect(screen.getByText('Progres beku')).toBeTruthy();
+        expect(screen.getByText('Kendala beku')).toBeTruthy();
+        expect(screen.getByText('Strategi beku')).toBeTruthy();
+    });
+
+    it('membedakan tanpa target periode dari target nol pada form dan detail versi', () => {
+        const noTarget: Pengukuran = { ...measurement, target: null, tanpa_target_periode: true, target_pk: 95, selisih_target_pk: '-15.000000000000' };
+        const { rerender } = render(<PengukuranEdit pengukuran={noTarget} />);
+        expect(screen.getByText('Tanpa target periode')).toBeTruthy();
+        expect(screen.getByText('Selisih terhadap target PK').parentElement?.textContent).toContain('-15,00 %');
+        rerender(<VerifikasiShow pengukuran={{ ...noTarget, status: 'diajukan' }} />);
+        expect(screen.getByText('Tanpa target periode')).toBeTruthy();
+        expect(screen.queryByText('Capaian persen')).toBeNull();
+        rerender(<VerifikasiShow pengukuran={{ ...noTarget, status: 'diajukan', target: '0.000000000000', tanpa_target_periode: false }} />);
+        expect(screen.queryByText('Tanpa target periode')).toBeNull();
+        expect(screen.getByText('Target periode RA · Semester I').parentElement?.textContent).toContain('0,00 %');
+    });
+
     it('mengajukan input terkini setelah konfirmasi meski checklist draft gagal dan form belum disimpan', async () => {
         const user = userEvent.setup();
         render(<PengukuranEdit pengukuran={{ ...measurement, prasyarat: { siap: false, alasan: ['Nilai belum lengkap.'] } }} />);

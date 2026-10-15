@@ -44,6 +44,9 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
         nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
         komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
         catatan: pengukuran.catatan || '',
+        progres_kegiatan: pengukuran.progres_kegiatan ?? '',
+        kendala_masalah: pengukuran.kendala_masalah ?? '',
+        strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
         alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
         tambah_bukti: false,
         jenis_berkas_id: '',
@@ -89,6 +92,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
             versi: values.versi, action: intent,
             ...(manual ? { nilai: values.nilai === '' ? null : values.nilai } : { komponen: values.komponen.map((item) => ({ ...item, nilai: item.nilai === '' ? null : item.nilai })) }),
             catatan: values.catatan, alasan_tidak_dapat_dihitung: values.alasan_tidak_dapat_dihitung,
+            progres_kegiatan: values.progres_kegiatan, kendala_masalah: values.kendala_masalah, strategi_tindak_lanjut: values.strategi_tindak_lanjut,
             ...(values.tambah_bukti && can.uploadEvidence && modes.length > 0 ? { bukti: {
                 jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
                 ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),
@@ -134,7 +138,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                     <dl className="grid gap-4 text-sm sm:grid-cols-3">
                         <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
                         <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{indikator.tipe_perhitungan.replaceAll('_', ' ')}</dd><dd className="text-xs text-muted">{indikator.arah === 'turun_baik' ? 'Nilai lebih kecil lebih baik' : 'Nilai lebih besar lebih baik'}</dd></div>
-                        <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                        <div><dt className="text-muted">Target {pengukuran.periode_jadwal.nama_periode}</dt><dd className="mt-1 font-medium">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                     </dl>
                     {pengukuran.target_pk !== undefined && <dl className="grid gap-4 border-t border-border pt-3 text-sm sm:grid-cols-2">
                         <div><dt className="text-muted">Target PK tahunan</dt><dd className="mt-1 font-medium">{pengukuran.target_pk === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
@@ -149,7 +153,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                 {isDirty && <p className="mt-3 text-info-dark">Ada perubahan yang belum disimpan. Saat Ajukan, server akan menyimpan dan memeriksa input terkini.</p>}
             </section>
             <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
-                {(displayedErrors.length > 0 || hasil_pengajuan_terakhir) && <div ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="scroll-mt-24 rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+                {(displayedErrors.length > 0 || hasil_pengajuan_terakhir) && <div ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="scroll-mt-24 rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger-dark">
                     {displayedErrors.length > 0 && <ul className="list-disc space-y-1 pl-5">{displayedErrors.map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
                     {hasil_pengajuan_terakhir && <section aria-labelledby="last-submission-title" className={displayedErrors.length > 0 ? 'mt-3' : undefined}>
                         <h2 id="last-submission-title" className="font-semibold">Hasil pengajuan terakhir</h2>
@@ -169,7 +173,13 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                         {!manual && can.update && !historical && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
                         <div className="rounded-lg border border-border bg-soft p-4"><p className="text-xs font-medium text-muted">Hasil terakhir tersimpan</p><p className="mt-1 break-words text-2xl font-semibold text-primary">{pengukuran.nilai === null ? statusPerhitungan[pengukuran.status_perhitungan] : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</p><p className="mt-2 text-xs text-muted">Perubahan input belum mengubah hasil ini.</p></div>
                         {!manual && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={disabled} helperText="Isi alasan jika penyebut faktual bernilai nol. Komponen kosong tetap harus dilengkapi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
-                        <Textarea name="catatan" label="Catatan pengukuran" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Catatan wajib mengikuti ketentuan indikator dan perubahan nilai terhadap pengukuran sah sebelumnya. Server memeriksanya saat pengajuan." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
+                        <div className="space-y-4 border-t border-border pt-4">
+                            <div><h2 className="font-semibold text-ink">Narasi pengukuran</h2><p className="mt-1 text-sm text-muted">Ketiga narasi wajib saat pengajuan pada periode normal. Draft boleh disimpan meski narasi belum lengkap; pengecualian periode lampau diperiksa saat pengajuan.</p></div>
+                            <Textarea name="progres_kegiatan" label="Progres kegiatan" value={data.progres_kegiatan} onChange={(event) => setData('progres_kegiatan', event.target.value)} disabled={disabled} maxLength={10000} error={errors.progres_kegiatan} aria-invalid={Boolean(errors.progres_kegiatan)} aria-describedby={errors.progres_kegiatan ? 'measurement-errors' : undefined} />
+                            <Textarea name="kendala_masalah" label="Kendala/masalah" value={data.kendala_masalah} onChange={(event) => setData('kendala_masalah', event.target.value)} disabled={disabled} maxLength={10000} error={errors.kendala_masalah} aria-invalid={Boolean(errors.kendala_masalah)} aria-describedby={errors.kendala_masalah ? 'measurement-errors' : undefined} />
+                            <Textarea name="strategi_tindak_lanjut" label="Tindak lanjut/strategi penyelesaian" value={data.strategi_tindak_lanjut} onChange={(event) => setData('strategi_tindak_lanjut', event.target.value)} disabled={disabled} maxLength={10000} error={errors.strategi_tindak_lanjut} aria-invalid={Boolean(errors.strategi_tindak_lanjut)} aria-describedby={errors.strategi_tindak_lanjut ? 'measurement-errors' : undefined} />
+                        </div>
+                        <Textarea name="catatan" label="Catatan pengukuran" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Keterangan tambahan opsional; narasi pengukuran diisi pada ketiga kolom di atas." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
                     </CardContent>
                 </Card>
                 <Card>

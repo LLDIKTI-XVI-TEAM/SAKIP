@@ -99,9 +99,9 @@ class GerbangReviewRencanaAksi
             'target_periode.*.periode_id' => ['required', 'uuid'],
             'target_periode.*.periode_nama' => ['required', 'string'],
             'target_periode.*.periode_urutan' => ['required', 'integer'],
-            // Data Model §2.34: produsen hanya membekukan baris `terhitung` beserta nilainya.
-            'target_periode.*.nilai' => ['required', 'numeric'],
-            'target_periode.*.status_perhitungan' => ['required', 'in:terhitung'],
+            // Null sah hanya pada baris tidak_ditargetkan yang diperiksa terhadap konteks beku di bawah.
+            'target_periode.*.nilai' => ['present', 'nullable', 'numeric'],
+            'target_periode.*.status_perhitungan' => ['required', 'in:terhitung,tidak_ditargetkan'],
             'bukti_dukungs' => ['present', 'array'],
             'bukti_dukungs.*.id' => ['required', 'uuid'],
             'bukti_dukungs.*.mode' => ['required', 'in:file,tautan,teks'],
@@ -113,8 +113,32 @@ class GerbangReviewRencanaAksi
             'target_periode.*.komponen.*.komponen_id' => ['required', 'uuid'],
             'target_periode.*.komponen.*.kode' => ['required', 'string'],
             'target_periode.*.komponen.*.label' => ['required', 'string'],
-            'target_periode.*.komponen.*.nilai' => ['required', 'numeric'],
+            'target_periode.*.komponen.*.nilai' => ['present', 'nullable', 'numeric'],
         ]))->passes();
+        if ($isiSah && $snapshot && $jadwal) {
+            $jadwal->loadMissing('periode.periode');
+            $snapshot->setRelation('jadwal', $jadwal);
+            $jendela = $jadwal->periode;
+            $windows = $jendela->keyBy('periode_id');
+            $expectedComponents = $snapshot->komponen->pluck('komponen_id')->all();
+            foreach ($beku['target_periode'] as $row) {
+                $values = $snapshot->tipe_perhitungan === 'manual' ? [$row['nilai']] : array_column($row['komponen'], 'nilai');
+                if ($row['status_perhitungan'] === 'tidak_ditargetkan') {
+                    $window = $windows->get($row['periode_id']);
+                    $components = array_column($row['komponen'], 'komponen_id');
+                    $definitionMatches = $snapshot->tipe_perhitungan === 'manual' ? $components === []
+                        : count($components) === count($expectedComponents) && array_diff($expectedComponents, $components) === [];
+                    $isiSah = $window && $definitionMatches && $row['nilai'] === null && $values !== []
+                        && array_filter($values, fn ($value): bool => $value !== null) === []
+                        && PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $window, $jendela);
+                } else {
+                    $isiSah = $row['nilai'] !== null && ! in_array(null, $values, true);
+                }
+                if (! $isiSah) {
+                    break;
+                }
+            }
+        }
         if (! $versi || ! $snapshot || ! $jadwal
             || $snapshot->jadwal_id !== $header->jadwal_tahunan_id || $snapshot->indikator_id !== $header->indikator_id
             || $snapshot->unit_id !== $header->unit_id || $jadwal->tahun !== $header->tahun

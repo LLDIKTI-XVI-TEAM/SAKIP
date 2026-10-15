@@ -3,8 +3,10 @@
 namespace App\Actions\Pengukuran;
 
 use App\Models\PengukuranKinerja;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
+use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\MathException;
 use Illuminate\Validation\ValidationException;
@@ -14,12 +16,15 @@ class SubmissionPrerequisites
     public function __construct(private EvaluateEvidence $evidence, private CalculatePengukuran $calculator) {}
 
     /** Mode mutasi menerima RA yang dikunci sebelum indikator; target tetap berasal dari versi sah. */
-    public function handle(PengukuranKinerja $pengukuran, bool $lock = false, ?RencanaAksi $lockedPlan = null): array
+    public function handle(PengukuranKinerja $pengukuran, bool $lock = false, ?RencanaAksi $lockedPlan = null, ?PeriodeJadwal $lockedPeriod = null): array
     {
         $errors = [];
         $target = null;
+        $withoutTarget = false;
         $version = null;
         $snapshot = $pengukuran->jadwalSnapshot;
+        $snapshot?->jadwal->loadMissing('periode.periode');
+        $period = $lock ? $lockedPeriod : $snapshot?->jadwal->periode->firstWhere('periode_id', $pengukuran->periode_id);
         if (! $snapshot || $snapshot->indikator_id !== $pengukuran->indikator_id || $snapshot->jadwal->tahun !== $pengukuran->tahun) {
             $errors[] = 'Konteks snapshot jadwal tidak cocok dengan indikator/tahun pengukuran.';
         }
@@ -39,14 +44,22 @@ class SubmissionPrerequisites
                     $errors[] = 'Target periode belum tersedia pada versi rencana aksi yang disahkan.';
                 } else {
                     try {
-                        $values = collect($periodTarget['komponen'] ?? [])->pluck('nilai', 'komponen_id')->all();
-                        $calculated = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $snapshot->komponen->toArray(), $values,
+                        $components = collect($periodTarget['komponen'] ?? []);
+                        $values = $components->pluck('nilai', 'komponen_id')->all();
+                        $definitions = $snapshot->komponen->toArray();
+                        $calculated = $this->calculator->handle($snapshot->tipe_perhitungan, $snapshot->presisi, $definitions, $values,
                             $snapshot->tipe_perhitungan === 'manual' ? $periodTarget['nilai'] : null);
                         $sameValue = $calculated['nilai'] === null || $periodTarget['nilai'] === null
                             ? $calculated['nilai'] === $periodTarget['nilai']
                             : BigDecimal::of($calculated['nilai'])->isEqualTo((string) $periodTarget['nilai']);
-                        if ($calculated['status_perhitungan'] === 'belum_diisi' || $calculated['status_perhitungan'] !== ($periodTarget['status_perhitungan'] ?? null)
-                            || ! $sameValue) {
+                        // Status versi RA membedakan target kosong yang sah dari target yang belum dilengkapi.
+                        $withoutTarget = ($periodTarget['status_perhitungan'] ?? null) === 'tidak_ditargetkan' && $periodTarget['nilai'] === null
+                            && $calculated['status_perhitungan'] === 'belum_diisi'
+                            && $components->count() === count($definitions) && count($values) === count($definitions)
+                            && $components->every(fn ($component) => array_key_exists('nilai', $component) && $component['nilai'] === null)
+                            && $period && PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $period, $snapshot->jadwal->periode);
+                        if (! $withoutTarget && ($calculated['status_perhitungan'] === 'belum_diisi' || $calculated['status_perhitungan'] !== ($periodTarget['status_perhitungan'] ?? null)
+                            || ! $sameValue)) {
                             $errors[] = 'Target pada versi RA belum lengkap atau tidak konsisten dengan komponen snapshot.';
                         } else {
                             $target = $calculated['nilai'];
@@ -74,22 +87,18 @@ class SubmissionPrerequisites
                     : 'Bukti wajib belum lengkap: '.$requirement['nama'].'.';
             }
         }
-        if ($pengukuran->indikator->wajib_catatan && trim((string) $pengukuran->catatan) === '') {
-            $errors[] = 'Catatan diwajibkan pada indikator ini.';
-        }
-        // Pembanding terakhir yang disahkan secara kronologis; null bukan angka nol.
-        $previous = PengukuranKinerja::where('indikator_id', $pengukuran->indikator_id)->where('pengukuran_kinerjas.id', '!=', $pengukuran->id)->whereHas('ratifiedVersion')
-            ->where(fn ($q) => $q->where('tahun', '<', $pengukuran->tahun)->orWhere(fn ($q) => $q->where('tahun', $pengukuran->tahun)->whereHas('periode', fn ($p) => $p->where('urutan', '<', $pengukuran->periode->urutan))))
-            ->join('periode', 'periode.id', '=', 'pengukuran_kinerjas.periode_id')->orderByDesc('tahun')->orderByDesc('periode.urutan')->select('pengukuran_kinerjas.*')->first();
-        $previousValue = $previous?->ratifiedVersion?->snapshot['nilai'] ?? null;
-        if ($previousValue !== null && $pengukuran->nilai !== null && $snapshot) {
-            $value = BigDecimal::of($pengukuran->nilai);
-            $worse = $snapshot->arah === 'naik_baik' ? $value->isLessThan((string) $previousValue) : $value->isGreaterThan((string) $previousValue);
-            if ($worse && trim((string) $pengukuran->catatan) === '') {
-                $errors[] = 'Nilai memburuk dibanding periode sah sebelumnya; catatan wajib diisi.';
+        $narrativeErrors = [];
+        if (! $snapshot || ! PeriodeTanpaTarget::isPeriodeLampau($snapshot->jadwal, $period)) {
+            foreach (['progres_kegiatan' => 'Progres kegiatan', 'kendala_masalah' => 'Kendala/masalah', 'strategi_tindak_lanjut' => 'Tindak lanjut/strategi penyelesaian'] as $field => $label) {
+                if (trim((string) $pengukuran->{$field}) === '') {
+                    $narrativeErrors[$field] = $label.' wajib diisi sebelum pengajuan.';
+                }
             }
         }
 
-        return ['siap' => $errors === [], 'alasan' => $errors, 'target' => $target, 'rencana_aksi_versi' => $version, 'persyaratan_bukti' => $requirements];
+        $allErrors = [...$errors, ...array_values($narrativeErrors)];
+
+        return ['siap' => $allErrors === [], 'alasan' => $allErrors, 'errors' => [...($errors === [] ? [] : ['pengajuan' => $errors]), ...$narrativeErrors],
+            'target' => $target, 'tanpa_target_periode' => (bool) $withoutTarget, 'rencana_aksi_versi' => $version, 'persyaratan_bukti' => $requirements];
     }
 }

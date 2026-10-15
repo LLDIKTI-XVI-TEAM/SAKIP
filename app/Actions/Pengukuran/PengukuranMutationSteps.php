@@ -111,6 +111,7 @@ class PengukuranMutationSteps
         }
         $p->fill([...$result, 'catatan' => $data['catatan'] ?? null,
             'alasan_tidak_dapat_dihitung' => $result['status_perhitungan'] === 'tidak_dapat_dihitung' ? ($data['alasan_tidak_dapat_dihitung'] ?? null) : null]);
+        $p->fill(array_intersect_key($data, array_flip(['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut'])));
         $this->appendEvidence($actor, $p, $data['bukti'] ?? null, $path, $decision);
     }
 
@@ -164,7 +165,7 @@ class PengukuranMutationSteps
 
     private function auditState(PengukuranKinerja $p): array
     {
-        return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung']),
+        return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'alasan_tidak_dapat_dihitung']),
             'versi_pengajuan' => $p->latestVersion?->only(['id', 'nomor', 'diajukan_by', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
             'komponen' => $p->komponen()->orderBy('komponen_id')->get(['komponen_id', 'nilai'])->toArray(),
             'bukti_dukungs' => $p->buktiDukungs()->current()->orderBy('id')->get()->map(fn ($b) => [...$b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan']), 'panjang_teks' => $b->isi_teks === null ? null : mb_strlen($b->isi_teks)])->all()];

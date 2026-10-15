@@ -154,6 +154,7 @@ class AjukanRencanaAksi
                     $jendela,
                     $periodeEfektif,
                     $this->kesiapan->petaTarget($targets),
+                    $snapshot->setRelation('jadwal', $jadwal),
                 );
                 // Kunci berbasis perubahan nilai: periode yang dinilai
                 // terhadap lingkup koreksi maupun kunci tanggal adalah

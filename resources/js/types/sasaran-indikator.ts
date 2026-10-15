@@ -52,6 +52,7 @@ export interface IndikatorKinerjaItem {
     presisi: number;
     desimal_tampilan: number;
     wajib_catatan: boolean;
+    dinilai_tahunan: boolean;
     jenis_agregasi?: string;
     status: IndikatorStatus;
     tahun_mulai_berlaku: number;

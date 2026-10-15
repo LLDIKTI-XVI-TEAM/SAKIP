@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property bool $dinilai_tahunan
+ */
 class JadwalSnapshot extends Model
 {
     use HasUuids;
@@ -15,9 +18,9 @@ class JadwalSnapshot extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['jadwal_id', 'indikator_id', 'nomor_versi', 'menggantikan_id', 'alasan_koreksi', 'rujukan_koreksi', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target', 'baseline', 'komposisi_final'];
+    protected $fillable = ['jadwal_id', 'indikator_id', 'nomor_versi', 'menggantikan_id', 'alasan_koreksi', 'rujukan_koreksi', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'dinilai_tahunan', 'target', 'baseline', 'komposisi_final'];
 
-    protected $casts = ['presisi' => 'integer', 'desimal_tampilan' => 'integer', 'target' => 'decimal:12', 'baseline' => 'decimal:12', 'nomor_versi' => 'integer', 'komposisi_final' => 'boolean'];
+    protected $casts = ['presisi' => 'integer', 'desimal_tampilan' => 'integer', 'target' => 'decimal:12', 'baseline' => 'decimal:12', 'nomor_versi' => 'integer', 'komposisi_final' => 'boolean', 'dinilai_tahunan' => 'boolean'];
 
     /** @return BelongsTo<JadwalTahunan, $this> */
     public function jadwal(): BelongsTo

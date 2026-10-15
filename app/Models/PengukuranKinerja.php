@@ -14,7 +14,7 @@ class PengukuranKinerja extends Model
 
     protected $table = 'pengukuran_kinerjas';
 
-    protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', 'status_alur', 'versi', 'created_by'];
+    protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', 'progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'status_alur', 'versi', 'created_by'];
 
     protected $casts = ['tahun' => 'integer', 'nilai' => 'decimal:12', 'versi' => 'integer'];
 

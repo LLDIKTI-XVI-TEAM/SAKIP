@@ -1248,7 +1248,8 @@ class MutationConcurrencyTest extends TestCase
         PeriodeJadwal::create(['jadwal_id' => $context->jadwal_id, 'periode_id' => $context->periode_mulai_id,
             'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
         $measurement = PengukuranKinerja::create(['indikator_id' => $plan->indikator_id, 'tahun' => $plan->tahun,
-            'periode_id' => $context->periode_mulai_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
+            'periode_id' => $context->periode_mulai_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual',
+            'progres_kegiatan' => 'Progres race.', 'kendala_masalah' => 'Kendala race.', 'strategi_tindak_lanjut' => 'Strategi race.', 'created_by' => $pic->id]);
         $input = ['versi' => 1, 'nilai' => 75];
         $assignment = $ratifyFirst
             ? ['actor_id' => $pic->id, 'pengukuran_id' => $measurement->id, 'data' => $input]
@@ -1328,7 +1329,8 @@ class MutationConcurrencyTest extends TestCase
             'snapshot' => ['target_periode' => [['periode_id' => $period->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]],
             'disahkan_by' => $operator->id, 'disahkan_at' => now()]);
         $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'periode_id' => $period->id,
-            'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $pic->id]);
+            'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual',
+            'progres_kegiatan' => 'Progres race.', 'kendala_masalah' => 'Kendala race.', 'strategi_tindak_lanjut' => 'Strategi race.', 'created_by' => $pic->id]);
 
         return [$operator, $indicator, $pic, $measurement];
     }

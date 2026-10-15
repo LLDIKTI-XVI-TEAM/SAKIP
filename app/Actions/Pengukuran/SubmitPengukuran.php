@@ -27,11 +27,11 @@ class SubmitPengukuran
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$path, &$decision) {
-                [$actor, $p, $snapshot, , $before, $plan] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
+                [$actor, $p, $snapshot, $period, $before, $plan] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
                 $this->steps->storeInput($actor, $p, $snapshot, $data, $path, $decision);
-                $prerequisite = $this->prerequisites->handle($p, true, $plan);
+                $prerequisite = $this->prerequisites->handle($p, true, $plan, $period);
                 if (! $prerequisite['siap']) {
-                    throw ValidationException::withMessages(['pengajuan' => $prerequisite['alasan']]);
+                    throw ValidationException::withMessages($prerequisite['errors']);
                 }
                 $pic = $p->effectivePic();
                 $provenance = [...$decision, 'unit_id' => $p->targetUnitId(), 'penugasan_id' => $pic?->id, 'pic_id' => $pic?->user_id];
@@ -63,10 +63,10 @@ class SubmitPengukuran
     {
         $snapshot = $p->jadwalSnapshot;
 
-        return [...$p->only(['indikator_id', 'tahun', 'periode_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung']),
+        return [...$p->only(['indikator_id', 'tahun', 'periode_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'alasan_tidak_dapat_dihitung']),
             'indikator' => [...$snapshot->only(['nama', 'definisi', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'id' => $p->indikator_id, 'kode' => $p->indikator->kode],
             'unit_kerja' => $snapshot->unit->only(['id', 'nama']), 'pic' => $p->effectivePic()?->pic?->only(['id', 'nama']),
-            'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'target_pk' => $snapshot->target,
+            'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'tanpa_target_periode' => $prerequisite['tanpa_target_periode'], 'target_pk' => $snapshot->target,
             'komponen' => $snapshot->komponen->map(fn ($c) => [...$c->only(['komponen_id', 'kode', 'label', 'peran', 'bobot']), 'nilai' => $p->komponen()->where('komponen_id', $c->komponen_id)->value('nilai')])->all(),
             'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_versi']->rencana_aksi_id),
             'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];

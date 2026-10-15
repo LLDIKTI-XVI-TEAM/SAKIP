@@ -81,7 +81,11 @@ class PresentPengukuran
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
+        foreach (['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut'] as $field) {
+            $data[$field] = $frozen ? ($frozen[$field] ?? null) : $p->{$field};
+        }
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
+        $data['tanpa_target_periode'] = $frozen['tanpa_target_periode'] ?? false;
         $data['selisih_target_pk'] = $this->calculator->differenceFromPk($data['nilai'], $data['target_pk']);
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
@@ -107,6 +111,7 @@ class PresentPengukuran
             $data['prasyarat'] = ['siap' => $requirements['siap'], 'alasan' => $requirements['alasan']];
             $data['persyaratan_bukti'] = $requirements['persyaratan_bukti'];
             $data['target'] = $requirements['target'];
+            $data['tanpa_target_periode'] = $requirements['tanpa_target_periode'];
         }
         if ($can['evidence']) {
             $items = $frozen ? $frozen['bukti_dukungs'] : $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all();

@@ -4,6 +4,7 @@ import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
+import { Switch } from '@/Components/Switch';
 import { formatRegulasiRingkas } from '@/lib/regulasi';
 import { Button } from '@/Components/Button';
 import type {
@@ -71,6 +72,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         presisi: indikator?.presisi ?? 2,
         desimal_tampilan: indikator?.desimal_tampilan ?? 2,
         wajib_catatan: Boolean(indikator?.wajib_catatan),
+        dinilai_tahunan: Boolean(indikator?.dinilai_tahunan),
         regulasi_id: indikator?.regulasi_id ?? '',
         expected_updated_at: baseline?.revision ?? '',
         alasan: '',
@@ -300,6 +302,16 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                             required
                         />
                     </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-soft p-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <label htmlFor="indikator_dinilai_tahunan" className="text-sm font-medium text-ink">Dinilai tahunan</label>
+                        <Switch id="indikator_dinilai_tahunan" label="Dinilai tahunan" checked={data.dinilai_tahunan}
+                            onChange={(checked) => setData('dinilai_tahunan', checked)} disabled={processing || feedback.blocked} />
+                    </div>
+                    <p className="mt-2 text-sm text-muted">Target periode sebelum nilai akhir boleh kosong. Jadwal yang sudah aktif tetap memakai penanda pada snapshot-nya sampai ada koreksi resmi.</p>
+                    {errors.dinilai_tahunan && <p role="alert" className="mt-2 text-sm text-danger">{errors.dinilai_tahunan}</p>}
                 </div>
 
                 <div>

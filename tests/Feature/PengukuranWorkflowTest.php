@@ -143,7 +143,8 @@ class PengukuranWorkflowTest extends TestCase
         $context->indikator_id = $indicator->id;
         $context->save();
         $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026,
-            'periode_id' => $this->pengukuran->periode_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual', 'created_by' => $this->actor->id]);
+            'periode_id' => $this->pengukuran->periode_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual',
+            'progres_kegiatan' => 'Progres fixture.', 'kendala_masalah' => 'Kendala fixture.', 'strategi_tindak_lanjut' => 'Strategi fixture.', 'created_by' => $this->actor->id]);
 
         $this->actingAs($this->actor)->post('/pengukuran/'.$measurement->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => null])
             ->assertSessionHas('hasil_pengajuan_terakhir.alasan', [
