@@ -15,6 +15,8 @@ Basis commit sebelum pembaruan Q39–Q51: `0a260708d3b6df328d82151f85bf274d29bde
 
 Basis commit sebelum pembaruan Q52: `edd08533ec01170c8946f8f3b38ffdd633bbb0a0`
 
+Basis commit sebelum pembaruan Q53: `80d32e533382446471469c5b3af6f6af387bec85`
+
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
 ---
@@ -51,6 +53,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Analisis dokumen resmi 2026 (Q47–Q51)**, ditetapkan PM pada 13 Oktober 2026, menetapkan indikator dinilai tahunan, periode tanpa target, dan realisasi "belum dapat diukur" (Q47); keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan beserta unggahan PDF bertanda tangan (Q48); atribut kegiatan dan salin kegiatan (Q49); nomor PK opsional, presisi target, dan kode indikator mengikuti PK (Q50); serta alur draf dan persetujuan Rekomendasi Pimpinan (Q51). Dasar dan status konfirmasinya dicatat pada pengantar Q47–Q51.
 
 **Keputusan 14 Oktober 2026 (Q52)** menetapkan penutupan resmi jadwal tahunan: alasan wajib untuk `jadwal:tutup`, tahun terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` terlewati, serta penguncian kegiatan per tahun.
+
+**Keputusan 15 Oktober 2026 (Q53)** menetapkan bahwa Penetapan Peran tidak dapat menurunkan peran superadmin aktif terakhir, melengkapi Q38 §38.2.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -896,7 +900,7 @@ Admin menetapkan satu dari 5 role (alasan wajib, teraudit)
 ## 38.2 Status Nonaktif, Penonaktifan, dan Pengaktifan Kembali
 
 1. `nonaktif` berarti akun dinonaktifkan. Middleware `active` memblokir sesi akun nonaktif pada request berikutnya; halaman pending menampilkan "Akun tidak aktif".
-2. Aktor dengan `akses:update` dapat menonaktifkan dan mengaktifkan kembali akun lain melalui Penetapan Peran dengan alasan wajib dan audit. Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+2. Aktor dengan `akses:update` dapat menonaktifkan dan mengaktifkan kembali akun lain melalui Penetapan Peran dengan alasan wajib dan audit. Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan. Penetapan Peran juga tidak dapat menurunkan peran superadmin aktif terakhir (Q53).
 3. Peran dan grant tidak dihapus saat akun dinonaktifkan, sehingga pengaktifan kembali memulihkan akses yang sama.
 4. Bila pengguna masih menjadi Penanggung Jawab aktif, UI menampilkan peringatan sebelum konfirmasi; penonaktifan tidak diblokir.
 
@@ -1508,6 +1512,26 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: PRD §4 prinsip 6 dan §15.4; Data Model §2.32 kolom `alasan`; User Stories US-14.01; User Issues ISS-14.01.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan menunggu bersama Q38–Q51.
 - Q52 adalah keputusan requirement; implementasinya dibawa PR ISS-14.01.
+
+---
+
+# Keputusan Q53 — Superadmin Aktif Terakhir pada Penetapan Peran
+
+**Keputusan PM, 15 Oktober 2026**, untuk [Issue #112](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/112), tindak lanjut ISS-01.08 / Issue #99 dari review PR #108. Melengkapi Q38 §38.2 butir 2.
+
+## 53.1 Aturan
+
+1. Penetapan Peran menolak perubahan peran bila target adalah superadmin aktif, peran tujuan bukan superadmin, dan tidak ada superadmin aktif lain. Penolakan dicatat di `audit_log` sebagai `user_roles.ditolak`.
+2. Aturan ini juga berlaku untuk akun sendiri. Akun sendiri tetap boleh mengubah perannya selama masih ada superadmin aktif lain.
+3. Superadmin aktif adalah akun berstatus `aktif` yang memegang peran `superadmin` yang aktif. Superadmin berstatus `nonaktif` tidak dihitung, dan perannya tetap boleh diturunkan.
+4. Tidak ada hierarki peran baru: aktor dengan `akses:update` tetap dapat menetapkan peran superadmin.
+5. Penurunan peran dan penonaktifan akun yang berjalan bersamaan diserialkan, sehingga keduanya tidak dapat menghabiskan superadmin aktif terakhir.
+
+## 53.2 Dampak dan traceability
+
+- Diselaraskan: Q38 §38.2 butir 2, Workflow §21.2, User Stories US-01.08, dan User Issues ISS-01.08.
+- Status keputusan: baseline kerja PM.
+- Q53 adalah keputusan requirement; implementasinya dibawa PR untuk Issue #112.
 
 ---
 
