@@ -24,6 +24,7 @@ export default function RolePermissionIndex({
     const [query, setQuery] = useState(filters.q);
     const [navigating, setNavigating] = useState(false);
     const [retry, setRetry] = useState(0);
+    const [searchFailed, setSearchFailed] = useState(false);
     const pending = useRef(false);
     const skipped = useRef(false);
 
@@ -51,25 +52,37 @@ export default function RolePermissionIndex({
         );
     };
 
+    // Mengikuti pencarian pengguna Grant: minimal 2 huruf dan debounce 350 ms; kurang dari 2 huruf menampilkan semua izin.
+    const trimmed = query.trim();
+    const searchQuery = trimmed.length < 2 ? "" : trimmed;
+
     useEffect(() => {
-        // Mengikuti pencarian pengguna Grant: minimal 2 huruf dan debounce 350 ms; kurang dari 2 huruf menampilkan semua izin.
-        const trimmed = query.trim();
-        const q = trimmed.length < 2 ? "" : trimmed;
-        if (!filters.role || q === filters.q) return;
+        if (!filters.role || searchQuery === filters.q) return;
         const timer = window.setTimeout(() => {
             // Kunjungan baru membatalkan yang sedang berjalan; pencarian ditunda sampai kunjungan itu selesai.
             if (pending.current) {
                 skipped.current = true;
                 return;
             }
+            let loaded = false;
+            setSearchFailed(false);
             router.get(
                 "/akses/izin-peran",
-                { ...filters, q },
-                { preserveState: true, preserveScroll: true, replace: true, ...navigationEvents },
+                { ...filters, q: searchQuery },
+                {
+                    preserveState: true, preserveScroll: true, replace: true, ...navigationEvents,
+                    onSuccess: () => { loaded = true; },
+                    // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan hasil sudah diperbarui.
+                    onFinish: (visit) => {
+                        const queued = skipped.current;
+                        navigationEvents.onFinish(visit);
+                        if (!loaded && !queued && !visit.cancelled && !visit.interrupted) setSearchFailed(true);
+                    },
+                },
             );
         }, 350);
         return () => window.clearTimeout(timer);
-    }, [query, filters, navigationEvents, retry]);
+    }, [searchQuery, filters, navigationEvents, retry]);
 
     return (
         <AuthenticatedLayout title="Peran & Izin" breadcrumbs={[{ label: "Peran & Izin" }]}>
@@ -119,6 +132,21 @@ export default function RolePermissionIndex({
                             />
                         )}
                     </form>
+                    {searchFailed && searchQuery !== filters.q && (
+                        <p role="alert" className="px-4 pb-4 text-xs text-danger">
+                            Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.{" "}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchFailed(false);
+                                    setRetry((count) => count + 1);
+                                }}
+                                className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25"
+                            >
+                                Coba lagi
+                            </button>
+                        </p>
+                    )}
                 </Card>
                 <p role="status" className="sr-only">
                     {navigating ? "Memuat izin…" : ""}

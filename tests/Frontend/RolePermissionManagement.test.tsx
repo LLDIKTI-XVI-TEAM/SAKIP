@@ -1,4 +1,4 @@
-import type { ActiveVisit, PendingVisit } from "@inertiajs/core";
+import type { ActiveVisit, Page, PendingVisit } from "@inertiajs/core";
 import type { ReactNode } from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -140,6 +140,7 @@ it("mengirim kata cari terbaru sekali setelah pencarian sebelumnya gagal, tanpa 
     expect(get).toHaveBeenCalledTimes(1);
     // Kunjungan gagal tidak mengubah props, tetapi Inertia tetap memanggil onFinish.
     act(() => first?.onFinish?.({} as ActiveVisit));
+    expect(screen.queryByRole("alert")).toBeNull();
     act(() => { vi.advanceTimersByTime(350); });
     expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([
         ["/akses/izin-peran", { role: role.id, q: "da" }],
@@ -168,8 +169,36 @@ it.each<Partial<ActiveVisit>>([{ interrupted: true }, { cancelled: true }])(
         act(() => first?.onFinish?.(flags as ActiveVisit));
         act(() => { vi.advanceTimersByTime(5000); });
         expect(get).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole("alert")).toBeNull();
     },
 );
+
+it("memberi tahu dan menawarkan coba lagi bila pencarian otomatis gagal, tanpa membuang kata cari", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    const box = screen.getByRole("searchbox") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    const failed = get.mock.calls[0][2];
+    act(() => failed?.onStart?.({} as PendingVisit));
+    // Gangguan jaringan atau server: Inertia tetap memanggil onFinish tanpa onSuccess.
+    act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+    expect(screen.getByRole("alert").textContent).toContain("Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.");
+    expect(box.value).toBe("da");
+    fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+        ["/akses/izin-peran", { role: role.id, q: "da" }],
+        ["/akses/izin-peran", { role: role.id, q: "da" }],
+    ]);
+    const retried = get.mock.calls[1][2];
+    act(() => retried?.onStart?.({} as PendingVisit));
+    act(() => retried?.onSuccess?.({} as Page));
+    act(() => retried?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+    expect(screen.queryByRole("alert")).toBeNull();
+});
 
 it("menyediakan tombol ke halaman pertama hanya untuk halaman izin di luar jangkauan", async () => {
     const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
