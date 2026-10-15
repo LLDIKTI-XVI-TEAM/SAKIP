@@ -189,8 +189,11 @@ class SahkanPengukuranTest extends TestCase
         $this->reviu($perencana, 'sahkan')->assertSessionHasErrors('versi');
 
         $this->assertBelumDisahkan();
+        // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis indikator arsip.
+        $pesanArsip = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
         $this->actingAs($perencana)->get('/verifikasi/'.$this->pengukuran->id)->assertOk()
-            ->assertInertia(fn ($halaman) => $halaman->where('pengukuran.status', 'diverifikasi'));
+            ->assertInertia(fn ($halaman) => $halaman->where('pengukuran.status', 'diverifikasi')
+                ->where('pengukuran.businessErrors.sahkan', [$pesanArsip]));
     }
 
     public function test_pembuat_draft_bukan_pengaju_tidak_terkena_f1(): void

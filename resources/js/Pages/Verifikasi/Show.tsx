@@ -15,6 +15,9 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const { can } = pengukuran;
+    const businessErrors = pengukuran.businessErrors ?? { verifikasi: [], sahkan: [], kembalikan: [] };
+    const alasanGuard: string[] = [...new Set([...(businessErrors.verifikasi ?? []), ...(businessErrors.sahkan ?? []), ...(businessErrors.kembalikan ?? [])])];
+    const panelKeputusanTersembunyi: boolean = !(can.verify || can.ratify || can.return);
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
@@ -56,6 +59,10 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     {can.verify && <Button type="button" className="bg-primary text-white hover:bg-primary/90 focus:ring-primary" onClick={(event) => choose('verifikasi', event.currentTarget)}>Verifikasi pengukuran</Button>}
                     {can.ratify && <Button type="button" className="bg-primary text-white hover:bg-primary/90 focus:ring-primary" onClick={(event) => choose('sahkan', event.currentTarget)}>Sahkan kinerja resmi</Button>}
                 </div>
+            </div>}
+            {panelKeputusanTersembunyi && alasanGuard.length > 0 && <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
+                <p className="font-semibold text-warning-dark">Tindakan reviu tidak tersedia</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">{alasanGuard.map((alasan: string) => <li key={alasan}>{alasan}</li>)}</ul>
             </div>}
             {decision && <DecisionDialog key={`${pengukuran.id}-${decision}`} pengukuran={pengukuran} decision={decision} onClose={closeDecision} />}
         </div>

@@ -7,13 +7,14 @@ use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
+use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private PengukuranKinerjaPolicy $policy) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -72,7 +73,8 @@ class PresentPengukuran
             'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []], 'unggahan_aktif' => false,
-            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false]];
+            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],
+            'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
         if (! $detail) {
             return $data;
         }
@@ -81,6 +83,11 @@ class PresentPengukuran
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
+        // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis (statis, tanpa dasar_izin/token).
+        // Murni baca via policy; tanpa mutasi header, versi, maupun audit.
+        $data['businessErrors'] = ['verifikasi' => $this->policy->businessErrors($actor, $p, 'verifikasi'),
+            'sahkan' => $this->policy->businessErrors($actor, $p, 'sahkan'),
+            'kembalikan' => $this->policy->businessErrors($actor, $p, 'kembalikan')];
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));

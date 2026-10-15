@@ -198,7 +198,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
         Jawab (langkah 24)
       → Disetujui teknis: Status: Diverifikasi
       → GERBANG PEMISAHAN TUGAS (§20): bila aktor yang memverifikasi/mengesahkan adalah PIC yang
-        sama dengan pengukuran.created_by melalui jalur scope unit, aksi DITOLAK — tidak berlaku
+        sama dengan pengukuran_versi.diajukan_by melalui jalur scope unit, aksi DITOLAK — tidak berlaku
         bagi Perencanaan yang mengisi atas nama unit (lihat §20)
   29. Mengesahkan pengukuran (Fase Awal: langsung, tanpa approval Pimpinan) → Status: Disahkan
 
@@ -1420,7 +1420,7 @@ flowchart TD
      → Setuju: Status: Diverifikasi
      → Perlu revisi: Status: Dikembalikan + alasan wajib diisi
      GERBANG PEMISAHAN TUGAS (§20, aturan F1): ditolak bila aktor yang memverifikasi adalah PIC
-     yang sama dengan pengukuran.created_by lewat jalur scope unit — tidak berlaku bagi
+     yang sama dengan pengukuran_versi.diajukan_by lewat jalur scope unit — tidak berlaku bagi
      Perencanaan yang mengisi atas nama unit (F2)
   5. Untuk pengukuran yang sudah Diverifikasi, masih bisa dikembalikan bila belakangan ditemukan
      masalah → Status: Dikembalikan + alasan wajib diisi
@@ -2050,9 +2050,9 @@ Pemisahan tugas pada verifikasi dan pengesahan pengukuran adalah **aturan bisnis
 flowchart TD
     A[Aktor menjalankan\npengukuran:verifikasi / pengukuran:sahkan] --> B{Aktor lolos evaluasi\nizin normal - §19?}
     B -- Tidak --> C[TOLAK - 403]
-    B -- Ya --> D{aktor = pengukuran.created_by?}
-    D -- Tidak --> H[IZINKAN - aktor berbeda\ndari pengisi pengukuran]
-    D -- Ya --> E{created_by mengisi lewat\ngrant scope unit - jalur PIC,\natau lewat peran global -\njalur Perencanaan?}
+    B -- Ya --> D{aktor = pengukuran_versi.diajukan_by?}
+    D -- Tidak --> H[IZINKAN - aktor berbeda\ndari pengaju versi beku]
+    D -- Ya --> E{diajukan_by berasal dari\ngrant scope unit - jalur PIC,\natau lewat peran global -\njalur Perencanaan?}
     E -- Jalur PIC - aturan F1 --> F[TOLAK - pemisahan tugas keras,\ntidak dapat dikonfigurasi]
     E -- Jalur Perencanaan - aturan F2 --> G[IZINKAN -\ntandai self_approval di audit_log]
     H --> J[Aksi dieksekusi]
