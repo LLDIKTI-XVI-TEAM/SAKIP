@@ -2278,13 +2278,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q48 (13 Oktober 2026):** penutupan tidak memblokir unggah arsip dokumen resmi (US-10.05).
 
+> **Q52 (14 Oktober 2026):** penutupan wajib alasan dan boleh dilakukan sebelum tanggal `penutupan`; tahun terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` terlewati; kegiatan dikunci per tahun (Q52 §52.1–§52.3).
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-14.01` |
 | **Prioritas** | 🔴 P0 · Tahap 2 (Q46 §46.3) |
 | **Story Points** | 5 |
 | **Modul** | Penutupan Tahunan & Koreksi Pasca-Penutupan |
-| **Dependensi** | Jadwal aktif; tanggal/otoritas penutupan memenuhi kebijakan. |
+| **Dependensi** | Jadwal aktif; otoritas `jadwal:tutup`. Tidak ada prasyarat tanggal: penutupan boleh sebelum tanggal `penutupan` (Q52 §52.2). |
 | **Otorisasi** | `jadwal:tutup` (sensitif). |
 | **Dampak Data** | `jadwal_tahunan`, `audit_log`. |
 
@@ -2294,10 +2296,10 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
-- [ ] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
-- [ ] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
-- [ ] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] **AC-1:** Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
+- [x] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak. *(Klaim belum memiliki jalur tulis, Q52 §52.3.)*
+- [x] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
+- [x] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
 
 **Business Rules / Catatan**
 
