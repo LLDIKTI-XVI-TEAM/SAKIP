@@ -193,7 +193,26 @@ class SahkanPengukuranTest extends TestCase
         $pesanArsip = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
         $this->actingAs($perencana)->get('/verifikasi/'.$this->pengukuran->id)->assertOk()
             ->assertInertia(fn ($halaman) => $halaman->where('pengukuran.status', 'diverifikasi')
-                ->where('pengukuran.businessErrors.sahkan', [$pesanArsip]));
+                ->where('pengukuran.businessErrors.verifikasi', [])
+                ->where('pengukuran.businessErrors.sahkan', [$pesanArsip])
+                ->where('pengukuran.businessErrors.kembalikan', [$pesanArsip]));
+    }
+
+    public function test_pengukuran_disahkan_menyembunyikan_seluruh_business_errors(): void
+    {
+        $pic = $this->siapkanPic();
+        $this->ajukan($pic);
+        $penelaah = $this->userWithRole('perencanaan');
+        $this->reviu($penelaah, 'verifikasi')->assertSessionHasNoErrors();
+        $pengesah = $this->userWithRole('perencanaan');
+        $this->reviu($pengesah, 'sahkan')->assertSessionHasNoErrors();
+
+        $this->assertSame('disahkan', $this->pengukuran->fresh()->status_alur);
+        $this->actingAs($pengesah)->get('/verifikasi/'.$this->pengukuran->id)->assertOk()
+            ->assertInertia(fn ($halaman) => $halaman->where('pengukuran.status', 'disahkan')
+                ->where('pengukuran.businessErrors.verifikasi', [])
+                ->where('pengukuran.businessErrors.sahkan', [])
+                ->where('pengukuran.businessErrors.kembalikan', []));
     }
 
     public function test_pembuat_draft_bukan_pengaju_tidak_terkena_f1(): void

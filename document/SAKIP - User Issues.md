@@ -3653,7 +3653,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu penyelarasan acuan F1 — temuan review PR #107.)
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. (Acuan F1 diselaraskan ke diajukan_by versi beku; diizinkan re-review PM 15 Oktober 2026. AC-6/TEST-6/koreksi/UI tetap terbuka.)
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). (Dikembalikan `[ ]` 15 Oktober 2026 menunggu evidence QA browser — temuan review PR #107.)
 - [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 

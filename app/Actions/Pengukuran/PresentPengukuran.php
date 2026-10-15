@@ -85,9 +85,17 @@ class PresentPengukuran
         $data['can'] = $can;
         // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis (statis, tanpa dasar_izin/token).
         // Murni baca via policy; tanpa mutasi header, versi, maupun audit.
-        $data['businessErrors'] = ['verifikasi' => $this->policy->businessErrors($actor, $p, 'verifikasi'),
-            'sahkan' => $this->policy->businessErrors($actor, $p, 'sahkan'),
-            'kembalikan' => $this->policy->businessErrors($actor, $p, 'kembalikan')];
+        // Notice hanya memakai perintah yang berlaku pada status saat ini agar pesan status lain tidak ikut tampil.
+        if ($p->status_alur === 'diajukan') {
+            // Diajukan: perintah reviu yang berlaku adalah verifikasi dan kembalikan.
+            $data['businessErrors']['verifikasi'] = $this->policy->businessErrors($actor, $p, 'verifikasi');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        } elseif ($p->status_alur === 'diverifikasi') {
+            // Diverifikasi: perintah reviu yang berlaku adalah sahkan dan kembalikan.
+            $data['businessErrors']['sahkan'] = $this->policy->businessErrors($actor, $p, 'sahkan');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        }
+        // Status lain (draft, dikembalikan, disahkan): peta tetap kosong agar notice tidak tampil.
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));

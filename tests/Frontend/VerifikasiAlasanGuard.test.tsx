@@ -35,7 +35,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe('Verifikasi alasan guard', () => {
     it('menampilkan notice alasan arsip bila panel keputusan tersembunyi', () => {
         render(<VerifikasiShow pengukuran={{ ...dasar,
-            businessErrors: { verifikasi: [PESAN_ARSIP], sahkan: [PESAN_ARSIP], kembalikan: [PESAN_ARSIP] } }} />);
+            businessErrors: { verifikasi: [], sahkan: [PESAN_ARSIP], kembalikan: [PESAN_ARSIP] } }} />);
 
         expect(screen.queryByRole('button', { name: 'Verifikasi pengukuran' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Sahkan kinerja resmi' })).toBeNull();
@@ -51,6 +51,15 @@ describe('Verifikasi alasan guard', () => {
 
         expect(screen.queryByRole('status')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Verifikasi pengukuran' })).toBeNull();
+    });
+
+    it('tidak menampilkan notice pada pengukuran disahkan berpeta kosong', () => {
+        render(<VerifikasiShow pengukuran={{ ...dasar, status: 'disahkan',
+            snapshot: { snapshot_hash: 'hash-uji', disahkan_pada: '2026-04-01T10:00:00+07:00', nomor_pengajuan: 1 },
+            businessErrors: { verifikasi: [], sahkan: [], kembalikan: [] } }} />);
+
+        expect(screen.getByText('Pengukuran telah disahkan')).toBeTruthy();
+        expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('tetap valid bila payload lama tanpa businessErrors', () => {
