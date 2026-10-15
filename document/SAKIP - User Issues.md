@@ -3612,54 +3612,54 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given jalur pengajuan PIC, When aktor sama dengan `diajukan_by` mencoba sahkan, Then F1 menolak.
-- [ ] **AC-2:** Given aktor lain berizin, When sahkan, Then status menjadi `disahkan` dan `disahkan_by/disahkan_at` versi terisi atomik.
-- [ ] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
-- [ ] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
-- [ ] **AC-5:** Given versi stale, When sahkan, Then ditolak.
+- [x] **AC-1:** Given jalur pengajuan PIC, When aktor sama dengan `diajukan_by` mencoba sahkan, Then F1 menolak.
+- [x] **AC-2:** Given aktor lain berizin, When sahkan, Then status menjadi `disahkan` dan `disahkan_by/disahkan_at` versi terisi atomik.
+- [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
+- [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
+- [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
 - [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu ISS-08.03 — temuan review PR #107.)
 
 **B. Backend / Domain**
-- [ ] Pengesahan memakai `pengukuran_versi.diajukan_by` + `jalur_pengajuan`, menolak versi stale, dan mengisi metadata pengesahan atomik.
-- [ ] F2 tidak melewati resolver/deny; `self_approval` harus tampak pada audit/laporan internal sesuai kontrak.
+- [x] Pengesahan memakai `pengukuran_versi.diajukan_by` + `jalur_pengajuan`, menolak versi stale, dan mengisi metadata pengesahan atomik.
+- [x] F2 tidak melewati resolver/deny; `self_approval` harus tampak pada audit/laporan internal sesuai kontrak.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:sahkan` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:sahkan` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pengesahan Pengukuran & F1/F2**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Pengesahan Pengukuran & F1/F2**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu evidence QA browser — temuan review PR #107.)
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan PIC, When aktor sama dengan `diajukan_by` mencoba sahkan, Then F1 menolak.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor lain berizin, When sahkan, Then status menjadi `disahkan` dan `disahkan_by/disahkan_at` versi terisi atomik.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi stale, When sahkan, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan PIC, When aktor sama dengan `diajukan_by` mencoba sahkan, Then F1 menolak.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aktor lain berizin, When sahkan, Then status menjadi `disahkan` dan `disahkan_by/disahkan_at` versi terisi atomik.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi stale, When sahkan, Then ditolak.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
-- [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. (Acuan F1 diselaraskan ke diajukan_by versi beku; diizinkan re-review PM 15 Oktober 2026. AC-6/TEST-6/koreksi/UI tetap terbuka.)
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). (Dikembalikan `[ ]` 15 Oktober 2026 menunggu evidence QA browser — temuan review PR #107.)
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-08.03 · [Feature] Buka-Kembali Pengukuran Disahkan & Histori Status Capaian
 

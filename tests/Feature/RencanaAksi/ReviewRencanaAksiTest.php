@@ -12,6 +12,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -247,5 +248,34 @@ class ReviewRencanaAksiTest extends TestCase
         $this->actingAs($this->reviewer)->get('/rencana-aksi/review?status=semua')->assertOk()->assertInertia(fn (Assert $p) => $p
             ->has('daftar', 0)->where('pagination.total', 0));
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertForbidden();
+    }
+
+    public function test_versi_historis_dengan_unit_snapshot_tidak_selaras_ditolak_pada_review_dan_unduhan_bukti(): void
+    {
+        Storage::fake('local');
+        $bukti = $this->createBuktiDukung(['mode' => 'file', 'path' => 'ra/beku.pdf', 'nama_asli' => 'beku.pdf', 'tautan' => null]);
+        Storage::disk('local')->put('ra/beku.pdf', 'PDF sintetis');
+        $unitLain = Unit::create(['nama' => 'Unit Rahasia B', 'created_by' => $this->actor->id]);
+        $snapshotLain = JadwalSnapshot::create(array_merge($this->snapshot->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan',
+            'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), ['unit_id' => $unitLain->id, 'nomor_versi' => 2]));
+        $beku = $this->versiPengajuan->snapshot;
+        $beku['bukti_dukungs'] = [['id' => $bukti->id, 'mode' => 'file', 'nama_asli' => 'beku.pdf', 'path' => 'rahasia/internal']];
+        $bekuLain = array_merge($beku, ['unit_kerja' => ['id' => $unitLain->id, 'nama' => 'Unit Rahasia B']]);
+        $kolom = $this->versiPengajuan->only(['dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']);
+        $selaras = $this->rencanaAksi->versions()->create($kolom + ['nomor' => 2, 'jadwal_snapshot_id' => $this->snapshot->id, 'snapshot' => $beku]);
+        $tidakSelaras = $this->rencanaAksi->versions()->create($kolom + ['nomor' => 3, 'jadwal_snapshot_id' => $snapshotLain->id, 'snapshot' => $bekuLain]);
+        $this->rencanaAksi->versions()->create($kolom + ['nomor' => 4, 'jadwal_snapshot_id' => $this->snapshot->id, 'snapshot' => $beku]);
+        Log::spy();
+
+        // Kontrol positif: versi historis yang unit snapshotnya selaras tetap terbaca dan buktinya tetap terunduh.
+        $unduhSelaras = route('rencana-aksi.versi.bukti.download', [$this->rencanaAksi->id, $selaras->id, $bukti->id]);
+        $this->actingAs($this->reviewer)->get("/rencana-aksi/{$this->rencanaAksi->id}/review?versi={$selaras->id}")->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->where('rencanaAksi.versi_pengajuan.nomor', 2)->where('rencanaAksi.bukti_dukungs.0.download_url', $unduhSelaras));
+        $this->get($unduhSelaras)->assertOk()->assertDownload('beku.pdf');
+
+        $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review?versi={$tidakSelaras->id}")->assertForbidden()->assertDontSee('Unit Rahasia B');
+        $this->get(route('rencana-aksi.versi.bukti.download', [$this->rencanaAksi->id, $tidakSelaras->id, $bukti->id]))->assertForbidden();
+        Log::shouldHaveReceived('warning')->twice()->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'rencana_aksi.unit_snapshot_tidak_konsisten'
+            && $konteks['rencana_aksi_versi_id'] === $tidakSelaras->id && $konteks['snapshot_unit_id'] === $unitLain->id);
     }
 }

@@ -129,6 +129,9 @@ class PengukuranKinerjaPolicy
         if (! DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists()) {
             $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
         }
+        if ($p->indikator && $p->indikator->isArsip()) {
+            $errors[] = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
+        }
         if ($p->sumber_nilai === 'historis') {
             $errors[] = 'Koreksi nilai historis memerlukan alur backfill resmi.';
         }

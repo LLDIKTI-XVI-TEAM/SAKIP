@@ -833,7 +833,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 2. Guard dipusatkan pada `businessErrors` yang sama untuk verifikasi, pengembalian (ISS-05.04), dan pengesahan (ISS-05.05), ditegakkan server-side termasuk untuk request langsung dan diperiksa ulang pada mutation boundary. F2 tidak melewati guard ini.
 3. Penolakan diaudit; UI menerima capability dan alasan dari server agar alasan aksi tidak tersedia dapat ditampilkan.
 4. Renstra `diarsipkan` sudah tertutup oleh guard jadwal: Renstra tidak dapat keluar dari `aktif` selama masih mempunyai jadwal aktif (Data Model §2.9 pada baseline ini). Keputusan ini tidak menambahkan guard Renstra arsip terpisah.
-5. Aturan unit nonaktif selaras dengan Pengukuran. Pengecekan indikator arsip pada verifikasi Pengukuran menjadi tindak lanjut untuk keseragaman kedua modul; Q37 tidak mengklaim perubahan tersebut sudah diimplementasikan.
+5. Aturan unit nonaktif selaras dengan Pengukuran. Pengecekan indikator arsip pada verifikasi Pengukuran menjadi tindak lanjut untuk keseragaman kedua modul; Q37 tidak mengklaim perubahan tersebut sudah diimplementasikan. Tambahan Pengukuran (ditetapkan PM 15 Oktober 2026 melalui komentar review PR #107): guard indikator `arsip` pada Pengukuran berlaku untuk kelima perintah — simpan draf, ajukan, verifikasi, kembalikan, dan sahkan — dengan pesan `Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.`; penolakan diaudit tanpa mengubah header; detail/histori tetap terbaca. Opsi pembatasan ke perintah review saja ditolak: PIC masih dapat mengajukan pengukuran yang kemudian tidak mungkin direviu.
 
 ## 37.2 Konfirmasi Verifikasi dan Alasan Pengembalian
 
