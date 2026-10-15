@@ -23,12 +23,16 @@ class ChangeUserStatus
             throw ValidationException::withMessages(['alasan' => 'Alasan wajib diisi dan maksimal 2.000 karakter.']);
         }
         $result = DB::transaction(function () use ($actor, $targetId, $status, $reason, $expectedStatus) {
-            $superadminIds = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
-                ->where('roles.kode', 'superadmin')->where('roles.aktif', true)->pluck('user_roles.user_id')->all();
+            $superadmins = fn () => DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('roles.kode', 'superadmin')->where('roles.aktif', true);
             // Kunci aktor, target, dan seluruh superadmin dalam satu urutan agar guard superadmin terakhir tahan balapan.
-            $users = User::whereIn('id', array_values(array_unique([$actor->id, $targetId, ...$superadminIds])))
+            $users = User::whereIn('id', array_values(array_unique([$actor->id, $targetId, ...$superadmins()->pluck('user_roles.user_id')->all()])))
                 ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            // Dibaca ulang setelah kunci: penurunan peran yang commit lebih dulu tidak boleh terhitung sebagai superadmin lain.
+            $superadminIds = $superadmins()->whereIn('user_roles.user_id', $users->keys()->all())->pluck('user_roles.user_id')->all();
             $currentActor = $users->get($actor->id) ?? User::whereKey($actor->id)->firstOrFail();
+            // Selaras writer preset: pencabutan izin peran aktor tidak boleh lolos di antara keputusan dan mutasi.
+            $currentActor->lockActiveRoles();
             $decisions = [
                 'pengguna_read' => $this->permissions->decide($currentActor, 'pengguna:read'),
                 'akses_update' => $this->permissions->decide($currentActor, 'akses:update'),

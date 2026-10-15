@@ -181,6 +181,78 @@ class MutationConcurrencyTest extends TestCase
         }
     }
 
+    public function test_two_concurrent_status_changes_have_one_winner_and_one_stale_conflict(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $payload = ['actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif', 'alasan' => 'Fixture konkurensi status'];
+
+        $results = $this->race('change-status', $target->id, '', [$payload, $payload]);
+
+        $this->assertEqualsCanonicalizing(['changed', 'conflict'], $results);
+        $this->assertSame('nonaktif', $target->fresh()->status);
+        $this->assertSame(1, AuditLog::where('objek_id', $target->id)->where('tindakan', 'pengguna.nonaktifkan')->count());
+        $this->assertSame(1, AuditLog::where('objek_id', $target->id)->where('tindakan', 'pengguna.status_ditolak')->count());
+    }
+
+    public function test_status_change_rechecks_superadmin_membership_after_waiting_for_demotion(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        [$actor, $target, $other] = User::factory()->count(3)->create(['status' => 'aktif'])->all();
+        foreach ([[$actor, 'admin'], [$target, 'superadmin'], [$other, 'superadmin']] as [$user, $kode]) {
+            $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $assignment = (array) DB::table('user_roles')->where('user_id', $other->id)->first(['id', 'role_id', 'audit_id']);
+        // Penurunan superadmin lain commit setelah worker membaca daftar superadmin, sebelum worker memperoleh kunci.
+        $prepare = fn () => app(AssignRole::class)->handle($actor, $other->id, Role::where('kode', 'pegawai')->value('id'), 'Peran diturunkan lebih dahulu', $assignment);
+
+        $results = $this->race('change-status', $target->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif',
+            'alasan' => 'Fixture superadmin terakhir', 'expected_error_field' => 'status',
+        ]], $prepare);
+
+        $this->assertSame(['conflict'], $results);
+        $this->assertSame('aktif', $target->fresh()->status);
+        $this->assertSame('pegawai', $other->roles()->value('kode'));
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengguna.nonaktifkan')->count());
+        $this->assertSame('Superadmin aktif terakhir tidak dapat dinonaktifkan.', AuditLog::where('tindakan', 'pengguna.status_ditolak')->sole()->alasan);
+    }
+
+    public function test_status_change_reauthorizes_after_preset_release(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $actorRole = Role::where('kode', 'pegawai')->sole();
+        $actor->roles()->attach($actorRole->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        foreach (['pengguna:read', 'akses:update'] as $code) {
+            DB::table('role_permissions')->insert(['id' => Str::uuid(), 'role_id' => $actorRole->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'created_at' => now()]);
+            $this->assertTrue(app(PermissionResolver::class)->allows($actor, $code));
+        }
+        $releaseWhileBlocked = function (array $pids): void {
+            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
+            $this->assertStringContainsString('from "roles"', $query);
+            $this->assertStringContainsString('for share', $query);
+            // Writer produksi mencabut kedua izin fixture selagi worker menunggu kunci role aktor.
+            $this->assertSame(1, app(SyncRolePermissionPresets::class)->handle('status-race', 'Kembalikan preset resmi', 'test-parent'));
+        };
+
+        $results = $this->race('change-status', $actorRole->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'status' => 'nonaktif', 'expected_status' => 'aktif', 'alasan' => 'Fixture pencabutan preset',
+        ]], barrierTable: 'roles', assertBlocked: $releaseWhileBlocked);
+
+        $this->assertSame(['denied'], $results);
+        $this->assertSame('aktif', $target->fresh()->status);
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengguna.nonaktifkan')->count());
+        $audit = AuditLog::where('tindakan', 'pengguna.status_ditolak')->sole();
+        foreach (['pengguna_read', 'akses_update'] as $key) {
+            $this->assertFalse($audit->dasar_izin[$key]['allowed']);
+            $this->assertSame('no_allow', $audit->dasar_izin[$key]['reason']);
+        }
+    }
+
     public function test_two_receipt_consumers_have_one_winner_on_database_cache(): void
     {
         $actor = User::factory()->create(['status' => 'aktif']);
@@ -1297,7 +1369,7 @@ class MutationConcurrencyTest extends TestCase
                 $prepare();
             } elseif ($barrierTable === 'roles') {
                 Role::whereKey($subject)->lockForUpdate()->firstOrFail();
-            } elseif (in_array($operation, ['assign-role', 'create-deny', 'revoke-deny'], true)) {
+            } elseif (in_array($operation, ['assign-role', 'change-status', 'create-deny', 'revoke-deny'], true)) {
                 User::whereKey($subject)->lockForUpdate()->firstOrFail();
             } else {
                 DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [$lock]);
