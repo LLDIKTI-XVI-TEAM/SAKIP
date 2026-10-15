@@ -12,7 +12,9 @@ import { Switch } from '@/Components/Switch';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
-import { statusPerhitungan, type Pengukuran, type BuktiPengukuran } from './types';
+import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
+import type { LampiranDraft } from '@/types/lampiran';
+import { statusPerhitungan, type Pengukuran } from './types';
 import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -49,14 +51,10 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
         strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
         tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
         alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
-        tambah_bukti: false,
         jenis_berkas_id: '',
         menggantikan_id: '',
         alasan_koreksi: '',
-        mode: 'tautan' as BuktiPengukuran['mode'],
-        file: null as File | null,
-        tautan: '',
-        isi_teks: '',
+        lampiran: [] as LampiranDraft[],
         action: 'draft' as 'draft' | 'ajukan',
     });
     const { handleHttpException } = recovery;
@@ -74,7 +72,9 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const rekomendasi = pengukuran.rekomendasi_sebelumnya;
     const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
     const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
-    const activeMode = modes.includes(data.mode) ? data.mode : (modes[0] ?? null);
+    const bukti = data.lampiran[0];
+    const activeMode = bukti && modes.includes(bukti.mode) ? bukti.mode : null;
+    const lampiranErrors = { lampiran: fieldErrors.bukti, 'lampiran.0.mode': fieldErrors['bukti.mode'], 'lampiran.0.file': fieldErrors['bukti.file'], 'lampiran.0.tautan': fieldErrors['bukti.tautan'], 'lampiran.0.isi_teks': fieldErrors['bukti.isi_teks'] };
     const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -91,10 +91,10 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
             progres_kegiatan: values.progres_kegiatan, kendala_masalah: values.kendala_masalah, strategi_tindak_lanjut: values.strategi_tindak_lanjut,
             // Tanpa rekomendasi approved, field diomit (bukan null) agar isi tersimpan tetap utuh.
             ...(rekomendasi ? { tindak_lanjut_rekomendasi: values.tindak_lanjut_rekomendasi } : {}),
-            ...(values.tambah_bukti && can.uploadEvidence && modes.length > 0 ? { bukti: {
+            ...(bukti && activeMode && can.uploadEvidence ? { bukti: {
                 jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
                 ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),
-                ...(activeMode === 'file' ? { file: values.file } : activeMode === 'tautan' ? { tautan: values.tautan } : { isi_teks: values.isi_teks }),
+                ...(activeMode === 'file' ? { file: bukti.file } : activeMode === 'tautan' ? { tautan: bukti.tautan } : { isi_teks: bukti.isi_teks }),
             } } : {}),
         }));
         post(`/pengukuran/${pengukuran.id}`, {
@@ -167,31 +167,26 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                     <CardHeader><CardTitle>Bukti dukung</CardTitle></CardHeader>
                     <CardContent className="space-y-5">
                         <EvidenceList pengukuran={pengukuran} />
-                        {can.uploadEvidence && !historical && <div className="space-y-4 rounded-lg border border-border bg-soft p-4">
-                            <div className="flex items-center gap-3">
-                                <Switch id="tambah-bukti" checked={data.tambah_bukti} disabled={disabled} onChange={(checked) => setData('tambah_bukti', checked)} />
-                                <label htmlFor="tambah-bukti" className="cursor-pointer text-sm font-medium text-ink">Tambahkan bukti dukung</label>
-                            </div>
-                            {data.tambah_bukti && <>
-                                <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} onChange={(event) => {
+                        {/* Menghapus lampiran ikut mengosongkan persyaratan dan koreksi agar tidak terkirim tanpa bukti. */}
+                        {can.uploadEvidence && !historical && <LampiranDraftFields items={data.lampiran} errors={lampiranErrors} disabled={disabled} maxItems={1} modes={modes}
+                            onChange={(update) => setData((values) => { const lampiran = update(values.lampiran); return lampiran.length > 0 ? { ...values, lampiran } : { ...values, lampiran, jenis_berkas_id: '', menggantikan_id: '', alasan_koreksi: '' }; })}
+                            title="Bukti baru" description="Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya." emptyText="Belum ada bukti baru yang akan disimpan."
+                            modeDescriptions={{ file: requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : 'Unggah berkas bukti dukung.', tautan: 'Gunakan alamat http atau https.', teks: 'Tuliskan bukti dukung dalam bentuk teks.' }}
+                            placeholders={{ tautan: 'https://', teks: '' }} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')}
+                            renderItemFields={() => <>
+                                <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} error={fieldErrors['bukti.jenis_berkas_id']} onChange={(event) => {
                                     const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
                                     const available = (['file', 'tautan', 'teks'] as const).filter((mode) => (!selected || selected[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
-                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '', mode: available.includes(values.mode) ? values.mode : (available[0] ?? 'file') }));
+                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '',
+                                        lampiran: values.lampiran.map((item) => available.includes(item.mode) ? item : { ...item, mode: available[0] ?? item.mode, file: null, tautan: '', isi_teks: '' }) }));
                                 }}><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</Select>
                                 {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <Select id="bukti-pendahulu" label="Bukti yang diganti (opsional)" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} helperText="Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti." aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-pendahulu-help'}>
                                     <option value="">Tambahkan tanpa mengganti bukti</option>
                                     {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({item.mode})</option>)}
                                 </Select>}
                                 {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
-                                {modes.length === 0 ? <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p> : <>
-                                    <Select id="mode-bukti" label="Mode bukti" value={activeMode ?? ''} disabled={disabled} onChange={(event) => setData('mode', event.target.value as BuktiPengukuran['mode'])}>{modes.map((mode) => <option key={mode} value={mode}>{mode === 'file' ? 'Unggahan file' : mode === 'tautan' ? 'Tautan' : 'Teks'}</option>)}</Select>
-                                    {activeMode === 'file' && <Input name="bukti-file" label="File bukti" type="file" disabled={disabled} onChange={(event) => setData('file', event.target.files?.[0] ?? null)} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')} helperText={requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : undefined} error={fieldErrors['bukti.file']} aria-describedby={fieldErrors['bukti.file'] ? 'measurement-errors' : undefined} />}
-                                    {activeMode === 'tautan' && <Input name="bukti-tautan" label="Tautan bukti" type="url" value={data.tautan} disabled={disabled} onChange={(event) => setData('tautan', event.target.value)} error={fieldErrors['bukti.tautan']} helperText="Gunakan alamat http atau https." aria-describedby={fieldErrors['bukti.tautan'] ? 'measurement-errors' : undefined} />}
-                                    {activeMode === 'teks' && <Textarea name="bukti-teks" label="Isi bukti teks" value={data.isi_teks} disabled={disabled} onChange={(event) => setData('isi_teks', event.target.value)} error={fieldErrors['bukti.isi_teks']} aria-describedby={fieldErrors['bukti.isi_teks'] ? 'measurement-errors' : undefined} />}
-                                </>}
-                                <p className="text-xs text-muted">Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya.</p>
-                            </>}
-                        </div>}
+                                {modes.length === 0 && <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p>}
+                            </>} />}
                     </CardContent>
                 </Card>
                 {can.update && !historical && <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">

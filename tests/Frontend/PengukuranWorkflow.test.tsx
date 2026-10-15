@@ -107,11 +107,13 @@ describe('Alur pengukuran', () => {
             id: 'old-evidence', jenis_berkas_id: null, mode: 'teks', nama_asli: null, mime: null, ukuran_bytes: null,
             tautan: null, isi_teks: 'Bukti semula', download_url: null, menggantikan_id: null, alasan_koreksi: null,
         }] }} />);
-        await user.click(screen.getByRole('switch', { name: 'Tambahkan bukti dukung' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+        // Satu bukti per penyimpanan: tombol tambah tertutup setelah satu lampiran.
+        expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
         await user.selectOptions(screen.getByRole('combobox', { name: 'Bukti yang diganti (opsional)' }), 'old-evidence');
         await user.type(screen.getByRole('textbox', { name: /Alasan koreksi bukti/ }), 'Lampiran salah periode.');
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Mode bukti' }), 'teks');
-        await user.type(screen.getByRole('textbox', { name: 'Isi bukti teks' }), 'Bukti periode yang benar');
+        await user.click(screen.getByRole('button', { name: 'Teks' }));
+        await user.type(screen.getByRole('textbox', { name: 'Teks lampiran 1' }), 'Bukti periode yang benar');
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ bukti: {
             menggantikan_id: 'old-evidence', alasan_koreksi: 'Lampiran salah periode.', mode: 'teks', isi_teks: 'Bukti periode yang benar',
@@ -157,18 +159,23 @@ describe('Alur pengukuran', () => {
         expect(screen.getByText('Penyebut')).toBeTruthy();
         expect(screen.queryByText('pembilang')).toBeNull();
         await user.type(screen.getByRole('spinbutton', { name: /Pembilang/ }), '0');
-        await user.click(screen.getByRole('switch', { name: 'Tambahkan bukti dukung' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
         await user.selectOptions(screen.getByRole('combobox', { name: 'Persyaratan yang dipenuhi' }), 'requirement');
-        expect(screen.queryByRole('option', { name: 'Unggahan file' })).toBeNull();
-        const evidence = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Isi bukti teks' });
+        // Unggahan nonaktif dan persyaratan tanpa tautan: hanya mode teks yang tersisa.
+        expect(screen.queryByRole('button', { name: 'File' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Tautan' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Teks' }).getAttribute('aria-pressed')).toBe('true');
+        const evidence = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Teks lampiran 1' });
         await user.type(evidence, 'Penjelasan hasil pengukuran');
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         const payload = vi.mocked(router.post).mock.calls[0][1];
         expect(payload).toMatchObject({ komponen: [{ komponen_id: 'numerator', nilai: '0' }, { komponen_id: 'denominator', nilai: null }], bukti: { jenis_berkas_id: 'requirement', mode: 'teks', isi_teks: 'Penjelasan hasil pengukuran' } });
         expect(payload).not.toHaveProperty('nilai');
         expect(payload).not.toHaveProperty('bukti.file');
-        await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ 'komponen.1.nilai': 'Penyebut belum diisi.' }); });
+        await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ 'komponen.1.nilai': 'Penyebut belum diisi.', 'bukti.isi_teks': 'Isi bukti terlalu panjang.' }); });
         expect(evidence.value).toBe('Penjelasan hasil pengukuran');
+        // Galat bukti dari server tampil di ringkasan dan di field lampiran.
+        expect(screen.getAllByText('Isi bukti terlalu panjang.')).toHaveLength(2);
         expect(screen.getByRole('spinbutton', { name: /Penyebut/ }).getAttribute('aria-invalid')).toBe('true');
     });
 
