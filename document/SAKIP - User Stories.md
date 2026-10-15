@@ -1019,6 +1019,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-05.07 · Penyusunan Rencana Aksi Sepanjang Tahun, Kunci per Periode, dan Periode tanpa Target
 
+**Status implementasi (2026-10-15):** Sesuai [Keputusan PM M1 pada PR #105](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/105#issuecomment-6189887938), PR #105 memiliki kontrak minimum Q47: penanda dinilai tahunan beserta audit dan snapshot, target kosong yang sah dan status beku `tidak_ditargetkan`, serta gerbang pengajuan/review RA dan pembacanya pada pengukuran. AC-6–AC-9 dicentang berdasarkan automated test pada `021c911` dan [CI 9/9](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/38716756264), bukan penerimaan UAT. Bukti: `RencanaAksiTanpaTargetTest` (simpan/baca/bekukan kosong vs `0`, pengajuan sampai pengesahan, penolakan target wajib/komponen sebagian, audit dan imutabilitas penanda), `DinilaiTahunanSnapshotTest` (aktivasi membekukan penanda), serta regresi deviasi PK pada `RencanaAksiAjukanTest`. Perubahan master tidak menulis ulang snapshot aktif; fitur koreksi snapshot tetap milik ISS-03.03. Cakupan Q41 dan butir gabungan yang belum terbukti tetap terbuka pada US/ISS-05.07. Gerbang RA lintas modul dan urutan kunci akan direview ulang PM setelah integrasi #106.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-05.07` |
@@ -1041,10 +1043,10 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [ ] **AC-3:** Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [ ] **AC-4:** Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [ ] **AC-5:** Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
-- [ ] **AC-6:** Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
-- [ ] **AC-7:** Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
-- [ ] **AC-8:** Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
-- [ ] **AC-9:** Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
+- [x] **AC-6:** Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
+- [x] **AC-7:** Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
+- [x] **AC-8:** Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
+- [x] **AC-9:** Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
 - [ ] **AC-10:** Given RA belum disahkan, When pengukuran periode mana pun diajukan, Then tetap ditolak; target kumulatif yang turun tetap berupa peringatan. *(Q41 §41.3 butir 1 dan 3)*
 
 **Business Rules / Catatan**
