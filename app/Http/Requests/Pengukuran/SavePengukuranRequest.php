@@ -38,7 +38,7 @@ class SavePengukuranRequest extends FormRequest
     {
         return ['required' => 'Kolom :attribute wajib diisi.', 'required_with' => 'Kolom :attribute wajib diisi saat mengirim bukti.',
             'present' => 'Kolom :attribute harus dikirim; gunakan nilai kosong untuk komponen belum diisi.',
-            'numeric' => 'Kolom :attribute harus berupa angka.', 'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
+            'numeric' => 'Kolom :attribute harus berupa angka.', 'between' => 'Kolom :attribute melebihi kapasitas penyimpanan.',
             'integer' => 'Kolom :attribute harus berupa bilangan bulat.', 'min' => 'Kolom :attribute tidak memenuhi nilai minimum.',
             'max' => 'Kolom :attribute melebihi batas yang diizinkan.', 'uuid' => 'Identitas :attribute tidak sah.',
             'distinct' => 'Komponen tidak boleh dikirim berulang.', 'in' => 'Pilihan :attribute tidak tersedia.', 'array' => 'Struktur :attribute tidak sah.',
