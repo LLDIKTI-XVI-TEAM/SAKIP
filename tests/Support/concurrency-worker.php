@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Access\AssignRole;
+use App\Actions\Access\ChangeUserStatus;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
@@ -90,6 +91,7 @@ try {
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'pengukuran-ajukan' => app(SubmitPengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
+            'change-status' => app(ChangeUserStatus::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['status'], $assignment['alasan'], $assignment['expected_status'])['status'],
             'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
@@ -105,7 +107,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'change-status', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -124,6 +126,7 @@ try {
         $expectedField = match ($argv[1]) {
             'pj-assign', 'pj-change' => $assignment['expected_error_field'] ?? 'expected_state',
             'assign-role' => 'expected_assignment',
+            'change-status' => $assignment['expected_error_field'] ?? 'expected_status',
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
