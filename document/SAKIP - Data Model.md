@@ -1120,7 +1120,7 @@ Nilai capaian aktual per indikator, per tahun, per periode. Baris tidak dapat di
 
 **Gerbang rencana aksi (keras):** pengajuan `pengukuran` (transisi `draft → diajukan`) untuk periode P pada indikator I **ditolak** selama `rencana_aksi` untuk (indikator I × tahun) belum berstatus `disahkan` (lihat §2.23).
 
-**Larangan pembuatan untuk indikator arsip:** permintaan `pengukuran:create` **ditolak sistem** apabila `indikator.status = arsip` pada indikator terkait, terlepas dari permission/scope yang dimiliki pengguna (lihat §2.12).
+**Larangan pembuatan untuk indikator arsip:** permintaan `pengukuran:create` **ditolak sistem** apabila `indikator.status = arsip` pada indikator terkait, terlepas dari permission/scope yang dimiliki pengguna (lihat §2.12). Sejak keputusan PM 15 Oktober 2026 (komentar review PR #107, melengkapi Q37 §37.1 butir 5): guard indikator arsip pada Pengukuran berlaku untuk kelima perintah — simpan draf, ajukan, verifikasi, kembalikan, dan sahkan — dengan pesan `Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.`; penolakan diaudit tanpa mengubah header; detail/histori tetap terbaca sesuai otorisasi.
 
 **Kelengkapan komponen:** untuk indikator bertipe `rasio_persen`/`penjumlahan`, pengajuan pengukuran **ditolak** bila ada `indikator_komponen` aktif yang nilainya pada `pengukuran_komponen` masih `null` — kecuali pengukuran berstatus `belum_dapat_diukur` (rancangan Q47, di bawah). Kelengkapan komponen adalah syarat tambahan di samping narasi wajib di bawah (semula: aturan catatan berbasis `arah`/`wajib_catatan`, digantikan Q45) (lihat §2.28).
 

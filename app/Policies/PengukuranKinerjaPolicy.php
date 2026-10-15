@@ -128,7 +128,7 @@ class PengukuranKinerjaPolicy
             $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
         }
         if ($p->indikator && $p->indikator->isArsip()) {
-            $errors[] = 'Indikator berstatus arsip; review pengukuran ditolak.';
+            $errors[] = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
         }
         if ($p->sumber_nilai === 'historis') {
             $errors[] = 'Koreksi nilai historis memerlukan alur backfill resmi.';

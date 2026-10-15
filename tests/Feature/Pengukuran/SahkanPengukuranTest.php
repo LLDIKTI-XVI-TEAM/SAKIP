@@ -194,17 +194,82 @@ class SahkanPengukuranTest extends TestCase
 
     public function test_pembuat_draft_bukan_pengaju_tidak_terkena_f1(): void
     {
-        $pic = $this->siapkanPic();
-        $pembuat = $this->userWithRole('pegawai');
+        // Pembuat memakai jalur yang sah sehingga draf benar-benar tersimpan.
+        $pembuat = $this->userWithRole('perencanaan');
         $this->actingAs($pembuat)->post('/pengukuran/'.$this->pengukuran->id,
-            ['versi' => 1, 'action' => 'draft', 'nilai' => 70])->assertSessionHasNoErrors();
+            ['versi' => 1, 'action' => 'draft', 'nilai' => 70])
+            ->assertSessionHasNoErrors()->assertRedirect('/pengukuran');
+        $this->assertSame('70.000000000000', $this->pengukuran->fresh()->nilai);
+        $this->assertSame($pembuat->id, AuditLog::where('tindakan', 'pengukuran.draft')->sole()->actor_id);
+
+        $pic = $this->siapkanPic();
         $this->ajukan($pic);
         $this->assertSame($pic->id, $this->pengukuran->latestVersion->diajukan_by);
 
+        // Pembuat draf (bukan pengaju) boleh mengesahkan dan berhasil; F1 memakai diajukan_by.
         $penelaah = $this->userWithRole('perencanaan');
         $this->reviu($penelaah, 'verifikasi')->assertSessionHasNoErrors();
-        $this->reviu($penelaah, 'sahkan')->assertSessionHasNoErrors();
+        $this->reviu($pembuat, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi');
 
         $this->assertSame('disahkan', $this->pengukuran->fresh()->status_alur);
+        $audit = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole();
+        $this->assertSame($pembuat->id, $audit->actor_id);
+        $this->assertFalse($audit->nilai_baru['self_approval']);
+    }
+
+    public function test_pergantian_pic_setelah_submit_tidak_menghapus_f1(): void
+    {
+        $pic = $this->siapkanPic();
+        $this->ajukan($pic);
+        $token = (array) DB::table('user_roles')->where('user_id', $pic->id)->first(['id', 'role_id', 'audit_id']);
+        app(AssignRole::class)->handle($this->actor, $pic->id, Role::where('kode', 'perencanaan')->value('id'), 'Penyesuaian peran pengujian F1', $token);
+        $pengganti = $this->userWithRole('pegawai');
+        PenugasanIndikator::create(['indikator_id' => $this->pengukuran->indikator_id, 'user_id' => $pengganti->id,
+            'tanggal_mulai_berlaku' => '2026-03-10', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+
+        $penelaah = $this->userWithRole('perencanaan');
+        $this->reviu($penelaah, 'verifikasi')->assertSessionHasNoErrors();
+        $this->reviu($pic, 'sahkan')->assertSessionHasErrors('versi');
+
+        $this->assertBelumDisahkan();
+        $this->assertSame($pic->id, $this->pengukuran->latestVersion->diajukan_by);
+        $this->assertSame($pengganti->id, $this->pengukuran->fresh()->effectivePic()->user_id);
+    }
+
+    public function test_indikator_arsip_menolak_simpan_draf_dan_pengajuan_jalur_pic(): void
+    {
+        $pic = $this->siapkanPic();
+        $this->pengukuran->indikator->update(['status' => 'arsip']);
+        $pesan = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
+
+        $this->actingAs($pic)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft', 'nilai' => 70])
+            ->assertSessionHasErrors('versi');
+        $this->assertSame($pesan, session('errors')->first('versi'));
+        $this->actingAs($pic)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 70])
+            ->assertSessionHasErrors('versi');
+
+        $header = $this->pengukuran->fresh();
+        $this->assertSame('draft', $header->status_alur);
+        $this->assertSame(1, $header->versi);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(2, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+    }
+
+    public function test_indikator_arsip_menolak_verifikasi_dan_pengembalian(): void
+    {
+        $pic = $this->siapkanPic();
+        $this->ajukan($pic);
+        $this->pengukuran->indikator->update(['status' => 'arsip']);
+        $penelaah = $this->userWithRole('perencanaan');
+
+        $this->reviu($penelaah, 'verifikasi')->assertSessionHasErrors('versi');
+        $this->actingAs($penelaah)->post('/verifikasi/'.$this->pengukuran->id.'/kembalikan',
+            ['versi' => $this->pengukuran->fresh()->versi, 'catatan' => 'Lengkapi bukti dukung.'])
+            ->assertSessionHasErrors('versi');
+
+        $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+        $this->assertSame(2, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        $this->actingAs($penelaah)->get('/verifikasi/'.$this->pengukuran->id)->assertOk()
+            ->assertInertia(fn ($halaman) => $halaman->where('pengukuran.status', 'diajukan'));
     }
 }
