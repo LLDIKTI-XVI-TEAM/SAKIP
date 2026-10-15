@@ -15,6 +15,8 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
 const PESAN_ARSIP = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
+const PESAN_F1 = 'Pengaju jalur PIC tidak boleh menyetujui pengajuannya sendiri.';
+const PESAN_ALASAN_TERSEDIA = 'Alasan aksi tersedia yang tidak boleh tampil di notice.';
 
 const dasar: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
@@ -44,6 +46,21 @@ describe('Verifikasi alasan guard', () => {
         const notice = screen.getByRole('status');
         expect(notice.textContent).toContain('Tindakan reviu tidak tersedia');
         expect(notice.textContent).toContain(PESAN_ARSIP);
+    });
+
+    it('menampilkan notice alasan aksi tertutup walau panel keputusan terlihat (kasus campuran F1)', () => {
+        render(<VerifikasiShow pengukuran={{ ...dasar, status: 'diajukan', jalur_pengajuan: 'pic',
+            can: { ...dasar.can, verify: false, ratify: false, return: true },
+            businessErrors: { verifikasi: [PESAN_F1], sahkan: [PESAN_F1], kembalikan: [PESAN_ALASAN_TERSEDIA] } }} />);
+
+        expect(screen.getByRole('button', { name: 'Kembalikan untuk revisi' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Verifikasi pengukuran' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Sahkan kinerja resmi' })).toBeNull();
+
+        const notice = screen.getByRole('status');
+        expect(notice.textContent).toContain('Sebagian tindakan tidak tersedia');
+        expect(notice.textContent).toContain(PESAN_F1);
+        expect(notice.textContent).not.toContain(PESAN_ALASAN_TERSEDIA);
     });
 
     it('tidak menampilkan notice bila businessErrors kosong', () => {
