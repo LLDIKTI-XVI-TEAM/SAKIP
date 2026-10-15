@@ -80,6 +80,7 @@ class SahkanPengukuranTest extends TestCase
         app(AssignRole::class)->handle($this->actor, $pic->id, Role::where('kode', 'perencanaan')->value('id'), 'Penyesuaian peran pengujian F1', $token);
 
         $this->reviu($pic, 'sahkan')->assertSessionHasErrors('versi');
+        $this->assertSame('Pengaju jalur PIC tidak boleh menyetujui pengajuannya sendiri.', session('errors')->first('versi'));
 
         $this->assertBelumDisahkan();
         $this->assertSame($pic->id, $this->pengukuran->latestVersion->diajukan_by);
@@ -195,7 +196,9 @@ class SahkanPengukuranTest extends TestCase
     public function test_pembuat_draft_bukan_pengaju_tidak_terkena_f1(): void
     {
         // Pembuat memakai jalur yang sah sehingga draf benar-benar tersimpan.
+        // created_by disamakan agar test gagal bila F1 keliru memakai pembuat header.
         $pembuat = $this->userWithRole('perencanaan');
+        $this->pengukuran->update(['created_by' => $pembuat->id]);
         $this->actingAs($pembuat)->post('/pengukuran/'.$this->pengukuran->id,
             ['versi' => 1, 'action' => 'draft', 'nilai' => 70])
             ->assertSessionHasNoErrors()->assertRedirect('/pengukuran');
@@ -229,7 +232,10 @@ class SahkanPengukuranTest extends TestCase
 
         $penelaah = $this->userWithRole('perencanaan');
         $this->reviu($penelaah, 'verifikasi')->assertSessionHasNoErrors();
+        // Grant PIC dicabut agar test gagal bila F1 keliru bergantung pada grant berjalan.
+        DB::table('user_permission_granted')->where('user_id', $pic->id)->delete();
         $this->reviu($pic, 'sahkan')->assertSessionHasErrors('versi');
+        $this->assertSame('Pengaju jalur PIC tidak boleh menyetujui pengajuannya sendiri.', session('errors')->first('versi'));
 
         $this->assertBelumDisahkan();
         $this->assertSame($pic->id, $this->pengukuran->latestVersion->diajukan_by);
