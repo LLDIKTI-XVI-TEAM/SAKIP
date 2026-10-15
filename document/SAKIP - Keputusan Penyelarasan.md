@@ -1400,7 +1400,7 @@ Detail kegiatan tetap dibatasi unit (Q12), karena nama kegiatan dapat memuat nam
 
 - PRD §15.1; Data Model §2.25 (`kegiatan.nama` hingga 500 karakter, `tujuan` nullable); Workflow (penambahan kegiatan dari Rencana Aksi); Plan modul 12; design system (batas field).
 - User Stories/Issues: US/ISS-06.01 diberi catatan (validasi PR #97); US/ISS-06.02 (salin kegiatan).
-- Status implementasi: §49.1 diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). §49.2 belum (ISS-06.02).
+- Status implementasi: §49.1 diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). §49.2 diterapkan oleh ISS-06.02 (anggaran ikut disalin setelah ISS-06.08 menyediakan inputnya).
 
 ---
 
