@@ -248,7 +248,7 @@ export function GrantUserAutocomplete({
                                     </span>
                                 ) : (
                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
-                                        Tanpa Role
+                                        Belum memiliki peran
                                     </span>
                                 )}
                             </div>
@@ -367,7 +367,7 @@ export function GrantUserAutocomplete({
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
-                                                    Tanpa Role
+                                                    Belum memiliki peran
                                                 </span>
                                             )}
                                         </div>

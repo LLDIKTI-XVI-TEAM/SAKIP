@@ -57,8 +57,9 @@ class RolePermissionManagementTest extends TestCase
         $role = Role::where('kode', 'superadmin')->sole();
         $role->update(['aktif' => false]);
         $this->get('/akses/izin-peran?role='.$role->id)->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->has('permissions', 20)->where('selectedRole.aktif', false)->where('pagination.page', 1)
-            ->where('pagination.next_page_url', fn ($url) => is_string($url) && str_contains($url, 'page=2'))
+            ->has('permissions', 20)->where('selectedRole.aktif', false)
+            ->where('pagination.from', 1)->where('pagination.to', 20)->where('pagination.total', $role->permissions()->count())
+            ->where('pagination.links', fn ($links) => collect($links)->contains(fn ($link) => str_contains((string) $link['url'], 'page=2')))
             ->missing('permissions.0.editable')->missing('permissions.0.attached')->missing('users')->missing('grants')->missing('denies'));
         $legacy = Permission::create(['kode' => 'legacy:read', 'entitas' => 'legacy', 'aksi' => 'read', 'butuh_scope' => 'global', 'aktif' => false]);
         $role->permissions()->attach($legacy->id, ['id' => Str::uuid(), 'created_at' => now()]);
@@ -67,6 +68,22 @@ class RolePermissionManagementTest extends TestCase
             ->where('permissions.0.keterangan', null)->where('permissions.0.in_catalog', false));
         $this->get('/akses/izin-peran?role='.$role->id.'&q='.urlencode('grant izin tambahan'))
             ->assertOk()->assertInertia(fn (Assert $page) => $page->has('permissions', 1)->where('permissions.0.kode', 'delegasi:update'));
+    }
+
+    public function test_search_treats_percent_and_underscore_as_literal_text(): void
+    {
+        $role = Role::where('kode', 'superadmin')->sole();
+        foreach (['zzaxb:read', 'zza_b:read'] as $kode) {
+            $permission = Permission::create(['kode' => $kode, 'entitas' => strtok($kode, ':'), 'aksi' => 'read', 'butuh_scope' => 'global', 'aktif' => true]);
+            $role->permissions()->attach($permission->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        }
+        // Kontrol: pencarian sebagian tetap cocok untuk keduanya.
+        $this->get('/akses/izin-peran?role='.$role->id.'&q=zza')->assertInertia(fn (Assert $page) => $page->has('permissions', 2));
+        // `_` dan `%` adalah karakter biasa, bukan wildcard SQL.
+        $this->get('/akses/izin-peran?role='.$role->id.'&q=zza_b')->assertInertia(fn (Assert $page) => $page
+            ->has('permissions', 1)->where('permissions.0.kode', 'zza_b:read'));
+        $this->get('/akses/izin-peran?role='.$role->id.'&q='.urlencode('%%'))->assertInertia(fn (Assert $page) => $page
+            ->has('permissions', 0)->where('pagination.total', 0));
     }
 
     public function test_filters_validate_official_role_query_length_and_page(): void
