@@ -589,3 +589,71 @@ it('recovery401 mempertahankan alasan, mengonsumsi callback lokal dan mengunci s
     await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
     expect(router.post).toHaveBeenCalledTimes(1);
 });
+
+it('menampilkan aksi status sesuai status akun dan menyembunyikannya untuk akun sendiri', () => {
+    const view = page();
+    expect(screen.getByRole('button', { name: 'Nonaktifkan Ayu' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Aktifkan kembali Budi' })).toBeTruthy();
+    currentPage.props.auth.user.id = 'user-a';
+    view.rerender(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    expect(screen.queryByRole('button', { name: 'Nonaktifkan Ayu' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Aktifkan kembali Budi' })).toBeTruthy();
+});
+
+it('menonaktifkan akun dengan alasan dan peringatan PJ, lalu menahan galat server di dialog', async () => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: 'Nonaktifkan Ayu' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/masih menjadi Penanggung Jawab aktif/)).toBeTruthy();
+    const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Nonaktifkan' });
+    expect(confirm.disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText(/Alasan/), 'Pegawai pindah tugas');
+    await user.click(confirm);
+    expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran/user-a/status', { status: 'nonaktif', alasan: 'Pegawai pindah tugas', expected_status: 'aktif' }]);
+    await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ status: 'Superadmin aktif terakhir tidak dapat dinonaktifkan.' }); });
+    expect(within(screen.getByRole('dialog')).getByText('Superadmin aktif terakhir tidak dapat dinonaktifkan.')).toBeTruthy();
+});
+
+it('mengaktifkan kembali akun nonaktif tanpa peringatan PJ', async () => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: 'Aktifkan kembali Budi' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByText(/Penanggung Jawab aktif/)).toBeNull();
+    await user.type(within(dialog).getByLabelText(/Alasan/), 'Kembali bertugas');
+    await user.click(within(dialog).getByRole('button', { name: 'Aktifkan kembali' }));
+    expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/peran/user-b/status', { status: 'aktif', alasan: 'Kembali bertugas', expected_status: 'nonaktif' }]);
+});
+
+it.each([
+    ['koneksi', (options: Parameters<typeof router.post>[2]) => options?.onNetworkError?.(new Error('offline')), 'Koneksi terputus. Hasil perubahan status belum diketahui. Muat ulang data sebelum mencoba kembali.'],
+    ['izin', (options: Parameters<typeof router.post>[2]) => options?.onHttpException?.({ status: 403, data: '<html></html>', headers: {} }), 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.'],
+] as const)('menampilkan galat %s status di dialog tanpa dialog galat bawaan', async (_label, fail, text) => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: 'Nonaktifkan Ayu' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Alasan/), 'Pegawai pindah tugas');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nonaktifkan' }));
+    let handled: boolean | void = undefined;
+    act(() => { handled = fail(vi.mocked(router.post).mock.calls[0][2]); });
+    expect(handled).toBe(false);
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe(text);
+});
+
+it('menutup dialog status dan membersihkan pesan gagal filter setelah status berhasil diubah', async () => {
+    optionsWith([{ id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif', roles: [] }]);
+    const user = userEvent.setup();
+    page();
+    await user.type(screen.getByRole('combobox', { name: 'Cari pengguna' }), 'bu');
+    await user.click(await screen.findByRole('option', { name: /Budi/ }));
+    failFilter('network');
+    await user.click(screen.getByRole('button', { name: 'Nonaktifkan Ayu' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Alasan/), 'Pegawai pindah tugas');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nonaktifkan' }));
+    await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onSuccess?.(response({ success: 'Akun berhasil dinonaktifkan.' }, '/akses/peran')); });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // Daftar dari server tidak memakai filter Budi; pesan dan chip lama tidak boleh tertinggal.
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ganti pengguna target' })).toBeNull();
+});
