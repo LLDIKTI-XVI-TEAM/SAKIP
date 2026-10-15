@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **15 Oktober 2026**
+Pembaruan terakhir: **16 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -14,6 +14,8 @@ Basis commit sebelum keputusan review Q37 (semula bernomor Q36): `bba499436be3f9
 Basis commit sebelum pembaruan Q39–Q51: `0a260708d3b6df328d82151f85bf274d29bdec3b`
 
 Basis commit sebelum pembaruan Q52: `edd08533ec01170c8946f8f3b38ffdd633bbb0a0`
+
+Basis commit sebelum pembaruan Q54: `32d54f628198d8a8f0e0bb1c3fe65fe27d332833`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -51,6 +53,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Analisis dokumen resmi 2026 (Q47–Q51)**, ditetapkan PM pada 13 Oktober 2026, menetapkan indikator dinilai tahunan, periode tanpa target, dan realisasi "belum dapat diukur" (Q47); keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan beserta unggahan PDF bertanda tangan (Q48); atribut kegiatan dan salin kegiatan (Q49); nomor PK opsional, presisi target, dan kode indikator mengikuti PK (Q50); serta alur draf dan persetujuan Rekomendasi Pimpinan (Q51). Dasar dan status konfirmasinya dicatat pada pengantar Q47–Q51.
 
 **Keputusan 14 Oktober 2026 (Q52)** menetapkan penutupan resmi jadwal tahunan: alasan wajib untuk `jadwal:tutup`, tahun terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` terlewati, serta penguncian kegiatan per tahun.
+
+**Keputusan 16 Oktober 2026 (Q54)** menetapkan satu draf terbuka dan token versi pada Rekomendasi Pimpinan, melengkapi Q51.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -1508,6 +1512,23 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: PRD §4 prinsip 6 dan §15.4; Data Model §2.32 kolom `alasan`; User Stories US-14.01; User Issues ISS-14.01.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan menunggu bersama Q38–Q51.
 - Q52 adalah keputusan requirement; implementasinya dibawa PR ISS-14.01.
+
+---
+
+# Keputusan Q54 — Satu Draf dan Token Versi Rekomendasi Pimpinan
+
+**Keputusan PM, 16 Oktober 2026**, untuk [ISS-09.01 / Issue #103](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/103). Melengkapi Q51 §51.1–§51.2.
+
+## 54.1 Aturan
+
+1. Setiap indikator × tahun × periode memiliki paling banyak satu draf rekomendasi terbuka. Menyimpan draf saat draf sudah ada mengubah draf tersebut, dan perubahannya tercatat di `audit_log`. Batasan ini ditegakkan basis data, bukan hanya aplikasi.
+2. Kolom `rekomendasi_pimpinan.versi` (integer, default 1) dinaikkan setiap kali draf diubah atau disetujui. Penyimpanan dan persetujuan mengirim versi draf yang dilihat pengguna. Bila draf sudah berubah, sudah disetujui, atau baru dibuat pengguna lain, permintaan ditolak sebagai konflik versi tanpa mengubah data, dan penolakannya tercatat di `audit_log`.
+
+## 54.2 Dampak dan traceability
+
+- Diselaraskan: Data Model §2.31, User Stories US-09.01, dan User Issues ISS-09.01.
+- Status keputusan: baseline kerja PM.
+- Q54 adalah keputusan teknis ISS-09.01; implementasinya dibawa PR untuk Issue #103.
 
 ---
 
