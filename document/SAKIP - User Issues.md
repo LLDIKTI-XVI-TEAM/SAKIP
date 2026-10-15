@@ -5582,6 +5582,8 @@ Perubahan per request (tanpa nomor baris kode):
 
 > **Q48 (13 Oktober 2026):** penutupan tidak memblokir unggah arsip dokumen resmi (ISS-10.05).
 
+> **Q52 (14 Oktober 2026):** penutupan wajib alasan dan boleh dilakukan sebelum tanggal `penutupan`; tahun terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` terlewati; kegiatan dikunci per tahun (Q52 §52.1–§52.3).
+
 **Terkait User Story:** `US-14.01`  
 **Prioritas:** 🔴 P0 · Tahap 2 (Q46 §46.3)  
 **Story Points:** 5  
@@ -5599,53 +5601,67 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Kontrak Teknis
 
-- **Dependensi:** Jadwal aktif; tanggal/otoritas penutupan memenuhi kebijakan.
+- **Dependensi:** Jadwal aktif; otoritas `jadwal:tutup`. Tidak ada prasyarat tanggal: penutupan boleh sebelum tanggal `penutupan` (Q52 §52.2).
 - **Otorisasi:** `jadwal:tutup` (sensitif).
 - **Dampak Data:** `jadwal_tahunan`, `audit_log`.
 - **Rule:** Istilah yang benar adalah terkunci selama status ditutup; bukan 'tidak dapat dimutasi selamanya', karena jalur koreksi resmi tetap ada.
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
-- [ ] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
-- [ ] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
-- [ ] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] **AC-1:** Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
+- [x] **AC-2:** Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak. *(Klaim belum memiliki jalur tulis; penulis klaim kelak memakai aturan yang sama, Q52 §52.3.)*
+- [x] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
+- [x] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] **AC-5:** Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak sebagai validasi bisnis (422); tanpa izin atau terkena deny ditolak 403; keduanya teraudit.
+- [ ] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi terpenuhi; daftar Pengukuran dilanjutkan di #110.)*
+
+> **Status implementasi — ISS-14.01 (#86):** centang menunjukkan bukti implementasi dan test:
+> - `tests/Feature/Jadwal/JadwalPenutupanTest` (AC-1, AC-4, AC-5: penolakan draft/ditutup/izin/revisi basi beraudit);
+> - `tests/Unit/Jadwal/JadwalTahunDitutupTest`;
+> - `tests/Feature/RencanaAksi/RencanaAksiJadwalDitutupTest` (termasuk daftar RA baca saja untuk AC-6), regresi `RencanaAksiBuktiHttpTest` dan `ReviewRencanaAksiTest` (RA dan bukti);
+> - `tests/Feature/Pengukuran/PengukuranJadwalDitutupTest` (lima perintah pengukuran dan detail baca saja);
+> - `tests/Feature/Kegiatan/KegiatanHttpTest` (kegiatan);
+> - `tests/Frontend/JadwalEditor.test.tsx`.
+>
+> Jalur `jadwal:buka_kembali` sendiri milik ISS-14.02. Daftar Pengukuran tahun ditutup (sisa AC-6) dilacak di #110. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Saat status `ditutup`, blok mutasi normal. Koreksi hanya melalui sesi `jadwal:buka_kembali`; jangan menerapkan 'freeze selamanya' yang meniadakan jalur koreksi resmi.
+- [x] Saat status `ditutup`, blok mutasi normal. Koreksi hanya melalui sesi `jadwal:buka_kembali`; jangan menerapkan 'freeze selamanya' yang meniadakan jalur koreksi resmi.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:tutup` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:tutup` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penutupan Resmi Jadwal Tahunan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Penutupan Resmi Jadwal Tahunan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given penutupan dikonfirmasi, When commit, Then status menjadi `ditutup` dan `closed_at` terisi.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup, When mutasi normal RA, kegiatan, klaim, bukti, atau pengukuran dicoba, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak 422; tanpa izin atau deny ditolak 403; keduanya teraudit.
+- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only). *(Rencana Aksi terbukti; daftar Pengukuran di #110.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-6/TEST-6 untuk daftar Pengukuran menunggu #110.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke SSO.)*
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-14.02 · [Feature] Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
 
