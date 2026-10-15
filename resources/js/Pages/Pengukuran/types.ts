@@ -63,6 +63,7 @@ export interface Pengukuran {
     persyaratan_bukti: PersyaratanBukti[];
     unggahan_aktif: boolean;
     can: PengukuranCapabilities;
+    businessErrors?: PengukuranBusinessErrors;
     penugasan_indikator: {
         indikator_kinerja: { kode: string; nama: string; definisi_operasional?: string | null; tipe_perhitungan: 'manual' | 'rasio_persen' | 'penjumlahan'; arah: 'naik_baik' | 'turun_baik'; presisi: number; desimal_tampilan: number; satuan: string };
         unit_kerja: { id: string; nama: string };
@@ -86,6 +87,12 @@ export interface PengukuranCapabilities {
     verify: boolean;
     ratify: boolean;
     return: boolean;
+}
+
+export interface PengukuranBusinessErrors {
+    verifikasi: string[];
+    sahkan: string[];
+    kembalikan: string[];
 }
 
 export interface KlaimPengukuran {

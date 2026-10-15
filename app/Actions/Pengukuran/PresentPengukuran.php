@@ -7,13 +7,14 @@ use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
+use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private PengukuranKinerjaPolicy $policy) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -92,7 +93,8 @@ class PresentPengukuran
                 'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []], 'unggahan_aktif' => false,
-            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false]];
+            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],
+            'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
         if (! $detail) {
             return $data;
         }
@@ -101,6 +103,19 @@ class PresentPengukuran
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
+        // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis (statis, tanpa dasar_izin/token).
+        // Murni baca via policy; tanpa mutasi header, versi, maupun audit.
+        // Notice hanya memakai perintah yang berlaku pada status saat ini agar pesan status lain tidak ikut tampil.
+        if ($p->status_alur === 'diajukan') {
+            // Diajukan: perintah reviu yang berlaku adalah verifikasi dan kembalikan.
+            $data['businessErrors']['verifikasi'] = $this->policy->businessErrors($actor, $p, 'verifikasi');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        } elseif ($p->status_alur === 'diverifikasi') {
+            // Diverifikasi: perintah reviu yang berlaku adalah sahkan dan kembalikan.
+            $data['businessErrors']['sahkan'] = $this->policy->businessErrors($actor, $p, 'sahkan');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        }
+        // Status lain (draft, dikembalikan, disahkan): peta tetap kosong agar notice tidak tampil.
         foreach (PengukuranKinerja::NARASI as $key) {
             // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
             $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
