@@ -225,7 +225,8 @@ it('memberi tahu dan menawarkan coba lagi bila filter pengguna gagal dimuat, tan
     await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
     const failed = vi.mocked(router.get).mock.calls[0][2];
     act(() => failed?.onStart?.({} as PendingVisit));
-    // Gangguan jaringan atau server: Inertia tetap memanggil onFinish tanpa onSuccess.
+    // Gangguan jaringan: Inertia memanggil onNetworkError lalu onFinish tanpa onSuccess.
+    act(() => { failed?.onNetworkError?.(new Error('offline')); });
     act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
     expect(screen.getByRole('alert').textContent).toContain('Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi.');
     expect(screen.queryByRole('button', { name: 'Ganti pengguna target' })).toBeNull();
@@ -237,6 +238,86 @@ it('memberi tahu dan menawarkan coba lagi bila filter pengguna gagal dimuat, tan
     act(() => retried?.onSuccess?.({} as Page));
     act(() => retried?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
     expect(screen.queryByRole('alert')).toBeNull();
+});
+
+const failFilter = (kind: 'network' | 'server' | 'session', call = 0) => {
+    const failed = vi.mocked(router.get).mock.calls[call][2];
+    act(() => failed?.onStart?.({} as PendingVisit));
+    act(() => {
+        if (kind === 'network') failed?.onNetworkError?.(new Error('offline'));
+        else failed?.onHttpException?.({ status: kind === 'session' ? 401 : 500, data: kind === 'session' ? { message: 'Autentikasi diperlukan.' } : '', headers: {} });
+    });
+    act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+};
+const optionsWith = (items: unknown[]) => vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ items, page: 1, hasMore: false }), { status: 200 })));
+
+it.each([
+    ['network', 'Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi. Coba lagi'],
+    ['server', 'Daftar pengguna belum diperbarui. Coba lagi'],
+] as const)('membedakan pesan gagal filter pengguna (%s)', async (kind, text) => {
+    const user = userEvent.setup();
+    render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    failFilter(kind);
+    expect(screen.getByRole('alert').textContent).toBe(text);
+});
+
+it('menyerahkan sesi kedaluwarsa saat memfilter ke dialog sesi tanpa pesan gagal di halaman', async () => {
+    const user = userEvent.setup();
+    render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    failFilter('session');
+    expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('memindahkan fokus ke judul daftar saat Coba lagi filter ditekan', async () => {
+    const user = userEvent.setup();
+    render(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    failFilter('network');
+    await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
+    act(() => vi.mocked(router.get).mock.calls[1][2]?.onStart?.({} as PendingVisit));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Peran utama pengguna' }));
+});
+
+it('mempertahankan kata cari baru saat respons filter sebelumnya baru tiba', async () => {
+    optionsWith([]);
+    const user = userEvent.setup();
+    const view = render(<RoleAssignmentIndex users={{ ...users, data: [users.data[0]] }} roles={roles} filters={{ q: '', user: 'user-a' }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti pengguna target' }));
+    await user.type(screen.getByRole('combobox', { name: 'Cari pengguna' }), 'bud');
+    // Inertia memasang props baru lebih dulu, lalu memanggil onSuccess dan onFinish.
+    view.rerender(<RoleAssignmentIndex users={users} roles={roles} filters={{ q: '', user: null }} can={{ assignRole: true }} confirmationUnavailable={false} />);
+    const visit = vi.mocked(router.get).mock.calls[0][2];
+    act(() => visit?.onSuccess?.({} as Page));
+    act(() => visit?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Cari pengguna' }).value).toBe('bud');
+});
+
+it('membersihkan pesan gagal filter dan pilihan lama setelah peran berhasil disimpan', async () => {
+    optionsWith([{ id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif', roles: [] }]);
+    const user = userEvent.setup();
+    page();
+    await user.type(screen.getByRole('combobox', { name: 'Cari pengguna' }), 'bu');
+    await user.click(await screen.findByRole('option', { name: /Budi/ }));
+    failFilter('network');
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ganti pengguna target' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: /Peran tujuan/ }), 'pimpinan-id');
+    await user.type(screen.getByRole('textbox', { name: /Alasan/ }), 'Penugasan disetujui');
+    await user.click(screen.getByRole('button', { name: 'Simpan peran' }));
+    await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onSuccess?.(response({ roleAssignmentOutcome: { receipt_id: receiptA, status: 'changed', has_active_pj: false } })); });
+    // Daftar dari server tidak memakai filter Budi; pesan dan chip lama tidak boleh tertinggal.
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ganti pengguna target' })).toBeNull();
+});
+
+it('memecah email panjang di keterangan dialog agar tidak terpotong di layar sempit', async () => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: 'Ubah peran Ayu' }));
+    expect(within(screen.getByRole('dialog')).getByText('ayu@example.test').className).toContain('break-all');
 });
 
 it('menyaring tabel lewat autocomplete pengguna seperti field Penanggung Jawab', async () => {

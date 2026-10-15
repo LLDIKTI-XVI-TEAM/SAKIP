@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/Components/Textarea';
 import { Tooltip } from '@/Components/Tooltip';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { classifyRecovery } from '@/lib/authRecovery';
 import type { SharedPageProps } from '@/types/auth';
 import { readRoleAssignmentOutcome, RoleAssignmentPjNotice, roleAssignmentMessages, roleAssignmentUnknown, roleAssignmentCheck } from './RoleAssignmentFeedback';
 
@@ -78,7 +79,7 @@ function RoleDialog({ user, roles, isSelf, onClose, onSaved }: { user: RoleUser;
         onClose={close}
         size="lg"
         title={user.current_role ? 'Ubah peran' : 'Tetapkan peran'}
-        description={`${user.nama} (${user.email}). Peran saat ini: ${user.current_role?.nama ?? 'Belum ditetapkan'}${user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}.`}
+        description={<>{user.nama} (<span className="break-all">{user.email}</span>). Peran saat ini: {user.current_role?.nama ?? 'Belum ditetapkan'}{user.current_role && !user.current_role.aktif ? ' (nonaktif)' : ''}.</>}
         footer={<>
             <Button type="button" variant="outline" disabled={form.processing} onClick={close}>Batal</Button>
             <Button type="submit" form="role-assignment-form" isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || roles.length === 0}>Simpan peran</Button>
@@ -142,17 +143,28 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
         return match ? { id: match.id, nama: match.nama, email: match.email, status: match.status, roles: match.current_role ? [`${match.current_role.nama}${match.current_role.aktif ? '' : ' (nonaktif)'}`] : [] } : null;
     }, [users.data, filters.user]);
     const [filtering, setFiltering] = useState(false);
-    const [failedFilter, setFailedFilter] = useState<string | null>(null);
-    const filterBy = (id: string) => {
+    // Pilihan yang sedang atau gagal dimuat; nilai dari server dipakai lagi setelah daftar berhasil diperbarui.
+    const [pendingFilter, setPendingFilter] = useState<{ id: string; user: UserOption | null } | null>(null);
+    const [filterFailure, setFilterFailure] = useState<{ network: boolean } | null>(null);
+    const filterBy = (id: string, user: UserOption | null = null) => {
         let loaded = false;
+        let network = false;
+        let sessionDialog = false;
+        // Dipasang sebelum respons tiba agar respons lama tidak mengosongkan kata cari yang baru diketik.
+        setPendingFilter({ id, user });
         router.get('/akses/peran', id ? { user: id } : {}, {
             preserveState: true, preserveScroll: true, replace: true,
-            onStart: () => { setFiltering(true); setFailedFilter(null); },
-            onSuccess: () => { loaded = true; },
+            onStart: () => { setFiltering(true); setFilterFailure(null); },
+            onSuccess: () => { loaded = true; setPendingFilter(null); },
+            onNetworkError: () => { network = true; return false; },
+            // Sesi kedaluwarsa ditangani dialog sesi global, bukan pesan gagal di halaman.
+            onHttpException: (response) => { sessionDialog = classifyRecovery(response) !== null; },
             // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan daftar sudah diperbarui.
-            onFinish: (visit) => { setFiltering(false); if (!loaded && !visit.cancelled && !visit.interrupted) setFailedFilter(id); },
+            onFinish: (visit) => { setFiltering(false); if (!loaded && !visit.cancelled && !visit.interrupted && !sessionDialog) setFilterFailure({ network }); },
         });
     };
+    // Simpan memuat daftar baru dari server; pilihan dan pesan filter yang gagal tidak berlaku lagi.
+    const saved = () => { close(); setPendingFilter(null); setFilterFailure(null); };
     const hasFilter = Boolean(filters.q || filters.user);
     useEffect(() => {
         // Fokus daftar baru dapat dipulihkan setelah dialog modal tidak lagi membuatnya inert.
@@ -179,9 +191,13 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
             <RoleAssignmentPjNotice outcome={outcome} />
             <Card className="overflow-visible">
                 <div className="space-y-2 p-4" role="search">
-                    <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={filtered?.id ?? ''} initialUser={filtered} onChange={filterBy} />
+                    <GrantUserAutocomplete id="user-search" label="Cari pengguna" required={false} endpoint="/akses/peran/opsi/pengguna" placeholder="Ketik minimal 2 huruf nama atau email…" value={pendingFilter ? pendingFilter.id : (filtered?.id ?? '')} initialUser={pendingFilter ? pendingFilter.user : filtered} onChange={(id, user) => filterBy(id, user ?? null)} />
                     {hasFilter && !filtered && <p className="text-xs text-muted">{filters.q ? `Menampilkan hasil untuk “${filters.q}”.` : 'Pengguna terpilih tidak ditemukan.'} <Link href="/akses/peran" className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Tampilkan semua</Link></p>}
-                    {failedFilter !== null && <p role="alert" className="text-xs text-danger">Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi. <button type="button" onClick={() => filterBy(failedFilter)} className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Coba lagi</button></p>}
+                    {filterFailure && pendingFilter && <p role="alert" className="text-xs text-danger">{filterFailure.network ? 'Daftar pengguna belum diperbarui. Periksa koneksi, lalu coba lagi.' : 'Daftar pengguna belum diperbarui.'} <button type="button" onClick={() => {
+                        // Tombol ini hilang setelah diklik; fokus dipindah ke judul daftar agar keyboard tidak jatuh ke awal halaman.
+                        title.current?.focus();
+                        filterBy(pendingFilter.id, pendingFilter.user);
+                    }} className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Coba lagi</button></p>}
                 </div>
             </Card>
             <Card>
@@ -253,6 +269,6 @@ export default function RoleAssignmentIndex({ users, roles, filters, can, confir
                 <Pagination links={users.links} from={users.from} to={users.to} total={users.total} ariaLabel="Halaman pengguna" />
             </div>
         </div>
-        {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={close} />}
+        {selected && <RoleDialog key={selected.id} user={selected} roles={roles} isSelf={selected.id === auth.user?.id} onClose={close} onSaved={saved} />}
     </AuthenticatedLayout>;
 }
