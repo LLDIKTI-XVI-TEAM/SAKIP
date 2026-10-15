@@ -37,6 +37,11 @@ class PengukuranTanpaTargetTest extends TestCase
             'snapshot' => ['target_periode' => [['periode_id' => $this->pengukuran->periode_id, 'nilai' => $value, 'status_perhitungan' => $status, 'komponen' => []]]],
             'disahkan_by' => $this->actor->id, 'disahkan_at' => now()]);
 
+        if ($allowed || $status === 'belum_diisi') {
+            $this->actingAs($this->actor)->get('/pengukuran')->assertInertia(fn ($page) => $page
+                ->where('pengukurans.0.tanpa_target_periode', $status === 'tidak_ditargetkan' && $value === null)
+                ->where('pengukurans.0.target', $value));
+        }
         $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75]);
         if (! $allowed) {
             $response->assertUnprocessable()->assertJsonValidationErrors('pengajuan');
@@ -53,6 +58,16 @@ class PengukuranTanpaTargetTest extends TestCase
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page
             ->where('pengukuran.tanpa_target_periode', $value === null)
             ->where('pengukuran.selisih_target_pk', '5.000000000000'));
+        // Perubahan RA sesudah submit tidak boleh mengganti penanda pada daftar versi beku.
+        RencanaAksiVersi::create(['rencana_aksi_id' => $this->plan->id, 'jadwal_snapshot_id' => $context->id, 'nomor' => 3,
+            'diajukan_by' => $this->actor->id, 'diajukan_at' => now(), 'jalur_pengajuan' => 'perencanaan', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'],
+            'snapshot' => ['target_periode' => [['periode_id' => $this->pengukuran->periode_id, 'nilai' => 100, 'status_perhitungan' => 'terhitung', 'komponen' => []]]],
+            'disahkan_by' => $this->actor->id, 'disahkan_at' => now()]);
+        foreach (['/pengukuran', '/verifikasi'] as $route) {
+            $this->get($route)->assertInertia(fn ($page) => $page
+                ->where('pengukurans.0.tanpa_target_periode', $value === null)
+                ->where('pengukurans.0.target', $value === null ? null : '0.00'));
+        }
     }
 
     public static function kondisiTarget(): array

@@ -95,7 +95,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-medium text-ink">
-                                                {p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
+                                                {p.tanpa_target_periode ? 'Tanpa target periode' : p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
                                             </td>
                                             <td className="px-6 py-4 text-right font-semibold text-ink">
                                                 {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}

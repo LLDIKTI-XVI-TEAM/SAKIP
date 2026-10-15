@@ -45,11 +45,15 @@ class PresentPengukuran
             $plan = $plans->get($row->indikator_id.':'.$row->tahun);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
             $target = null;
+            $withoutTarget = false;
             if ($planVersion && $planVersion->jadwal_snapshot_id === $row->jadwal_snapshot_id && $plan->unit_id === $row->targetUnitId()) {
                 $periodTarget = collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $row->periode_id);
                 $target = $periodTarget['nilai'] ?? null;
+                $withoutTarget = $periodTarget && array_key_exists('nilai', $periodTarget) && $target === null
+                    && ($periodTarget['status_perhitungan'] ?? null) === 'tidak_ditargetkan';
             }
             $row->setAttribute('summary_target', $target);
+            $row->setAttribute('summary_tanpa_target_periode', $withoutTarget);
         }
     }
 
@@ -65,6 +69,7 @@ class PresentPengukuran
             'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
             'sumber_nilai' => $p->sumber_nilai === 'historis' ? 'historis' : ($context->tipe_perhitungan === 'manual' ? 'manual' : 'komponen'),
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,
+            'tanpa_target_periode' => $frozen ? (bool) ($frozen['tanpa_target_periode'] ?? false) : (bool) $p->getAttribute('summary_tanpa_target_periode'),
             'alasan_tidak_dapat_dihitung' => $frozen ? $frozen['alasan_tidak_dapat_dihitung'] : $p->alasan_tidak_dapat_dihitung,
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
@@ -85,7 +90,6 @@ class PresentPengukuran
             $data[$field] = $frozen ? ($frozen[$field] ?? null) : $p->{$field};
         }
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
-        $data['tanpa_target_periode'] = $frozen['tanpa_target_periode'] ?? false;
         $data['selisih_target_pk'] = $this->calculator->differenceFromPk($data['nilai'], $data['target_pk']);
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));

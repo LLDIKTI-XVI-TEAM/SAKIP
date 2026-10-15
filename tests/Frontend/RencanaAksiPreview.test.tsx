@@ -118,6 +118,15 @@ afterEach(() => {
 });
 
 describe('pratinjau reaktif rencana aksi', () => {
+    it('menampilkan periode tanpa target dari status server', async () => {
+        vi.spyOn(http.getClient(), 'request').mockResolvedValue(responsPreview(null, 'tidak_ditargetkan'));
+        render(<TargetPreview id="ra-uji" targets={[{ periode_id: PERIODE_1, komponen_id: null, nilai: null }]}
+            alasanDeviasi="" satuan="poin" desimalTampilan={2} komponen={[]} namaPeriode={() => 'Triwulan I'}
+            expectedVersi={1} expectedSnapshotId="55555555-5555-4555-8555-555555555555" expectedSnapshotVersi={1} />);
+        await waitFor(() => expect(screen.getByTestId(`preview-skor-${PERIODE_1}`).textContent).toBe('Tidak ditargetkan'));
+        expect(router.post).not.toHaveBeenCalled();
+    });
+
     it('memetakan galat HTTP pratinjau tanpa formula di React', async () => {
         const request = vi.spyOn(http.getClient(), 'request');
         request.mockRejectedValueOnce(new HttpResponseError('Ditolak', { status: 403, data: '', headers: {} }));
