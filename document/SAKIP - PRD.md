@@ -1187,15 +1187,16 @@ Gerbang-gerbang ini **dikecualikan pada periode lampau** (§12.6; semula disebut
 
 - `id`, `indikator_id` (FK), `tahun` (int), `periode_id` (FK).
 - `isi` (text), `ditetapkan_oleh` (FK → users), `created_at`.
-- `status` — enum(`draf`, `disetujui`) (rancangan Q51).
-- `disetujui_oleh` (FK → users, nullable), `disetujui_oleh_role` (salinan kode peran penyetuju, untuk penanda persetujuan cadangan), `disetujui_pada` (timestamp, nullable) (rancangan Q51 §51.3).
-- `rujukan_sumber` (nullable; rancangan Q51 §51.1 butir 5) — rujukan laporan triwulan sumber untuk rekomendasi data awal.
+- `status` — enum(`draf`, `disetujui`) (Q51).
+- `disetujui_oleh` (FK → users, nullable), `disetujui_oleh_role` (salinan kode peran penyetuju, untuk penanda persetujuan cadangan), `disetujui_pada` (timestamp, nullable) (Q51 §51.3).
+- `rujukan_sumber` (nullable; Q51 §51.1 butir 5) — rujukan laporan triwulan sumber untuk rekomendasi data awal.
+- `versi` (int) — token konkurensi draf; paling banyak satu draf terbuka per indikator × tahun × periode (Q54).
 
 Pola "aktif": baris terbaru **berstatus `disetujui`** per (`indikator_id`, `tahun`, `periode_id`) adalah yang berlaku; baris lama tetap sebagai riwayat (soft replace, tidak dihapus) — sama seperti `status_capaian` (§21.2). Perubahan rekomendasi yang sudah disetujui membentuk baris baru dan melalui persetujuan yang sama (Q51 §51.2 butir 3). Draf tidak berlaku dan tidak tampil bagi PIC (Q51 §51.1 butir 2).
 
 ### 22.2 Pengisi dan Persetujuan
 
-> **Digantikan Q45 dan Q51 (13 Oktober 2026):** ketentuan lama "pengisinya pada Fase Awal adalah Perencanaan, Pimpinan read-only" tidak berlaku lagi. Dibangun bersama US/ISS-09.01 pada tahap 2 agar Laporan Kinerja Triwulan TW IV 2026 memuat rekomendasi (Q46 §46.3, Q51 §51.3); status implementasi: belum.
+> **Digantikan Q45 dan Q51 (13 Oktober 2026):** ketentuan lama "pengisinya pada Fase Awal adalah Perencanaan, Pimpinan read-only" tidak berlaku lagi. Dibangun bersama US/ISS-09.01 pada tahap 2 agar Laporan Kinerja Triwulan TW IV 2026 memuat rekomendasi (Q46 §46.3, Q51 §51.3); status implementasi: draf, persetujuan, dan tampilan rekomendasi disetujui pada pengukuran periode berikutnya tersedia (ISS-09.01); gerbang tindak lanjut (ISS-07.03) dan Laporan Kinerja Triwulan (ISS-10.05) belum.
 
 1. Perencanaan menyusun **draf** rekomendasi per indikator × periode. Pimpinan **menyetujui** draf — dan dapat mengubah isinya sebelum menyetujui — atau menulis rekomendasi langsung; rekomendasi tetap baru berlaku setelah berstatus `disetujui` (Q51 §51.1 butir 1–2).
 2. Permission tetap `rekomendasi:tetapkan` pada preset **Pimpinan** (diberikan melalui seeder, Q45 §45.2 butir 1) dan **Perencanaan**. Simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission (Q51 §51.2 butir 1).
@@ -1203,7 +1204,7 @@ Pola "aktif": baris terbaru **berstatus `disetujui`** per (`indikator_id`, `tahu
 4. Hanya rekomendasi **disetujui** yang berlaku: tampil pada pengukuran periode berikutnya dan Laporan Kinerja Triwulan (§24.1, Q48), serta memicu tindak lanjut wajib pada pengukuran periode berikutnya (§20; Q45 §45.2 butir 3).
 5. Kewajiban tindak lanjut berlaku **lintas tahun**: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
 6. Rekomendasi tetap opsional per indikator per periode (Q51 §51.1 butir 3).
-7. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom rancangan `rujukan_sumber` (Q51 §51.1 butir 5, §12.6).
+7. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom `rujukan_sumber` (Q51 §51.1 butir 5, §12.6).
 
 ### 22.3 Independensi dari Status Pengukuran
 

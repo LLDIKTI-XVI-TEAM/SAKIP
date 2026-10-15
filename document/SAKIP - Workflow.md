@@ -1772,7 +1772,7 @@ Garis putus-putus menandai jalur `data_sumber` sebagai referensi desain masa dep
 
 ## 17. Alur Rekomendasi Pimpinan
 
-> **Q45 dan Q51 (13 Oktober 2026):** Rekomendasi Pimpinan kini diisi **Pimpinan**: Perencanaan menyusun **draf** per indikator × periode, lalu Pimpinan **menyetujui** draf — boleh mengubah isinya lebih dulu — atau menulis rekomendasi langsung (Q51 §51.1 butir 1). Hanya rekomendasi **disetujui** yang berlaku (Q51 §51.1 butir 2). Permission tetap `rekomendasi:tetapkan` pada preset Pimpinan dan Perencanaan; persetujuan oleh Perencanaan adalah jalur cadangan bila Pimpinan berhalangan, diberi penanda dan tercatat di audit (Q45 §45.2 butir 1, Q51 §51.2). Alur lama — Perencanaan menetapkan rekomendasi dan Pimpinan read-only — digantikan Q45 §45.2 dan Q51. Dikerjakan pada US/ISS-09.01, tahap 2 (Q51 §51.3). Status implementasi: belum.
+> **Q45 dan Q51 (13 Oktober 2026):** Rekomendasi Pimpinan kini diisi **Pimpinan**: Perencanaan menyusun **draf** per indikator × periode, lalu Pimpinan **menyetujui** draf — boleh mengubah isinya lebih dulu — atau menulis rekomendasi langsung (Q51 §51.1 butir 1). Hanya rekomendasi **disetujui** yang berlaku (Q51 §51.1 butir 2). Permission tetap `rekomendasi:tetapkan` pada preset Pimpinan dan Perencanaan; persetujuan oleh Perencanaan adalah jalur cadangan bila Pimpinan berhalangan, diberi penanda dan tercatat di audit (Q45 §45.2 butir 1, Q51 §51.2). Alur lama — Perencanaan menetapkan rekomendasi dan Pimpinan read-only — digantikan Q45 §45.2 dan Q51. Dikerjakan pada US/ISS-09.01, tahap 2 (Q51 §51.3). Status implementasi: draf, persetujuan, dan tampilan rekomendasi disetujui pada pengukuran periode berikutnya tersedia (ISS-09.01); gerbang tindak lanjut pada pengajuan (ISS-07.03) dan Laporan Kinerja Triwulan (ISS-10.05) belum.
 
 Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari status alur `pengukuran` — dapat diisi setelah rapat evaluasi triwulan tanpa menunggu pengukuran periode itu berstatus disahkan, dan tetap opsional per indikator per periode (Q51 §51.1 butir 3).
 
@@ -1785,6 +1785,8 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari status
   2. Menyusun DRAF isi rekomendasi (teks) → INSERT baris rekomendasi_pimpinan dengan
      status = draf, ditetapkan_oleh = penyusun yang login (Q51 §51.1 butir 1)
      → Draf belum berlaku dan tidak tampil bagi PIC (Q51 §51.1 butir 2)
+     → Paling banyak satu draf terbuka per indikator × periode × tahun; menyimpan lagi mengubah
+       draf yang sama dengan token versi, dan konflik versi ditolak tanpa mengubah data (Q54)
 
 ✍️ Pimpinan (permission rekomendasi:tetapkan — preset Pimpinan, Q45 §45.2 butir 1)
   3. Membuka draf, dapat mengubah isinya, lalu MENYETUJUI → status = disetujui; disetujui_oleh,

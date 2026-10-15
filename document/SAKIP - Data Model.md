@@ -13,7 +13,7 @@
 
 **Catatan cakupan:** Seluruh tabel dan kolom pada dokumen ini dibuat pada migrasi Laravel sejak Fase Awal, termasuk keenam tabel model hak akses (`permissions`, `roles`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`). Yang ditunda ke Fase Lanjutan hanya jalur pemakaian/UI atas kolom-kolom tertentu; kolom itu sendiri tetap ada di skema agar tidak perlu migrasi besar/berisiko di kemudian hari, dan diberi anotasi eksplisit `-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)`.
 
-**Pengecualian rancangan Q39–Q51 (13 Oktober 2026):** entitas, kolom, dan nilai bertanda **Rancangan Qxx — belum diimplementasikan** belum ada pada migrasi dan memerlukan migrasi tambahan: `target_renstra` (§2.35), `renstra_pk_versi` (§2.36), `renstra_pk_versi_target` (§2.37), kolom `target_tahunan.alasan_deviasi_renstra` (§2.13), `indikator.dinilai_tahunan` dan `jadwal_snapshot.dinilai_tahunan` (§2.12, §2.17), kolom narasi `pengukuran` dan nilai `pengukuran.status_perhitungan = belum_dapat_diukur` (§2.20), nilai `jenis_berkas.tahap = kegiatan_perencanaan` dan kolom `jenis_berkas.hanya_kegiatan_beranggaran` (§2.29), induk `berkas` `jenis_berkas`, `jadwal_tahunan`, `jadwal_periode`, dan `renstra_pk_versi` serta kolom `berkas.keterangan` (§2.30), serta kolom persetujuan dan `rujukan_sumber` pada `rekomendasi_pimpinan` (§2.31). Perubahan aturan pada kolom yang sudah ada juga belum diterapkan: `renstra_pk.nomor_pk` nullable (Q50, §2.10), `kegiatan.anggaran` wajib untuk data baru (Q42, §2.25), dan `jenis_berkas.ukuran_maks_kb` paling besar 102400 (Q44, §2.29). Dokumen ini mencatat kontrak datanya, bukan bukti implementasi.
+**Pengecualian rancangan Q39–Q51 (13 Oktober 2026):** entitas, kolom, dan nilai bertanda **Rancangan Qxx — belum diimplementasikan** belum ada pada migrasi dan memerlukan migrasi tambahan: `target_renstra` (§2.35), `renstra_pk_versi` (§2.36), `renstra_pk_versi_target` (§2.37), kolom `target_tahunan.alasan_deviasi_renstra` (§2.13), `indikator.dinilai_tahunan` dan `jadwal_snapshot.dinilai_tahunan` (§2.12, §2.17), kolom narasi `pengukuran` dan nilai `pengukuran.status_perhitungan = belum_dapat_diukur` (§2.20), nilai `jenis_berkas.tahap = kegiatan_perencanaan` dan kolom `jenis_berkas.hanya_kegiatan_beranggaran` (§2.29), induk `berkas` `jenis_berkas`, `jadwal_tahunan`, `jadwal_periode`, dan `renstra_pk_versi` serta kolom `berkas.keterangan` (§2.30). Perubahan aturan pada kolom yang sudah ada juga belum diterapkan: `renstra_pk.nomor_pk` nullable (Q50, §2.10), `kegiatan.anggaran` wajib untuk data baru (Q42, §2.25), dan `jenis_berkas.ukuran_maks_kb` paling besar 102400 (Q44, §2.29). Dokumen ini mencatat kontrak datanya, bukan bukti implementasi.
 
 ---
 
@@ -40,7 +40,7 @@ erDiagram
     USERS ||--o{ BERKAS : "mengunggah"
     USERS ||--o{ REKOMENDASI_PIMPINAN : "menetapkan"
     USERS ||--o{ RENSTRA_PK_VERSI : "menyetujui revisi (rancangan Q40)"
-    USERS ||--o{ REKOMENDASI_PIMPINAN : "menyetujui (rancangan Q51)"
+    USERS ||--o{ REKOMENDASI_PIMPINAN : "menyetujui"
 
     ROLES ||--o{ USER_ROLES : "dipegang oleh"
     ROLES ||--o{ ROLE_PERMISSIONS : "berisi"
@@ -543,11 +543,12 @@ erDiagram
         uuid periode_id FK
         text isi
         uuid ditetapkan_oleh FK
-        enum status "rancangan Q51"
-        uuid disetujui_oleh FK "nullable, rancangan Q51"
-        varchar disetujui_oleh_role "nullable, rancangan Q51"
-        timestamp disetujui_pada "nullable, rancangan Q51"
-        text rujukan_sumber "nullable, rancangan Q51"
+        enum status "Q51"
+        uuid disetujui_oleh FK "nullable, Q51"
+        varchar disetujui_oleh_role "nullable, Q51"
+        timestamp disetujui_pada "nullable, Q51"
+        text rujukan_sumber "nullable, Q51"
+        int versi "Q54"
         timestamp created_at
     }
 
@@ -657,7 +658,7 @@ kegiatan:update
 
 `rencana_aksi:read` dan `kegiatan:read` adalah global. Tambahkan permission global `delegasi:update` sebagai gate pengelolaan Grant Unit. Permission tidak dikenal/tidak aktif harus fail closed.
 
-**Perubahan katalog dan preset Q45, Q48, dan Q51 (13 Oktober 2026; status implementasi: belum):** permission global baru **`laporan:unggah`** (preset Perencanaan dan Superadmin) untuk mengunggah arsip PDF bertanda tangan pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (§2.30); unduhan arsip mengikuti `laporan:ekspor`. `laporan:unggah` **tidak** bertanda sensitif (`sensitif = false`) karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di `audit_log` (Q48 §48.2 butir 2 dan 4). Preset Pimpinan memperoleh `rekomendasi:tetapkan` di samping Perencanaan, tanpa permission baru untuk persetujuan rekomendasi (Q45 §45.2, Q51 §51.2; §2.31).
+**Perubahan katalog dan preset Q45, Q48, dan Q51 (13 Oktober 2026; status implementasi: preset Pimpinan `rekomendasi:tetapkan` sudah melalui ISS-09.01, `laporan:unggah` belum):** permission global baru **`laporan:unggah`** (preset Perencanaan dan Superadmin) untuk mengunggah arsip PDF bertanda tangan pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (§2.30); unduhan arsip mengikuti `laporan:ekspor`. `laporan:unggah` **tidak** bertanda sensitif (`sensitif = false`) karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di `audit_log` (Q48 §48.2 butir 2 dan 4). Preset Pimpinan memperoleh `rekomendasi:tetapkan` di samping Perencanaan, tanpa permission baru untuk persetujuan rekomendasi (Q45 §45.2, Q51 §51.2; §2.31).
 
 ### 2.4 `roles`
 
@@ -1537,7 +1538,7 @@ Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengun
 
 ### 2.31 `rekomendasi_pimpinan`
 
-Catatan rekomendasi/arahan atas capaian suatu indikator pada suatu periode. Sejak Q45 §45.2 dan Q51, Perencanaan menyusun **draf** dan Pimpinan **menyetujui** (boleh mengubah isinya dulu) atau menulis rekomendasi langsung; semula ditetapkan Perencanaan pada Fase Awal (digantikan Q45/Q51). Status implementasi: belum (ISS-09.01, tahap 2).
+Catatan rekomendasi/arahan atas capaian suatu indikator pada suatu periode. Sejak Q45 §45.2 dan Q51, Perencanaan menyusun **draf** dan Pimpinan **menyetujui** (boleh mengubah isinya dulu) atau menulis rekomendasi langsung; semula ditetapkan Perencanaan pada Fase Awal (digantikan Q45/Q51). Status implementasi: tabel, draf, persetujuan, dan pembacaan rekomendasi yang berlaku tersedia (ISS-09.01); gerbang tindak lanjut pada pengajuan pengukuran (ISS-07.03) dan Laporan Kinerja Triwulan (ISS-10.05) belum.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -1547,16 +1548,17 @@ Catatan rekomendasi/arahan atas capaian suatu indikator pada suatu periode. Seja
 | `periode_id` | uuid | FK → periode.id, not null | |
 | `isi` | text | not null | |
 | `ditetapkan_oleh` | uuid | FK → users.id, not null | Penyusun baris: Perencanaan untuk draf, atau Pimpinan yang menulis rekomendasi langsung (Q51 §51.1 butir 1) |
-| `status` | enum(`draf`,`disetujui`) | not null, default `draf` | **Rancangan Q51 — belum diimplementasikan.** Hanya `disetujui` yang berlaku; draf tidak tampil bagi PIC (Q51 §51.1 butir 2). Rekomendasi yang ditulis langsung oleh Pimpinan tersimpan langsung `disetujui`, demikian pula rekomendasi data awal 2026 yang dicatat Perencanaan (di bawah) |
-| `disetujui_oleh` | uuid | FK → users.id, nullable | **Rancangan Q51.** Penyetuju: Pimpinan, atau peran lain sebagai cadangan bila Pimpinan berhalangan — Perencanaan, termasuk Superadmin (Q51 §51.2 butir 2) |
-| `disetujui_oleh_role` | varchar | nullable | **Rancangan Q51.** Salinan kode peran (`roles.kode`) penyetuju saat persetujuan; nilai selain `pimpinan` (mis. `perencanaan` atau `superadmin`) menjadi penanda persetujuan cadangan, dan penanda ini juga tercatat di `audit_log` (Q51 §51.2 butir 2) |
-| `disetujui_pada` | timestamp | nullable | **Rancangan Q51.** Waktu persetujuan |
-| `rujukan_sumber` | text | nullable | **Rancangan Q51 — belum diimplementasikan.** Rujukan dokumen sumber bagi rekomendasi yang dicatat dari dokumen resmi, mis. Laporan Kinerja Triwulan I 2026; diisi pada pencatatan data awal 2026 (Q51 §51.1 butir 5) |
+| `status` | enum(`draf`,`disetujui`) | not null, default `draf` | Hanya `disetujui` yang berlaku; draf tidak tampil bagi PIC (Q51 §51.1 butir 2). Rekomendasi yang ditulis langsung oleh Pimpinan tersimpan langsung `disetujui`, demikian pula rekomendasi data awal 2026 yang dicatat Perencanaan (di bawah) |
+| `disetujui_oleh` | uuid | FK → users.id, nullable | Penyetuju: Pimpinan, atau peran lain sebagai cadangan bila Pimpinan berhalangan — Perencanaan, termasuk Superadmin (Q51 §51.2 butir 2) |
+| `disetujui_oleh_role` | varchar | nullable | Salinan kode peran (`roles.kode`) penyetuju saat persetujuan; nilai selain `pimpinan` (mis. `perencanaan` atau `superadmin`) menjadi penanda persetujuan cadangan, dan penanda ini juga tercatat di `audit_log` (Q51 §51.2 butir 2) |
+| `disetujui_pada` | timestamp | nullable | Waktu persetujuan |
+| `rujukan_sumber` | text | nullable | Rujukan dokumen sumber bagi rekomendasi yang dicatat dari dokumen resmi, mis. Laporan Kinerja Triwulan I 2026; diisi pada pencatatan data awal 2026 (Q51 §51.1 butir 5) |
+| `versi` | int | not null, default 1 | Token konkurensi draf; dinaikkan setiap kali draf diubah atau disetujui (Q54 §54.1 butir 2) |
 | `created_at` | timestamp | not null | |
 
-**Data awal 2026 (rancangan Q51 §51.1 butir 5):** rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan (`disetujui_oleh_role = perencanaan`) dan rujukan laporan sumbernya pada `rujukan_sumber`.
+**Data awal 2026 (Q51 §51.1 butir 5):** rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan (`disetujui_oleh_role = perencanaan`) dan rujukan laporan sumbernya pada `rujukan_sumber`.
 
-**Konsistensi (rancangan Q51):** `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi jika dan hanya jika `status = disetujui`. Isi baris `draf` dapat diubah sebelum disetujui (Q51 §51.1 butir 1) dan perubahannya tercatat di `audit_log`; baris `disetujui` tidak diubah.
+**Konsistensi (Q51, Q54):** `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi jika dan hanya jika `status = disetujui` (CHECK `rekomendasi_persetujuan_cocok`). Isi baris `draf` dapat diubah sebelum disetujui (Q51 §51.1 butir 1) dan perubahannya tercatat di `audit_log`; baris `disetujui` tidak diubah maupun dihapus, ditegakkan trigger basis data. Paling banyak satu baris `draf` per (`indikator_id`, `tahun`, `periode_id`), ditegakkan unique index parsial (Q54 §54.1 butir 1).
 
 **Pola "aktif" (diperbarui Q51):** rekomendasi yang berlaku per (`indikator_id`, `tahun`, `periode_id`) adalah baris berstatus `disetujui` dengan `disetujui_pada` terbaru; hanya baris itu yang tampil pada pengukuran periode berikutnya dan Laporan Kinerja Triwulan (Q48) serta memicu `pengukuran.tindak_lanjut_rekomendasi` pada periode berikutnya (§2.20; Q45 §45.2 butir 3, Q51 §51.1 butir 2). Kewajiban ini berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4). Perubahan atas rekomendasi yang sudah disetujui membentuk baris baru dan melalui persetujuan yang sama (Q51 §51.2 butir 3); baris lama tetap tersimpan sebagai riwayat (soft replace, tidak dihapus) — pola yang sama dengan `status_capaian` (§2.21). Semula: baris terbaru tanpa memandang status adalah yang berlaku (digantikan Q51).
 
@@ -1589,7 +1591,9 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 
 **Catatan actor pada peristiwa otomatis:** baris yang mencatat pembuatan `jadwal_snapshot` beserta `jadwal_snapshot_komponen` (tindakan `jadwal.aktivasi`/`jadwal.buka_kembali`, lihat §2.17–§2.18) selalu memakai `actor_id` = pengguna Perencanaan/Superadmin yang menjalankan aksi aktivasinya, bukan nilai sistem/null — meski proses pembuatan barisnya sendiri berjalan otomatis di dalam transaksi yang sama. Perubahan pada tabel `pengaturan` (§2.22) mengikuti pola yang sama: `actor_id` = pengguna Superadmin yang mengubah nilai setelan.
 
-**Peristiwa rancangan Q39–Q51 (belum diimplementasikan):** perubahan target Renstra (sumber riwayat revisi target Renstra, Q40 §40.2 butir 3, §2.35), perubahan `indikator.dinilai_tahunan` (Q47 §47.1), pembentukan versi PK (Q40, §2.36), persetujuan rekomendasi termasuk penanda persetujuan cadangan oleh Perencanaan (Q51 §51.2 butir 2), dan unggahan arsip dokumen resmi (Q48 §48.2, §2.30) tercatat di tabel ini dengan `nilai_lama`/`nilai_baru`; kode `tindakan`-nya ditetapkan saat implementasi.
+**Peristiwa rancangan Q39–Q51 (belum diimplementasikan):** perubahan target Renstra (sumber riwayat revisi target Renstra, Q40 §40.2 butir 3, §2.35), perubahan `indikator.dinilai_tahunan` (Q47 §47.1), pembentukan versi PK (Q40, §2.36), dan unggahan arsip dokumen resmi (Q48 §48.2, §2.30) tercatat di tabel ini dengan `nilai_lama`/`nilai_baru`; kode `tindakan`-nya ditetapkan saat implementasi.
+
+**Rekomendasi Pimpinan (Q51, Q54; ISS-09.01):** pembuatan draf atau rekomendasi langsung dicatat sebagai `rekomendasi_pimpinan.tetapkan`, perubahan draf sebagai `rekomendasi_pimpinan.ubah_draf`, persetujuan sebagai `rekomendasi_pimpinan.setujui` dengan `nilai_baru.persetujuan_cadangan` sebagai penanda persetujuan cadangan (Q51 §51.2 butir 2), dan penolakan sebagai `rekomendasi_pimpinan.tetapkan_ditolak`; seluruhnya membawa `dasar_izin`.
 
 **Jejak perubahan definisi berbasis komponen:** perubahan pada `indikator_komponen` dan `jenis_berkas` dicatat dengan `nilai_lama`/`nilai_baru` dan `alasan` (alasan perubahan `jenis_berkas` opsional sejak Q43 §43.3 butir 3) — inilah jejak yang menjaga data historis tetap dapat dipertanggungjawabkan meski formula perhitungan dan katalog persyaratan berkas dapat diubah dari layar aplikasi, tanpa memerlukan deployment kode baru.
 
@@ -1902,7 +1906,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `kegiatan` (level aplikasi) | transisi status `rencana → terlaksana` ditolak bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` yang belum terpenuhi |
 | `kegiatan` (level aplikasi) | tidak dihapus saat tidak terlaksana — wajib berubah status + `justifikasi`; geser periode wajib lewat baris baru + `kegiatan_asal_id` |
 | `kegiatan` (level aplikasi) | `anggaran` wajib dan nonnegatif saat kegiatan dibuat atau diubah, `null` hanya data lama, kegiatan data awal 2026, dan kegiatan periode lampau (Q42 §42.2, Q46 §46.1 butir 3); `nama` hingga 500 karakter dan `tujuan` opsional (Q49 §49.1) |
-| `rekomendasi_pimpinan` (level aplikasi, rancangan Q51) | `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi jika dan hanya jika `status = disetujui`; yang berlaku = baris `disetujui` dengan `disetujui_pada` terbaru per indikator × tahun × periode (§2.31) |
+| `rekomendasi_pimpinan` (level aplikasi dan basis data, Q51, Q54) | `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi jika dan hanya jika `status = disetujui`; paling banyak satu baris `draf` per indikator × tahun × periode; baris `disetujui` tidak dapat diubah atau dihapus; yang berlaku = baris `disetujui` dengan `disetujui_pada` terbaru per indikator × tahun × periode (§2.31) |
 | `user_permission_granted` (level aplikasi) | grant untuk permission `butuh_scope = unit` ditolak bila `unit_id` kosong; grant untuk permission `butuh_scope = global` ditolak bila `unit_id` terisi |
 | `pengukuran`/`rencana_aksi` (level aplikasi, pemisahan tugas) | transisi verifikasi/pengesahan ditolak bila aktor = pengaju pada jalur izin ber-scope unit (F1, §4.1), kecuali jalur Perencanaan yang ditandai `self_approval` (F2, §4.2) |
 
