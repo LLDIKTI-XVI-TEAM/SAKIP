@@ -9,6 +9,7 @@ import { Pagination } from "@/Components/Pagination";
 import { Select } from "@/Components/Select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/Components/Table";
 import { AuthenticatedLayout } from "@/Layouts/AuthenticatedLayout";
+import { classifyRecovery } from "@/lib/authRecovery";
 import type { RolePermissionIndexProps } from "@/types/role-permission";
 
 const cellClass = "min-w-0 p-0 md:px-4 md:py-3.5";
@@ -24,7 +25,7 @@ export default function RolePermissionIndex({
     const [query, setQuery] = useState(filters.q);
     const [navigating, setNavigating] = useState(false);
     const [retry, setRetry] = useState(0);
-    const [searchFailed, setSearchFailed] = useState(false);
+    const [failure, setFailure] = useState<{ query: string; network: boolean } | null>(null);
     const pending = useRef(false);
     const leavingPage = useRef(false);
     const skipped = useRef(false);
@@ -74,6 +75,9 @@ export default function RolePermissionIndex({
     // Mengikuti pencarian pengguna Grant: minimal 2 huruf dan debounce 350 ms; kurang dari 2 huruf menampilkan semua izin.
     const trimmed = query.trim();
     const searchQuery = trimmed.length < 2 ? "" : trimmed;
+    // Paginasi hasil lama tidak berlaku selama kunjungan atau kata cari baru belum dimuat; tautannya akan dipotong pencarian otomatis.
+    const stale = navigating || searchQuery !== filters.q;
+    const countText = filters.q ? `${pagination.total} izin cocok` : `${pagination.total} izin`;
 
     useEffect(() => {
         if (!filters.role || searchQuery === filters.q) return;
@@ -84,18 +88,30 @@ export default function RolePermissionIndex({
                 return;
             }
             let loaded = false;
-            setSearchFailed(false);
+            let network = false;
+            let sessionDialog = false;
+            setFailure(null);
             router.get(
                 "/akses/izin-peran",
                 { ...filters, q: searchQuery },
                 {
                     preserveState: true, preserveScroll: true, replace: true, ...navigationEvents,
                     onSuccess: () => { loaded = true; },
+                    onNetworkError: () => {
+                        network = true;
+                        return false;
+                    },
+                    // Sesi kedaluwarsa ditangani dialog sesi global, bukan pesan gagal di halaman.
+                    onHttpException: (response) => {
+                        sessionDialog = classifyRecovery(response) !== null;
+                    },
                     // onFinish juga terpanggil saat koneksi/server gagal; hanya onSuccess yang membuktikan hasil sudah diperbarui.
                     onFinish: (visit) => {
                         const queued = skipped.current;
                         navigationEvents.onFinish(visit);
-                        if (!loaded && !queued && !visit.cancelled && !visit.interrupted) setSearchFailed(true);
+                        // Dipotong kunjungan lain: kirim ulang sekali bila kunjungan itu gagal dan halaman tetap terbuka.
+                        if (visit.interrupted) skipped.current = true;
+                        else if (!loaded && !queued && !visit.cancelled && !sessionDialog) setFailure({ query: searchQuery, network });
                     },
                 },
             );
@@ -151,13 +167,15 @@ export default function RolePermissionIndex({
                             />
                         )}
                     </form>
-                    {searchFailed && searchQuery !== filters.q && (
+                    {failure && failure.query === searchQuery && searchQuery !== filters.q && (
                         <p role="alert" className="px-4 pb-4 text-xs text-danger">
-                            Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.{" "}
+                            {failure.network ? "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi." : "Hasil pencarian belum diperbarui."}{" "}
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSearchFailed(false);
+                                    // Tombol ini hilang setelah diklik; fokus dipindah agar keyboard tidak jatuh ke awal halaman.
+                                    document.getElementById("role-permission-search")?.focus();
+                                    setFailure(null);
                                     setRetry((count) => count + 1);
                                 }}
                                 className="font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25"
@@ -168,7 +186,7 @@ export default function RolePermissionIndex({
                     )}
                 </Card>
                 <p role="status" className="sr-only">
-                    {navigating ? "Memuat izin…" : ""}
+                    {navigating ? "Memuat izin…" : filters.q ? countText : ""}
                 </p>
                 <Card>
                     <CardHeader className="px-4 py-4">
@@ -182,7 +200,7 @@ export default function RolePermissionIndex({
                                 )}
                                 {selectedRole && (
                                     <span className="text-xs text-muted">
-                                        {filters.q ? `${pagination.total} izin cocok` : `${pagination.total} izin`}
+                                        {countText}
                                     </span>
                                 )}
                             </div>
@@ -217,7 +235,7 @@ export default function RolePermissionIndex({
                                                     : filters.q ? "Tidak ada izin yang cocok dengan pencarian." : "Peran ini belum memiliki izin bawaan."}
                                             </p>
                                             {pagination.total > 0 ? (
-                                                <Button type="button" variant="outline" size="sm" className="mt-4" disabled={navigating} onClick={() => navigate({})}>
+                                                <Button type="button" variant="outline" size="sm" className="mt-4" disabled={stale} onClick={() => navigate({})}>
                                                     Ke halaman pertama
                                                 </Button>
                                             ) : filters.q && (
@@ -266,8 +284,8 @@ export default function RolePermissionIndex({
                     )}
                 </Card>
                 {selectedRole && (
-                    // Tautan halaman peran lama tidak boleh membatalkan kunjungan yang sedang dimuat.
-                    <div inert={navigating} className={`transition-opacity ${navigating ? "opacity-60" : ""}`}>
+                    // Tautan halaman hasil lama tidak boleh membatalkan kunjungan atau dipotong pencarian otomatis.
+                    <div inert={stale} className={`transition-opacity ${stale ? "opacity-60" : ""}`}>
                         <Pagination
                             links={pagination.links}
                             from={pagination.from}

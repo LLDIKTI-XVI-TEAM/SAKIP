@@ -182,7 +182,8 @@ it("memberi tahu dan menawarkan coba lagi bila pencarian otomatis gagal, tanpa m
     act(() => { vi.advanceTimersByTime(350); });
     const failed = get.mock.calls[0][2];
     act(() => failed?.onStart?.({} as PendingVisit));
-    // Gangguan jaringan atau server: Inertia tetap memanggil onFinish tanpa onSuccess.
+    // Gangguan jaringan: Inertia memanggil onNetworkError lalu onFinish tanpa onSuccess.
+    act(() => { failed?.onNetworkError?.(new Error("offline")); });
     act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
     expect(screen.getByRole("alert").textContent).toContain("Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.");
     expect(box.value).toBe("da");
@@ -253,6 +254,106 @@ it.each([
     dispatchVisit("start", visit);
     act(() => { vi.advanceTimersByTime(350); });
     expect(get).toHaveBeenCalledTimes(1);
+});
+
+const failSearch = (kind: "network" | "server" | "session") => {
+    const get = vi.mocked(router.get);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    const failed = get.mock.calls[get.mock.calls.length - 1][2];
+    act(() => failed?.onStart?.({} as PendingVisit));
+    act(() => {
+        if (kind === "network") failed?.onNetworkError?.(new Error("offline"));
+        else failed?.onHttpException?.({ status: kind === "session" ? 401 : 500, data: kind === "session" ? { message: "Autentikasi diperlukan." } : "", headers: {} });
+    });
+    act(() => failed?.onFinish?.({ cancelled: false, interrupted: false } as ActiveVisit));
+};
+
+it("menonaktifkan paginasi dan tombol halaman pertama hasil lama selama kata cari baru belum dimuat", () => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const view = render(<RolePermissionIndex {...props} />);
+    const nav = screen.getByRole("navigation", { name: "Halaman izin" });
+    expect(nav.closest("[inert]")).toBeNull();
+    // Tautan halaman lama yang diklik selama debounce akan dipotong GET pencarian.
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    expect(nav.closest("[inert]")).not.toBeNull();
+    view.rerender(<RolePermissionIndex {...props} filters={{ role: role.id, q: "da" }} />);
+    expect(screen.getByRole("navigation", { name: "Halaman izin" }).closest("[inert]")).toBeNull();
+    view.rerender(<RolePermissionIndex {...props} filters={{ role: role.id, q: "da" }} permissions={[]} pagination={{ links: [], from: null, to: null, total: 13 }} />);
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Ke halaman pertama" }).disabled).toBe(false);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "dash" } });
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Ke halaman pertama" }).disabled).toBe(true);
+});
+
+it("mengirim ulang sekali pencarian yang dipotong navigasi ke halaman lain bila navigasi itu gagal", () => {
+    vi.useFakeTimers();
+    const get = vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "da" } });
+    act(() => { vi.advanceTimersByTime(350); });
+    const search = get.mock.calls[0][2];
+    act(() => search?.onStart?.({} as PendingVisit));
+    // Klik sidebar: Inertia memotong pencarian yang sedang berjalan lalu memulai navigasi keluar.
+    act(() => search?.onFinish?.({ cancelled: false, interrupted: true } as ActiveVisit));
+    dispatchVisit("start", leaving({}));
+    dispatchVisit("finish", leaving({ cancelled: false, interrupted: false }));
+    act(() => { vi.advanceTimersByTime(350); });
+    expect(get.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+        ["/akses/izin-peran", { role: role.id, q: "da" }],
+        ["/akses/izin-peran", { role: role.id, q: "da" }],
+    ]);
+    expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("hanya menampilkan pesan gagal untuk kata cari yang gagal dimuat", () => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    failSearch("network");
+    expect(screen.getByRole("alert")).toBeTruthy();
+    // Kata cari baru belum dikirim, jadi belum gagal.
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "xy" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("memindahkan fokus ke kotak pencarian saat Coba lagi ditekan", () => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    failSearch("network");
+    const retry = screen.getByRole("button", { name: "Coba lagi" });
+    retry.focus();
+    fireEvent.click(retry);
+    expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+});
+
+it.each([
+    ["network", "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi. Coba lagi"],
+    ["server", "Hasil pencarian belum diperbarui. Coba lagi"],
+] as const)("membedakan pesan gagal pencarian (%s)", (kind, text) => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    failSearch(kind);
+    expect(screen.getByRole("alert").textContent).toBe(text);
+});
+
+it("menyerahkan sesi kedaluwarsa ke dialog sesi tanpa pesan gagal di halaman", () => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...props} />);
+    failSearch("session");
+    expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("mengumumkan jumlah hasil pencarian otomatis kepada pembaca layar", () => {
+    vi.useFakeTimers();
+    vi.spyOn(router, "get").mockImplementation(() => undefined);
+    const view = render(<RolePermissionIndex {...props} />);
+    expect(screen.getByRole("status").textContent).toBe("");
+    view.rerender(<RolePermissionIndex {...props} filters={{ role: role.id, q: "da" }} pagination={{ ...props.pagination, total: 3 }} />);
+    expect(screen.getByRole("status").textContent).toBe("3 izin cocok");
 });
 
 it("menyediakan tombol ke halaman pertama hanya untuk halaman izin di luar jangkauan", async () => {
