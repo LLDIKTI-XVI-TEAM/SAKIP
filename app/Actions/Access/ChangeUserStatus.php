@@ -23,6 +23,8 @@ class ChangeUserStatus
             throw ValidationException::withMessages(['alasan' => 'Alasan wajib diisi dan maksimal 2.000 karakter.']);
         }
         $result = DB::transaction(function () use ($actor, $targetId, $status, $reason, $expectedStatus) {
+            // Sentinel bersama AssignRole: daftar superadmin dibaca setelah promosi/penurunan lain commit, sebelum kunci baris.
+            DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:superadmin-aktif']);
             $superadmins = fn () => DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
                 ->where('roles.kode', 'superadmin')->where('roles.aktif', true);
             // Kunci aktor, target, dan seluruh superadmin dalam satu urutan agar guard superadmin terakhir tahan balapan.
