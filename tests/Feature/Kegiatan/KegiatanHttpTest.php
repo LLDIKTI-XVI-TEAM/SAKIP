@@ -139,13 +139,22 @@ class KegiatanHttpTest extends TestCase
         $this->assertDatabaseCount('kegiatan', 0);
     }
 
-    public function test_baca_global_menyaring_deny_unit_dan_menghormati_deny_global(): void
+    public function test_daftar_hanya_mengirim_kegiatan_unit_berizin_dan_deny_tetap_menang(): void
     {
-        $this->kegiatan();
+        $barisA = $this->kegiatan();
         $barisB = $this->kegiatan($this->unitLain);
-        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Index')
-            ->has('kegiatan.data', 1)->where('kegiatan.data.0.id', $barisB->id)->where('kegiatan.data.0.can.update', false)->where('can.create', true)->missing('kegiatan.data.0.anggaran'));
+            ->has('kegiatan.data', 1)->where('kegiatan.data.0.id', $barisA->id)->where('kegiatan.data.0.can.update', true)->where('can.create', true)->missing('kegiatan.data.0.anggaran'));
+        $this->actingAs($this->user('pegawai'))->get('/kegiatan')->assertOk()->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 0));
+        foreach (['perencanaan', 'pimpinan'] as $peran) {
+            $this->actingAs($this->user($peran))->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 2));
+        }
+        $this->actingAs($this->pegawai)->get("/kegiatan/{$barisB->id}/edit")->assertForbidden();
+        $audit = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin;
+        $this->assertSame(['kegiatan:read', 'unit_tidak_berizin'], [$audit['permission'], $audit['alasan']]);
+
+        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 0));
         $this->deny($this->pegawai, 'kegiatan:read', null);
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertForbidden();
     }

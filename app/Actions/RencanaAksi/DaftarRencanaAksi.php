@@ -31,8 +31,8 @@ class DaftarRencanaAksi
      * dibekukan saat aktivasi yang dapat dibuatkan rencana aksi. Unit baris
      * adalah unit header bila sudah ada header, selain itu unit snapshot
      * terbaru; unit master yang berpindah setelah aktivasi tidak dipakai.
-     * Unit itu yang ditampilkan dan yang disaring terhadap deny
-     * `rencana_aksi:read` di database (deny menang; izin baca global diperiksa
+     * Unit itu yang ditampilkan dan yang disaring terhadap unit berizin (Q54)
+     * dan deny `rencana_aksi:read` di database (deny menang; izin baca global diperiksa
      * lebih dulu lewat Gate `viewAny`, sebelum validasi `page`, agar tanpa
      * izin selalu 403). PJ tetap PJ efektif hari ini. Indikator yang PJ
      * efektifnya pengguna ini tampil paling atas, lalu jadwal aktif sebelum
@@ -66,6 +66,7 @@ class DaftarRencanaAksi
             ->leftJoin('users as pju', 'pju.id', '=', 'pj.user_id')
             ->join('unit as unit_baris', DB::raw('COALESCE(ra.unit_id, snap.unit_id)'), '=', 'unit_baris.id')
             ->whereNotIn('unit_baris.id', $unitDitolak)
+            ->when($this->resolver->unitTerbaca($actor, PermissionCodes::RENCANA_AKSI_READ), fn ($q, $terbaca) => $q->whereIn('unit_baris.id', $terbaca))
             ->orderByRaw('CASE WHEN pj.user_id = ? THEN 0 ELSE 1 END', [$actor->id])
             ->orderByRaw("CASE WHEN j.status = 'aktif' THEN 0 ELSE 1 END")
             ->orderBy('j.tahun')

@@ -25,7 +25,7 @@ class DaftarKegiatan
         );
     }
 
-    /** Baca global sesuai Q32, dengan deny unit di SQL dan capability ubah per objek. @param array<string,mixed> $filters @return array<string,mixed> */
+    /** Gerbang baca global (Q32), baris hanya unit berizin dikurangi deny unit di SQL (Q54), dan capability ubah per objek. @param array<string,mixed> $filters @return array<string,mixed> */
     public function handle(User $actor, array $filters): array
     {
         abort_unless($this->policy->viewAny($actor), 403);
@@ -35,7 +35,8 @@ class DaftarKegiatan
             $effectiveFilters['tahun'] = (string) $tahunDefault;
         }
 
-        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'));
+        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
+            ->when($this->resolver->unitTerbaca($actor, 'kegiatan:read'), fn ($query, $terbaca) => $query->whereIn('unit_id', $terbaca));
         foreach (['tahun', 'unit_id', 'periode_id', 'status'] as $field) {
             if (isset($effectiveFilters[$field]) && $effectiveFilters[$field] !== '') {
                 $query->where($field, $effectiveFilters[$field]);
