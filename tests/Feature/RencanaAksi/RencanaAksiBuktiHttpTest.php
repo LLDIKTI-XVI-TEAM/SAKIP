@@ -7,6 +7,7 @@ use App\Actions\RencanaAksi\TambahBuktiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalTahunan;
 use App\Models\Pengaturan;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
@@ -57,6 +58,16 @@ class RencanaAksiBuktiHttpTest extends TestCase
     private function unduh(User $user, string $buktiId): TestResponse
     {
         return $this->actingAs($user)->get(route('rencana-aksi.bukti.download', ['rencanaAksi' => $this->rencanaAksi->id, 'bukti' => $buktiId]));
+    }
+
+    public function test_jadwal_ditutup_menolak_tambah_dan_hapus_bukti_tanpa_sesi_koreksi(): void
+    {
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Kontrol sebelum penutupan.'])->assertSessionHasNoErrors();
+        $bukti = $this->rencanaAksi->buktiDukungs()->sole();
+        JadwalTahunan::whereKey($this->rencanaAksi->jadwal_tahunan_id)->update(['status' => 'ditutup', 'closed_at' => now()]);
+
+        $this->kirim($this->actor, ['mode' => 'teks', 'isi_teks' => 'Setelah penutupan.'])->assertSessionHasErrors('jendela');
+        $this->hapus($this->actor, $bukti->id)->assertSessionHasErrors('jendela');
     }
 
     public function test_tiga_mode_tersimpan_terhubung_ke_rencana_aksi_dan_persyaratan(): void
