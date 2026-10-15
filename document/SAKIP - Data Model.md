@@ -655,7 +655,7 @@ kegiatan:create
 kegiatan:update
 ```
 
-`rencana_aksi:read` dan `kegiatan:read` adalah global. Tambahkan permission global `delegasi:update` sebagai gate pengelolaan Grant Unit. Permission tidak dikenal/tidak aktif harus fail closed.
+`rencana_aksi:read` dan `kegiatan:read` adalah global; detailnya per unit dibatasi unit berizin, yaitu seluruh unit bagi allow dari peran Superadmin, Perencanaan, atau Pimpinan dan unit dengan grant unit aktif bagi pengguna lain, tanpa grant baca per unit (Q54 §54.1). Tambahkan permission global `delegasi:update` sebagai gate pengelolaan Grant Unit. Permission tidak dikenal/tidak aktif harus fail closed.
 
 **Perubahan katalog dan preset Q45, Q48, dan Q51 (13 Oktober 2026; status implementasi: belum):** permission global baru **`laporan:unggah`** (preset Perencanaan dan Superadmin) untuk mengunggah arsip PDF bertanda tangan pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (§2.30); unduhan arsip mengikuti `laporan:ekspor`. `laporan:unggah` **tidak** bertanda sensitif (`sensitif = false`) karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di `audit_log` (Q48 §48.2 butir 2 dan 4). Preset Pimpinan memperoleh `rekomendasi:tetapkan` di samping Perencanaan, tanpa permission baru untuk persetujuan rekomendasi (Q45 §45.2, Q51 §51.2; §2.31).
 
