@@ -72,6 +72,8 @@ class PengukuranMutationSteps
 
     /**
      * Simpan nilai/komponen ke header dan bukti baru untuk draf maupun pengajuan, tanpa versi, riwayat, atau audit.
+     * Pilihan belum_dapat_diukur mengosongkan nilai, nilai komponen, dan alasan penyebut nol tanpa syarat input lengkap;
+     * narasi hanya berubah bila key-nya dikirim, sedangkan catatan tetap kosong bila tidak dikirim.
      * `$path` diisi hanya bila berkas baru tersimpan agar pemanggil menghapusnya saat transaksi gagal;
      * `$decision` diganti keputusan unggah bila unggahan ditolak agar audit penolakan memakai keputusan aktual.
      */
@@ -93,7 +95,14 @@ class PengukuranMutationSteps
             }
             $values[$key] = $value['nilai'];
         }
-        if ($snapshot->tipe_perhitungan !== 'manual' && array_diff(array_column($definitions, 'komponen_id'), array_keys($values))) {
+        $unmeasurable = ($data['status_perhitungan'] ?? null) === 'belum_dapat_diukur';
+        if ($unmeasurable && $p->periode->is_nilai_akhir) {
+            throw ValidationException::withMessages(['status_perhitungan' => 'Status Belum dapat diukur tidak tersedia pada periode nilai akhir.']);
+        }
+        if ($unmeasurable && (($data['nilai'] ?? null) !== null || array_filter($values, fn ($value) => $value !== null) !== [])) {
+            throw ValidationException::withMessages(['status_perhitungan' => 'Kosongkan nilai realisasi sebelum memilih Belum dapat diukur.']);
+        }
+        if (! $unmeasurable && $snapshot->tipe_perhitungan !== 'manual' && array_diff(array_column($definitions, 'komponen_id'), array_keys($values))) {
             throw ValidationException::withMessages(['komponen' => 'Seluruh komponen snapshot harus dikirim; gunakan nilai kosong untuk komponen yang belum diisi.']);
         }
         try {
@@ -101,10 +110,14 @@ class PengukuranMutationSteps
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['nilai' => $exception->getMessage()]);
         }
+        if ($unmeasurable) {
+            // Kalkulator tetap memvalidasi identitas komponen; input kosong menghasilkan nilai null yang lalu ditandai eksplisit.
+            $result['status_perhitungan'] = 'belum_dapat_diukur';
+        }
         foreach ($definitions as $definition) {
             PengukuranKomponen::updateOrCreate(['pengukuran_id' => $p->id, 'komponen_id' => $definition['komponen_id']], ['nilai' => $values[$definition['komponen_id']] ?? null, 'updated_by' => $actor->id, 'updated_at' => now()]);
         }
-        $p->fill([...$result, 'catatan' => $data['catatan'] ?? null,
+        $p->fill([...$result, 'catatan' => $data['catatan'] ?? null, ...array_intersect_key($data, array_flip(PengukuranKinerja::NARASI)),
             'alasan_tidak_dapat_dihitung' => $result['status_perhitungan'] === 'tidak_dapat_dihitung' ? ($data['alasan_tidak_dapat_dihitung'] ?? null) : null]);
         $this->appendEvidence($actor, $p, $data['bukti'] ?? null, $path, $decision);
     }
@@ -159,7 +172,7 @@ class PengukuranMutationSteps
 
     private function auditState(PengukuranKinerja $p): array
     {
-        return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung']),
+        return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung', ...PengukuranKinerja::NARASI]),
             'versi_pengajuan' => $p->latestVersion?->only(['id', 'nomor', 'diajukan_by', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
             'komponen' => $p->komponen()->orderBy('komponen_id')->get(['komponen_id', 'nilai'])->toArray(),
             'bukti_dukungs' => $p->buktiDukungs()->current()->orderBy('id')->get()->map(fn ($b) => [...$b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan']), 'panjang_teks' => $b->isi_teks === null ? null : mb_strlen($b->isi_teks)])->all()];

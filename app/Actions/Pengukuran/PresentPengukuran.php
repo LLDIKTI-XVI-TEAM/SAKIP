@@ -33,24 +33,43 @@ class PresentPengukuran
             ->select(['objek_id', 'tindakan'])->selectRaw("nilai_baru->>'self_approval' as self_approval, nilai_baru->>'reviu_terlambat' as reviu_terlambat")->get();
         $ids = $reviews->where('tindakan', 'pengukuran.verifikasi')->where('self_approval', 'true')->pluck('objek_id')->all();
         $lateIds = $reviews->where('reviu_terlambat', 'true')->pluck('objek_id')->all();
-        $plans = RencanaAksi::whereIn('indikator_id', $rows->pluck('indikator_id'))->whereIn('tahun', $rows->pluck('tahun'))
+        $rows = $rows->values();
+        $targets = $this->periodTargets($rows->map(fn ($row) => [...$row->only(['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id']), 'unit_id' => $row->targetUnitId()])->all());
+        foreach ($rows as $index => $row) {
+            $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
+            $row->setAttribute('self_verified', in_array($row->id, $ids, true));
+            $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
+            $row->setAttribute('summary_target', $targets[$index]);
+        }
+    }
+
+    /**
+     * Target periode dari versi terakhir RA sah yang dijepit ke snapshot dan unit yang sama; selain itu null, bukan nol
+     * atau target PK. Dibaca sekaligus untuk ringkasan header dan baris kewajiban yang belum memiliki header.
+     *
+     * @param  list<array{indikator_id: string, tahun: int, periode_id: string, jadwal_snapshot_id: string, unit_id: string}>  $contexts
+     * @return list<mixed> target sesuai urutan konteks
+     */
+    public function periodTargets(array $contexts): array
+    {
+        if ($contexts === []) {
+            return [];
+        }
+        $plans = RencanaAksi::whereIn('indikator_id', array_column($contexts, 'indikator_id'))->whereIn('tahun', array_column($contexts, 'tahun'))
             ->where('status_alur', 'disahkan')->get()->keyBy(fn ($plan) => $plan->indikator_id.':'.$plan->tahun);
         $planVersions = RencanaAksiVersi::whereIn('rencana_aksi_id', $plans->modelKeys())
             ->whereRaw('nomor = (select max(rv.nomor) from rencana_aksi_versi rv where rv.rencana_aksi_id = rencana_aksi_versi.rencana_aksi_id)')
             ->whereNotNull('disahkan_at')->whereNotNull('disahkan_by')->get()->keyBy('rencana_aksi_id');
-        foreach ($rows as $row) {
-            $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
-            $row->setAttribute('self_verified', in_array($row->id, $ids, true));
-            $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
-            $plan = $plans->get($row->indikator_id.':'.$row->tahun);
+
+        return array_map(function (array $context) use ($plans, $planVersions) {
+            $plan = $plans->get($context['indikator_id'].':'.$context['tahun']);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
-            $target = null;
-            if ($planVersion && $planVersion->jadwal_snapshot_id === $row->jadwal_snapshot_id && $plan->unit_id === $row->targetUnitId()) {
-                $periodTarget = collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $row->periode_id);
-                $target = $periodTarget['nilai'] ?? null;
+            if (! $planVersion || $planVersion->jadwal_snapshot_id !== $context['jadwal_snapshot_id'] || $plan->unit_id !== $context['unit_id']) {
+                return null;
             }
-            $row->setAttribute('summary_target', $target);
-        }
+
+            return collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $context['periode_id'])['nilai'] ?? null;
+        }, $contexts);
     }
 
     public function handle(PengukuranKinerja $p, User $actor, bool $detail = false): array
@@ -69,7 +88,8 @@ class PresentPengukuran
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
                 'unit_kerja' => $frozen ? $frozen['unit_kerja'] : $context->unit->only(['id', 'nama']), 'pic' => $frozen ? $frozen['pic'] : ($detail ? $p->effectivePic()?->pic?->only(['id', 'nama']) : $p->getAttribute('summary_pic'))],
-            'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun],
+            'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun,
+                'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []], 'unggahan_aktif' => false,
             'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false]];
@@ -81,6 +101,10 @@ class PresentPengukuran
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
+        foreach (PengukuranKinerja::NARASI as $key) {
+            // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
+            $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
+        }
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));

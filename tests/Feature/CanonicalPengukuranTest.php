@@ -12,6 +12,9 @@ use App\Models\Kegiatan;
 use App\Models\KinerjaSnapshot;
 use App\Models\KlaimKegiatan;
 use App\Models\Pengaturan;
+use App\Models\PengukuranKinerja;
+use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksiVersi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -83,7 +86,7 @@ class CanonicalPengukuranTest extends TestCase
     {
         [$n,$t] = $this->ratioContext();
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()
-            ->assertInertia(fn ($page) => $page->where('pengukurans.0.target', 80));
+            ->assertInertia(fn ($page) => $page->where('pengukurans.0.pengukuran.target', 80));
         $url = '/pengukuran/'.$this->pengukuran->id;
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'komponen' => [['komponen_id' => $n, 'nilai' => 5], ['komponen_id' => $t, 'nilai' => null]]])->assertSessionHasErrors('pengajuan');
         $this->assertDatabaseCount('pengukuran_versi', 0);
@@ -133,6 +136,44 @@ class CanonicalPengukuranTest extends TestCase
         $this->assertSame('belum_diisi', $measurement->status_perhitungan);
         $this->assertNull($measurement->komponen->firstWhere('komponen_id', $t)->nilai);
         $this->assertNull($measurement->alasan_tidak_dapat_dihitung);
+    }
+
+    public function test_belum_dapat_diukur_mengosongkan_komponen_tersimpan_tanpa_input_lengkap(): void
+    {
+        [$n, $t] = $this->ratioContext();
+        $url = '/pengukuran/'.$this->pengukuran->id;
+        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', 'alasan_tidak_dapat_dihitung' => 'Populasi nol.',
+            'komponen' => [['komponen_id' => $n, 'nilai' => 5], ['komponen_id' => $t, 'nilai' => 0]]])->assertSessionHasNoErrors();
+        $bdd = ['versi' => 2, 'action' => 'draft', 'status_perhitungan' => 'belum_dapat_diukur'];
+        $this->post($url, [...$bdd, 'komponen' => [['komponen_id' => $n, 'nilai' => 0], ['komponen_id' => $t, 'nilai' => null]]])->assertSessionHasErrors('status_perhitungan');
+        $this->post($url, [...$bdd, 'komponen' => [['komponen_id' => (string) Str::uuid(), 'nilai' => null]]])->assertSessionHasErrors('komponen');
+        $this->post($url, [...$bdd, 'nilai' => 3])->assertSessionHasErrors('nilai');
+        $this->assertSame('5.000000000000', $this->pengukuran->fresh()->komponen->firstWhere('komponen_id', $n)->nilai);
+
+        $this->post($url, $bdd)->assertSessionHasNoErrors();
+        $measurement = $this->pengukuran->fresh();
+        $this->assertSame('belum_dapat_diukur', $measurement->status_perhitungan);
+        $this->assertNull($measurement->nilai);
+        $this->assertSame(0, $measurement->komponen()->whereNotNull('nilai')->count());
+        $this->assertNull($measurement->alasan_tidak_dapat_dihitung);
+        $this->assertSame('komponen', $measurement->sumber_nilai);
+    }
+
+    public function test_rasio_antarperiode_tidak_menjumlah_persen(): void
+    {
+        [$n, $t] = $this->ratioContext();
+        $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+        $second = PengukuranKinerja::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $tw2->id,
+            'jadwal_snapshot_id' => $this->pengukuran->jadwal_snapshot_id, 'sumber_nilai' => 'komponen', 'created_by' => $this->actor->id]);
+
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'draft',
+            'komponen' => [['komponen_id' => $n, 'nilai' => 10], ['komponen_id' => $t, 'nilai' => 20]]])->assertSessionHasNoErrors();
+        $this->post('/pengukuran/'.$second->id, ['versi' => 1, 'action' => 'draft',
+            'komponen' => [['komponen_id' => $n, 'nilai' => 30], ['komponen_id' => $t, 'nilai' => 40]]])->assertSessionHasNoErrors();
+
+        $this->assertSame('75.000000000000', $second->fresh()->nilai);
+        $this->assertSame('50.000000000000', $this->pengukuran->fresh()->nilai);
     }
 
     public function test_required_evidence_without_modes_blocks_submission_but_file_only_waiver_remains_valid(): void

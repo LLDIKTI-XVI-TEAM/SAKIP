@@ -60,6 +60,51 @@ class PermissionResolverBatchTest extends TestCase
         }
     }
 
+    public function test_navigasi_peran_hanya_dari_allow_peran_tanpa_deny_global_dan_scope_unit_tetap(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $resolver = app(PermissionResolver::class);
+        $planner = $this->userWith('perencanaan');
+        $unit = Unit::create(['nama' => 'Unit Navigasi', 'status' => 'aktif', 'created_by' => $planner->id]);
+        $update = Permission::where('kode', 'pengukuran:update')->sole();
+
+        $this->assertTrue($resolver->allowsRoleNavigation($planner, 'pengukuran:update'));
+        $this->assertSame('invalid_scope', $resolver->decide($planner, 'pengukuran:update')['reason']);
+        $this->assertFalse($resolver->allowsRoleNavigation($planner, 'kode:rekaan'));
+
+        $this->restrict($planner, $update->id, $unit->id, 'user_permission_denied');
+        $this->assertTrue($resolver->allowsRoleNavigation($planner, 'pengukuran:update'));
+        $this->assertFalse($resolver->allows($planner, 'pengukuran:update', $unit->id));
+        $this->restrict($planner, $update->id, null, 'user_permission_denied');
+        $this->assertFalse($resolver->allowsRoleNavigation($planner, 'pengukuran:update'));
+
+        $grantOnly = $this->userWith('pegawai');
+        $this->restrict($grantOnly, $update->id, $unit->id, 'user_permission_granted');
+        $this->assertTrue($resolver->allows($grantOnly, 'pengukuran:update', $unit->id));
+        $this->assertFalse($resolver->allowsRoleNavigation($grantOnly, 'pengukuran:update'));
+
+        $inactive = $this->userWith('perencanaan');
+        $inactive->update(['status' => 'nonaktif']);
+        $this->assertFalse($resolver->allowsRoleNavigation($inactive, 'pengukuran:update'));
+        $roleOff = $this->userWith('perencanaan');
+        Role::where('kode', 'perencanaan')->update(['aktif' => false]);
+        $this->assertFalse($resolver->allowsRoleNavigation($roleOff, 'pengukuran:update'));
+    }
+
+    private function userWith(string $role): User
+    {
+        $user = User::factory()->create(['status' => 'aktif']);
+        $user->roles()->attach(Role::where('kode', $role)->sole()->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+
+        return $user;
+    }
+
+    private function restrict(User $user, string $permissionId, ?string $unitId, string $table): void
+    {
+        DB::table($table)->insert(['id' => (string) Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permissionId, 'unit_id' => $unitId, 'alasan' => 'Fixture navigasi',
+            ...($table === 'user_permission_denied' ? ['ditetapkan_oleh' => $user->id] : ['diberikan_oleh' => $user->id]), 'created_at' => now()]);
+    }
+
     public static function cases(): array
     {
         return array_map(fn ($case) => [$case], ['grant', 'deny', 'role', 'inactive_user', 'no_role', 'missing_scope', 'wrong_scope', 'inactive_unit', 'uppercase_scope', 'malformed_scope']);

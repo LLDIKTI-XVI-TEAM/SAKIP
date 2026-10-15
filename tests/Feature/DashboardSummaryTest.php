@@ -32,7 +32,7 @@ class DashboardSummaryTest extends TestCase
             'indikator_id' => $oldIndicator->id, 'jadwal_snapshot_id' => $oldContext->id]);
 
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->has('pengukurans', 1)->where('pengukurans.0.id', $this->pengukuran->id)->where('pagination.total', 1));
+            ->has('pengukurans', 1)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id)->where('pagination.total', 1));
     }
 
     public function test_measurement_index_is_empty_before_the_first_schedule_window(): void
@@ -40,11 +40,11 @@ class DashboardSummaryTest extends TestCase
         $this->travelTo(now()->setDate(2026, 2, 15));
 
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
+            ->where('konteks.0.periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
 
         $this->travelTo(Carbon::parse('2026-02-28 16:00:00', 'UTC'));
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('periode.id', $this->pengukuran->periode_id)->where('pagination.total', 1));
+            ->where('konteks.0.periode.id', $this->pengukuran->periode_id)->where('pagination.total', 1));
     }
 
     public function test_dashboard_uses_latest_started_period_and_is_empty_before_any_window_starts(): void
@@ -120,7 +120,7 @@ class DashboardSummaryTest extends TestCase
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activePeriode.nama_periode', 'Triwulan I 2026')->where('stats.total', 1)->where('pengukurans.0.id', $this->pengukuran->id));
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('periode.tahun', 2026)->where('pagination.total', 1)->where('pengukurans.0.id', $this->pengukuran->id));
+            ->where('konteks.0.periode.tahun', 2026)->where('pagination.total', 1)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id));
     }
 
     public function test_index_does_not_use_a_closed_schedule_from_an_inactive_renstra(): void
@@ -128,11 +128,11 @@ class DashboardSummaryTest extends TestCase
         $this->jadwal->update(['status' => 'ditutup']);
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
+            ->where('konteks', [])->has('pengukurans', 0)->where('pagination.total', 0));
 
         Renstra::create(['kode' => 'R-AKTIF-BARU', 'nama' => 'Renstra Aktif Baru', 'tahun_mulai' => 2026, 'tahun_selesai' => 2030, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('periode', null)->has('pengukurans', 0)->where('pagination.total', 0));
+            ->where('konteks', [])->has('pengukurans', 0)->where('pagination.total', 0));
     }
 
     public function test_summary_batches_current_pic_for_draft_and_returned_rows_but_keeps_frozen_pic(): void

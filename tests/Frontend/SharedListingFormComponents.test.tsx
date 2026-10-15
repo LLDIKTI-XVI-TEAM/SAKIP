@@ -83,6 +83,36 @@ it('editor lampiran menghubungkan galat file dari server ke input file', async (
     expect(input.getAttribute('aria-describedby')).toBe(pesan.id);
 });
 
+it('editor lampiran membatasi jumlah, hanya menampilkan mode yang diizinkan, dan merender field per lampiran di semua mode', async () => {
+    const user = userEvent.setup();
+    function Harness({ modes }: { modes: ('file' | 'tautan' | 'teks')[] }) {
+        const [items, setItems] = useState<LampiranDraft[]>([]);
+        return (
+            <LampiranDraftFields items={items} errors={{}} onChange={(update) => setItems((previous) => update(previous))} title="Bukti baru"
+                modeDescriptions={{ file: 'Deskripsi file', tautan: 'Deskripsi tautan', teks: 'Deskripsi teks' }} placeholders={{ tautan: 'https://...', teks: '' }}
+                emptyText="Belum ada bukti baru" maxItems={1} modes={modes} renderItemFields={(index) => <span>Field lampiran {index + 1}</span>} />
+        );
+    }
+    const { unmount } = render(<Harness modes={['tautan', 'teks']} />);
+
+    await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+    expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'File' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tautan' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('Tautan lampiran 1')).toBeTruthy();
+    expect(screen.getByText('Field lampiran 1')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Teks' }));
+    expect(screen.getByText('Field lampiran 1')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Hapus Lampiran' }));
+    expect(screen.getByRole('button', { name: 'Tambah Lampiran' })).toBeTruthy();
+    unmount();
+
+    render(<Harness modes={[]} />);
+    await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+    expect(screen.getByText('Field lampiran 1')).toBeTruthy();
+    expect(screen.queryByLabelText('File lampiran 1')).toBeNull();
+});
+
 it('editor lampiran menutup penambahan saat diblokir', () => {
     render(<LampiranHarness blockedMessage="Tidak memiliki izin unggah." />);
 
