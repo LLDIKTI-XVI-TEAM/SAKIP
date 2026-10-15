@@ -28,8 +28,11 @@ class AssignRole
             throw ValidationException::withMessages(['alasan' => 'Alasan wajib diisi dan maksimal 2.000 karakter.']);
         }
         $result = DB::transaction(function () use ($actor, $targetId, $roleId, $reason, $expectedAssignment) {
-            // Kunci user juga saat pivot belum ada; urutan tetap mencegah deadlock silang aktor/target.
-            $users = User::whereIn('id', [$actor->id, $targetId])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $superadmins = fn () => DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('roles.kode', 'superadmin')->where('roles.aktif', true);
+            // Kunci user juga saat pivot belum ada; seluruh superadmin ikut dikunci dalam urutan yang sama dengan ChangeUserStatus agar guard superadmin terakhir tahan balapan.
+            $users = User::whereIn('id', array_values(array_unique([$actor->id, $targetId, ...$superadmins()->pluck('user_roles.user_id')->all()])))
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $currentActor = $users->get($actor->id) ?? User::whereKey($actor->id)->firstOrFail();
             // Kunci role aktor dan tujuan dalam satu urutan, selaras writer preset; jangan mengunci aktor dahulu secara terpisah.
             $roleIds = DB::table('user_roles')->where('user_id', $currentActor->id)->pluck('role_id')->all();
@@ -61,6 +64,12 @@ class AssignRole
                 && $expectedAssignment['audit_id'] === $state['audit_id'];
             if (! $matches) {
                 return ['field' => 'expected_assignment', 'audit' => $audit, 'message' => 'Peran pengguna telah berubah. Muat ulang data sebelum menyimpan.'];
+            }
+            // Dibaca ulang setelah kunci: penurunan atau penonaktifan yang commit lebih dulu tidak boleh terhitung sebagai superadmin lain.
+            $superadminIds = $superadmins()->whereIn('user_roles.user_id', $users->keys()->all())->pluck('user_roles.user_id')->all();
+            $otherActiveSuperadmin = $users->only($superadminIds)->except($target->id)->contains(fn (User $user) => $user->status === 'aktif');
+            if ($role->kode !== 'superadmin' && $target->status === 'aktif' && in_array($target->id, $superadminIds, true) && ! $otherActiveSuperadmin) {
+                return ['field' => 'role_id', 'audit' => $audit, 'message' => 'Superadmin aktif terakhir tidak dapat diturunkan perannya.'];
             }
             // Snapshot dibaca setelah izin/token sah dan sebelum write; kegagalan query membatalkan transaksi.
             $hasActivePj = $this->warnings->forUsers([$target->id])[$target->id];

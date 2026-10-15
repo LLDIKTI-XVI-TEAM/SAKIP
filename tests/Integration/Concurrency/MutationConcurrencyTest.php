@@ -3,6 +3,7 @@
 namespace Tests\Integration\Concurrency;
 
 use App\Actions\Access\AssignRole;
+use App\Actions\Access\ChangeUserStatus;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ProvisionKeycloakUser;
@@ -221,6 +222,51 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame('pegawai', $other->roles()->value('kode'));
         $this->assertSame(0, AuditLog::where('tindakan', 'pengguna.nonaktifkan')->count());
         $this->assertSame('Superadmin aktif terakhir tidak dapat dinonaktifkan.', AuditLog::where('tindakan', 'pengguna.status_ditolak')->sole()->alasan);
+    }
+
+    public function test_demotion_rechecks_remaining_superadmin_after_waiting_for_deactivation(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        [$actor, $deactivated, $demoted] = User::factory()->count(3)->create(['status' => 'aktif'])->all();
+        foreach ([[$actor, 'admin'], [$deactivated, 'superadmin'], [$demoted, 'superadmin']] as [$user, $kode]) {
+            $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $assignment = (array) DB::table('user_roles')->where('user_id', $demoted->id)->first(['id', 'role_id', 'audit_id']);
+        // Penonaktifan superadmin lain menahan kunci selama worker menunggu, lalu commit lebih dahulu.
+        $prepare = fn () => app(ChangeUserStatus::class)->handle($actor, $deactivated->id, 'nonaktif', 'Dinonaktifkan lebih dahulu', 'aktif');
+
+        $results = $this->race('assign-role', $demoted->id, '', [[
+            'actor_id' => $actor->id, 'target_id' => $demoted->id, 'role_id' => Role::where('kode', 'pegawai')->value('id'),
+            'alasan' => 'Fixture superadmin terakhir', 'expected_assignment' => $assignment, 'expected_error_field' => 'role_id',
+        ]], $prepare);
+
+        $this->assertSame(['conflict'], $results);
+        $this->assertSame('nonaktif', $deactivated->fresh()->status);
+        $this->assertSame('superadmin', $demoted->roles()->value('kode'));
+        $this->assertSame(0, AuditLog::where('tindakan', 'user_roles.ubah')->count());
+        $this->assertSame('Superadmin aktif terakhir tidak dapat diturunkan perannya.', AuditLog::where('tindakan', 'user_roles.ditolak')->sole()->alasan);
+    }
+
+    public function test_two_concurrent_demotions_of_last_superadmins_have_one_winner(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        [$actor, $first, $second] = User::factory()->count(3)->create(['status' => 'aktif'])->all();
+        foreach ([[$actor, 'admin'], [$first, 'superadmin'], [$second, 'superadmin']] as [$user, $kode]) {
+            $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+        }
+        $pegawai = Role::where('kode', 'pegawai')->value('id');
+        $payloads = array_map(fn (User $target) => [
+            'actor_id' => $actor->id, 'target_id' => $target->id, 'role_id' => $pegawai, 'alasan' => 'Fixture konkurensi superadmin',
+            'expected_assignment' => (array) DB::table('user_roles')->where('user_id', $target->id)->first(['id', 'role_id', 'audit_id']),
+            'expected_error_field' => 'role_id',
+        ], [$first, $second]);
+
+        $results = $this->race('assign-role', $actor->id, '', $payloads);
+
+        $this->assertEqualsCanonicalizing(['changed', 'conflict'], $results);
+        $this->assertSame(1, DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')->where('roles.kode', 'superadmin')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'user_roles.ubah')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'user_roles.ditolak')->count());
     }
 
     public function test_status_change_reauthorizes_after_preset_release(): void
