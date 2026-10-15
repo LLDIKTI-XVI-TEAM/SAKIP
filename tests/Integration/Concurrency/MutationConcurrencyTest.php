@@ -8,6 +8,7 @@ use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\Pengukuran\SubmitPengukuran;
+use App\Actions\Pengukuran\VerifyPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
@@ -1207,6 +1208,55 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame($pic->id, $audit->actor_id);
         $this->assertSame('otorisasi', $audit->nilai_baru['jenis_penolakan']);
         $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+    }
+
+    /**
+     * Paralel sejati ISS-08.02: dua pengesahan bertoken versi sama berebut lock
+     * baris header; tepat satu menang (status disahkan + audit sukses + riwayat),
+     * yang kalah ditolak pada token versi tanpa mutasi ganda dan snapshot beku utuh.
+     */
+    public function test_dua_pengesahan_bersamaan_hanya_satu_pemenang(): void
+    {
+        [$operator, $indicator, $pic, $measurement] = $this->submittableMeasurementFixture();
+        DB::table('user_permission_granted')->insert(['id' => Str::uuid(), 'user_id' => $pic->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'),
+            'unit_id' => $indicator->unit_id, 'alasan' => 'Fixture', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        app(SubmitPengukuran::class)->handle($pic, $measurement->id, ['versi' => 1, 'nilai' => 70]);
+        $verifikator = User::factory()->create(['status' => 'aktif']);
+        $verifikator->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        app(VerifyPengukuran::class)->handle($verifikator, $measurement->id, ['versi' => 2]);
+        // Batas reviu diperpanjang terhadap jam nyata worker dengan urutan tanggal tetap sah; penutupan sudah 2099 pada fixture.
+        $snapshot = JadwalSnapshot::whereKey($measurement->jadwal_snapshot_id)->firstOrFail();
+        PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $measurement->periode_id)
+            ->update(['reviu_selesai' => '2099-12-31']);
+        $pengesah = [];
+        foreach ([1, 2] as $nomor) {
+            $user = User::factory()->create(['status' => 'aktif']);
+            $user->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+            $pengesah[] = $user;
+        }
+        $this->assertSame(3, $measurement->fresh()->versi);
+        $beku = $measurement->fresh()->latestVersion->getRawOriginal('snapshot');
+        $payloads = array_map(fn ($user) => ['actor_id' => $user->id, 'pengukuran_id' => $measurement->id,
+            'data' => ['versi' => 3]], $pengesah);
+
+        $results = $this->race('pengukuran-sahkan', $measurement->id, '', $payloads,
+            prepare: fn () => PengukuranKinerja::whereKey($measurement->id)->lockForUpdate()->firstOrFail());
+
+        $this->assertEqualsCanonicalizing(['disahkan', 'conflict'], $results);
+        $measurement = $measurement->fresh();
+        $this->assertSame('disahkan', $measurement->status_alur);
+        $this->assertSame(4, $measurement->versi);
+        $this->assertSame($beku, $measurement->latestVersion->getRawOriginal('snapshot'));
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.sahkan')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        $this->assertSame('validasi_bisnis', AuditLog::where('tindakan', 'pengukuran.ditolak')->sole()->nilai_baru['jenis_penolakan']);
+        $this->assertSame(3, DB::table('riwayat_pengukurans')->where('pengukuran_kinerja_id', $measurement->id)->count());
+        $this->assertSame(1, DB::table('riwayat_pengukurans')->where('pengukuran_kinerja_id', $measurement->id)
+            ->where('status_dari', 'diverifikasi')->where('status_ke', 'disahkan')->count());
+        $pemenang = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole()->actor_id;
+        $this->assertContains($pemenang, [$pengesah[0]->id, $pengesah[1]->id]);
+        $this->assertSame($pemenang, $measurement->latestVersion->disahkan_by);
     }
 
     /**
