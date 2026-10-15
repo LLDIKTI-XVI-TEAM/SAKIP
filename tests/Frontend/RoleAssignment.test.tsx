@@ -641,6 +641,22 @@ it.each([
     expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe(text);
 });
 
+it('menyerahkan sesi kedaluwarsa pada dialog status ke pemulihan sesi tanpa membuang alasan', async () => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: 'Nonaktifkan Ayu' }));
+    const dialog = within(screen.getByRole('dialog'));
+    await user.type(dialog.getByLabelText(/Alasan/), 'Pegawai pindah tugas');
+    await user.click(dialog.getByRole('button', { name: 'Nonaktifkan' }));
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { expect(options?.onHttpException?.({ status: 401, headers: {}, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/akses/peran/user-a/status', before_action: true } } } })).toBe(false); });
+    expect(dialog.getByRole('link', { name: 'Masuk ulang' })).toBeTruthy();
+    expect(dialog.getByLabelText<HTMLTextAreaElement>(/Alasan/).value).toBe('Pegawai pindah tugas');
+    expect(dialog.getByRole<HTMLButtonElement>('button', { name: 'Nonaktifkan' }).disabled).toBe(true);
+    await user.click(dialog.getByRole('button', { name: 'Nonaktifkan' }));
+    expect(router.post).toHaveBeenCalledTimes(1);
+});
+
 it('menutup dialog status dan membersihkan pesan gagal filter setelah status berhasil diubah', async () => {
     optionsWith([{ id: 'user-b', nama: 'Budi', email: 'budi@example.test', status: 'nonaktif', roles: [] }]);
     const user = userEvent.setup();

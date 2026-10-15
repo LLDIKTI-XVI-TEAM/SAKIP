@@ -12,6 +12,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ChangeUserStatusTest extends TestCase
@@ -32,6 +33,8 @@ class ChangeUserStatusTest extends TestCase
 
     public function test_deactivation_blocks_target_session_and_is_audited(): void
     {
+        $this->actingAs($this->target)->get('/pengukuran')->assertOk();
+
         $this->actingAs($this->actor)->post($this->url($this->target), $this->payload('nonaktif'))
             ->assertRedirect()->assertSessionHas('success', 'Akun berhasil dinonaktifkan.');
 
@@ -43,6 +46,7 @@ class ChangeUserStatusTest extends TestCase
         $this->assertSame(['status' => 'aktif'], $audit->nilai_lama);
         $this->assertSame(['status' => 'nonaktif'], $audit->nilai_baru);
         $this->actingAs($this->target->fresh())->get('/pengukuran')->assertRedirect('/auth/pending');
+        $this->get('/auth/pending')->assertInertia(fn (Assert $page) => $page->component('Auth/Pending')->where('pendingReason', 'inactive'));
     }
 
     public function test_reactivation_keeps_existing_role_and_grant(): void
