@@ -392,6 +392,55 @@ class AssignRoleTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'user_roles.tambah')->count());
     }
 
+    #[DataProvider('superadminDemotions')]
+    public function test_last_active_superadmin_cannot_be_demoted_until_another_remains(bool $self): void
+    {
+        if ($self) {
+            $this->target = $this->actor;
+        } else {
+            $this->target->update(['status' => 'aktif']);
+            $this->grantRole($this->target, 'superadmin');
+            $this->actor->roles()->sync([Role::where('kode', 'admin')->value('id') => [
+                'id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now(),
+            ]]);
+        }
+        $pegawai = Role::where('kode', 'pegawai')->value('id');
+        $token = $this->token();
+        try {
+            app(AssignRole::class)->handle($this->actor->fresh(), $this->target->id, $pegawai, 'Penurunan uji', $token);
+            $this->fail('Superadmin aktif terakhir tidak boleh diturunkan.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(['Superadmin aktif terakhir tidak dapat diturunkan perannya.'], $exception->errors()['role_id']);
+        }
+        $this->assertSame($token, $this->token());
+        $this->assertSame(0, AuditLog::where('tindakan', 'user_roles.ubah')->count());
+        $this->assertSame('Superadmin aktif terakhir tidak dapat diturunkan perannya.', AuditLog::where('tindakan', 'user_roles.ditolak')->sole()->alasan);
+
+        $this->grantRole(User::factory()->create(['status' => 'aktif']), 'superadmin');
+        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor->fresh(), $this->target->id, $pegawai, 'Penurunan uji', $token)['status']);
+        $this->assertSame('pegawai', $this->target->roles()->value('kode'));
+    }
+
+    public static function superadminDemotions(): array
+    {
+        return ['akun sendiri' => [true], 'oleh admin' => [false]];
+    }
+
+    public function test_inactive_superadmin_is_not_counted_and_can_still_be_demoted(): void
+    {
+        $this->grantRole($this->target, 'superadmin');
+        $pegawai = Role::where('kode', 'pegawai')->value('id');
+        $own = (array) DB::table('user_roles')->where('user_id', $this->actor->id)->first(['id', 'role_id', 'audit_id']);
+        try {
+            app(AssignRole::class)->handle($this->actor, $this->actor->id, $pegawai, 'Penurunan diri', $own);
+            $this->fail('Superadmin nonaktif tidak boleh dihitung sebagai superadmin aktif lain.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('role_id', $exception->errors());
+        }
+        $this->assertSame('superadmin', $this->actor->roles()->value('kode'));
+        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor, $this->target->id, $pegawai, 'Penurunan akun nonaktif', $this->token())['status']);
+    }
+
     #[DataProvider('invalidChanges')]
     public function test_invalid_domain_input_does_not_assign(string $case, string $field): void
     {
@@ -601,6 +650,8 @@ class AssignRoleTest extends TestCase
     public function test_self_change_receipt_remains_available_after_losing_access_and_expires(): void
     {
         $this->target = $this->actor;
+        // Superadmin aktif lain membuat penurunan peran sendiri sah (Q53).
+        $this->grantRole(User::factory()->create(['status' => 'aktif']), 'superadmin');
         $this->assignment($this->indicator(), $this->actor, '2026-01-01', '2026-01-01 09:00:00');
         $url = $this->actingAs($this->actor)->from('/akses/peran')->post('/akses/peran/'.$this->actor->id, $this->payload())
             ->assertStatus(303)->headers->get('Location');
@@ -672,6 +723,11 @@ class AssignRoleTest extends TestCase
         $row = DB::table('user_roles')->where('user_id', $this->target->id)->first(['id', 'role_id', 'audit_id']);
 
         return $row ? (array) $row : null;
+    }
+
+    private function grantRole(User $user, string $kode): void
+    {
+        $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
     }
 
     private function deny(string $permission): void

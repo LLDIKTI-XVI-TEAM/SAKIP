@@ -505,6 +505,8 @@ kegiatan:update
 
 **Status implementasi Bagian B (2026-10-15):** diimplementasikan oleh PR #108 (penonaktifan dan pengaktifan kembali akun dari Penetapan Peran). Checklist yang dicentang mencerminkan automated test dan CI PR #108, bukan penerimaan UAT; AC-10 dan AC-12 dibuktikan integration test PostgreSQL dua koneksi. Smoke browser SSO, UAT, dan deployment belum dilakukan.
 
+**Tindak lanjut Q53 (2026-10-15):** guard superadmin aktif terakhir pada penetapan peran (AC-14) dikerjakan di [#112](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/112). Centang AC-14 mencerminkan test feature dan integration test PostgreSQL dua koneksi pada PR tersebut, bukan penerimaan UAT.
+
 #### Kontrak Teknis
 
 - Onboarding JIT membuat `users.status = aktif` tanpa `user_roles`; login ulang tidak mengubah status.
@@ -512,6 +514,7 @@ kegiatan:update
 - Menu, endpoint `/akses/aktivasi`, dan capability `aktivasi` dihapus; izin `pengguna:read` dan `akses:update` dipertahankan.
 - Bootstrap Super Admin menerima kandidat aktif tanpa role yang tercatat onboarding SSO.
 - Penonaktifan dan pengaktifan kembali: aktor `akses:update`, alasan wajib, audit; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; peran dan grant dipertahankan; peringatan bila pengguna masih Penanggung Jawab aktif.
+- Penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; superadmin `nonaktif` tidak dihitung (Q53).
 
 #### Acceptance Criteria
 
@@ -528,6 +531,7 @@ kegiatan:update
 - [x] **AC-11:** alasan kosong → 422; tanpa izin atau deny yang cocok → 403, dan penolakan di dalam action teraudit.
 - [x] **AC-12:** dua mutasi status bersamaan pada akun yang sama → satu berhasil, yang lain ditolak stale.
 - [x] **AC-13:** bila target masih Penanggung Jawab aktif, dialog menampilkan peringatan sebelum konfirmasi.
+- [x] **AC-14 (Q53, #112):** penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; penurunan peran dan penonaktifan yang berjalan bersamaan tidak menghabiskan superadmin aktif.
 
 #### Implementation Tasks
 
