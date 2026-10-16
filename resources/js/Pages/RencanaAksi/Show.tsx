@@ -62,12 +62,11 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
 
     // Periode terkunci (batas pengisian lewat) maupun di luar lingkup
     // koreksi hanya-baca dan tidak dikirim; validasi fail-closed tetap di
-    // backend. Dalam sesi koreksi aktif kunci tanggal diabaikan (cermin
-    // backend `penilaian()`): lingkup koreksi sudah menjadi pembatas
-    // sehingga daftar `periode_terkunci` tidak dipakai.
+    // backend. Kunci tanggal juga berlaku dalam sesi koreksi (cermin
+    // backend `penilaian()`).
     const koreksi = rencanaAksi.koreksi;
     const terkunci = useMemo(() => new Set(rencanaAksi.periode_terkunci ?? []), [rencanaAksi.periode_terkunci]);
-    const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId) && (koreksi.aktif || !terkunci.has(periodeId));
+    const bolehSunting = (periodeId: string): boolean => dapatDisuntingPeriode(koreksi, periodeId) && !terkunci.has(periodeId);
     const periodeDapatDisunting = useMemo(
         () => periodeEfektif.filter((baris) => bolehSunting(baris.id)),
         // eslint-disable-next-line react-hooks/exhaustive-deps

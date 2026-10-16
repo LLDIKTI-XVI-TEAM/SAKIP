@@ -24,9 +24,10 @@ use Carbon\CarbonInterface;
  * terkunci bagi PIC setelah `pengisian_selesai` P terlewati — termasuk
  * periode lampau saat aktivasi (tanggalnya sudah lewat sehingga otomatis
  * terkunci) dan hasil revisi resmi jendela (Q18) karena yang dibaca selalu
- * nilai berlaku. Dalam sesi koreksi sah pascapenutupan, kunci tanggal
- * tidak diterapkan; sebagai gantinya hanya periode dalam lingkup koreksi
- * yang boleh ditulis (Q41 §41.2 butir 6).
+ * nilai berlaku. Dalam sesi koreksi sah pascapenutupan, periode wajib
+ * berada dalam lingkup koreksi dan kunci tanggal tetap berlaku bagi PIC,
+ * sehingga PIC hanya menulis periode yang jendela pengisiannya dibuka
+ * kembali secara resmi (Q19, Q41 §41.2 butir 6).
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
  * `SimpanTargetPeriode`, `AjukanRencanaAksi`) dan capability baca
@@ -95,13 +96,6 @@ class JendelaTulisRencanaAksi
         $picUserId ??= PenugasanIndikator::effectiveOn($hariIni)->where('indikator_id', $indikator->id)->value('user_id');
         if ($picUserId === null || (string) $picUserId !== (string) $aktor->id) {
             return ['jenis' => 'pic', 'pesan' => 'Tindakan ini memerlukan penugasan PIC yang efektif.', 'terkunci' => []];
-        }
-
-        // Dalam sesi koreksi yang sah, lingkup periode sudah divalidasi pada
-        // gerbang penutupan di atas; kunci tanggal tidak diterapkan agar
-        // periode yang jendela pengisiannya dibuka resmi dapat dikoreksi.
-        if ($this->tahunDitutup($jadwal, $pada)) {
-            return ['jenis' => 'lolos', 'pesan' => null, 'terkunci' => []];
         }
 
         $terkunci = $this->rincianTerkunci($jadwal, $periodeIds, $hariIni);

@@ -411,7 +411,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_props_koreksi_mengosongkan_periode_terkunci_dan_menawarkan_ubah(): void
+    public function test_props_koreksi_tetap_mengunci_periode_sampai_jendela_pengisian_dibuka_resmi(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
@@ -423,9 +423,8 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $pembuka = $this->createUserWithRole('perencanaan');
         $this->actingAs($pembuka)->postJson("/rencana-aksi/{$header->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi pascapenutupan.'])->assertOk();
 
-        // Kedua periode melewati batas pengisian sehingga tanpa pengecualian
-        // koreksi akan tercatat terkunci; sesi koreksi mengosongkan daftar
-        // karena lingkup sudah menjadi pembatas (kunci tanggal diabaikan).
+        // Kedua periode melewati batas pengisian; sesi koreksi tidak membuka
+        // akses PIC tanpa pembukaan jendela pengisian resmi (Q19, Q41 §41.2 butir 6).
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->update(['pengisian_selesai' => '2026-03-05']);
         $fixture['jadwal']->update([
             'penutupan' => '2026-03-05',
@@ -442,7 +441,14 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('rencanaAksi.koreksi.aktif', true)
-                ->where('rencanaAksi.periode_terkunci', [])
+                ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id, $fixture['periode2']->id])
+                ->where('rencanaAksi.can.update', false));
+
+        // Pembukaan jendela TW II di dalam sesi koreksi (ISS-14.03) disimulasikan langsung.
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-03-20']);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id])
                 ->where('rencanaAksi.can.update', true));
     }
 
