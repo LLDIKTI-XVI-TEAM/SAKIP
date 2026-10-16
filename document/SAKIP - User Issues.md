@@ -3439,6 +3439,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q47 (13 Oktober 2026):** realisasi yang belum tersedia dan bukan karena penyebut nol dicatat sebagai `status_perhitungan = belum_dapat_diukur` (ISS-07.01), yang berbeda dari `tidak_dapat_dihitung` dan dari realisasi `0`; keduanya tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). AC-6 ditambahkan karena issue ini belum dikerjakan.
 
+> **Keputusan PM (16 Oktober 2026):** AC-5 dan TEST-5 disamakan dengan body issue #81: buktinya ada di halaman Verifikasi, yang membaca penanda dan alasan dari snapshot versi. Tampilan laporan beserta alasan tetap terbuka sebagai milik ISS-10.02 (AC-6) dan US-07.06 AC-5, sehingga tidak ikut dicentang di sini.
+
 **Terkait User Story:** `US-07.06`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  
 **Story Points:** 5  
