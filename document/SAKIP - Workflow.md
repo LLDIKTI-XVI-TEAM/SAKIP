@@ -1827,6 +1827,8 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari status
        diukur (Q51 §51.1 butir 4)
      → Versi pengajuan membekukan rekomendasi yang tampil bersama tindak lanjutnya; persetujuan
        atau revisi sesudahnya tidak mengubah tampilan versi itu (Q55 §55.1 butir 5)
+     → Pengajuan dari tampilan yang rekomendasinya sudah diganti ditolak sebagai konflik tanpa
+       membentuk versi (Q55 §55.1 butir 6)
 ```
 
 ```mermaid
