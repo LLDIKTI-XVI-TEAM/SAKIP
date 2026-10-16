@@ -30,6 +30,26 @@ export default function PengukuranEdit(props: PengukuranEditProps) {
     return <PengukuranForm key={props.pengukuran.id} {...props} />;
 }
 
+/** Isi form dari data tersimpan: nilai awal useForm sekaligus tampilan form baca-saja. */
+const nilaiTersimpan = (pengukuran: Pengukuran) => ({
+    versi: pengukuran.versi,
+    nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
+    komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
+    catatan: pengukuran.catatan || '',
+    // Penanda hanya berasal dari BDD tersimpan; status numerik selalu dihitung ulang server.
+    status_perhitungan: (pengukuran.status_perhitungan === 'belum_dapat_diukur' ? 'belum_dapat_diukur' : null) as 'belum_dapat_diukur' | null,
+    progres_kegiatan: pengukuran.progres_kegiatan ?? '',
+    kendala_masalah: pengukuran.kendala_masalah ?? '',
+    strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
+    tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
+    alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
+    jenis_berkas_id: '',
+    menggantikan_id: '',
+    alasan_koreksi: '',
+    lampiran: [] as LampiranDraft[],
+    action: 'draft' as 'draft' | 'ajukan',
+});
+
 function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const formatNilai = useFormatNilai();
     const labelUnit = useLabelUnit();
@@ -41,24 +61,11 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const [requestError, setRequestError] = useState('');
     const [previewStatus, setPreviewStatus] = useState<Pengukuran['status_perhitungan'] | null>(null);
     const recovery = useAuthRecovery();
-    const { data, setData, transform, post, processing, errors } = useForm({
-        versi: pengukuran.versi,
-        nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
-        komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
-        catatan: pengukuran.catatan || '',
-        // Penanda hanya berasal dari BDD tersimpan; status numerik selalu dihitung ulang server.
-        status_perhitungan: (pengukuran.status_perhitungan === 'belum_dapat_diukur' ? 'belum_dapat_diukur' : null) as 'belum_dapat_diukur' | null,
-        progres_kegiatan: pengukuran.progres_kegiatan ?? '',
-        kendala_masalah: pengukuran.kendala_masalah ?? '',
-        strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
-        tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
-        alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
-        jenis_berkas_id: '',
-        menggantikan_id: '',
-        alasan_koreksi: '',
-        lampiran: [] as LampiranDraft[],
-        action: 'draft' as 'draft' | 'ajukan',
-    });
+    const form = useForm(nilaiTersimpan(pengukuran));
+    const { setData, transform, post, processing, errors } = form;
+    // Simpan yang ditolak mengganti props tanpa remount (POST useForm memakai preserveState), jadi form baca-saja membaca nilai
+    // tersimpan, bukan input lokal yang tidak pernah masuk. Tanpa remount, galat penolakan tetap tampil dan input form yang masih dapat diubah tetap utuh.
+    const data = can.update ? form.data : nilaiTersimpan(pengukuran);
     const { handleHttpException } = recovery;
     const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => {
         handleHttpException(response, {
