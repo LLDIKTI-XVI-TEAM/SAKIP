@@ -154,12 +154,22 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     <CardHeader><CardTitle>Narasi pengukuran</CardTitle></CardHeader>
                     <CardContent className="space-y-5 text-sm">
                         <dl className="grid gap-x-6 gap-y-5 md:grid-cols-2">
-                            {([['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian'], ['tindak_lanjut_rekomendasi', 'Tindak lanjut rekomendasi']] as const).map(([field, label]) => (
+                            {([['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const).map(([field, label]) => (
                                 <div key={field} className="min-w-0">
                                     <dt className="font-semibold text-ink">{label}</dt>
                                     <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran[field] || 'Tidak diisi.'}</dd>
                                 </div>
                             ))}
+                        </dl>
+                        <dl className="grid gap-x-6 gap-y-5 border-t border-border pt-5 md:grid-cols-2">
+                            <div className="min-w-0">
+                                <dt className="font-semibold text-ink">Rekomendasi periode sebelumnya</dt>
+                                <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran.rekomendasi_sebelumnya?.isi ?? 'Tidak ada rekomendasi pada versi pengajuan ini.'}</dd>
+                            </div>
+                            <div className="min-w-0">
+                                <dt className="font-semibold text-ink">Tindak lanjut rekomendasi</dt>
+                                <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran.tindak_lanjut_rekomendasi || 'Tidak diisi.'}</dd>
+                            </div>
                         </dl>
                         <div className="border-t border-border pt-4">
                             <h2 className="font-semibold">Catatan pengukuran</h2>
