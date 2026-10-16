@@ -3,8 +3,13 @@
 namespace Tests\Feature\Rekomendasi;
 
 use App\Models\AuditLog;
+use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\RekomendasiPimpinan;
+use App\Models\RenstraPk;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -186,8 +191,29 @@ class TetapkanRekomendasiTest extends TestCase
         $this->tetapkan($perencanaan, ['periode_id' => $diluarJadwal->id])->assertSessionHasErrors('periode_id');
         $this->tetapkan($perencanaan, ['tahun' => 2027])->assertSessionHasErrors('periode_id');
 
+        // Jadwal draft belum mengukur apa pun meski periode dan snapshotnya sudah ada.
+        $pk = RenstraPk::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2028, 'nomor_pk' => 'PK-2028', 'tanggal_pk' => '2028-01-01', 'created_by' => $this->actor->id]);
+        $draft = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2028, 'renstra_pk_id' => $pk->id, 'penutupan' => '2028-12-31', 'status' => 'draft']);
+        PeriodeJadwal::create(['jadwal_id' => $draft->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2028-03-01', 'pengisian_selesai' => '2028-03-15', 'reviu_mulai' => '2028-03-15', 'reviu_selesai' => '2028-04-15']);
+        JadwalSnapshot::create([...$this->snapshotAttributes(), 'jadwal_id' => $draft->id, 'periode_mulai_id' => $this->pengukuran->periode_id]);
+        $this->tetapkan($perencanaan, ['tahun' => 2028])->assertSessionHasErrors('periode_id');
+
+        // Indikator yang mulai diukur TW II belum dapat diberi rekomendasi TW I.
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $diluarJadwal->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+        $mulaiTw2 = IndikatorKinerja::create([...$this->pengukuran->indikator->only(['sasaran_strategis_id', 'unit_id', 'nama', 'satuan', 'tipe_perhitungan', 'status', 'tahun_mulai_berlaku', 'created_by', 'created_by_role']), 'kode' => 'I-UJI-TW2']);
+        JadwalSnapshot::create([...$this->snapshotAttributes(), 'indikator_id' => $mulaiTw2->id, 'jadwal_id' => $this->jadwal->id, 'periode_mulai_id' => $diluarJadwal->id]);
+        $this->tetapkan($perencanaan, ['indikator_id' => $mulaiTw2->id])->assertSessionHasErrors('periode_id');
+
         $this->assertDatabaseCount('rekomendasi_pimpinan', 0);
-        $this->assertSame(['aturan_rekomendasi', 'aturan_rekomendasi'], AuditLog::where('tindakan', 'rekomendasi_pimpinan.tetapkan_ditolak')->get()->map(fn ($a) => $a->nilai_baru['alasan_penolakan'])->all());
+        $this->assertSame(array_fill(0, 4, 'aturan_rekomendasi'), AuditLog::where('tindakan', 'rekomendasi_pimpinan.tetapkan_ditolak')->get()->map(fn ($a) => $a->nilai_baru['alasan_penolakan'])->all());
+        $this->tetapkan($perencanaan, ['indikator_id' => $mulaiTw2->id, 'periode_id' => $diluarJadwal->id])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('rekomendasi_pimpinan', 1);
+    }
+
+    /** @return array<string, mixed> */
+    private function snapshotAttributes(): array
+    {
+        return $this->context->only(['indikator_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']);
     }
 
     /** @param  array<string, mixed>  $override */
