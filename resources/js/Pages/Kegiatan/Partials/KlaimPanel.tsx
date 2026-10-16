@@ -102,7 +102,7 @@ export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
     const galatUmum = galatKirim || galatBisnis(fieldErrors);
 
     return (
-        <Card className="mt-6 max-w-4xl">
+        <Card>
             <CardHeader>
                 <CardTitle>Klaim Rencana Aksi</CardTitle>
                 <p className="text-sm text-muted">Klaim menjelaskan dukungan kegiatan terhadap rencana aksi dan komponennya. Klaim tidak mengubah nilai komponen maupun pengukuran.</p>

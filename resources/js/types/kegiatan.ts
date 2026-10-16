@@ -39,7 +39,7 @@ export interface KegiatanIndexItem {
     tanggal_rencana: string | null;
     unit: KegiatanOption;
     periode: KegiatanOption;
-    can: { update: boolean; klaim?: boolean };
+    can: { update: boolean };
     unit_id?: string;
     periode_id?: string;
     sasaran_peserta?: number | null;

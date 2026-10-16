@@ -197,17 +197,6 @@ class KlaimKegiatanTest extends TestCase
             ->where('klaim.daftar.0.can.hapus', false));
     }
 
-    public function test_daftar_kegiatan_menawarkan_klaim_hanya_dengan_kewenangan_ra(): void
-    {
-        $this->actingAs($this->actor)->get('/kegiatan?tahun=2026')->assertInertia(fn ($page) => $page->where('kegiatan.data.0.can.klaim', true));
-
-        $pegawai = $this->createUserWithRole('pegawai');
-        $this->grantUnitPermission($pegawai, 'kegiatan:update');
-        $this->actingAs($pegawai)->get('/kegiatan?tahun=2026')->assertInertia(fn ($page) => $page
-            ->where('kegiatan.data.0.can.update', true)
-            ->where('kegiatan.data.0.can.klaim', false));
-    }
-
     public function test_deny_baca_ra_pada_unit_menyembunyikan_panel_klaim(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();

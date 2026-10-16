@@ -106,7 +106,7 @@ it('menampilkan tanggal rencana sesuai preferensi tampilan pada tabel berlabel',
     expect(screen.queryByText('2026-10-11')).toBeNull();
 });
 
-it('menyediakan tombol buat dan edit sesuai capability dengan modal pop-up', () => {
+it('menyediakan buat lewat modal pop-up dan ubah lewat halaman ubah sesuai capability', () => {
     render(<Index {...indexProps} />);
     const createBtn = screen.getByRole('button', { name: 'Buat kegiatan' });
     expect(createBtn).toBeTruthy();
@@ -115,8 +115,7 @@ it('menyediakan tombol buat dan edit sesuai capability dengan modal pop-up', () 
 
     fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit kegiatan Fasilitasi unit' }));
-    expect(screen.getByRole('dialog', { name: 'Edit rencana kegiatan' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
 });
 it('menginisialisasi filter tahun dengan nilai default serta menyediakan placeholder', () => {
     const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);

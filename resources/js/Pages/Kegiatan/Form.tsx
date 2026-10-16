@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
@@ -48,33 +49,38 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
     };
     return <AuthenticatedLayout title={title} breadcrumbs={[{ label: 'Kegiatan', href: '/kegiatan' }, { label: title }]}>
         <Head title={title} />
-        <Card className="max-w-4xl">
-            <CardContent className="p-4 sm:p-6">
-                <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
-                <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif. Kegiatan baru berstatus Rencana.</p>
-                <form onSubmit={submit} className="space-y-5">
-                    {(form.hasErrors || failure) && <div ref={summary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30">
-                        {failure || form.errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
-                    </div>}
-                    <fieldset disabled={form.processing || blocked} className="grid gap-5 sm:grid-cols-2">
-                        <Select id="unit_id" label="Unit" required hoverScroll value={form.data.unit_id} onChange={(e) => form.setData('unit_id', e.target.value)} error={form.errors.unit_id} options={[{ value: '', label: 'Pilih unit' }, ...unitOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
-                        <Input label="Tahun" type="number" required min={1} max={9999} value={form.data.tahun} onChange={(e) => form.setData('tahun', e.target.value)} error={form.errors.tahun} />
-                        <Select id="periode_id" label="Periode" required value={form.data.periode_id} onChange={(e) => form.setData('periode_id', e.target.value)} error={form.errors.periode_id} options={[{ value: '', label: 'Pilih periode' }, ...periodeOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
-                        <Input label="Tanggal rencana" type="date" value={form.data.tanggal_rencana} onChange={(e) => form.setData('tanggal_rencana', e.target.value)} error={form.errors.tanggal_rencana} />
-                        <div className="sm:col-span-2"><Input label="Nama kegiatan" required maxLength={500} placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} error={form.errors.nama} /></div>
-                        <div className="sm:col-span-2"><Textarea label="Tujuan" maxLength={10000} placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..." value={form.data.tujuan} onChange={(e) => form.setData('tujuan', e.target.value)} error={form.errors.tujuan} /></div>
-                        <Input label="Sasaran peserta" type="number" min={0} max={2147483647} placeholder="Contoh: 30" value={form.data.sasaran_peserta} onChange={(e) => form.setData('sasaran_peserta', e.target.value)} error={form.errors.sasaran_peserta} />
-                        <Input label="Keterangan peserta" maxLength={255} placeholder="Contoh: Tim Pokja dan perwakilan pimpinan perguruan tinggi" value={form.data.keterangan_peserta} onChange={(e) => form.setData('keterangan_peserta', e.target.value)} error={form.errors.keterangan_peserta} />
-                        <div className="sm:col-span-2"><Input label="Lokasi" maxLength={255} placeholder="Contoh: Ruang Rapat LLDIKTI XVI / Daring via Zoom" value={form.data.lokasi} onChange={(e) => form.setData('lokasi', e.target.value)} error={form.errors.lokasi} /></div>
-                    </fieldset>
-                    <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
-                        <Button type="submit" disabled={blocked} isLoading={form.processing}>{form.processing ? 'Menyimpan…' : 'Simpan kegiatan'}</Button>
-                        <Link href="/kegiatan" className="text-sm font-medium text-primary hover:underline">Kembali ke daftar</Link>
-                        {failure && <Link href={kegiatan ? `/kegiatan/${kegiatan.id}/edit` : '/kegiatan/buat'} className="text-sm text-primary underline">Muat ulang form</Link>}
-                    </div>
-                </form>
-            </CardContent>
-        </Card>
-        {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+        <div className="mx-auto max-w-5xl space-y-5">
+            <Link href="/kegiatan" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Kembali ke daftar
+            </Link>
+            <Card>
+                <CardContent className="p-4 sm:p-6">
+                    <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
+                    <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif. Kegiatan baru berstatus Rencana.</p>
+                    <form onSubmit={submit} className="space-y-5">
+                        {(form.hasErrors || failure) && <div ref={summary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30">
+                            {failure || form.errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
+                        </div>}
+                        <fieldset disabled={form.processing || blocked} className="grid gap-5 sm:grid-cols-2">
+                            <Select id="unit_id" label="Unit" required hoverScroll value={form.data.unit_id} onChange={(e) => form.setData('unit_id', e.target.value)} error={form.errors.unit_id} options={[{ value: '', label: 'Pilih unit' }, ...unitOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
+                            <Input label="Tahun" type="number" required min={1} max={9999} value={form.data.tahun} onChange={(e) => form.setData('tahun', e.target.value)} error={form.errors.tahun} />
+                            <Select id="periode_id" label="Periode" required value={form.data.periode_id} onChange={(e) => form.setData('periode_id', e.target.value)} error={form.errors.periode_id} options={[{ value: '', label: 'Pilih periode' }, ...periodeOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
+                            <Input label="Tanggal rencana" type="date" value={form.data.tanggal_rencana} onChange={(e) => form.setData('tanggal_rencana', e.target.value)} error={form.errors.tanggal_rencana} />
+                            <div className="sm:col-span-2"><Input label="Nama kegiatan" required maxLength={500} placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} error={form.errors.nama} /></div>
+                            <div className="sm:col-span-2"><Textarea label="Tujuan" maxLength={10000} placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..." value={form.data.tujuan} onChange={(e) => form.setData('tujuan', e.target.value)} error={form.errors.tujuan} /></div>
+                            <Input label="Sasaran peserta" type="number" min={0} max={2147483647} placeholder="Contoh: 30" value={form.data.sasaran_peserta} onChange={(e) => form.setData('sasaran_peserta', e.target.value)} error={form.errors.sasaran_peserta} />
+                            <Input label="Keterangan peserta" maxLength={255} placeholder="Contoh: Tim Pokja dan perwakilan pimpinan perguruan tinggi" value={form.data.keterangan_peserta} onChange={(e) => form.setData('keterangan_peserta', e.target.value)} error={form.errors.keterangan_peserta} />
+                            <div className="sm:col-span-2"><Input label="Lokasi" maxLength={255} placeholder="Contoh: Ruang Rapat LLDIKTI XVI / Daring via Zoom" value={form.data.lokasi} onChange={(e) => form.setData('lokasi', e.target.value)} error={form.errors.lokasi} /></div>
+                        </fieldset>
+                        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
+                            <Button type="submit" disabled={blocked} isLoading={form.processing}>{form.processing ? 'Menyimpan…' : 'Simpan kegiatan'}</Button>
+                            {failure && <Link href={kegiatan ? `/kegiatan/${kegiatan.id}/edit` : '/kegiatan/buat'} className="text-sm text-primary underline">Muat ulang form</Link>}
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+            {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+        </div>
     </AuthenticatedLayout>;
 }
