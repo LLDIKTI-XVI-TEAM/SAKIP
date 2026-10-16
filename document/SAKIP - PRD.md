@@ -1311,7 +1311,7 @@ Tabel `audit_log` append-only — tidak ada endpoint untuk mengubah atau menghap
 
 ### 25.4 Visibilitas per Role
 
-- `audit:read` dimiliki Superadmin, Perencanaan, dan Pimpinan.
+- `audit:read` dimiliki Superadmin, Admin, Perencanaan, dan Pimpinan (Q56).
 - Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). Hak bawaan role PIC atas `audit:read` belum dikonfirmasi dan tetap **OPEN** pada Q31.
 
 ---
