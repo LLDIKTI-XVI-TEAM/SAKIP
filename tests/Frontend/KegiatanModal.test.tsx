@@ -38,12 +38,10 @@ it('mempertahankan draft dan error ketika opsi server berubah setelah validasi',
     expect(screen.getByText('Tujuan wajib diisi.')).toBeTruthy();
 });
 
-it('aksi ubah membuka halaman ubah kegiatan beserta klaim RA, bukan modal', () => {
+it('aksi ubah menautkan ke halaman ubah kegiatan beserta klaim RA, bukan tombol modal', () => {
     render(<Index {...indexProps} />);
-    const ubah = screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Kegiatan audit' });
-    expect(ubah.getAttribute('href')).toBe('/kegiatan/k1/edit');
-    fireEvent.click(ubah);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Kegiatan audit' }).getAttribute('href')).toBe('/kegiatan/k1/edit');
+    expect(screen.queryByRole('button', { name: /Edit kegiatan/ })).toBeNull();
 });
 
 it('tidak mengganti opsi periode aktif kosong dengan opsi baca nonaktif', () => {
