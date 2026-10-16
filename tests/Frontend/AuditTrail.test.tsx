@@ -39,7 +39,12 @@ it("menampilkan baris audit, penolakan beserta alasannya, dan tautan detail", ()
     expect(within(table).getByText("Sistem")).toBeTruthy();
     // Alasan baris yang tidak ditolak tidak diangkat ke daftar.
     expect(within(table).queryByText("Sistem — onboarding SSO")).toBeNull();
-    expect(screen.getByRole("link", { name: "Lihat detail audit renstra.ubah_ditolak" }).getAttribute("href")).toBe("/audit/a1");
+    const detail = screen.getByRole("link", { name: "Lihat detail audit renstra.ubah_ditolak" });
+    expect(detail.getAttribute("href")).toBe("/audit/a1");
+    // Aksi detail berupa tombol ikon seperti tabel lain; nama aksesibel tetap dari aria-label.
+    expect(detail.textContent?.trim()).toBe("");
+    expect(detail.querySelector("svg")).toBeTruthy();
+    expect(within(table).getAllByText("Lihat detail").length).toBe(props.audit.data.length);
     expect(screen.queryByRole("button", { name: /Hapus|Ubah|Simpan/ })).toBeNull();
 });
 

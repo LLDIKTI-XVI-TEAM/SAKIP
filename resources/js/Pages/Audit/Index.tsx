@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { History, Search } from 'lucide-react';
+import { Eye, History, Search } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -7,11 +7,13 @@ import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Pagination } from '@/Components/Pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { jenisPelakuLabel, type AuditIndexProps } from '@/types/audit';
 
 const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
+const iconAction = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
 export default function AuditIndex({ audit, filters }: AuditIndexProps) {
     const formatTanggal = useFormatTanggal();
@@ -40,7 +42,7 @@ export default function AuditIndex({ audit, filters }: AuditIndexProps) {
                     <form key={JSON.stringify(filters)} onSubmit={terapkan} aria-label="Filter jejak audit" className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Input type="date" name="dari" label="Dari tanggal" defaultValue={filters.dari} error={errors.dari} />
                         <Input type="date" name="sampai" label="Sampai tanggal" defaultValue={filters.sampai} error={errors.sampai} />
-                        <Input name="aktor" label="Aktor" defaultValue={filters.aktor} placeholder="Nama atau email" maxLength={100} error={errors.aktor} />
+                        <Input name="aktor" label="Aktor" defaultValue={filters.aktor} placeholder="Nama, email, atau identitas operator" maxLength={100} error={errors.aktor} />
                         <Input name="tindakan" label="Tindakan" defaultValue={filters.tindakan} placeholder="Mis. ditolak" maxLength={100} error={errors.tindakan} />
                         <Input name="objek_tipe" label="Jenis objek" defaultValue={filters.objek_tipe} placeholder="Mis. rencana_aksi" maxLength={100} error={errors.objek_tipe} />
                         <Input name="objek_id" label="ID objek" defaultValue={filters.objek_id} placeholder="UUID objek" error={errors.objek_id} />
@@ -112,13 +114,11 @@ export default function AuditIndex({ audit, filters }: AuditIndexProps) {
                                             <p className="break-all font-mono text-muted">{baris.objek_id}</p>
                                         </TableCell>
                                         <TableCell className={`${cellClass} md:text-right`}>
-                                            <Link
-                                                href={`/audit/${baris.id}`}
-                                                aria-label={`Lihat detail audit ${baris.tindakan}`}
-                                                className="text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                            >
-                                                Detail
-                                            </Link>
+                                            <Tooltip content="Lihat detail" align="right">
+                                                <Link href={`/audit/${baris.id}`} aria-label={`Lihat detail audit ${baris.tindakan}`} className={iconAction}>
+                                                    <Eye className="h-4 w-4" aria-hidden="true" />
+                                                </Link>
+                                            </Tooltip>
                                         </TableCell>
                                     </TableRow>
                                 ))}
