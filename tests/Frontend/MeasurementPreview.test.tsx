@@ -50,11 +50,11 @@ it('menampilkan penyebut nol dan kegagalan tanpa menyajikan angka lama sebagai h
     const request = vi.spyOn(http.getClient(), 'request').mockResolvedValueOnce({ status: 200, data: JSON.stringify({ nilai: null, status_perhitungan: 'tidak_dapat_dihitung' }), headers: {} });
     const props = { id: 'pengukuran-uji', satuan: '%', desimalTampilan: 2, komponen: [{ komponen_id: 'a', nilai: '0' }] };
     const { rerender } = render(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} />);
-    await screen.findByText('Tidak dapat dihitung');
+    await screen.findByText('Tidak Dapat Dihitung');
     request.mockRejectedValueOnce(new Error('Koneksi putus'));
     rerender(<CalculationPreview paused={false} onRecovery={onRecovery} {...props} komponen={[{ komponen_id: 'a', nilai: '' }]} />);
     await screen.findByText(/Pratinjau belum tersedia/);
-    expect(screen.queryByText('Tidak dapat dihitung')).toBeNull();
+    expect(screen.queryByText('Tidak Dapat Dihitung')).toBeNull();
 });
 
 

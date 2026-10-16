@@ -14,7 +14,8 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import type { LampiranDraft } from '@/types/lampiran';
-import { statusPerhitungan, type Pengukuran } from './types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import type { Pengukuran } from './types';
 import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -29,6 +30,26 @@ export default function PengukuranEdit(props: PengukuranEditProps) {
     return <PengukuranForm key={props.pengukuran.id} {...props} />;
 }
 
+/** Isi form dari data tersimpan: nilai awal useForm sekaligus tampilan form baca-saja. */
+const nilaiTersimpan = (pengukuran: Pengukuran) => ({
+    versi: pengukuran.versi,
+    nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
+    komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
+    catatan: pengukuran.catatan || '',
+    // Penanda hanya berasal dari BDD tersimpan; status numerik selalu dihitung ulang server.
+    status_perhitungan: (pengukuran.status_perhitungan === 'belum_dapat_diukur' ? 'belum_dapat_diukur' : null) as 'belum_dapat_diukur' | null,
+    progres_kegiatan: pengukuran.progres_kegiatan ?? '',
+    kendala_masalah: pengukuran.kendala_masalah ?? '',
+    strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
+    tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
+    alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
+    jenis_berkas_id: '',
+    menggantikan_id: '',
+    alasan_koreksi: '',
+    lampiran: [] as LampiranDraft[],
+    action: 'draft' as 'draft' | 'ajukan',
+});
+
 function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const formatNilai = useFormatNilai();
     const labelUnit = useLabelUnit();
@@ -38,25 +59,13 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const manual = pengukuran.sumber_nilai !== 'komponen';
     const errorSummary = useRef<HTMLUListElement>(null);
     const [requestError, setRequestError] = useState('');
+    const [previewStatus, setPreviewStatus] = useState<Pengukuran['status_perhitungan'] | null>(null);
     const recovery = useAuthRecovery();
-    const { data, setData, transform, post, processing, errors } = useForm({
-        versi: pengukuran.versi,
-        nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
-        komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
-        catatan: pengukuran.catatan || '',
-        // Penanda hanya berasal dari BDD tersimpan; status numerik selalu dihitung ulang server.
-        status_perhitungan: (pengukuran.status_perhitungan === 'belum_dapat_diukur' ? 'belum_dapat_diukur' : null) as 'belum_dapat_diukur' | null,
-        progres_kegiatan: pengukuran.progres_kegiatan ?? '',
-        kendala_masalah: pengukuran.kendala_masalah ?? '',
-        strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
-        tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
-        alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
-        jenis_berkas_id: '',
-        menggantikan_id: '',
-        alasan_koreksi: '',
-        lampiran: [] as LampiranDraft[],
-        action: 'draft' as 'draft' | 'ajukan',
-    });
+    const form = useForm(nilaiTersimpan(pengukuran));
+    const { setData, transform, post, processing, errors } = form;
+    // Simpan yang ditolak mengganti props tanpa remount (POST useForm memakai preserveState), jadi form baca-saja membaca nilai
+    // tersimpan, bukan input lokal yang tidak pernah masuk. Tanpa remount, galat penolakan tetap tampil dan input form yang masih dapat diubah tetap utuh.
+    const data = can.update ? form.data : nilaiTersimpan(pengukuran);
     const { handleHttpException } = recovery;
     const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => {
         handleHttpException(response, {
@@ -69,6 +78,10 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const disabled = !can.update || historical || processing;
     const unmeasurable = data.status_perhitungan !== null;
     const valueDisabled = disabled || unmeasurable;
+    // Pratinjau sukses terakhir mengungguli status tersimpan selama form dapat diubah; pratinjau gagal mengosongkannya. State lokal (pratinjau dan centang BDD)
+    // bertahan lintas POST tanpa remount, jadi form baca-saja selalu mengikuti status tersimpan atau beku.
+    const statusAlasan = can.update ? (unmeasurable ? null : previewStatus ?? pengukuran.status_perhitungan) : pengukuran.status_perhitungan;
+    const tampilAlasan = !manual && statusAlasan === 'tidak_dapat_dihitung';
     const rekomendasi = pengukuran.rekomendasi_sebelumnya;
     const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
     const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
@@ -141,7 +154,10 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                     <CardContent className="space-y-4">
                         {/* Pilihan dan kembali ke mode nilai sama-sama mengosongkan input dalam satu pembaruan agar angka lama tidak terkirim diam-diam. */}
                         {!pengukuran.periode_jadwal.is_nilai_akhir && <div className="flex items-center gap-3">
-                            <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }))} />
+                            <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => {
+                                setPreviewStatus(null);
+                                setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }));
+                            }} />
                             <label htmlFor="belum-dapat-diukur" className="cursor-pointer text-sm font-medium text-ink">Belum dapat diukur</label>
                         </div>}
                         {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={valueDisabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
@@ -149,9 +165,9 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
                             {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={valueDisabled} helperText={`${peranKomponenLabel[item.peran] ?? item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
                         </div>}
                         {/* Pratinjau dilepas saat BDD: cleanup membatalkan request dan respons basi diabaikan. */}
-                        {!manual && can.update && !historical && !unmeasurable && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
-                        <p className="break-words text-sm text-muted">Hasil terakhir tersimpan: <span className="font-semibold text-ink">{pengukuran.nilai === null ? statusPerhitungan[pengukuran.status_perhitungan] : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</span></p>
-                        {!manual && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={valueDisabled} helperText="Isi alasan jika penyebut faktual bernilai nol. Komponen kosong tetap harus dilengkapi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
+                        {!manual && can.update && !historical && !unmeasurable && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} onResult={setPreviewStatus} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
+                        <p className="break-words text-sm text-muted">Hasil terakhir tersimpan: <span className="font-semibold text-ink">{pengukuran.nilai === null ? <StatusPerhitunganBadge status={pengukuran.status_perhitungan} /> : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</span></p>
+                        {tampilAlasan && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={valueDisabled} helperText="Wajib diisi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
                         <Textarea name="catatan" label="Catatan" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
                     </CardContent>
                 </Card>

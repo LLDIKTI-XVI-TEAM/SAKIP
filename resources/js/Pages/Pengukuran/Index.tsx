@@ -7,7 +7,7 @@ import { Button } from '@/Components/Button';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { BarisPengukuran, KonteksPengukuran, PilihanJadwalPengukuran } from './types';
-import { statusPerhitungan } from './types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { useFormatNilai } from './formatNilai';
 
@@ -81,7 +81,7 @@ function StatusBaris({ baris }: { baris: BarisPengukuran }) {
     return (
         <div className="flex flex-col items-start gap-1">
             <Badge status={p.status} size="sm" />
-            <span className="text-xs text-muted">{statusPerhitungan[p.status_perhitungan]} · {p.bukti_count} bukti</span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted"><StatusPerhitunganBadge status={p.status_perhitungan} size="sm" /> · {p.bukti_count} bukti</span>
             {p.self_approval && <span className="text-xs font-medium text-info-dark">Persetujuan sendiri</span>}
             {p.reviu_terlambat && <span className="text-xs font-medium text-warning-dark">Reviu terlambat</span>}
         </div>
