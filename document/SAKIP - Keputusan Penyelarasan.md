@@ -19,6 +19,8 @@ Basis commit sebelum pembaruan Q53: `80d32e533382446471469c5b3af6f6af387bec85`
 
 Basis commit sebelum pembaruan Q54: `fe79a3136d38382c9bb4e9ae6a20ed182cc68d2d`
 
+Basis commit sebelum pembaruan Q55: `32d54f628198d8a8f0e0bb1c3fe65fe27d332833`
+
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
 ---
@@ -59,6 +61,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Keputusan 15 Oktober 2026 (Q53)** menetapkan bahwa Penetapan Peran tidak dapat menurunkan peran superadmin aktif terakhir, melengkapi Q38 §38.2.
 
 **Keputusan 16 Oktober 2026 (Q54)** menetapkan definisi unit berizin untuk detail Rencana Aksi dan Kegiatan serta mensyaratkan izin baca bagi izin tulis kegiatan, mempertegas Q12 dan Q49 §49.3.
+
+**Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan dan token rekomendasi pada pengajuan pengukuran, melengkapi Q51.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -1566,6 +1570,27 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: PRD §7.2–§7.4 dan §15.1; Workflow §8 butir 9; Data Model §2.3; User Stories dan User Issues US/ISS-06.01.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan menunggu bersama Q38–Q52.
 - Implementasi dibawa PR Issue #102.
+
+---
+
+# Keputusan Q55 — Draf, Token, dan Pembekuan Rekomendasi Pimpinan
+
+**Keputusan PM, 16 Oktober 2026**, untuk [ISS-09.01 / Issue #103](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/103). Melengkapi Q51 §51.1–§51.2.
+
+## 55.1 Aturan
+
+1. Setiap indikator × tahun × periode memiliki paling banyak satu draf rekomendasi terbuka. Menyimpan draf saat draf sudah ada mengubah draf tersebut, dan perubahannya tercatat di `audit_log`. Batasan ini ditegakkan basis data, bukan hanya aplikasi.
+2. Kolom `rekomendasi_pimpinan.versi` (integer, default 1) dinaikkan setiap kali draf diubah atau disetujui. Penyimpanan dan persetujuan mengirim versi draf yang dilihat pengguna. Bila draf sudah berubah, sudah disetujui, atau baru dibuat pengguna lain, permintaan ditolak sebagai konflik versi tanpa mengubah data, dan penolakannya tercatat di `audit_log`.
+3. Penyimpanan dan persetujuan juga mengirim rekomendasi berlaku yang dilihat pengguna, atau penanda bahwa belum ada. Bila rekomendasi berlaku sudah diganti pengguna lain, permintaan ditolak sebagai konflik versi dengan cara yang sama. Penetapan pada indikator × tahun × periode yang sama dijalankan satu per satu.
+4. Peran selain Pimpinan yang memegang `rekomendasi:tetapkan` juga dapat menulis rekomendasi yang langsung disetujui; persetujuan tersebut diberi penanda cadangan (Q51 §51.2 butir 2), dan pencatatan data awal 2026 memakai jalur ini (Q51 §51.1 butir 5). Draf tidak diwajibkan lebih dulu karena penyusun tetap dapat langsung menyetujui drafnya sendiri.
+5. Versi pengajuan pengukuran membekukan rekomendasi periode sebelumnya yang tampil bersama tindak lanjutnya. Rekomendasi yang disetujui atau direvisi setelah pengajuan tidak mengubah tampilan versi itu.
+6. Pengajuan pengukuran mengirim rekomendasi periode sebelumnya yang ditampilkan form, atau penanda bahwa tidak ada. Bila rekomendasi yang berlaku sudah berbeda saat pengajuan diproses, pengajuan ditolak sebagai konflik tanpa membentuk versi dan penolakannya tercatat di `audit_log`; rekomendasi yang diperiksa itulah yang dibekukan (butir 5).
+
+## 55.2 Dampak dan traceability
+
+- Diselaraskan: Data Model §2.31 dan §2.32, PRD §22.1, Workflow §17, User Stories US-09.01, dan User Issues ISS-09.01.
+- Status keputusan: baseline kerja PM.
+- Q55 adalah keputusan teknis ISS-09.01; implementasinya dibawa PR untuk Issue #103.
 
 ---
 

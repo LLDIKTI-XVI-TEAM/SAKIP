@@ -304,7 +304,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         await user.type(screen.getByRole('textbox', { name: 'Tindak lanjut/strategi penyelesaian' }), 'Percepat rekap');
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         const payload = vi.mocked(router.post).mock.calls[0][1];
-        expect(payload).toMatchObject({ status_perhitungan: null, progres_kegiatan: 'Progres lama', kendala_masalah: 'Data terlambat', strategi_tindak_lanjut: 'Percepat rekap' });
+        expect(payload).toMatchObject({ status_perhitungan: null, progres_kegiatan: 'Progres lama', kendala_masalah: 'Data terlambat', strategi_tindak_lanjut: 'Percepat rekap', rekomendasi_sebelumnya_id: null });
         expect(payload).not.toHaveProperty('tindak_lanjut_rekomendasi');
 
         await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ versi: 'Data telah berubah. Muat ulang halaman.', kendala_masalah: 'Kendala/masalah maksimal 10000 karakter.' }); });
@@ -319,7 +319,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         const { rerender } = render(<PengukuranEdit pengukuran={{ ...measurement, rekomendasi_sebelumnya: rekomendasi, tindak_lanjut_rekomendasi: 'Monitoring berjalan' }} />);
         expect(screen.getByText(/Perkuat monitoring bulanan/)).toBeTruthy();
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ tindak_lanjut_rekomendasi: 'Monitoring berjalan' });
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ tindak_lanjut_rekomendasi: 'Monitoring berjalan', rekomendasi_sebelumnya_id: 'rek-1' });
 
         rerender(<PengukuranEdit pengukuran={{ ...measurement, rekomendasi_sebelumnya: null, tindak_lanjut_rekomendasi: 'Monitoring berjalan' }} />);
         expect(screen.queryByRole('textbox', { name: 'Tindak lanjut rekomendasi' })).toBeNull();

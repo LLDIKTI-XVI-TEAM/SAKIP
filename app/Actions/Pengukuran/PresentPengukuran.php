@@ -8,13 +8,14 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use App\Services\Rekomendasi\RekomendasiBerlaku;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private PengukuranKinerjaPolicy $policy) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -120,6 +121,7 @@ class PresentPengukuran
             // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
             $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
         }
+        $data['rekomendasi_sebelumnya'] = $frozen ? ($frozen['rekomendasi_sebelumnya'] ?? null) : $this->rekomendasi->tampilanSebelum($p);
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
