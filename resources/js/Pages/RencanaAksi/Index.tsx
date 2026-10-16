@@ -103,7 +103,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                             <TableRow>
                                 <TableCell colSpan={6} className="py-12 text-center text-sm text-muted">
                                     <ClipboardList className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                    <p className="mt-2 font-semibold text-ink">Belum ada indikator pada jadwal aktif.</p>
+                                    <p className="mt-2 font-semibold text-ink">Belum ada indikator pada jadwal aktif untuk unit yang dapat Anda akses.</p>
                                 </TableCell>
                             </TableRow>
                         ) : (
