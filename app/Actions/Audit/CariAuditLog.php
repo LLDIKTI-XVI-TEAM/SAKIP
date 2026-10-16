@@ -32,8 +32,10 @@ class CariAuditLog
         $audit = AuditLog::query()->with('actor:id,nama,email')
             ->when($filters['dari'] !== '', fn (Builder $query) => $query->where('waktu', '>=', $this->awalHari($filters['dari'])))
             ->when($filters['sampai'] !== '', fn (Builder $query) => $query->where('waktu', '<', $this->awalHari($filters['sampai'])->addDay()))
-            ->when($filters['aktor'] !== '', fn (Builder $query) => $query->whereHas('actor', fn (Builder $actor) => $actor
-                ->whereAny(['nama', 'email'], 'ilike', $mengandung($filters['aktor']))))
+            // Pelaku system/operator tidak punya actor_id; provenance-nya dicari dari kolom referensi.
+            ->when($filters['aktor'] !== '', fn (Builder $query) => $query->where(fn (Builder $aktor) => $aktor
+                ->whereHas('actor', fn (Builder $actor) => $actor->whereAny(['nama', 'email'], 'ilike', $mengandung($filters['aktor'])))
+                ->orWhereAny(['operator_reference', 'runtime_identity'], 'ilike', $mengandung($filters['aktor']))))
             ->when($filters['tindakan'] !== '', fn (Builder $query) => $query->where('tindakan', 'ilike', $mengandung($filters['tindakan'])))
             ->when($filters['objek_tipe'] !== '', fn (Builder $query) => $query->where('objek_tipe', $filters['objek_tipe']))
             ->when($filters['objek_id'] !== '', fn (Builder $query) => $query->where('objek_id', $filters['objek_id']))

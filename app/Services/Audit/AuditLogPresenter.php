@@ -15,8 +15,8 @@ final class AuditLogPresenter
 {
     public const DISAMARKAN = '[disamarkan]';
 
-    /** Kunci token/password/secret/authorization/credential, serta `path` atau `*_path` (jalur storage privat). */
-    private const KUNCI_RAHASIA = '/token|password|secret|authorization|credential|(^|_)path$/i';
+    /** Kunci token/password/secret/authorization/credential, api/access/private key, serta `path` atau `*_path` (jalur storage privat). */
+    private const KUNCI_RAHASIA = '/token|password|secret|authorization|credential|(api|access|private)[_-]?key|(^|_)path$/i';
 
     /**
      * Ringkasan baris daftar tanpa payload perubahan.

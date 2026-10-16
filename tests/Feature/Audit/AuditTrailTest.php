@@ -106,6 +106,23 @@ class AuditTrailTest extends TestCase
         $this->assertIds('/audit?objek_tipe=renstra&objek_id='.$objek, [$awal, $lama]);
     }
 
+    public function test_filter_aktor_mencakup_provenance_operator_dan_sistem(): void
+    {
+        $writer = app(WriteAuditLog::class);
+        $operator = $writer->handle(['actor_type' => 'operator', 'actor_id' => null, 'sumber' => 'bootstrap', 'operator_reference' => 'tiket-OPS-77',
+            'runtime_identity' => 'cli@sakip-uji', 'tindakan' => 'auth.bootstrap', 'objek_tipe' => 'users', 'objek_id' => $this->reader->id, 'alasan' => 'Bootstrap sintetis.']);
+        $sistem = $writer->handle(['actor_type' => 'system', 'actor_id' => null, 'sumber' => 'preset_release', 'runtime_identity' => 'rilis-preset-uji',
+            'tindakan' => 'role_permissions.ubah', 'objek_tipe' => 'roles', 'objek_id' => Role::where('kode', 'admin')->value('id'), 'alasan' => 'Rilis preset sintetis.']);
+        $this->actingAs($this->reader);
+
+        $this->assertIds('/audit?aktor=ops-77', [$operator]);
+        $this->assertIds('/audit?aktor=cli@sakip-uji', [$operator]);
+        $this->assertIds('/audit?aktor=rilis-preset-uji', [$sistem]);
+        // Pencarian provenance tidak menyeret baris pengguna yang tidak cocok.
+        $this->get('/audit?aktor=rilis-preset-uji')->assertInertia(fn (Assert $page) => $page
+            ->where('audit.data.0.aktor', null)->where('audit.data.0.actor_type', 'system'));
+    }
+
     public function test_filter_tidak_sah_ditolak_validasi(): void
     {
         $this->actingAs($this->reader);
@@ -171,7 +188,7 @@ class AuditTrailTest extends TestCase
     {
         $audit = $this->audit($this->reader, 'pengaturan.ubah', '2031-01-01 00:00:00', [
             'nilai_lama' => ['nama' => 'Lama', 'access_token' => 'canary-token-lama'],
-            'nilai_baru' => ['nama' => 'Baru', 'Authorization' => 'Bearer canary-bearer', 'password' => 'canary-password',
+            'nilai_baru' => ['nama' => 'Baru', 'Authorization' => 'Bearer canary-bearer', 'password' => 'canary-password', 'api_key' => 'canary-apikey',
                 'lampiran' => [['path' => 'berkas/x/canary-path.pdf', 'nama_asli' => 'surat.pdf', 'storage_path' => 'canary-storage']]],
             'dasar_izin' => ['permission' => 'pengaturan:update', 'client_secret' => 'canary-secret', 'credentials' => ['user' => 'canary-credential']],
         ]);
@@ -179,13 +196,18 @@ class AuditTrailTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->where('audit.nilai_lama', ['nama' => 'Lama', 'access_token' => AuditLogPresenter::DISAMARKAN])
             ->where('audit.nilai_baru.Authorization', AuditLogPresenter::DISAMARKAN)->where('audit.nilai_baru.password', AuditLogPresenter::DISAMARKAN)
+            ->where('audit.nilai_baru.api_key', AuditLogPresenter::DISAMARKAN)
             ->where('audit.nilai_baru.lampiran.0', ['path' => AuditLogPresenter::DISAMARKAN, 'nama_asli' => 'surat.pdf', 'storage_path' => AuditLogPresenter::DISAMARKAN])
             ->where('audit.dasar_izin', ['permission' => 'pengaturan:update', 'client_secret' => AuditLogPresenter::DISAMARKAN, 'credentials' => AuditLogPresenter::DISAMARKAN]));
-        foreach (['canary-token-lama', 'canary-bearer', 'canary-password', 'canary-path', 'canary-storage', 'canary-secret', 'canary-credential'] as $canary) {
+        foreach (['canary-token-lama', 'canary-bearer', 'canary-password', 'canary-apikey', 'canary-path', 'canary-storage', 'canary-secret', 'canary-credential'] as $canary) {
             $this->assertStringNotContainsString($canary, $response->getContent());
         }
+        // Variasi penamaan kunci kredensial ikut disamarkan, termasuk kunci setelan bertitik.
+        $this->assertSame(array_fill_keys(['apikey', 'API-Key', 'private_key', 'accessKey', 'integrasi.api_key'], AuditLogPresenter::DISAMARKAN),
+            AuditLogPresenter::samarkan(array_fill_keys(['apikey', 'API-Key', 'private_key', 'accessKey', 'integrasi.api_key'], 'canary')));
         // Kunci yang hanya mirip tidak ikut disamarkan.
-        $this->assertSame(['jalur_pengajuan' => 'pic', 'pathway' => 'x'], AuditLogPresenter::samarkan(['jalur_pengajuan' => 'pic', 'pathway' => 'x']));
+        $this->assertSame(['jalur_pengajuan' => 'pic', 'pathway' => 'x', 'primary_key' => 'id', 'kunci' => 'nama'],
+            AuditLogPresenter::samarkan(['jalur_pengajuan' => 'pic', 'pathway' => 'x', 'primary_key' => 'id', 'kunci' => 'nama']));
 
         $superadmin = $this->user('superadmin');
         app(AssignRole::class)->handle($superadmin, $this->user()->id, Role::where('kode', 'pegawai')->value('id'), 'Penetapan awal.', null);
