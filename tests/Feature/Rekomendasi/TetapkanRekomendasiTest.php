@@ -57,7 +57,7 @@ class TetapkanRekomendasiTest extends TestCase
         $pimpinan = $this->userWithRole('pimpinan');
 
         $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'Arahan langsung.'])->assertSessionHasNoErrors();
-        $this->tetapkan($pimpinan, ['isi' => 'Draf Pimpinan.'])->assertSessionHasNoErrors();
+        $this->tetapkan($pimpinan, ['isi' => 'Draf Pimpinan.', 'berlaku_id' => RekomendasiPimpinan::sole()->id])->assertSessionHasNoErrors();
 
         $langsung = RekomendasiPimpinan::where('status', 'disetujui')->sole();
         $this->assertSame([$pimpinan->id, $pimpinan->id, 'pimpinan'], [$langsung->ditetapkan_oleh, $langsung->disetujui_oleh, $langsung->disetujui_oleh_role]);
@@ -71,7 +71,7 @@ class TetapkanRekomendasiTest extends TestCase
         $this->tetapkan($perencanaan, ['isi' => 'Draf awal.']);
 
         $this->tetapkan($perencanaan, ['status' => 'disetujui', 'isi' => 'Draf awal.', 'versi_draf' => 1])->assertSessionHasNoErrors();
-        $this->tetapkan($this->actor, ['status' => 'disetujui', 'isi' => 'Disetujui Superadmin.'])->assertSessionHasNoErrors();
+        $this->tetapkan($this->actor, ['status' => 'disetujui', 'isi' => 'Disetujui Superadmin.', 'berlaku_id' => RekomendasiPimpinan::sole()->id])->assertSessionHasNoErrors();
 
         $rows = RekomendasiPimpinan::orderBy('disetujui_pada')->orderBy('id')->get()->keyBy('disetujui_oleh_role');
         $this->assertEqualsCanonicalizing(['perencanaan', 'superadmin'], $rows->keys()->all());
@@ -104,15 +104,36 @@ class TetapkanRekomendasiTest extends TestCase
         $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'Versi pertama.']);
         $lama = RekomendasiPimpinan::sole();
 
-        $this->tetapkan($perencanaan, ['isi' => 'Usulan perubahan.'])->assertSessionHasNoErrors();
-        $this->tetapkan($perencanaan, ['isi' => 'Usulan perubahan revisi.', 'versi_draf' => 1])->assertSessionHasNoErrors();
+        $this->tetapkan($perencanaan, ['isi' => 'Usulan perubahan.', 'berlaku_id' => $lama->id])->assertSessionHasNoErrors();
+        $this->tetapkan($perencanaan, ['isi' => 'Usulan perubahan revisi.', 'versi_draf' => 1, 'berlaku_id' => $lama->id])->assertSessionHasNoErrors();
         $this->assertSame(2, RekomendasiPimpinan::where('status', 'draf')->sole()->versi);
         $this->assertSame(['Usulan perubahan.', 1], [AuditLog::where('tindakan', 'rekomendasi_pimpinan.ubah_draf')->sole()->nilai_lama['isi'], AuditLog::where('tindakan', 'rekomendasi_pimpinan.ubah_draf')->sole()->nilai_lama['versi']]);
-        $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'Versi kedua.', 'versi_draf' => 2])->assertSessionHasNoErrors();
+        $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'Versi kedua.', 'versi_draf' => 2, 'berlaku_id' => $lama->id])->assertSessionHasNoErrors();
 
         $this->assertSame(2, RekomendasiPimpinan::where('status', 'disetujui')->count());
         $this->assertSame(0, RekomendasiPimpinan::where('status', 'draf')->count());
         $this->assertSame($lama->getRawOriginal(), $lama->fresh()->getRawOriginal());
+    }
+
+    public function test_perubahan_dari_tampilan_rekomendasi_berlaku_yang_basi_ditolak_409(): void
+    {
+        $pimpinan = $this->userWithRole('pimpinan');
+        $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'R1.'])->assertSessionHasNoErrors();
+        $r1 = RekomendasiPimpinan::sole()->id;
+        $this->tetapkan($this->userWithRole('perencanaan'), ['status' => 'disetujui', 'isi' => 'R2.', 'berlaku_id' => $r1])->assertSessionHasNoErrors();
+        $r2 = RekomendasiPimpinan::where('isi', 'R2.')->value('id');
+
+        foreach ([$r1, null] as $dilihat) {
+            foreach (['disetujui', 'draf'] as $status) {
+                $this->actingAs($pimpinan)->postJson('/rekomendasi', $this->payload(['status' => $status, 'isi' => 'R1 disunting.', 'berlaku_id' => $dilihat]))
+                    ->assertStatus(409)->assertJsonValidationErrors('konflik');
+            }
+        }
+        $this->assertSame(2, RekomendasiPimpinan::count());
+        $this->assertSame(4, AuditLog::where('tindakan', 'rekomendasi_pimpinan.tetapkan_ditolak')->get()->where('nilai_baru.alasan_penolakan', 'konflik_versi')->count());
+
+        $this->tetapkan($pimpinan, ['status' => 'disetujui', 'isi' => 'R3.', 'berlaku_id' => strtoupper($r2)])->assertSessionHasNoErrors();
+        $this->assertSame('R3.', RekomendasiPimpinan::where('status', 'disetujui')->orderByDesc('disetujui_pada')->orderByDesc('id')->value('isi'));
     }
 
     public function test_hanya_pemegang_izin_yang_dapat_menetapkan_dan_penolakan_diaudit(): void

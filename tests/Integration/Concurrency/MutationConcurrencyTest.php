@@ -34,6 +34,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\Regulasi;
+use App\Models\RekomendasiPimpinan;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
@@ -1579,6 +1580,31 @@ class MutationConcurrencyTest extends TestCase
         $child = IndikatorKomponen::create(['indikator_id' => $parent->id, 'kode' => 'a', 'label' => 'A', 'peran' => 'penjumlah', 'bobot' => '1', 'urutan' => 1, 'aktif' => true, 'created_by' => $actor->id]);
 
         return [$actor, $parent, $child];
+    }
+
+    /** Persetujuan langsung atau draf baru bersamaan: pemenang berlaku, yang kalah membaca hasilnya dan ditolak sebagai konflik versi. */
+    #[DataProvider('rekomendasiBersamaan')]
+    public function test_dua_penetapan_rekomendasi_bersamaan_satu_berhasil_dan_satu_konflik(string $status): void
+    {
+        [$operator, $indicator, , $measurement] = $this->submittableMeasurementFixture();
+        $pimpinan = User::factory()->create(['status' => 'aktif']);
+        $pimpinan->roles()->attach(Role::where('kode', 'pimpinan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        $payload = fn (User $actor, string $isi) => ['actor_id' => $actor->id, 'data' => ['indikator_id' => $indicator->id, 'tahun' => 2026,
+            'periode_id' => $measurement->periode_id, 'status' => $status, 'isi' => $isi, 'berlaku_id' => null, 'versi_draf' => null]];
+
+        // Kunci katalog izin menahan kedua aktor berbeda sebelum kombinasi rekomendasi dibaca.
+        $results = $this->race('rekomendasi-tetapkan', $indicator->id, '', [$payload($operator, 'Dari Perencanaan.'), $payload($pimpinan, 'Dari Pimpinan.')],
+            prepare: fn () => Permission::where('kode', 'rekomendasi:tetapkan')->lockForUpdate()->firstOrFail());
+
+        sort($results);
+        $this->assertSame(['conflict', $status], $results);
+        $this->assertSame(1, RekomendasiPimpinan::count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'rekomendasi_pimpinan.tetapkan_ditolak')->get()->where('nilai_baru.alasan_penolakan', 'konflik_versi')->count());
+    }
+
+    public static function rekomendasiBersamaan(): array
+    {
+        return [['disetujui'], ['draf']];
     }
 
     /**

@@ -70,6 +70,8 @@ function FormRekomendasi({ baris, cadangan, onClose }: { baris: BarisRekomendasi
     const form = useForm({
         indikator_id: baris.indikator.id, tahun: baris.tahun, periode_id: baris.periode_id, status: 'draf',
         isi: baris.draf?.isi ?? baris.berlaku?.isi ?? '', rujukan_sumber: baris.draf?.rujukan_sumber ?? '', versi_draf: baris.draf?.versi ?? null,
+        // Rekomendasi berlaku yang dilihat; server menolak bila sudah diganti pengguna lain.
+        berlaku_id: baris.berlaku?.id ?? null,
     });
     // Konflik versi dan penolakan field di luar kontrak dikirim server dengan key di luar data form.
     const galat = form.errors as Record<string, string | undefined>;

@@ -6,6 +6,7 @@ use App\Models\RekomendasiPimpinan;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Rekomendasi\RekomendasiBerlaku;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Carbon\CarbonImmutable;
@@ -19,14 +20,15 @@ class TetapkanRekomendasi
 {
     private const KONFLIK = 'Rekomendasi telah diperbarui pengguna lain. Muat ulang halaman sebelum menyimpan.';
 
-    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Simpan draf atau setujui rekomendasi satu indikator × tahun × periode; keduanya memakai izin yang sama dan
-     * dibedakan oleh status (Q51 §51.2 butir 1). Draf terbuka diubah di tempat dengan token versi (Q54); baris
-     * disetujui tidak pernah diubah, sehingga perubahan berikutnya membentuk baris baru.
+     * dibedakan oleh status (Q51 §51.2 butir 1). Draf terbuka diubah di tempat dengan token versi, dan permintaan
+     * membawa rekomendasi berlaku yang dilihat pengguna agar tampilan basi ditolak (Q55); baris disetujui tidak pernah
+     * diubah, sehingga perubahan berikutnya membentuk baris baru.
      *
-     * @param  array{indikator_id: string, tahun: int|string, periode_id: string, status: string, isi: string, rujukan_sumber?: ?string, versi_draf?: int|string|null}  $data
+     * @param  array{indikator_id: string, tahun: int|string, periode_id: string, status: string, isi: string, rujukan_sumber?: ?string, versi_draf?: int|string|null, berlaku_id?: ?string}  $data
      */
     public function handle(User $actor, array $data): RekomendasiPimpinan
     {
@@ -43,9 +45,12 @@ class TetapkanRekomendasi
                     if (! $this->diukur($kunci)) {
                         throw ValidationException::withMessages(['periode_id' => 'Indikator tidak diukur pada tahun dan periode yang dipilih.']);
                     }
+                    // Satu penulis per kombinasi: draf dan rekomendasi berlaku yang dibaca tidak berubah sampai commit.
+                    DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:rekomendasi:'.implode(':', $kunci)]);
                     $draf = RekomendasiPimpinan::where($kunci)->where('status', RekomendasiPimpinan::STATUS_DRAF)->lockForUpdate()->first();
                     $versi = isset($data['versi_draf']) ? (int) $data['versi_draf'] : null;
-                    if ($draf?->versi !== $versi) {
+                    $berlaku = isset($data['berlaku_id']) ? strtolower($data['berlaku_id']) : null;
+                    if ($draf?->versi !== $versi || $this->rekomendasi->untuk($kunci['indikator_id'], $kunci['tahun'], $kunci['periode_id'])?->id !== $berlaku) {
                         throw ValidationException::withMessages(['konflik' => self::KONFLIK])->status(409);
                     }
 

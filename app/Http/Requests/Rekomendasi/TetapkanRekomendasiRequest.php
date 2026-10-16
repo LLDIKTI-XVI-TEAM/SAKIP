@@ -7,7 +7,7 @@ use App\Models\RekomendasiPimpinan;
 use App\Support\PermissionCodes;
 use Illuminate\Validation\Rule;
 
-/** Penyusun, penyetuju, peran, dan waktu ditentukan server; klien hanya mengirim isi, target status, dan token draf. */
+/** Penyusun, penyetuju, peran, dan waktu ditentukan server; klien hanya mengirim isi, target status, token draf, dan rekomendasi berlaku yang dilihat. */
 class TetapkanRekomendasiRequest extends PeriodeJadwalMutationRequest
 {
     public function permissionCode(): string
@@ -30,6 +30,7 @@ class TetapkanRekomendasiRequest extends PeriodeJadwalMutationRequest
             'isi' => ['required', 'string', 'max:10000'],
             'rujukan_sumber' => ['nullable', 'string', 'max:1000'],
             'versi_draf' => ['nullable', 'integer', 'min:1', 'max:2147483647'],
+            'berlaku_id' => ['nullable', 'uuid'],
         ];
     }
 
@@ -41,6 +42,6 @@ class TetapkanRekomendasiRequest extends PeriodeJadwalMutationRequest
     public function attributes(): array
     {
         return [...parent::attributes(), 'indikator_id' => 'Indikator', 'periode_id' => 'Periode', 'status' => 'Status rekomendasi',
-            'isi' => 'Isi rekomendasi', 'rujukan_sumber' => 'Rujukan sumber', 'versi_draf' => 'Versi draf'];
+            'isi' => 'Isi rekomendasi', 'rujukan_sumber' => 'Rujukan sumber', 'versi_draf' => 'Versi draf', 'berlaku_id' => 'Rekomendasi berlaku'];
     }
 }

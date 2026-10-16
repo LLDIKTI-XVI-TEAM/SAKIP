@@ -60,10 +60,10 @@ describe('Halaman Rekomendasi Pimpinan', () => {
         await user.click(screen.getByRole('button', { name: 'Setujui' }));
         expect(vi.mocked(router.post).mock.calls[0][0]).toBe('/rekomendasi');
         expect(vi.mocked(router.post).mock.calls[0][1]).toEqual({ indikator_id: 'ind-1', tahun: 2026, periode_id: 'per-1', status: 'disetujui',
-            isi: 'Isi final Pimpinan.', rujukan_sumber: 'Laporan Kinerja Triwulan I 2026', versi_draf: 3 });
+            isi: 'Isi final Pimpinan.', rujukan_sumber: 'Laporan Kinerja Triwulan I 2026', versi_draf: 3, berlaku_id: 'rek-Arahan terbaru.' });
 
         await user.click(screen.getByRole('button', { name: 'Simpan draf' }));
-        expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ status: 'draf', versi_draf: 3 });
+        expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ status: 'draf', versi_draf: 3, berlaku_id: 'rek-Arahan terbaru.' });
     });
 
     it('rekomendasi baru tanpa draf memakai token kosong, menandai persetujuan cadangan, dan menampilkan konflik', async () => {
@@ -75,7 +75,7 @@ describe('Halaman Rekomendasi Pimpinan', () => {
         await user.type(screen.getByRole('textbox', { name: 'Isi rekomendasi' }), 'Arahan langsung.');
         await user.type(screen.getByRole('textbox', { name: 'Rujukan sumber (opsional)' }), 'Laporan Kinerja Triwulan I 2026');
         await user.click(screen.getByRole('button', { name: 'Setujui' }));
-        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ status: 'disetujui', isi: 'Arahan langsung.', rujukan_sumber: 'Laporan Kinerja Triwulan I 2026', versi_draf: null });
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ status: 'disetujui', isi: 'Arahan langsung.', rujukan_sumber: 'Laporan Kinerja Triwulan I 2026', versi_draf: null, berlaku_id: null });
 
         await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ konflik: 'Rekomendasi telah diperbarui pengguna lain. Muat ulang halaman sebelum menyimpan.' }); });
         expect(screen.getByRole('alert').textContent).toContain('Muat ulang halaman');
