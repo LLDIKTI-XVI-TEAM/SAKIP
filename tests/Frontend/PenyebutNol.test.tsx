@@ -190,6 +190,21 @@ describe('Field alasan penyebut nol', () => {
         expect(screen.queryByText('Pratinjau · belum disimpan')).toBeNull();
     });
 
+    it('pratinjau gagal tidak mempertahankan hasil sukses untuk input lama', async () => {
+        const user = userEvent.setup();
+        pratinjau('terhitung', '75.00');
+        const { rerender } = render(<PengukuranEdit pengukuran={rasio} />);
+        await screen.findByText('75,00 %');
+        vi.mocked(http.getClient().request).mockRejectedValue(new Error('Koneksi putus'));
+        const penyebut = screen.getByRole('spinbutton', { name: /Penyebut/ });
+        await user.clear(penyebut);
+        await user.type(penyebut, '0');
+        await screen.findByText(/Pratinjau belum tersedia/);
+        // Simpan Draft memuat ulang props tanpa remount; server kini menyimpan TDD tanpa alasan.
+        rerender(<PengukuranEdit pengukuran={{ ...tersimpanTdd, versi: rasio.versi + 1, alasan_tidak_dapat_dihitung: null }} />);
+        expect(alasan()).not.toBeNull();
+    });
+
     it('pratinjau TDD lama tidak memunculkan field setelah Belum dapat diukur dilepas', async () => {
         const user = userEvent.setup();
         pratinjau('tidak_dapat_dihitung');
@@ -201,7 +216,7 @@ describe('Field alasan penyebut nol', () => {
         expect(alasan()).toBeNull();
     });
 
-    it('CalculationPreview hanya melaporkan hasil sukses terbaru', async () => {
+    it('CalculationPreview melaporkan hasil terbaru dan mengosongkannya saat gagal', async () => {
         const onResult = vi.fn();
         const request = vi.mocked(http.getClient().request);
         let finishOld: ((response: HttpResponse) => void) | undefined;
@@ -216,6 +231,6 @@ describe('Field alasan penyebut nol', () => {
         request.mockRejectedValueOnce(new Error('Koneksi putus'));
         rerender(<CalculationPreview {...props} komponen={[{ komponen_id: 'n', nilai: '' }]} />);
         await screen.findByText(/Pratinjau belum tersedia/);
-        expect(onResult.mock.calls).toEqual([['tidak_dapat_dihitung']]);
+        expect(onResult.mock.calls).toEqual([['tidak_dapat_dihitung'], [null]]);
     });
 });

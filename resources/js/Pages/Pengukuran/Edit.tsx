@@ -78,7 +78,7 @@ function PengukuranForm({ pengukuran }: PengukuranEditProps) {
     const disabled = !can.update || historical || processing;
     const unmeasurable = data.status_perhitungan !== null;
     const valueDisabled = disabled || unmeasurable;
-    // Pratinjau sukses terakhir mengungguli status tersimpan selama form dapat diubah. State lokal (pratinjau dan centang BDD)
+    // Pratinjau sukses terakhir mengungguli status tersimpan selama form dapat diubah; pratinjau gagal mengosongkannya. State lokal (pratinjau dan centang BDD)
     // bertahan lintas POST tanpa remount, jadi form baca-saja selalu mengikuti status tersimpan atau beku.
     const statusAlasan = can.update ? (unmeasurable ? null : previewStatus ?? pengukuran.status_perhitungan) : pengukuran.status_perhitungan;
     const tampilAlasan = !manual && statusAlasan === 'tidak_dapat_dihitung';

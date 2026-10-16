@@ -4,7 +4,7 @@ import { useFormatNilai } from './formatNilai';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import type { Pengukuran } from './types';
 
-interface PreviewProps { id: string; komponen: { komponen_id: string; nilai: string }[]; satuan: string; desimalTampilan: number; paused: boolean; onRecovery: (response: HttpExceptionResponse) => void; onResult?: (status: Pengukuran['status_perhitungan']) => void }
+interface PreviewProps { id: string; komponen: { komponen_id: string; nilai: string }[]; satuan: string; desimalTampilan: number; paused: boolean; onRecovery: (response: HttpExceptionResponse) => void; onResult?: (status: Pengukuran['status_perhitungan'] | null) => void }
 type Result = Pick<Pengukuran, 'nilai' | 'status_perhitungan'>;
 
 export default function CalculationPreview({ id, komponen, satuan, desimalTampilan, paused, onRecovery, onResult }: PreviewProps) {
@@ -35,7 +35,11 @@ export default function CalculationPreview({ id, komponen, satuan, desimalTampil
                 const message = status === 403 ? 'Akses pratinjau ditolak. Periksa kembali izin dan status pengukuran.'
                     : status === 422 ? 'Input pratinjau tidak valid. Periksa nilai komponen atau simpan draf untuk melihat rincian validasi.'
                     : 'Pratinjau belum tersedia. Periksa koneksi dan coba ubah input lagi setelah layanan pulih.';
-                if (current) setPreview({ payload, error: message });
+                if (current) {
+                    setPreview({ payload, error: message });
+                    // Hasil sukses sebelumnya milik input lama sehingga tidak lagi berlaku.
+                    onResult?.(null);
+                }
             }
         }, 300);
         return () => { current = false; window.clearTimeout(timer); controller.abort(); };
