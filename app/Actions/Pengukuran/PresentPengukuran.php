@@ -147,7 +147,7 @@ class PresentPengukuran
             $data['prasyarat'] = ['siap' => true, 'alasan' => []];
             $data['persyaratan_bukti'] = $frozen['persyaratan_bukti'];
         } else {
-            $requirements = $this->prerequisites->handle($p);
+            $requirements = $this->prerequisites->handle($p, $data['rekomendasi_sebelumnya']);
             $data['prasyarat'] = ['siap' => $requirements['siap'], 'alasan' => $requirements['alasan']];
             $data['persyaratan_bukti'] = $requirements['persyaratan_bukti'];
             $data['target'] = $requirements['target'];

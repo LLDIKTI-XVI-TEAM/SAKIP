@@ -36,7 +36,7 @@ class SubmitPengukuran
                     throw ValidationException::withMessages(['rekomendasi_sebelumnya' => 'Rekomendasi periode sebelumnya telah berubah. Muat ulang halaman, periksa tindak lanjut, lalu ajukan kembali.'])->status(409);
                 }
                 $this->steps->storeInput($actor, $p, $snapshot, $data, $path, $decision);
-                $prerequisite = $this->prerequisites->handle($p, true, $plan, $period);
+                $prerequisite = $this->prerequisites->handle($p, $rekomendasi, true, $plan, $period);
                 if (! $prerequisite['siap']) {
                     throw ValidationException::withMessages($prerequisite['errors']);
                 }

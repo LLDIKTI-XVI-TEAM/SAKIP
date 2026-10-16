@@ -15,6 +15,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
@@ -84,6 +85,102 @@ class RekomendasiBerlakuTest extends TestCase
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, $this->pengajuan(strtoupper($pengganti)))->assertSessionHasNoErrors();
         $beku = $this->pengukuran->fresh()->latestVersion->snapshot['rekomendasi_sebelumnya'];
         $this->assertSame([$pengganti, 'Rekomendasi B.'], [$beku['id'], $beku['isi']]);
+    }
+
+    #[DataProvider('tindakLanjutKosong')]
+    public function test_rekomendasi_disetujui_menolak_tindak_lanjut_kosong_dan_checklist_memakai_gerbang_yang_sama(bool $lintasTahun, ?string $tindakLanjut): void
+    {
+        [$tahun, $periodeId] = $this->periodeSebelumnya($lintasTahun);
+        $rekomendasi = $this->rekomendasi($tahun, $periodeId, 'Lengkapi evaluasi.', now()->subDay());
+        $this->pengukuran->update(['nilai' => 75, 'status_perhitungan' => 'terhitung']);
+        $pesan = 'Tindak lanjut rekomendasi wajib diisi sebelum pengajuan.';
+
+        $this->actingAs($this->actor)->get('/pengukuran/'.$this->pengukuran->id.'/edit')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('pengukuran.prasyarat.siap', false)
+                ->where('pengukuran.prasyarat.alasan', [$pesan]));
+        $sebelum = $this->pengukuran->fresh()->getRawOriginal();
+        $this->postJson('/pengukuran/'.$this->pengukuran->id, [...$this->pengajuan($rekomendasi), 'tindak_lanjut_rekomendasi' => $tindakLanjut])
+            ->assertUnprocessable()->assertJsonValidationErrors('tindak_lanjut_rekomendasi');
+
+        $this->assertSame($sebelum, $this->pengukuran->fresh()->getRawOriginal());
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertDatabaseCount('riwayat_pengukurans', 0);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+    }
+
+    public static function tindakLanjutKosong(): array
+    {
+        return ['periode sebelumnya' => [false, null], 'hanya spasi' => [false, '   '], 'lintas tahun' => [true, null]];
+    }
+
+    #[DataProvider('pengecualianTindakLanjut')]
+    public function test_tindak_lanjut_tidak_wajib_tanpa_rekomendasi_disetujui_atau_pada_periode_lampau(string $kondisi): void
+    {
+        [$tahun, $periodeId] = $this->periodeSebelumnya(true);
+        $rekomendasi = $kondisi === 'tanpa rekomendasi' ? null
+            : $this->rekomendasi($tahun, $periodeId, 'Evaluasi periode sebelumnya.', $kondisi === 'draf' ? null : now()->subDay());
+        if ($kondisi === 'lampau') {
+            $this->jadwal->update(['activated_at' => '2026-03-15 16:00:00']);
+            $this->travelTo(now()->setDate(2026, 4, 1)->setTime(9, 0));
+        }
+        $this->pengukuran->update(['nilai' => 75, 'status_perhitungan' => 'terhitung']);
+        $this->actingAs($this->actor)->get('/pengukuran/'.$this->pengukuran->id.'/edit')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('pengukuran.prasyarat.siap', true));
+        $this->post('/pengukuran/'.$this->pengukuran->id, [...$this->pengajuan($kondisi === 'draf' ? null : $rekomendasi),
+            'tindak_lanjut_rekomendasi' => null])->assertSessionHasNoErrors();
+
+        $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+        $this->assertNull($this->pengukuran->fresh()->latestVersion->snapshot['tindak_lanjut_rekomendasi']);
+        $this->assertDatabaseCount('pengukuran_versi', 1);
+    }
+
+    public static function pengecualianTindakLanjut(): array
+    {
+        return ['tidak ada rekomendasi' => ['tanpa rekomendasi'], 'hanya draf' => ['draf'], 'periode lampau' => ['lampau']];
+    }
+
+    public function test_draf_tetap_boleh_menyimpan_tindak_lanjut_kosong_meski_rekomendasi_disetujui(): void
+    {
+        [$tahun, $periodeId] = $this->periodeSebelumnya(true);
+        $rekomendasi = $this->rekomendasi($tahun, $periodeId, 'Lengkapi evaluasi.', now()->subDay());
+
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            [...$this->pengajuan($rekomendasi), 'action' => 'draft', 'tindak_lanjut_rekomendasi' => null])->assertSessionHasNoErrors();
+
+        $this->assertSame(['draft', 2, null], [$this->pengukuran->fresh()->status_alur, $this->pengukuran->fresh()->versi,
+            $this->pengukuran->fresh()->tindak_lanjut_rekomendasi]);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+    }
+
+    public function test_penolakan_inertia_mempertahankan_alasan_tindak_lanjut_dan_tidak_mengubah_draf(): void
+    {
+        [$tahun, $periodeId] = $this->periodeSebelumnya(true);
+        $rekomendasi = $this->rekomendasi($tahun, $periodeId, 'Lengkapi evaluasi.', now()->subDay());
+        $sebelum = $this->pengukuran->fresh()->getRawOriginal();
+
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            [...$this->pengajuan($rekomendasi), 'tindak_lanjut_rekomendasi' => null])
+            ->assertRedirect('/pengukuran/'.$this->pengukuran->id.'/edit')
+            ->assertSessionHasErrors('tindak_lanjut_rekomendasi')
+            ->assertSessionHas('hasil_pengajuan_terakhir.alasan', ['Tindak lanjut rekomendasi wajib diisi sebelum pengajuan.']);
+
+        $this->assertSame($sebelum, $this->pengukuran->fresh()->getRawOriginal());
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+    }
+
+    /** Periode sebelumnya sintetis untuk gerbang normal dan lintas tahun. */
+    private function periodeSebelumnya(bool $lintasTahun): array
+    {
+        if ($lintasTahun) {
+            return [2025, $this->jadwalTahunLalu()->id];
+        }
+        $this->pengukuran->periode->update(['nama' => 'Triwulan II', 'urutan' => 2]);
+        $sebelumnya = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $sebelumnya->id,
+            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15', 'reviu_mulai' => '2026-01-15', 'reviu_selesai' => '2026-02-15']);
+
+        return [2026, $sebelumnya->id];
     }
 
     /** @return array<string, mixed> */

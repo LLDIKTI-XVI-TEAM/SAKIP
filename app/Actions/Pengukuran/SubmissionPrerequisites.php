@@ -15,8 +15,11 @@ class SubmissionPrerequisites
 {
     public function __construct(private EvaluateEvidence $evidence, private CalculatePengukuran $calculator) {}
 
-    /** Mode mutasi menerima RA yang dikunci sebelum indikator; target tetap berasal dari versi sah. */
-    public function handle(PengukuranKinerja $pengukuran, bool $lock = false, ?RencanaAksi $lockedPlan = null, ?PeriodeJadwal $lockedPeriod = null): array
+    /**
+     * Rekomendasi berasal dari pembacaan yang sama dengan tampilan/token dan versi beku.
+     * Mode mutasi menerima RA yang dikunci sebelum indikator; target tetap berasal dari versi sah.
+     */
+    public function handle(PengukuranKinerja $pengukuran, ?array $rekomendasi, bool $lock = false, ?RencanaAksi $lockedPlan = null, ?PeriodeJadwal $lockedPeriod = null): array
     {
         $errors = [];
         $target = null;
@@ -97,6 +100,9 @@ class SubmissionPrerequisites
                 if (trim((string) $pengukuran->{$field}) === '') {
                     $narrativeErrors[$field] = $label.' wajib diisi sebelum pengajuan.';
                 }
+            }
+            if ($rekomendasi !== null && trim((string) $pengukuran->tindak_lanjut_rekomendasi) === '') {
+                $narrativeErrors['tindak_lanjut_rekomendasi'] = 'Tindak lanjut rekomendasi wajib diisi sebelum pengajuan.';
             }
         }
 
