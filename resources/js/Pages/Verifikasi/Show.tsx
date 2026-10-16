@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -31,7 +31,11 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
     const trigger = useRef<HTMLButtonElement | null>(null);
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
     const choose = (action: ReviewDecision, button: HTMLButtonElement) => { trigger.current = button; setDecision(action); };
-    const closeDecision = () => { setDecision(null); if (trigger.current?.isConnected) trigger.current.focus(); };
+    const closeDecision = () => { setDecision(null); };
+    useEffect(() => {
+        // Tunggu dialog dilepas agar fokus tidak ditolak oleh halaman yang masih inert.
+        if (decision === null && trigger.current?.isConnected) trigger.current.focus();
+    }, [decision]);
 
     return (
         <AuthenticatedLayout
