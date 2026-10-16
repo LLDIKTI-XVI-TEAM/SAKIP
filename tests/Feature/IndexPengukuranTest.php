@@ -170,9 +170,23 @@ class IndexPengukuranTest extends TestCase
 
         $this->jadwal->update(['status' => 'ditutup', 'closed_at' => now()]);
         $this->travelTo(now()->setDate(2027, 2, 1));
-        $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page->where('pilihan_jadwal.0.id', $this->jadwal->id));
+        $this->daftar($planner)->assertOk()->assertInertia(fn ($page) => $page->where('pilihan_jadwal.0.id', $this->jadwal->id)->where('pilihan_jadwal.0.status', 'ditutup'));
         $this->daftar($planner, $query)->assertOk()->assertInertia(fn ($page) => $page
             ->where('filters.jadwal_id', $this->jadwal->id)->has('pengukurans', 1)->where('pengukurans.0.jenis', 'absent')->where('pengukurans.0.can.create', false));
+    }
+
+    public function test_tahun_ditutup_lebih_awal_tetap_menampilkan_periode_saat_penutupan(): void
+    {
+        $tw2 = $this->periode(2, '2026-06-01', '2026-06-15');
+        $this->travelTo(now()->setDate(2026, 6, 10));
+        // 31 Mei 23.30 WITA: TW II belum dimulai saat penutupan, jadi daftar tetap pada TW I walau hari ini sudah TW II.
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => '2026-05-31 15:30:00']);
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('konteks.0.periode.id', $this->pengukuran->periode_id)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id));
+
+        // 1 Juni 00.30 WITA: tanggal bisnis penutupan sudah masuk TW II.
+        $this->jadwal->update(['closed_at' => '2026-05-31 16:30:00']);
+        $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page->where('konteks.0.periode.id', $tw2->id));
     }
 
     public function test_tahun_ditutup_tidak_menambah_query_per_baris(): void

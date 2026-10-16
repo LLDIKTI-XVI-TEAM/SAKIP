@@ -15,6 +15,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -48,11 +49,16 @@ class IndexPengukuran
         $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'],
             ...($filtered ? ['jadwal_id' => ['required', 'uuid'], 'periode_id' => ['required', 'uuid']] : [])])->validate();
         $today = today(config('app.business_timezone'))->toDateString();
-        $schedules = JadwalTahunan::whereIn('status', ['aktif', 'ditutup'])->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('tahun')->orderBy('id')->get();
+        // shortcut: memuat semua jadwal aktif dan ditutup (±1 per tahun, ≤12 periode per jadwal), batasi tahun histori bila jadwal ditutup mencapai puluhan.
+        $schedules = JadwalTahunan::whereIn('status', ['aktif', 'ditutup'])->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('tahun')->orderBy('id')->get()->keyBy('id');
+        $closedOn = $schedules->where('status', 'ditutup')->whereNotNull('closed_at')
+            ->map(fn ($schedule) => Carbon::parse($schedule->closed_at)->timezone(config('app.business_timezone'))->toDateString());
         $periods = $filtered ? $this->selectedPeriod($schedules, $query, $today)
             : PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->where('pengisian_mulai', '<=', $today)
-                ->orderByDesc('pengisian_mulai')->orderBy('id')->get()->unique('jadwal_id')->keyBy('id');
-        $schedules = $schedules->keyBy('id');
+                ->orderByDesc('pengisian_mulai')->orderBy('id')->get()
+                // Tahun ditutup berhenti pada periode yang sudah dimulai saat penutupan, tidak ikut maju bersama hari ini.
+                ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today))
+                ->unique('jadwal_id')->keyBy('id');
 
         $page = $this->obligations($periods->keys()->all(), $actor, $today)->paginate(20, page: $query['page'] ?? 1)->withQueryString();
         $items = collect($page->items());
@@ -161,7 +167,7 @@ class IndexPengukuran
     {
         $periods = PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->get()->groupBy('jadwal_id');
 
-        return $schedules->map(fn ($schedule) => ['id' => $schedule->id, 'tahun' => $schedule->tahun,
+        return $schedules->map(fn ($schedule) => ['id' => $schedule->id, 'tahun' => $schedule->tahun, 'status' => $schedule->status,
             'periode' => ($periods[$schedule->id] ?? collect())->sortBy('periode.urutan')->map(fn ($period) => $this->periodDto($period, $schedule->tahun))->values()->all()])->values()->all();
     }
 
