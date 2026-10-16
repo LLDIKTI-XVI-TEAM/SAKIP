@@ -5,6 +5,7 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
+import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
@@ -47,20 +48,21 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
     };
 
     return (
-        <div className="flex flex-col items-end gap-1">
-            <Button
-                type="button"
-                size="sm"
-                className="whitespace-nowrap"
-                isLoading={form.processing}
-                onClick={buat}
-                aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
-            >
-                <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Buat Rencana Aksi
-            </Button>
+        <div className="flex flex-col items-start gap-1">
+            <Tooltip content="Buat" align="right">
+                <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 w-9 p-0"
+                    isLoading={form.processing}
+                    onClick={buat}
+                    aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
+                >
+                    {!form.processing && <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                </Button>
+            </Tooltip>
             {galat && (
-                <p role="alert" className="max-w-56 text-right text-xs text-danger">
+                <p role="alert" className="max-w-56 text-left text-xs text-danger">
                     {galat}
                 </p>
             )}
@@ -75,8 +77,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
             breadcrumbs={[{ label: 'Rencana Aksi' }]}
             headerActions={
                 <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> indikator</p>
-                    <Link href="/rencana-aksi/review" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
+                    <Link href="/rencana-aksi/review" className="inline-flex h-9 translate-y-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
                         <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                         Review Rencana Aksi
                     </Link>
@@ -95,7 +96,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                             <TableHead className="hidden xl:table-cell">Tahun</TableHead>
                             <TableHead className="hidden xl:table-cell">Penanggung Jawab</TableHead>
                             <TableHead className="hidden xl:table-cell">Status</TableHead>
-                            <TableHead className="w-44 text-right xl:w-auto">Aksi</TableHead>
+                            <TableHead className="w-20 text-left xl:w-auto">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -135,18 +136,19 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                             <span className="text-muted">Belum dibuat</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-left">
                                         {baris.can.create ? (
                                             <TombolBuat baris={baris} />
                                         ) : baris.rencana_aksi ? (
-                                            <Link
-                                                href={`/rencana-aksi/${baris.rencana_aksi.id}`}
-                                                aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
-                                                className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
-                                            >
-                                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Buka
-                                            </Link>
+                                            <Tooltip content="Buka" align="right">
+                                                <Link
+                                                    href={`/rencana-aksi/${baris.rencana_aksi.id}`}
+                                                    aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                                >
+                                                    <Eye className="h-4 w-4" aria-hidden="true" />
+                                                </Link>
+                                            </Tooltip>
                                         ) : (
                                             <span className="text-muted">—</span>
                                         )}
