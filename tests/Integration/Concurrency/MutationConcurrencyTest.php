@@ -16,6 +16,7 @@ use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
+use App\Actions\Rekomendasi\TetapkanRekomendasi;
 use App\Actions\RencanaAksi\EnsureDraftRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\SimpanTargetPeriode;
@@ -1688,6 +1689,105 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame(['conflict', $status], $results);
         $this->assertSame(1, RekomendasiPimpinan::count());
         $this->assertSame(1, AuditLog::where('tindakan', 'rekomendasi_pimpinan.tetapkan_ditolak')->get()->where('nilai_baru.alasan_penolakan', 'konflik_versi')->count());
+    }
+
+    /** Persetujuan dan pengajuan memakai aktor berbeda agar yang diuji adalah advisory lock, bukan lock user. */
+    #[DataProvider('urutanRekomendasiPengajuan')]
+    public function test_persetujuan_rekomendasi_dan_pengajuan_diserialkan_sampai_commit(bool $persetujuanDulu, bool $sudahAda, bool $lintasTahun): void
+    {
+        [$operator, $pic, $measurement, $tahun, $periodeId] = $this->rekomendasiPengajuanFixture($lintasTahun);
+        $this->assertSame('read committed', DB::selectOne('SHOW transaction_isolation')->transaction_isolation);
+        $konteks = ['indikator_id' => $measurement->indikator_id, 'tahun' => $tahun, 'periode_id' => $periodeId,
+            'status' => 'disetujui', 'versi_draf' => null];
+        $lama = $sudahAda ? app(TetapkanRekomendasi::class)->handle($operator, [...$konteks, 'isi' => 'Rekomendasi lama.', 'berlaku_id' => null]) : null;
+        // Waktu persetujuan pengganti berbeda dari versi lama, termasuk pada worker.
+        $this->travelTo(now()->addMinute());
+        $persetujuan = [...$konteks, 'isi' => 'Rekomendasi baru.', 'berlaku_id' => $lama?->id];
+        $pengajuan = ['versi' => 1, 'nilai' => 75, 'rekomendasi_sebelumnya_id' => $lama?->id,
+            'tindak_lanjut_rekomendasi' => $sudahAda ? 'Tindak lanjut lama.' : null];
+        $sebelum = $measurement->fresh()->getRawOriginal();
+        $assignment = ['test_now' => now()->toIso8601String(), 'actor_id' => $persetujuanDulu ? $pic->id : $operator->id,
+            'data' => $persetujuanDulu ? $pengajuan : $persetujuan,
+            'pengukuran_id' => $measurement->id, 'expected_error_field' => 'rekomendasi_sebelumnya', 'expected_error_status' => 409];
+        $prepare = function () use ($persetujuanDulu, $operator, $pic, $measurement, $persetujuan, $pengajuan): void {
+            if ($persetujuanDulu) {
+                app(TetapkanRekomendasi::class)->handle($operator, $persetujuan);
+            } else {
+                app(SubmitPengukuran::class)->handle($pic, $measurement->id, $pengajuan);
+            }
+        };
+        $assertAdvisory = function (array $pids, int $parentPid) use ($persetujuanDulu): void {
+            $waiter = DB::table('pg_locks')->where('pid', $pids[0])->where('locktype', 'advisory')->where('granted', false)->first();
+            $this->assertNotNull($waiter, 'Worker harus menunggu advisory lock rekomendasi.');
+            $this->assertSame($persetujuanDulu ? 'ShareLock' : 'ExclusiveLock', $waiter->mode);
+            $holder = DB::table('pg_locks')->where('pid', $parentPid)->where('locktype', 'advisory')->where('granted', true)
+                ->where('classid', $waiter->classid)->where('objid', $waiter->objid)->where('objsubid', $waiter->objsubid)->first();
+            $this->assertNotNull($holder, 'Parent dan worker harus memakai kunci kombinasi yang sama.');
+            $this->assertSame($persetujuanDulu ? 'ExclusiveLock' : 'ShareLock', $holder->mode);
+        };
+
+        $results = $this->race($persetujuanDulu ? 'pengukuran-ajukan' : 'rekomendasi-tetapkan', $measurement->id, '',
+            [$assignment], prepare: $prepare, assertBlocked: $assertAdvisory);
+        $baru = RekomendasiPimpinan::where('isi', 'Rekomendasi baru.')->sole();
+        $this->assertSame('disetujui', $baru->status);
+        $measurement = $measurement->fresh();
+        if ($persetujuanDulu) {
+            $this->assertSame(['conflict'], $results);
+            $this->assertSame($sebelum, $measurement->getRawOriginal());
+            $this->assertSame(0, $measurement->versions()->count());
+            $this->assertSame(0, $measurement->riwayats()->count());
+            $audit = AuditLog::where('tindakan', 'pengukuran.ditolak')->sole();
+            $this->assertArrayHasKey('rekomendasi_sebelumnya', $audit->nilai_baru['alasan_penolakan']);
+        } else {
+            $this->assertSame(['disetujui'], $results);
+            $this->assertSame(['diajukan', 2], [$measurement->status_alur, $measurement->versi]);
+            $this->assertSame(1, $measurement->versions()->count());
+            $beku = $measurement->latestVersion->snapshot;
+            $this->assertSame($lama?->id, $beku['rekomendasi_sebelumnya']['id'] ?? null);
+            $this->assertSame($pengajuan['tindak_lanjut_rekomendasi'], $beku['tindak_lanjut_rekomendasi']);
+            $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        }
+    }
+
+    public static function urutanRekomendasiPengajuan(): array
+    {
+        return ['persetujuan pertama lebih dulu' => [true, false, false], 'pengganti lintas tahun lebih dulu' => [true, true, true],
+            'pengajuan sebelum persetujuan pertama lintas tahun' => [false, false, true], 'pengajuan sebelum pengganti' => [false, true, false]];
+    }
+
+    /** Konteks periode sebelumnya benar-benar diukur agar writer melewati validasi domain. */
+    private function rekomendasiPengajuanFixture(bool $lintasTahun): array
+    {
+        [$operator, $indicator, $pic, $measurement] = $this->submittableMeasurementFixture();
+        UserPermissionGrant::create(['user_id' => $pic->id, 'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'),
+            'unit_id' => $indicator->unit_id, 'alasan' => 'Hak pengajuan fixture.', 'diberikan_oleh' => $operator->id]);
+        $context = $measurement->jadwalSnapshot;
+        $jadwal = $context->jadwal;
+        if ($lintasTahun) {
+            $previous = Periode::create(['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
+            $pk = RenstraPk::create(['renstra_id' => $jadwal->renstra_id, 'tahun' => 2025, 'nomor_pk' => 'PK-2025', 'tanggal_pk' => '2025-01-01', 'created_by' => $operator->id]);
+            $lalu = JadwalTahunan::create(['renstra_id' => $jadwal->renstra_id, 'tahun' => 2025, 'renstra_pk_id' => $pk->id,
+                'penutupan' => '2025-12-31', 'status' => 'ditutup', 'activated_at' => '2025-01-01 00:00:00']);
+            PeriodeJadwal::create(['jadwal_id' => $lalu->id, 'periode_id' => $previous->id, 'pengisian_mulai' => '2025-12-01',
+                'pengisian_selesai' => '2025-12-15', 'reviu_mulai' => '2025-12-15', 'reviu_selesai' => '2025-12-31']);
+            JadwalSnapshot::create([...$context->only(['indikator_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
+                'jadwal_id' => $lalu->id, 'periode_mulai_id' => $previous->id]);
+
+            return [$operator, $pic, $measurement, 2025, $previous->id];
+        }
+        $previous = $measurement->periode;
+        PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $previous->id)->update([
+            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15', 'reviu_mulai' => '2026-01-15', 'reviu_selesai' => '2026-02-15']);
+        $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $next->id, 'pengisian_mulai' => '2026-03-01',
+            'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+        $measurement->update(['periode_id' => $next->id]);
+        $versi = RencanaAksiVersi::where('rencana_aksi_id', RencanaAksi::where('indikator_id', $indicator->id)->value('id'))->firstOrFail();
+        RencanaAksiVersi::create([...$versi->only(['rencana_aksi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
+            'nomor' => 2, 'snapshot' => ['target_periode' => [['periode_id' => $previous->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []],
+                ['periode_id' => $next->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]]]);
+
+        return [$operator, $pic, $measurement, 2026, $previous->id];
     }
 
     public static function rekomendasiBersamaan(): array

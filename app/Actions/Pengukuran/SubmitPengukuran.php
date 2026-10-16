@@ -29,8 +29,8 @@ class SubmitPengukuran
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$path, &$decision) {
                 [$actor, $p, $snapshot, $period, $before, $plan] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
-                // Dibaca sekali: rekomendasi yang dicek terhadap tampilan form adalah rekomendasi yang dibekukan.
-                $rekomendasi = $this->rekomendasi->tampilanSebelum($p);
+                // Kunci sampai commit; hasil yang sama dipakai untuk token, gerbang, dan versi beku.
+                $rekomendasi = $this->rekomendasi->tampilanSebelum($p, kunci: true);
                 $dilihat = isset($data['rekomendasi_sebelumnya_id']) ? strtolower($data['rekomendasi_sebelumnya_id']) : null;
                 if (($rekomendasi['id'] ?? null) !== $dilihat) {
                     throw ValidationException::withMessages(['rekomendasi_sebelumnya' => 'Rekomendasi periode sebelumnya telah berubah. Muat ulang halaman, periksa tindak lanjut, lalu ajukan kembali.'])->status(409);

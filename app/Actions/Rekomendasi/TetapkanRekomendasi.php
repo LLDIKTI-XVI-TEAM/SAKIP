@@ -46,7 +46,7 @@ class TetapkanRekomendasi
                         throw ValidationException::withMessages(['periode_id' => 'Indikator tidak diukur pada tahun dan periode yang dipilih.']);
                     }
                     // Satu penulis per kombinasi: draf dan rekomendasi berlaku yang dibaca tidak berubah sampai commit.
-                    DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:rekomendasi:'.implode(':', $kunci)]);
+                    $this->rekomendasi->kunciKombinasi($kunci['indikator_id'], $kunci['tahun'], $kunci['periode_id']);
                     $draf = RekomendasiPimpinan::where($kunci)->where('status', RekomendasiPimpinan::STATUS_DRAF)->lockForUpdate()->first();
                     $versi = isset($data['versi_draf']) ? (int) $data['versi_draf'] : null;
                     $berlaku = isset($data['berlaku_id']) ? strtolower($data['berlaku_id']) : null;

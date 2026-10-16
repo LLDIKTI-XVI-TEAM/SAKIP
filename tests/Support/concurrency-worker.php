@@ -141,7 +141,7 @@ try {
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
             'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
-            'pengukuran-ajukan' => 'versi',
+            'pengukuran-ajukan' => $assignment['expected_error_field'] ?? 'versi',
             // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
             'rencana-sahkan' => 'businessErrors',
             // Pemenang race menaikkan versi header; yang kalah membaca baris segar dan ditolak pada token versi.
@@ -152,6 +152,9 @@ try {
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
             throw $exception;
+        }
+        if (isset($assignment['expected_error_status']) && $exception->status !== $assignment['expected_error_status']) {
+            throw new RuntimeException('Status penolakan worker tidak sesuai kontrak.');
         }
         $result = match ($argv[1]) {
             'create-deny' => 'duplicate',
