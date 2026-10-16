@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Rekomendasi Pimpinan per indikator × tahun × periode (Q45 §45.2, Q51, Q54). Baris disetujui bersifat riwayat final;
+ * Rekomendasi Pimpinan per indikator × tahun × periode (Q45 §45.2, Q51, Q55). Baris disetujui bersifat riwayat final;
  * perubahan membentuk baris baru.
  */
 return new class extends Migration
