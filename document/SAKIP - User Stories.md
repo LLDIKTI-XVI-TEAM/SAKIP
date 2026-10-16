@@ -239,6 +239,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] Menu Aktivasi Pengguna tidak tersedia lagi.
 - [x] Admin dapat menonaktifkan dan mengaktifkan kembali akun lain dengan alasan; sesi akun yang dinonaktifkan terblokir.
 - [x] Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+- [x] Penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri (Q53).
 - [x] Peran dan grant tetap ada setelah akun diaktifkan kembali, dan peringatan tampil bila pengguna masih Penanggung Jawab aktif.
 
 ## Bagian 2 — Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK
