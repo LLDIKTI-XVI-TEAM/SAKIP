@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Rekomendasi;
 
+use App\Models\AuditLog;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\KinerjaSnapshot;
@@ -52,8 +53,7 @@ class RekomendasiBerlakuTest extends TestCase
     {
         $tw4 = $this->jadwalTahunLalu();
         $saatDiajukan = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi saat diajukan.', now()->subDay());
-        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75, 'progres_kegiatan' => 'Progres.',
-            'kendala_masalah' => 'Kendala.', 'strategi_tindak_lanjut' => 'Strategi.', 'tindak_lanjut_rekomendasi' => 'Ditindaklanjuti.'])->assertSessionHasNoErrors();
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, $this->pengajuan($saatDiajukan))->assertSessionHasNoErrors();
         $this->rekomendasi(2025, $tw4->id, 'Revisi setelah diajukan.', now());
 
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
@@ -65,6 +65,32 @@ class RekomendasiBerlakuTest extends TestCase
         KinerjaSnapshot::create([...$version->only(['pengukuran_id', 'rencana_aksi_versi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan']),
             'nomor' => 2, 'snapshot' => Arr::except($version->snapshot, ['rekomendasi_sebelumnya'])]);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('pengukuran.rekomendasi_sebelumnya', null));
+    }
+
+    public function test_pengajuan_dari_tampilan_rekomendasi_yang_sudah_diganti_ditolak_409_tanpa_versi(): void
+    {
+        $tw4 = $this->jadwalTahunLalu();
+        $dilihat = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi A.', now()->subDay());
+        $pengganti = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi B.', now());
+
+        foreach ([$dilihat, null] as $token) {
+            $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, $this->pengajuan($token))
+                ->assertStatus(409)->assertJsonValidationErrors('rekomendasi_sebelumnya');
+        }
+        $this->assertSame(['draft', 1], [$this->pengukuran->fresh()->status_alur, $this->pengukuran->fresh()->versi]);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(2, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, $this->pengajuan(strtoupper($pengganti)))->assertSessionHasNoErrors();
+        $beku = $this->pengukuran->fresh()->latestVersion->snapshot['rekomendasi_sebelumnya'];
+        $this->assertSame([$pengganti, 'Rekomendasi B.'], [$beku['id'], $beku['isi']]);
+    }
+
+    /** @return array<string, mixed> */
+    private function pengajuan(?string $rekomendasiDilihat): array
+    {
+        return ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75, 'progres_kegiatan' => 'Progres.', 'kendala_masalah' => 'Kendala.',
+            'strategi_tindak_lanjut' => 'Strategi.', 'tindak_lanjut_rekomendasi' => 'Ditindaklanjuti.', 'rekomendasi_sebelumnya_id' => $rekomendasiDilihat];
     }
 
     /** Jadwal 2025 ditutup dengan TW I dan TW IV yang juga mengukur indikator fixture. */
