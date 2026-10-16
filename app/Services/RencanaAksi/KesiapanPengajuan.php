@@ -148,6 +148,7 @@ class KesiapanPengajuan
      * (snapshot koreksi dapat terbit setelah klaim dibuat): unit dan tahun
      * kegiatan sama dengan header, periode termasuk periode efektif, komponen
      * anggota snapshot. Dipakai gerbang pengajuan dan kesiapan halaman.
+     * Tanpa izin baca kegiatan pada unit, nama kegiatan tidak disebut.
      *
      * @param  iterable<KlaimKegiatan>  $klaim
      * @param  Collection<string, Kegiatan>  $kegiatan  Diindeks ID kegiatan.
@@ -155,7 +156,7 @@ class KesiapanPengajuan
      * @param  list<string>  $komponenIds
      * @return list<string>
      */
-    public function alasanKlaim(iterable $klaim, Collection $kegiatan, RencanaAksi $header, Collection $periodeEfektif, array $komponenIds): array
+    public function alasanKlaim(iterable $klaim, Collection $kegiatan, RencanaAksi $header, Collection $periodeEfektif, array $komponenIds, bool $tampilNama): array
     {
         $alasan = [];
         foreach ($klaim as $item) {
@@ -165,6 +166,9 @@ class KesiapanPengajuan
                 || ($item->komponen_id !== null && ! in_array((string) $item->komponen_id, $komponenIds, true))) {
                 $alasan[] = 'Klaim kegiatan "'.($sumber->nama ?? $item->kegiatan_id).'" tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
             }
+        }
+        if (! $tampilNama && $alasan !== []) {
+            return [count($alasan).' klaim kegiatan tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.'];
         }
 
         return $alasan;
@@ -242,5 +246,33 @@ class KesiapanPengajuan
         }
 
         return ['nilai' => $hitung['nilai'] === null ? null : (string) $hitung['nilai'], 'status_perhitungan' => (string) $hitung['status_perhitungan']];
+    }
+
+    /**
+     * Bentuk beku klaim tahap RA (Data Model §2.34): data kegiatan disalin agar
+     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluator
+     * persyaratan tahap perencanaan kegiatan ditambahkan saat persyaratannya ada.
+     *
+     * @param  Collection<int, KlaimKegiatan>  $klaim
+     * @param  Collection<string, Kegiatan>  $kegiatan
+     * @return list<array<string, mixed>>
+     */
+    public function klaimBeku(Collection $klaim, Collection $kegiatan): array
+    {
+        return $klaim->map(function (KlaimKegiatan $item) use ($kegiatan): array {
+            /** @var Kegiatan $sumber */
+            $sumber = $kegiatan->get($item->kegiatan_id);
+
+            return [
+                ...$item->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan']),
+                'periode_id' => (string) $sumber->periode_id,
+                'kegiatan' => [
+                    'nama' => $sumber->nama,
+                    'tujuan' => $sumber->tujuan,
+                    'anggaran' => $sumber->anggaran === null ? null : (string) $sumber->anggaran,
+                    'status' => $sumber->status,
+                ],
+            ];
+        })->values()->all();
     }
 }

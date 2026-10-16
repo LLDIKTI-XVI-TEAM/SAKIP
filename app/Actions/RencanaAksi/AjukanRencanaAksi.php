@@ -25,7 +25,6 @@ use App\Support\AlasanAudit;
 use App\Support\PerbandinganNilaiRencanaAksi;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -179,7 +178,8 @@ class AjukanRencanaAksi
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
-                $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all())];
+                $bacaKegiatan = $this->resolver->allows($pengunci, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id);
+                $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all(), $bacaKegiatan)];
                 $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
@@ -187,7 +187,7 @@ class AjukanRencanaAksi
                 if ($alasan !== []) {
                     throw ValidationException::withMessages(['pengajuan' => $alasan]);
                 }
-                $klaimBeku = $this->klaimBeku($klaim, $kegiatan);
+                $klaimBeku = $this->kesiapan->klaimBeku($klaim, $kegiatan);
                 // Q41 §41.2: daftar kegiatan periode terkunci tidak boleh berubah lewat pengajuan PIC, dinilai seperti target terhadap versi sah.
                 $berubahKlaim = PerbandinganNilaiRencanaAksi::periodeKlaimBerubahVsVersiSah($header->id, $klaimBeku);
                 if ($berubahKlaim !== []) {
@@ -289,33 +289,5 @@ class AjukanRencanaAksi
 
             throw $exception;
         }
-    }
-
-    /**
-     * Bentuk beku klaim tahap RA (Data Model §2.34): data kegiatan disalin agar
-     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluator
-     * persyaratan tahap perencanaan kegiatan ditambahkan saat persyaratannya ada.
-     *
-     * @param  Collection<int, KlaimKegiatan>  $klaim
-     * @param  Collection<string, Kegiatan>  $kegiatan
-     * @return list<array<string, mixed>>
-     */
-    private function klaimBeku(Collection $klaim, Collection $kegiatan): array
-    {
-        return $klaim->map(function (KlaimKegiatan $item) use ($kegiatan): array {
-            /** @var Kegiatan $sumber */
-            $sumber = $kegiatan->get($item->kegiatan_id);
-
-            return [
-                ...$item->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan']),
-                'periode_id' => (string) $sumber->periode_id,
-                'kegiatan' => [
-                    'nama' => $sumber->nama,
-                    'tujuan' => $sumber->tujuan,
-                    'anggaran' => $sumber->anggaran === null ? null : (string) $sumber->anggaran,
-                    'status' => $sumber->status,
-                ],
-            ];
-        })->values()->all();
     }
 }

@@ -118,6 +118,9 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         // Periode I terkunci bagi PIC; tanpa perubahan daftar kegiatan pengajuan PIC tetap lolos gerbang kunci.
         $this->travelTo(now()->setDate(2026, 4, 5)->setTime(9, 0));
         $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Ditambah Perencanaan');
+        // Halaman tidak menawarkan pengajuan yang pasti ditolak gerbang delta klaim.
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.submit', false));
         $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors('jendela');
 
         $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
@@ -146,6 +149,22 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
 
         $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
         $this->assertSame(2, RencanaAksiVersi::where('rencana_aksi_id', $header->id)->count());
+    }
+
+    public function test_deny_baca_kegiatan_menyembunyikan_nama_pada_alasan_klaim_tidak_cocok(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $asing = Periode::create(['nama' => 'Periode Asing', 'urutan' => 9, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $this->klaimKegiatan($fixture, $header, $asing->id, 'Kegiatan rahasia');
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $fixture['pic']->id,
+            'permission_id' => Permission::where('kode', 'kegiatan:read')->value('id'), 'unit_id' => $fixture['unit']->id,
+            'alasan' => 'Pengujian deny baca kegiatan', 'ditetapkan_oleh' => $fixture['perencanaan']->id, 'created_at' => now()]);
+        $pesan = '1 klaim kegiatan tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
+
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertDontSee('Kegiatan rahasia')
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.pengajuan.alasan', fn ($alasan) => collect($alasan)->contains($pesan)));
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors(['pengajuan' => $pesan]);
+        $this->assertStringNotContainsString('Kegiatan rahasia', implode(' ', session('errors')->get('pengajuan')));
     }
 
     public function test_deny_baca_kegiatan_pada_unit_menyembunyikan_klaim_beku_di_review(): void
