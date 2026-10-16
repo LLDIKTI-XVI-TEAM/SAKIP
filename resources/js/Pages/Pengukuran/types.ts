@@ -155,5 +155,6 @@ export interface KonteksPengukuran {
 export interface PilihanJadwalPengukuran {
     id: string;
     tahun: number;
+    status: 'aktif' | 'ditutup';
     periode: PeriodePengukuran[];
 }

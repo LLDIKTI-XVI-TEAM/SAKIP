@@ -407,11 +407,14 @@ describe('Daftar kewajiban pengukuran', () => {
         const user = userEvent.setup();
         vi.spyOn(router, 'get').mockImplementation(() => undefined);
         const tw2 = { ...tw1, id: 'per-2', nama_periode: 'Semester II', urutan: 2 };
-        const pilihan = [{ id: 'jad-1', tahun: 2026, periode: [tw1, tw2] }, { id: 'jad-2', tahun: 2027, periode: [{ ...tw1, id: 'per-27', tahun: 2027 }] }];
+        const pilihan = [{ id: 'jad-1', tahun: 2026, status: 'aktif' as const, periode: [tw1, tw2] }, { id: 'jad-2', tahun: 2027, status: 'ditutup' as const, periode: [{ ...tw1, id: 'per-27', tahun: 2027 }] }];
         const { rerender } = render(<PengukuranIndex {...indexProps([])} />);
         expect(screen.queryByRole('combobox', { name: 'Periode' })).toBeNull();
 
         rerender(<PengukuranIndex {...indexProps([], { can: { selectPeriod: true }, pilihan_jadwal: pilihan })} />);
+        // Jadwal ditutup dapat bertahun sama dengan jadwal Renstra lain, jadi statusnya ikut di label.
+        expect(screen.getByRole('option', { name: 'Tahun 2026' })).toBeTruthy();
+        expect(screen.getByRole('option', { name: 'Tahun 2027 (ditutup)' })).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Periode berjalan' })).toBeNull();
         await user.selectOptions(screen.getByRole('combobox', { name: 'Periode' }), 'per-2');
         await user.click(screen.getByRole('button', { name: 'Tampilkan' }));
@@ -434,7 +437,7 @@ describe('Daftar kewajiban pengukuran', () => {
         const tw3 = { ...tw1, id: 'per-3', nama_periode: 'Triwulan III', urutan: 3 };
         render(<PengukuranIndex {...indexProps([], { can: { selectPeriod: true },
             konteks: [{ jadwal_id: 'jad-25', tahun: 2025, periode: tw4Lama }, { jadwal_id: 'jad-1', tahun: 2026, periode: tw3 }],
-            pilihan_jadwal: [{ id: 'jad-1', tahun: 2026, periode: [tw1, tw3] }] })} />);
+            pilihan_jadwal: [{ id: 'jad-1', tahun: 2026, status: 'aktif', periode: [tw1, tw3] }] })} />);
         expect((screen.getByRole('combobox', { name: 'Jadwal' }) as HTMLSelectElement).value).toBe('jad-1');
         expect((screen.getByRole('combobox', { name: 'Periode' }) as HTMLSelectElement).value).toBe('per-3');
         await user.click(screen.getByRole('button', { name: 'Tampilkan' }));
@@ -442,7 +445,7 @@ describe('Daftar kewajiban pengukuran', () => {
     });
 
     it('menampilkan penolakan filter dari server pada pilihan yang bersangkutan', () => {
-        const pilihan = [{ id: 'jad-1', tahun: 2026, periode: [tw1] }];
+        const pilihan = [{ id: 'jad-1', tahun: 2026, status: 'aktif' as const, periode: [tw1] }];
         render(<PengukuranIndex {...indexProps([], { can: { selectPeriod: true }, pilihan_jadwal: pilihan,
             errors: { jadwal_id: 'Pilih jadwal aktif yang belum melewati tanggal penutupan.', periode_id: 'Periode bukan anggota jadwal yang dipilih.' } })} />);
         expect(screen.getByText('Pilih jadwal aktif yang belum melewati tanggal penutupan.')).toBeTruthy();

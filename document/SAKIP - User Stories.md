@@ -2302,7 +2302,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
 - [x] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
 - [x] **AC-5:** Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak sebagai validasi bisnis (422); tanpa izin atau terkena deny ditolak 403; keduanya teraudit.
-- [ ] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi terpenuhi; daftar Pengukuran dilanjutkan di #110.)*
+- [x] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi pada #109. Daftar Pengukuran pada #110: periode terakhir yang sudah dimulai pada tahun ditutup tampil sebagai baris baca saja setelah jadwal aktif, dan jalur Perencanaan dapat memilih periode lain tahun itu untuk dibaca.)*
 
 **Business Rules / Catatan**
 
