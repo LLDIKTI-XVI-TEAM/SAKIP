@@ -66,7 +66,7 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan dan token rekomendasi pada pengajuan pengukuran, melengkapi Q51.
 
-**Keputusan 17 Oktober 2026 (Q56)** menetapkan bahwa Admin tetap memegang `audit:read` bersama Superadmin, Perencanaan, dan Pimpinan, menyelaraskan PRD §25.4 dengan Plan Pengembangan.
+**Keputusan 17 Oktober 2026 (Q56)** menetapkan bahwa Admin tetap memegang `audit:read` bersama Superadmin, Perencanaan, dan Pimpinan, menyelaraskan PRD §25.4 dengan Plan Pengembangan, dan menerima secara sadar bahwa izin ini membuka payload audit lintas modul, termasuk draf.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -1604,10 +1604,12 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 1. `audit:read` termasuk preset Superadmin, Admin, Perencanaan, dan Pimpinan. Preset ini sudah berlaku sejak fondasi akses dan tidak berubah; Pegawai tetap tidak memilikinya.
 2. Deny `audit:read` yang cocok tetap menolak akses halaman Jejak Audit bagi pemegang preset mana pun.
+3. `audit:read` berlaku global dan membuka seluruh isi peristiwa audit lintas modul dan unit, termasuk `nilai_lama`/`nilai_baru` dari draf (misalnya narasi dan tautan bukti pengukuran, serta isi draf Rekomendasi Pimpinan), tanpa memeriksa izin baca modul objeknya. Server hanya menyamarkan kunci yang menyerupai rahasia, dan membaca jejak audit tidak dicatat sebagai peristiwa audit. Konsekuensi ini diterima secara sadar untuk Admin sebagai pengelola akses.
 
 ## 56.2 Dampak dan traceability
 
 - Diselaraskan: PRD §25.4. Katalog permission dan Plan 10.3 pada Plan Pengembangan, User Stories US-13.03, dan User Issues ISS-13.03 sudah sesuai; preset dan kode tidak berubah.
+- Butir 3 ditambahkan atas temuan M1 review PR #119: halaman Jejak Audit membuat `audit:read` efektif, sehingga Admin dapat membaca payload modul yang tidak tercakup izin baca perannya.
 - Status keputusan: baseline kerja PM.
 - Q56 menindaklanjuti review PR untuk Issue #87.
 
