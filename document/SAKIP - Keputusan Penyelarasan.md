@@ -58,7 +58,7 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 15 Oktober 2026 (Q53)** menetapkan bahwa Penetapan Peran tidak dapat menurunkan peran superadmin aktif terakhir, melengkapi Q38 §38.2.
 
-**Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan rekomendasi pada versi pengajuan pengukuran, melengkapi Q51.
+**Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan dan token rekomendasi pada pengajuan pengukuran, melengkapi Q51.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -1550,6 +1550,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 3. Penyimpanan dan persetujuan juga mengirim rekomendasi berlaku yang dilihat pengguna, atau penanda bahwa belum ada. Bila rekomendasi berlaku sudah diganti pengguna lain, permintaan ditolak sebagai konflik versi dengan cara yang sama. Penetapan pada indikator × tahun × periode yang sama dijalankan satu per satu.
 4. Peran selain Pimpinan yang memegang `rekomendasi:tetapkan` juga dapat menulis rekomendasi yang langsung disetujui; persetujuan tersebut diberi penanda cadangan (Q51 §51.2 butir 2), dan pencatatan data awal 2026 memakai jalur ini (Q51 §51.1 butir 5). Draf tidak diwajibkan lebih dulu karena penyusun tetap dapat langsung menyetujui drafnya sendiri.
 5. Versi pengajuan pengukuran membekukan rekomendasi periode sebelumnya yang tampil bersama tindak lanjutnya. Rekomendasi yang disetujui atau direvisi setelah pengajuan tidak mengubah tampilan versi itu.
+6. Pengajuan pengukuran mengirim rekomendasi periode sebelumnya yang ditampilkan form, atau penanda bahwa tidak ada. Bila rekomendasi yang berlaku sudah berbeda saat pengajuan diproses, pengajuan ditolak sebagai konflik tanpa membentuk versi dan penolakannya tercatat di `audit_log`; rekomendasi yang diperiksa itulah yang dibekukan (butir 5).
 
 ## 55.2 Dampak dan traceability
 
