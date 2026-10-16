@@ -39,6 +39,7 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     viewEffectivePermissions: true,
     pengaturan: true,
     storagePolicy: true,
+    audit: true,
 };
 let mockRole = 'superadmin';
 
@@ -106,6 +107,7 @@ afterEach(() => {
         viewEffectivePermissions: true,
         pengaturan: true,
         storagePolicy: true,
+        audit: true,
     };
 });
 
@@ -181,8 +183,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pengaturan.type).toBe('group');
         if (pengaturan.type === 'group') {
             expect(pengaturan.group.label).toBe('Pengaturan Sistem');
-            expect(pengaturan.group.children.map((c) => c.label)).toEqual(['Pengaturan', 'Kebijakan Storage']);
-            expect(pengaturan.group.children.map((c) => c.canKey)).toEqual(['pengaturan', 'storagePolicy']);
+            expect(pengaturan.group.children.map((c) => c.label)).toEqual(['Pengaturan', 'Kebijakan Storage', 'Jejak Audit']);
+            expect(pengaturan.group.children.map((c) => c.canKey)).toEqual(['pengaturan', 'storagePolicy', 'audit']);
         }
     });
 
@@ -203,7 +205,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(21); // 1 direct item + 20 submenus
+        expect(allItems).toHaveLength(22); // 1 direct item + 21 submenus
     });
 });
 
