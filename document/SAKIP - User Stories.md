@@ -1562,7 +1562,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q45, Q51 (13 Oktober 2026):** Rekomendasi Pimpinan kini diisi Pimpinan: Perencanaan menyusun draf, Pimpinan menyetujui draf (dapat mengubah isinya lebih dulu) atau menulis rekomendasi langsung, dan hanya rekomendasi berstatus disetujui yang berlaku (Q45 §45.2 butir 1, Q51 §51.1). Persetujuan oleh Perencanaan menjadi jalur cadangan yang diberi penanda (Q51 §51.2 butir 2). Story ini belum dikerjakan sehingga isinya diperbarui langsung dan dipindah ke tahap 2 (Q51 §51.3). Riwayat: judul semula "Pencatatan Rekomendasi Pimpinan oleh Perencanaan" (digantikan Q45/Q51); AC-1 sampai AC-3 semula diperbarui menjadi AC-1, AC-5, dan AC-6; AC-4 semula (Pimpinan hanya membaca rekomendasi pada MVP) dibatalkan Q45 §45.2 butir 1.
 
-> **Q55 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode; penyimpanan dan persetujuan membawa token versi draf dan rekomendasi berlaku yang dilihat, sehingga tampilan basi ditolak sebagai konflik versi tanpa mengubah data. Penyetuju cadangan boleh menulis rekomendasi yang langsung disetujui dengan penanda cadangan, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil (Q55 §55.1).
+> **Q55 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode; penyimpanan dan persetujuan membawa token versi draf dan rekomendasi berlaku yang dilihat, sehingga tampilan basi ditolak sebagai konflik versi tanpa mengubah data. Penyetuju cadangan boleh menulis rekomendasi yang langsung disetujui dengan penanda cadangan, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil; pengajuan dari tampilan basi ditolak (Q55 §55.1).
 
 | Field | Detail |
 |---|---|
@@ -1598,7 +1598,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - Tindak lanjut rekomendasi dikecualikan untuk periode lampau (Q46 §46.1 butir 1; US-07.03).
 - Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom rancangan `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5; US-15.01).
 - Penanda persetujuan cadangan berlaku untuk persetujuan oleh peran selain Pimpinan, termasuk Superadmin, bukan hanya Perencanaan (Q51 §51.2 butir 2).
-- Paling banyak satu draf terbuka per indikator × tahun × periode; token versi draf dan rekomendasi berlaku yang dilihat menolak tampilan basi tanpa mengubah data, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil (Q55).
+- Paling banyak satu draf terbuka per indikator × tahun × periode; token versi draf dan rekomendasi berlaku yang dilihat menolak tampilan basi tanpa mengubah data, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil; pengajuan dari tampilan basi ditolak (Q55).
 
 ### US-09.02 · Penetapan Status Capaian per Versi Pengukuran Disahkan
 
