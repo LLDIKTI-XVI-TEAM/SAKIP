@@ -15,6 +15,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -26,8 +27,9 @@ class IndexPengukuran
     public function __construct(private PresentPengukuran $present, private PermissionResolver $resolver, private PengukuranKinerjaPolicy $policy) {}
 
     /**
-     * Daftar kewajiban pengukuran: indikator snapshot × periode berjalan setiap jadwal aktif (pengisian_mulai terakhir yang
-     * sudah dimulai), atau tepat satu jadwal × periode pilihan jalur Perencanaan sampai tanggal penutupan. Header existing
+     * Daftar kewajiban pengukuran: indikator snapshot × periode berjalan setiap jadwal aktif lalu jadwal ditutup sebagai baris
+     * baca saja (pengisian_mulai terakhir yang sudah dimulai), atau tepat satu jadwal × periode pilihan jalur Perencanaan
+     * sampai tanggal penutupan, atau kapan pun bila jadwal ditutup. Header existing
      * memakai snapshot yang dijepit; tanpa header memakai nomor_versi terbesar yang sudah efektif pada urutan periode, atau
      * versi terendah sebagai identitas "Tidak berlaku". Deny baca disaring per unit baris (unit snapshot tersebut, bukan unit
      * master) sebelum paginate, dan indikator arsip tanpa header dikeluarkan. Baris existing hanya ringkasan; izin create
@@ -47,11 +49,16 @@ class IndexPengukuran
         $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'],
             ...($filtered ? ['jadwal_id' => ['required', 'uuid'], 'periode_id' => ['required', 'uuid']] : [])])->validate();
         $today = today(config('app.business_timezone'))->toDateString();
-        $schedules = JadwalTahunan::where('status', 'aktif')->orderBy('tahun')->orderBy('id')->get();
+        // shortcut: memuat semua jadwal aktif dan ditutup (±1 per tahun, ≤12 periode per jadwal), batasi tahun histori bila jadwal ditutup mencapai puluhan.
+        $schedules = JadwalTahunan::whereIn('status', ['aktif', 'ditutup'])->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('tahun')->orderBy('id')->get()->keyBy('id');
+        $closedOn = $schedules->where('status', 'ditutup')->whereNotNull('closed_at')
+            ->map(fn ($schedule) => Carbon::parse($schedule->closed_at)->timezone(config('app.business_timezone'))->toDateString());
         $periods = $filtered ? $this->selectedPeriod($schedules, $query, $today)
             : PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->where('pengisian_mulai', '<=', $today)
-                ->orderByDesc('pengisian_mulai')->orderBy('id')->get()->unique('jadwal_id')->keyBy('id');
-        $schedules = $schedules->keyBy('id');
+                ->orderByDesc('pengisian_mulai')->orderBy('id')->get()
+                // Tahun ditutup berhenti pada periode yang sudah dimulai saat penutupan, tidak ikut maju bersama hari ini.
+                ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today))
+                ->unique('jadwal_id')->keyBy('id');
 
         $page = $this->obligations($periods->keys()->all(), $actor, $today)->paginate(20, page: $query['page'] ?? 1)->withQueryString();
         $items = collect($page->items());
@@ -94,7 +101,7 @@ class IndexPengukuran
         })->all();
 
         $selected = $filtered ? $schedules->only($periods->first()->jadwal_id) : $schedules;
-        $options = $schedules->filter(fn ($schedule) => $today <= $schedule->penutupan->toDateString());
+        $options = $schedules->filter(fn ($schedule) => $schedule->status === 'ditutup' || $today <= $schedule->penutupan->toDateString());
 
         return [
             'konteks' => $selected->map(fn ($schedule) => ['jadwal_id' => $schedule->id, 'tahun' => $schedule->tahun,
@@ -120,7 +127,7 @@ class IndexPengukuran
         $selected = DB::table('jadwal_snapshot as s')->join('jadwal_periode as jp', 'jp.jadwal_id', '=', 's.jadwal_id')
             ->join('periode as pr', 'pr.id', '=', 'jp.periode_id')->join('periode as pm', 'pm.id', '=', 's.periode_mulai_id')
             ->join('jadwal_tahunan as j', 'j.id', '=', 's.jadwal_id')->whereIn('jp.id', $periodIds)
-            ->selectRaw("DISTINCT ON (s.jadwal_id, s.indikator_id) s.jadwal_id, s.indikator_id, s.id as snapshot_id, jp.id as periode_jadwal_id, jp.periode_id, j.tahun, {$effective} as berlaku")
+            ->selectRaw("DISTINCT ON (s.jadwal_id, s.indikator_id) s.jadwal_id, s.indikator_id, s.id as snapshot_id, jp.id as periode_jadwal_id, jp.periode_id, j.tahun, j.status, {$effective} as berlaku")
             ->orderBy('s.jadwal_id')->orderBy('s.indikator_id')->orderByRaw("{$effective} DESC")
             ->orderByRaw("CASE WHEN {$effective} THEN -s.nomor_versi ELSE s.nomor_versi END");
 
@@ -135,11 +142,11 @@ class IndexPengukuran
             ->whereNotIn('cs.unit_id', $this->resolver->unitDitolak($actor, 'pengukuran:read'))
             ->select(['k.jadwal_id', 'k.indikator_id', 'k.periode_jadwal_id', 'k.periode_id', 'k.tahun', 'k.berlaku', 'h.id as pengukuran_id', 'cs.id as jadwal_snapshot_id',
                 'cs.nama', 'cs.satuan', 'cs.desimal_tampilan', 'i.kode', 'u.id as unit_id', 'u.nama as unit_nama', 'pic.user_id as pic_id', 'picu.nama as pic_nama'])
-            ->orderBy('k.tahun')->orderBy('k.jadwal_id')->orderBy('i.kode')->orderBy('i.id');
+            ->orderByRaw("CASE WHEN k.status = 'aktif' THEN 0 ELSE 1 END")->orderBy('k.tahun')->orderBy('k.jadwal_id')->orderBy('i.kode')->orderBy('i.id');
     }
 
     /**
-     * Filter jalur Perencanaan: jadwal aktif yang belum melewati penutupan dan periode anggotanya.
+     * Filter jalur Perencanaan: jadwal aktif yang belum melewati penutupan, atau jadwal ditutup untuk dibaca, dan periode anggotanya.
      *
      * @param  Collection<int, JadwalTahunan>  $schedules
      * @return Collection<string, PeriodeJadwal>
@@ -147,7 +154,7 @@ class IndexPengukuran
     private function selectedPeriod(Collection $schedules, array $query, string $today): Collection
     {
         $schedule = $schedules->firstWhere('id', strtolower($query['jadwal_id']));
-        if (! $schedule || $today > $schedule->penutupan->toDateString()) {
+        if (! $schedule || ($schedule->status === 'aktif' && $today > $schedule->penutupan->toDateString())) {
             throw ValidationException::withMessages(['jadwal_id' => 'Pilih jadwal aktif yang belum melewati tanggal penutupan.']);
         }
         $period = PeriodeJadwal::with('periode')->where('jadwal_id', $schedule->id)->where('periode_id', $query['periode_id'])->first()
@@ -161,7 +168,7 @@ class IndexPengukuran
     {
         $periods = PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->get()->groupBy('jadwal_id');
 
-        return $schedules->map(fn ($schedule) => ['id' => $schedule->id, 'tahun' => $schedule->tahun,
+        return $schedules->map(fn ($schedule) => ['id' => $schedule->id, 'tahun' => $schedule->tahun, 'status' => $schedule->status,
             'periode' => ($periods[$schedule->id] ?? collect())->sortBy('periode.urutan')->map(fn ($period) => $this->periodDto($period, $schedule->tahun))->values()->all()])->values()->all();
     }
 

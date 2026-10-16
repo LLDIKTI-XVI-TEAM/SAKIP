@@ -415,6 +415,8 @@ class RencanaAksiIndexTest extends TestCase
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $unitLain = Unit::create(['nama' => 'Unit Lain RA', 'status' => 'aktif', 'created_by' => $fixture['perencanaan']->id]);
         $lain = $this->tambahIndikatorTerjadwal($fixture, 'A-UNIT-LAIN', unitId: $unitLain->id);
+        // Q54: unit lain harus berizin agar barisnya terbaca; header tetap disaring memakai unit header.
+        $this->grant($fixture['pic'], 'rencana_aksi:update', $unitLain->id, $fixture['perencanaan']);
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,

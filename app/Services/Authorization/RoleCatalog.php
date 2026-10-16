@@ -13,6 +13,9 @@ final class RoleCatalog
         'pegawai' => ['nama' => 'Pegawai', 'seed_urutan' => 5],
     ];
 
+    /** Peran yang membaca detail Rencana Aksi dan Kegiatan seluruh unit (Q54 §54.1). */
+    public const PEMBACA_SELURUH_UNIT = ['superadmin', 'perencanaan', 'pimpinan'];
+
     /** @return list<string> */
     public static function codes(): array
     {

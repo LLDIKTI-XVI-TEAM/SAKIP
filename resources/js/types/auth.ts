@@ -46,6 +46,7 @@ export interface SharedPageProps extends PageProps {
             jadwal?: boolean;
             'pk:create'?: boolean;
             'pk:update'?: boolean;
+            rekomendasi?: boolean;
         };
     };
     flash?: {

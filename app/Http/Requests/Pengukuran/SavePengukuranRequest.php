@@ -23,6 +23,8 @@ class SavePengukuranRequest extends FormRequest
             // Satu-satunya status dari client adalah pilihan eksplisit; status hasil lain diputuskan server.
             'status_perhitungan' => ['nullable', 'in:belum_dapat_diukur'],
             ...array_fill_keys(PengukuranKinerja::NARASI, ['nullable', 'string', 'max:10000']),
+            // Rekomendasi yang ditampilkan form; pengajuan ditolak bila sudah diganti (Q55 §55.1 butir 6).
+            'rekomendasi_sebelumnya_id' => ['nullable', 'uuid'],
             'bukti' => ['sometimes', 'nullable', 'array:jenis_berkas_id,mode,file,tautan,isi_teks,menggantikan_id,alasan_koreksi'],
             'bukti.menggantikan_id' => ['nullable', 'uuid'],
             'bukti.alasan_koreksi' => ['required_with:bukti.menggantikan_id', 'nullable', 'string', 'max:10000'],

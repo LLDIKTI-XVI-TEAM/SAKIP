@@ -106,6 +106,8 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
             progres_kegiatan: values.progres_kegiatan, kendala_masalah: values.kendala_masalah, strategi_tindak_lanjut: values.strategi_tindak_lanjut,
             // Tanpa rekomendasi approved, field diomit (bukan null) agar isi tersimpan tetap utuh.
             ...(rekomendasi ? { tindak_lanjut_rekomendasi: values.tindak_lanjut_rekomendasi } : {}),
+            // Rekomendasi yang dilihat; pengajuan ditolak bila sudah diganti sebelum dikirim.
+            rekomendasi_sebelumnya_id: rekomendasi?.id ?? null,
             ...(bukti && activeMode && can.uploadEvidence ? { bukti: {
                 jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
                 ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),

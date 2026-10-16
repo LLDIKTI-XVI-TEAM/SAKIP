@@ -29,6 +29,7 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     jadwal: true,
     pengukuran: true,
     verifikasi: true,
+    rekomendasi: true,
     unit: true,
     jenisBerkas: true,
     assignRole: true,
@@ -95,6 +96,7 @@ afterEach(() => {
         jadwal: true,
         pengukuran: true,
         verifikasi: true,
+        rekomendasi: true,
         unit: true,
         jenisBerkas: true,
         assignRole: true,
@@ -146,8 +148,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pelaksanaan.type).toBe('group');
         if (pelaksanaan.type === 'group') {
             expect(pelaksanaan.group.label).toBe('Pelaksanaan & Evaluasi');
-            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Kegiatan', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan']);
-            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'kegiatan', 'pengukuran', 'verifikasi']);
+            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Kegiatan', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Rekomendasi Pimpinan']);
+            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'kegiatan', 'pengukuran', 'verifikasi', 'rekomendasi']);
         }
 
         expect(masterData.type).toBe('group');
@@ -201,7 +203,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(20); // 1 direct item + 19 submenus
+        expect(allItems).toHaveLength(21); // 1 direct item + 20 submenus
     });
 });
 
