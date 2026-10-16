@@ -217,6 +217,26 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $this->assertSame('nonaktif', $renstra->fresh()->status);
     }
 
+    public function test_concurrent_window_revisions_have_one_winner_and_stale_writer_is_audited(): void
+    {
+        $actors = [$this->calendarActor(['jadwal:update']), $this->calendarActor(['jadwal:update'])];
+        $periode = $this->calendarMaster();
+        // Tahun jauh di depan agar jadwal tetap belum melewati penutupan pada jam nyata worker.
+        $jadwal = JadwalTahunan::create(['renstra_id' => $this->calendarRenstra($actors[0], 'aktif')->id, 'tahun' => 2030, 'penutupan' => '2031-01-19', 'status' => 'aktif', 'activated_at' => now()]);
+        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => '2031-01-11', 'reviu_mulai' => '2031-01-12', 'reviu_selesai' => '2031-01-18']);
+        $revisi = fn (string $selesai): array => ['expected_revisi' => 1, 'alasan' => 'Perpanjangan resmi.', 'periode' => [
+            ['periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => $selesai, 'reviu_mulai' => '2031-01-12', 'reviu_selesai' => '2031-01-18'],
+        ]];
+        $this->assertSame(['changed', 'jadwal'], $this->race([
+            ['actor_id' => $actors[0]->id, 'operation' => 'revisi', 'id' => $jadwal->id, 'data' => $revisi('2031-01-10')],
+            ['actor_id' => $actors[1]->id, 'operation' => 'revisi', 'id' => $jadwal->id, 'data' => $revisi('2031-01-09')],
+        ], serialized: true));
+        $this->assertSame(2, $jadwal->fresh()->revisi);
+        $this->assertSame('2031-01-10', PeriodeJadwal::where('jadwal_id', $jadwal->id)->sole()->pengisian_selesai->toDateString());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.revisi_jendela')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.revisi_jendela_ditolak')->where('actor_id', $actors[1]->id)->count());
+    }
+
     /** Barrier STDIN/STDOUT dan pg_blocking_pids membuktikan overlap, bukan perkiraan durasi sleep. */
     private function race(array $payloads, bool $serialized = false): array
     {
