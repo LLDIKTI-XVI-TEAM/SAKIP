@@ -35,7 +35,7 @@ class RolePermissionPresetTest extends TestCase
             $this->assertNull($creation->nilai_lama);
             $this->assertEquals($role->only(['kode', 'nama', 'is_sistem', 'urutan', 'aktif']), $creation->nilai_baru);
         }
-        $this->assertDatabaseCount('role_permissions', 165);
+        $this->assertDatabaseCount('role_permissions', 166);
         $this->assertSame(5, AuditLog::where('tindakan', 'role_permissions.ubah')->count());
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->firstOrFail();
         $this->assertSame(['permissions' => []], $audit->nilai_lama);
@@ -44,7 +44,7 @@ class RolePermissionPresetTest extends TestCase
         $this->assertNull($audit->actor_id);
         $this->assertNull($audit->operator_reference);
         $this->assertNotEmpty($audit->runtime_identity);
-        $this->assertStringContainsString('q32-2026-09-24', $audit->alasan);
+        $this->assertStringContainsString('q51-2026-10-16', $audit->alasan);
         $before = $this->snapshot();
         $this->travel(10)->minutes();
         $this->seed(PermissionCatalogSeeder::class);
@@ -82,6 +82,25 @@ class RolePermissionPresetTest extends TestCase
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->where('objek_id', $role->id)->orderByDesc('waktu')->firstOrFail();
         $this->assertSame(['akses:update', 'dashboard:read', 'jenis_berkas:read', 'kegiatan:read', 'komponen:read', 'pengukuran:read', 'regulasi:read', 'rencana_aksi:read'], $audit->nilai_lama['permissions']);
         $this->assertSame(['dashboard:read', 'jenis_berkas:read', 'kegiatan:read', 'komponen:read', 'pengukuran:read', 'regulasi:read', 'rencana_aksi:read'], $audit->nilai_baru['permissions']);
+    }
+
+    public function test_release_grants_pimpinan_rekomendasi_tetapkan_with_audited_before_after(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $pimpinan = Role::where('kode', 'pimpinan')->sole();
+        $permission = Permission::where('kode', 'rekomendasi:tetapkan')->sole();
+        $pimpinan->permissions()->detach($permission->id);
+        $this->travel(10)->minutes();
+
+        $this->seed(AccessCatalogSeeder::class);
+
+        $this->assertDatabaseHas('role_permissions', ['role_id' => $pimpinan->id, 'permission_id' => $permission->id]);
+        $this->assertDatabaseHas('role_permissions', ['role_id' => Role::where('kode', 'perencanaan')->value('id'), 'permission_id' => $permission->id]);
+        $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->where('objek_id', $pimpinan->id)->orderByDesc('waktu')->firstOrFail();
+        $this->assertNotContains('rekomendasi:tetapkan', $audit->nilai_lama['permissions']);
+        $this->assertContains('rekomendasi:tetapkan', $audit->nilai_baru['permissions']);
+        $this->assertSame([], array_values(array_diff($audit->nilai_lama['permissions'], $audit->nilai_baru['permissions'])));
+        $this->assertStringContainsString('q51-2026-10-16', $audit->alasan);
     }
 
     public function test_partial_catalog_audits_only_new_roles_and_reports_exact_event_count(): void

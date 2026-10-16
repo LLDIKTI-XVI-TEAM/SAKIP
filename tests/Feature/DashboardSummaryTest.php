@@ -123,16 +123,18 @@ class DashboardSummaryTest extends TestCase
             ->where('konteks.0.periode.tahun', 2026)->where('pagination.total', 1)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id));
     }
 
-    public function test_index_does_not_use_a_closed_schedule_from_an_inactive_renstra(): void
+    public function test_index_keeps_a_closed_schedule_from_an_inactive_renstra_read_only(): void
     {
+        // Data historis Renstra nonaktif tetap dapat dibaca (PRD §10.1; Q52 §52.2 butir 4).
         $this->jadwal->update(['status' => 'ditutup']);
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->actingAs($this->actor)->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('konteks', [])->has('pengukurans', 0)->where('pagination.total', 0));
+            ->where('konteks.0.jadwal_id', $this->jadwal->id)->where('pagination.total', 1)
+            ->where('pengukurans.0.pengukuran.id', $this->pengukuran->id)->where('pengukurans.0.can.create', false));
 
         Renstra::create(['kode' => 'R-AKTIF-BARU', 'nama' => 'Renstra Aktif Baru', 'tahun_mulai' => 2026, 'tahun_selesai' => 2030, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('konteks', [])->has('pengukurans', 0)->where('pagination.total', 0));
+            ->has('konteks', 1)->where('konteks.0.jadwal_id', $this->jadwal->id)->where('pagination.total', 1));
     }
 
     public function test_summary_batches_current_pic_for_draft_and_returned_rows_but_keeps_frozen_pic(): void

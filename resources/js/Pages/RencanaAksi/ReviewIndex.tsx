@@ -46,7 +46,7 @@ export default function ReviewIndex({ daftar, pagination, filters }: ReviewIndex
                                 <TableRow className="block md:table-row">
                                     <TableCell colSpan={6} className="block py-12 text-center md:table-cell">
                                         <ClipboardCheck className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                        <p className="mt-2 text-sm font-semibold text-ink">Belum ada rencana aksi pada status yang dipilih.</p>
+                                        <p className="mt-2 text-sm font-semibold text-ink">Belum ada rencana aksi pada status yang dipilih untuk unit yang dapat Anda akses.</p>
                                         <p className="mt-1 text-xs text-muted">Pilih status lain untuk melihat pengajuan yang tersedia.</p>
                                     </TableCell>
                                 </TableRow>

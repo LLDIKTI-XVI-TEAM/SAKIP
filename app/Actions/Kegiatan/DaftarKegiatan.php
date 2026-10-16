@@ -25,7 +25,7 @@ class DaftarKegiatan
         );
     }
 
-    /** Baca global sesuai Q32, dengan deny unit di SQL dan capability ubah per objek. @param array<string,mixed> $filters @return array<string,mixed> */
+    /** Gerbang baca global (Q32), baris hanya unit berizin dikurangi deny unit di SQL (Q54), dan capability ubah per objek. @param array<string,mixed> $filters @return array<string,mixed> */
     public function handle(User $actor, array $filters): array
     {
         abort_unless($this->policy->viewAny($actor), 403);
@@ -35,7 +35,8 @@ class DaftarKegiatan
             $effectiveFilters['tahun'] = (string) $tahunDefault;
         }
 
-        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'));
+        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
+            ->when($this->resolver->unitTerbaca($actor, 'kegiatan:read'), fn ($query, $terbaca) => $query->whereIn('unit_id', $terbaca));
         foreach (['tahun', 'unit_id', 'periode_id', 'status'] as $field) {
             if (isset($effectiveFilters[$field]) && $effectiveFilters[$field] !== '') {
                 $query->where($field, $effectiveFilters[$field]);
@@ -45,15 +46,17 @@ class DaftarKegiatan
         $units = Unit::whereNotIn('id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))->orderBy('nama')->get(['id', 'nama']);
         $activeUnitIds = Unit::where('status', 'aktif')->pluck('id');
         $scopes = $activeUnitIds->merge($page->getCollection()->pluck('unit_id'))->unique()->values()->all();
-        $decisions = $this->resolver->decideManyForUnits($actor, ['kegiatan:create', 'kegiatan:update'], $scopes);
+        $decisions = $this->resolver->decideManyForUnits($actor, ['kegiatan:read', 'kegiatan:create', 'kegiatan:update'], $scopes);
+        // Q54 §54.3: unit tulis harus juga terbaca agar hasil simpan tetap muncul di daftar ini.
+        $boleh = fn (string $unitId, string $code): bool => ($decisions[$unitId][$code]['allowed'] ?? false) && ($decisions[$unitId]['kegiatan:read']['allowed'] ?? false);
         $activeUnits = Unit::where('status', 'aktif')
             ->orderBy('nama')
             ->get(['id', 'nama']);
         $creatableUnits = $activeUnits
-            ->filter(fn (Unit $unit) => ($decisions[$unit->id]['kegiatan:create']['allowed'] ?? false))
+            ->filter(fn (Unit $unit) => $boleh($unit->id, 'kegiatan:create'))
             ->values();
         $editableUnits = $activeUnits
-            ->filter(fn (Unit $unit) => ($decisions[$unit->id]['kegiatan:update']['allowed'] ?? false))
+            ->filter(fn (Unit $unit) => $boleh($unit->id, 'kegiatan:update'))
             ->values();
         // Aturan sama dengan SimpanKegiatan agar tombol ubah tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = JadwalTahunan::whereIn('tahun', $page->getCollection()->pluck('tahun')->unique()->values())->where('status', '!=', 'draft')->get()
@@ -75,7 +78,7 @@ class DaftarKegiatan
             'unit' => $kegiatan->unit->only(['id', 'nama']),
             'periode' => $kegiatan->periode->only(['id', 'nama']),
             // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
-            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id)
+            'can' => ['update' => $boleh($kegiatan->unit_id, 'kegiatan:update') && $activeUnitIds->contains($kegiatan->unit_id)
                 && ! in_array($kegiatan->tahun, $tahunDitutup, true)],
         ]);
 
@@ -88,7 +91,7 @@ class DaftarKegiatan
             'editableUnitOptions' => $editableUnits->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'activePeriodeOptions' => Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
             'tahunDefault' => $tahunDefault,
-            'can' => ['create' => $activeUnitIds->contains(fn (string $unitId) => $decisions[$unitId]['kegiatan:create']['allowed'])],
+            'can' => ['create' => $activeUnitIds->contains(fn (string $unitId) => $boleh($unitId, 'kegiatan:create'))],
         ];
     }
 }

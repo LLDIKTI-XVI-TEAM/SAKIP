@@ -139,15 +139,49 @@ class KegiatanHttpTest extends TestCase
         $this->assertDatabaseCount('kegiatan', 0);
     }
 
-    public function test_baca_global_menyaring_deny_unit_dan_menghormati_deny_global(): void
+    public function test_daftar_hanya_mengirim_kegiatan_unit_berizin_dan_deny_tetap_menang(): void
     {
-        $this->kegiatan();
+        $barisA = $this->kegiatan();
         $barisB = $this->kegiatan($this->unitLain);
-        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Index')
-            ->has('kegiatan.data', 1)->where('kegiatan.data.0.id', $barisB->id)->where('kegiatan.data.0.can.update', false)->where('can.create', true)->missing('kegiatan.data.0.anggaran'));
+            ->has('kegiatan.data', 1)->where('kegiatan.data.0.id', $barisA->id)->where('kegiatan.data.0.can.update', true)->where('can.create', true)->missing('kegiatan.data.0.anggaran'));
+        $this->actingAs($this->user('pegawai'))->get('/kegiatan')->assertOk()->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 0));
+        foreach (['perencanaan', 'pimpinan'] as $peran) {
+            $this->actingAs($this->user($peran))->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 2));
+        }
+        $this->actingAs($this->pegawai)->get("/kegiatan/{$barisB->id}/edit")->assertForbidden();
+        $audit = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin;
+        $this->assertSame(['kegiatan:read', 'unit_tidak_berizin'], [$audit['permission'], $audit['alasan']]);
+
+        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->has('kegiatan.data', 0));
         $this->deny($this->pegawai, 'kegiatan:read', null);
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertForbidden();
+    }
+
+    public function test_grant_tulis_tanpa_izin_baca_unit_ditolak_sejak_form_hingga_simpan(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $admin = $this->user('admin');
+        foreach (['kegiatan:create', 'kegiatan:update'] as $code) {
+            UserPermissionGrant::create(['user_id' => $admin->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'unit_id' => $this->unit->id, 'alasan' => 'Grant tanpa izin baca', 'diberikan_oleh' => $this->perencanaan->id]);
+        }
+        $token = $this->editToken($kegiatan);
+        $this->actingAs($admin)->get('/kegiatan/buat')->assertForbidden();
+        $this->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
+        $this->post("/kegiatan/{$kegiatan->id}", $this->payload() + ['expected_state' => $token])->assertForbidden();
+        foreach (['kegiatan.form_ditolak', 'kegiatan.buat_ditolak', 'kegiatan.ubah_ditolak'] as $event) {
+            $this->assertSame('kegiatan:read', AuditLog::where('tindakan', $event)->where('actor_id', $admin->id)->firstOrFail()->dasar_izin['permission']);
+        }
+
+        // Deny baca pada unit tulis menutup tombol, form, dan simpan pada unit itu.
+        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->where('can.create', false)->has('creatableUnitOptions', 0)->has('editableUnitOptions', 0));
+        $this->get('/kegiatan/buat')->assertForbidden();
+        $this->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->assertDatabaseCount('kegiatan', 1);
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
     }
 
     public function test_form_hanya_memberikan_unit_yang_boleh_ditulis_tanpa_izin_unit_read(): void
@@ -263,6 +297,7 @@ class KegiatanHttpTest extends TestCase
         $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin;
         $this->assertSame('explicit_deny', $basis['alasan']);
         $this->assertSame(UserPermissionDeny::where('user_id', $this->perencanaan->id)->pluck('id')->all(), $basis['deny']);
+        $this->assertSame(['kegiatan:create', ['kegiatan:create']], [$basis['permission'], $basis['izin_unit']]);
 
         // Alasan campuran: deny di unit A, tanpa allow di unit B; ID deny dan grant tetap tercatat.
         $this->deny($this->pegawai, 'kegiatan:create', $this->unit->id);
@@ -271,8 +306,29 @@ class KegiatanHttpTest extends TestCase
         $this->assertSame('no_active_writable_unit', $basis['alasan']);
         $this->assertEqualsCanonicalizing(['explicit_deny', 'no_allow'], $basis['alasan_unit']);
         $this->assertSame(UserPermissionDeny::where('user_id', $this->pegawai->id)->pluck('id')->all(), $basis['deny']);
+        $this->assertSame(['kegiatan:create', ['kegiatan:create']], [$basis['permission'], $basis['izin_unit']]);
         $this->assertNotEmpty($basis['sumber_allow']['grants']);
         $this->assertDatabaseCount('kegiatan', 0);
+    }
+
+    public function test_form_buat_mengaudit_izin_yang_sebenarnya_menolak(): void
+    {
+        // Seluruh unit lolos izin tulis tetapi ditolak izin baca: label audit memakai kegiatan:read.
+        $perencanaan = $this->user('perencanaan');
+        foreach ([$this->unit, $this->unitLain] as $unit) {
+            $this->deny($perencanaan, 'kegiatan:read', $unit->id);
+        }
+        $this->actingAs($perencanaan)->get('/kegiatan/buat')->assertForbidden();
+        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $perencanaan->id)->sole()->dasar_izin;
+        $this->assertSame(['kegiatan:read', 'explicit_deny', ['kegiatan:read']], [$basis['permission'], $basis['alasan'], $basis['izin_unit']]);
+        $this->assertEqualsCanonicalizing(UserPermissionDeny::where('user_id', $perencanaan->id)->pluck('id')->all(), $basis['deny']);
+        // Campuran: Unit A ditolak deny baca, Unit B tanpa grant tulis.
+        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
+        $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertForbidden();
+        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $this->pegawai->id)->sole()->dasar_izin;
+        $this->assertSame(['kegiatan:create', 'no_active_writable_unit'], [$basis['permission'], $basis['alasan']]);
+        $this->assertEqualsCanonicalizing(['kegiatan:read', 'kegiatan:create'], $basis['izin_unit']);
+        $this->assertSame(UserPermissionDeny::where('user_id', $this->pegawai->id)->pluck('id')->all(), $basis['deny']);
     }
 
     public function test_opsi_modal_create_dan_update_terpisah_dan_periode_nonaktif_tidak_ditawarkan(): void

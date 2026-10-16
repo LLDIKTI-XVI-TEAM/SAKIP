@@ -505,6 +505,8 @@ kegiatan:update
 
 **Status implementasi Bagian B (2026-10-15):** diimplementasikan oleh PR #108 (penonaktifan dan pengaktifan kembali akun dari Penetapan Peran). Checklist yang dicentang mencerminkan automated test dan CI PR #108, bukan penerimaan UAT; AC-10 dan AC-12 dibuktikan integration test PostgreSQL dua koneksi. Smoke browser SSO, UAT, dan deployment belum dilakukan.
 
+**Tindak lanjut Q53 (2026-10-15):** guard superadmin aktif terakhir pada penetapan peran (AC-14) dikerjakan di [#112](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/112). Centang AC-14 mencerminkan test feature dan integration test PostgreSQL dua koneksi pada PR tersebut, bukan penerimaan UAT.
+
 #### Kontrak Teknis
 
 - Onboarding JIT membuat `users.status = aktif` tanpa `user_roles`; login ulang tidak mengubah status.
@@ -512,6 +514,7 @@ kegiatan:update
 - Menu, endpoint `/akses/aktivasi`, dan capability `aktivasi` dihapus; izin `pengguna:read` dan `akses:update` dipertahankan.
 - Bootstrap Super Admin menerima kandidat aktif tanpa role yang tercatat onboarding SSO.
 - Penonaktifan dan pengaktifan kembali: aktor `akses:update`, alasan wajib, audit; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; peran dan grant dipertahankan; peringatan bila pengguna masih Penanggung Jawab aktif.
+- Penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; superadmin `nonaktif` tidak dihitung (Q53).
 
 #### Acceptance Criteria
 
@@ -528,6 +531,7 @@ kegiatan:update
 - [x] **AC-11:** alasan kosong → 422; tanpa izin atau deny yang cocok → 403, dan penolakan di dalam action teraudit.
 - [x] **AC-12:** dua mutasi status bersamaan pada akun yang sama → satu berhasil, yang lain ditolak stale.
 - [x] **AC-13:** bila target masih Penanggung Jawab aktif, dialog menampilkan peringatan sebelum konfirmasi.
+- [x] **AC-14 (Q53, #112):** penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; penurunan peran dan penonaktifan yang berjalan bersamaan tidak menghabiskan superadmin aktif.
 
 #### Implementation Tasks
 
@@ -2500,7 +2504,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 mengikuti Q49 §49.1.
 
-**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Penegakan pembatasan detail per unit (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan akses baca penerima grant tulis ditunda ke satu issue lintas modul Rencana Aksi + Kegiatan sesuai [keputusan PM PR #97](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/97#issuecomment-6161158080). Requirement tetap berlaku; PR ini mempertahankan baca global dikurangi deny unit. Issue tindak lanjut: [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102), gerbang sebelum UAT dengan data nyata serta produksi, bukan gerbang merge PR ini. Sementara itu grant kegiatan:create/update hanya diberikan kepada pengguna yang sudah memiliki kegiatan:read; Admin tidak diberi grant kegiatan. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
+**Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Pembatasan detail per unit berizin (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan syarat izin baca bagi penerima grant tulis diterapkan oleh [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102) sesuai Q54. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
 
 **Terkait User Story:** `US-06.01`  
 **Prioritas:** 🟡 P1 · Tahap 1, PR #97 + Q49 (Q46 §46.3)  
@@ -3738,6 +3742,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q45, Q51 (13 Oktober 2026):** Rekomendasi Pimpinan kini diisi Pimpinan: Perencanaan menyusun draf, Pimpinan menyetujui draf (dapat mengubah isinya lebih dulu) atau menulis rekomendasi langsung, dan hanya rekomendasi berstatus disetujui yang berlaku (Q45 §45.2 butir 1, Q51 §51.1). Persetujuan oleh Perencanaan menjadi jalur cadangan yang diberi penanda (Q51 §51.2 butir 2). Issue ini belum dikerjakan sehingga isinya diperbarui langsung dan dipindah ke tahap 2 (Q51 §51.3); task Plan memakai 6.7 (rujukan lama "Modul 8: 8.5" kini milik ISS-10.05). Riwayat: judul semula "Pencatatan Rekomendasi Pimpinan oleh Perencanaan" (digantikan Q45/Q51); AC-1 sampai AC-3 semula diperbarui menjadi AC-1, AC-5, dan AC-6; AC-4 semula (Pimpinan hanya membaca rekomendasi pada MVP) dibatalkan Q45 §45.2 butir 1.
 
+> **Q55 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode; penyimpanan dan persetujuan membawa token versi draf dan rekomendasi berlaku yang dilihat, sehingga tampilan basi ditolak sebagai konflik versi tanpa mengubah data. Penyetuju cadangan boleh menulis rekomendasi yang langsung disetujui dengan penanda cadangan, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil; pengajuan dari tampilan basi ditolak (Q55 §55.1).
+
 **Terkait User Story:** `US-09.01`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3; dipindah Q51 §51.3)  
 **Story Points:** 5  
@@ -3757,7 +3763,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 - **Dependensi:** Indikator, tahun, dan periode valid.
 - **Otorisasi:** `rekomendasi:tetapkan` (sensitif; preset Pimpinan dan Perencanaan melalui seeder, Q45 §45.2 butir 1, Q51 §51.2 butir 1).
-- **Dampak Data:** `rekomendasi_pimpinan` (`status` `draf`/`disetujui`, `disetujui_oleh`, `disetujui_oleh_role`, `disetujui_pada`, `rujukan_sumber`), preset `role_permissions`, `audit_log`.
+- **Dampak Data:** `rekomendasi_pimpinan` (`status` `draf`/`disetujui`, `disetujui_oleh`, `disetujui_oleh_role`, `disetujui_pada`, `rujukan_sumber`, `versi` (Q55)), preset `role_permissions`, `audit_log`.
 - **Keputusan terkait:** Q45 §45.2, Q51, Q46 §46.3.
 - **Rule:** rekomendasi melekat pada indikator × periode dan independen dari status pengukuran (Q45 §45.2 butir 2); rekomendasi yang disetujui dimuat pada Laporan Kinerja Triwulan (Q48 §48.1 butir 1; ISS-10.05).
 - **Rule (Q51 §51.1 butir 4):** kewajiban tindak lanjut berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur; tindak lanjut dikecualikan untuk periode lampau (Q46 §46.1 butir 1; ISS-07.03).
@@ -3766,64 +3772,64 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given Perencanaan menyimpan rekomendasi untuk indikator × periode, Then baris baru dibuat berstatus `draf` dengan `ditetapkan_oleh` dan waktu, serta tercatat di audit. *(Diperbarui Q51 §51.1 butir 1; semula baris langsung berlaku.)*
-- [ ] **AC-2:** Given Pimpinan memiliki `rekomendasi:tetapkan`, When Pimpinan menyetujui draf (dengan atau tanpa mengubah isinya lebih dulu) atau menulis rekomendasi langsung, Then rekomendasi berstatus `disetujui` dengan `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi serta tercatat di audit. *(Q51 §51.1 butir 1)*
-- [ ] **AC-3:** Given rekomendasi berstatus `draf`, When Perencanaan menyetujuinya sebagai jalur cadangan bila Pimpinan berhalangan, Then persetujuan diterima dengan penanda cadangan (`disetujui_oleh_role = perencanaan`) dan tercatat di audit. *(Q51 §51.2 butir 2)*
-- [ ] **AC-4:** Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)*
-- [ ] **AC-5:** Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
-- [ ] **AC-6:** Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
-- [ ] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)*
-- [ ] **AC-8:** Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
+- [x] **AC-1:** Given Perencanaan menyimpan rekomendasi untuk indikator × periode, Then baris baru dibuat berstatus `draf` dengan `ditetapkan_oleh` dan waktu, serta tercatat di audit. *(Diperbarui Q51 §51.1 butir 1; semula baris langsung berlaku.)*
+- [x] **AC-2:** Given Pimpinan memiliki `rekomendasi:tetapkan`, When Pimpinan menyetujui draf (dengan atau tanpa mengubah isinya lebih dulu) atau menulis rekomendasi langsung, Then rekomendasi berstatus `disetujui` dengan `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi serta tercatat di audit. *(Q51 §51.1 butir 1)*
+- [x] **AC-3:** Given rekomendasi berstatus `draf`, When Perencanaan menyetujuinya sebagai jalur cadangan bila Pimpinan berhalangan, Then persetujuan diterima dengan penanda cadangan (`disetujui_oleh_role = perencanaan`) dan tercatat di audit. *(Q51 §51.2 butir 2)*
+- [ ] **AC-4:** Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)* *(Draf tidak tampil pada pengukuran periode berikutnya, dan halaman Rekomendasi Pimpinan hanya untuk pemegang izin; bagian Laporan Kinerja Triwulan menunggu ISS-10.05 dan tindak lanjut wajib menunggu gerbang ISS-07.03, keduanya memakai pembaca rekomendasi yang berlaku.)*
+- [x] **AC-5:** Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
+- [x] **AC-6:** Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
+- [ ] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Gerbang pengajuan dipasang pada ISS-07.03 / #82; issue ini menyediakan pembaca rekomendasi yang berlaku, termasuk lintas tahun.)*
+- [x] **AC-8:** Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `rekomendasi_pimpinan`, `audit_log`.
-- [ ] Sediakan `rekomendasi_pimpinan` sesuai Data Model §2.31 dengan `status` enum(`draf`,`disetujui`), `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada`; baris bersifat riwayat, dan rekomendasi yang berlaku adalah baris terbaru berstatus `disetujui`.
-- [ ] Tambahkan kolom `rekomendasi_pimpinan.rujukan_sumber` untuk rujukan laporan sumber rekomendasi data awal 2026 (Q51 §51.1 butir 5; Data Model §2.31).
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `rekomendasi_pimpinan`, `audit_log`.
+- [x] Sediakan `rekomendasi_pimpinan` sesuai Data Model §2.31 dengan `status` enum(`draf`,`disetujui`), `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada`; baris bersifat riwayat, dan rekomendasi yang berlaku adalah baris terbaru berstatus `disetujui`.
+- [x] Tambahkan kolom `rekomendasi_pimpinan.rujukan_sumber` untuk rujukan laporan sumber rekomendasi data awal 2026 (Q51 §51.1 butir 5; Data Model §2.31).
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Rekomendasi Pimpinan: Draf Perencanaan dan Persetujuan Pimpinan** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Bedakan simpan draf dan setujui melalui status, bukan permission; persetujuan oleh peran selain Pimpinan (Perencanaan, Superadmin, atau peran lain yang memegang permission) diberi penanda persetujuan cadangan melalui `disetujui_oleh_role` (Q51 §51.2 butir 2); perubahan rekomendasi yang sudah disetujui membentuk baris baru melalui persetujuan yang sama (Q51 §51.2).
-- [ ] Sediakan pembacaan rekomendasi yang berlaku (baris terbaru berstatus `disetujui`) bagi gerbang tindak lanjut ISS-07.03, termasuk lintas tahun (Q51 §51.1 butir 4), dan bagi Laporan Kinerja Triwulan ISS-10.05; draf tidak dikirim ke PIC.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Rekomendasi Pimpinan: Draf Perencanaan dan Persetujuan Pimpinan** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Bedakan simpan draf dan setujui melalui status, bukan permission; persetujuan oleh peran selain Pimpinan (Perencanaan, Superadmin, atau peran lain yang memegang permission) diberi penanda persetujuan cadangan melalui `disetujui_oleh_role` (Q51 §51.2 butir 2); perubahan rekomendasi yang sudah disetujui membentuk baris baru melalui persetujuan yang sama (Q51 §51.2).
+- [x] Sediakan pembacaan rekomendasi yang berlaku (baris terbaru berstatus `disetujui`) bagi gerbang tindak lanjut ISS-07.03, termasuk lintas tahun (Q51 §51.1 butir 4), dan bagi Laporan Kinerja Triwulan ISS-10.05; draf tidak dikirim ke PIC.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rekomendasi:tetapkan` (sensitif).
-- [ ] Tambahkan `rekomendasi:tetapkan` pada preset Pimpinan melalui `RolePermissionPresets`/`SyncRolePermissionPresets` dengan audit delta preset (ISS-01.07); Perencanaan tetap memegangnya.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `rekomendasi:tetapkan` (sensitif).
+- [x] Tambahkan `rekomendasi:tetapkan` pada preset Pimpinan melalui `RolePermissionPresets`/`SyncRolePermissionPresets` dengan audit delta preset (ISS-01.07); Perencanaan tetap memegangnya.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Rekomendasi Pimpinan: Draf Perencanaan dan Persetujuan Pimpinan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Sediakan aksi Pimpinan untuk menyetujui draf (dengan mengubah isi bila perlu) dan menulis rekomendasi langsung; aksi Perencanaan untuk menyimpan draf dan menyetujui sebagai cadangan dengan penanda yang terlihat; PIC hanya melihat rekomendasi disetujui.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Rekomendasi Pimpinan: Draf Perencanaan dan Persetujuan Pimpinan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Sediakan aksi Pimpinan untuk menyetujui draf (dengan mengubah isi bila perlu) dan menulis rekomendasi langsung; aksi Perencanaan untuk menyimpan draf dan menyetujui sebagai cadangan dengan penanda yang terlihat; PIC hanya melihat rekomendasi disetujui.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. *(Responsivitas dan kontras menunggu smoke browser SSO.)*
+- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran. *(Tidak ada aksi rekomendasi yang mewajibkan alasan menurut Q43 §43.2; persetujuan memakai modal peninjauan isi.)*
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menyimpan rekomendasi untuk indikator × periode, Then baris baru dibuat berstatus `draf` dengan `ditetapkan_oleh` dan waktu, serta tercatat di audit. *(Diperbarui Q51 §51.1 butir 1; semula baris langsung berlaku.)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Pimpinan memiliki `rekomendasi:tetapkan`, When Pimpinan menyetujui draf (dengan atau tanpa mengubah isinya lebih dulu) atau menulis rekomendasi langsung, Then rekomendasi berstatus `disetujui` dengan `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi serta tercatat di audit. *(Q51 §51.1 butir 1)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi berstatus `draf`, When Perencanaan menyetujuinya sebagai jalur cadangan bila Pimpinan berhalangan, Then persetujuan diterima dengan penanda cadangan (`disetujui_oleh_role = perencanaan`) dan tercatat di audit. *(Q51 §51.2 butir 2)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
-- [ ] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun berlaku sebagai dasar tindak lanjut pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
-- [ ] DATA AWAL: Uji rekomendasi TW I–II data awal 2026 tersimpan berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada `rujukan_sumber` (Q51 §51.1 butir 5).
-- [ ] CADANGAN NON-PIMPINAN: Uji persetujuan oleh Superadmin atau peran lain selain Pimpinan juga diberi penanda persetujuan cadangan dan tercatat di audit (Q51 §51.2 butir 2).
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menyimpan rekomendasi untuk indikator × periode, Then baris baru dibuat berstatus `draf` dengan `ditetapkan_oleh` dan waktu, serta tercatat di audit. *(Diperbarui Q51 §51.1 butir 1; semula baris langsung berlaku.)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Pimpinan memiliki `rekomendasi:tetapkan`, When Pimpinan menyetujui draf (dengan atau tanpa mengubah isinya lebih dulu) atau menulis rekomendasi langsung, Then rekomendasi berstatus `disetujui` dengan `disetujui_oleh`, `disetujui_oleh_role`, dan `disetujui_pada` terisi serta tercatat di audit. *(Q51 §51.1 butir 1)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi berstatus `draf`, When Perencanaan menyetujuinya sebagai jalur cadangan bila Pimpinan berhalangan, Then persetujuan diterima dengan penanda cadangan (`disetujui_oleh_role = perencanaan`) dan tercatat di audit. *(Q51 §51.2 butir 2)*
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)* *(Dibuktikan untuk pengukuran periode berikutnya dan halaman Rekomendasi Pimpinan; Laporan Kinerja Triwulan dan gerbang tindak lanjut menunggu ISS-10.05 dan ISS-07.03.)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Menunggu gerbang ISS-07.03 / #82.)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
+- [x] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun berlaku sebagai dasar tindak lanjut pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
+- [x] DATA AWAL: Uji rekomendasi TW I–II data awal 2026 tersimpan berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada `rujukan_sumber` (Q51 §51.1 butir 5).
+- [x] CADANGAN NON-PIMPINAN: Uji persetujuan oleh Superadmin atau peran lain selain Pimpinan juga diberi penanda persetujuan cadangan dan tercatat di audit (Q51 §51.2 butir 2).
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-4 bagian Laporan Kinerja Triwulan menunggu ISS-10.05; AC-7 menunggu gerbang ISS-07.03.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke browser SSO.)*
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-09.02 · [Feature] Penetapan Status Capaian per Versi Pengukuran Disahkan
 
@@ -5613,17 +5619,18 @@ Perubahan per request (tanpa nomor baris kode):
 - [x] **AC-3:** Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
 - [x] **AC-4:** Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
 - [x] **AC-5:** Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak sebagai validasi bisnis (422); tanpa izin atau terkena deny ditolak 403; keduanya teraudit.
-- [ ] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi terpenuhi; daftar Pengukuran dilanjutkan di #110.)*
+- [x] **AC-6:** Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only) oleh pemilik izin baca. *(Rencana Aksi pada #109. Daftar Pengukuran pada #110: periode terakhir yang sudah dimulai pada tahun ditutup tampil sebagai baris baca saja setelah jadwal aktif, dan jalur Perencanaan dapat memilih periode lain tahun itu untuk dibaca.)*
 
 > **Status implementasi — ISS-14.01 (#86):** centang menunjukkan bukti implementasi dan test:
 > - `tests/Feature/Jadwal/JadwalPenutupanTest` (AC-1, AC-4, AC-5: penolakan draft/ditutup/izin/revisi basi beraudit);
 > - `tests/Unit/Jadwal/JadwalTahunDitutupTest`;
 > - `tests/Feature/RencanaAksi/RencanaAksiJadwalDitutupTest` (termasuk daftar RA baca saja untuk AC-6), regresi `RencanaAksiBuktiHttpTest` dan `ReviewRencanaAksiTest` (RA dan bukti);
 > - `tests/Feature/Pengukuran/PengukuranJadwalDitutupTest` (lima perintah pengukuran dan detail baca saja);
+> - `tests/Feature/IndexPengukuranTest` (daftar Pengukuran tahun ditutup untuk AC-6, #110: baris baca saja setelah jadwal aktif, deny unit, filter Perencanaan, dan jumlah query tetap) serta `EnsureDraftPengukuranTest` (pembentukan draf tahun ditutup tetap ditolak);
 > - `tests/Feature/Kegiatan/KegiatanHttpTest` (kegiatan);
 > - `tests/Frontend/JadwalEditor.test.tsx`.
 >
-> Jalur `jadwal:buka_kembali` sendiri milik ISS-14.02. Daftar Pengukuran tahun ditutup (sisa AC-6) dilacak di #110. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
+> Jalur `jadwal:buka_kembali` sendiri milik ISS-14.02. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
@@ -5652,11 +5659,11 @@ Perubahan per request (tanpa nomor baris kode):
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given data perlu dikoreksi pasca-penutupan, Then perubahan tidak dilakukan langsung; harus melalui `jadwal:buka_kembali` dengan sesi koreksi.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given penutupan adalah aksi sensitif, Then audit menyimpan aktor dan `dasar_izin`.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `draft` atau sudah `ditutup`, When penutupan dicoba, Then ditolak 422; tanpa izin atau deny ditolak 403; keduanya teraudit.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only). *(Rencana Aksi terbukti; daftar Pengukuran di #110.)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given jadwal `ditutup`, Then daftar Rencana Aksi dan Pengukuran tahun tersebut tetap terbaca (read-only). *(Rencana Aksi pada `RencanaAksiJadwalDitutupTest`; daftar Pengukuran pada `IndexPengukuranTest`, #110.)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-6/TEST-6 untuk daftar Pengukuran menunggu #110.)*
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.

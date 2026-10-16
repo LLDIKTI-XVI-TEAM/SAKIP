@@ -32,17 +32,28 @@ class KegiatanPolicy
         return $this->resolver->allows($user, 'kegiatan:update', (string) $kegiatan->unit_id);
     }
 
-    /** Perubahan unit memerlukan izin asal dan tujuan; payload tidak dapat menyamarkan unit objek. */
+    /**
+     * Perubahan unit memerlukan izin asal dan tujuan; payload tidak dapat menyamarkan unit objek.
+     * Izin baca unit asal dan tujuan diperiksa terakhir (Q54 §54.3) agar alasan tulis tetap didahulukan.
+     */
     public function keputusanSimpan(User $user, ?Kegiatan $kegiatan, string $unitId): PermissionDecision
     {
         $code = $kegiatan ? 'kegiatan:update' : 'kegiatan:create';
-        $source = $this->resolver->resolve($user, $code, $kegiatan ? (string) $kegiatan->unit_id : $unitId);
-        if (! $source->allowed || ! $kegiatan || (string) $kegiatan->unit_id === $unitId) {
-            return $source;
+        $decision = $this->resolver->resolve($user, $code, $kegiatan ? (string) $kegiatan->unit_id : $unitId);
+        if ($decision->allowed && $kegiatan && (string) $kegiatan->unit_id !== $unitId) {
+            $target = $this->resolver->resolve($user, $code, $unitId);
+            $decision = new PermissionDecision($target->allowed, $code, ['asal' => $decision->toAuditBasis(), 'tujuan' => $target->toAuditBasis()]);
+        }
+        if (! $decision->allowed) {
+            return $decision;
+        }
+        foreach (array_unique([(string) ($kegiatan?->unit_id ?? $unitId), $unitId]) as $unit) {
+            $baca = $this->resolver->resolve($user, 'kegiatan:read', $unit);
+            if (! $baca->allowed) {
+                return $baca;
+            }
         }
 
-        $target = $this->resolver->resolve($user, $code, $unitId);
-
-        return new PermissionDecision($target->allowed, $code, ['asal' => $source->toAuditBasis(), 'tujuan' => $target->toAuditBasis()]);
+        return $decision;
     }
 }

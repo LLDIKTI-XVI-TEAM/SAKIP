@@ -55,9 +55,9 @@ function FilterPeriode({ pilihan, konteks, filters, errors }: { pilihan: Pilihan
 
     return (
         <form onSubmit={tampilkan} className="flex flex-wrap items-start gap-3 border-b border-border p-4">
-            <div className="w-40">
+            <div className="w-52">
                 <Select label="Jadwal" error={errors.jadwal_id} value={jadwalId} onChange={(event) => { setJadwalId(event.target.value); setPeriodeId(periodeAwal(event.target.value)); }}
-                    options={pilihan.map((item) => ({ value: item.id, label: `Tahun ${item.tahun}` }))} />
+                    options={pilihan.map((item) => ({ value: item.id, label: `Tahun ${item.tahun}${item.status === 'ditutup' ? ' (ditutup)' : ''}` }))} />
             </div>
             <div className="w-48">
                 <Select label="Periode" error={errors.periode_id} value={periodeId} onChange={(event) => setPeriodeId(event.target.value)}

@@ -180,6 +180,7 @@ class GetEffectivePermissionPage
             'no_role' => ['Tidak efektif', 'Pengguna tidak memiliki peran resmi yang aktif; Grant tidak membuka akses.'],
             'unknown_permission' => ['Tidak efektif', 'Permission tidak aktif, tidak tersedia, atau berada di luar katalog rilis.'],
             'inactive_unit' => ['Tidak efektif', 'Grant pada unit nonaktif tidak memberikan izin.'],
+            'unit_tidak_berizin' => ['Tidak diberikan', 'Detail unit ini hanya terbuka bagi pemegang Grant unit aktif atau peran yang membaca seluruh unit.'],
             default => ['Tidak diberikan', 'Tidak ada sumber allow yang berlaku dalam konteks ini.'],
         };
     }
