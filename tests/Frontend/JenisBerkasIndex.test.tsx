@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -118,6 +118,7 @@ it('meminta alasan audit sebelum menyimpan perubahan persyaratan', async () => {
     render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     await user.click(screen.getByRole('button', { name: 'Edit Laporan Capaian Triwulan' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/nama persyaratan/i)));
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     expect(router.put).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText(/alasan perubahan/i), 'Penyesuaian format laporan');
@@ -135,7 +136,10 @@ it('mengosongkan batas teknis mengirim null saat hanya boleh mengubah batas tekn
     render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={{ create: false, update: false, delete: false, pengaturan_update: true }} />);
 
     await user.click(screen.getByRole('button', { name: 'Ubah batas teknis Laporan Capaian Triwulan' }));
-    await user.clear(screen.getByLabelText(/format file/i));
+    const formatInput = screen.getByLabelText(/format file/i);
+    // Polyfill dialog jsdom tidak mengisolasi fokus; tuntaskan autofocus form sebelum membuka konfirmasi audit.
+    await waitFor(() => expect(document.activeElement).toBe(formatInput));
+    await user.clear(formatInput);
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     await user.type(screen.getByLabelText(/alasan perubahan/i), 'Format mengikuti bawaan');
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
