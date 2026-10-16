@@ -406,7 +406,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         expect(screen.queryByText('Pratinjau · belum disimpan')).toBeNull();
         expect(screen.queryByText('0,00 %')).toBeNull();
         expect(input.value).toBe('');
-        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan bila hasil/ }).value).toBe('');
+        expect(screen.queryByRole('textbox', { name: /Alasan bila hasil/ })).toBeNull();
         expect(screen.getByText('80,00 %')).toBeTruthy();
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));
         expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ action: 'draft', status_perhitungan: 'belum_dapat_diukur', komponen: [{ komponen_id: 'a', nilai: null }], alasan_tidak_dapat_dihitung: '' });
@@ -431,7 +431,7 @@ describe('Draft narasi dan Belum dapat diukur', () => {
         expect(bdd().getAttribute('aria-invalid')).toBe('true');
         expect(bdd().getAttribute('aria-describedby')).toBe('measurement-errors');
 
-        rerender(<PengukuranEdit pengukuran={{ ...komponenUji, id: 'akhir', periode_jadwal: { ...measurement.periode_jadwal, is_nilai_akhir: true } }} />);
+        rerender(<PengukuranEdit pengukuran={{ ...komponenUji, id: 'akhir', nilai: null, status_perhitungan: 'tidak_dapat_dihitung', periode_jadwal: { ...measurement.periode_jadwal, is_nilai_akhir: true } }} />);
         expect(screen.queryByRole('switch', { name: 'Belum dapat diukur' })).toBeNull();
         expect(screen.getByRole('textbox', { name: /Alasan bila hasil/ })).toBeTruthy();
         await user.click(screen.getByRole('button', { name: 'Simpan Draft' }));

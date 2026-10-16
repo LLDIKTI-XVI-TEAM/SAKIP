@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
-import { statusPerhitungan, type Pengukuran } from '@/Pages/Pengukuran/types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import type { Pengukuran } from '@/Pages/Pengukuran/types';
 import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
@@ -113,7 +114,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                             </div>
                             <div className="min-w-0">
                                 <dt className="text-xs text-muted">Hasil perhitungan</dt>
-                                <dd className="mt-1 break-words text-lg font-semibold">{statusPerhitungan[pengukuran.status_perhitungan]}</dd>
+                                <dd className="mt-1 break-words text-lg font-semibold"><StatusPerhitunganBadge status={pengukuran.status_perhitungan} /></dd>
                                 <dd className="mt-1 text-xs text-muted">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd>
                             </div>
                         </dl>

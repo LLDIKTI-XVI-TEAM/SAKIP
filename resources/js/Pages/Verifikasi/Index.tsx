@@ -7,7 +7,7 @@ import { Badge } from '@/Components/Badge';
 import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
-import { statusPerhitungan } from '@/Pages/Pengukuran/types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -88,7 +88,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                             {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-left font-semibold text-ink">
-                                            {statusPerhitungan[p.status_perhitungan]}
+                                            <StatusPerhitunganBadge status={p.status_perhitungan} />
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-center">
                                             {p.bukti_count > 0 ? (

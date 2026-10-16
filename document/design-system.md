@@ -365,6 +365,14 @@ export const capaianBadgeMap: Record<string, { variant: BadgeVariant; label: str
     belum_dapat_diukur: { variant: 'warning', label: 'Belum Dapat Diukur' },
 };
 
+// Status Perhitungan Pengukuran: badge hanya saat nilai kosong; `terhitung` tampil sebagai angka/teks.
+// Komponen: Components/Pengukuran/StatusPerhitunganBadge.tsx
+export const statusPerhitunganBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
+    belum_diisi: { variant: 'muted', label: 'Belum Diisi' },
+    tidak_dapat_dihitung: { variant: 'secondary', label: 'Tidak Dapat Dihitung' },
+    belum_dapat_diukur: { variant: 'warning', label: 'Belum Dapat Diukur' },
+};
+
 // Status Rekomendasi Pimpinan (Q51): hanya yang disetujui berlaku
 export const rekomendasiBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
     draf: { variant: 'muted', label: 'Draf' },
