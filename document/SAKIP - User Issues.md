@@ -5313,45 +5313,52 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
-- [ ] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
-- [ ] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
-- [ ] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [ ] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+- [x] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [x] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [x] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan. *(Pencatatan dilakukan modul masing-masing; halaman ini menampilkan percobaan bertindakan berakhiran `ditolak` beserta alasannya.)*
+- [x] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+
+> **Status implementasi — ISS-13.03 (#87):** centang menunjukkan bukti implementasi dan test:
+> - `tests/Feature/Audit/AuditTrailTest` (AC-1 termasuk batas tanggal Asia/Makassar; AC-2 dan AC-3 dari penetapan peran yang diizinkan dan yang ditolak deny; AC-4 405 dan model append-only; AC-5; 403 tanpa `audit:read` atau terkena deny; paginasi server dan index pencarian);
+> - `tests/Feature/Authorization/InertiaCapabilitiesTest` (`can.audit`);
+> - `tests/Frontend/AuditTrail.test.tsx` dan `tests/Frontend/GroupedSidebarNavigation.test.tsx`.
+>
+> AC-5 sisi penyimpanan bergantung pada allowlist payload di setiap modul penulis; test memeriksa payload modul yang dijalankan dalam test, dan halaman detail menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
+- [x] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
 
 **B. Backend / Domain**
-- [ ] Audit log bersifat append-only; tidak ada update/delete endpoint. Mask secret/credential dan simpan `dasar_izin` untuk aksi sensitif.
+- [x] Audit log bersifat append-only; tidak ada update/delete endpoint. Mask secret/credential dan simpan `dasar_izin` untuk aksi sensitif.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `audit:read`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `audit:read`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan. *(Tidak ada event baru: fitur ini hanya membaca.)*
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan halaman Inertia React untuk **Penelusuran Audit Trail Append-Only** sebagai tampilan read-only/filterable sesuai hak server.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan halaman Inertia React untuk **Penelusuran Audit Trail Append-Only** sebagai tampilan read-only/filterable sesuai hak server.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke SSO.)*
 
 ### ISS-13.04 · [Feature] Konfigurasi Operasional Notifikasi Eksternal
 
