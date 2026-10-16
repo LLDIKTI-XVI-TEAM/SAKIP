@@ -254,7 +254,7 @@ kegiatan:create
 kegiatan:update
 ```
 
-Permission baca `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, dan `dashboard:read` bersifat global sesuai preset role yang berlaku.
+Permission baca `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, dan `dashboard:read` bersifat global sesuai preset role yang berlaku. Detail Rencana Aksi dan Kegiatan per unit dibatasi unit berizin (Q12, Q54 §54.1): allow dari peran Superadmin, Perencanaan, atau Pimpinan berlaku untuk seluruh unit, sedangkan allow lain hanya berlaku pada unit tempat pengguna memegang Grant Unit aktif.
 
 Tambahan permission governance:
 
@@ -306,7 +306,7 @@ Baseline role:
 | **Admin** | Pengelolaan teknis pengguna/unit/setelan/akses sesuai permission preset; tidak memperoleh kewenangan substantif kinerja secara otomatis. Memiliki `delegasi:update` untuk administrasi grant unit. |
 | **Perencanaan** | Kewenangan substantif perencanaan, jadwal, review/pengesahan sesuai katalog, termasuk `delegasi:update` dan `laporan:unggah` (Q48); `rekomendasi:tetapkan` dipakai untuk menyusun draf Rekomendasi Pimpinan dan persetujuan cadangan bertanda (Q51); permission kerja yang berasal dari role bersifat global. |
 | **Pimpinan** | Baseline read-only/monitoring sesuai permission preset, ditambah `rekomendasi:tetapkan` untuk menulis dan menyetujui Rekomendasi Pimpinan (Q45, Q51); approval fase lanjutan tidak dianggap aktif hanya karena role. |
-| **Pegawai** | Hak baca: `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`; akses berkas mengikuti ownership/parent authorization. Hak kerja unit tidak berasal dari role Pegawai, melainkan Grant Unit. |
+| **Pegawai** | Hak baca: `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`; detail Rencana Aksi dan Kegiatan hanya pada unit tempat ia memegang Grant Unit aktif (Q54); akses berkas mengikuti ownership/parent authorization. Hak kerja unit tidak berasal dari role Pegawai, melainkan Grant Unit. |
 
 ### 7.4 Algoritma Resolusi Izin
 
@@ -318,7 +318,8 @@ Resolver server-side menerima user, permission, dan unit opsional:
 4. kumpulkan grant yang cocok;
 5. evaluasi explicit deny — **deny menang**;
 6. untuk permission unit-scoped, unit request harus cocok dengan grant yang sah kecuali allow global memang berasal dari role yang secara eksplisit memiliki kewenangan global;
-7. setelah permission lolos, jalankan business guard: status data, assignment, jendela waktu, F1/F2, penutupan, dan rule domain lain.
+7. untuk `rencana_aksi:read` dan `kegiatan:read` dengan unit, allow yang tidak berasal dari peran Superadmin, Perencanaan, atau Pimpinan hanya berlaku pada unit berizin (Q54 §54.1);
+8. setelah permission lolos, jalankan business guard: status data, assignment, jendela waktu, F1/F2, penutupan, dan rule domain lain.
 
 User tanpa role menghasilkan **nol permission** (fail closed).
 
@@ -793,7 +794,7 @@ Tabel `kegiatan` menyimpan:
 
 **Penjumlahan anggaran (Q42 §42.2 butir 3–6):** anggaran dijumlahkan otomatis per periode, per Rencana Aksi, dan per IKU. Kegiatan yang diklaim lebih dari satu IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**, sedangkan total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda; alternatif "satu kegiatan hanya untuk satu IKU" masih menunggu konfirmasi Perencanaan. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total (§15.2), dan total yang sudah dibekukan pada versi Rencana Aksi tidak berubah (Q42 §42.2 butir 6). Dashboard menampilkan total anggaran per IKU dengan drill-down sampai kegiatan (§23). Rincian realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola.
 
-**Akses detail kegiatan (Q12, Q42 §42.5, Q49 §49.3):** detail kegiatan — termasuk anggaran per kegiatan dan berkas RAB — tetap dibatasi unit karena nama kegiatan dapat memuat nama orang atau kasus; Perencanaan dan Pimpinan dapat melihat anggaran dan RAB seluruh unit. Total anggaran per IKU pada dashboard mengikuti akses dashboard.
+**Akses detail kegiatan (Q12, Q42 §42.5, Q49 §49.3, Q54):** detail kegiatan — termasuk anggaran per kegiatan dan berkas RAB — tetap dibatasi unit berizin karena nama kegiatan dapat memuat nama orang atau kasus; Perencanaan dan Pimpinan dapat melihat anggaran dan RAB seluruh unit. Pengguna lain hanya membaca kegiatan pada unit tempat ia memegang Grant Unit aktif, dan form serta penyimpanan kegiatan hanya tersedia pada unit yang juga dapat dibacanya (Q54 §54.1, §54.3). Total anggaran per IKU pada dashboard mengikuti akses dashboard.
 
 ### 15.2 Status & Siklus Hidup Kegiatan
 

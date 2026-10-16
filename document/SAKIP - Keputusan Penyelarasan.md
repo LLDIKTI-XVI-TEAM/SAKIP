@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **15 Oktober 2026**
+Pembaruan terakhir: **16 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -16,6 +16,8 @@ Basis commit sebelum pembaruan Q39–Q51: `0a260708d3b6df328d82151f85bf274d29bde
 Basis commit sebelum pembaruan Q52: `edd08533ec01170c8946f8f3b38ffdd633bbb0a0`
 
 Basis commit sebelum pembaruan Q53: `80d32e533382446471469c5b3af6f6af387bec85`
+
+Basis commit sebelum pembaruan Q54: `fe79a3136d38382c9bb4e9ae6a20ed182cc68d2d`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -56,6 +58,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 15 Oktober 2026 (Q53)** menetapkan bahwa Penetapan Peran tidak dapat menurunkan peran superadmin aktif terakhir, melengkapi Q38 §38.2.
 
+**Keputusan 16 Oktober 2026 (Q54)** menetapkan definisi unit berizin untuk detail Rencana Aksi dan Kegiatan serta mensyaratkan izin baca bagi izin tulis kegiatan, mempertegas Q12 dan Q49 §49.3.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -83,7 +87,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q9 | Penyebut nol faktual dengan komponen lengkap boleh diajukan/disahkan beralasan sebagai tidak dapat dihitung; dibedakan dari belum diisi dan bukan nol. **Q47** menambah realisasi "belum dapat diukur", yang berbeda dari tidak dapat dihitung. | PRD §17.4, §19.4, §23; Q47 |
 | Q10 | Koreksi salah input terhadap sumber resmi menerbitkan versi snapshot pengganti beralasan/bukti, mempertahankan versi lama dan memerlukan pengesahan baru untuk hasil resmi yang dikoreksi. | PRD §12.5–12.7; Model jadwal_snapshot |
 | Q11 | Laporan disahkan mempertahankan target RA, klaim, narasi dan bukti yang diperiksa; perubahan kerja tidak memperbarui laporan historis diam-diam. | PRD §14.6, §22.4; Model tabel versi |
-| Q12 | Detail RA/kegiatan dan bukti PIC dibatasi unit berizin, termasuk deny; ringkasan umum tetap sesuai baseline. | PRD §7; Model permission; Workflow §19 |
+| Q12 | Detail RA/kegiatan dan bukti PIC dibatasi unit berizin, termasuk deny; ringkasan umum tetap sesuai baseline. **Dipertegas Q54:** definisi unit berizin dan syarat izin baca bagi izin tulis kegiatan. | PRD §7; Model permission; Workflow §19; Q54 |
 | Q13 | Jalur kerja PIC atas RA/pengukuran memerlukan cakupan unit yang sah dan PIC indikator efektif; setelah Q31, jalur operasional normal juga menggunakan role `pic`. Perencanaan tetap memakai kewenangan global; kegiatan tetap kolaboratif sesuai permission unit. | PRD §7, §13, §14.8, §19.3; Q31 |
 | Q14 | Admin tidak memiliki izin substantif secara bawaan; grant eksplisit beralasan dapat memberi pengecualian sesuai katalog, tetap tunduk deny/scope/business guard/waktu/F1. Grant tidak otomatis mengubah role seseorang menjadi PIC dan tidak otomatis menjadikannya penanggung jawab indikator. **Diperbarui Q43:** alasan pemberian grant opsional; bila kosong, server mengisi alasan baku. | PRD §7.3–7.6; Q31; Q43 |
 | Q15 | F1/F2 berlaku untuk RA dan Pengukuran. Gunakan identitas/jalur pengaju yang dibekukan saat pengajuan, bukan pembuat draft atau role terkini; self-approval Perencanaan ditandai. | PRD §7.6; Workflow §20; Model versi |
@@ -1532,6 +1536,36 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: Q38 §38.2 butir 2, Workflow §21.2, User Stories US-01.08, dan User Issues ISS-01.08.
 - Status keputusan: baseline kerja PM.
 - Q53 adalah keputusan requirement; implementasinya dibawa PR untuk Issue #112.
+
+---
+
+# Keputusan Q54 — Unit Berizin untuk Detail Rencana Aksi dan Kegiatan
+
+**Keputusan PM, 16 Oktober 2026**, untuk [Issue #102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102) (tindak lanjut M1/M2 review PR #97). Menegaskan Q12 dan Q49 §49.3; Q14, Q32.2, dan Q32.3 tetap berlaku.
+
+## 54.1 Definisi unit berizin
+
+1. Pengguna yang memperoleh `rencana_aksi:read` atau `kegiatan:read` dari peran Superadmin, Perencanaan, atau Pimpinan membaca detail Rencana Aksi atau Kegiatan seluruh unit.
+2. Pengguna lain yang memiliki izin baca tersebut hanya membaca detail pada unit tempat ia memegang grant unit aktif untuk salah satu dari tujuh permission unit-scoped Q32.3. Grant pada unit nonaktif tidak dihitung.
+3. Penugasan penanggung jawab indikator tidak menjadikan unit berizin (Q32.2).
+4. Deny global maupun deny per unit atas izin baca tetap menang.
+5. `rencana_aksi:read` dan `kegiatan:read` tetap permission global (Q32.3); tidak ada grant baca per unit.
+
+## 54.2 Cakupan
+
+1. Aturan §54.1 berlaku pada daftar, detail (termasuk versi historis), antrean review, dan unduhan bukti Rencana Aksi; daftar dan form Kegiatan; serta klaim kegiatan pada halaman Pengukuran. Baris unit yang tidak berizin tidak dikirim ke halaman.
+2. Ringkasan agregat dashboard tetap mengikuti baseline akses dashboard (Q12, Q42 §42.5 butir 2).
+
+## 54.3 Izin tulis kegiatan mensyaratkan izin baca
+
+1. Form buat dan ubah kegiatan, penyimpanan, serta tombol buat hanya tersedia pada unit yang juga dapat dibaca pengguna menurut §54.1.
+2. Penerima grant `kegiatan:create`/`kegiatan:update` tanpa `kegiatan:read` ditolak sejak membuka form, dan penolakannya diaudit. Ketentuan sementara PR #97 (grant tulis kegiatan hanya bagi pemegang `kegiatan:read`) kini ditegakkan sistem.
+
+## 54.4 Dampak dan traceability
+
+- Diselaraskan: PRD §7.2–§7.4 dan §15.1; Workflow §8 butir 9; Data Model §2.3; User Stories dan User Issues US/ISS-06.01.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan menunggu bersama Q38–Q52.
+- Implementasi dibawa PR Issue #102.
 
 ---
 

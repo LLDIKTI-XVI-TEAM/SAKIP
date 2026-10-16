@@ -274,6 +274,6 @@ describe('Antrean review rencana aksi', () => {
 
     it('antrean kosong menyajikan pesan yang jelas', () => {
         render(<ReviewIndex daftar={[]} pagination={{ ...pagination, total: 0 }} filters={{ status: 'diajukan' }} />);
-        expect(screen.getByText('Belum ada rencana aksi pada status yang dipilih.')).toBeTruthy();
+        expect(screen.getByText('Belum ada rencana aksi pada status yang dipilih untuk unit yang dapat Anda akses.')).toBeTruthy();
     });
 });

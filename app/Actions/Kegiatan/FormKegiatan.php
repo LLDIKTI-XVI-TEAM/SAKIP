@@ -28,13 +28,21 @@ class FormKegiatan
             if (! Unit::whereKey($kegiatan->unit_id)->where('status', 'aktif')->exists()) {
                 $this->reject($actor, new PermissionDecision(false, 'kegiatan:update', ['alasan' => 'inactive_unit']), $kegiatan);
             }
+        } else {
+            // Q54 §54.3: tanpa izin baca, hasil simpan tidak dapat dibuka kembali dari daftar.
+            $baca = $this->resolver->resolve($actor, 'kegiatan:read');
+            if (! $baca->allowed) {
+                $this->reject($actor, $baca, null);
+            }
         }
         $units = Unit::where('status', 'aktif')->orderBy('nama')->get(['id', 'nama']);
         $code = $kegiatan ? 'kegiatan:update' : 'kegiatan:create';
-        $decisions = $this->resolver->decideManyForUnits($actor, [$code], $units->pluck('id')->all());
-        $unitOptions = $units->filter(fn (Unit $unit) => $decisions[$unit->id][$code]['allowed'])->values();
+        $decisions = $this->resolver->decideManyForUnits($actor, [$code, 'kegiatan:read'], $units->pluck('id')->all());
+        // Alasan tulis didahulukan; keputusan baca hanya dilaporkan bila tulis sudah diizinkan.
+        $perUnit = array_map(fn (array $unit) => $unit[$code]['allowed'] ? $unit['kegiatan:read'] : $unit[$code], $decisions);
+        $unitOptions = $units->filter(fn (Unit $unit) => $perUnit[$unit->id]['allowed'])->values();
         if ($unitOptions->isEmpty()) {
-            $this->reject($actor, $this->keputusanTanpaUnit($code, array_column($decisions, $code)), $kegiatan);
+            $this->reject($actor, $this->keputusanTanpaUnit($code, array_values($perUnit)), $kegiatan);
         }
 
         return [
@@ -48,17 +56,20 @@ class FormKegiatan
     /**
      * Permission ini unit-scoped; keputusan tanpa unit selalu `invalid_scope`. Gabungkan keputusan
      * batch per unit agar audit tetap memuat alasan, sumber allow, dan ID deny yang sebenarnya.
+     * Label permission mengikuti izin yang menolak bila izin itu seragam di semua unit.
      *
-     * @param  list<array{reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>  $perUnit
+     * @param  list<array{permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>  $perUnit
      */
     private function keputusanTanpaUnit(string $code, array $perUnit): PermissionDecision
     {
         $alasan = array_values(array_unique(array_column($perUnit, 'reason')));
+        $izin = array_values(array_unique(array_column($perUnit, 'permission')));
         $gabung = fn (string $key) => array_values(array_unique(array_merge([], ...array_column($perUnit, $key))));
 
-        return new PermissionDecision(false, $code, [
+        return new PermissionDecision(false, count($izin) === 1 ? $izin[0] : $code, [
             'alasan' => count($alasan) === 1 ? $alasan[0] : 'no_active_writable_unit',
             'alasan_unit' => $alasan,
+            'izin_unit' => $izin,
             'sumber_allow' => ['roles' => $gabung('roles'), 'grants' => $gabung('grants')],
             'deny' => $gabung('denies'),
         ]);

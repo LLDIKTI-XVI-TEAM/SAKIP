@@ -136,3 +136,8 @@ it('menyinkronkan input filter dengan filters server setelah redirect simpan yan
     rerender(<Index kegiatan={daftar} filters={{ tahun: '2027', unit_id: '', periode_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} tahunDefault={2026} can={{ create: false }} />);
     expect(screen.getByLabelText<HTMLInputElement>('Tahun').value).toBe('2027');
 });
+
+it('menjelaskan daftar kosong mengikuti unit yang dapat diakses', () => {
+    render(<Index {...indexProps} kegiatan={{ data: [], links: [], from: null, to: null, total: 0 }} />);
+    expect(screen.getByText('Belum ada rencana kegiatan pada unit yang dapat Anda akses.')).toBeTruthy();
+});
