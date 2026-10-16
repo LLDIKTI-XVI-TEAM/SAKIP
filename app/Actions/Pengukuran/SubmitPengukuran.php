@@ -9,13 +9,14 @@ use App\Models\KlaimKegiatan;
 use App\Models\PengukuranKinerja;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use App\Services\Rekomendasi\RekomendasiBerlaku;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class SubmitPengukuran
 {
-    public function __construct(private PengukuranMutationSteps $steps, private PengukuranKinerjaPolicy $policy, private SubmissionPrerequisites $prerequisites) {}
+    public function __construct(private PengukuranMutationSteps $steps, private PengukuranKinerjaPolicy $policy, private SubmissionPrerequisites $prerequisites, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Pengajuan menyimpan input lalu membekukan satu versi: nilai, target, snapshot, pengaju/jalur/dasar izin, PIC efektif,
@@ -67,6 +68,7 @@ class SubmitPengukuran
             'indikator' => [...$snapshot->only(['nama', 'definisi', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'id' => $p->indikator_id, 'kode' => $p->indikator->kode],
             'unit_kerja' => $snapshot->unit->only(['id', 'nama']), 'pic' => $p->effectivePic()?->pic?->only(['id', 'nama']),
             'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'target_pk' => $snapshot->target,
+            'rekomendasi_sebelumnya' => $this->rekomendasi->tampilanSebelum($p),
             'komponen' => $snapshot->komponen->map(fn ($c) => [...$c->only(['komponen_id', 'kode', 'label', 'peran', 'bobot']), 'nilai' => $p->komponen()->where('komponen_id', $c->komponen_id)->value('nilai')])->all(),
             'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_versi']->rencana_aksi_id),
             'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];

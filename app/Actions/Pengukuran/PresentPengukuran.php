@@ -121,8 +121,7 @@ class PresentPengukuran
             // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
             $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
         }
-        $rekomendasi = $this->rekomendasi->sebelum($p);
-        $data['rekomendasi_sebelumnya'] = $rekomendasi ? [...$rekomendasi->only(['id', 'isi', 'tahun', 'periode_id']), 'disetujui_pada' => $rekomendasi->disetujui_pada->toIso8601String()] : null;
+        $data['rekomendasi_sebelumnya'] = $frozen ? ($frozen['rekomendasi_sebelumnya'] ?? null) : $this->rekomendasi->tampilanSebelum($p);
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));

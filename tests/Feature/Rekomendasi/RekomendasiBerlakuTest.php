@@ -4,11 +4,13 @@ namespace Tests\Feature\Rekomendasi;
 
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RenstraPk;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
@@ -38,6 +40,36 @@ class RekomendasiBerlakuTest extends TestCase
 
     public function test_rekomendasi_periode_terakhir_tahun_sebelumnya_berlaku_pada_periode_pertama_jadwal_berikutnya(): void
     {
+        $tw4 = $this->jadwalTahunLalu();
+
+        $this->rekomendasi(2025, $this->pengukuran->periode_id, 'Rekomendasi TW I 2025 bukan periode sebelumnya.', now());
+        $tw4Lalu = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi TW IV 2025.', now()->subDay());
+
+        $this->assertRekomendasiSebelumnya($this->pengukuran, ['id' => $tw4Lalu, 'isi' => 'Rekomendasi TW IV 2025.', 'tahun' => 2025, 'periode_id' => $tw4->id]);
+    }
+
+    public function test_versi_beku_menampilkan_rekomendasi_saat_diajukan_bukan_data_hidup(): void
+    {
+        $tw4 = $this->jadwalTahunLalu();
+        $saatDiajukan = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi saat diajukan.', now()->subDay());
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75, 'progres_kegiatan' => 'Progres.',
+            'kendala_masalah' => 'Kendala.', 'strategi_tindak_lanjut' => 'Strategi.', 'tindak_lanjut_rekomendasi' => 'Ditindaklanjuti.'])->assertSessionHasNoErrors();
+        $this->rekomendasi(2025, $tw4->id, 'Revisi setelah diajukan.', now());
+
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('pengukuran.rekomendasi_sebelumnya.id', $saatDiajukan)->where('pengukuran.rekomendasi_sebelumnya.isi', 'Rekomendasi saat diajukan.')
+            ->where('pengukuran.tindak_lanjut_rekomendasi', 'Ditindaklanjuti.'));
+
+        // Versi lama tanpa key rekomendasi tidak mewarisi rekomendasi hidup.
+        $version = $this->pengukuran->fresh()->latestVersion;
+        KinerjaSnapshot::create([...$version->only(['pengukuran_id', 'rencana_aksi_versi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan']),
+            'nomor' => 2, 'snapshot' => Arr::except($version->snapshot, ['rekomendasi_sebelumnya'])]);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('pengukuran.rekomendasi_sebelumnya', null));
+    }
+
+    /** Jadwal 2025 ditutup dengan TW I dan TW IV yang juga mengukur indikator fixture. */
+    private function jadwalTahunLalu(): Periode
+    {
         $tw4 = Periode::create(['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
         $pk = RenstraPk::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'nomor_pk' => 'PK-2025', 'tanggal_pk' => '2025-01-01', 'created_by' => $this->actor->id]);
         $lalu = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'renstra_pk_id' => $pk->id, 'penutupan' => '2025-12-31', 'status' => 'ditutup', 'activated_at' => now()->subYear()]);
@@ -47,10 +79,7 @@ class RekomendasiBerlakuTest extends TestCase
         JadwalSnapshot::create([...$this->context->only(['indikator_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
             'jadwal_id' => $lalu->id, 'periode_mulai_id' => $this->pengukuran->periode_id]);
 
-        $this->rekomendasi(2025, $this->pengukuran->periode_id, 'Rekomendasi TW I 2025 bukan periode sebelumnya.', now());
-        $tw4Lalu = $this->rekomendasi(2025, $tw4->id, 'Rekomendasi TW IV 2025.', now()->subDay());
-
-        $this->assertRekomendasiSebelumnya($this->pengukuran, ['id' => $tw4Lalu, 'isi' => 'Rekomendasi TW IV 2025.', 'tahun' => 2025, 'periode_id' => $tw4->id]);
+        return $tw4;
     }
 
     /** @param  array<string, mixed>|null  $expected */

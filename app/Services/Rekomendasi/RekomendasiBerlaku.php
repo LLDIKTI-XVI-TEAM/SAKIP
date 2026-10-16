@@ -31,4 +31,17 @@ class RekomendasiBerlaku
 
         return $sebelumnya ? $this->untuk($pengukuran->indikator_id, (int) $sebelumnya->tahun, $sebelumnya->periode_id) : null;
     }
+
+    /**
+     * Bentuk tampilan rekomendasi periode sebelumnya; dibekukan pada versi pengajuan agar tampil berdampingan dengan
+     * tindak lanjut yang dibekukan bersamanya.
+     *
+     * @return array{id: string, isi: string, tahun: int, periode_id: string, disetujui_pada: string}|null
+     */
+    public function tampilanSebelum(PengukuranKinerja $pengukuran): ?array
+    {
+        $rekomendasi = $this->sebelum($pengukuran);
+
+        return $rekomendasi ? [...$rekomendasi->only(['id', 'isi', 'tahun', 'periode_id']), 'disetujui_pada' => $rekomendasi->disetujui_pada->toIso8601String()] : null;
+    }
 }
