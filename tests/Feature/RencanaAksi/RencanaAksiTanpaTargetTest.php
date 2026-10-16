@@ -179,18 +179,23 @@ class RencanaAksiTanpaTargetTest extends TestCase
     }
 
     #[DataProvider('batasAktivasi')]
-    public function test_past_period_uses_activation_business_date(string $activatedAt, bool $expected): void
+    public function test_past_period_uses_activation_business_date(string $activatedAt, bool $expected, int $tahun = 2026): void
     {
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $fixture = $this->buatFixtureManual();
         $fixture['jadwal']->activated_at = $activatedAt;
+        $fixture['jadwal']->tahun = $tahun;
         $window = $fixture['jadwal']->periode()->where('periode_id', $fixture['periode1']->id)->firstOrFail();
+        $window->pengisian_selesai = $window->pengisian_selesai->setYear($tahun);
+        $fixture['snapshot']->setRelation('jadwal', $fixture['jadwal']);
         $this->assertSame($expected, PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal'], $window));
+        $this->assertSame($expected, PeriodeTanpaTarget::bolehTanpaTarget($fixture['snapshot'], $window, $fixture['jadwal']->periode()->with('periode')->get()));
     }
 
     public static function batasAktivasi(): array
     {
-        return ['hari yang sama WITA' => ['2026-03-31 15:59:59', false], 'hari berikutnya WITA' => ['2026-03-31 16:00:00', true]];
+        return ['hari yang sama WITA' => ['2026-03-31 15:59:59', false], 'hari berikutnya WITA' => ['2026-03-31 16:00:00', true],
+            'aktivasi terlambat 2027 tetap normal' => ['2027-03-31 16:00:00', false, 2027]];
     }
 
     /** @return array<string, mixed> */

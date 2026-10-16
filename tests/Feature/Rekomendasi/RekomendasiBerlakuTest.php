@@ -113,6 +113,34 @@ class RekomendasiBerlakuTest extends TestCase
         return ['periode sebelumnya' => [false, null], 'hanya spasi' => [false, '   '], 'lintas tahun' => [true, null]];
     }
 
+    public function test_aktivasi_terlambat_setelah_2026_tetap_mewajibkan_narasi_dan_tindak_lanjut(): void
+    {
+        [, $periodeId] = $this->periodeSebelumnya(false);
+        RenstraPk::whereKey($this->jadwal->renstra_pk_id)->update(['tahun' => 2027, 'tanggal_pk' => '2027-01-01']);
+        $this->jadwal->update(['tahun' => 2027, 'penutupan' => '2027-12-31', 'activated_at' => '2027-03-15 16:00:00']);
+        foreach ($this->jadwal->periode as $window) {
+            $window->update(collect($window->only(['pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai']))
+                ->map(fn ($tanggal) => $tanggal->setYear(2027)->toDateString())->all());
+        }
+        $this->plan->update(['tahun' => 2027]);
+        $kosong = array_fill_keys(PengukuranKinerja::NARASI, null);
+        $this->pengukuran->update(['tahun' => 2027, 'nilai' => 75, 'status_perhitungan' => 'terhitung', ...$kosong]);
+        $this->travelTo(now()->setDate(2027, 3, 16)->setTime(9, 0));
+        $rekomendasi = $this->rekomendasi(2027, $periodeId, 'Rekomendasi tahun berikutnya.', now()->subDay());
+
+        $this->actingAs($this->actor)->get('/pengukuran/'.$this->pengukuran->id.'/edit')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('pengukuran.prasyarat.siap', false)
+                ->has('pengukuran.prasyarat.alasan', 4));
+        $sebelum = $this->pengukuran->fresh()->getRawOriginal();
+        $this->postJson('/pengukuran/'.$this->pengukuran->id, [...$this->pengajuan($rekomendasi), ...$kosong])
+            ->assertUnprocessable()->assertJsonValidationErrors(PengukuranKinerja::NARASI);
+
+        $this->assertSame($sebelum, $this->pengukuran->fresh()->getRawOriginal());
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertDatabaseCount('riwayat_pengukurans', 0);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+    }
+
     #[DataProvider('pengecualianTindakLanjut')]
     public function test_tindak_lanjut_tidak_wajib_tanpa_rekomendasi_disetujui_atau_pada_periode_lampau(string $kondisi): void
     {

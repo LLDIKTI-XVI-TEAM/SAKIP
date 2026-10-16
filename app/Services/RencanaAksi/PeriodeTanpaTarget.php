@@ -10,10 +10,10 @@ use Illuminate\Support\Collection;
 
 class PeriodeTanpaTarget
 {
-    /** Lampau ditentukan saat aktivasi, bukan dari tanggal percobaan pengajuan. */
+    /** Pengecualian Q46 hanya untuk jadwal 2026; lampau ditentukan saat aktivasi, bukan saat pengajuan. */
     public static function isPeriodeLampau(JadwalTahunan $jadwal, ?PeriodeJadwal $periode): bool
     {
-        if (! $jadwal->activated_at || ! $periode || $periode->jadwal_id !== $jadwal->id) {
+        if ($jadwal->tahun !== 2026 || ! $jadwal->activated_at || ! $periode || $periode->jadwal_id !== $jadwal->id) {
             return false;
         }
         $tanggalAktivasi = CarbonImmutable::parse($jadwal->activated_at, 'UTC')->setTimezone('Asia/Makassar')->toDateString();
