@@ -1190,7 +1190,7 @@ Gerbang-gerbang ini **dikecualikan pada periode lampau** (§12.6; semula disebut
 - `status` — enum(`draf`, `disetujui`) (Q51).
 - `disetujui_oleh` (FK → users, nullable), `disetujui_oleh_role` (salinan kode peran penyetuju, untuk penanda persetujuan cadangan), `disetujui_pada` (timestamp, nullable) (Q51 §51.3).
 - `rujukan_sumber` (nullable; Q51 §51.1 butir 5) — rujukan laporan triwulan sumber untuk rekomendasi data awal.
-- `versi` (int) — token konkurensi draf; paling banyak satu draf terbuka per indikator × tahun × periode (Q54).
+- `versi` (int) — token konkurensi draf; paling banyak satu draf terbuka per indikator × tahun × periode (Q55).
 
 Pola "aktif": baris terbaru **berstatus `disetujui`** per (`indikator_id`, `tahun`, `periode_id`) adalah yang berlaku; baris lama tetap sebagai riwayat (soft replace, tidak dihapus) — sama seperti `status_capaian` (§21.2). Perubahan rekomendasi yang sudah disetujui membentuk baris baru dan melalui persetujuan yang sama (Q51 §51.2 butir 3). Draf tidak berlaku dan tidak tampil bagi PIC (Q51 §51.1 butir 2).
 
